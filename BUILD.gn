@@ -1374,6 +1374,8 @@ v8_source_set("v8_base") {
     "src/heap/array-buffer-tracker.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
+    "src/heap/embedder-tracing.cc",
+    "src/heap/embedder-tracing.h",
     "src/heap/gc-idle-time-handler.cc",
     "src/heap/gc-idle-time-handler.h",
     "src/heap/gc-tracer.cc",

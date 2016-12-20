@@ -524,10 +524,10 @@ void IncrementalMarking::StartMarking() {
 
   state_ = MARKING;
 
-  if (heap_->UsingEmbedderHeapTracer()) {
+  {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
-    heap_->embedder_heap_tracer()->TracePrologue();
+    heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 
   RecordWriteStub::Mode mode = is_compacting_
@@ -603,7 +603,7 @@ void IncrementalMarking::MarkObjectGroups() {
   TRACE_GC(heap_->tracer(),
            GCTracer::Scope::MC_INCREMENTAL_FINALIZE_OBJECT_GROUPING);
 
-  DCHECK(!heap_->UsingEmbedderHeapTracer());
+  DCHECK(!heap_->local_embedder_heap_tracer()->InUse());
   DCHECK(!finalize_marking_completed_);
   DCHECK(IsMarking());
 
@@ -736,7 +736,7 @@ void IncrementalMarking::FinalizeIncrementally() {
   // 4) Remove weak cell with live values from the list of weak cells, they
   // do not need processing during GC.
   MarkRoots();
-  if (!heap_->UsingEmbedderHeapTracer()) {
+  if (!heap_->local_embedder_heap_tracer()->InUse()) {
     MarkObjectGroups();
   }
   if (incremental_marking_finalization_rounds_ == 0) {
@@ -750,7 +750,8 @@ void IncrementalMarking::FinalizeIncrementally() {
       abs(old_marking_deque_top -
           heap_->mark_compact_collector()->marking_deque()->top());
 
-  marking_progress += static_cast<int>(heap_->wrappers_to_trace());
+  marking_progress += static_cast<int>(
+      heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
 
   double end = heap_->MonotonicallyIncreasingTimeInMs();
   double delta = end - start;
@@ -1134,10 +1135,12 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
   size_t bytes_processed = 0;
   if (state_ == MARKING) {
     const bool incremental_wrapper_tracing =
-        FLAG_incremental_marking_wrappers && heap_->UsingEmbedderHeapTracer();
+        FLAG_incremental_marking_wrappers &&
+        heap_->local_embedder_heap_tracer()->InUse();
     const bool process_wrappers =
         incremental_wrapper_tracing &&
-        (heap_->RequiresImmediateWrapperProcessing() ||
+        (heap_->local_embedder_heap_tracer()
+             ->RequiresImmediateWrapperProcessing() ||
          heap_->mark_compact_collector()->marking_deque()->IsEmpty());
     bool wrapper_work_left = incremental_wrapper_tracing;
     if (!process_wrappers) {
@@ -1150,8 +1153,7 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
           heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-      heap_->RegisterWrappersWithEmbedderHeapTracer();
-      wrapper_work_left = heap_->embedder_heap_tracer()->AdvanceTracing(
+      wrapper_work_left = heap_->local_embedder_heap_tracer()->Trace(
           wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
                                 EmbedderHeapTracer::ForceCompletionAction::
                                     DO_NOT_FORCE_COMPLETION));

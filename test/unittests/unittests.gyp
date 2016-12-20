@@ -110,6 +110,7 @@
       'libplatform/task-queue-unittest.cc',
       'libplatform/worker-thread-unittest.cc',
       'heap/bitmap-unittest.cc',
+      'heap/embedder-tracing-unittest.cc',
       'heap/gc-idle-time-handler-unittest.cc',
       'heap/gc-tracer-unittest.cc',
       'heap/marking-unittest.cc',

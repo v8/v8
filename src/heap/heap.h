@@ -330,6 +330,7 @@ class HeapObjectsFilter;
 class HeapStats;
 class HistogramTimer;
 class Isolate;
+class LocalEmbedderHeapTracer;
 class MemoryAllocator;
 class MemoryReducer;
 class ObjectIterator;
@@ -1204,24 +1205,12 @@ class Heap {
   // Embedder heap tracer support. =============================================
   // ===========================================================================
 
+  LocalEmbedderHeapTracer* local_embedder_heap_tracer() {
+    return local_embedder_heap_tracer_;
+  }
   void SetEmbedderHeapTracer(EmbedderHeapTracer* tracer);
-
-  bool UsingEmbedderHeapTracer() { return embedder_heap_tracer() != nullptr; }
-
   void TracePossibleWrapper(JSObject* js_object);
-
   void RegisterExternallyReferencedObject(Object** object);
-
-  void RegisterWrappersWithEmbedderHeapTracer();
-
-  // In order to avoid running out of memory we force tracing wrappers if there
-  // are too many of them.
-  bool RequiresImmediateWrapperProcessing();
-
-  EmbedderHeapTracer* embedder_heap_tracer() { return embedder_heap_tracer_; }
-
-  size_t wrappers_to_trace() { return wrappers_to_trace_.size(); }
-  void clear_wrappers_to_trace() { wrappers_to_trace_.clear(); }
 
   // ===========================================================================
   // External string table API. ================================================
@@ -2350,8 +2339,7 @@ class Heap {
   // The depth of HeapIterator nestings.
   int heap_iterator_depth_;
 
-  EmbedderHeapTracer* embedder_heap_tracer_;
-  std::vector<std::pair<void*, void*>> wrappers_to_trace_;
+  LocalEmbedderHeapTracer* local_embedder_heap_tracer_;
 
   // Used for testing purposes.
   bool force_oom_;

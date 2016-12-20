@@ -20,6 +20,7 @@
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-stats.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
@@ -155,7 +156,7 @@ Heap::Heap()
       deserialization_complete_(false),
       strong_roots_list_(NULL),
       heap_iterator_depth_(0),
-      embedder_heap_tracer_(nullptr),
+      local_embedder_heap_tracer_(nullptr),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
@@ -1608,12 +1609,7 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
-  if (UsingEmbedderHeapTracer()) {
-    // Register found wrappers with embedder so it can add them to its marking
-    // deque and correctly manage the case when v8 scavenger collects the
-    // wrappers by either keeping wrappables alive, or cleaning marking deque.
-    RegisterWrappersWithEmbedderHeapTracer();
-  }
+  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -4182,9 +4178,7 @@ void Heap::ReduceNewSpaceSize() {
 
 bool Heap::MarkingDequesAreEmpty() {
   return mark_compact_collector()->marking_deque()->IsEmpty() &&
-         (!UsingEmbedderHeapTracer() ||
-          (wrappers_to_trace() == 0 &&
-           embedder_heap_tracer()->NumberOfWrappersToTrace() == 0));
+         local_embedder_heap_tracer()->NumberOfWrappersToTrace() == 0;
 }
 
 void Heap::FinalizeIncrementalMarkingIfComplete(
@@ -5499,6 +5493,7 @@ bool Heap::SetUp() {
     dead_object_stats_ = new ObjectStats(this);
   }
   scavenge_job_ = new ScavengeJob();
+  local_embedder_heap_tracer_ = new LocalEmbedderHeapTracer();
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
@@ -5574,16 +5569,7 @@ void Heap::NotifyDeserializationComplete() {
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   DCHECK_EQ(gc_state_, HeapState::NOT_IN_GC);
-  embedder_heap_tracer_ = tracer;
-}
-
-void Heap::RegisterWrappersWithEmbedderHeapTracer() {
-  DCHECK(UsingEmbedderHeapTracer());
-  if (wrappers_to_trace_.empty()) {
-    return;
-  }
-  embedder_heap_tracer()->RegisterV8References(wrappers_to_trace_);
-  wrappers_to_trace_.clear();
+  local_embedder_heap_tracer()->SetRemoteTracer(tracer);
 }
 
 void Heap::TracePossibleWrapper(JSObject* js_object) {
@@ -5593,15 +5579,10 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
       js_object->GetInternalField(0) != undefined_value() &&
       js_object->GetInternalField(1) != undefined_value()) {
     DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
-    wrappers_to_trace_.push_back(std::pair<void*, void*>(
+    local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
         reinterpret_cast<void*>(js_object->GetInternalField(0)),
         reinterpret_cast<void*>(js_object->GetInternalField(1))));
   }
-}
-
-bool Heap::RequiresImmediateWrapperProcessing() {
-  const size_t kTooManyWrappers = 16000;
-  return wrappers_to_trace_.size() > kTooManyWrappers;
 }
 
 void Heap::RegisterExternallyReferencedObject(Object** object) {
@@ -5679,6 +5660,9 @@ void Heap::TearDown() {
     delete dead_object_stats_;
     dead_object_stats_ = nullptr;
   }
+
+  delete local_embedder_heap_tracer_;
+  local_embedder_heap_tracer_ = nullptr;
 
   delete scavenge_job_;
   scavenge_job_ = nullptr;
