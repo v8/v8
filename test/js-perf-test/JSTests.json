@@ -9,6 +9,18 @@
   "resources": ["base.js"],
   "tests": [
     {
+      "name": "AsyncAwait",
+      "path": ["AsyncAwait"],
+      "main": "run.js",
+      "resources": [
+        "native.js",
+        "baseline-babel-es2017.js",
+        "baseline-naive-promises.js"
+      ],
+      "flags": ["--allow-natives-syntax"],
+      "results_regexp": "^%s\\-AsyncAwait\\(Score\\): (.+)$"
+    },
+    {
       "name": "Generators",
       "path": ["Generators"],
       "main": "run.js",
