@@ -216,14 +216,21 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_STAGED(V)                                          \
   HARMONY_STAGED_BASE(V)                                           \
-  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts") \
   V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V) V(harmony_async_await, "harmony async-await")
+#define HARMONY_SHIPPING_BASE(V) V(harmony_async_await, "harmony async-await")
+
+#ifdef V8_I18N_SUPPORT
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts")
+#else
+#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#endif
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
