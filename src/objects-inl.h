@@ -1102,13 +1102,6 @@ MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
 }
 
 // static
-MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
-                                          Handle<Object> value) {
-  if (value->IsSmi() || HeapObject::cast(*value)->IsName()) return value;
-  return ConvertToPropertyKey(isolate, value);
-}
-
-// static
 MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
                                         ToPrimitiveHint hint) {
   if (input->IsPrimitive()) return input;
@@ -1143,22 +1136,6 @@ MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
 MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
   if (input->IsString()) return Handle<String>::cast(input);
   return ConvertToString(isolate, input);
-}
-
-// static
-MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
-  if (input->IsSmi()) {
-    int value = std::max(Smi::cast(*input)->value(), 0);
-    return handle(Smi::FromInt(value), isolate);
-  }
-  return ConvertToLength(isolate, input);
-}
-
-// static
-MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
-                                    MessageTemplate::Template error_index) {
-  if (input->IsSmi() && Smi::cast(*input)->value() >= 0) return input;
-  return ConvertToIndex(isolate, input, error_index);
 }
 
 bool Object::HasSpecificClassOf(String* name) {

@@ -203,31 +203,6 @@ MaybeHandle<Name> Object::ConvertToName(Isolate* isolate,
   return ToString(isolate, input);
 }
 
-// ES6 7.1.14
-// static
-MaybeHandle<Object> Object::ConvertToPropertyKey(Isolate* isolate,
-                                                 Handle<Object> value) {
-  // 1. Let key be ToPrimitive(argument, hint String).
-  MaybeHandle<Object> maybe_key =
-      Object::ToPrimitive(value, ToPrimitiveHint::kString);
-  // 2. ReturnIfAbrupt(key).
-  Handle<Object> key;
-  if (!maybe_key.ToHandle(&key)) return key;
-  // 3. If Type(key) is Symbol, then return key.
-  if (key->IsSymbol()) return key;
-  // 4. Return ToString(key).
-  // Extending spec'ed behavior, we'd be happy to return an element index.
-  if (key->IsSmi()) return key;
-  if (key->IsHeapNumber()) {
-    uint32_t uint_value;
-    if (value->ToArrayLength(&uint_value) &&
-        uint_value <= static_cast<uint32_t>(Smi::kMaxValue)) {
-      return handle(Smi::FromInt(static_cast<int>(uint_value)), isolate);
-    }
-  }
-  return Object::ToString(isolate, key);
-}
-
 // static
 MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
                                             Handle<Object> input) {
@@ -408,16 +383,11 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
-                                            Handle<Object> input) {
+MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
-  if (input->IsSmi()) {
-    int value = std::max(Smi::cast(*input)->value(), 0);
-    return handle(Smi::FromInt(value), isolate);
-  }
   double len = DoubleToInteger(input->Number());
   if (len <= 0.0) {
-    return handle(Smi::kZero, isolate);
+    len = 0.0;
   } else if (len >= kMaxSafeInteger) {
     len = kMaxSafeInteger;
   }
@@ -425,12 +395,10 @@ MaybeHandle<Object> Object::ConvertToLength(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ConvertToIndex(
-    Isolate* isolate, Handle<Object> input,
-    MessageTemplate::Template error_index) {
-  if (input->IsUndefined(isolate)) return handle(Smi::kZero, isolate);
+MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
+                                    MessageTemplate::Template error_index) {
+  if (input->IsUndefined(isolate)) return isolate->factory()->NewNumber(0.0);
   ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ToNumber(input), Object);
-  if (input->IsSmi() && Smi::cast(*input)->value() >= 0) return input;
   double len = DoubleToInteger(input->Number()) + 0.0;
   auto js_len = isolate->factory()->NewNumber(len);
   if (len < 0.0 || len > kMaxSafeInteger) {
@@ -6524,6 +6492,33 @@ Maybe<bool> JSReceiver::DeletePropertyOrElement(Handle<JSReceiver> object,
       name->GetIsolate(), object, name, object, LookupIterator::OWN);
   return DeleteProperty(&it, language_mode);
 }
+
+
+// ES6 7.1.14
+// static
+MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
+                                          Handle<Object> value) {
+  // 1. Let key be ToPrimitive(argument, hint String).
+  MaybeHandle<Object> maybe_key =
+      Object::ToPrimitive(value, ToPrimitiveHint::kString);
+  // 2. ReturnIfAbrupt(key).
+  Handle<Object> key;
+  if (!maybe_key.ToHandle(&key)) return key;
+  // 3. If Type(key) is Symbol, then return key.
+  if (key->IsSymbol()) return key;
+  // 4. Return ToString(key).
+  // Extending spec'ed behavior, we'd be happy to return an element index.
+  if (key->IsSmi()) return key;
+  if (key->IsHeapNumber()) {
+    uint32_t uint_value;
+    if (value->ToArrayLength(&uint_value) &&
+        uint_value <= static_cast<uint32_t>(Smi::kMaxValue)) {
+      return handle(Smi::FromInt(static_cast<int>(uint_value)), isolate);
+    }
+  }
+  return Object::ToString(isolate, key);
+}
+
 
 // ES6 19.1.2.4
 // static

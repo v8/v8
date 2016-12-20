@@ -174,7 +174,8 @@ MaybeHandle<Object> RegExpUtils::SetAdvancedStringIndex(
 
   ASSIGN_RETURN_ON_EXCEPTION(isolate, last_index_obj,
                              Object::ToLength(isolate, last_index_obj), Object);
-  const int last_index = PositiveNumberToUint32(*last_index_obj);
+
+  const int last_index = Handle<Smi>::cast(last_index_obj)->value();
   const int new_last_index =
       AdvanceStringIndex(isolate, string, last_index, unicode);
 

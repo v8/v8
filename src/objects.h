@@ -1313,15 +1313,15 @@ class Object {
                                               Handle<Object> input);
 
   // ES6 section 7.1.14 ToPropertyKey
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToPropertyKey(
+  MUST_USE_RESULT static MaybeHandle<Object> ToPropertyKey(
       Isolate* isolate, Handle<Object> value);
 
   // ES6 section 7.1.15 ToLength
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToLength(
-      Isolate* isolate, Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ToLength(Isolate* isolate,
+                                                      Handle<Object> input);
 
   // ES6 section 7.1.17 ToIndex
-  MUST_USE_RESULT static inline MaybeHandle<Object> ToIndex(
+  MUST_USE_RESULT static MaybeHandle<Object> ToIndex(
       Isolate* isolate, Handle<Object> input,
       MessageTemplate::Template error_index);
 
@@ -1556,8 +1556,6 @@ class Object {
 
   MUST_USE_RESULT static MaybeHandle<Name> ConvertToName(Isolate* isolate,
                                                          Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToPropertyKey(
-      Isolate* isolate, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<String> ConvertToString(
       Isolate* isolate, Handle<Object> input);
   MUST_USE_RESULT static MaybeHandle<Object> ConvertToNumber(
@@ -1568,12 +1566,6 @@ class Object {
       Isolate* isolate, Handle<Object> input);
   MUST_USE_RESULT static MaybeHandle<Object> ConvertToUint32(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToLength(
-      Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToIndex(
-      Isolate* isolate, Handle<Object> input,
-      MessageTemplate::Template error_index);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
 };
 
