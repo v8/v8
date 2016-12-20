@@ -121,6 +121,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateBlockContext(factory->NewScopeInfo(1));
   builder.CreateCatchContext(reg, name, factory->NewScopeInfo(1));
   builder.CreateFunctionContext(1);
+  builder.CreateEvalContext(1);
   builder.CreateWithContext(reg, factory->NewScopeInfo(1));
 
   // Emit literal creation operations.

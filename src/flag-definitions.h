@@ -1148,6 +1148,9 @@ DEFINE_BOOL(test_secondary_stub_cache, false,
 DEFINE_BOOL(test_primary_stub_cache, false,
             "test primary stub cache by disabling the secondary one")
 
+DEFINE_BOOL(test_small_max_function_context_stub_size, false,
+            "enable testing the function context size overflow path "
+            "by making the maximum size smaller")
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_BOOL(print_code, false, "print generated code")

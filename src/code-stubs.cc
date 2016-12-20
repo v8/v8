@@ -2592,9 +2592,15 @@ void FastNewClosureStub::GenerateAssembly(
 }
 
 // static
+int FastNewFunctionContextStub::MaximumSlots() {
+  return FLAG_test_small_max_function_context_stub_size ? kSmallMaximumSlots
+                                                        : kMaximumSlots;
+}
+
+// static
 compiler::Node* FastNewFunctionContextStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* function,
-    compiler::Node* slots, compiler::Node* context) {
+    compiler::Node* slots, compiler::Node* context, ScopeType scope_type) {
   typedef compiler::Node Node;
 
   slots = assembler->ChangeUint32ToWord(slots);
@@ -2610,8 +2616,18 @@ compiler::Node* FastNewFunctionContextStub::Generate(
   // Create a new closure from the given function info in new space
   Node* function_context = assembler->Allocate(size);
 
-  assembler->StoreMapNoWriteBarrier(function_context,
-                                    Heap::kFunctionContextMapRootIndex);
+  Heap::RootListIndex context_type;
+  switch (scope_type) {
+    case EVAL_SCOPE:
+      context_type = Heap::kEvalContextMapRootIndex;
+      break;
+    case FUNCTION_SCOPE:
+      context_type = Heap::kFunctionContextMapRootIndex;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  assembler->StoreMapNoWriteBarrier(function_context, context_type);
   assembler->StoreObjectFieldNoWriteBarrier(
       function_context, Context::kLengthOffset, assembler->SmiTag(length));
 
@@ -2651,7 +2667,8 @@ void FastNewFunctionContextStub::GenerateAssembly(
   Node* slots = assembler.Parameter(Descriptor::kSlots);
   Node* context = assembler.Parameter(Descriptor::kContext);
 
-  assembler.Return(Generate(&assembler, function, slots, context));
+  assembler.Return(
+      Generate(&assembler, function, slots, context, scope_type()));
 }
 
 // static

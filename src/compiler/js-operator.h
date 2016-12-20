@@ -241,6 +241,33 @@ std::ostream& operator<<(std::ostream& os,
 CreateCatchContextParameters const& CreateCatchContextParametersOf(
     Operator const*);
 
+// Defines the slot count and ScopeType for a new function or eval context. This
+// is used as a parameter by the JSCreateFunctionContext operator.
+class CreateFunctionContextParameters final {
+ public:
+  CreateFunctionContextParameters(int slot_count, ScopeType scope_type);
+
+  int slot_count() const { return slot_count_; }
+  ScopeType scope_type() const { return scope_type_; }
+
+ private:
+  int const slot_count_;
+  ScopeType const scope_type_;
+};
+
+bool operator==(CreateFunctionContextParameters const& lhs,
+                CreateFunctionContextParameters const& rhs);
+bool operator!=(CreateFunctionContextParameters const& lhs,
+                CreateFunctionContextParameters const& rhs);
+
+size_t hash_value(CreateFunctionContextParameters const& parameters);
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateFunctionContextParameters const& parameters);
+
+CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
+    Operator const*);
+
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
 class NamedAccess final {
@@ -555,7 +582,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* StackCheck();
 
-  const Operator* CreateFunctionContext(int slot_count);
+  const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,
                                      const Handle<ScopeInfo>& scope_info);
   const Operator* CreateWithContext(const Handle<ScopeInfo>& scope_info);

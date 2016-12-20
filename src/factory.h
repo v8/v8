@@ -300,8 +300,9 @@ class V8_EXPORT_PRIVATE Factory final {
                                    Handle<JSFunction> function,
                                    Handle<ScopeInfo> scope_info);
 
-  // Create a function context.
-  Handle<Context> NewFunctionContext(int length, Handle<JSFunction> function);
+  // Create a function or eval context.
+  Handle<Context> NewFunctionContext(int length, Handle<JSFunction> function,
+                                     ScopeType scope_type);
 
   // Create a catch context.
   Handle<Context> NewCatchContext(Handle<JSFunction> function,

@@ -611,6 +611,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateFunctionContext(int slots) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEvalContext(int slots) {
+  OutputCreateEvalContext(slots);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateWithContext(
     Register object, Handle<ScopeInfo> scope_info) {
   size_t scope_info_index = GetConstantPoolEntry(scope_info);

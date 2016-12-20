@@ -2427,7 +2427,8 @@ Node* AstGraphBuilder::BuildLocalFunctionContext(Scope* scope) {
 
   // Allocate a new local context.
   int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-  const Operator* op = javascript()->CreateFunctionContext(slot_count);
+  const Operator* op =
+      javascript()->CreateFunctionContext(slot_count, scope->scope_type());
   Node* local_context = NewNode(op, GetFunctionClosure());
 
   return local_context;

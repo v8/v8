@@ -497,7 +497,7 @@ namespace internal {
   F(NewClosure, 1, 1)                   \
   F(NewClosure_Tenured, 1, 1)           \
   F(NewScriptContext, 2, 1)             \
-  F(NewFunctionContext, 1, 1)           \
+  F(NewFunctionContext, 2, 1)           \
   F(PushModuleContext, 3, 1)            \
   F(PushWithContext, 3, 1)              \
   F(PushCatchContext, 4, 1)             \

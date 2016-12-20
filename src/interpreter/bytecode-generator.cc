@@ -3012,12 +3012,26 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
         .StoreAccumulatorInRegister(args[2])
         .CallRuntime(Runtime::kPushModuleContext, args);
   } else {
+    DCHECK(scope->is_function_scope() || scope->is_eval_scope());
     int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (slot_count <= FastNewFunctionContextStub::kMaximumSlots) {
-      builder()->CreateFunctionContext(slot_count);
+    if (slot_count <= FastNewFunctionContextStub::MaximumSlots()) {
+      switch (scope->scope_type()) {
+        case EVAL_SCOPE:
+          builder()->CreateEvalContext(slot_count);
+          break;
+        case FUNCTION_SCOPE:
+          builder()->CreateFunctionContext(slot_count);
+          break;
+        default:
+          UNREACHABLE();
+      }
     } else {
-      builder()->CallRuntime(Runtime::kNewFunctionContext,
-                             Register::function_closure());
+      RegisterList args = register_allocator()->NewRegisterList(2);
+      builder()
+          ->MoveRegister(Register::function_closure(), args[0])
+          .LoadLiteral(Smi::FromInt(scope->scope_type()))
+          .StoreAccumulatorInRegister(args[1])
+          .CallRuntime(Runtime::kNewFunctionContext, args);
     }
   }
 }

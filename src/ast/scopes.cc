@@ -376,17 +376,16 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       }
       DCHECK(!scope_info->HasOuterScopeInfo());
       break;
-    } else if (scope_info->scope_type() == FUNCTION_SCOPE ||
-               scope_info->scope_type() == EVAL_SCOPE) {
-      // TODO(neis): For an eval scope, we currently create an ordinary function
-      // context.  This is wrong and needs to be fixed.
-      // https://bugs.chromium.org/p/v8/issues/detail?id=5295
+    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope =
           new (zone) DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info));
       if (scope_info->IsAsmFunction())
         outer_scope->AsDeclarationScope()->set_asm_function();
       if (scope_info->IsAsmModule())
         outer_scope->AsDeclarationScope()->set_asm_module();
+    } else if (scope_info->scope_type() == EVAL_SCOPE) {
+      outer_scope =
+          new (zone) DeclarationScope(zone, EVAL_SCOPE, handle(scope_info));
     } else if (scope_info->scope_type() == BLOCK_SCOPE) {
       if (scope_info->is_declaration_scope()) {
         outer_scope =

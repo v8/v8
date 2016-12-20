@@ -77,6 +77,7 @@ using v8::MemoryPressureLevel;
   /* Context maps */                                                           \
   V(Map, native_context_map, NativeContextMap)                                 \
   V(Map, module_context_map, ModuleContextMap)                                 \
+  V(Map, eval_context_map, EvalContextMap)                                     \
   V(Map, script_context_map, ScriptContextMap)                                 \
   V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, catch_context_map, CatchContextMap)                                   \
@@ -302,6 +303,7 @@ using v8::MemoryPressureLevel;
   V(WithContextMap)                     \
   V(BlockContextMap)                    \
   V(ModuleContextMap)                   \
+  V(EvalContextMap)                     \
   V(ScriptContextMap)                   \
   V(UndefinedMap)                       \
   V(TheHoleMap)                         \

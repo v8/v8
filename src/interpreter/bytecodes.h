@@ -215,6 +215,7 @@ namespace interpreter {
   V(CreateCatchContext, AccumulatorUse::kReadWrite, OperandType::kReg,         \
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(CreateFunctionContext, AccumulatorUse::kWrite, OperandType::kUImm)         \
+  V(CreateEvalContext, AccumulatorUse::kWrite, OperandType::kUImm)             \
   V(CreateWithContext, AccumulatorUse::kReadWrite, OperandType::kReg,          \
     OperandType::kIdx)                                                         \
                                                                                \

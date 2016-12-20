@@ -811,26 +811,37 @@ class FastNewClosureStub : public TurboFanCodeStub {
 
 class FastNewFunctionContextStub final : public TurboFanCodeStub {
  public:
-  static const int kMaximumSlots = 0x8000;
+  static int MaximumSlots();
 
-  explicit FastNewFunctionContextStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
+  explicit FastNewFunctionContextStub(Isolate* isolate, ScopeType scope_type)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = ScopeTypeBits::encode(scope_type);
+  }
 
   static compiler::Node* Generate(CodeStubAssembler* assembler,
                                   compiler::Node* function,
                                   compiler::Node* slots,
-                                  compiler::Node* context);
+                                  compiler::Node* context,
+                                  ScopeType scope_type);
+
+  ScopeType scope_type() const {
+    return static_cast<ScopeType>(ScopeTypeBits::decode(minor_key_));
+  }
 
  private:
+  static const int kMaximumSlots = 0x8000;
+  static const int kSmallMaximumSlots = 10;
+
   // FastNewFunctionContextStub can only allocate closures which fit in the
   // new space.
   STATIC_ASSERT(((kMaximumSlots + Context::MIN_CONTEXT_SLOTS) * kPointerSize +
                  FixedArray::kHeaderSize) < kMaxRegularHeapObjectSize);
 
+  class ScopeTypeBits : public BitField<bool, 0, 8> {};
+
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
   DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
 };
-
 
 class FastNewObjectStub final : public PlatformCodeStub {
  public:

@@ -1138,7 +1138,15 @@ void BytecodeGraphBuilder::VisitCreateBlockContext() {
 
 void BytecodeGraphBuilder::VisitCreateFunctionContext() {
   uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(0);
-  const Operator* op = javascript()->CreateFunctionContext(slots);
+  const Operator* op =
+      javascript()->CreateFunctionContext(slots, FUNCTION_SCOPE);
+  Node* context = NewNode(op, GetFunctionClosure());
+  environment()->BindAccumulator(context);
+}
+
+void BytecodeGraphBuilder::VisitCreateEvalContext() {
+  uint32_t slots = bytecode_iterator().GetUnsignedImmediateOperand(0);
+  const Operator* op = javascript()->CreateFunctionContext(slots, EVAL_SCOPE);
   Node* context = NewNode(op, GetFunctionClosure());
   environment()->BindAccumulator(context);
 }

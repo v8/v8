@@ -898,13 +898,24 @@ Handle<Context> Factory::NewModuleContext(Handle<Module> module,
   return context;
 }
 
-
 Handle<Context> Factory::NewFunctionContext(int length,
-                                            Handle<JSFunction> function) {
-  DCHECK(function->shared()->scope_info()->scope_type() == FUNCTION_SCOPE);
+                                            Handle<JSFunction> function,
+                                            ScopeType scope_type) {
+  DCHECK(function->shared()->scope_info()->scope_type() == scope_type);
   DCHECK(length >= Context::MIN_CONTEXT_SLOTS);
   Handle<FixedArray> array = NewFixedArray(length);
-  array->set_map_no_write_barrier(*function_context_map());
+  Handle<Map> map;
+  switch (scope_type) {
+    case EVAL_SCOPE:
+      map = eval_context_map();
+      break;
+    case FUNCTION_SCOPE:
+      map = function_context_map();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  array->set_map_no_write_barrier(*map);
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_closure(*function);
   context->set_previous(function->context());

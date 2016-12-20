@@ -559,6 +559,7 @@ class Context: public FixedArray {
   inline bool IsDebugEvaluateContext();
   inline bool IsBlockContext();
   inline bool IsModuleContext();
+  inline bool IsEvalContext();
   inline bool IsScriptContext();
 
   inline bool HasSameSecurityTokenAs(Context* that);

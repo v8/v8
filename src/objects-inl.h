@@ -406,7 +406,7 @@ bool HeapObject::IsContext() const {
       map == heap->function_context_map() || map == heap->catch_context_map() ||
       map == heap->with_context_map() || map == heap->native_context_map() ||
       map == heap->block_context_map() || map == heap->module_context_map() ||
-      map == heap->script_context_map() ||
+      map == heap->eval_context_map() || map == heap->script_context_map() ||
       map == heap->debug_evaluate_context_map());
 }
 

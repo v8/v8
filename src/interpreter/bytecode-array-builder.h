@@ -176,6 +176,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
 
+  // Create a new eval context with size |slots|.
+  BytecodeArrayBuilder& CreateEvalContext(int slots);
+
   // Creates a new context with the given |scope_info| for a with-statement
   // with the |object| in a register and the closure in the accumulator.
   BytecodeArrayBuilder& CreateWithContext(Register object,

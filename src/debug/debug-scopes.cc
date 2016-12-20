@@ -271,7 +271,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
         DCHECK(!scope_info->HasContext() || context_->IsBlockContext());
         return ScopeTypeBlock;
       case EVAL_SCOPE:
-        DCHECK(!scope_info->HasContext() || context_->IsFunctionContext());
+        DCHECK(!scope_info->HasContext() || context_->IsEvalContext());
         return ScopeTypeEval;
     }
     UNREACHABLE();
@@ -282,7 +282,7 @@ ScopeIterator::ScopeType ScopeIterator::Type() {
     // fake it.
     return seen_script_scope_ ? ScopeTypeGlobal : ScopeTypeScript;
   }
-  if (context_->IsFunctionContext()) {
+  if (context_->IsFunctionContext() || context_->IsEvalContext()) {
     return ScopeTypeClosure;
   }
   if (context_->IsCatchContext()) {
@@ -374,10 +374,9 @@ Handle<ScopeInfo> ScopeIterator::CurrentScopeInfo() {
   DCHECK(!Done());
   if (!nested_scope_chain_.is_empty()) {
     return nested_scope_chain_.last().scope_info;
-  } else if (context_->IsBlockContext()) {
+  } else if (context_->IsBlockContext() || context_->IsFunctionContext() ||
+             context_->IsEvalContext()) {
     return Handle<ScopeInfo>(context_->scope_info());
-  } else if (context_->IsFunctionContext()) {
-    return Handle<ScopeInfo>(context_->closure()->shared()->scope_info());
   }
   return Handle<ScopeInfo>::null();
 }
@@ -529,7 +528,7 @@ MaybeHandle<JSObject> ScopeIterator::MaterializeLocalScope() {
 // context.
 Handle<JSObject> ScopeIterator::MaterializeClosure() {
   Handle<Context> context = CurrentContext();
-  DCHECK(context->IsFunctionContext());
+  DCHECK(context->IsFunctionContext() || context->IsEvalContext());
 
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
@@ -727,7 +726,8 @@ bool ScopeIterator::SetInnerScopeVariableValue(Handle<String> variable_name,
 // This method copies structure of MaterializeClosure method above.
 bool ScopeIterator::SetClosureVariableValue(Handle<String> variable_name,
                                             Handle<Object> new_value) {
-  DCHECK(CurrentContext()->IsFunctionContext());
+  DCHECK(CurrentContext()->IsFunctionContext() ||
+         CurrentContext()->IsEvalContext());
   return SetContextVariableValue(CurrentScopeInfo(), CurrentContext(),
                                  variable_name, new_value);
 }

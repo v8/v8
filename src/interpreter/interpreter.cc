@@ -2452,8 +2452,20 @@ void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* slots = __ BytecodeOperandUImm(0);
   Node* context = __ GetContext();
-  __ SetAccumulator(
-      FastNewFunctionContextStub::Generate(assembler, closure, slots, context));
+  __ SetAccumulator(FastNewFunctionContextStub::Generate(
+      assembler, closure, slots, context, FUNCTION_SCOPE));
+  __ Dispatch();
+}
+
+// CreateEvalContext <slots>
+//
+// Creates a new context with number of |slots| for an eval closure.
+void Interpreter::DoCreateEvalContext(InterpreterAssembler* assembler) {
+  Node* closure = __ LoadRegister(Register::function_closure());
+  Node* slots = __ BytecodeOperandUImm(0);
+  Node* context = __ GetContext();
+  __ SetAccumulator(FastNewFunctionContextStub::Generate(
+      assembler, closure, slots, context, EVAL_SCOPE));
   __ Dispatch();
 }
 

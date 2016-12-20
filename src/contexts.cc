@@ -61,6 +61,7 @@ bool Context::is_declaration_context() {
       IsModuleContext()) {
     return true;
   }
+  if (IsEvalContext()) return closure()->shared()->language_mode() == STRICT;
   if (!IsBlockContext()) return false;
   Object* ext = extension();
   // If we have the special extension, we immediately know it must be a
@@ -74,7 +75,6 @@ Context* Context::declaration_context() {
   Context* current = this;
   while (!current->is_declaration_context()) {
     current = current->previous();
-    DCHECK(current->closure() == closure());
   }
   return current;
 }
@@ -82,7 +82,8 @@ Context* Context::declaration_context() {
 Context* Context::closure_context() {
   Context* current = this;
   while (!current->IsFunctionContext() && !current->IsScriptContext() &&
-         !current->IsModuleContext() && !current->IsNativeContext()) {
+         !current->IsModuleContext() && !current->IsNativeContext() &&
+         !current->IsEvalContext()) {
     current = current->previous();
     DCHECK(current->closure() == closure());
   }
@@ -90,7 +91,8 @@ Context* Context::closure_context() {
 }
 
 JSObject* Context::extension_object() {
-  DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext());
+  DCHECK(IsNativeContext() || IsFunctionContext() || IsBlockContext() ||
+         IsEvalContext());
   HeapObject* object = extension();
   if (object->IsTheHole(GetIsolate())) return nullptr;
   if (IsBlockContext()) {
@@ -103,7 +105,7 @@ JSObject* Context::extension_object() {
 }
 
 JSReceiver* Context::extension_receiver() {
-  DCHECK(IsNativeContext() || IsWithContext() ||
+  DCHECK(IsNativeContext() || IsWithContext() || IsEvalContext() ||
          IsFunctionContext() || IsBlockContext());
   return IsWithContext() ? JSReceiver::cast(
                                ContextExtension::cast(extension())->extension())
@@ -112,7 +114,7 @@ JSReceiver* Context::extension_receiver() {
 
 ScopeInfo* Context::scope_info() {
   DCHECK(!IsNativeContext());
-  if (IsFunctionContext() || IsModuleContext()) {
+  if (IsFunctionContext() || IsModuleContext() || IsEvalContext()) {
     return closure()->shared()->scope_info();
   }
   HeapObject* object = extension();
@@ -223,6 +225,8 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     }
 
     // 1. Check global objects, subjects of with, and extension objects.
+    DCHECK_IMPLIES(context->IsEvalContext(),
+                   context->extension()->IsTheHole(isolate));
     if ((context->IsNativeContext() ||
          (context->IsWithContext() && ((flags & SKIP_WITH_CONTEXT) == 0)) ||
          context->IsFunctionContext() || context->IsBlockContext()) &&
@@ -301,12 +305,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
     // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext() ||
-        context->IsScriptContext()) {
+        context->IsScriptContext() || context->IsEvalContext()) {
       // Use serialized scope information of functions and blocks to search
       // for the context index.
-      Handle<ScopeInfo> scope_info(context->IsFunctionContext()
-          ? context->closure()->shared()->scope_info()
-          : context->scope_info());
+      Handle<ScopeInfo> scope_info(context->scope_info());
       VariableMode mode;
       InitializationFlag flag;
       MaybeAssignedFlag maybe_assigned_flag;

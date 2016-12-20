@@ -21,3 +21,6 @@ assertEquals(2, my_global);
         my_global = foo;`);
   assertEquals(4, my_global);
 })();
+
+eval("let foo = 1; function lazy() { foo = 2; } lazy(); my_global = foo;");
+assertEquals(my_global, 2);
