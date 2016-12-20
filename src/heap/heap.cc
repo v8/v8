@@ -3234,16 +3234,15 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
     CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
-  }
-
-  // Clear the mark bits of the black area that belongs now to the filler.
-  // This is an optimization. The sweeper will release black fillers anyway.
-  if (incremental_marking()->black_allocation() &&
-      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(new_end))) {
-    Page* page = Page::FromAddress(new_end);
-    page->markbits()->ClearRange(
-        page->AddressToMarkbitIndex(new_end),
-        page->AddressToMarkbitIndex(new_end + bytes_to_trim));
+    // Clear the mark bits of the black area that belongs now to the filler.
+    // This is an optimization. The sweeper will release black fillers anyway.
+    if (incremental_marking()->black_allocation() &&
+        Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(new_end))) {
+      Page* page = Page::FromAddress(new_end);
+      page->markbits()->ClearRange(
+          page->AddressToMarkbitIndex(new_end),
+          page->AddressToMarkbitIndex(new_end + bytes_to_trim));
+    }
   }
 
   // Initialize header of the trimmed array. We are storing the new length
