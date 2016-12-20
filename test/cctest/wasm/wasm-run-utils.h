@@ -267,15 +267,16 @@ class TestingModule : public ModuleEnv {
   }
 
   uint32_t AddBytes(Vector<const byte> bytes) {
-    Handle<SeqOneByteString> old_bytes =
-        instance_object_->get_compiled_module()->module_bytes();
+    Handle<SeqOneByteString> old_bytes(
+        instance_object_->compiled_module()->module_bytes(), isolate_);
     uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
     ScopedVector<byte> new_bytes(old_size + bytes.length());
     memcpy(new_bytes.start(), old_bytes->GetChars(), old_size);
     memcpy(new_bytes.start() + old_size, bytes.start(), bytes.length());
     Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
         isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
-    instance_object_->get_compiled_module()->set_module_bytes(new_bytes_str);
+    instance_object_->compiled_module()->shared()->set_module_bytes(
+        *new_bytes_str);
     return old_size;
   }
 
@@ -308,18 +309,23 @@ class TestingModule : public ModuleEnv {
   }
 
   Handle<WasmInstanceObject> InitInstanceObject() {
+    Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
+        isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
     Handle<Managed<wasm::WasmModule>> module_wrapper =
         Managed<wasm::WasmModule>::New(isolate_, &module_, false);
+    Handle<Script> script =
+        isolate_->factory()->NewScript(isolate_->factory()->empty_string());
+    script->set_type(Script::TYPE_WASM);
+    Handle<WasmSharedModuleData> shared_module_data =
+        WasmSharedModuleData::New(isolate_, module_wrapper, empty_string,
+                                  script, Handle<ByteArray>::null());
     Handle<WasmCompiledModule> compiled_module =
-        WasmCompiledModule::New(isolate_, module_wrapper);
+        WasmCompiledModule::New(isolate_, shared_module_data);
     // Minimally initialize the compiled module such that IsWasmCompiledModule
     // passes.
     // If tests need more (correct) information, add it later.
     compiled_module->set_min_mem_pages(0);
     compiled_module->set_max_mem_pages(Smi::kMaxValue);
-    Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
-        isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
-    compiled_module->set_module_bytes(empty_string);
     DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
     return WasmInstanceObject::New(isolate_, compiled_module);
   }

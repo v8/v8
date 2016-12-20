@@ -221,7 +221,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   MaybeHandle<WasmCompiledModule> CompileFunctions(
       Isolate* isolate, Handle<Managed<WasmModule>> module_wrapper,
-      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes) const;
+      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+      Handle<Script> asm_js_script,
+      Vector<const byte> asm_js_offset_table_bytes) const;
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
@@ -392,7 +394,7 @@ Handle<Script> GetScript(Handle<JSObject> instance);
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
     ModuleOrigin origin, Handle<Script> asm_js_script,
-    const byte* asm_offset_tables_start, const byte* asm_offset_tables_end);
+    Vector<const byte> asm_offset_table);
 
 V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            const byte* end,

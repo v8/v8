@@ -13,33 +13,11 @@
 using namespace v8::internal;
 using namespace v8::internal::wasm;
 
-namespace {
-
-enum {
-  kWasmDebugInfoWasmObj,
-  kWasmDebugInfoWasmBytesHash,
-  kWasmDebugInfoAsmJsOffsets,
-  kWasmDebugInfoNumEntries
-};
-
-}  // namespace
-
 Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
   Isolate *isolate = instance->GetIsolate();
   Factory *factory = isolate->factory();
-  Handle<FixedArray> arr =
-      factory->NewFixedArray(kWasmDebugInfoNumEntries, TENURED);
-  arr->set(kWasmDebugInfoWasmObj, *instance);
-  int hash = 0;
-  Handle<SeqOneByteString> wasm_bytes =
-      instance->get_compiled_module()->module_bytes();
-  {
-    DisallowHeapAllocation no_gc;
-    hash = StringHasher::HashSequentialString(
-        wasm_bytes->GetChars(), wasm_bytes->length(), kZeroHashSeed);
-  }
-  Handle<Object> hash_obj = factory->NewNumberFromInt(hash, TENURED);
-  arr->set(kWasmDebugInfoWasmBytesHash, *hash_obj);
+  Handle<FixedArray> arr = factory->NewFixedArray(kFieldCount, TENURED);
+  arr->set(kInstance, *instance);
 
   return Handle<WasmDebugInfo>::cast(arr);
 }
@@ -47,9 +25,7 @@ Handle<WasmDebugInfo> WasmDebugInfo::New(Handle<WasmInstanceObject> instance) {
 bool WasmDebugInfo::IsDebugInfo(Object *object) {
   if (!object->IsFixedArray()) return false;
   FixedArray *arr = FixedArray::cast(object);
-  return arr->length() == kWasmDebugInfoNumEntries &&
-         IsWasmInstance(arr->get(kWasmDebugInfoWasmObj)) &&
-         arr->get(kWasmDebugInfoWasmBytesHash)->IsNumber();
+  return arr->length() == kFieldCount && IsWasmInstance(arr->get(kInstance));
 }
 
 WasmDebugInfo *WasmDebugInfo::cast(Object *object) {
@@ -58,5 +34,5 @@ WasmDebugInfo *WasmDebugInfo::cast(Object *object) {
 }
 
 WasmInstanceObject *WasmDebugInfo::wasm_instance() {
-  return WasmInstanceObject::cast(get(kWasmDebugInfoWasmObj));
+  return WasmInstanceObject::cast(get(kInstance));
 }

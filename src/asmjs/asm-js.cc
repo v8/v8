@@ -179,13 +179,14 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
   wasm::ZoneBuffer* module = asm_wasm_result.module_bytes;
   wasm::ZoneBuffer* asm_offsets = asm_wasm_result.asm_offset_table;
+  Vector<const byte> asm_offsets_vec(asm_offsets->begin(),
+                                     static_cast<int>(asm_offsets->size()));
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
   MaybeHandle<JSObject> compiled = wasm::CreateModuleObjectFromBytes(
       info->isolate(), module->begin(), module->end(), &thrower,
-      internal::wasm::kAsmJsOrigin, info->script(), asm_offsets->begin(),
-      asm_offsets->end());
+      internal::wasm::kAsmJsOrigin, info->script(), asm_offsets_vec);
   DCHECK(!compiled.is_null());
   double compile_time = compile_timer.Elapsed().InMillisecondsF();
 

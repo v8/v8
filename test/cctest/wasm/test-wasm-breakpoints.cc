@@ -59,13 +59,12 @@ TEST(CollectPossibleBreakpoints) {
 
   Handle<WasmInstanceObject> instance = runner.module().instance_object();
   std::vector<debug::Location> locations;
-  CheckLocations(instance->get_compiled_module(), {0, 0}, {1, 0},
+  CheckLocations(instance->compiled_module(), {0, 0}, {1, 0},
                  {{0, 1}, {0, 2}, {0, 4}, {0, 6}});
-  CheckLocations(instance->get_compiled_module(), {0, 2}, {0, 4}, {{0, 2}});
-  CheckLocations(instance->get_compiled_module(), {0, 2}, {0, 5},
-                 {{0, 2}, {0, 4}});
-  CheckLocations(instance->get_compiled_module(), {0, 6}, {0, 7}, {{0, 6}});
-  CheckLocations(instance->get_compiled_module(), {0, 6}, {1, 0}, {{0, 6}});
-  CheckLocations(instance->get_compiled_module(), {0, 7}, {1, 0}, {});
-  CheckLocationsFail(instance->get_compiled_module(), {0, 8}, {1, 0});
+  CheckLocations(instance->compiled_module(), {0, 2}, {0, 4}, {{0, 2}});
+  CheckLocations(instance->compiled_module(), {0, 2}, {0, 5}, {{0, 2}, {0, 4}});
+  CheckLocations(instance->compiled_module(), {0, 6}, {0, 7}, {{0, 6}});
+  CheckLocations(instance->compiled_module(), {0, 6}, {1, 0}, {{0, 6}});
+  CheckLocations(instance->compiled_module(), {0, 7}, {1, 0}, {});
+  CheckLocationsFail(instance->compiled_module(), {0, 8}, {1, 0});
 }

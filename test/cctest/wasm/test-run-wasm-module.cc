@@ -317,7 +317,8 @@ class WasmSerializationTest {
       MaybeHandle<WasmCompiledModule> compiled_module =
           decoding_result.val->CompileFunctions(
               serialization_isolate, module_wrapper, &thrower,
-              ModuleWireBytes(buffer.begin(), buffer.end()));
+              ModuleWireBytes(buffer.begin(), buffer.end()),
+              Handle<Script>::null(), Vector<const byte>::empty());
       CHECK(!compiled_module.is_null());
       Handle<JSObject> module_obj = WasmModuleObject::New(
           serialization_isolate, compiled_module.ToHandleChecked());

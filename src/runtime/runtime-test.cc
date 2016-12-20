@@ -742,7 +742,7 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED_2(WasmModuleObject, module_obj, 0);
 
-  Handle<WasmCompiledModule> orig = handle(module_obj->get_compiled_module());
+  Handle<WasmCompiledModule> orig(module_obj->compiled_module());
   std::unique_ptr<ScriptData> data =
       WasmCompiledModuleSerializer::SerializeWasmModule(isolate, orig);
   void* buff = isolate->array_buffer_allocator()->Allocate(data->length());

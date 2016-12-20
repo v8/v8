@@ -25,14 +25,15 @@ class WasmInstanceWrapper;
   static bool Is##name(Object* object); \
   static name* cast(Object* object)
 
+#define DECLARE_GETTER(name, type) type* name()
+
 #define DECLARE_ACCESSORS(name, type) \
-  type* get_##name();                 \
-  void set_##name(type* value)
+  void set_##name(type* value);       \
+  DECLARE_GETTER(name, type)
 
 #define DECLARE_OPTIONAL_ACCESSORS(name, type) \
   bool has_##name();                           \
-  type* get_##name();                          \
-  void set_##name(type* value)
+  DECLARE_ACCESSORS(name, type)
 
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
@@ -42,7 +43,7 @@ class WasmModuleObject : public JSObject {
 
   DECLARE_CASTS(WasmModuleObject);
 
-  WasmCompiledModule* get_compiled_module();
+  WasmCompiledModule* compiled_module();
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
@@ -57,7 +58,7 @@ class WasmTableObject : public JSObject {
   DECLARE_CASTS(WasmTableObject);
   DECLARE_ACCESSORS(functions, FixedArray);
 
-  FixedArray* get_dispatch_tables();
+  FixedArray* dispatch_tables();
   uint32_t current_length();
   uint32_t maximum_length();
 
@@ -119,6 +120,11 @@ class WasmInstanceObject : public JSObject {
   WasmModuleObject* module_object();
   wasm::WasmModule* module();
 
+  // Get the debug info associated with the given wasm object.
+  // If no debug info exists yet, it is created automatically.
+  static Handle<WasmDebugInfo> GetOrCreateDebugInfo(
+      Handle<WasmInstanceObject> instance);
+
   static Handle<WasmInstanceObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
 };
@@ -140,6 +146,36 @@ class WasmExportedFunction : public JSFunction {
                                           Handle<Code> export_wrapper);
 };
 
+// Information shared by all WasmCompiledModule objects for the same module.
+class WasmSharedModuleData : public FixedArray {
+  enum Fields {
+    kModuleWrapper,
+    kModuleBytes,
+    kScript,
+    kAsmJsOffsetTable,
+    kFieldCount
+  };
+
+ public:
+  DECLARE_CASTS(WasmSharedModuleData);
+
+  DECLARE_GETTER(module, wasm::WasmModule);
+  DECLARE_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString);
+  DECLARE_GETTER(script, Script);
+  DECLARE_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray);
+
+  static Handle<WasmSharedModuleData> New(
+      Isolate* isolate, Handle<Foreign> module_wrapper,
+      Handle<SeqOneByteString> module_bytes, Handle<Script> script,
+      Handle<ByteArray> asm_js_offset_table);
+
+  // Check whether this module was generated from asm.js source.
+  bool is_asm_js();
+
+  // Recreate the ModuleWrapper from the module bytes after deserialization.
+  static void RecreateModuleWrapper(Isolate*, Handle<WasmSharedModuleData>);
+};
+
 class WasmCompiledModule : public FixedArray {
  public:
   enum Fields { kFieldCount };
@@ -149,7 +185,7 @@ class WasmCompiledModule : public FixedArray {
     return reinterpret_cast<WasmCompiledModule*>(fixed_array);
   }
 
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID)                           \
+#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK)               \
   Handle<TYPE> NAME() const { return handle(ptr_to_##NAME()); }      \
                                                                      \
   MaybeHandle<TYPE> maybe_##NAME() const {                           \
@@ -159,13 +195,13 @@ class WasmCompiledModule : public FixedArray {
                                                                      \
   TYPE* maybe_ptr_to_##NAME() const {                                \
     Object* obj = get(ID);                                           \
-    if (!obj->Is##TYPE()) return nullptr;                            \
+    if (!(TYPE_CHECK)) return nullptr;                               \
     return TYPE::cast(obj);                                          \
   }                                                                  \
                                                                      \
   TYPE* ptr_to_##NAME() const {                                      \
     Object* obj = get(ID);                                           \
-    DCHECK(obj->Is##TYPE());                                         \
+    DCHECK(TYPE_CHECK);                                              \
     return TYPE::cast(obj);                                          \
   }                                                                  \
                                                                      \
@@ -173,11 +209,18 @@ class WasmCompiledModule : public FixedArray {
                                                                      \
   void set_ptr_to_##NAME(TYPE* value) { set(ID, value); }            \
                                                                      \
-  bool has_##NAME() const { return get(ID)->Is##TYPE(); }            \
+  bool has_##NAME() const {                                          \
+    Object* obj = get(ID);                                           \
+    return TYPE_CHECK;                                               \
+  }                                                                  \
                                                                      \
   void reset_##NAME() { set_undefined(ID); }
 
-#define WCM_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME)
+#define WCM_OBJECT(TYPE, NAME) \
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE())
+
+#define WCM_WASM_OBJECT(TYPE, NAME) \
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj))
 
 #define WCM_SMALL_NUMBER(TYPE, NAME)                               \
   TYPE NAME() const {                                              \
@@ -185,21 +228,16 @@ class WasmCompiledModule : public FixedArray {
   }                                                                \
   void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
 
-#define WCM_WEAK_LINK(TYPE, NAME)                        \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME); \
-                                                         \
-  Handle<TYPE> NAME() const {                            \
-    return handle(TYPE::cast(weak_##NAME()->value()));   \
+#define WCM_WEAK_LINK(TYPE, NAME)                                           \
+  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell()); \
+                                                                            \
+  Handle<TYPE> NAME() const {                                               \
+    return handle(TYPE::cast(weak_##NAME()->value()));                      \
   }
 
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                \
+  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)    \
   MACRO(OBJECT, FixedArray, code_table)               \
-  MACRO(OBJECT, Foreign, module_wrapper)              \
-  /* For debugging: */                                \
-  MACRO(OBJECT, SeqOneByteString, module_bytes)       \
-  MACRO(OBJECT, Script, script)                       \
-  MACRO(OBJECT, ByteArray, asm_js_offset_table)       \
-  /* End of debugging stuff */                        \
   MACRO(OBJECT, FixedArray, function_tables)          \
   MACRO(OBJECT, FixedArray, empty_function_tables)    \
   MACRO(OBJECT, JSArrayBuffer, memory)                \
@@ -208,7 +246,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
   MACRO(WEAK_LINK, JSObject, owning_instance)         \
-  MACRO(WEAK_LINK, JSObject, wasm_module)
+  MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
 #if DEBUG
 #define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_NUMBER, uint32_t, instance_id)
@@ -229,8 +267,8 @@ class WasmCompiledModule : public FixedArray {
   };
 
  public:
-  static Handle<WasmCompiledModule> New(
-      Isolate* isolate, Handle<Managed<wasm::WasmModule>> module_wrapper);
+  static Handle<WasmCompiledModule> New(Isolate* isolate,
+                                        Handle<WasmSharedModuleData> shared);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module) {
@@ -246,21 +284,26 @@ class WasmCompiledModule : public FixedArray {
   uint32_t mem_size() const;
   uint32_t default_mem_size() const;
 
-  wasm::WasmModule* module() const;
-
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
   WCM_PROPERTY_TABLE(DECLARATION)
 #undef DECLARATION
 
-  static bool IsWasmCompiledModule(Object* obj);
+// Allow to call method on WasmSharedModuleData also on this object.
+#define FORWARD_SHARED(type, name) \
+  type name() { return shared()->name(); }
+  FORWARD_SHARED(SeqOneByteString*, module_bytes)
+  FORWARD_SHARED(wasm::WasmModule*, module)
+  FORWARD_SHARED(Script*, script)
+  FORWARD_SHARED(bool, is_asm_js)
+#undef FORWARD_SHARED
 
-  // Check whether this module wasm generated from asm.js source.
-  bool is_asm_js() const { return has_asm_js_offset_table(); }
+  static bool IsWasmCompiledModule(Object* obj);
 
   void PrintInstancesChain();
 
+  // Recreate the ModuleWrapper from the module bytes after deserialization.
   static void RecreateModuleWrapper(Isolate* isolate,
-                                    Handle<FixedArray> compiled_module);
+                                    Handle<WasmCompiledModule> compiled_module);
 
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
@@ -285,12 +328,12 @@ class WasmCompiledModule : public FixedArray {
   // Return the byte offset of the function identified by the given index.
   // The offset will be relative to the start of the module bytes.
   // Returns -1 if the function index is invalid.
-  int GetFunctionOffset(uint32_t func_index) const;
+  int GetFunctionOffset(uint32_t func_index);
 
   // Returns the function containing the given byte offset.
   // Returns -1 if the byte offset is not contained in any function of this
   // module.
-  int GetContainingFunction(uint32_t byte_offset) const;
+  int GetContainingFunction(uint32_t byte_offset);
 
   // Translate from byte offset in the module to function number and byte offset
   // within that function, encoded as line and column in the position info.
@@ -299,7 +342,7 @@ class WasmCompiledModule : public FixedArray {
 
   // Get the asm.js source position from a byte offset.
   // Must only be called if the associated wasm object was created from asm.js.
-  static int GetAsmJsSourcePosition(Handle<WasmCompiledModule> debug_info,
+  static int GetAsmJsSourcePosition(Handle<WasmCompiledModule> compiled_module,
                                     uint32_t func_index, uint32_t byte_offset,
                                     bool is_at_number_conversion);
 
@@ -320,7 +363,7 @@ class WasmCompiledModule : public FixedArray {
   // Get a list of all possible breakpoints within a given range of this module.
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
-                              std::vector<debug::Location>* locations) const;
+                              std::vector<debug::Location>* locations);
 
  private:
   void InitId();
@@ -329,16 +372,17 @@ class WasmCompiledModule : public FixedArray {
 };
 
 // TODO(clemensh): Extend this object for breakpoint support, or remove it.
+// TODO(clemensh): Exclude this object from serialization.
 class WasmDebugInfo : public FixedArray {
+  enum Fields { kInstance, kFieldCount };
+
  public:
-  enum class Fields { kFieldCount };
+  static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 
-  static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject> instance);
+  static bool IsDebugInfo(Object*);
+  static WasmDebugInfo* cast(Object*);
 
-  static bool IsDebugInfo(Object* object);
-  static WasmDebugInfo* cast(Object* object);
-
-  WasmInstanceObject* wasm_instance();
+  DECLARE_GETTER(wasm_instance, WasmInstanceObject);
 };
 
 class WasmInstanceWrapper : public FixedArray {

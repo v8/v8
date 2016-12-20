@@ -1535,7 +1535,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
     raw_func_name = STATIC_CHAR_VECTOR("<undefined>");
   } else {
     raw_func_name = WasmInstanceObject::cast(instance_or_undef)
-                        ->get_compiled_module()
+                        ->compiled_module()
                         ->GetRawFunctionName(this->function_index());
   }
   const int kMaxPrintedFunctionName = 64;
@@ -1578,9 +1578,9 @@ Script* WasmFrame::script() const {
 
 int WasmFrame::position() const {
   int position = StandardFrame::position();
-  if (wasm_instance()->get_compiled_module()->is_asm_js()) {
+  if (wasm_instance()->compiled_module()->is_asm_js()) {
     Handle<WasmCompiledModule> compiled_module(
-        WasmInstanceObject::cast(wasm_instance())->get_compiled_module(),
+        WasmInstanceObject::cast(wasm_instance())->compiled_module(),
         isolate());
     DCHECK_LE(0, position);
     position = WasmCompiledModule::GetAsmJsSourcePosition(

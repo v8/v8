@@ -92,7 +92,7 @@ static i::MaybeHandle<i::WasmModuleObject> CreateModuleObject(
   DCHECK(source->IsArrayBuffer() || source->IsTypedArray());
   return i::wasm::CreateModuleObjectFromBytes(
       i_isolate, buffer.start, buffer.end, thrower, i::wasm::kWasmOrigin,
-      i::Handle<i::Script>::null(), nullptr, nullptr);
+      i::Handle<i::Script>::null(), i::Vector<const byte>::empty());
 }
 
 static bool ValidateModule(v8::Isolate* isolate,
@@ -221,8 +221,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
     if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
       memory = i::Handle<i::JSArrayBuffer>(
-          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->get_buffer(),
-          i_isolate);
+          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
     } else {
       thrower.TypeError("Argument 2 must be a WebAssembly.Memory");
       return;
@@ -402,7 +401,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> old_array(receiver->get_functions(), i_isolate);
+  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
   int old_size = old_array->length();
   int64_t new_size64 = 0;
   if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
@@ -444,7 +443,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> array(receiver->get_functions(), i_isolate);
+  i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
   int i = 0;
   if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
@@ -488,7 +487,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> array(receiver->get_functions(), i_isolate);
+  i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
   int i;
   if (!args[0]->Int32Value(context).To(&i)) return;
   if (i < 0 || i >= array->length()) {
@@ -498,7 +497,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::FixedArray> dispatch_tables(receiver->get_dispatch_tables(),
+  i::Handle<i::FixedArray> dispatch_tables(receiver->dispatch_tables(),
                                            i_isolate);
   if (value->IsNull(i_isolate)) {
     i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
@@ -555,7 +554,7 @@ void WebAssemblyMemoryGetBuffer(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmMemoryObject> receiver =
       i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(receiver->get_buffer(), i_isolate);
+  i::Handle<i::Object> buffer(receiver->buffer(), i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));

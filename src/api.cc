@@ -7351,7 +7351,7 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::WasmCompiledModule> compiled_part =
       i::handle(i::WasmCompiledModule::cast(obj->GetInternalField(0)));
-  i::Handle<i::String> wire_bytes = compiled_part->module_bytes();
+  i::Handle<i::String> wire_bytes(compiled_part->module_bytes());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
@@ -7413,7 +7413,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
       i::wasm::CreateModuleObjectFromBytes(
           i_isolate, start, start + length, &thrower,
           i::wasm::ModuleOrigin::kWasmOrigin, i::Handle<i::Script>::null(),
-          nullptr, nullptr);
+          i::Vector<const uint8_t>::empty());
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));

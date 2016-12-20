@@ -520,7 +520,7 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
             static_cast<int>(wasm_frame->pc() - code->instruction_start());
 
         int flags = 0;
-        if (instance->get_compiled_module()->is_asm_js()) {
+        if (instance->compiled_module()->is_asm_js()) {
           flags |= FrameArray::kIsAsmJsWasmFrame;
           if (wasm_frame->at_to_number_conversion()) {
             flags |= FrameArray::kAsmJsAtNumberConversion;
@@ -705,7 +705,7 @@ class CaptureStackTraceHelper {
 
     if (!function_key_.is_null()) {
       Handle<WasmCompiledModule> compiled_module(
-          frame->wasm_instance()->get_compiled_module(), isolate_);
+          frame->wasm_instance()->compiled_module(), isolate_);
       Handle<String> name = WasmCompiledModule::GetFunctionName(
           isolate_, compiled_module, frame->function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
@@ -1559,7 +1559,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
       Handle<WasmCompiledModule> compiled_module(
           WasmInstanceObject::cast(elements->WasmInstance(i))
-              ->get_compiled_module());
+              ->compiled_module());
       int func_index = elements->WasmFunctionIndex(i)->value();
       int code_offset = elements->Offset(i)->value();
       // TODO(wasm): Clean this up (bug 5007).
@@ -1578,7 +1578,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
         // adding the function offset.
         pos += compiled_module->GetFunctionOffset(func_index);
       }
-      Handle<Script> script = compiled_module->script();
+      Handle<Script> script(compiled_module->script());
 
       *target = MessageLocation(script, pos, pos + 1);
       return true;
