@@ -6159,7 +6159,7 @@ BOOL_GETTER(SharedFunctionInfo,
             kOptimizationDisabled)
 
 AbstractCode* SharedFunctionInfo::abstract_code() {
-  if (HasBytecodeArray()) {
+  if ((!is_compiled() && HasBytecodeArray()) || IsInterpreted()) {
     return AbstractCode::cast(bytecode_array());
   } else {
     return AbstractCode::cast(code());
@@ -6577,7 +6577,7 @@ void Map::InobjectSlackTrackingStep() {
 }
 
 AbstractCode* JSFunction::abstract_code() {
-  if (IsInterpreted()) {
+  if ((!is_compiled() && shared()->HasBytecodeArray()) || IsInterpreted()) {
     return AbstractCode::cast(shared()->bytecode_array());
   } else {
     return AbstractCode::cast(code());
