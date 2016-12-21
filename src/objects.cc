@@ -3208,9 +3208,9 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
 
   Handle<Object> wrapped_type(WrapType(type));
 
-  DataDescriptor new_field_desc(name, index, wrapped_type, attributes,
-                                representation);
-  Handle<Map> new_map = Map::CopyAddDescriptor(map, &new_field_desc, flag);
+  Descriptor d = Descriptor::DataField(name, index, wrapped_type, attributes,
+                                       representation);
+  Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
   int unused_property_fields = new_map->unused_property_fields() - 1;
   if (unused_property_fields < 0) {
     unused_property_fields += JSObject::kFieldsAdded;
@@ -3231,8 +3231,8 @@ MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
   }
 
   // Allocate new instance descriptors with (name, constant) added.
-  DataConstantDescriptor new_constant_desc(name, constant, attributes);
-  return Map::CopyAddDescriptor(map, &new_constant_desc, flag);
+  Descriptor d = Descriptor::DataConstant(name, constant, attributes);
+  return Map::CopyAddDescriptor(map, &d, flag);
 }
 
 const char* Representation::Mnemonic() const {
@@ -3771,8 +3771,9 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(
         (details.type() != DATA || details.attributes() != attributes)) {
       int field_index = details.type() == DATA ? details.field_index()
                                                : new_map->NumberOfFields();
-      DataDescriptor d(handle(descriptors->GetKey(modify_index), isolate),
-                       field_index, attributes, Representation::Tagged());
+      Descriptor d = Descriptor::DataField(
+          handle(descriptors->GetKey(modify_index), isolate), field_index,
+          attributes, Representation::Tagged());
       descriptors->Replace(modify_index, &d);
       if (details.type() != DATA) {
         int unused_property_fields = new_map->unused_property_fields() - 1;
@@ -3957,9 +3958,9 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
 
     // Skip if already updated the shared descriptor.
     if (descriptors->GetValue(descriptor) != *new_wrapped_type) {
-      DataDescriptor d(name, descriptors->GetFieldIndex(descriptor),
-                       new_wrapped_type, details.attributes(),
-                       new_representation);
+      Descriptor d = Descriptor::DataField(
+          name, descriptors->GetFieldIndex(descriptor), new_wrapped_type,
+          details.attributes(), new_representation);
       descriptors->Replace(descriptor, &d);
     }
   }
@@ -4432,8 +4433,9 @@ Handle<Map> Map::Reconfigure(Handle<Map> old_map,
               target_field_type, isolate);
         }
         Handle<Object> wrapped_type(WrapType(next_field_type));
-        DataDescriptor d(target_key, current_offset, wrapped_type,
-                         next_attributes, next_representation);
+        Descriptor d =
+            Descriptor::DataField(target_key, current_offset, wrapped_type,
+                                  next_attributes, next_representation);
         current_offset += d.GetDetails().field_width_in_words();
         new_descriptors->Set(i, &d);
       } else {
@@ -4503,8 +4505,9 @@ Handle<Map> Map::Reconfigure(Handle<Map> old_map,
 
         Handle<Object> wrapped_type(WrapType(next_field_type));
 
-        DataDescriptor d(old_key, current_offset, wrapped_type, next_attributes,
-                         next_representation);
+        Descriptor d =
+            Descriptor::DataField(old_key, current_offset, wrapped_type,
+                                  next_attributes, next_representation);
         current_offset += d.GetDetails().field_width_in_words();
         new_descriptors->Set(i, &d);
       } else {
@@ -5206,8 +5209,9 @@ struct DescriptorArrayAppender {
                      int valid_descriptors,
                      Handle<DescriptorArray> array) {
     DisallowHeapAllocation no_gc;
-    AccessorConstantDescriptor desc(key, entry, entry->property_attributes());
-    array->Append(&desc);
+    Descriptor d =
+        Descriptor::AccessorConstant(key, entry, entry->property_attributes());
+    array->Append(&d);
   }
 };
 
@@ -6173,8 +6177,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     PropertyType type = details.type();
 
     if (value->IsJSFunction()) {
-      DataConstantDescriptor d(key, handle(value, isolate),
-                               details.attributes());
+      Descriptor d = Descriptor::DataConstant(key, handle(value, isolate),
+                                              details.attributes());
       descriptors->Set(enumeration_index - 1, &d);
     } else if (type == DATA) {
       if (current_offset < inobject_props) {
@@ -6184,14 +6188,15 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
         int offset = current_offset - inobject_props;
         fields->set(offset, value);
       }
-      DataDescriptor d(key, current_offset, details.attributes(),
-                       // TODO(verwaest): value->OptimalRepresentation();
-                       Representation::Tagged());
+      Descriptor d = Descriptor::DataField(
+          key, current_offset, details.attributes(),
+          // TODO(verwaest): value->OptimalRepresentation();
+          Representation::Tagged());
       current_offset += d.GetDetails().field_width_in_words();
       descriptors->Set(enumeration_index - 1, &d);
     } else if (type == ACCESSOR_CONSTANT) {
-      AccessorConstantDescriptor d(key, handle(value, isolate),
-                                   details.attributes());
+      Descriptor d = Descriptor::AccessorConstant(key, handle(value, isolate),
+                                                  details.attributes());
       descriptors->Set(enumeration_index - 1, &d);
     } else {
       UNREACHABLE();
@@ -9796,8 +9801,8 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
   pair->SetComponents(*getter, *setter);
 
   TransitionFlag flag = INSERT_TRANSITION;
-  AccessorConstantDescriptor new_desc(name, pair, attributes);
-  return Map::CopyInsertDescriptor(map, &new_desc, flag);
+  Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
+  return Map::CopyInsertDescriptor(map, &d, flag);
 }
 
 
