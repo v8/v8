@@ -152,6 +152,7 @@
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
+  V(symbol_species_string, "[Symbol.species]")                     \
   V(SyntaxError_string, "SyntaxError")                             \
   V(then_string, "then")                                           \
   V(this_string, "this")                                           \

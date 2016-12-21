@@ -702,7 +702,7 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
 
   Handle<JSFunction> iterator_prototype_iterator = SimpleCreateFunction(
       isolate(), factory()->NewStringFromAsciiChecked("[Symbol.iterator]"),
-      Builtins::kIteratorPrototypeIterator, 0, true);
+      Builtins::kReturnReceiver, 0, true);
   iterator_prototype_iterator->shared()->set_native(true);
 
   JSObject::AddProperty(iterator_prototype, factory()->iterator_symbol(),
@@ -1883,6 +1883,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "catch", Builtins::kIllegal, 1, true,
                           DONT_ENUM);
 
+    SimpleInstallGetter(promise_fun, factory->symbol_species_string(),
+                        factory->species_symbol(), Builtins::kReturnReceiver,
+                        true);
+
     Handle<Map> prototype_map(prototype->map());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
 
@@ -2070,10 +2074,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       // RegExp getters and setters.
 
-      SimpleInstallGetter(regexp_fun,
-                          factory->InternalizeUtf8String("[Symbol.species]"),
-                          factory->species_symbol(),
-                          Builtins::kRegExpPrototypeSpeciesGetter, true);
+      SimpleInstallGetter(regexp_fun, factory->symbol_species_string(),
+                          factory->species_symbol(), Builtins::kReturnReceiver,
+                          true);
 
       // Static properties set by a successful match.
 

@@ -947,12 +947,6 @@ BUILTIN(RegExpPrototypeToString) {
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
-// ES6 21.2.4.2.
-TF_BUILTIN(RegExpPrototypeSpeciesGetter, RegExpBuiltinsAssembler) {
-  Node* const receiver = Parameter(0);
-  Return(receiver);
-}
-
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
 Node* RegExpBuiltinsAssembler::FastFlagGetter(Node* const regexp,
                                               JSRegExp::Flag flag) {

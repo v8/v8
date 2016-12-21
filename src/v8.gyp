@@ -494,7 +494,6 @@
         'builtins/builtins-handler.cc',
         'builtins/builtins-internal.cc',
         'builtins/builtins-interpreter.cc',
-        'builtins/builtins-iterator.cc',
         'builtins/builtins-json.cc',
         'builtins/builtins-math.cc',
         'builtins/builtins-number.cc',

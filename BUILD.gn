@@ -955,7 +955,6 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-handler.cc",
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-interpreter.cc",
-    "src/builtins/builtins-iterator.cc",
     "src/builtins/builtins-json.cc",
     "src/builtins/builtins-math.cc",
     "src/builtins/builtins-number.cc",

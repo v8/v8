@@ -211,6 +211,7 @@ namespace internal {
   CPP(RestrictedFunctionPropertiesThrower)                                     \
   CPP(RestrictedStrictArgumentsPropertiesThrower)                              \
   CPP(UnsupportedThrower)                                                      \
+  TFJ(ReturnReceiver, 0)                                                       \
                                                                                \
   /* Array */                                                                  \
   ASM(ArrayCode)                                                               \
@@ -403,9 +404,6 @@ namespace internal {
   TFJ(GlobalIsFinite, 1)                                                       \
   /* ES6 section 18.2.3 isNaN ( number ) */                                    \
   TFJ(GlobalIsNaN, 1)                                                          \
-                                                                               \
-  /* ES6 #sec-%iteratorprototype%-@@iterator */                                \
-  TFJ(IteratorPrototypeIterator, 0)                                            \
                                                                                \
   /* JSON */                                                                   \
   CPP(JsonParse)                                                               \
@@ -625,7 +623,6 @@ namespace internal {
   TFJ(RegExpPrototypeReplace, 2)                                               \
   TFJ(RegExpPrototypeSearch, 1)                                                \
   TFJ(RegExpPrototypeSourceGetter, 0)                                          \
-  TFJ(RegExpPrototypeSpeciesGetter, 0)                                         \
   TFJ(RegExpPrototypeSplit, 2)                                                 \
   TFJ(RegExpPrototypeStickyGetter, 0)                                          \
   TFJ(RegExpPrototypeTest, 1)                                                  \

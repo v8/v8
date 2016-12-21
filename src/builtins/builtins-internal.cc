@@ -309,5 +309,10 @@ void Builtins::Generate_NewRestParameterElements(
   assembler.Return(assembler.EmptyFixedArrayConstant());
 }
 
+void Builtins::Generate_ReturnReceiver(compiler::CodeAssemblerState* state) {
+  CodeStubAssembler assembler(state);
+  assembler.Return(assembler.Parameter(0));
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -23,8 +23,6 @@ var promiseHandledHintSymbol =
 var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
 var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
 var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
-var SpeciesConstructor;
-var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
 var ObjectHasOwnProperty;
 var GlobalPromise = global.Promise;
@@ -32,7 +30,6 @@ var PromiseThen = GlobalPromise.prototype.then;
 
 utils.Import(function(from) {
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-  SpeciesConstructor = from.SpeciesConstructor;
 });
 
 // -------------------------------------------------------------------
@@ -343,11 +340,6 @@ function MarkPromiseAsHandled(promise) {
   %PromiseMarkAsHandled(promise);
 }
 
-
-function PromiseSpecies() {
-  return this;
-}
-
 // -------------------------------------------------------------------
 // Install exported functions.
 
@@ -357,8 +349,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "race", PromiseRace,
   "resolve", PromiseResolve
 ]);
-
-utils.InstallGetter(GlobalPromise, speciesSymbol, PromiseSpecies);
 
 %SetCode(GlobalPromise.prototype.catch, PromiseCatch);
 
