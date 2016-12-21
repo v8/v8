@@ -29,12 +29,14 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void AppendPromiseCallback(int offset, compiler::Node* promise,
                              compiler::Node* value);
 
+  Node* InternalPromiseThen(Node* context, Node* promise, Node* on_resolve,
+                            Node* on_reject);
+
   Node* InternalPerformPromiseThen(Node* context, Node* promise,
                                    Node* on_resolve, Node* on_reject,
                                    Node* deferred);
 
-  void InternalResolvePromise(Node* context, Node* promise, Node* result,
-                              Label* out);
+  void InternalResolvePromise(Node* context, Node* promise, Node* result);
 
   void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
                         Label* if_ismodified);

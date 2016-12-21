@@ -142,12 +142,6 @@ function PromiseReject(r) {
   }
 }
 
-// ES#sec-promise.prototype.catch
-// Promise.prototype.catch ( onRejected )
-function PromiseCatch(onReject) {
-  return this.then(UNDEFINED, onReject);
-}
-
 // Combinators.
 
 // ES#sec-promise.resolve
@@ -345,10 +339,7 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "resolve", PromiseResolve
 ]);
 
-%SetCode(GlobalPromise.prototype.catch, PromiseCatch);
-
 %InstallToContext([
-  "promise_catch", GlobalPromise.prototype.catch,
   "promise_create", PromiseCreate,
   "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", DoRejectPromise,

@@ -1872,16 +1872,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
     Handle<JSFunction> promise_then =
-        SimpleCreateFunction(isolate, isolate->factory()->then_string(),
-                             Builtins::kPromiseThen, 2, true);
-    JSObject::AddProperty(prototype, isolate->factory()->then_string(),
-                          promise_then, DONT_ENUM);
+        SimpleInstallFunction(prototype, isolate->factory()->then_string(),
+                              Builtins::kPromiseThen, 2, true);
     InstallWithIntrinsicDefaultProto(isolate, promise_then,
                                      Context::PROMISE_THEN_INDEX);
 
-    // TODO(gsathya): Move to TF
-    SimpleInstallFunction(prototype, "catch", Builtins::kIllegal, 1, true,
-                          DONT_ENUM);
+    Handle<JSFunction> promise_catch = SimpleInstallFunction(
+        prototype, "catch", Builtins::kPromiseCatch, 1, true, DONT_ENUM);
+    InstallWithIntrinsicDefaultProto(isolate, promise_catch,
+                                     Context::PROMISE_CATCH_INDEX);
 
     SimpleInstallGetter(promise_fun, factory->symbol_species_string(),
                         factory->species_symbol(), Builtins::kReturnReceiver,

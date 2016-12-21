@@ -571,6 +571,7 @@ namespace internal {
   TFJ(PromiseResolveClosure, 1)                                                \
   CPP(PromiseRejectClosure)                                                    \
   TFJ(PromiseThen, 2)                                                          \
+  TFJ(PromiseCatch, 1)                                                         \
   TFJ(PromiseCreateAndSet, 2)                                                  \
   TFJ(PerformPromiseThen, 4)                                                   \
   TFJ(ResolvePromise, 2)                                                       \
