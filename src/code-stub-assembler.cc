@@ -3820,7 +3820,7 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   GotoUnless(Word32Equal(low, low_compare), &runtime);
   GotoUnless(Word32Equal(high, high_compare), &runtime);
 
-  // Heap number match, return value fro cache entry.
+  // Heap number match, return value from cache entry.
   IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
   result.Bind(LoadFixedArrayElement(number_string_cache, index, kPointerSize));
   Goto(&done);
