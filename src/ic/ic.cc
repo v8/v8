@@ -884,13 +884,8 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
 }
 
 Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
-  if (FLAG_tf_load_ic_stub) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-    return LoadHandler::LoadField(isolate(), index);
-  }
-  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
-  LoadFieldStub stub(isolate(), index);
-  return stub.GetCode();
+  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
+  return LoadHandler::LoadField(isolate(), index);
 }
 
 namespace {
@@ -1121,15 +1116,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
     if (kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC) {
-      if (FLAG_tf_load_ic_stub) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-        code = LoadNonExistent(receiver_map(), lookup->name());
-      } else {
-        code = NamedLoadHandlerCompiler::ComputeLoadNonexistent(lookup->name(),
-                                                                receiver_map());
-        // TODO(jkummerow/verwaest): Introduce a builtin that handles this case.
-        if (code.is_null()) code = slow_stub();
-      }
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+      code = LoadNonExistent(receiver_map(), lookup->name());
     } else {
       code = slow_stub();
     }
@@ -1390,26 +1378,15 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
             return slow_stub();
           }
-          if (FLAG_tf_load_ic_stub) {
-            Handle<Object> smi_handler = LoadHandler::LoadApiGetter(
-                isolate(), lookup->GetAccessorIndex());
-            if (receiver_is_holder) {
-              TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
-              return smi_handler;
-            }
-            if (kind() != Code::LOAD_GLOBAL_IC) {
-              TRACE_HANDLER_STATS(isolate(),
-                                  LoadIC_LoadApiGetterFromPrototypeDH);
-              return LoadFromPrototype(map, holder, lookup->name(),
-                                       smi_handler);
-            }
-          } else {
-            if (receiver_is_holder) {
-              TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterStub);
-              int index = lookup->GetAccessorIndex();
-              LoadApiGetterStub stub(isolate(), true, index);
-              return stub.GetCode();
-            }
+          Handle<Object> smi_handler =
+              LoadHandler::LoadApiGetter(isolate(), lookup->GetAccessorIndex());
+          if (receiver_is_holder) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
+            return smi_handler;
+          }
+          if (kind() != Code::LOAD_GLOBAL_IC) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
+            return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
           }
           break;  // Custom-compiled handler.
         }
@@ -1446,32 +1423,20 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         if (receiver_is_holder) {
           return smi_handler;
         }
-        if (FLAG_tf_load_ic_stub) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
-          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
-        }
-        break;  // Custom-compiled handler.
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
+        return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
       }
 
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      if (FLAG_tf_load_ic_stub) {
-        Handle<Object> smi_handler =
-            LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
-        if (receiver_is_holder) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
-          return smi_handler;
-        }
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
-        return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
-      } else {
-        if (receiver_is_holder) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
-          LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
-          return stub.GetCode();
-        }
+      Handle<Object> smi_handler =
+          LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
+      if (receiver_is_holder) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
+        return smi_handler;
       }
-      break;  // Custom-compiled handler.
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
+      return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -2011,13 +1976,10 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         return slow_stub();
       }
       DCHECK(lookup->IsCacheableTransition());
-      if (FLAG_tf_store_ic_stub) {
-        Handle<Map> transition = lookup->transition_map();
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
-        return StoreTransition(receiver_map(), holder, transition,
-                               lookup->name());
-      }
-      break;  // Custom-compiled handler.
+      Handle<Map> transition = lookup->transition_map();
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
+      return StoreTransition(receiver_map(), holder, transition,
+                             lookup->name());
     }
 
     case LookupIterator::INTERCEPTOR: {
@@ -2094,27 +2056,11 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
-        if (FLAG_tf_store_ic_stub) {
-          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
-          int descriptor = lookup->GetFieldDescriptorIndex();
-          FieldIndex index = lookup->GetFieldIndex();
-          return StoreHandler::StoreField(isolate(), descriptor, index,
-                                          lookup->representation());
-        } else {
-          bool use_stub = true;
-          if (lookup->representation().IsHeapObject()) {
-            // Only use a generic stub if no types need to be tracked.
-            Handle<FieldType> field_type = lookup->GetFieldType();
-            use_stub = !field_type->IsClass();
-          }
-          if (use_stub) {
-            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
-            StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
-                                lookup->representation());
-            return stub.GetCode();
-          }
-        }
-        break;  // Custom-compiled handler.
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
+        int descriptor = lookup->GetFieldDescriptorIndex();
+        FieldIndex index = lookup->GetFieldIndex();
+        return StoreHandler::StoreField(isolate(), descriptor, index,
+                                        lookup->representation());
       }
 
       // -------------- Constant properties --------------
@@ -2156,15 +2102,7 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
         cell->set_value(isolate()->heap()->the_hole_value());
         return code;
       }
-      DCHECK(!FLAG_tf_store_ic_stub);
-      Handle<Map> transition = lookup->transition_map();
-      // Currently not handled by CompileStoreTransition.
-      DCHECK(holder->HasFastProperties());
-
-      DCHECK(lookup->IsCacheableTransition());
-      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransition);
-      NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-      return compiler.CompileStoreTransition(transition, lookup->name());
+      UNREACHABLE();
     }
 
     case LookupIterator::INTERCEPTOR:
@@ -2212,40 +2150,18 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
     }
 
     case LookupIterator::DATA: {
-      if (lookup->is_dictionary_holder()) {
-        DCHECK(holder->IsJSGlobalObject());
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobal);
-        DCHECK(holder.is_identical_to(receiver) ||
-               receiver->map()->prototype() == *holder);
-        auto cell = lookup->GetPropertyCell();
-        auto updated_type =
-            PropertyCell::UpdatedType(cell, value, lookup->property_details());
-        auto code = PropertyCellStoreHandler(
-            isolate(), receiver, Handle<JSGlobalObject>::cast(holder),
-            lookup->name(), cell, updated_type);
-        return code;
-      }
-
-      // -------------- Fields --------------
-      if (lookup->property_details().type() == DATA) {
-        DCHECK(!FLAG_tf_store_ic_stub);
-#ifdef DEBUG
-        bool use_stub = true;
-        if (lookup->representation().IsHeapObject()) {
-          // Only use a generic stub if no types need to be tracked.
-          Handle<FieldType> field_type = lookup->GetFieldType();
-          use_stub = !field_type->IsClass();
-        }
-        DCHECK(!use_stub);
-#endif
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreField);
-        NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-        return compiler.CompileStoreField(lookup);
-      }
-
-      // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      UNREACHABLE();
+      DCHECK(lookup->is_dictionary_holder());
+      DCHECK(holder->IsJSGlobalObject());
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobal);
+      DCHECK(holder.is_identical_to(receiver) ||
+             receiver->map()->prototype() == *holder);
+      auto cell = lookup->GetPropertyCell();
+      auto updated_type =
+          PropertyCell::UpdatedType(cell, value, lookup->property_details());
+      auto code = PropertyCellStoreHandler(isolate(), receiver,
+                                           Handle<JSGlobalObject>::cast(holder),
+                                           lookup->name(), cell, updated_type);
+      return code;
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:

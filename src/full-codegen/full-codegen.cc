@@ -220,7 +220,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot,
 
   Handle<Code> code = CodeFactory::LoadIC(isolate()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
-  if (FLAG_tf_load_ic_stub) RestoreContext();
+  RestoreContext();
 }
 
 void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,

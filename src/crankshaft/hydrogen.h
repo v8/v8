@@ -2797,7 +2797,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   friend class FunctionState;  // Pushes and pops the state stack.
   friend class AstContext;  // Pushes and pops the AST context stack.
-  friend class KeyedLoadFastElementStub;
   friend class HOsrBuilder;
 
   DISALLOW_COPY_AND_ASSIGN(HOptimizedGraphBuilder);

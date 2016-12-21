@@ -2307,12 +2307,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
 }
 
 
-void LoadDictionaryElementStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
-}
-
 void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
   if (kind() == Code::KEYED_LOAD_IC) {

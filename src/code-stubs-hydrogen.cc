@@ -376,25 +376,6 @@ HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
   return new_length;
 }
 
-template <>
-HValue* CodeStubGraphBuilder<LoadFastElementStub>::BuildCodeStub() {
-  LoadKeyedHoleMode hole_mode = casted_stub()->convert_hole_to_undefined()
-                                    ? CONVERT_HOLE_TO_UNDEFINED
-                                    : NEVER_RETURN_HOLE;
-
-  HInstruction* load = BuildUncheckedMonomorphicElementAccess(
-      GetParameter(Descriptor::kReceiver), GetParameter(Descriptor::kName),
-      NULL, casted_stub()->is_js_array(), casted_stub()->elements_kind(), LOAD,
-      hole_mode, STANDARD_STORE);
-  return load;
-}
-
-
-Handle<Code> LoadFastElementStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
-
 HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
     HValue* object, FieldIndex index) {
   Representation representation = index.is_double()
@@ -798,25 +779,6 @@ HValue* CodeStubGraphBuilder<ToBooleanICStub>::BuildCodeInitializedStub() {
 }
 
 Handle<Code> ToBooleanICStub::GenerateCode() { return DoGenerateCode(this); }
-
-template <>
-HValue* CodeStubGraphBuilder<LoadDictionaryElementStub>::BuildCodeStub() {
-  HValue* receiver = GetParameter(Descriptor::kReceiver);
-  HValue* key = GetParameter(Descriptor::kName);
-
-  Add<HCheckSmi>(key);
-
-  HValue* elements = AddLoadElements(receiver);
-
-  HValue* hash = BuildElementIndexHash(key);
-
-  return BuildUncheckedDictionaryElementLoad(receiver, elements, key, hash);
-}
-
-
-Handle<Code> LoadDictionaryElementStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
 
 }  // namespace internal
 }  // namespace v8

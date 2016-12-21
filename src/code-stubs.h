@@ -68,8 +68,6 @@ class Node;
   /* as part of the new IC system, ask */     \
   /* ishell before doing anything  */         \
   V(LoadConstant)                             \
-  V(LoadDictionaryElement)                    \
-  V(LoadFastElement)                          \
   V(LoadField)                                \
   /* These should never be ported to TF */    \
   /* because they are either used only by */  \
@@ -1926,15 +1924,6 @@ class StringCharAtGenerator {
 };
 
 
-class LoadDictionaryElementStub : public HydrogenCodeStub {
- public:
-  explicit LoadDictionaryElementStub(Isolate* isolate)
-      : HydrogenCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HYDROGEN_CODE_STUB(LoadDictionaryElement, HydrogenCodeStub);
-};
-
 class LoadICTrampolineStub : public TurboFanCodeStub {
  public:
   explicit LoadICTrampolineStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
@@ -2237,39 +2226,6 @@ class StoreScriptContextFieldStub : public ScriptContextFieldStub {
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
-};
-
-
-class LoadFastElementStub : public HandlerStub {
- public:
-  LoadFastElementStub(Isolate* isolate, bool is_js_array,
-                      ElementsKind elements_kind,
-                      bool convert_hole_to_undefined = false)
-      : HandlerStub(isolate) {
-    set_sub_minor_key(
-        ElementsKindBits::encode(elements_kind) |
-        IsJSArrayBits::encode(is_js_array) |
-        CanConvertHoleToUndefined::encode(convert_hole_to_undefined));
-  }
-
-  Code::Kind kind() const override { return Code::KEYED_LOAD_IC; }
-
-  bool is_js_array() const { return IsJSArrayBits::decode(sub_minor_key()); }
-  bool convert_hole_to_undefined() const {
-    return CanConvertHoleToUndefined::decode(sub_minor_key());
-  }
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(sub_minor_key());
-  }
-
- private:
-  class ElementsKindBits: public BitField<ElementsKind, 0, 8> {};
-  class IsJSArrayBits: public BitField<bool, 8, 1> {};
-  class CanConvertHoleToUndefined : public BitField<bool, 9, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadFastElement, HandlerStub);
 };
 
 class StoreFastElementStub : public TurboFanCodeStub {

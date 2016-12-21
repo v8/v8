@@ -751,8 +751,6 @@ class RuntimeCallTimer final {
   V(KeyedLoadIC_LoadIndexedInterceptorStub)      \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)    \
   V(KeyedLoadIC_LoadElementDH)                   \
-  V(KeyedLoadIC_LoadFastElementStub)             \
-  V(KeyedLoadIC_LoadDictionaryElementStub)       \
   V(KeyedLoadIC_SlowStub)                        \
   V(KeyedStoreIC_ElementsTransitionAndStoreStub) \
   V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)  \
@@ -779,7 +777,6 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadFieldDH)                          \
   V(LoadIC_LoadFieldFromPrototypeDH)             \
   V(LoadIC_LoadField)                            \
-  V(LoadIC_LoadFieldStub)                        \
   V(LoadIC_LoadGlobal)                           \
   V(LoadIC_LoadInterceptor)                      \
   V(LoadIC_LoadNonexistentDH)                    \
