@@ -301,7 +301,6 @@ class WasmTrapHelper : public ZoneObject {
   }
 
   void BuildTrapCode(Node* reason_node, Node* position_node) {
-    Node* end;
     Node** control_ptr = builder_->control_;
     Node** effect_ptr = builder_->effect_;
     wasm::ModuleEnv* module = builder_->module_;
@@ -332,16 +331,12 @@ class WasmTrapHelper : public ZoneObject {
       Node* thrw =
           graph()->NewNode(common()->Throw(), jsgraph()->ZeroConstant(),
                            *effect_ptr, *control_ptr);
-      end = thrw;
+      MergeControlToEnd(jsgraph(), thrw);
     } else {
       // End the control flow with returning 0xdeadbeef
       Node* ret_value = GetTrapValue(builder_->GetFunctionSignature());
-      end = graph()->NewNode(jsgraph()->common()->Return(),
-                             jsgraph()->Int32Constant(0), ret_value,
-                             *effect_ptr, *control_ptr);
+      builder_->Return(ret_value);
     }
-
-    MergeControlToEnd(jsgraph(), end);
   }
 };
 
@@ -374,7 +369,7 @@ Node* WasmGraphBuilder::Start(unsigned params) {
   return start;
 }
 
-Node* WasmGraphBuilder::Param(unsigned index, wasm::LocalType type) {
+Node* WasmGraphBuilder::Param(unsigned index) {
   return graph()->NewNode(jsgraph()->common()->Parameter(index),
                           graph()->start());
 }
@@ -1099,9 +1094,18 @@ Node* WasmGraphBuilder::Return(unsigned count, Node** vals) {
   DCHECK_NOT_NULL(*control_);
   DCHECK_NOT_NULL(*effect_);
 
-  Node** buf = Realloc(vals, count, count + 3);
-  memmove(buf + 1, buf, sizeof(void*) * count);
+  static const int kStackAllocatedNodeBufferSize = 8;
+  Node* stack_buffer[kStackAllocatedNodeBufferSize];
+  std::vector<Node*> heap_buffer;
+
+  Node** buf = stack_buffer;
+  if (count + 3 > kStackAllocatedNodeBufferSize) {
+    heap_buffer.resize(count + 3);
+    buf = heap_buffer.data();
+  }
+
   buf[0] = jsgraph()->Int32Constant(0);
+  memcpy(buf + 1, vals, sizeof(void*) * count);
   buf[count + 1] = *effect_;
   buf[count + 2] = *control_;
   Node* ret =
@@ -2763,8 +2767,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
 
   // Convert JS parameters to WASM numbers.
   for (int i = 0; i < wasm_count; ++i) {
-    Node* param =
-        graph()->NewNode(jsgraph()->common()->Parameter(i + 1), start);
+    Node* param = Param(i + 1);
     Node* wasm_param = FromJS(param, context, sig->GetParam(i));
     args[pos++] = wasm_param;
     if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kAstI64) {
@@ -2784,6 +2787,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
     desc = wasm::ModuleEnv::GetI32WasmCallDescriptor(jsgraph()->zone(), desc);
   }
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
+  *effect_ = call;
   Node* retval = call;
   if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
       sig->GetReturn(0) == wasm::kAstI64) {
@@ -2793,10 +2797,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   }
   Node* jsval = ToJS(
       retval, sig->return_count() == 0 ? wasm::kAstStmt : sig->GetReturn());
-  Node* ret = graph()->NewNode(jsgraph()->common()->Return(),
-                               jsgraph()->Int32Constant(0), jsval, call, start);
-
-  MergeControlToEnd(jsgraph(), ret);
+  Return(jsval);
 }
 
 int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
@@ -2804,8 +2805,7 @@ int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
   // Convert WASM numbers to JS values.
   int param_index = 0;
   for (int i = 0; i < param_count; ++i) {
-    Node* param = graph()->NewNode(
-        jsgraph()->common()->Parameter(param_index++), graph()->start());
+    Node* param = Param(param_index++);
     args[pos++] = ToJS(param, sig->GetParam(i));
     if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kAstI64) {
       // On 32 bit platforms we have to skip the high word of int64
@@ -2909,10 +2909,7 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
                   ? i32_zero
                   : FromJS(call, HeapConstant(isolate->native_context()),
                            sig->GetReturn());
-  Node* ret = graph()->NewNode(jsgraph()->common()->Return(), i32_zero, val,
-                               *effect_, start);
-
-  MergeControlToEnd(jsgraph(), ret);
+  Return(val);
 }
 
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {

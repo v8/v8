@@ -524,7 +524,7 @@ class WasmFullDecoder : public WasmDecoder {
       // Initialize local variables.
       uint32_t index = 0;
       while (index < sig_->parameter_count()) {
-        ssa_env->locals[index] = builder_->Param(index, local_type_vec_[index]);
+        ssa_env->locals[index] = builder_->Param(index);
         index++;
       }
       while (index < local_type_vec_.size()) {

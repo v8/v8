@@ -127,7 +127,7 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   Node* Error();
   Node* Start(unsigned params);
-  Node* Param(unsigned index, wasm::LocalType type);
+  Node* Param(unsigned index);
   Node* Loop(Node* entry);
   Node* Terminate(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
@@ -166,7 +166,12 @@ class WasmGraphBuilder {
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
-  Node* Return(unsigned count, Node** vals);
+  Node* Return(unsigned count, Node** nodes);
+  template <typename... Nodes>
+  Node* Return(Node* fst, Nodes*... more) {
+    Node* arr[] = {fst, more...};
+    return Return(arraysize(arr), arr);
+  }
   Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
