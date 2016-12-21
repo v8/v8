@@ -148,7 +148,7 @@ function MakeMirror(value, opt_transient) {
     mirror = new DateMirror(value);
   } else if (IS_FUNCTION(value)) {
     mirror = new FunctionMirror(value);
-  } else if (IS_REGEXP(value)) {
+  } else if (%IsRegExp(value)) {
     mirror = new RegExpMirror(value);
   } else if (IS_ERROR(value)) {
     mirror = new ErrorMirror(value);
