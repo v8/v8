@@ -530,30 +530,6 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_InternalDateParse) {
-  HandleScope scope(isolate);
-
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, date_string, 1);
-
-  v8::String::Utf8Value utf8_date(v8::Utils::ToLocal(date_string));
-  icu::UnicodeString u_date(icu::UnicodeString::fromUTF8(*utf8_date));
-  icu::SimpleDateFormat* date_format =
-      DateFormat::UnpackDateFormat(isolate, date_format_holder);
-  if (!date_format) return isolate->ThrowIllegalOperation();
-
-  UErrorCode status = U_ZERO_ERROR;
-  UDate date = date_format->parse(u_date, status);
-  if (U_FAILURE(status)) return isolate->heap()->undefined_value();
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, JSDate::New(isolate->date_function(), isolate->date_function(),
-                           static_cast<double>(date)));
-}
-
-
 RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   HandleScope scope(isolate);
 
@@ -615,47 +591,6 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
       isolate, isolate->factory()->NewStringFromTwoByte(Vector<const uint16_t>(
                    reinterpret_cast<const uint16_t*>(result.getBuffer()),
                    result.length())));
-}
-
-
-RUNTIME_FUNCTION(Runtime_InternalNumberParse) {
-  HandleScope scope(isolate);
-
-  DCHECK(args.length() == 2);
-
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, number_format_holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, number_string, 1);
-
-  isolate->CountUsage(v8::Isolate::UseCounterFeature::kIntlV8Parse);
-
-  v8::String::Utf8Value utf8_number(v8::Utils::ToLocal(number_string));
-  icu::UnicodeString u_number(icu::UnicodeString::fromUTF8(*utf8_number));
-  icu::DecimalFormat* number_format =
-      NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
-  if (!number_format) return isolate->ThrowIllegalOperation();
-
-  UErrorCode status = U_ZERO_ERROR;
-  icu::Formattable result;
-  // ICU 4.6 doesn't support parseCurrency call. We need to wait for ICU49
-  // to be part of Chrome.
-  // TODO(cira): Include currency parsing code using parseCurrency call.
-  // We need to check if the formatter parses all currencies or only the
-  // one it was constructed with (it will impact the API - how to return ISO
-  // code and the value).
-  number_format->parse(u_number, result, status);
-  if (U_FAILURE(status)) return isolate->heap()->undefined_value();
-
-  switch (result.getType()) {
-    case icu::Formattable::kDouble:
-      return *isolate->factory()->NewNumber(result.getDouble());
-    case icu::Formattable::kLong:
-      return *isolate->factory()->NewNumberFromInt(result.getLong());
-    case icu::Formattable::kInt64:
-      return *isolate->factory()->NewNumber(
-          static_cast<double>(result.getInt64()));
-    default:
-      return isolate->heap()->undefined_value();
-  }
 }
 
 

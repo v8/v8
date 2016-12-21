@@ -264,10 +264,8 @@ namespace internal {
   F(CreateDateTimeFormat, 3, 1)              \
   F(InternalDateFormat, 2, 1)                \
   F(InternalDateFormatToParts, 2, 1)         \
-  F(InternalDateParse, 2, 1)                 \
   F(CreateNumberFormat, 3, 1)                \
   F(InternalNumberFormat, 2, 1)              \
-  F(InternalNumberParse, 2, 1)               \
   F(CreateCollator, 3, 1)                    \
   F(InternalCompare, 3, 1)                   \
   F(StringNormalize, 2, 1)                   \
