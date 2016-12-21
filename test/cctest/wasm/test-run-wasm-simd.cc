@@ -96,7 +96,7 @@ WASM_EXEC_TEST(F32x4Splat) {
 
   WasmRunner<int32_t, float> r(kExecuteCompiled);
   byte lane_val = 0;
-  byte simd = r.AllocateLocal(kAstS128);
+  byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(WASM_SET_LOCAL(simd, WASM_SIMD_F32x4_SPLAT(
                                                WASM_GET_LOCAL(lane_val))),
                       WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd, lane_val),
@@ -110,7 +110,7 @@ WASM_EXEC_TEST(F32x4ReplaceLane) {
   WasmRunner<int32_t, float, float> r(kExecuteCompiled);
   byte old_val = 0;
   byte new_val = 1;
-  byte simd = r.AllocateLocal(kAstS128);
+  byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd,
                               WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(old_val))),
@@ -145,9 +145,9 @@ WASM_EXEC_TEST(F32x4FromInt32x4) {
   byte a = 0;
   byte expected_signed = 1;
   byte expected_unsigned = 2;
-  byte simd0 = r.AllocateLocal(kAstS128);
-  byte simd1 = r.AllocateLocal(kAstS128);
-  byte simd2 = r.AllocateLocal(kAstS128);
+  byte simd0 = r.AllocateLocal(kWasmS128);
+  byte simd1 = r.AllocateLocal(kWasmS128);
+  byte simd2 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd0, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(
@@ -169,9 +169,9 @@ WASM_EXEC_TEST(S32x4Select) {
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
   byte val1 = 0;
   byte val2 = 1;
-  byte mask = r.AllocateLocal(kAstS128);
-  byte src1 = r.AllocateLocal(kAstS128);
-  byte src2 = r.AllocateLocal(kAstS128);
+  byte mask = r.AllocateLocal(kWasmS128);
+  byte src1 = r.AllocateLocal(kWasmS128);
+  byte src2 = r.AllocateLocal(kWasmS128);
   BUILD(r,
         WASM_BLOCK(
             WASM_SET_LOCAL(mask, WASM_SIMD_I32x4_SPLAT(WASM_ZERO)),
@@ -198,7 +198,7 @@ void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op) {
   WasmRunner<int32_t, float, float> r(kExecuteCompiled);
   byte a = 0;
   byte expected = 1;
-  byte simd = r.AllocateLocal(kAstS128);
+  byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(
@@ -221,8 +221,8 @@ void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
   byte a = 0;
   byte b = 1;
   byte expected = 2;
-  byte simd0 = r.AllocateLocal(kAstS128);
-  byte simd1 = r.AllocateLocal(kAstS128);
+  byte simd0 = r.AllocateLocal(kWasmS128);
+  byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(simd1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(b))),
@@ -250,8 +250,8 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
   byte a = 0;
   byte b = 1;
   byte expected = 2;
-  byte simd0 = r.AllocateLocal(kAstS128);
-  byte simd1 = r.AllocateLocal(kAstS128);
+  byte simd0 = r.AllocateLocal(kWasmS128);
+  byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(simd1, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(b))),
@@ -289,7 +289,7 @@ WASM_EXEC_TEST(I32x4Splat) {
   // return 1
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
   byte lane_val = 0;
-  byte simd = r.AllocateLocal(kAstS128);
+  byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(WASM_SET_LOCAL(simd, WASM_SIMD_I32x4_SPLAT(
                                                WASM_GET_LOCAL(lane_val))),
                       WASM_SIMD_CHECK_SPLAT4(I32x4, simd, I32, lane_val),
@@ -303,7 +303,7 @@ WASM_EXEC_TEST(I32x4ReplaceLane) {
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
   byte old_val = 0;
   byte new_val = 1;
-  byte simd = r.AllocateLocal(kAstS128);
+  byte simd = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd,
                               WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(old_val))),
@@ -380,9 +380,9 @@ WASM_EXEC_TEST(I32x4FromFloat32x4) {
   byte a = 0;
   byte expected_signed = 1;
   byte expected_unsigned = 2;
-  byte simd0 = r.AllocateLocal(kAstS128);
-  byte simd1 = r.AllocateLocal(kAstS128);
-  byte simd2 = r.AllocateLocal(kAstS128);
+  byte simd0 = r.AllocateLocal(kWasmS128);
+  byte simd1 = r.AllocateLocal(kWasmS128);
+  byte simd2 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd0, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(
@@ -407,8 +407,8 @@ void RunI32x4BinOpTest(WasmOpcode simd_op, Int32BinOp expected_op) {
   byte a = 0;
   byte b = 1;
   byte expected = 2;
-  byte simd0 = r.AllocateLocal(kAstS128);
-  byte simd1 = r.AllocateLocal(kAstS128);
+  byte simd0 = r.AllocateLocal(kWasmS128);
+  byte simd1 = r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(simd0, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(simd1, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(b))),

@@ -16,7 +16,7 @@ var test_throw = (function () {
       kExprGetLocal, 0,
       kExprI32Const, 0,
       kExprI32Ne,
-      kExprIf, kAstStmt,
+      kExprIf, kWasmStmt,
       kExprGetLocal, 0,
       kExprThrow,
       kExprEnd,
@@ -119,11 +119,11 @@ var test_catch = (function () {
     // happen in case of inlining, for example.
     builder.addFunction("same_scope", kSig_i_i)
       .addBody([
-        kExprTry, kAstI32,
+        kExprTry, kWasmI32,
           kExprGetLocal, 0,
           kExprI32Const, 0,
           kExprI32Ne,
-          kExprIf, kAstStmt,
+          kExprIf, kWasmStmt,
             kExprGetLocal, 0,
             kExprThrow,
             kExprUnreachable,
@@ -139,7 +139,7 @@ var test_catch = (function () {
 
     builder.addFunction("same_scope_ignore", kSig_i_i)
       .addBody([
-          kExprTry, kAstI32,
+          kExprTry, kWasmI32,
             kExprGetLocal, 0,
             kExprThrow,
             kExprUnreachable,
@@ -184,13 +184,13 @@ var test_catch = (function () {
       // p == 3 -> path == 338
       // else   -> path == 146
       .addBody([
-          kExprTry, kAstI32,
-            kExprTry, kAstI32,
-              kExprTry, kAstI32,
+          kExprTry, kWasmI32,
+            kExprTry, kWasmI32,
+              kExprTry, kWasmI32,
                 kExprGetLocal, 0,
                 kExprI32Const, 1,
                 kExprI32Eq,
-                kExprIf, kAstStmt,
+                kExprIf, kWasmStmt,
                   kExprI32Const, 1,
                   kExprThrow,
                   kExprUnreachable,
@@ -207,7 +207,7 @@ var test_catch = (function () {
               kExprGetLocal, 0,
               kExprI32Const, 2,
               kExprI32Eq,
-              kExprIf, kAstStmt,
+              kExprIf, kWasmStmt,
                 kExprGetLocal, 2,
                 kExprI32Const, 8,
                 kExprI32Ior,
@@ -227,7 +227,7 @@ var test_catch = (function () {
             kExprGetLocal, 0,
             kExprI32Const, 3,
             kExprI32Eq,
-            kExprIf, kAstStmt,
+            kExprIf, kWasmStmt,
               kExprGetLocal, 2,
               kExprI32Const, /*64=*/ 192, 0,
               kExprI32Ior,
@@ -249,7 +249,7 @@ var test_catch = (function () {
     var kFromDirectCallee =
       builder.addFunction("from_direct_callee", kSig_i_i)
         .addBody([
-          kExprTry, kAstI32,
+          kExprTry, kWasmI32,
             kExprGetLocal, 0,
             kExprCallFunction, kWasmThrowFunction,
             kExprI32Const, /*-1=*/ 127,
@@ -268,7 +268,7 @@ var test_catch = (function () {
         kExprGetLocal, 0,
         kExprI32Const, 0,
         kExprI32GtS,
-        kExprIf, kAstStmt,
+        kExprIf, kWasmStmt,
           kExprGetLocal, 0,
           kExprI32Const, 1,
           kExprI32Sub,
@@ -283,7 +283,7 @@ var test_catch = (function () {
 
     builder.addFunction("from_indirect_callee", kSig_i_i)
       .addBody([
-        kExprTry, kAstI32,
+        kExprTry, kWasmI32,
           kExprGetLocal, 0,
           kExprI32Const, 0,
           kExprCallFunction, kFromIndirectCalleeHelper,
@@ -298,7 +298,7 @@ var test_catch = (function () {
     // Scenario 4: Catches an exception raised in JS.
     builder.addFunction("from_js", kSig_i_i)
       .addBody([
-        kExprTry, kAstI32,
+        kExprTry, kWasmI32,
           kExprGetLocal, 0,
           kExprCallFunction, kJSThrowI,
           kExprI32Const, /*-1=*/ 127,

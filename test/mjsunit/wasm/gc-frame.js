@@ -54,21 +54,21 @@ function print10(a, b, c, d, e, f, g, h, i) {
 }
 
 (function I32Test() {
-  var main = makeFFI(print10, kAstI32);
+  var main = makeFFI(print10, kWasmI32);
   for (var i = 1; i < 0xFFFFFFF; i <<= 2) {
     main(i - 1, i, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8);
   }
 })();
 
 (function F32Test() {
-  var main = makeFFI(print10, kAstF32);
+  var main = makeFFI(print10, kWasmF32);
   for (var i = 1; i < 2e+30; i *= -157) {
     main(i - 1, i, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8);
   }
 })();
 
 (function F64Test() {
-  var main = makeFFI(print10, kAstF64);
+  var main = makeFFI(print10, kWasmF64);
   for (var i = 1; i < 2e+80; i *= -1137) {
     main(i - 1, i, i + 2, i + 3, i + 4, i + 5, i + 6, i + 7, i + 8);
   }

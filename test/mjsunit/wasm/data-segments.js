@@ -37,11 +37,11 @@ function GlobalImportedInitTest(pad) {
   var builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, false);
 
-  while (pad-- > 0) builder.addGlobal(kAstI32);  // pad
+  while (pad-- > 0) builder.addGlobal(kWasmI32);  // pad
 
-  var g = builder.addImportedGlobal("mod", "offset", kAstI32);
+  var g = builder.addImportedGlobal("mod", "offset", kWasmI32);
 
-  while (pad-- > 0) builder.addGlobal(kAstI32);  // pad
+  while (pad-- > 0) builder.addGlobal(kWasmI32);  // pad
 
   builder.addFunction("load", kSig_i_i)
     .addBody([kExprGetLocal, 0, kExprI32LoadMem, 0, 0])

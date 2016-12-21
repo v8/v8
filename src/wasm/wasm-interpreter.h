@@ -32,23 +32,23 @@ typedef ZoneMap<pc_t, pcdiff_t> ControlTransferMap;
 
 // Macro for defining union members.
 #define FOREACH_UNION_MEMBER(V) \
-  V(i32, kAstI32, int32_t)      \
-  V(u32, kAstI32, uint32_t)     \
-  V(i64, kAstI64, int64_t)      \
-  V(u64, kAstI64, uint64_t)     \
-  V(f32, kAstF32, float)        \
-  V(f64, kAstF64, double)
+  V(i32, kWasmI32, int32_t)     \
+  V(u32, kWasmI32, uint32_t)    \
+  V(i64, kWasmI64, int64_t)     \
+  V(u64, kWasmI64, uint64_t)    \
+  V(f32, kWasmF32, float)       \
+  V(f64, kWasmF64, double)
 
 // Representation of values within the interpreter.
 struct WasmVal {
-  LocalType type;
+  ValueType type;
   union {
 #define DECLARE_FIELD(field, localtype, ctype) ctype field;
     FOREACH_UNION_MEMBER(DECLARE_FIELD)
 #undef DECLARE_FIELD
   } val;
 
-  WasmVal() : type(kAstStmt) {}
+  WasmVal() : type(kWasmStmt) {}
 
 #define DECLARE_CONSTRUCTOR(field, localtype, ctype) \
   explicit WasmVal(ctype v) : type(localtype) { val.field = v; }
@@ -72,7 +72,7 @@ FOREACH_UNION_MEMBER(DECLARE_CAST)
 
 template <>
 inline void WasmVal::to() {
-  CHECK_EQ(kAstStmt, type);
+  CHECK_EQ(kWasmStmt, type);
 }
 
 // Representation of frames within the interpreter.

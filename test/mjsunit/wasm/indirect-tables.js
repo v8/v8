@@ -50,7 +50,7 @@ function js_div(a, b) { return (a / b) | 0; }
   f.add.exportAs("blarg");
 
   builder.setFunctionTableLength(10);
-  let g = builder.addImportedGlobal("q", "base", kAstI32);
+  let g = builder.addImportedGlobal("q", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
                                          d]);
@@ -110,7 +110,7 @@ function js_div(a, b) { return (a / b) | 0; }
   let d = builder.addImport("q", "js_div", kSig_i_ii);
   let f = AddFunctions(builder);
   builder.setFunctionTableLength(kTableSize);
-  let g = builder.addImportedGlobal("q", "base", kAstI32);
+  let g = builder.addImportedGlobal("q", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
                                          d]);
@@ -180,7 +180,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let d = builder.addImport("q", "js_div", kSig_i_ii);
   builder.addImportedTable("q", "table", kTableSize, kTableSize);
-  let g = builder.addImportedGlobal("q", "base", kAstI32);
+  let g = builder.addImportedGlobal("q", "base", kWasmI32);
   let f = AddFunctions(builder);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
@@ -247,7 +247,7 @@ function js_div(a, b) { return (a / b) | 0; }
   var builder = new WasmModuleBuilder();
 
   builder.addImportedTable("x", "table", kTableSize, kTableSize);
-  let g = builder.addImportedGlobal("x", "base", kAstI32);
+  let g = builder.addImportedGlobal("x", "base", kWasmI32);
   let sig_index = builder.addType(kSig_i_v);
   builder.addFunction("g", sig_index)
     .addBody([

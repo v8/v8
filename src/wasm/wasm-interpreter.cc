@@ -1122,16 +1122,16 @@ class ThreadImpl : public WasmInterpreter::Thread {
     for (auto p : code->locals.local_types) {
       WasmVal val;
       switch (p.first) {
-        case kAstI32:
+        case kWasmI32:
           val = WasmVal(static_cast<int32_t>(0));
           break;
-        case kAstI64:
+        case kWasmI64:
           val = WasmVal(static_cast<int64_t>(0));
           break;
-        case kAstF32:
+        case kWasmF32:
           val = WasmVal(static_cast<float>(0));
           break;
-        case kAstF64:
+        case kWasmF64:
           val = WasmVal(static_cast<double>(0));
           break;
         default:
@@ -1448,15 +1448,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          LocalType type = global->type;
+          ValueType type = global->type;
           WasmVal val;
-          if (type == kAstI32) {
+          if (type == kWasmI32) {
             val = WasmVal(*reinterpret_cast<int32_t*>(ptr));
-          } else if (type == kAstI64) {
+          } else if (type == kWasmI64) {
             val = WasmVal(*reinterpret_cast<int64_t*>(ptr));
-          } else if (type == kAstF32) {
+          } else if (type == kWasmF32) {
             val = WasmVal(*reinterpret_cast<float*>(ptr));
-          } else if (type == kAstF64) {
+          } else if (type == kWasmF64) {
             val = WasmVal(*reinterpret_cast<double*>(ptr));
           } else {
             UNREACHABLE();
@@ -1469,15 +1469,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
           GlobalIndexOperand operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
           byte* ptr = instance()->globals_start + global->offset;
-          LocalType type = global->type;
+          ValueType type = global->type;
           WasmVal val = Pop();
-          if (type == kAstI32) {
+          if (type == kWasmI32) {
             *reinterpret_cast<int32_t*>(ptr) = val.to<int32_t>();
-          } else if (type == kAstI64) {
+          } else if (type == kWasmI64) {
             *reinterpret_cast<int64_t*>(ptr) = val.to<int64_t>();
-          } else if (type == kAstF32) {
+          } else if (type == kWasmF32) {
             *reinterpret_cast<float*>(ptr) = val.to<float>();
-          } else if (type == kAstF64) {
+          } else if (type == kWasmF64) {
             *reinterpret_cast<double*>(ptr) = val.to<double>();
           } else {
             UNREACHABLE();
@@ -1702,7 +1702,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
 
   void Push(pc_t pc, WasmVal val) {
     // TODO(titzer): store PC as well?
-    if (val.type != kAstStmt) stack_.push_back(val);
+    if (val.type != kWasmStmt) stack_.push_back(val);
   }
 
   void TraceStack(const char* phase, pc_t pc) {
@@ -1728,19 +1728,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           PrintF(" s%zu:", i);
         WasmVal val = stack_[i];
         switch (val.type) {
-          case kAstI32:
+          case kWasmI32:
             PrintF("i32:%d", val.to<int32_t>());
             break;
-          case kAstI64:
+          case kWasmI64:
             PrintF("i64:%" PRId64 "", val.to<int64_t>());
             break;
-          case kAstF32:
+          case kWasmF32:
             PrintF("f32:%f", val.to<float>());
             break;
-          case kAstF64:
+          case kWasmF64:
             PrintF("f64:%lf", val.to<double>());
             break;
-          case kAstStmt:
+          case kWasmStmt:
             PrintF("void");
             break;
           default:
@@ -1844,14 +1844,14 @@ WasmVal WasmInterpreter::GetLocalVal(const WasmFrame* frame, int index) {
   CHECK_GE(index, 0);
   UNIMPLEMENTED();
   WasmVal none;
-  none.type = kAstStmt;
+  none.type = kWasmStmt;
   return none;
 }
 
 WasmVal WasmInterpreter::GetExprVal(const WasmFrame* frame, int pc) {
   UNIMPLEMENTED();
   WasmVal none;
-  none.type = kAstStmt;
+  none.type = kWasmStmt;
   return none;
 }
 

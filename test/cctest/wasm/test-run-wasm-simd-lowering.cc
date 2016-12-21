@@ -98,7 +98,7 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_Add_With_F32x4) {
 WASM_EXEC_COMPILED_TEST(Simd_I32x4_Local) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
-  r.AllocateLocal(kAstS128);
+  r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(WASM_SET_LOCAL(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
                       WASM_RETURN1(
                           WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_GET_LOCAL(0)))));
@@ -108,7 +108,7 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_Local) {
 WASM_EXEC_COMPILED_TEST(Simd_I32x4_Replace_Lane) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
-  r.AllocateLocal(kAstS128);
+  r.AllocateLocal(kWasmS128);
   BUILD(r,
         WASM_BLOCK(
             WASM_SET_LOCAL(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(31))),
@@ -121,8 +121,8 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_Replace_Lane) {
 WASM_EXEC_COMPILED_TEST(Simd_F32x4_Replace_Lane) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
-  r.AllocateLocal(kAstF32);
-  r.AllocateLocal(kAstS128);
+  r.AllocateLocal(kWasmF32);
+  r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(1, WASM_SIMD_F32x4_SPLAT(WASM_F32(23.5))),
                WASM_SET_LOCAL(1, WASM_SIMD_F32x4_REPLACE_LANE(
@@ -138,8 +138,8 @@ WASM_EXEC_COMPILED_TEST(Simd_F32x4_Replace_Lane) {
 WASM_EXEC_COMPILED_TEST(Simd_I32x4_Splat_From_Extract) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
-  r.AllocateLocal(kAstI32);
-  r.AllocateLocal(kAstS128);
+  r.AllocateLocal(kWasmI32);
+  r.AllocateLocal(kWasmS128);
   BUILD(r,
         WASM_BLOCK(
             WASM_SET_LOCAL(0, WASM_SIMD_I32x4_EXTRACT_LANE(
@@ -152,12 +152,12 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_Splat_From_Extract) {
 WASM_EXEC_COMPILED_TEST(Simd_I32x4_Get_Global) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
-  int32_t* global = r.module().AddGlobal<int32_t>(kAstS128);
+  int32_t* global = r.module().AddGlobal<int32_t>(kWasmS128);
   *(global) = 0;
   *(global + 1) = 1;
   *(global + 2) = 2;
   *(global + 3) = 3;
-  r.AllocateLocal(kAstI32);
+  r.AllocateLocal(kWasmI32);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(1, WASM_I32V(1)),
                WASM_IF(WASM_I32_NE(WASM_I32V(0), WASM_SIMD_I32x4_EXTRACT_LANE(
@@ -179,7 +179,7 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_Get_Global) {
 WASM_EXEC_COMPILED_TEST(Simd_I32x4_Set_Global) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
-  int32_t* global = r.module().AddGlobal<int32_t>(kAstS128);
+  int32_t* global = r.module().AddGlobal<int32_t>(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_GLOBAL(0, WASM_SIMD_I32x4_SPLAT(WASM_I32V(23))),
                WASM_SET_GLOBAL(0, WASM_SIMD_I32x4_REPLACE_LANE(
@@ -199,12 +199,12 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_Set_Global) {
 WASM_EXEC_COMPILED_TEST(Simd_F32x4_Get_Global) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
-  float* global = r.module().AddGlobal<float>(kAstS128);
+  float* global = r.module().AddGlobal<float>(kWasmS128);
   *(global) = 0.0;
   *(global + 1) = 1.5;
   *(global + 2) = 2.25;
   *(global + 3) = 3.5;
-  r.AllocateLocal(kAstI32);
+  r.AllocateLocal(kWasmI32);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(1, WASM_I32V(1)),
                WASM_IF(WASM_F32_NE(WASM_F32(0.0), WASM_SIMD_F32x4_EXTRACT_LANE(
@@ -226,7 +226,7 @@ WASM_EXEC_COMPILED_TEST(Simd_F32x4_Get_Global) {
 WASM_EXEC_COMPILED_TEST(Simd_F32x4_Set_Global) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
-  float* global = r.module().AddGlobal<float>(kAstS128);
+  float* global = r.module().AddGlobal<float>(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_SPLAT(WASM_F32(13.5))),
                WASM_SET_GLOBAL(0, WASM_SIMD_F32x4_REPLACE_LANE(
@@ -246,8 +246,8 @@ WASM_EXEC_COMPILED_TEST(Simd_F32x4_Set_Global) {
 WASM_EXEC_COMPILED_TEST(Simd_I32x4_For) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
-  r.AllocateLocal(kAstI32);
-  r.AllocateLocal(kAstS128);
+  r.AllocateLocal(kWasmI32);
+  r.AllocateLocal(kWasmS128);
   BUILD(
       r,
       WASM_BLOCK(
@@ -286,8 +286,8 @@ WASM_EXEC_COMPILED_TEST(Simd_I32x4_For) {
 WASM_EXEC_COMPILED_TEST(Simd_F32x4_For) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
-  r.AllocateLocal(kAstI32);
-  r.AllocateLocal(kAstS128);
+  r.AllocateLocal(kWasmI32);
+  r.AllocateLocal(kWasmS128);
   BUILD(r, WASM_BLOCK(
                WASM_SET_LOCAL(1, WASM_SIMD_F32x4_SPLAT(WASM_F32(21.25))),
                WASM_SET_LOCAL(1, WASM_SIMD_F32x4_REPLACE_LANE(

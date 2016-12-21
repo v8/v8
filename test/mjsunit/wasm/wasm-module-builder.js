@@ -353,15 +353,15 @@ class WasmModuleBuilder {
           if ((typeof global.init_index) == "undefined") {
             // Emit a constant initializer.
             switch (global.type) {
-            case kAstI32:
+            case kWasmI32:
               section.emit_u8(kExprI32Const);
               section.emit_u32v(global.init);
               break;
-            case kAstI64:
+            case kWasmI64:
               section.emit_u8(kExprI64Const);
               section.emit_u8(global.init);
               break;
-            case kAstF32:
+            case kWasmF32:
               section.emit_u8(kExprF32Const);
               f32_view[0] = global.init;
               section.emit_u8(byte_view[0]);
@@ -369,7 +369,7 @@ class WasmModuleBuilder {
               section.emit_u8(byte_view[2]);
               section.emit_u8(byte_view[3]);
               break;
-            case kAstF64:
+            case kWasmF64:
               section.emit_u8(kExprF64Const);
               f64_view[0] = global.init;
               section.emit_u8(byte_view[0]);
@@ -457,16 +457,16 @@ class WasmModuleBuilder {
           if (l != undefined) {
             let local_decls_count = 0;
             if (l.i32_count > 0) {
-              local_decls.push({count: l.i32_count, type: kAstI32});
+              local_decls.push({count: l.i32_count, type: kWasmI32});
             }
             if (l.i64_count > 0) {
-              local_decls.push({count: l.i64_count, type: kAstI64});
+              local_decls.push({count: l.i64_count, type: kWasmI64});
             }
             if (l.f32_count > 0) {
-              local_decls.push({count: l.f32_count, type: kAstF32});
+              local_decls.push({count: l.f32_count, type: kWasmF32});
             }
             if (l.f64_count > 0) {
-              local_decls.push({count: l.f64_count, type: kAstF64});
+              local_decls.push({count: l.f64_count, type: kWasmF64});
             }
           }
 

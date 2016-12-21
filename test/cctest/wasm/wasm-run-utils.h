@@ -121,7 +121,7 @@ class TestingModule : public ModuleEnv {
 
   template <typename T>
   T* AddGlobal(
-      LocalType type = WasmOpcodes::LocalTypeFor(MachineTypeForC<T>())) {
+      ValueType type = WasmOpcodes::ValueTypeFor(MachineTypeForC<T>())) {
     const WasmGlobal* global = AddGlobal(type);
     return reinterpret_cast<T*>(instance->globals_start + global->offset);
   }
@@ -297,7 +297,7 @@ class TestingModule : public ModuleEnv {
   WasmInterpreter* interpreter_;
   Handle<WasmInstanceObject> instance_object_;
 
-  const WasmGlobal* AddGlobal(LocalType type) {
+  const WasmGlobal* AddGlobal(ValueType type) {
     byte size = WasmOpcodes::MemSize(WasmOpcodes::MachineTypeFor(type));
     global_offset = (global_offset + size - 1) & ~(size - 1);  // align
     module_.globals.push_back(
@@ -524,7 +524,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     testing_module_->SetFunctionCode(function_index(), code);
   }
 
-  byte AllocateLocal(LocalType type) {
+  byte AllocateLocal(ValueType type) {
     uint32_t index = local_decls.AddLocals(1, type);
     byte result = static_cast<byte>(index);
     DCHECK_EQ(index, result);
@@ -636,7 +636,7 @@ class WasmRunnerBase : public HandleAndZoneScope {
     return *functions_.back();
   }
 
-  byte AllocateLocal(LocalType type) {
+  byte AllocateLocal(ValueType type) {
     return functions_[0]->AllocateLocal(type);
   }
 
@@ -663,16 +663,16 @@ class WasmRunnerBase : public HandleAndZoneScope {
     int param_count = param_types.length();
 
     // Allocate storage array in zone.
-    LocalType* sig_types =
-        zone_.NewArray<LocalType>(return_count + param_count);
+    ValueType* sig_types =
+        zone_.NewArray<ValueType>(return_count + param_count);
 
     // Convert machine types to local types, and check that there are no
     // MachineType::None()'s in the parameters.
     int idx = 0;
-    if (return_count) sig_types[idx++] = WasmOpcodes::LocalTypeFor(return_type);
+    if (return_count) sig_types[idx++] = WasmOpcodes::ValueTypeFor(return_type);
     for (MachineType param : param_types) {
       CHECK_NE(MachineType::None(), param);
-      sig_types[idx++] = WasmOpcodes::LocalTypeFor(param);
+      sig_types[idx++] = WasmOpcodes::ValueTypeFor(param);
     }
     return new (&zone_) FunctionSig(return_count, param_count, sig_types);
   }

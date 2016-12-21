@@ -76,7 +76,7 @@ void WasmFunctionBuilder::SetSignature(FunctionSig* sig) {
   signature_index_ = builder_->AddSignature(sig);
 }
 
-uint32_t WasmFunctionBuilder::AddLocal(LocalType type) {
+uint32_t WasmFunctionBuilder::AddLocal(ValueType type) {
   DCHECK(locals_.has_sig());
   return locals_.AddLocals(1, type);
 }
@@ -289,7 +289,7 @@ void WasmModuleBuilder::MarkStartFunction(WasmFunctionBuilder* function) {
   start_function_index_ = function->func_index();
 }
 
-uint32_t WasmModuleBuilder::AddGlobal(LocalType type, bool exported,
+uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool exported,
                                       bool mutability,
                                       const WasmInitExpr& init) {
   globals_.push_back({type, exported, mutability, init});
@@ -313,11 +313,11 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
       buffer.write_u8(kWasmFunctionTypeForm);
       buffer.write_size(sig->parameter_count());
       for (size_t j = 0; j < sig->parameter_count(); j++) {
-        buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(sig->GetParam(j)));
+        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(sig->GetParam(j)));
       }
       buffer.write_size(sig->return_count());
       for (size_t j = 0; j < sig->return_count(); j++) {
-        buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(sig->GetReturn(j)));
+        buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(sig->GetReturn(j)));
       }
     }
     FixupSection(buffer, start);
@@ -378,29 +378,29 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(globals_.size());
 
     for (auto global : globals_) {
-      buffer.write_u8(WasmOpcodes::LocalTypeCodeFor(global.type));
+      buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(global.type));
       buffer.write_u8(global.mutability ? 1 : 0);
       switch (global.init.kind) {
         case WasmInitExpr::kI32Const: {
-          DCHECK_EQ(kAstI32, global.type);
+          DCHECK_EQ(kWasmI32, global.type);
           const byte code[] = {WASM_I32V_5(global.init.val.i32_const)};
           buffer.write(code, sizeof(code));
           break;
         }
         case WasmInitExpr::kI64Const: {
-          DCHECK_EQ(kAstI64, global.type);
+          DCHECK_EQ(kWasmI64, global.type);
           const byte code[] = {WASM_I64V_10(global.init.val.i64_const)};
           buffer.write(code, sizeof(code));
           break;
         }
         case WasmInitExpr::kF32Const: {
-          DCHECK_EQ(kAstF32, global.type);
+          DCHECK_EQ(kWasmF32, global.type);
           const byte code[] = {WASM_F32(global.init.val.f32_const)};
           buffer.write(code, sizeof(code));
           break;
         }
         case WasmInitExpr::kF64Const: {
-          DCHECK_EQ(kAstF64, global.type);
+          DCHECK_EQ(kWasmF64, global.type);
           const byte code[] = {WASM_F64(global.init.val.f64_const)};
           buffer.write(code, sizeof(code));
           break;
@@ -414,22 +414,22 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
         default: {
           // No initializer, emit a default value.
           switch (global.type) {
-            case kAstI32: {
+            case kWasmI32: {
               const byte code[] = {WASM_I32V_1(0)};
               buffer.write(code, sizeof(code));
               break;
             }
-            case kAstI64: {
+            case kWasmI64: {
               const byte code[] = {WASM_I64V_1(0)};
               buffer.write(code, sizeof(code));
               break;
             }
-            case kAstF32: {
+            case kWasmF32: {
               const byte code[] = {WASM_F32(0.0)};
               buffer.write(code, sizeof(code));
               break;
             }
-            case kAstF64: {
+            case kWasmF64: {
               const byte code[] = {WASM_F64(0.0)};
               buffer.write(code, sizeof(code));
               break;

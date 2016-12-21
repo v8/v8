@@ -30,11 +30,11 @@ var sig_index = builder.addType(kSig_i_v)
 builder.addFunction("main", kSig_i_i)
   .addBody([
       // offset 1
-        kExprBlock, kAstI32,
+        kExprBlock, kWasmI32,
             kExprGetLocal, 0,
             kExprI32Const, 2,
           kExprI32LtU,
-        kExprIf, kAstStmt,
+        kExprIf, kWasmStmt,
         // offset 9
               kExprI32Const, 0x7e /* -2 */,
               kExprGetLocal, 0,
@@ -47,7 +47,7 @@ builder.addFunction("main", kSig_i_i)
             kExprGetLocal, 0,
             kExprI32Const, 2,
           kExprI32Eq,
-        kExprIf, kAstStmt,
+        kExprIf, kWasmStmt,
           kExprUnreachable,
         kExprEnd,
         // offset 30

@@ -81,16 +81,16 @@ function assertConversionError(bytes, imports = {}) {
   assertLinkError(b.toBuffer(), {foo: {bar: 9}});
 
   b = builder();
-  b.addImportedGlobal("foo", "bar", kAstI32);
+  b.addImportedGlobal("foo", "bar", kWasmI32);
   assertTypeError(b.toBuffer(), {});
   b = builder();
-  b.addImportedGlobal("foo", "bar", kAstI32);
+  b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {}});
   b = builder();
-  b.addImportedGlobal("foo", "bar", kAstI32);
+  b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {bar: ""}});
   b = builder();
-  b.addImportedGlobal("foo", "bar", kAstI32);
+  b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {bar: () => 9}});
 
   b = builder();

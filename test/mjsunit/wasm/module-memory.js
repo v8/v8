@@ -17,12 +17,12 @@ function genModule(memory) {
     .addBody([
       // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       // TODO(titzer): this manual bytecode has a copy of test-run-wasm.cc
-      /**/ kExprLoop, kAstStmt,            // --
+      /**/ kExprLoop, kWasmStmt,            // --
       /*  */ kExprGetLocal, 0,             // --
-      /*  */ kExprIf, kAstStmt,            // --
+      /*  */ kExprIf, kWasmStmt,            // --
       /*    */ kExprGetLocal, 0,           // --
       /*    */ kExprI32LoadMem, 0, 0,      // --
-      /*    */ kExprIf, kAstStmt,          // --
+      /*    */ kExprIf, kWasmStmt,          // --
       /*      */ kExprI8Const, 255,        // --
       /*      */ kExprReturn,              // --
       /*      */ kExprEnd,                 // --

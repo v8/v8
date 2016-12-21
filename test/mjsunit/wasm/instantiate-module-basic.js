@@ -118,7 +118,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   print("InstancesAreIsolatedFromEachother...");
   var builder = new WasmModuleBuilder();
   builder.addMemory(1,1, true);
-  var kSig_v_i = makeSig([kAstI32], []);
+  var kSig_v_i = makeSig([kWasmI32], []);
   var signature = builder.addType(kSig_v_i);
   builder.addImport("m", "some_value", kSig_i_v);
   builder.addImport("m", "writer", signature);
@@ -172,7 +172,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function GlobalsArePrivateToTheInstance() {
   print("GlobalsArePrivateToTheInstance...");
     var builder = new WasmModuleBuilder();
-    builder.addGlobal(kAstI32, true);
+    builder.addGlobal(kWasmI32, true);
     builder.addFunction("read", kSig_i_v)
         .addBody([
             kExprGetGlobal, 0])

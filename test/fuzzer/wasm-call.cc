@@ -35,25 +35,25 @@ static inline V read_value(const uint8_t** data, size_t* size, bool* ok) {
 }
 
 static void add_argument(
-    v8::internal::Isolate* isolate, LocalType type, WasmVal* interpreter_args,
+    v8::internal::Isolate* isolate, ValueType type, WasmVal* interpreter_args,
     v8::internal::Handle<v8::internal::Object>* compiled_args, int* argc,
     const uint8_t** data, size_t* size, bool* ok) {
   if (!(*ok)) return;
   switch (type) {
-    case kAstF32: {
+    case kWasmF32: {
       float value = read_value<float>(data, size, ok);
       interpreter_args[*argc] = WasmVal(value);
       compiled_args[*argc] =
           isolate->factory()->NewNumber(static_cast<double>(value));
       break;
     }
-    case kAstF64: {
+    case kWasmF64: {
       double value = read_value<double>(data, size, ok);
       interpreter_args[*argc] = WasmVal(value);
       compiled_args[*argc] = isolate->factory()->NewNumber(value);
       break;
     }
-    case kAstI32: {
+    case kWasmI32: {
       int32_t value = read_value<int32_t>(data, size, ok);
       interpreter_args[*argc] = WasmVal(value);
       compiled_args[*argc] =
@@ -89,7 +89,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   uint8_t num_functions =
       (read_value<uint8_t>(&data, &size, &ok) % MAX_NUM_FUNCTIONS) + 1;
 
-  LocalType types[] = {kAstF32, kAstF64, kAstI32, kAstI64};
+  ValueType types[] = {kWasmF32, kWasmF64, kWasmI32, kWasmI64};
   WasmVal interpreter_args[3];
   v8::internal::Handle<v8::internal::Object> compiled_args[3];
   int argc = 0;
@@ -99,10 +99,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     size_t num_params = static_cast<size_t>(
         (read_value<uint8_t>(&data, &size, &ok) % MAX_NUM_PARAMS) + 1);
     FunctionSig::Builder sig_builder(&zone, 1, num_params);
-    sig_builder.AddReturn(kAstI32);
+    sig_builder.AddReturn(kWasmI32);
     for (size_t param = 0; param < num_params; param++) {
       // The main function cannot handle int64 parameters.
-      LocalType param_type = types[(read_value<uint8_t>(&data, &size, &ok) %
+      ValueType param_type = types[(read_value<uint8_t>(&data, &size, &ok) %
                                     (arraysize(types) - (fun == 0 ? 1 : 0)))];
       sig_builder.AddParam(param_type);
       if (fun == 0) {

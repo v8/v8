@@ -185,7 +185,7 @@ assertTraps(kTrapFuncInvalid, "module.exports.main(12, 3)");
     .exportAs("main");
 
   builder.setFunctionTableLength(10);
-  var g = builder.addImportedGlobal("fff", "base", kAstI32);
+  var g = builder.addImportedGlobal("fff", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index, f.sub.index]);
 
   var module = new WebAssembly.Module(builder.toBuffer());

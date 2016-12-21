@@ -32,12 +32,12 @@ struct WasmGlobal;
 // Helpers for decoding different kinds of operands which follow bytecodes.
 struct LocalIndexOperand {
   uint32_t index;
-  LocalType type;
+  ValueType type;
   unsigned length;
 
   inline LocalIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->checked_read_u32v(pc, 1, &length, "local index");
-    type = kAstStmt;
+    type = kWasmStmt;
   }
 };
 
@@ -86,14 +86,14 @@ struct ImmF64Operand {
 
 struct GlobalIndexOperand {
   uint32_t index;
-  LocalType type;
+  ValueType type;
   const WasmGlobal* global;
   unsigned length;
 
   inline GlobalIndexOperand(Decoder* decoder, const byte* pc) {
     index = decoder->checked_read_u32v(pc, 1, &length, "global index");
     global = nullptr;
-    type = kAstStmt;
+    type = kWasmStmt;
   }
 };
 
@@ -104,12 +104,12 @@ struct BlockTypeOperand {
 
   inline BlockTypeOperand(Decoder* decoder, const byte* pc) {
     uint8_t val = decoder->checked_read_u8(pc, 1, "block type");
-    LocalType type = kAstStmt;
+    ValueType type = kWasmStmt;
     length = 1;
     arity = 0;
     types = nullptr;
     if (decode_local_type(val, &type)) {
-      arity = type == kAstStmt ? 0 : 1;
+      arity = type == kWasmStmt ? 0 : 1;
       types = pc + 1;
     } else {
       // Handle multi-value blocks.
@@ -135,7 +135,7 @@ struct BlockTypeOperand {
         uint32_t offset = 1 + 1 + len + i;
         val = decoder->checked_read_u8(pc, offset, "block type");
         decode_local_type(val, &type);
-        if (type == kAstStmt) {
+        if (type == kWasmStmt) {
           decoder->error(pc, pc + offset, "invalid block type");
           return;
         }
@@ -144,34 +144,34 @@ struct BlockTypeOperand {
   }
   // Decode a byte representing a local type. Return {false} if the encoded
   // byte was invalid or {kMultivalBlock}.
-  bool decode_local_type(uint8_t val, LocalType* result) {
-    switch (static_cast<LocalTypeCode>(val)) {
+  bool decode_local_type(uint8_t val, ValueType* result) {
+    switch (static_cast<ValueTypeCode>(val)) {
       case kLocalVoid:
-        *result = kAstStmt;
+        *result = kWasmStmt;
         return true;
       case kLocalI32:
-        *result = kAstI32;
+        *result = kWasmI32;
         return true;
       case kLocalI64:
-        *result = kAstI64;
+        *result = kWasmI64;
         return true;
       case kLocalF32:
-        *result = kAstF32;
+        *result = kWasmF32;
         return true;
       case kLocalF64:
-        *result = kAstF64;
+        *result = kWasmF64;
         return true;
       case kLocalS128:
-        *result = kAstS128;
+        *result = kWasmS128;
         return true;
       default:
-        *result = kAstStmt;
+        *result = kWasmStmt;
         return false;
     }
   }
-  LocalType read_entry(unsigned index) {
+  ValueType read_entry(unsigned index) {
     DCHECK_LT(index, arity);
-    LocalType result;
+    ValueType result;
     CHECK(decode_local_type(types[index], &result));
     return result;
   }
@@ -366,7 +366,7 @@ struct BodyLocalDecls {
   uint32_t total_local_count;
 
   // List of {local type, count} pairs.
-  ZoneVector<std::pair<LocalType, uint32_t>> local_types;
+  ZoneVector<std::pair<ValueType, uint32_t>> local_types;
 
   // Constructor initializes the vector.
   explicit BodyLocalDecls(Zone* zone)

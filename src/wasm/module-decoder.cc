@@ -32,25 +32,25 @@ namespace {
 const char* kNameString = "name";
 const size_t kNameStringLength = 4;
 
-LocalType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
+ValueType TypeOf(const WasmModule* module, const WasmInitExpr& expr) {
   switch (expr.kind) {
     case WasmInitExpr::kNone:
-      return kAstStmt;
+      return kWasmStmt;
     case WasmInitExpr::kGlobalIndex:
       return expr.val.global_index < module->globals.size()
                  ? module->globals[expr.val.global_index].type
-                 : kAstStmt;
+                 : kWasmStmt;
     case WasmInitExpr::kI32Const:
-      return kAstI32;
+      return kWasmI32;
     case WasmInitExpr::kI64Const:
-      return kAstI64;
+      return kWasmI64;
     case WasmInitExpr::kF32Const:
-      return kAstF32;
+      return kWasmF32;
     case WasmInitExpr::kF64Const:
-      return kAstF64;
+      return kWasmF64;
     default:
       UNREACHABLE();
-      return kAstStmt;
+      return kWasmStmt;
   }
 }
 
@@ -331,7 +331,7 @@ class ModuleDecoder : public Decoder {
             // ===== Imported global =========================================
             import->index = static_cast<uint32_t>(module->globals.size());
             module->globals.push_back(
-                {kAstStmt, false, WasmInitExpr(), 0, true, false});
+                {kWasmStmt, false, WasmInitExpr(), 0, true, false});
             WasmGlobal* global = &module->globals.back();
             global->type = consume_value_type();
             global->mutability = consume_u8("mutability") != 0;
@@ -414,7 +414,7 @@ class ModuleDecoder : public Decoder {
               static_cast<int>(pc_ - start_));
         // Add an uninitialized global and pass a pointer to it.
         module->globals.push_back(
-            {kAstStmt, false, WasmInitExpr(), 0, false, false});
+            {kWasmStmt, false, WasmInitExpr(), 0, false, false});
         WasmGlobal* global = &module->globals.back();
         DecodeGlobalInModule(module, i + imported_globals, global);
       }
@@ -536,7 +536,7 @@ class ModuleDecoder : public Decoder {
         } else {
           table = &module->function_tables[table_index];
         }
-        WasmInitExpr offset = consume_init_expr(module, kAstI32);
+        WasmInitExpr offset = consume_init_expr(module, kWasmI32);
         uint32_t num_elem =
             consume_count("number of elements", kV8MaxWasmTableEntries);
         std::vector<uint32_t> vector;
@@ -670,7 +670,7 @@ class ModuleDecoder : public Decoder {
 
   WasmInitExpr DecodeInitExpr(const byte* start) {
     pc_ = start;
-    return consume_init_expr(nullptr, kAstStmt);
+    return consume_init_expr(nullptr, kWasmStmt);
   }
 
  private:
@@ -686,7 +686,7 @@ class ModuleDecoder : public Decoder {
     global->type = consume_value_type();
     global->mutability = consume_u8("mutability") != 0;
     const byte* pos = pc();
-    global->init = consume_init_expr(module, kAstStmt);
+    global->init = consume_init_expr(module, kWasmStmt);
     switch (global->init.kind) {
       case WasmInitExpr::kGlobalIndex: {
         uint32_t other_index = global->init.val.global_index;
@@ -724,7 +724,7 @@ class ModuleDecoder : public Decoder {
   void DecodeDataSegmentInModule(WasmModule* module, WasmDataSegment* segment) {
     const byte* start = pc_;
     expect_u8("linear memory index", 0);
-    segment->dest_addr = consume_init_expr(module, kAstI32);
+    segment->dest_addr = consume_init_expr(module, kWasmI32);
     segment->source_size = consume_u32v("source size");
     segment->source_offset = static_cast<uint32_t>(pc_ - start_);
 
@@ -900,7 +900,7 @@ class ModuleDecoder : public Decoder {
     return true;
   }
 
-  WasmInitExpr consume_init_expr(WasmModule* module, LocalType expected) {
+  WasmInitExpr consume_init_expr(WasmModule* module, ValueType expected) {
     const byte* pos = pc();
     uint8_t opcode = consume_u8("opcode");
     WasmInitExpr expr;
@@ -966,7 +966,7 @@ class ModuleDecoder : public Decoder {
     if (!expect_u8("end opcode", kExprEnd)) {
       expr.kind = WasmInitExpr::kNone;
     }
-    if (expected != kAstStmt && TypeOf(module, expr) != kAstI32) {
+    if (expected != kWasmStmt && TypeOf(module, expr) != kWasmI32) {
       error(pos, pos, "type error in init expression, expected %s, got %s",
             WasmOpcodes::TypeName(expected),
             WasmOpcodes::TypeName(TypeOf(module, expr)));
@@ -975,28 +975,28 @@ class ModuleDecoder : public Decoder {
   }
 
   // Reads a single 8-bit integer, interpreting it as a local type.
-  LocalType consume_value_type() {
+  ValueType consume_value_type() {
     byte val = consume_u8("value type");
-    LocalTypeCode t = static_cast<LocalTypeCode>(val);
+    ValueTypeCode t = static_cast<ValueTypeCode>(val);
     switch (t) {
       case kLocalI32:
-        return kAstI32;
+        return kWasmI32;
       case kLocalI64:
-        return kAstI64;
+        return kWasmI64;
       case kLocalF32:
-        return kAstF32;
+        return kWasmF32;
       case kLocalF64:
-        return kAstF64;
+        return kWasmF64;
       case kLocalS128:
         if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
-          return kAstS128;
+          return kWasmS128;
         } else {
           error(pc_ - 1, "invalid local type");
-          return kAstStmt;
+          return kWasmStmt;
         }
       default:
         error(pc_ - 1, "invalid local type");
-        return kAstStmt;
+        return kWasmStmt;
     }
   }
 
@@ -1007,9 +1007,9 @@ class ModuleDecoder : public Decoder {
     uint32_t param_count =
         consume_count("param count", kV8MaxWasmFunctionParams);
     if (failed()) return nullptr;
-    std::vector<LocalType> params;
+    std::vector<ValueType> params;
     for (uint32_t i = 0; ok() && i < param_count; ++i) {
-      LocalType param = consume_value_type();
+      ValueType param = consume_value_type();
       params.push_back(param);
     }
 
@@ -1019,17 +1019,17 @@ class ModuleDecoder : public Decoder {
                                         : kV8MaxWasmFunctionReturns;
     uint32_t return_count = consume_count("return count", max_return_count);
     if (failed()) return nullptr;
-    std::vector<LocalType> returns;
+    std::vector<ValueType> returns;
     for (uint32_t i = 0; ok() && i < return_count; ++i) {
-      LocalType ret = consume_value_type();
+      ValueType ret = consume_value_type();
       returns.push_back(ret);
     }
 
     if (failed()) return nullptr;
 
     // FunctionSig stores the return types first.
-    LocalType* buffer =
-        module_zone->NewArray<LocalType>(param_count + return_count);
+    ValueType* buffer =
+        module_zone->NewArray<ValueType>(param_count + return_count);
     uint32_t b = 0;
     for (uint32_t i = 0; i < return_count; ++i) buffer[b++] = returns[i];
     for (uint32_t i = 0; i < param_count; ++i) buffer[b++] = params[i];

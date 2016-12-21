@@ -70,7 +70,7 @@ struct SsaEnv {
 struct Value {
   const byte* pc;
   TFNode* node;
-  LocalType type;
+  ValueType type;
 };
 
 struct TryInfo : public ZoneObject {
@@ -174,14 +174,14 @@ class WasmDecoder : public Decoder {
   ModuleEnv* module_;
   FunctionSig* sig_;
   size_t total_locals_;
-  ZoneVector<LocalType>* local_types_;
+  ZoneVector<ValueType>* local_types_;
 
   inline bool Validate(const byte* pc, LocalIndexOperand& operand) {
     if (operand.index < total_locals_) {
       if (local_types_) {
         operand.type = local_types_->at(operand.index);
       } else {
-        operand.type = kAstStmt;
+        operand.type = kWasmStmt;
       }
       return true;
     }
@@ -469,12 +469,12 @@ class WasmFullDecoder : public WasmDecoder {
     decls.local_types.reserve(local_type_vec_.size());
     for (size_t pos = 0; pos < local_type_vec_.size();) {
       uint32_t count = 0;
-      LocalType type = local_type_vec_[pos];
+      ValueType type = local_type_vec_[pos];
       while (pos < local_type_vec_.size() && local_type_vec_[pos] == type) {
         pos++;
         count++;
       }
-      decls.local_types.push_back(std::pair<LocalType, uint32_t>(type, count));
+      decls.local_types.push_back(std::pair<ValueType, uint32_t>(type, count));
     }
     decls.total_local_count = static_cast<uint32_t>(local_type_vec_.size());
     return true;
@@ -486,7 +486,7 @@ class WasmFullDecoder : public WasmDecoder {
     local_type_vec_.reserve(num_locals);
     if (num_locals > local_type_vec_.size()) {
       local_type_vec_.insert(local_type_vec_.end(),
-                             num_locals - local_type_vec_.size(), kAstI32);
+                             num_locals - local_type_vec_.size(), kWasmI32);
     }
     return AnalyzeLoopAssignment(pc);
   }
@@ -500,7 +500,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   SsaEnv* ssa_env_;
 
-  ZoneVector<LocalType> local_type_vec_;  // types of local variables.
+  ZoneVector<ValueType> local_type_vec_;  // types of local variables.
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
   bool last_end_found_;
@@ -528,7 +528,7 @@ class WasmFullDecoder : public WasmDecoder {
         index++;
       }
       while (index < local_type_vec_.size()) {
-        LocalType type = local_type_vec_[index];
+        ValueType type = local_type_vec_[index];
         TFNode* node = DefaultValue(type);
         while (index < local_type_vec_.size() &&
                local_type_vec_[index] == type) {
@@ -546,17 +546,17 @@ class WasmFullDecoder : public WasmDecoder {
     }
   }
 
-  TFNode* DefaultValue(LocalType type) {
+  TFNode* DefaultValue(ValueType type) {
     switch (type) {
-      case kAstI32:
+      case kWasmI32:
         return builder_->Int32Constant(0);
-      case kAstI64:
+      case kWasmI64:
         return builder_->Int64Constant(0);
-      case kAstF32:
+      case kWasmF32:
         return builder_->Float32Constant(0);
-      case kAstF64:
+      case kWasmF64:
         return builder_->Float64Constant(0);
-      case kAstS128:
+      case kWasmS128:
         return builder_->CreateS128Value(0);
       default:
         UNREACHABLE();
@@ -595,22 +595,22 @@ class WasmFullDecoder : public WasmDecoder {
         return;
       }
       byte code = consume_u8("local type");
-      LocalType type;
+      ValueType type;
       switch (code) {
         case kLocalI32:
-          type = kAstI32;
+          type = kWasmI32;
           break;
         case kLocalI64:
-          type = kAstI64;
+          type = kWasmI64;
           break;
         case kLocalF32:
-          type = kAstF32;
+          type = kWasmF32;
           break;
         case kLocalF64:
-          type = kAstF64;
+          type = kWasmF64;
           break;
         case kLocalS128:
-          type = kAstS128;
+          type = kWasmS128;
           break;
         default:
           error(pc_ - 1, "invalid local type");
@@ -676,7 +676,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprThrow: {
             CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
-            Value value = Pop(0, kAstI32);
+            Value value = Pop(0, kWasmI32);
             BUILD(Throw, value.node);
             break;
           }
@@ -749,7 +749,7 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprIf: {
             // Condition on top of stack. Split environments for branches.
             BlockTypeOperand operand(this, pc_);
-            Value cond = Pop(0, kAstI32);
+            Value cond = Pop(0, kWasmI32);
             TFNode* if_true = nullptr;
             TFNode* if_false = nullptr;
             BUILD(BranchNoHint, cond.node, &if_true, &if_false);
@@ -857,19 +857,19 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprSelect: {
-            Value cond = Pop(2, kAstI32);
+            Value cond = Pop(2, kWasmI32);
             Value fval = Pop();
             Value tval = Pop();
-            if (tval.type == kAstStmt || tval.type != fval.type) {
-              if (tval.type != kAstEnd && fval.type != kAstEnd) {
+            if (tval.type == kWasmStmt || tval.type != fval.type) {
+              if (tval.type != kWasmEnd && fval.type != kWasmEnd) {
                 error("type mismatch in select");
                 break;
               }
             }
             if (build()) {
-              DCHECK(tval.type != kAstEnd);
-              DCHECK(fval.type != kAstEnd);
-              DCHECK(cond.type != kAstEnd);
+              DCHECK(tval.type != kWasmEnd);
+              DCHECK(fval.type != kWasmEnd);
+              DCHECK(cond.type != kWasmEnd);
               TFNode* controls[2];
               builder_->BranchNoHint(cond.node, &controls[0], &controls[1]);
               TFNode* merge = builder_->Merge(2, controls);
@@ -893,7 +893,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprBrIf: {
             BreakDepthOperand operand(this, pc_);
-            Value cond = Pop(0, kAstI32);
+            Value cond = Pop(0, kWasmI32);
             if (ok() && Validate(pc_, operand, control_)) {
               SsaEnv* fenv = ssa_env_;
               SsaEnv* tenv = Split(fenv);
@@ -910,7 +910,7 @@ class WasmFullDecoder : public WasmDecoder {
             BranchTableOperand operand(this, pc_);
             BranchTableIterator iterator(this, operand);
             if (Validate(pc_, operand, control_.size())) {
-              Value key = Pop(0, kAstI32);
+              Value key = Pop(0, kWasmI32);
               if (failed()) break;
 
               SsaEnv* break_env = ssa_env_;
@@ -962,31 +962,31 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprI8Const: {
             ImmI8Operand operand(this, pc_);
-            Push(kAstI32, BUILD(Int32Constant, operand.value));
+            Push(kWasmI32, BUILD(Int32Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprI32Const: {
             ImmI32Operand operand(this, pc_);
-            Push(kAstI32, BUILD(Int32Constant, operand.value));
+            Push(kWasmI32, BUILD(Int32Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprI64Const: {
             ImmI64Operand operand(this, pc_);
-            Push(kAstI64, BUILD(Int64Constant, operand.value));
+            Push(kWasmI64, BUILD(Int64Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprF32Const: {
             ImmF32Operand operand(this, pc_);
-            Push(kAstF32, BUILD(Float32Constant, operand.value));
+            Push(kWasmF32, BUILD(Float32Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
           case kExprF64Const: {
             ImmF64Operand operand(this, pc_);
-            Push(kAstF64, BUILD(Float64Constant, operand.value));
+            Push(kWasmF64, BUILD(Float64Constant, operand.value));
             len = 1 + operand.length;
             break;
           }
@@ -1048,79 +1048,79 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprI32LoadMem8S:
-            len = DecodeLoadMem(kAstI32, MachineType::Int8());
+            len = DecodeLoadMem(kWasmI32, MachineType::Int8());
             break;
           case kExprI32LoadMem8U:
-            len = DecodeLoadMem(kAstI32, MachineType::Uint8());
+            len = DecodeLoadMem(kWasmI32, MachineType::Uint8());
             break;
           case kExprI32LoadMem16S:
-            len = DecodeLoadMem(kAstI32, MachineType::Int16());
+            len = DecodeLoadMem(kWasmI32, MachineType::Int16());
             break;
           case kExprI32LoadMem16U:
-            len = DecodeLoadMem(kAstI32, MachineType::Uint16());
+            len = DecodeLoadMem(kWasmI32, MachineType::Uint16());
             break;
           case kExprI32LoadMem:
-            len = DecodeLoadMem(kAstI32, MachineType::Int32());
+            len = DecodeLoadMem(kWasmI32, MachineType::Int32());
             break;
           case kExprI64LoadMem8S:
-            len = DecodeLoadMem(kAstI64, MachineType::Int8());
+            len = DecodeLoadMem(kWasmI64, MachineType::Int8());
             break;
           case kExprI64LoadMem8U:
-            len = DecodeLoadMem(kAstI64, MachineType::Uint8());
+            len = DecodeLoadMem(kWasmI64, MachineType::Uint8());
             break;
           case kExprI64LoadMem16S:
-            len = DecodeLoadMem(kAstI64, MachineType::Int16());
+            len = DecodeLoadMem(kWasmI64, MachineType::Int16());
             break;
           case kExprI64LoadMem16U:
-            len = DecodeLoadMem(kAstI64, MachineType::Uint16());
+            len = DecodeLoadMem(kWasmI64, MachineType::Uint16());
             break;
           case kExprI64LoadMem32S:
-            len = DecodeLoadMem(kAstI64, MachineType::Int32());
+            len = DecodeLoadMem(kWasmI64, MachineType::Int32());
             break;
           case kExprI64LoadMem32U:
-            len = DecodeLoadMem(kAstI64, MachineType::Uint32());
+            len = DecodeLoadMem(kWasmI64, MachineType::Uint32());
             break;
           case kExprI64LoadMem:
-            len = DecodeLoadMem(kAstI64, MachineType::Int64());
+            len = DecodeLoadMem(kWasmI64, MachineType::Int64());
             break;
           case kExprF32LoadMem:
-            len = DecodeLoadMem(kAstF32, MachineType::Float32());
+            len = DecodeLoadMem(kWasmF32, MachineType::Float32());
             break;
           case kExprF64LoadMem:
-            len = DecodeLoadMem(kAstF64, MachineType::Float64());
+            len = DecodeLoadMem(kWasmF64, MachineType::Float64());
             break;
           case kExprI32StoreMem8:
-            len = DecodeStoreMem(kAstI32, MachineType::Int8());
+            len = DecodeStoreMem(kWasmI32, MachineType::Int8());
             break;
           case kExprI32StoreMem16:
-            len = DecodeStoreMem(kAstI32, MachineType::Int16());
+            len = DecodeStoreMem(kWasmI32, MachineType::Int16());
             break;
           case kExprI32StoreMem:
-            len = DecodeStoreMem(kAstI32, MachineType::Int32());
+            len = DecodeStoreMem(kWasmI32, MachineType::Int32());
             break;
           case kExprI64StoreMem8:
-            len = DecodeStoreMem(kAstI64, MachineType::Int8());
+            len = DecodeStoreMem(kWasmI64, MachineType::Int8());
             break;
           case kExprI64StoreMem16:
-            len = DecodeStoreMem(kAstI64, MachineType::Int16());
+            len = DecodeStoreMem(kWasmI64, MachineType::Int16());
             break;
           case kExprI64StoreMem32:
-            len = DecodeStoreMem(kAstI64, MachineType::Int32());
+            len = DecodeStoreMem(kWasmI64, MachineType::Int32());
             break;
           case kExprI64StoreMem:
-            len = DecodeStoreMem(kAstI64, MachineType::Int64());
+            len = DecodeStoreMem(kWasmI64, MachineType::Int64());
             break;
           case kExprF32StoreMem:
-            len = DecodeStoreMem(kAstF32, MachineType::Float32());
+            len = DecodeStoreMem(kWasmF32, MachineType::Float32());
             break;
           case kExprF64StoreMem:
-            len = DecodeStoreMem(kAstF64, MachineType::Float64());
+            len = DecodeStoreMem(kWasmF64, MachineType::Float64());
             break;
           case kExprGrowMemory: {
             MemoryIndexOperand operand(this, pc_);
             if (module_->module->origin != kAsmJsOrigin) {
-              Value val = Pop(0, kAstI32);
-              Push(kAstI32, BUILD(GrowMemory, val.node));
+              Value val = Pop(0, kWasmI32);
+              Push(kWasmI32, BUILD(GrowMemory, val.node));
             } else {
               error("grow_memory is not supported for asmjs modules");
             }
@@ -1129,7 +1129,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           case kExprMemorySize: {
             MemoryIndexOperand operand(this, pc_);
-            Push(kAstI32, BUILD(CurrentMemoryPages));
+            Push(kWasmI32, BUILD(CurrentMemoryPages));
             len = 1 + operand.length;
             break;
           }
@@ -1147,7 +1147,7 @@ class WasmFullDecoder : public WasmDecoder {
           case kExprCallIndirect: {
             CallIndirectOperand operand(this, pc_);
             if (Validate(pc_, operand)) {
-              Value index = Pop(0, kAstI32);
+              Value index = Pop(0, kWasmI32);
               TFNode** buffer = PopArgs(operand.sig);
               if (buffer) buffer[0] = index.node;
               TFNode** rets = nullptr;
@@ -1276,8 +1276,8 @@ class WasmFullDecoder : public WasmDecoder {
     }
   }
 
-  LocalType GetReturnType(FunctionSig* sig) {
-    return sig->return_count() == 0 ? kAstStmt : sig->GetReturn();
+  ValueType GetReturnType(FunctionSig* sig) {
+    return sig->return_count() == 0 ? kWasmStmt : sig->GetReturn();
   }
 
   void PushBlock(SsaEnv* end_env) {
@@ -1307,46 +1307,46 @@ class WasmFullDecoder : public WasmDecoder {
 
   void PopControl() { control_.pop_back(); }
 
-  int DecodeLoadMem(LocalType type, MachineType mem_type) {
+  int DecodeLoadMem(ValueType type, MachineType mem_type) {
     MemoryAccessOperand operand(this, pc_,
                                 ElementSizeLog2Of(mem_type.representation()));
 
-    Value index = Pop(0, kAstI32);
+    Value index = Pop(0, kWasmI32);
     TFNode* node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
                          operand.alignment, position());
     Push(type, node);
     return 1 + operand.length;
   }
 
-  int DecodeStoreMem(LocalType type, MachineType mem_type) {
+  int DecodeStoreMem(ValueType type, MachineType mem_type) {
     MemoryAccessOperand operand(this, pc_,
                                 ElementSizeLog2Of(mem_type.representation()));
     Value val = Pop(1, type);
-    Value index = Pop(0, kAstI32);
+    Value index = Pop(0, kWasmI32);
     BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
           val.node, position());
     return 1 + operand.length;
   }
 
-  unsigned ExtractLane(WasmOpcode opcode, LocalType type) {
+  unsigned ExtractLane(WasmOpcode opcode, ValueType type) {
     LaneOperand operand(this, pc_);
     if (Validate(pc_, operand)) {
       compiler::NodeVector inputs(1, zone_);
-      inputs[0] = Pop(0, LocalType::kSimd128).node;
+      inputs[0] = Pop(0, ValueType::kSimd128).node;
       TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
       Push(type, node);
     }
     return operand.length;
   }
 
-  unsigned ReplaceLane(WasmOpcode opcode, LocalType type) {
+  unsigned ReplaceLane(WasmOpcode opcode, ValueType type) {
     LaneOperand operand(this, pc_);
     if (Validate(pc_, operand)) {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, type).node;
-      inputs[0] = Pop(0, LocalType::kSimd128).node;
+      inputs[0] = Pop(0, ValueType::kSimd128).node;
       TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
-      Push(LocalType::kSimd128, node);
+      Push(ValueType::kSimd128, node);
     }
     return operand.length;
   }
@@ -1355,19 +1355,19 @@ class WasmFullDecoder : public WasmDecoder {
     unsigned len = 0;
     switch (opcode) {
       case kExprI32x4ExtractLane: {
-        len = ExtractLane(opcode, LocalType::kWord32);
+        len = ExtractLane(opcode, ValueType::kWord32);
         break;
       }
       case kExprF32x4ExtractLane: {
-        len = ExtractLane(opcode, LocalType::kFloat32);
+        len = ExtractLane(opcode, ValueType::kFloat32);
         break;
       }
       case kExprI32x4ReplaceLane: {
-        len = ReplaceLane(opcode, LocalType::kWord32);
+        len = ReplaceLane(opcode, ValueType::kWord32);
         break;
       }
       case kExprF32x4ReplaceLane: {
-        len = ReplaceLane(opcode, LocalType::kFloat32);
+        len = ReplaceLane(opcode, ValueType::kFloat32);
         break;
       }
       default: {
@@ -1405,8 +1405,8 @@ class WasmFullDecoder : public WasmDecoder {
     EndControl();
   }
 
-  void Push(LocalType type, TFNode* node) {
-    if (type != kAstStmt && type != kAstEnd) {
+  void Push(ValueType type, TFNode* node) {
+    if (type != kWasmStmt && type != kWasmEnd) {
       stack_.push_back({pc_, node, type});
     }
   }
@@ -1423,14 +1423,14 @@ class WasmFullDecoder : public WasmDecoder {
     return WasmOpcodes::ShortOpcodeName(static_cast<WasmOpcode>(*pc));
   }
 
-  Value Pop(int index, LocalType expected) {
+  Value Pop(int index, ValueType expected) {
     if (!ssa_env_->go()) {
       // Unreachable code is essentially not typechecked.
       return {pc_, nullptr, expected};
     }
     Value val = Pop();
     if (val.type != expected) {
-      if (val.type != kAstEnd) {
+      if (val.type != kWasmEnd) {
         error(pc_, val.pc, "%s[%d] expected type %s, found %s of type %s",
               SafeOpcodeNameAt(pc_), index, WasmOpcodes::TypeName(expected),
               SafeOpcodeNameAt(val.pc), WasmOpcodes::TypeName(val.type));
@@ -1442,11 +1442,11 @@ class WasmFullDecoder : public WasmDecoder {
   Value Pop() {
     if (!ssa_env_->go()) {
       // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, kAstEnd};
+      return {pc_, nullptr, kWasmEnd};
     }
     size_t limit = control_.empty() ? 0 : control_.back().stack_depth;
     if (stack_.size() <= limit) {
-      Value val = {pc_, nullptr, kAstStmt};
+      Value val = {pc_, nullptr, kWasmStmt};
       error(pc_, pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
       return val;
     }
@@ -1458,10 +1458,10 @@ class WasmFullDecoder : public WasmDecoder {
   Value PopUpTo(int stack_depth) {
     if (!ssa_env_->go()) {
       // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, kAstEnd};
+      return {pc_, nullptr, kWasmEnd};
     }
     if (stack_depth == static_cast<int>(stack_.size())) {
-      Value val = {pc_, nullptr, kAstStmt};
+      Value val = {pc_, nullptr, kWasmStmt};
       return val;
     } else {
       DCHECK_LE(stack_depth, stack_.size());
@@ -1626,7 +1626,7 @@ class WasmFullDecoder : public WasmDecoder {
     } else {
       DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
       try_info->exception =
-          CreateOrMergeIntoPhi(kAstI32, try_info->catch_env->control,
+          CreateOrMergeIntoPhi(kWasmI32, try_info->catch_env->control,
                                try_info->exception, if_exception);
     }
 
@@ -1710,7 +1710,7 @@ class WasmFullDecoder : public WasmDecoder {
     return from->Kill();
   }
 
-  TFNode* CreateOrMergeIntoPhi(LocalType type, TFNode* merge, TFNode* tnode,
+  TFNode* CreateOrMergeIntoPhi(ValueType type, TFNode* merge, TFNode* tnode,
                                TFNode* fnode) {
     DCHECK_NOT_NULL(builder_);
     if (builder_->IsPhiWithMerge(tnode, merge)) {
@@ -1955,7 +1955,7 @@ bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   if (body.start != i.pc() && !FLAG_wasm_code_fuzzer_gen_test) {
     os << "// locals: ";
     for (auto p : decls.local_types) {
-      LocalType type = p.first;
+      ValueType type = p.first;
       uint32_t count = p.second;
       os << " " << count << " " << WasmOpcodes::TypeName(type);
     }

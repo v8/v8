@@ -150,8 +150,8 @@ TEST(Run_CallJS_Add_jswrapped) {
 void RunJSSelectTest(int which) {
   const int kMaxParams = 8;
   PredictableInputValues inputs(0x100);
-  LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type,
+  ValueType type = kWasmF64;
+  ValueType types[kMaxParams + 1] = {type, type, type, type, type,
                                      type, type, type, type};
   for (int num_params = which + 1; num_params < kMaxParams; num_params++) {
     HandleScope scope(CcTest::InitIsolateOnce());
@@ -226,8 +226,8 @@ void RunWASMSelectTest(int which) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 8;
   for (int num_params = which + 1; num_params < kMaxParams; num_params++) {
-    LocalType type = kAstF64;
-    LocalType types[kMaxParams + 1] = {type, type, type, type, type,
+    ValueType type = kWasmF64;
+    ValueType types[kMaxParams + 1] = {type, type, type, type, type,
                                        type, type, type, type};
     FunctionSig sig(1, num_params, types);
 
@@ -297,8 +297,8 @@ void RunWASMSelectAlignTest(int num_args, int num_params) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   const int kMaxParams = 10;
   DCHECK_LE(num_args, kMaxParams);
-  LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type, type,
+  ValueType type = kWasmF64;
+  ValueType types[kMaxParams + 1] = {type, type, type, type, type, type,
                                      type, type, type, type, type};
   FunctionSig sig(1, num_params, types);
 
@@ -393,8 +393,8 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
   const int kMaxParams = 10;
   CHECK_LE(num_args, kMaxParams);
   CHECK_LE(num_params, kMaxParams);
-  LocalType type = kAstF64;
-  LocalType types[kMaxParams + 1] = {type, type, type, type, type, type,
+  ValueType type = kWasmF64;
+  ValueType types[kMaxParams + 1] = {type, type, type, type, type, type,
                                      type, type, type, type, type};
   FunctionSig sig(1, num_params, types);
   i::AccountingAllocator allocator;

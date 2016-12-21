@@ -32,7 +32,7 @@ static const byte kCodeGetLocal1[] = {kExprGetLocal, 1};
 static const byte kCodeSetLocal0[] = {WASM_SET_LOCAL(0, WASM_ZERO)};
 static const byte kCodeTeeLocal0[] = {WASM_TEE_LOCAL(0, WASM_ZERO)};
 
-static const LocalType kLocalTypes[] = {kAstI32, kAstI64, kAstF32, kAstF64};
+static const ValueType kValueTypes[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
 static const MachineType machineTypes[] = {
     MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
     MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -85,7 +85,7 @@ static bool old_eh_flag;
 
 class FunctionBodyDecoderTest : public TestWithZone {
  public:
-  typedef std::pair<uint32_t, LocalType> LocalsDecl;
+  typedef std::pair<uint32_t, ValueType> LocalsDecl;
 
   FunctionBodyDecoderTest() : module(nullptr), local_decls(zone()) {}
 
@@ -100,7 +100,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
   ModuleEnv* module;
   LocalDeclEncoder local_decls;
 
-  void AddLocals(LocalType type, uint32_t count) {
+  void AddLocals(ValueType type, uint32_t count) {
     local_decls.AddLocals(count, type);
   }
 
@@ -139,10 +139,10 @@ class FunctionBodyDecoderTest : public TestWithZone {
     EXPECT_VERIFIES_SC(success, code);
 
     // Try all combinations of return and parameter types.
-    for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-      for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-        for (size_t k = 0; k < arraysize(kLocalTypes); k++) {
-          LocalType types[] = {kLocalTypes[i], kLocalTypes[j], kLocalTypes[k]};
+    for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+      for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+        for (size_t k = 0; k < arraysize(kValueTypes); k++) {
+          ValueType types[] = {kValueTypes[i], kValueTypes[j], kValueTypes[k]};
           if (types[0] != success->GetReturn(0) ||
               types[1] != success->GetParam(0) ||
               types[2] != success->GetParam(1)) {
@@ -159,19 +159,19 @@ class FunctionBodyDecoderTest : public TestWithZone {
     TestUnop(opcode, success->GetReturn(), success->GetParam(0));
   }
 
-  void TestUnop(WasmOpcode opcode, LocalType ret_type, LocalType param_type) {
+  void TestUnop(WasmOpcode opcode, ValueType ret_type, ValueType param_type) {
     // Return(op(local[0]))
     byte code[] = {WASM_UNOP(opcode, WASM_GET_LOCAL(0))};
     {
-      LocalType types[] = {ret_type, param_type};
+      ValueType types[] = {ret_type, param_type};
       FunctionSig sig(1, 1, types);
       EXPECT_VERIFIES_SC(&sig, code);
     }
 
     // Try all combinations of return and parameter types.
-    for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-      for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-        LocalType types[] = {kLocalTypes[i], kLocalTypes[j]};
+    for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+      for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+        ValueType types[] = {kValueTypes[i], kValueTypes[j]};
         if (types[0] != ret_type || types[1] != param_type) {
           // Test signature mismatch.
           FunctionSig sig(1, 1, types);
@@ -258,12 +258,12 @@ TEST_F(FunctionBodyDecoderTest, GetLocal0_param) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal0_local) {
-  AddLocals(kAstI32, 1);
+  AddLocals(kWasmI32, 1);
   EXPECT_VERIFIES_C(i_v, kCodeGetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TooManyLocals) {
-  AddLocals(kAstI32, 4034986500);
+  AddLocals(kWasmI32, 4034986500);
   EXPECT_FAILURE_C(i_v, kCodeGetLocal0);
 }
 
@@ -277,7 +277,7 @@ TEST_F(FunctionBodyDecoderTest, GetLocal0_param_n) {
 
 TEST_F(FunctionBodyDecoderTest, GetLocalN_local) {
   for (byte i = 1; i < 8; i++) {
-    AddLocals(kAstI32, 1);
+    AddLocals(kWasmI32, 1);
     for (byte j = 0; j < i; j++) {
       byte code[] = {kExprGetLocal, j};
       EXPECT_VERIFIES_C(i_v, code);
@@ -299,23 +299,23 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_off_end) {
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalBelowLimit) {
-  AddLocals(kAstI32, kMaxNumWasmLocals - 1);
+  AddLocals(kWasmI32, kMaxNumWasmLocals - 1);
   EXPECT_VERIFIES(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAtLimit) {
-  AddLocals(kAstI32, kMaxNumWasmLocals);
+  AddLocals(kWasmI32, kMaxNumWasmLocals);
   EXPECT_VERIFIES(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, NumLocalAboveLimit) {
-  AddLocals(kAstI32, kMaxNumWasmLocals + 1);
+  AddLocals(kWasmI32, kMaxNumWasmLocals + 1);
   EXPECT_FAILURE(v_v, WASM_NOP);
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
   const int kMaxLocals = kMaxNumWasmLocals - 1;
-  AddLocals(kAstI32, kMaxLocals);
+  AddLocals(kWasmI32, kMaxLocals);
 
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_1(66));
   EXPECT_VERIFIES(i_i, kExprGetLocal, U32V_2(7777));
@@ -335,8 +335,8 @@ TEST_F(FunctionBodyDecoderTest, GetLocal_varint) {
 }
 
 TEST_F(FunctionBodyDecoderTest, GetLocal_toomany) {
-  AddLocals(kAstI32, kMaxNumWasmLocals - 100);
-  AddLocals(kAstI32, 100);
+  AddLocals(kWasmI32, kMaxNumWasmLocals - 100);
+  AddLocals(kWasmI32, 100);
 
   EXPECT_VERIFIES(i_v, kExprGetLocal, U32V_1(66));
   EXPECT_FAILURE(i_i, kExprGetLocal, U32V_1(66));
@@ -405,20 +405,20 @@ TEST_F(FunctionBodyDecoderTest, TeeLocal0_param) {
 TEST_F(FunctionBodyDecoderTest, SetLocal0_local) {
   EXPECT_FAILURE_C(i_v, kCodeSetLocal0);
   EXPECT_FAILURE_C(v_v, kCodeSetLocal0);
-  AddLocals(kAstI32, 1);
+  AddLocals(kWasmI32, 1);
   EXPECT_FAILURE_C(i_v, kCodeSetLocal0);
   EXPECT_VERIFIES_C(v_v, kCodeSetLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TeeLocal0_local) {
   EXPECT_FAILURE_C(i_v, kCodeTeeLocal0);
-  AddLocals(kAstI32, 1);
+  AddLocals(kWasmI32, 1);
   EXPECT_VERIFIES_C(i_v, kCodeTeeLocal0);
 }
 
 TEST_F(FunctionBodyDecoderTest, TeeLocalN_local) {
   for (byte i = 1; i < 8; i++) {
-    AddLocals(kAstI32, 1);
+    AddLocals(kWasmI32, 1);
     for (byte j = 0; j < i; j++) {
       EXPECT_FAILURE(v_v, WASM_TEE_LOCAL(j, WASM_I8(i)));
       EXPECT_VERIFIES(i_i, WASM_TEE_LOCAL(j, WASM_I8(i)));
@@ -678,11 +678,11 @@ TEST_F(FunctionBodyDecoderTest, IfElseUnreachable2) {
   static const byte code[] = {
       WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_UNREACHABLE, WASM_GET_LOCAL(0))};
 
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType types[] = {kAstI32, kLocalTypes[i]};
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType types[] = {kWasmI32, kValueTypes[i]};
     FunctionSig sig(1, 1, types);
 
-    if (kLocalTypes[i] == kAstI32) {
+    if (kValueTypes[i] == kWasmI32) {
       EXPECT_VERIFIES_SC(&sig, code);
     } else {
       EXPECT_FAILURE_SC(&sig, code);
@@ -962,7 +962,7 @@ TEST_F(FunctionBodyDecoderTest, Int64Local_param) {
 
 TEST_F(FunctionBodyDecoderTest, Int64Locals) {
   for (byte i = 1; i < 8; i++) {
-    AddLocals(kAstI64, 1);
+    AddLocals(kWasmI64, 1);
     for (byte j = 0; j < i; j++) {
       EXPECT_VERIFIES(l_v, WASM_GET_LOCAL(j));
     }
@@ -1013,16 +1013,16 @@ TEST_F(FunctionBodyDecoderTest, FloatBinops) {
 }
 
 TEST_F(FunctionBodyDecoderTest, TypeConversions) {
-  TestUnop(kExprI32SConvertF32, kAstI32, kAstF32);
-  TestUnop(kExprI32SConvertF64, kAstI32, kAstF64);
-  TestUnop(kExprI32UConvertF32, kAstI32, kAstF32);
-  TestUnop(kExprI32UConvertF64, kAstI32, kAstF64);
-  TestUnop(kExprF64SConvertI32, kAstF64, kAstI32);
-  TestUnop(kExprF64UConvertI32, kAstF64, kAstI32);
-  TestUnop(kExprF64ConvertF32, kAstF64, kAstF32);
-  TestUnop(kExprF32SConvertI32, kAstF32, kAstI32);
-  TestUnop(kExprF32UConvertI32, kAstF32, kAstI32);
-  TestUnop(kExprF32ConvertF64, kAstF32, kAstF64);
+  TestUnop(kExprI32SConvertF32, kWasmI32, kWasmF32);
+  TestUnop(kExprI32SConvertF64, kWasmI32, kWasmF64);
+  TestUnop(kExprI32UConvertF32, kWasmI32, kWasmF32);
+  TestUnop(kExprI32UConvertF64, kWasmI32, kWasmF64);
+  TestUnop(kExprF64SConvertI32, kWasmF64, kWasmI32);
+  TestUnop(kExprF64UConvertI32, kWasmF64, kWasmI32);
+  TestUnop(kExprF64ConvertF32, kWasmF64, kWasmF32);
+  TestUnop(kExprF32SConvertI32, kWasmF32, kWasmI32);
+  TestUnop(kExprF32UConvertI32, kWasmF32, kWasmI32);
+  TestUnop(kExprF32ConvertF64, kWasmF32, kWasmF64);
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosStmt) {
@@ -1057,7 +1057,8 @@ TEST_F(FunctionBodyDecoderTest, MacrosNestedBlocks) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultipleReturn) {
-  static LocalType kIntTypes5[] = {kAstI32, kAstI32, kAstI32, kAstI32, kAstI32};
+  static ValueType kIntTypes5[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                                   kWasmI32};
   FunctionSig sig_ii_v(2, 0, kIntTypes5);
   EXPECT_VERIFIES_S(&sig_ii_v, WASM_RETURNN(2, WASM_ZERO, WASM_ONE));
   EXPECT_FAILURE_S(&sig_ii_v, WASM_RETURNN(1, WASM_ZERO));
@@ -1069,7 +1070,8 @@ TEST_F(FunctionBodyDecoderTest, MultipleReturn) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MultipleReturn_fallthru) {
-  static LocalType kIntTypes5[] = {kAstI32, kAstI32, kAstI32, kAstI32, kAstI32};
+  static ValueType kIntTypes5[] = {kWasmI32, kWasmI32, kWasmI32, kWasmI32,
+                                   kWasmI32};
   FunctionSig sig_ii_v(2, 0, kIntTypes5);
 
   EXPECT_VERIFIES_S(&sig_ii_v, WASM_ZERO, WASM_ONE);
@@ -1253,13 +1255,13 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType local_type = kLocalTypes[i];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType local_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(machineTypes); j++) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {WASM_LOAD_MEM(mem_type, WASM_ZERO)};
       FunctionSig sig(1, 0, &local_type);
-      if (local_type == WasmOpcodes::LocalTypeFor(mem_type)) {
+      if (local_type == WasmOpcodes::ValueTypeFor(mem_type)) {
         EXPECT_VERIFIES_SC(&sig, code);
       } else {
         EXPECT_FAILURE_SC(&sig, code);
@@ -1269,13 +1271,13 @@ TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllStoreMemCombinations) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType local_type = kLocalTypes[i];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType local_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(machineTypes); j++) {
       MachineType mem_type = machineTypes[j];
       byte code[] = {WASM_STORE_MEM(mem_type, WASM_ZERO, WASM_GET_LOCAL(0))};
       FunctionSig sig(0, 1, &local_type);
-      if (local_type == WasmOpcodes::LocalTypeFor(mem_type)) {
+      if (local_type == WasmOpcodes::ValueTypeFor(mem_type)) {
         EXPECT_VERIFIES_SC(&sig, code);
       } else {
         EXPECT_FAILURE_SC(&sig, code);
@@ -1293,7 +1295,7 @@ class TestModuleEnv : public ModuleEnv {
       : ModuleEnv(&mod, nullptr) {
     mod.origin = origin;
   }
-  byte AddGlobal(LocalType type, bool mutability = true) {
+  byte AddGlobal(ValueType type, bool mutability = true) {
     mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
     CHECK(mod.globals.size() <= 127);
     return static_cast<byte>(mod.globals.size() - 1);
@@ -1392,7 +1394,7 @@ TEST_F(FunctionBodyDecoderTest, CallsWithMismatchedSigs3) {
 
 TEST_F(FunctionBodyDecoderTest, MultiReturn) {
   FLAG_wasm_mv_prototype = true;
-  LocalType storage[] = {kAstI32, kAstI32};
+  ValueType storage[] = {kWasmI32, kWasmI32};
   FunctionSig sig_ii_v(2, 0, storage);
   FunctionSig sig_v_ii(0, 2, storage);
   TestModuleEnv module_env;
@@ -1408,13 +1410,13 @@ TEST_F(FunctionBodyDecoderTest, MultiReturn) {
 
 TEST_F(FunctionBodyDecoderTest, MultiReturnType) {
   FLAG_wasm_mv_prototype = true;
-  for (size_t a = 0; a < arraysize(kLocalTypes); a++) {
-    for (size_t b = 0; b < arraysize(kLocalTypes); b++) {
-      for (size_t c = 0; c < arraysize(kLocalTypes); c++) {
-        for (size_t d = 0; d < arraysize(kLocalTypes); d++) {
-          LocalType storage_ab[] = {kLocalTypes[a], kLocalTypes[b]};
+  for (size_t a = 0; a < arraysize(kValueTypes); a++) {
+    for (size_t b = 0; b < arraysize(kValueTypes); b++) {
+      for (size_t c = 0; c < arraysize(kValueTypes); c++) {
+        for (size_t d = 0; d < arraysize(kValueTypes); d++) {
+          ValueType storage_ab[] = {kValueTypes[a], kValueTypes[b]};
           FunctionSig sig_ab_v(2, 0, storage_ab);
-          LocalType storage_cd[] = {kLocalTypes[c], kLocalTypes[d]};
+          ValueType storage_cd[] = {kValueTypes[c], kValueTypes[d]};
           FunctionSig sig_cd_v(2, 0, storage_cd);
 
           TestModuleEnv module_env;
@@ -1544,7 +1546,7 @@ TEST_F(FunctionBodyDecoderTest, Int32Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(kAstI32);
+  module_env.AddGlobal(kWasmI32);
 
   EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
   EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)));
@@ -1556,8 +1558,8 @@ TEST_F(FunctionBodyDecoderTest, ImmutableGlobal) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  uint32_t g0 = module_env.AddGlobal(kAstI32, true);
-  uint32_t g1 = module_env.AddGlobal(kAstI32, false);
+  uint32_t g0 = module_env.AddGlobal(kWasmI32, true);
+  uint32_t g1 = module_env.AddGlobal(kWasmI32, false);
 
   EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(g0, WASM_ZERO));
   EXPECT_FAILURE_S(sig, WASM_SET_GLOBAL(g1, WASM_ZERO));
@@ -1568,10 +1570,10 @@ TEST_F(FunctionBodyDecoderTest, Int32Globals_fail) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(kAstI64);
-  module_env.AddGlobal(kAstI64);
-  module_env.AddGlobal(kAstF32);
-  module_env.AddGlobal(kAstF64);
+  module_env.AddGlobal(kWasmI64);
+  module_env.AddGlobal(kWasmI64);
+  module_env.AddGlobal(kWasmF32);
+  module_env.AddGlobal(kWasmF64);
 
   EXPECT_FAILURE_S(sig, WASM_GET_GLOBAL(0));
   EXPECT_FAILURE_S(sig, WASM_GET_GLOBAL(1));
@@ -1589,8 +1591,8 @@ TEST_F(FunctionBodyDecoderTest, Int64Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(kAstI64);
-  module_env.AddGlobal(kAstI64);
+  module_env.AddGlobal(kWasmI64);
+  module_env.AddGlobal(kWasmI64);
 
   EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
   EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(1));
@@ -1606,7 +1608,7 @@ TEST_F(FunctionBodyDecoderTest, Float32Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(kAstF32);
+  module_env.AddGlobal(kWasmF32);
 
   EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
   EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)),
@@ -1618,7 +1620,7 @@ TEST_F(FunctionBodyDecoderTest, Float64Globals) {
   TestModuleEnv module_env;
   module = &module_env;
 
-  module_env.AddGlobal(kAstF64);
+  module_env.AddGlobal(kWasmF64);
 
   EXPECT_VERIFIES_S(sig, WASM_GET_GLOBAL(0));
   EXPECT_VERIFIES_S(sig, WASM_SET_GLOBAL(0, WASM_GET_LOCAL(0)),
@@ -1626,10 +1628,10 @@ TEST_F(FunctionBodyDecoderTest, Float64Globals) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType local_type = kLocalTypes[i];
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType global_type = kLocalTypes[j];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType local_type = kValueTypes[i];
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType global_type = kValueTypes[j];
       FunctionSig sig(1, 0, &local_type);
       TestModuleEnv module_env;
       module = &module_env;
@@ -1644,10 +1646,10 @@ TEST_F(FunctionBodyDecoderTest, AllGetGlobalCombinations) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType local_type = kLocalTypes[i];
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType global_type = kLocalTypes[j];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType local_type = kValueTypes[i];
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType global_type = kValueTypes[j];
       FunctionSig sig(0, 1, &local_type);
       TestModuleEnv module_env;
       module = &module_env;
@@ -1679,9 +1681,9 @@ TEST_F(FunctionBodyDecoderTest, AsmJsGrowMemory) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
-  LocalType float32int32float32[] = {kAstF32, kAstI32, kAstF32};
+  ValueType float32int32float32[] = {kWasmF32, kWasmI32, kWasmF32};
   FunctionSig sig_f_if(1, 2, float32int32float32);
-  LocalType float64int32float64[] = {kAstF64, kAstI32, kAstF64};
+  ValueType float64int32float64[] = {kWasmF64, kWasmI32, kWasmF64};
   FunctionSig sig_d_id(1, 2, float64int32float64);
   struct {
     WasmOpcode op;
@@ -1721,9 +1723,9 @@ TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
-  LocalType float32int32[] = {kAstF32, kAstI32};
+  ValueType float32int32[] = {kWasmF32, kWasmI32};
   FunctionSig sig_f_i(1, 1, float32int32);
-  LocalType float64int32[] = {kAstF64, kAstI32};
+  ValueType float64int32[] = {kWasmF64, kWasmI32};
   FunctionSig sig_d_i(1, 1, float64int32);
   struct {
     WasmOpcode op;
@@ -1891,9 +1893,9 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheck) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType storage[] = {kLocalTypes[i], kLocalTypes[i], kLocalTypes[j]};
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType storage[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
       FunctionSig sig(1, 2, storage);
       byte code[] = {WASM_BLOCK_T(
           sig.GetReturn(), WASM_IF(WASM_ZERO, WASM_BRV(0, WASM_GET_LOCAL(0))),
@@ -1909,9 +1911,9 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType storage[] = {kLocalTypes[i], kLocalTypes[i], kLocalTypes[j]};
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType storage[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
       FunctionSig sig(1, 2, storage);
       byte code[] = {WASM_IF_ELSE_T(sig.GetReturn(0), WASM_ZERO,
                                     WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(0)),
@@ -1927,9 +1929,9 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll2) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll3) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType storage[] = {kLocalTypes[i], kLocalTypes[i], kLocalTypes[j]};
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType storage[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
       FunctionSig sig(1, 2, storage);
       byte code[] = {WASM_IF_ELSE_T(sig.GetReturn(), WASM_ZERO,
                                     WASM_GET_LOCAL(1),
@@ -1946,16 +1948,16 @@ TEST_F(FunctionBodyDecoderTest, Break_TypeCheckAll3) {
 
 TEST_F(FunctionBodyDecoderTest, Break_Unify) {
   for (int which = 0; which < 2; which++) {
-    for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-      LocalType type = kLocalTypes[i];
-      LocalType storage[] = {kAstI32, kAstI32, type};
+    for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+      ValueType type = kValueTypes[i];
+      ValueType storage[] = {kWasmI32, kWasmI32, type};
       FunctionSig sig(1, 2, storage);
 
       byte code1[] = {WASM_BLOCK_T(
           type, WASM_IF(WASM_ZERO, WASM_BRV(1, WASM_GET_LOCAL(which))),
           WASM_GET_LOCAL(which ^ 1))};
 
-      if (type == kAstI32) {
+      if (type == kWasmI32) {
         EXPECT_VERIFIES_SC(&sig, code1);
       } else {
         EXPECT_FAILURE_SC(&sig, code1);
@@ -1965,14 +1967,14 @@ TEST_F(FunctionBodyDecoderTest, Break_Unify) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIf_cond_type) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType types[] = {kLocalTypes[i], kLocalTypes[i], kLocalTypes[j]};
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType types[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j]};
       FunctionSig sig(1, 2, types);
       byte code[] = {WASM_BLOCK_T(
           types[0], WASM_BRV_IF(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)))};
 
-      if (types[2] == kAstI32) {
+      if (types[2] == kWasmI32) {
         EXPECT_VERIFIES_SC(&sig, code);
       } else {
         EXPECT_FAILURE_SC(&sig, code);
@@ -1982,10 +1984,10 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_cond_type) {
 }
 
 TEST_F(FunctionBodyDecoderTest, BreakIf_val_type) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    for (size_t j = 0; j < arraysize(kLocalTypes); j++) {
-      LocalType types[] = {kLocalTypes[i], kLocalTypes[i], kLocalTypes[j],
-                           kAstI32};
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    for (size_t j = 0; j < arraysize(kValueTypes); j++) {
+      ValueType types[] = {kValueTypes[i], kValueTypes[i], kValueTypes[j],
+                           kWasmI32};
       FunctionSig sig(1, 3, types);
       byte code[] = {WASM_BLOCK_T(
           types[1], WASM_BRV_IF(0, WASM_GET_LOCAL(1), WASM_GET_LOCAL(2)),
@@ -2002,14 +2004,14 @@ TEST_F(FunctionBodyDecoderTest, BreakIf_val_type) {
 
 TEST_F(FunctionBodyDecoderTest, BreakIf_Unify) {
   for (int which = 0; which < 2; which++) {
-    for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-      LocalType type = kLocalTypes[i];
-      LocalType storage[] = {kAstI32, kAstI32, type};
+    for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+      ValueType type = kValueTypes[i];
+      ValueType storage[] = {kWasmI32, kWasmI32, type};
       FunctionSig sig(1, 2, storage);
       byte code[] = {WASM_BLOCK_I(WASM_BRV_IF_ZERO(0, WASM_GET_LOCAL(which)),
                                   WASM_DROP, WASM_GET_LOCAL(which ^ 1))};
 
-      if (type == kAstI32) {
+      if (type == kWasmI32) {
         EXPECT_VERIFIES_SC(&sig, code);
       } else {
         EXPECT_FAILURE_SC(&sig, code);
@@ -2141,11 +2143,11 @@ TEST_F(FunctionBodyDecoderTest, Select_fail1) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Select_fail2) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType type = kLocalTypes[i];
-    if (type == kAstI32) continue;
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType type = kValueTypes[i];
+    if (type == kWasmI32) continue;
 
-    LocalType types[] = {type, kAstI32, type};
+    ValueType types[] = {type, kWasmI32, type};
     FunctionSig sig(1, 2, types);
 
     EXPECT_VERIFIES_S(&sig, WASM_SELECT(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
@@ -2202,24 +2204,24 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   FLAG_wasm_mv_prototype = true;
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0),
+  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1)),
                   kExprI32Add);
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
   FLAG_wasm_mv_prototype = true;
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0),
+  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1)),
                   WASM_I32_ADD(WASM_NOP, WASM_NOP));
 }
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlockBr1) {
   FLAG_wasm_mv_prototype = true;
-  EXPECT_FAILURE(i_ii,
-                 WASM_BLOCK_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0), WASM_BR(0)),
-                 kExprI32Add);
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0),
+  EXPECT_FAILURE(
+      i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0), WASM_BR(0)),
+      kExprI32Add);
+  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                       WASM_GET_LOCAL(1), WASM_BR(0)),
                   kExprI32Add);
 }
@@ -2227,17 +2229,17 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr1) {
 TEST_F(FunctionBodyDecoderTest, MultiValIf1) {
   FLAG_wasm_mv_prototype = true;
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0),
+      i_ii, WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                             WASM_SEQ(WASM_GET_LOCAL(0)),
                             WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add);
   EXPECT_FAILURE(i_ii,
-                 WASM_IF_ELSE_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0),
+                 WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                                  WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                                  WASM_SEQ(WASM_GET_LOCAL(1))),
                  kExprI32Add);
   EXPECT_VERIFIES(
-      i_ii, WASM_IF_ELSE_TT(kAstI32, kAstI32, WASM_GET_LOCAL(0),
+      i_ii, WASM_IF_ELSE_TT(kWasmI32, kWasmI32, WASM_GET_LOCAL(0),
                             WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                             WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add);
@@ -2543,13 +2545,13 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
 }
 
-typedef ZoneVector<LocalType> LocalTypeMap;
+typedef ZoneVector<ValueType> ValueTypeMap;
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
   v8::internal::AccountingAllocator allocator;
 
-  size_t ExpectRun(LocalTypeMap map, size_t pos, LocalType expected,
+  size_t ExpectRun(ValueTypeMap map, size_t pos, ValueType expected,
                    size_t count) {
     for (size_t i = 0; i < count; i++) {
       EXPECT_EQ(expected, map[pos++]);
@@ -2557,8 +2559,8 @@ class LocalDeclDecoderTest : public TestWithZone {
     return pos;
   }
 
-  LocalTypeMap Expand(BodyLocalDecls& decls) {
-    ZoneVector<LocalType> map(zone());
+  ValueTypeMap Expand(BodyLocalDecls& decls) {
+    ZoneVector<ValueType> map(zone());
     for (auto p : decls.local_types) {
       map.insert(map.end(), p.second, p.first);
     }
@@ -2581,33 +2583,33 @@ TEST_F(LocalDeclDecoderTest, NoLocals) {
 }
 
 TEST_F(LocalDeclDecoderTest, OneLocal) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType type = kLocalTypes[i];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType type = kValueTypes[i];
     const byte data[] = {
-        1, 1, static_cast<byte>(WasmOpcodes::LocalTypeCodeFor(type))};
+        1, 1, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(type))};
     BodyLocalDecls decls(zone());
     bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
     EXPECT_EQ(1u, decls.total_local_count);
 
-    LocalTypeMap map = Expand(decls);
+    ValueTypeMap map = Expand(decls);
     EXPECT_EQ(1u, map.size());
     EXPECT_EQ(type, map[0]);
   }
 }
 
 TEST_F(LocalDeclDecoderTest, FiveLocals) {
-  for (size_t i = 0; i < arraysize(kLocalTypes); i++) {
-    LocalType type = kLocalTypes[i];
+  for (size_t i = 0; i < arraysize(kValueTypes); i++) {
+    ValueType type = kValueTypes[i];
     const byte data[] = {
-        1, 5, static_cast<byte>(WasmOpcodes::LocalTypeCodeFor(type))};
+        1, 5, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(type))};
     BodyLocalDecls decls(zone());
     bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
     EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
     EXPECT_EQ(5u, decls.total_local_count);
 
-    LocalTypeMap map = Expand(decls);
+    ValueTypeMap map = Expand(decls);
     EXPECT_EQ(5u, map.size());
     ExpectRun(map, 0, type, 5);
   }
@@ -2627,14 +2629,14 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
           EXPECT_EQ(static_cast<uint32_t>(a + b + c + d),
                     decls.total_local_count);
 
-          LocalTypeMap map = Expand(decls);
+          ValueTypeMap map = Expand(decls);
           EXPECT_EQ(static_cast<uint32_t>(a + b + c + d), map.size());
 
           size_t pos = 0;
-          pos = ExpectRun(map, pos, kAstI32, a);
-          pos = ExpectRun(map, pos, kAstI64, b);
-          pos = ExpectRun(map, pos, kAstF32, c);
-          pos = ExpectRun(map, pos, kAstF64, d);
+          pos = ExpectRun(map, pos, kWasmI32, a);
+          pos = ExpectRun(map, pos, kWasmI64, b);
+          pos = ExpectRun(map, pos, kWasmF32, c);
+          pos = ExpectRun(map, pos, kWasmF64, d);
         }
       }
     }
@@ -2646,9 +2648,9 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   const byte* end = nullptr;
   LocalDeclEncoder local_decls(zone());
 
-  local_decls.AddLocals(5, kAstF32);
-  local_decls.AddLocals(1337, kAstI32);
-  local_decls.AddLocals(212, kAstI64);
+  local_decls.AddLocals(5, kWasmF32);
+  local_decls.AddLocals(1337, kWasmI32);
+  local_decls.AddLocals(212, kWasmI64);
   local_decls.Prepend(zone(), &data, &end);
 
   BodyLocalDecls decls(zone());
@@ -2656,11 +2658,11 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   EXPECT_TRUE(result);
   EXPECT_EQ(5u + 1337u + 212u, decls.total_local_count);
 
-  LocalTypeMap map = Expand(decls);
+  ValueTypeMap map = Expand(decls);
   size_t pos = 0;
-  pos = ExpectRun(map, pos, kAstF32, 5);
-  pos = ExpectRun(map, pos, kAstI32, 1337);
-  pos = ExpectRun(map, pos, kAstI64, 212);
+  pos = ExpectRun(map, pos, kWasmF32, 5);
+  pos = ExpectRun(map, pos, kWasmI32, 1337);
+  pos = ExpectRun(map, pos, kWasmI64, 212);
 }
 
 class BytecodeIteratorTest : public TestWithZone {};

@@ -1526,17 +1526,17 @@ class WasmInstanceBuilder {
     TRACE("init [globals+%u] = %lf, type = %s\n", global.offset, num,
           WasmOpcodes::TypeName(global.type));
     switch (global.type) {
-      case kAstI32:
+      case kWasmI32:
         *GetRawGlobalPtr<int32_t>(global) = static_cast<int32_t>(num);
         break;
-      case kAstI64:
+      case kWasmI64:
         // TODO(titzer): initialization of imported i64 globals.
         UNREACHABLE();
         break;
-      case kAstF32:
+      case kWasmF32:
         *GetRawGlobalPtr<float>(global) = static_cast<float>(num);
         break;
-      case kAstF64:
+      case kWasmF64:
         *GetRawGlobalPtr<double>(global) = static_cast<double>(num);
         break;
       default:
@@ -1707,7 +1707,7 @@ class WasmInstanceBuilder {
               module_->globals[global.init.val.global_index].offset;
           TRACE("init [globals+%u] = [globals+%d]\n", global.offset,
                 old_offset);
-          size_t size = (global.type == kAstI64 || global.type == kAstF64)
+          size_t size = (global.type == kWasmI64 || global.type == kWasmF64)
                             ? sizeof(double)
                             : sizeof(int32_t);
           memcpy(raw_buffer_ptr(globals_, new_offset),
@@ -1858,13 +1858,13 @@ class WasmInstanceBuilder {
           WasmGlobal& global = module_->globals[exp.index];
           double num = 0;
           switch (global.type) {
-            case kAstI32:
+            case kWasmI32:
               num = *GetRawGlobalPtr<int32_t>(global);
               break;
-            case kAstF32:
+            case kWasmF32:
               num = *GetRawGlobalPtr<float>(global);
               break;
-            case kAstF64:
+            case kWasmF64:
               num = *GetRawGlobalPtr<double>(global);
               break;
             default:

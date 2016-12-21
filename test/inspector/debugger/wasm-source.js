@@ -19,7 +19,7 @@ var sig_index = builder.addType(kSig_v_v);
 
 builder.addFunction('main', kSig_v_v)
     .addBody([
-      kExprBlock, kAstStmt, kExprI32Const, 0, kExprCallIndirect, sig_index,
+      kExprBlock, kWasmStmt, kExprI32Const, 0, kExprCallIndirect, sig_index,
       kTableZero, kExprEnd
     ])
     .exportAs('main');

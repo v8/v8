@@ -17,7 +17,7 @@ namespace wasm {
 
 class WasmModuleBuilderTest : public TestWithZone {
  protected:
-  void AddLocal(WasmFunctionBuilder* f, LocalType type) {
+  void AddLocal(WasmFunctionBuilder* f, ValueType type) {
     uint16_t index = f->AddLocal(type);
     f->EmitGetLocal(index);
   }

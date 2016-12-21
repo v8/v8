@@ -242,7 +242,7 @@ function testCallBinopVoid(type, func, check) {
   var builder = new WasmModuleBuilder();
 
   builder.addImport("", "func", makeSig_v_xx(type));
-  builder.addFunction("main", makeSig_r_xx(kAstI32, type))
+  builder.addFunction("main", makeSig_r_xx(kWasmI32, type))
     .addBody([
       kExprGetLocal, 0,            // --
       kExprGetLocal, 1,            // --
@@ -262,17 +262,17 @@ function testCallBinopVoid(type, func, check) {
     assertEquals(2, passed_length);
     var expected_a, expected_b;
     switch (type) {
-      case kAstI32: {
+      case kWasmI32: {
         expected_a = a | 0;
         expected_b = b | 0;
         break;
       }
-      case kAstF32: {
+      case kWasmF32: {
         expected_a = Math.fround(a);
         expected_b = Math.fround(b);
         break;
       }
-      case kAstF64: {
+      case kWasmF64: {
         expected_a = a;
         expected_b = b;
         break;
@@ -287,17 +287,17 @@ function testCallBinopVoid(type, func, check) {
 }
 
 
-testCallBinopVoid(kAstI32);
-// TODO testCallBinopVoid(kAstI64);
-testCallBinopVoid(kAstF32);
-testCallBinopVoid(kAstF64);
+testCallBinopVoid(kWasmI32);
+// TODO testCallBinopVoid(kWasmI64);
+testCallBinopVoid(kWasmF32);
+testCallBinopVoid(kWasmF64);
 
 (function testCallPrint() {
   var builder = new WasmModuleBuilder();
 
-  builder.addImport("", "print", makeSig_v_x(kAstI32));
-  builder.addImport("", "print", makeSig_v_x(kAstF64));
-  builder.addFunction("main", makeSig_v_x(kAstF64))
+  builder.addImport("", "print", makeSig_v_x(kWasmI32));
+  builder.addImport("", "print", makeSig_v_x(kWasmF64));
+  builder.addFunction("main", makeSig_v_x(kWasmF64))
     .addBody([
       kExprI8Const, 97,      // --
       kExprCallFunction, 0,  // --

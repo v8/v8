@@ -116,7 +116,7 @@ struct WasmFunction {
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
-  LocalType type;        // type of the global.
+  ValueType type;        // type of the global.
   bool mutability;       // {true} if mutable.
   WasmInitExpr init;     // the initialization expression of the global.
   uint32_t offset;       // offset into global memory.
@@ -320,7 +320,7 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
   bool IsValidTable(uint32_t index) const {
     return module && index < module->function_tables.size();
   }
-  LocalType GetGlobalType(uint32_t index) {
+  ValueType GetGlobalType(uint32_t index) {
     DCHECK(IsValidGlobal(index));
     return module->globals[index].type;
   }

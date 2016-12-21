@@ -869,10 +869,10 @@ WASM_EXEC_TEST_WITH_TRAP(I64UConvertF64a) {
 }
 
 WASM_EXEC_TEST(CallI64Parameter) {
-  LocalType param_types[20];
-  for (int i = 0; i < 20; i++) param_types[i] = kAstI64;
-  param_types[3] = kAstI32;
-  param_types[4] = kAstI32;
+  ValueType param_types[20];
+  for (int i = 0; i < 20; i++) param_types[i] = kWasmI64;
+  param_types[3] = kWasmI32;
+  param_types[4] = kWasmI32;
   FunctionSig sig(1, 19, param_types);
   for (int i = 0; i < 19; i++) {
     if (i == 2 || i == 3) continue;
@@ -1357,7 +1357,7 @@ WASM_EXEC_TEST(MemI64_Sum) {
   const int kNumElems = 20;
   WasmRunner<uint64_t, int32_t> r(execution_mode);
   uint64_t* memory = r.module().AddMemoryElems<uint64_t>(kNumElems);
-  const byte kSum = r.AllocateLocal(kAstI64);
+  const byte kSum = r.AllocateLocal(kWasmI64);
 
   BUILD(
       r,
@@ -1492,13 +1492,13 @@ WASM_EXEC_TEST_WITH_TRAP(StoreMem_offset_oob_i64) {
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
 
-static void CompileCallIndirectMany(LocalType param) {
+static void CompileCallIndirectMany(ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
     WasmRunner<void> r(kExecuteCompiled);
-    FunctionSig* sig = sigs.many(r.zone(), kAstStmt, param, num_params);
+    FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.module().AddSignature(sig);
     r.module().AddSignature(sig);
@@ -1517,7 +1517,7 @@ static void CompileCallIndirectMany(LocalType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kAstI64); }
+TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kWasmI64); }
 
 static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   const int kExpected = 6333;
@@ -1544,9 +1544,9 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // Build the selector function.
     // =========================================================================
     FunctionSig::Builder b(&zone, 1, num_params);
-    b.AddReturn(WasmOpcodes::LocalTypeFor(result));
+    b.AddReturn(WasmOpcodes::ValueTypeFor(result));
     for (int i = 0; i < num_params; i++) {
-      b.AddParam(WasmOpcodes::LocalTypeFor(memtypes[i]));
+      b.AddParam(WasmOpcodes::ValueTypeFor(memtypes[i]));
     }
     WasmFunctionCompiler& t = r.NewFunction(b.Build());
     BUILD(t, WASM_GET_LOCAL(which));

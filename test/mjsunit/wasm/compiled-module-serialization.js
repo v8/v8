@@ -10,7 +10,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function SerializeAndDeserializeModule() {
   var builder = new WasmModuleBuilder();
   builder.addMemory(1,1, true);
-  var kSig_v_i = makeSig([kAstI32], []);
+  var kSig_v_i = makeSig([kWasmI32], []);
   var signature = builder.addType(kSig_v_i);
   builder.addImport("", "some_value", kSig_i_v);
   builder.addImport("", "writer", signature);
