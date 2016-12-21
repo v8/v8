@@ -8,7 +8,7 @@
 #include "src/v8.h"
 #include "src/zone/zone-containers.h"
 
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module-builder.h"

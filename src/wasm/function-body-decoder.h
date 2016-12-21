@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_AST_DECODER_H_
-#define V8_WASM_AST_DECODER_H_
+#ifndef V8_WASM_FUNCTION_BODY_DECODER_H_
+#define V8_WASM_FUNCTION_BODY_DECODER_H_
 
 #include <iterator>
 
@@ -336,12 +336,12 @@ V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               FunctionBody& body);
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
-bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
-              std::ostream& os,
-              std::vector<std::tuple<uint32_t, int, int>>* offset_table);
+bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                   std::ostream& os,
+                   std::vector<std::tuple<uint32_t, int, int>>* offset_table);
 
 // A simplified form of AST printing, e.g. from a debugger.
-void PrintAstForDebugging(const byte* start, const byte* end);
+void PrintWasmCodeForDebugging(const byte* start, const byte* end);
 
 inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                    ModuleEnv* module, FunctionSig* sig,
@@ -358,7 +358,7 @@ inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
   return BuildTFGraph(allocator, builder, body);
 }
 
-struct AstLocalDecls {
+struct BodyLocalDecls {
   // The size of the encoded declarations.
   uint32_t decls_encoded_size;  // size of encoded declarations
 
@@ -369,12 +369,12 @@ struct AstLocalDecls {
   ZoneVector<std::pair<LocalType, uint32_t>> local_types;
 
   // Constructor initializes the vector.
-  explicit AstLocalDecls(Zone* zone)
+  explicit BodyLocalDecls(Zone* zone)
       : decls_encoded_size(0), total_local_count(0), local_types(zone) {}
 };
 
-V8_EXPORT_PRIVATE bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
-                                        const byte* end);
+V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls& decls,
+                                        const byte* start, const byte* end);
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
                                                              size_t num_locals,
                                                              const byte* start,
@@ -444,7 +444,7 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
   // assume the bytecode starts with local declarations and decode them.
   // Otherwise, do not decode local decls.
   BytecodeIterator(const byte* start, const byte* end,
-                   AstLocalDecls* decls = nullptr);
+                   BodyLocalDecls* decls = nullptr);
 
   base::iterator_range<opcode_iterator> opcodes() {
     return base::iterator_range<opcode_iterator>(opcode_iterator(pc_, end_),
@@ -476,4 +476,4 @@ class V8_EXPORT_PRIVATE BytecodeIterator : public NON_EXPORTED_BASE(Decoder) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_AST_DECODER_H_
+#endif  // V8_WASM_FUNCTION_BODY_DECODER_H_

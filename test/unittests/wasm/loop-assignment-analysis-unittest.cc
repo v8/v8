@@ -11,7 +11,7 @@
 #include "src/bit-vector.h"
 #include "src/objects.h"
 
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-module.h"
 

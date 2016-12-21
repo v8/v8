@@ -16,7 +16,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"

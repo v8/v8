@@ -7,7 +7,7 @@
 #include "src/debug/interface-types.h"
 #include "src/ostreams.h"
 #include "src/vector.h"
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
@@ -168,7 +168,7 @@ void wasm::PrintWasmText(const WasmModule *module,
   ++line_nr;
 
   // Print the local declarations.
-  AstLocalDecls decls(&zone);
+  BodyLocalDecls decls(&zone);
   Vector<const byte> func_bytes = wire_bytes.module_bytes.SubVector(
       fun->code_start_offset, fun->code_end_offset);
   BytecodeIterator i(func_bytes.begin(), func_bytes.end(), &decls);

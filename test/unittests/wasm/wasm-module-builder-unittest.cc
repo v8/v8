@@ -6,7 +6,7 @@
 
 #include "src/v8.h"
 
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module-builder.h"
 
 #include "test/common/wasm/test-signatures.h"

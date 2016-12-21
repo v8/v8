@@ -5,8 +5,8 @@
 #include "src/wasm/wasm-interpreter.h"
 
 #include "src/utils.h"
-#include "src/wasm/ast-decoder.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -721,7 +721,7 @@ class ControlTransfers : public ZoneObject {
  public:
   ControlTransferMap map_;
 
-  ControlTransfers(Zone* zone, AstLocalDecls* locals, const byte* start,
+  ControlTransfers(Zone* zone, BodyLocalDecls* locals, const byte* start,
                    const byte* end)
       : map_(zone) {
     // Represents a control flow label.
@@ -872,7 +872,7 @@ class ControlTransfers : public ZoneObject {
 // Code and metadata needed to execute a function.
 struct InterpreterCode {
   const WasmFunction* function;  // wasm function
-  AstLocalDecls locals;          // local declarations
+  BodyLocalDecls locals;         // local declarations
   const byte* orig_start;        // start of original code
   const byte* orig_end;          // end of original code
   byte* start;                   // start of (maybe altered) code
@@ -938,7 +938,7 @@ class CodeMap {
   int AddFunction(const WasmFunction* function, const byte* code_start,
                   const byte* code_end) {
     InterpreterCode code = {
-        function, AstLocalDecls(zone_),          code_start,
+        function, BodyLocalDecls(zone_),         code_start,
         code_end, const_cast<byte*>(code_start), const_cast<byte*>(code_end),
         nullptr};
 

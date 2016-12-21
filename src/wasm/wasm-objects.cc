@@ -795,7 +795,7 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
     WasmFunction& func = functions[func_idx];
     if (func.code_start_offset == func.code_end_offset) continue;
 
-    AstLocalDecls locals(&tmp);
+    BodyLocalDecls locals(&tmp);
     BytecodeIterator iterator(module_start + func.code_start_offset,
                               module_start + func.code_end_offset, &locals);
     DCHECK_LT(0u, locals.decls_encoded_size);

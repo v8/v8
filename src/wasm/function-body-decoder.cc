@@ -9,8 +9,8 @@
 #include "src/handles.h"
 #include "src/zone/zone-containers.h"
 
-#include "src/wasm/ast-decoder.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -101,10 +101,10 @@ enum ControlKind { kControlIf, kControlBlock, kControlLoop, kControlTry };
 struct Control {
   const byte* pc;
   ControlKind kind;
-  int stack_depth;    // stack height at the beginning of the construct.
-  SsaEnv* end_env;    // end environment for the construct.
-  SsaEnv* false_env;  // false environment (only for if).
-  TryInfo* try_info;  // Information used for compiling try statements.
+  int stack_depth;         // stack height at the beginning of the construct.
+  SsaEnv* end_env;         // end environment for the construct.
+  SsaEnv* false_env;       // false environment (only for if).
+  TryInfo* try_info;       // Information used for compiling try statements.
   int32_t previous_catch;  // The previous Control (on the stack) with a catch.
 
   // Values merged into the end of this control construct.
@@ -382,7 +382,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   bool Decode() {
     if (FLAG_wasm_code_fuzzer_gen_test) {
-      PrintAstForDebugging(start_, end_);
+      PrintWasmCodeForDebugging(start_, end_);
     }
     base::ElapsedTimer decode_timer;
     if (FLAG_trace_wasm_decode_time) {
@@ -462,7 +462,7 @@ class WasmFullDecoder : public WasmDecoder {
     return false;
   }
 
-  bool DecodeLocalDecls(AstLocalDecls& decls) {
+  bool DecodeLocalDecls(BodyLocalDecls& decls) {
     DecodeLocalDecls();
     if (failed()) return false;
     decls.decls_encoded_size = pc_offset();
@@ -1889,7 +1889,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 };
 
-bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
+bool DecodeLocalDecls(BodyLocalDecls& decls, const byte* start,
                       const byte* end) {
   AccountingAllocator allocator;
   Zone tmp(&allocator, ZONE_NAME);
@@ -1899,7 +1899,7 @@ bool DecodeLocalDecls(AstLocalDecls& decls, const byte* start,
 }
 
 BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
-                                   AstLocalDecls* decls)
+                                   BodyLocalDecls* decls)
     : Decoder(start, end) {
   if (decls != nullptr) {
     if (DecodeLocalDecls(*decls, start, end)) {
@@ -1930,15 +1930,15 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
   return decoder.OpcodeLength(pc);
 }
 
-void PrintAstForDebugging(const byte* start, const byte* end) {
+void PrintWasmCodeForDebugging(const byte* start, const byte* end) {
   AccountingAllocator allocator;
   OFStream os(stdout);
-  PrintAst(&allocator, FunctionBodyForTesting(start, end), os, nullptr);
+  PrintWasmCode(&allocator, FunctionBodyForTesting(start, end), os, nullptr);
 }
 
-bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
-              std::ostream& os,
-              std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
+bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                   std::ostream& os,
+                   std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, nullptr, body);
   int line_nr = 0;
@@ -1950,7 +1950,7 @@ bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
   }
 
   // Print the local declarations.
-  AstLocalDecls decls(&zone);
+  BodyLocalDecls decls(&zone);
   BytecodeIterator i(body.start, body.end, &decls);
   if (body.start != i.pc() && !FLAG_wasm_code_fuzzer_gen_test) {
     os << "// locals: ";
@@ -2048,7 +2048,7 @@ bool PrintAst(AccountingAllocator* allocator, const FunctionBody& body,
       }
       default:
         break;
-      }
+    }
     os << std::endl;
     ++line_nr;
   }
