@@ -1512,7 +1512,6 @@ void Logger::LogBytecodeHandlers() {
 
 void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                  Handle<AbstractCode> code) {
-  Handle<String> func_name(shared->DebugName());
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
     int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
@@ -1551,11 +1550,12 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 #if USES_FUNCTION_DESCRIPTORS
       entry_point = *FUNCTION_ENTRYPOINT_ADDRESS(entry_point);
 #endif
-      PROFILE(isolate_, CallbackEvent(*func_name, entry_point));
+      PROFILE(isolate_, CallbackEvent(shared->DebugName(), entry_point));
     }
   } else {
-    PROFILE(isolate_, CodeCreateEvent(CodeEventListener::LAZY_COMPILE_TAG,
-                                      *code, *shared, *func_name));
+    PROFILE(isolate_,
+            CodeCreateEvent(CodeEventListener::LAZY_COMPILE_TAG, *code, *shared,
+                            isolate_->heap()->empty_string()));
   }
 }
 
