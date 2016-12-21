@@ -126,7 +126,7 @@ function NewPromiseCapability(C, debugEvent) {
 // Promise.reject ( x )
 function PromiseReject(r) {
   if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kCalledOnNonObject, PromiseResolve);
+    throw %make_type_error(kCalledOnNonObject, PromiseReject);
   }
   if (this === GlobalPromise) {
     // Optimized case, avoid extra closure.
