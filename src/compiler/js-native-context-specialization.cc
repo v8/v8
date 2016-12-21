@@ -1599,14 +1599,16 @@ JSNativeContextSpecialization::InlineApiCall(
   // Add CallApiCallbackStub's register argument as well.
   Node* inputs[11] = {
       code, target, data, receiver /* holder */, function_reference, receiver};
-  if (value != nullptr) {
-    inputs[6] = value;
-  }
   int index = 6 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
   inputs[index++] = effect;
   inputs[index++] = control;
+  // This needs to stay here because of the edge case described in
+  // http://crbug.com/675648.
+  if (value != nullptr) {
+    inputs[6] = value;
+  }
 
   Node* effect0;
   Node* value0 = effect0 =
