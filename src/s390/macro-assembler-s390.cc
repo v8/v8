@@ -4329,8 +4329,12 @@ void MacroAssembler::LoadFloat32Literal(DoubleRegister result, float value,
 
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
 #if V8_TARGET_ARCH_S390X
-  LoadSmiLiteral(scratch, smi);
-  cgr(src1, scratch);
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    cih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    cgr(src1, scratch);
+  }
 #else
   // CFI takes 32-bit immediate.
   cfi(src1, Operand(smi));
@@ -4340,8 +4344,12 @@ void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {
 void MacroAssembler::CmpLogicalSmiLiteral(Register src1, Smi* smi,
                                           Register scratch) {
 #if V8_TARGET_ARCH_S390X
-  LoadSmiLiteral(scratch, smi);
-  clgr(src1, scratch);
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    clih(src1, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    clgr(src1, scratch);
+  }
 #else
   // CLFI takes 32-bit immediate
   clfi(src1, Operand(smi));
@@ -4351,8 +4359,13 @@ void MacroAssembler::CmpLogicalSmiLiteral(Register src1, Smi* smi,
 void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_S390X
-  LoadSmiLiteral(scratch, smi);
-  AddP(dst, src, scratch);
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    if (!dst.is(src)) LoadRR(dst, src);
+    aih(dst, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    AddP(dst, src, scratch);
+  }
 #else
   AddP(dst, src, Operand(reinterpret_cast<intptr_t>(smi)));
 #endif
@@ -4361,8 +4374,13 @@ void MacroAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
 void MacroAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_S390X
-  LoadSmiLiteral(scratch, smi);
-  SubP(dst, src, scratch);
+  if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+    if (!dst.is(src)) LoadRR(dst, src);
+    aih(dst, Operand((-reinterpret_cast<intptr_t>(smi)) >> 32));
+  } else {
+    LoadSmiLiteral(scratch, smi);
+    SubP(dst, src, scratch);
+  }
 #else
   AddP(dst, src, Operand(-(reinterpret_cast<intptr_t>(smi))));
 #endif

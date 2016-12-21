@@ -965,6 +965,7 @@ void Simulator::EvalTableInit() {
   EvalTable[ALSIH] = &Simulator::Evaluate_ALSIH;
   EvalTable[ALSIHN] = &Simulator::Evaluate_ALSIHN;
   EvalTable[CIH] = &Simulator::Evaluate_CIH;
+  EvalTable[CLIH] = &Simulator::Evaluate_CLIH;
   EvalTable[STCK] = &Simulator::Evaluate_STCK;
   EvalTable[CFC] = &Simulator::Evaluate_CFC;
   EvalTable[IPM] = &Simulator::Evaluate_IPM;
@@ -8312,9 +8313,15 @@ EVALUATE(BRCTH) {
 }
 
 EVALUATE(AIH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(AIH);
+  DECODE_RIL_A_INSTRUCTION(r1, i2);
+  int32_t r1_val = get_high_register<int32_t>(r1);
+  bool isOF = CheckOverflowForIntAdd(r1_val, static_cast<int32_t>(i2), int32_t);
+  r1_val += static_cast<int32_t>(i2);
+  set_high_register(r1, r1_val);
+  SetS390ConditionCode<int32_t>(r1_val, 0);
+  SetS390OverflowCode(isOF);
+  return length;
 }
 
 EVALUATE(ALSIH) {
@@ -8330,9 +8337,19 @@ EVALUATE(ALSIHN) {
 }
 
 EVALUATE(CIH) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(CIH);
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  int32_t r1_val = get_high_register<int32_t>(r1);
+  SetS390ConditionCode<int32_t>(r1_val, static_cast<int32_t>(imm));
+  return length;
+}
+
+EVALUATE(CLIH) {
+  DCHECK_OPCODE(CLIH);
+  // Compare Logical with Immediate (32)
+  DECODE_RIL_A_INSTRUCTION(r1, imm);
+  SetS390ConditionCode<uint32_t>(get_high_register<uint32_t>(r1), imm);
+  return length;
 }
 
 EVALUATE(STCK) {

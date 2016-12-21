@@ -3831,7 +3831,8 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   Label adaptor_frame, try_allocate, runtime;
   __ LoadP(r6, MemOperand(r9, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(r2, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpSmiLiteral(r2, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ LoadSmiLiteral(r0, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ CmpP(r2, r0);
   __ beq(&adaptor_frame);
 
   // No adaptor, parameter count = argument count.

@@ -828,8 +828,10 @@ class MacroAssembler : public Assembler {
   void StoreRepresentation(Register src, const MemOperand& mem,
                            Representation r, Register scratch = no_reg);
 
-  void AddSmiLiteral(Register dst, Register src, Smi* smi, Register scratch);
-  void SubSmiLiteral(Register dst, Register src, Smi* smi, Register scratch);
+  void AddSmiLiteral(Register dst, Register src, Smi* smi,
+                     Register scratch = r0);
+  void SubSmiLiteral(Register dst, Register src, Smi* smi,
+                     Register scratch = r0);
   void CmpSmiLiteral(Register src1, Smi* smi, Register scratch);
   void CmpLogicalSmiLiteral(Register src1, Smi* smi, Register scratch);
   void AndSmiLiteral(Register dst, Register src, Smi* smi);
