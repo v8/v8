@@ -236,7 +236,12 @@ void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
     if (std::isnan(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
       if (std::isnan(*j)) continue;
-      CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
+      float expected = expected_op(*i, *j);
+      // SIMD on some platforms may handle denormalized numbers differently.
+      // TODO(bbudge) On platforms that flush denorms to zero, test with
+      // expected == 0.
+      if (std::fpclassify(expected) == FP_SUBNORMAL) continue;
+      CHECK_EQ(1, r.Call(*i, *j, expected));
     }
   }
 }
@@ -265,6 +270,9 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
     if (std::isnan(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
       if (std::isnan(*j)) continue;
+      // SIMD on some platforms may handle denormalized numbers differently.
+      // Check for number pairs that are very close together.
+      if (std::fpclassify(*i - *j) == FP_SUBNORMAL) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
     }
   }
