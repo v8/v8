@@ -573,11 +573,14 @@ static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
 namespace internal {
 
 Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
-                               const char* str, FunctionCallback func) {
+                               const char* str, FunctionCallback func,
+                               int length = 0) {
   Handle<String> name = v8_str(isolate, str);
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp).ToHandleChecked();
+  JSFunction::SetName(function, name, isolate->factory()->empty_string());
+  function->shared()->set_length(length);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(object, name, function, attributes);
   return function;
@@ -636,14 +639,14 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSObject::AddProperty(global, name, webassembly, attributes);
 
   // Setup compile
-  InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile);
+  InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
 
   // Setup compile
-  InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate);
+  InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
 
   // Setup Module
   Handle<JSFunction> module_constructor =
-      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule);
+      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
   context->set_wasm_module_constructor(*module_constructor);
   Handle<JSObject> module_proto =
       factory->NewJSObject(module_constructor, TENURED);
@@ -656,12 +659,12 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup Instance
   Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance);
+      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
 
   // Setup Table
   Handle<JSFunction> table_constructor =
-      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable);
+      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
   context->set_wasm_table_constructor(*table_constructor);
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
@@ -672,13 +675,13 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
                         table_constructor, DONT_ENUM);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
-  InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow);
-  InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet);
-  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet);
+  InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
+  InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
+  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
 
   // Setup Memory
   Handle<JSFunction> memory_constructor =
-      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory);
+      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
   context->set_wasm_memory_constructor(*memory_constructor);
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
@@ -688,7 +691,7 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSFunction::SetInitialMap(memory_constructor, map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
                         memory_constructor, DONT_ENUM);
-  InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow);
+  InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
 
   // Setup errors

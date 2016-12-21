@@ -54,41 +54,56 @@ assertEq(wasmDesc.configurable, true);
 assertEq(WebAssembly, wasmDesc.value);
 //TODO assertEq(String(WebAssembly), "[object WebAssembly]");
 
-// 'WebAssembly.(Compile|Runtime)Error' data property
+// 'WebAssembly.CompileError'
 let compileErrorDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'CompileError');
-let runtimeErrorDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'RuntimeError');
 assertEq(typeof compileErrorDesc.value, "function");
-assertEq(typeof runtimeErrorDesc.value, "function");
-if (PROP_FLAGS) assertEq(compileErrorDesc.writable, true);
-if (PROP_FLAGS) assertEq(runtimeErrorDesc.writable, true);
-if (PROP_FLAGS) assertEq(compileErrorDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(runtimeErrorDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(compileErrorDesc.configurable, true);
-if (PROP_FLAGS) assertEq(runtimeErrorDesc.configurable, true);
-
-// 'WebAssembly.(Compile|Runtime)Error' constructor function
+assertEq(compileErrorDesc.writable, true);
+assertEq(compileErrorDesc.enumerable, false);
+assertEq(compileErrorDesc.configurable, true);
 let CompileError = WebAssembly.CompileError;
-let RuntimeError = WebAssembly.RuntimeError;
 assertEq(CompileError, compileErrorDesc.value);
-assertEq(RuntimeError, runtimeErrorDesc.value);
 assertEq(CompileError.length, 1);
-assertEq(RuntimeError.length, 1);
 assertEq(CompileError.name, "CompileError");
-assertEq(RuntimeError.name, "RuntimeError");
-
-// 'WebAssembly.(Compile|Runtime)Error' instance objects
 let compileError = new CompileError;
-let runtimeError = new RuntimeError;
 assertEq(compileError instanceof CompileError, true);
-assertEq(runtimeError instanceof RuntimeError, true);
 assertEq(compileError instanceof Error, true);
-assertEq(runtimeError instanceof Error, true);
 assertEq(compileError instanceof TypeError, false);
-assertEq(runtimeError instanceof TypeError, false);
 assertEq(compileError.message, "");
-assertEq(runtimeError.message, "");
 assertEq(new CompileError("hi").message, "hi");
+
+// 'WebAssembly.RuntimeError'
+let runtimeErrorDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'RuntimeError');
+assertEq(typeof runtimeErrorDesc.value, "function");
+assertEq(runtimeErrorDesc.writable, true);
+assertEq(runtimeErrorDesc.enumerable, false);
+assertEq(runtimeErrorDesc.configurable, true);
+let RuntimeError = WebAssembly.RuntimeError;
+assertEq(RuntimeError, runtimeErrorDesc.value);
+assertEq(RuntimeError.length, 1);
+assertEq(RuntimeError.name, "RuntimeError");
+let runtimeError = new RuntimeError;
+assertEq(runtimeError instanceof RuntimeError, true);
+assertEq(runtimeError instanceof Error, true);
+assertEq(runtimeError instanceof TypeError, false);
+assertEq(runtimeError.message, "");
 assertEq(new RuntimeError("hi").message, "hi");
+
+// 'WebAssembly.LinkError'
+let linkErrorDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'LinkError');
+assertEq(typeof linkErrorDesc.value, "function");
+assertEq(linkErrorDesc.writable, true);
+assertEq(linkErrorDesc.enumerable, false);
+assertEq(linkErrorDesc.configurable, true);
+let LinkError = WebAssembly.LinkError;
+assertEq(LinkError, linkErrorDesc.value);
+assertEq(LinkError.length, 1);
+assertEq(LinkError.name, "LinkError");
+let linkError = new LinkError;
+assertEq(linkError instanceof LinkError, true);
+assertEq(linkError instanceof Error, true);
+assertEq(linkError instanceof TypeError, false);
+assertEq(linkError.message, "");
+assertEq(new LinkError("hi").message, "hi");
 
 // 'WebAssembly.Module' data property
 let moduleDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Module');
@@ -100,8 +115,8 @@ assertEq(moduleDesc.configurable, true);
 // 'WebAssembly.Module' constructor function
 let Module = WebAssembly.Module;
 assertEq(Module, moduleDesc.value);
-//TODO assertEq(Module.length, 1);
-//TODO assertEq(Module.name, "Module");
+assertEq(Module.length, 1);
+assertEq(Module.name, "Module");
 assertErrorMessage(() => Module(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Module(), TypeError, /requires more than 0 arguments/);
 assertErrorMessage(() => new Module(undefined), TypeError, "first argument must be an ArrayBuffer or typed array object");
@@ -207,8 +222,8 @@ assertEq(instanceDesc.configurable, true);
 // 'WebAssembly.Instance' constructor function
 let Instance = WebAssembly.Instance;
 assertEq(Instance, instanceDesc.value);
-//TODO assertEq(Instance.length, 1);
-//TODO assertEq(Instance.name, "Instance");
+assertEq(Instance.length, 1);
+assertEq(Instance.name, "Instance");
 assertErrorMessage(() => Instance(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Instance(1), TypeError, "first argument must be a WebAssembly.Module");
 assertErrorMessage(() => new Instance({}), TypeError, "first argument must be a WebAssembly.Module");
@@ -260,8 +275,8 @@ assertEq(memoryDesc.configurable, true);
 // 'WebAssembly.Memory' constructor function
 let Memory = WebAssembly.Memory;
 assertEq(Memory, memoryDesc.value);
-//TODO assertEq(Memory.length, 1);
-//TODO assertEq(Memory.name, "Memory");
+assertEq(Memory.length, 1);
+assertEq(Memory.name, "Memory");
 assertErrorMessage(() => Memory(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Memory(1), TypeError, "first argument must be a memory descriptor");
 assertErrorMessage(() => new Memory({initial:{valueOf() { throw new Error("here")}}}), Error, "here");
@@ -348,8 +363,8 @@ assertEq(tableDesc.configurable, true);
 // 'WebAssembly.Table' constructor function
 let Table = WebAssembly.Table;
 assertEq(Table, tableDesc.value);
-//TODO assertEq(Table.length, 1);
-//TODO assertEq(Table.name, "Table");
+assertEq(Table.length, 1);
+assertEq(Table.name, "Table");
 assertErrorMessage(() => Table(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Table(1), TypeError, "first argument must be a table descriptor");
 assertErrorMessage(() => new Table({initial:1, element:1}), TypeError, /must be "anyfunc"/);
@@ -407,7 +422,7 @@ assertEq(getDesc.configurable, true);
 
 // 'WebAssembly.Table.prototype.get' method
 let get = getDesc.value;
-//TODO:length assertEq(get.length, 1);
+assertEq(get.length, 1);
 assertErrorMessage(() => get.call(), TypeError, /called on incompatible undefined/);
 assertErrorMessage(() => get.call({}), TypeError, /called on incompatible Object/);
 assertEq(get.call(tbl1, 0), null);
@@ -427,7 +442,7 @@ assertEq(setDesc.configurable, true);
 
 // 'WebAssembly.Table.prototype.set' method
 let set = setDesc.value;
-//TODO assertEq(set.length, 2);
+assertEq(set.length, 2);
 assertErrorMessage(() => set.call(), TypeError, /called on incompatible undefined/);
 assertErrorMessage(() => set.call({}), TypeError, /called on incompatible Object/);
 assertErrorMessage(() => set.call(tbl1, 0), TypeError, /requires more than 1 argument/);
@@ -451,7 +466,7 @@ assertEq(tblGrowDesc.configurable, true);
 // 'WebAssembly.Table.prototype.grow' method
 if (false) { // TODO: Table.grow
 let tblGrow = tblGrowDesc.value;
-//TODO assertEq(tblGrow.length, 1);
+assertEq(tblGrow.length, 1);
 assertErrorMessage(() => tblGrow.call(), TypeError, /called on incompatible undefined/);
 assertErrorMessage(() => tblGrow.call({}), TypeError, /called on incompatible Object/);
 assertErrorMessage(() => tblGrow.call(tbl1, -1), RangeError, /bad Table grow delta/);
@@ -475,8 +490,8 @@ assertEq(compileDesc.configurable, true);
 // 'WebAssembly.compile' function
 let compile = WebAssembly.compile;
 assertEq(compile, compileDesc.value);
-//TODO assertEq(compile.length, 1);
-//TODO assertEq(compile.name, "compile");
+assertEq(compile.length, 1);
+assertEq(compile.name, "compile");
 function assertCompileError(args, err, msg) {
   var error = null;
   try {
