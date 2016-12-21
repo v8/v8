@@ -20,13 +20,8 @@ var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
 var promiseHandledHintSymbol =
     utils.ImportNow("promise_handled_hint_symbol");
-var promiseRawSymbol = utils.ImportNow("promise_raw_symbol");
-var promiseStateSymbol = utils.ImportNow("promise_state_symbol");
-var promiseResultSymbol = utils.ImportNow("promise_result_symbol");
-var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
-var ObjectHasOwnProperty;
+var ObjectHasOwnProperty; // Used by HAS_PRIVATE.
 var GlobalPromise = global.Promise;
-var PromiseThen = GlobalPromise.prototype.then;
 
 utils.Import(function(from) {
   ObjectHasOwnProperty = from.ObjectHasOwnProperty;
@@ -377,7 +372,6 @@ utils.InstallFunctions(extrasUtils, 0, [
 
 utils.Export(function(to) {
   to.PromiseCreate = PromiseCreate;
-  to.PromiseThen = PromiseThen;
 
   to.CreateInternalPromiseCapability = CreateInternalPromiseCapability;
   to.RejectPromise = RejectPromise;
