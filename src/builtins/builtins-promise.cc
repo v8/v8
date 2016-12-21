@@ -94,11 +94,10 @@ Node* PromiseBuiltinsAssembler::PromiseHasHandler(Node* promise) {
 }
 
 void PromiseBuiltinsAssembler::PromiseSetHasHandler(Node* promise) {
-  Node* const flags =
-      SmiUntag(LoadObjectField(promise, JSPromise::kFlagsOffset));
+  Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
   Node* const new_flags =
-      WordOr(flags, IntPtrConstant(1 << JSPromise::kHasHandlerBit));
-  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiTag(new_flags));
+      SmiOr(flags, SmiConstant(1 << JSPromise::kHasHandlerBit));
+  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
 Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
