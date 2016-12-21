@@ -3494,12 +3494,16 @@ LiteralsArray* LiteralsArray::cast(Object* object) {
   return reinterpret_cast<LiteralsArray*>(object);
 }
 
+bool LiteralsArray::needs_feedback_vector() const {
+  return get(kVectorIndex)->IsUndefined(this->GetIsolate());
+}
 
 TypeFeedbackVector* LiteralsArray::feedback_vector() const {
-  if (length() == 0) {
+  if (length() == 0 || needs_feedback_vector()) {
     return TypeFeedbackVector::cast(
-        const_cast<FixedArray*>(FixedArray::cast(this)));
+        this->GetIsolate()->heap()->empty_type_feedback_vector());
   }
+
   return TypeFeedbackVector::cast(get(kVectorIndex));
 }
 
@@ -6626,6 +6630,13 @@ void JSFunction::ReplaceCode(Code* code) {
   }
 }
 
+bool JSFunction::needs_literals_array() const {
+  SharedFunctionInfo* shared = this->shared();
+
+  return literals() == shared->GetIsolate()->heap()->empty_literals_array() &&
+         (shared->feedback_metadata()->slot_count() > 0 ||
+          shared->num_literals() > 0);
+}
 
 Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));

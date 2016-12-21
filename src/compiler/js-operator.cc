@@ -405,6 +405,7 @@ const CreateArrayParameters& CreateArrayParametersOf(const Operator* op) {
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&
+         lhs.feedback() == rhs.feedback() &&
          lhs.shared_info().location() == rhs.shared_info().location();
 }
 
@@ -416,7 +417,8 @@ bool operator!=(CreateClosureParameters const& lhs,
 
 
 size_t hash_value(CreateClosureParameters const& p) {
-  return base::hash_combine(p.pretenure(), p.shared_info().location());
+  return base::hash_combine(p.pretenure(), p.shared_info().location(),
+                            p.feedback());
 }
 
 
@@ -874,10 +876,10 @@ const Operator* JSOperatorBuilder::CreateArray(size_t arity,
       parameters);                                        // parameter
 }
 
-
 const Operator* JSOperatorBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, PretenureFlag pretenure) {
-  CreateClosureParameters parameters(shared_info, pretenure);
+    Handle<SharedFunctionInfo> shared_info, VectorSlotPair const& feedback,
+    PretenureFlag pretenure) {
+  CreateClosureParameters parameters(shared_info, feedback, pretenure);
   return new (zone()) Operator1<CreateClosureParameters>(  // --
       IrOpcode::kJSCreateClosure, Operator::kNoThrow,      // opcode
       "JSCreateClosure",                                   // name

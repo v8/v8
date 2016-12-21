@@ -611,23 +611,37 @@ RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
 
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                NOT_TENURED);
+  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
+  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
+                                 isolate);
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, context, literals, NOT_TENURED);
+  return *function;
 }
 
 
 RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
+  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
+  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
+                                 isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                TENURED);
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
+                                                            literals, TENURED);
+  return *function;
 }
 
 static Object* FindNameClash(Handle<ScopeInfo> scope_info,

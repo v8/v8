@@ -417,7 +417,7 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
 
 class FastNewClosureDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kSharedFunctionInfo)
+  DEFINE_PARAMETERS(kSharedFunctionInfo, kVector, kSlot)
   DECLARE_DESCRIPTOR(FastNewClosureDescriptor, CallInterfaceDescriptor)
 };
 

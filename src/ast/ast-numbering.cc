@@ -125,6 +125,7 @@ void AstNumberingVisitor::VisitNativeFunctionLiteral(
   IncrementNodeCount();
   DisableOptimization(kNativeFunctionLiteral);
   node->set_base_id(ReserveIdRange(NativeFunctionLiteral::num_ids()));
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -595,6 +596,7 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
   // We don't recurse into the declarations or body of the function literal:
   // you have to separately Renumber() each FunctionLiteral that you compile.
+  ReserveFeedbackSlots(node);
 }
 
 

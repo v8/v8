@@ -1531,6 +1531,17 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 }
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info, Handle<Context> context,
+    Handle<LiteralsArray> literals, PretenureFlag pretenure) {
+  int map_index =
+      Context::FunctionMapIndex(info->language_mode(), info->kind());
+  Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
+
+  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, literals,
+                                           pretenure);
+}
+
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
     Handle<Object> context_or_undefined, PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
@@ -1549,6 +1560,26 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   return result;
 }
 
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
+    Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+    PretenureFlag pretenure) {
+  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
+  Handle<JSFunction> result =
+      NewFunction(initial_map, info, context_or_undefined, pretenure);
+
+  result->set_literals(*literals);
+  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
+    info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  }
+
+  if (context_or_undefined->IsContext()) {
+    // Give compiler a chance to pre-initialize.
+    Compiler::PostInstantiation(result, pretenure);
+  }
+
+  return result;
+}
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   Handle<FixedArray> array = NewFixedArray(length, TENURED);

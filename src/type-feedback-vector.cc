@@ -37,6 +37,11 @@ FeedbackVectorSlotKind TypeFeedbackMetadata::GetKind(
   return VectorICComputer::decode(data, slot.ToInt());
 }
 
+int TypeFeedbackMetadata::GetParameter(int parameter_index) const {
+  FixedArray* parameters = FixedArray::cast(get(kParametersTableIndex));
+  return Smi::cast(parameters->get(parameter_index))->value();
+}
+
 void TypeFeedbackMetadata::SetKind(FeedbackVectorSlot slot,
                                    FeedbackVectorSlotKind kind) {
   int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
@@ -91,6 +96,18 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
     metadata->SetKind(FeedbackVectorSlot(i), kind);
   }
 
+  if (spec->parameters_count() > 0) {
+    const int parameters_count = spec->parameters_count();
+    Handle<FixedArray> params_array =
+        factory->NewFixedArray(parameters_count, TENURED);
+    for (int i = 0; i < parameters_count; i++) {
+      params_array->set(i, Smi::FromInt(spec->GetParameter(i)));
+    }
+    metadata->set(kParametersTableIndex, *params_array);
+  } else {
+    metadata->set(kParametersTableIndex, *factory->empty_fixed_array());
+  }
+
   // It's important that the TypeFeedbackMetadata have a COW map, since it's
   // pointed to by both a SharedFunctionInfo and indirectly by closures through
   // the TypeFeedbackVector. The serializer uses the COW map type to decide
@@ -109,6 +126,7 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
   }
 
   int slots = slot_count();
+  int parameter_index = 0;
   for (int i = 0; i < slots;) {
     FeedbackVectorSlot slot(i);
     FeedbackVectorSlotKind kind = GetKind(slot);
@@ -116,6 +134,14 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
 
     if (kind != other_spec->GetKind(i)) {
       return true;
+    }
+    if (SlotRequiresParameter(kind)) {
+      int parameter = GetParameter(parameter_index);
+      int other_parameter = other_spec->GetParameter(parameter_index);
+      if (parameter != other_parameter) {
+        return true;
+      }
+      parameter_index++;
     }
     i += entry_size;
   }
@@ -129,12 +155,20 @@ bool TypeFeedbackMetadata::DiffersFrom(
   }
 
   int slots = slot_count();
+  int parameter_index = 0;
   for (int i = 0; i < slots;) {
     FeedbackVectorSlot slot(i);
     FeedbackVectorSlotKind kind = GetKind(slot);
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     if (GetKind(slot) != other_metadata->GetKind(slot)) {
       return true;
+    }
+    if (SlotRequiresParameter(kind)) {
+      if (GetParameter(parameter_index) !=
+          other_metadata->GetParameter(parameter_index)) {
+        return true;
+      }
+      parameter_index++;
     }
     i += entry_size;
   }
@@ -161,6 +195,8 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "INTERPRETER_BINARYOP_IC";
     case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
       return "INTERPRETER_COMPARE_IC";
+    case FeedbackVectorSlotKind::CREATE_CLOSURE:
+      return "CREATE_CLOSURE";
     case FeedbackVectorSlotKind::GENERAL:
       return "STUB";
     case FeedbackVectorSlotKind::KINDS_NUMBER:
@@ -174,6 +210,13 @@ FeedbackVectorSlotKind TypeFeedbackVector::GetKind(
     FeedbackVectorSlot slot) const {
   DCHECK(!is_empty());
   return metadata()->GetKind(slot);
+}
+
+int TypeFeedbackVector::GetParameter(FeedbackVectorSlot slot) const {
+  DCHECK(!is_empty());
+  DCHECK(
+      TypeFeedbackMetadata::SlotRequiresParameter(metadata()->GetKind(slot)));
+  return FixedArray::cast(Get(slot))->length();
 }
 
 // static
@@ -191,6 +234,27 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set(kMetadataIndex, *metadata);
   array->set(kInvocationCountIndex, Smi::kZero);
+  int parameter_index = 0;
+  for (int i = 0; i < slot_count;) {
+    FeedbackVectorSlot slot(i);
+    FeedbackVectorSlotKind kind = metadata->GetKind(slot);
+    int index = TypeFeedbackVector::GetIndex(slot);
+    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
+
+    if (kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
+      // This fixed array is filled with undefined.
+      int length = metadata->GetParameter(parameter_index++);
+      if (length == 0) {
+        // This is a native function literal. We can always point to
+        // the empty literals array here.
+        array->set(index, *factory->empty_literals_array(), SKIP_WRITE_BARRIER);
+      } else {
+        Handle<FixedArray> value = factory->NewFixedArray(length);
+        array->set(index, *value);
+      }
+    }
+    i += entry_size;
+  }
 
   DisallowHeapAllocation no_gc;
 
@@ -212,12 +276,14 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     } else {
       value = *uninitialized_sentinel;
     }
-    array->set(index, value, SKIP_WRITE_BARRIER);
 
-    value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::kZero
-                                                    : *uninitialized_sentinel;
-    for (int j = 1; j < entry_size; j++) {
-      array->set(index + j, value, SKIP_WRITE_BARRIER);
+    if (kind != FeedbackVectorSlotKind::CREATE_CLOSURE) {
+      array->set(index, value, SKIP_WRITE_BARRIER);
+      value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::kZero
+                                                      : *uninitialized_sentinel;
+      for (int j = 1; j < entry_size; j++) {
+        array->set(index + j, value, SKIP_WRITE_BARRIER);
+      }
     }
     i += entry_size;
   }
@@ -252,8 +318,9 @@ static bool ClearLogic(Isolate* isolate) {
 void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
                                         bool force_clear) {
   Isolate* isolate = GetIsolate();
-
   if (!force_clear && !ClearLogic(isolate)) return;
+
+  if (this == isolate->heap()->empty_type_feedback_vector()) return;
 
   Object* uninitialized_sentinel =
       TypeFeedbackVector::RawUninitializedSentinel(isolate);
@@ -301,6 +368,14 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           DCHECK(Get(slot)->IsSmi());
           // don't clear these smi slots.
           // Set(slot, Smi::kZero);
+          break;
+        }
+        case FeedbackVectorSlotKind::CREATE_CLOSURE: {
+          // Fill the array with undefined.
+          FixedArray* array = FixedArray::cast(Get(slot));
+          for (int i = 0; i < array->length(); i++) {
+            array->set_undefined(i);
+          }
           break;
         }
         case FeedbackVectorSlotKind::GENERAL: {

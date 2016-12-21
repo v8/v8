@@ -580,6 +580,15 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
+      Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+      PretenureFlag pretenure = TENURED);
+
+  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
+      Handle<SharedFunctionInfo> function_info, Handle<Context> context,
+      Handle<LiteralsArray> literals, PretenureFlag pretenure = TENURED);
+
+  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
+      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
       Handle<Object> context_or_undefined, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(

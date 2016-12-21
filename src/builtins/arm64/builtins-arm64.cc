@@ -1354,7 +1354,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Cmp(index, Operand(2));
   __ B(lt, &gotta_call_runtime);
 
-  // Find literals.
   // x3  : native context
   // x2  : length / index
   // x13 : optimized code map
@@ -1374,17 +1373,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Ldr(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ Cmp(temp, native_context);
   __ B(ne, &loop_bottom);
-  // Literals available?
-  __ Ldr(temp, FieldMemOperand(array_pointer,
-                               SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ Ldr(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the literals in the closure.
-  __ Str(temp, FieldMemOperand(closure, JSFunction::kLiteralsOffset));
-  __ RecordWriteField(closure, JSFunction::kLiteralsOffset, temp, x7,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
 
   // Code available?
   Register entry = x7;
@@ -1394,7 +1382,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Ldr(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   __ Add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Str(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset));
   __ RecordWriteCodeEntryField(closure, entry, x5);
@@ -1423,7 +1411,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Cmp(index, Operand(1));
   __ B(gt, &loop_top);
 
-  // We found neither literals nor code.
+  // We found no code.
   __ B(&gotta_call_runtime);
 
   __ Bind(&try_shared);
