@@ -478,71 +478,6 @@ void KeyedStoreICTFStub::GenerateAssembly(
   AccessorAssembler::GenerateKeyedStoreICTF(state, language_mode());
 }
 
-void StoreMapStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* map = assembler.Parameter(Descriptor::kMap);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-
-  assembler.StoreMap(receiver, map);
-  assembler.Return(value);
-}
-
-void StoreTransitionStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* offset =
-      assembler.SmiUntag(assembler.Parameter(Descriptor::kFieldOffset));
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* map = assembler.Parameter(Descriptor::kMap);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  Label miss(&assembler);
-
-  Representation representation = this->representation();
-  assembler.Comment("StoreTransitionStub: is_inobject: %d: representation: %s",
-                    is_inobject(), representation.Mnemonic());
-
-  Node* prepared_value =
-      assembler.PrepareValueForWrite(value, representation, &miss);
-
-  if (store_mode() == StoreTransitionStub::ExtendStorageAndStoreMapAndValue) {
-    assembler.Comment("Extend storage");
-    assembler.ExtendPropertiesBackingStore(receiver);
-  } else {
-    DCHECK(store_mode() == StoreTransitionStub::StoreMapAndValue);
-  }
-
-  // Store the new value into the "extended" object.
-  assembler.Comment("Store value");
-  assembler.StoreNamedField(receiver, offset, is_inobject(), representation,
-                            prepared_value, true);
-
-  // And finally update the map.
-  assembler.Comment("Store map");
-  assembler.StoreMap(receiver, map);
-  assembler.Return(value);
-
-  // Only store to tagged field never bails out.
-  if (!representation.IsTagged()) {
-    assembler.Bind(&miss);
-    {
-      assembler.Comment("Miss");
-      assembler.TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                                vector, receiver, name);
-    }
-  }
-}
-
 void ElementsTransitionAndStoreStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
@@ -1897,45 +1832,6 @@ void LoadApiGetterStub::GenerateAssembly(
       descriptors, DescriptorArray::ToValueIndex(index()));
   assembler.TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
                          holder, callback);
-}
-
-void StoreFieldStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-
-  FieldIndex index = this->index();
-  Representation representation = this->representation();
-
-  assembler.Comment("StoreFieldStub: inobject=%d, offset=%d, rep=%s",
-                    index.is_inobject(), index.offset(),
-                    representation.Mnemonic());
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-
-  Label miss(&assembler);
-
-  Node* prepared_value =
-      assembler.PrepareValueForWrite(value, representation, &miss);
-  assembler.StoreNamedField(receiver, index, representation, prepared_value,
-                            false);
-  assembler.Return(value);
-
-  // Only stores to tagged field can't bailout.
-  if (!representation.IsTagged()) {
-    assembler.Bind(&miss);
-    {
-      assembler.Comment("Miss");
-      assembler.TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                                vector, receiver, name);
-    }
-  }
 }
 
 void StoreGlobalStub::GenerateAssembly(

@@ -193,27 +193,6 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
   }
 }
 
-
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadField(Handle<Name> name,
-                                                        FieldIndex field) {
-  Register reg = Frontend(name);
-  __ Move(receiver(), reg);
-  LoadFieldStub stub(isolate(), field);
-  GenerateTailCall(masm(), stub.GetCode());
-  return GetCode(kind(), name);
-}
-
-
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadConstant(Handle<Name> name,
-                                                           int constant_index) {
-  Register reg = Frontend(name);
-  __ Move(receiver(), reg);
-  LoadConstantStub stub(isolate(), constant_index);
-  GenerateTailCall(masm(), stub.GetCode());
-  return GetCode(kind(), name);
-}
-
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
     Handle<Name> name) {
   Label miss;
@@ -440,149 +419,10 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
   return GetCode(kind(), name);
 }
 
-
-// TODO(verwaest): Cleanup. holder() is actually the receiver.
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreTransition(
-    Handle<Map> transition, Handle<Name> name) {
-  Label miss;
-
-  // Ensure that the StoreTransitionStub we are going to call has the same
-  // number of stack arguments. This means that we don't have to adapt them
-  // if we decide to call the transition or miss stub.
-  STATIC_ASSERT(Descriptor::kStackArgumentsCount ==
-                StoreTransitionDescriptor::kStackArgumentsCount);
-  STATIC_ASSERT(Descriptor::kStackArgumentsCount == 0 ||
-                Descriptor::kStackArgumentsCount == 3);
-  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kValue ==
-                StoreTransitionDescriptor::kParameterCount -
-                    StoreTransitionDescriptor::kValue);
-  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kSlot ==
-                StoreTransitionDescriptor::kParameterCount -
-                    StoreTransitionDescriptor::kSlot);
-  STATIC_ASSERT(Descriptor::kParameterCount - Descriptor::kVector ==
-                StoreTransitionDescriptor::kParameterCount -
-                    StoreTransitionDescriptor::kVector);
-
-  if (Descriptor::kPassLastArgsOnStack) {
-    __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
-  }
-
-  bool need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
-  if (need_save_restore) {
-    PushVectorAndSlot();
-  }
-
-  // Check that we are allowed to write this.
-  bool is_nonexistent = holder()->map() == transition->GetBackPointer();
-  if (is_nonexistent) {
-    // Find the top object.
-    Handle<JSObject> last;
-    PrototypeIterator::WhereToEnd end =
-        name->IsPrivate() ? PrototypeIterator::END_AT_NON_HIDDEN
-                          : PrototypeIterator::END_AT_NULL;
-    PrototypeIterator iter(isolate(), holder(), kStartAtPrototype, end);
-    while (!iter.IsAtEnd()) {
-      last = PrototypeIterator::GetCurrent<JSObject>(iter);
-      iter.Advance();
-    }
-    if (!last.is_null()) set_holder(last);
-    NonexistentFrontendHeader(name, &miss, scratch1(), scratch2());
-  } else {
-    FrontendHeader(receiver(), name, &miss, DONT_RETURN_ANYTHING);
-    DCHECK(holder()->HasFastProperties());
-  }
-
-  int descriptor = transition->LastAdded();
-  Handle<DescriptorArray> descriptors(transition->instance_descriptors());
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-  Representation representation = details.representation();
-  DCHECK(!representation.IsNone());
-
-  // Stub is never generated for objects that require access checks.
-  DCHECK(!transition->is_access_check_needed());
-
-  // Call to respective StoreTransitionStub.
-  Register map_reg = StoreTransitionDescriptor::MapRegister();
-
-  if (details.type() == DATA_CONSTANT) {
-    DCHECK(descriptors->GetValue(descriptor)->IsJSFunction());
-    GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
-    GenerateConstantCheck(map_reg, descriptor, value(), scratch1(), &miss);
-    if (need_save_restore) {
-      PopVectorAndSlot();
-    }
-    GenerateRestoreName(name);
-    StoreMapStub stub(isolate());
-    GenerateTailCall(masm(), stub.GetCode());
-
-  } else {
-    if (representation.IsHeapObject()) {
-      GenerateFieldTypeChecks(descriptors->GetFieldType(descriptor), value(),
-                              &miss);
-    }
-    StoreTransitionStub::StoreMode store_mode =
-        Map::cast(transition->GetBackPointer())->unused_property_fields() == 0
-            ? StoreTransitionStub::ExtendStorageAndStoreMapAndValue
-            : StoreTransitionStub::StoreMapAndValue;
-    GenerateRestoreMap(transition, map_reg, scratch1(), &miss);
-    if (need_save_restore) {
-      PopVectorAndSlot();
-    }
-    // We need to pass name on the stack.
-    PopReturnAddress(this->name());
-    __ Push(name);
-    PushReturnAddress(this->name());
-
-    FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
-    __ Move(StoreNamedTransitionDescriptor::FieldOffsetRegister(),
-            Smi::FromInt(index.index() << kPointerSizeLog2));
-
-    StoreTransitionStub stub(isolate(), index.is_inobject(), representation,
-                             store_mode);
-    GenerateTailCall(masm(), stub.GetCode());
-  }
-
-  __ bind(&miss);
-  if (need_save_restore) {
-    PopVectorAndSlot();
-  }
-  GenerateRestoreName(name);
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-
-  return GetCode(kind(), name);
-}
-
 bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
     FieldType* field_type) const {
   return field_type->IsClass();
 }
-
-
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreField(LookupIterator* it) {
-  Label miss;
-  DCHECK(it->representation().IsHeapObject());
-
-  FieldType* field_type = *it->GetFieldType();
-  bool need_save_restore = false;
-  if (RequiresFieldTypeChecks(field_type)) {
-    need_save_restore = IC::ShouldPushPopSlotAndVector(kind());
-    if (Descriptor::kPassLastArgsOnStack) {
-      __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
-    }
-    if (need_save_restore) PushVectorAndSlot();
-    GenerateFieldTypeChecks(field_type, value(), &miss);
-    if (need_save_restore) PopVectorAndSlot();
-  }
-
-  StoreFieldStub stub(isolate(), it->GetFieldIndex(), it->representation());
-  GenerateTailCall(masm(), stub.GetCode());
-
-  __ bind(&miss);
-  if (need_save_restore) PopVectorAndSlot();
-  TailCallBuiltin(masm(), MissBuiltin(kind()));
-  return GetCode(kind(), it->name());
-}
-
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
     Handle<JSObject> object, Handle<Name> name, int accessor_index,

@@ -408,22 +408,6 @@ Handle<Code> LoadFieldStub::GenerateCode() {
   return DoGenerateCode(this);
 }
 
-
-template <>
-HValue* CodeStubGraphBuilder<LoadConstantStub>::BuildCodeStub() {
-  HValue* map = AddLoadMap(GetParameter(Descriptor::kReceiver), NULL);
-  HObjectAccess descriptors_access = HObjectAccess::ForObservableJSObjectOffset(
-      Map::kDescriptorsOffset, Representation::Tagged());
-  HValue* descriptors = Add<HLoadNamedField>(map, nullptr, descriptors_access);
-  HObjectAccess value_access = HObjectAccess::ForObservableJSObjectOffset(
-      DescriptorArray::GetValueOffset(casted_stub()->constant_index()));
-  return Add<HLoadNamedField>(descriptors, nullptr, value_access);
-}
-
-
-Handle<Code> LoadConstantStub::GenerateCode() { return DoGenerateCode(this); }
-
-
 void CodeStubGraphBuilderBase::BuildStoreNamedField(
     HValue* object, HValue* value, FieldIndex index,
     Representation representation, bool transition_to_field) {

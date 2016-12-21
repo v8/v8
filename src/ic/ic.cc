@@ -1540,33 +1540,15 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
     }
 
     case LookupIterator::DATA: {
-      if (lookup->is_dictionary_holder()) {
-        DCHECK(kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC);
-        DCHECK(holder->IsJSGlobalObject());
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobal);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        Handle<PropertyCell> cell = lookup->GetPropertyCell();
-        Handle<Code> code = compiler.CompileLoadGlobal(
-            cell, lookup->name(), lookup->IsConfigurable());
-        return code;
-      }
-
-      // -------------- Fields --------------
-      if (lookup->property_details().type() == DATA) {
-        FieldIndex field = lookup->GetFieldIndex();
-        DCHECK(!receiver_is_holder);
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadField);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        return compiler.CompileLoadField(lookup->name(), field);
-      }
-
-      // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      DCHECK(!receiver_is_holder);
-      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstant);
+      DCHECK(lookup->is_dictionary_holder());
+      DCHECK(kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC);
+      DCHECK(holder->IsJSGlobalObject());
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobal);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-      return compiler.CompileLoadConstant(lookup->name(),
-                                          lookup->GetConstantIndex());
+      Handle<PropertyCell> cell = lookup->GetPropertyCell();
+      Handle<Code> code = compiler.CompileLoadGlobal(cell, lookup->name(),
+                                                     lookup->IsConfigurable());
+      return code;
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:

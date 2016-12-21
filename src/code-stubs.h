@@ -67,7 +67,6 @@ class Node;
   /* These will be ported/eliminated */       \
   /* as part of the new IC system, ask */     \
   /* ishell before doing anything  */         \
-  V(LoadConstant)                             \
   V(LoadField)                                \
   /* These should never be ported to TF */    \
   /* because they are either used only by */  \
@@ -120,13 +119,10 @@ class Node;
   V(LoadICProtoArray)                         \
   V(KeyedLoadICTF)                            \
   V(StoreFastElement)                         \
-  V(StoreField)                               \
   V(StoreGlobal)                              \
   V(StoreIC)                                  \
   V(KeyedStoreICTF)                           \
   V(StoreInterceptor)                         \
-  V(StoreMap)                                 \
-  V(StoreTransition)                          \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
   V(GrowArrayElements)                        \
@@ -1229,29 +1225,6 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
 };
 
-
-class LoadConstantStub : public HandlerStub {
- public:
-  LoadConstantStub(Isolate* isolate, int constant_index)
-      : HandlerStub(isolate) {
-    set_sub_minor_key(ConstantIndexBits::encode(constant_index));
-  }
-
-  int constant_index() const {
-    return ConstantIndexBits::decode(sub_minor_key());
-  }
-
- protected:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
-
- private:
-  class ConstantIndexBits : public BitField<int, 0, kSubMinorKeyBits> {};
-
-  // TODO(ishell): The stub uses only kReceiver parameter.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadConstant, HandlerStub);
-};
-
 class LoadApiGetterStub : public TurboFanCodeStub {
  public:
   LoadApiGetterStub(Isolate* isolate, bool receiver_is_holder, int index)
@@ -1277,91 +1250,6 @@ class LoadApiGetterStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
   DEFINE_TURBOFAN_CODE_STUB(LoadApiGetter, TurboFanCodeStub);
-};
-
-class StoreFieldStub : public TurboFanCodeStub {
- public:
-  StoreFieldStub(Isolate* isolate, FieldIndex index,
-                 Representation representation)
-      : TurboFanCodeStub(isolate) {
-    int property_index_key = index.GetFieldAccessStubKey();
-    minor_key_ = StoreFieldByIndexBits::encode(property_index_key) |
-                 RepresentationBits::encode(representation.kind());
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
-  FieldIndex index() const {
-    int property_index_key = StoreFieldByIndexBits::decode(minor_key_);
-    return FieldIndex::FromFieldAccessStubKey(property_index_key);
-  }
-
-  Representation representation() const {
-    return Representation::FromKind(RepresentationBits::decode(minor_key_));
-  }
-
- private:
-  class StoreFieldByIndexBits : public BitField<int, 0, 13> {};
-  class RepresentationBits
-      : public BitField<Representation::Kind, StoreFieldByIndexBits::kNext, 4> {
-  };
-  STATIC_ASSERT(Representation::kNumRepresentations - 1 <
-                RepresentationBits::kMax);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreField, TurboFanCodeStub);
-};
-
-class StoreMapStub : public TurboFanCodeStub {
- public:
-  explicit StoreMapStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreTransition);
-  DEFINE_TURBOFAN_CODE_STUB(StoreMap, TurboFanCodeStub);
-};
-
-class StoreTransitionStub : public TurboFanCodeStub {
- public:
-  enum StoreMode {
-    StoreMapAndValue,
-    ExtendStorageAndStoreMapAndValue
-  };
-
-  StoreTransitionStub(Isolate* isolate, bool is_inobject,
-                      Representation representation, StoreMode store_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = IsInobjectBits::encode(is_inobject) |
-                 RepresentationBits::encode(representation.kind()) |
-                 StoreModeBits::encode(store_mode);
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
-
-  bool is_inobject() const { return IsInobjectBits::decode(minor_key_); }
-
-  Representation representation() const {
-    return Representation::FromKind(RepresentationBits::decode(minor_key_));
-  }
-
-  StoreMode store_mode() const { return StoreModeBits::decode(minor_key_); }
-
- private:
-  class IsInobjectBits : public BitField<bool, 0, 1> {};
-  class RepresentationBits
-      : public BitField<Representation::Kind, IsInobjectBits::kNext, 4> {};
-  STATIC_ASSERT(Representation::kNumRepresentations - 1 <
-                RepresentationBits::kMax);
-  class StoreModeBits
-      : public BitField<StoreMode, RepresentationBits::kNext, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreNamedTransition);
-  DEFINE_TURBOFAN_CODE_STUB(StoreTransition, TurboFanCodeStub);
 };
 
 class StoreGlobalStub : public TurboFanCodeStub {
