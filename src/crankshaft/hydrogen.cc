@@ -12101,19 +12101,6 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
-// Support for direct creation of new objects.
-void HOptimizedGraphBuilder::GenerateNewObject(CallRuntime* call) {
-  DCHECK_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitExpressions(call->arguments()));
-  FastNewObjectStub stub(isolate());
-  FastNewObjectDescriptor descriptor(isolate());
-  HValue* values[] = {Pop(), Pop()};
-  HConstant* stub_value = Add<HConstant>(stub.GetCode());
-  HInstruction* result =
-      New<HCallWithDescriptor>(stub_value, 0, descriptor, ArrayVector(values));
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
 // Support for direct calls from JavaScript to native RegExp code.
 void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
   DCHECK_EQ(4, call->arguments()->length());

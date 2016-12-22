@@ -240,11 +240,6 @@ Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,
                              CodeFactory::HasProperty(isolate()));
 }
 
-Node* IntrinsicsHelper::NewObject(Node* input, Node* arg_count, Node* context) {
-  return IntrinsicAsStubCall(input, context,
-                             CodeFactory::FastNewObject(isolate()));
-}
-
 Node* IntrinsicsHelper::NumberToString(Node* input, Node* arg_count,
                                        Node* context) {
   return IntrinsicAsStubCall(input, context,

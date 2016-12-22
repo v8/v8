@@ -405,7 +405,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(IsRegExp)                           \
   F(IsJSProxy)                          \
   F(Call)                               \
-  F(NewObject)                          \
   F(IsJSReceiver)                       \
   F(GetSuperConstructor)                \
   F(DebugBreakInOptimizedCode)          \

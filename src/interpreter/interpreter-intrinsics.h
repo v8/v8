@@ -33,7 +33,6 @@ namespace interpreter {
   V(IsRegExp, is_regexp, 1)                             \
   V(IsSmi, is_smi, 1)                                   \
   V(IsTypedArray, is_typed_array, 1)                    \
-  V(NewObject, new_object, 2)                           \
   V(NumberToString, number_to_string, 1)                \
   V(RegExpExec, reg_exp_exec, 4)                        \
   V(SubString, sub_string, 3)                           \

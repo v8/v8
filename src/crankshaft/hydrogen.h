@@ -2159,7 +2159,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(IsRegExp)                          \
   F(IsJSProxy)                         \
   F(Call)                              \
-  F(NewObject)                         \
   F(ToInteger)                         \
   F(ToObject)                          \
   F(ToString)                          \

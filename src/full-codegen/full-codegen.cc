@@ -606,10 +606,6 @@ void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
   context()->Plug(result_register());
 }
 
-void FullCodeGenerator::EmitNewObject(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::FastNewObject(isolate()));
-}
-
 void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
   EmitIntrinsicAsStubCall(expr, CodeFactory::NumberToString(isolate()));
 }
