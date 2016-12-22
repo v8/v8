@@ -92,6 +92,11 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // the frame (that is done in AssemblePrologue).
   FrameScope frame_scope(masm(), StackFrame::MANUAL);
 
+  if (info->is_source_positions_enabled()) {
+    SourcePosition source_position(info->shared_info()->start_position());
+    AssembleSourcePosition(source_position);
+  }
+
   // Place function entry hook if requested to do so.
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
     ProfileEntryHookStub::MaybeCallEntryHook(masm());
@@ -405,6 +410,10 @@ void CodeGenerator::GetPushCompatibleMoves(Instruction* instr,
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     Instruction* instr, const InstructionBlock* block) {
   int first_unused_stack_slot;
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  if (mode != kFlags_trap) {
+    AssembleSourcePosition(instr);
+  }
   bool adjust_stack =
       GetSlotAboveSPBeforeTailCall(instr, &first_unused_stack_slot);
   if (adjust_stack) AssembleTailCallBeforeGap(instr, first_unused_stack_slot);
@@ -416,10 +425,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
           instr->IsRet() || instr->IsJump());
   if (instr->IsJump() && block->must_deconstruct_frame()) {
     AssembleDeconstructFrame();
-  }
-  FlagsMode mode = FlagsModeField::decode(instr->opcode());
-  if (mode != kFlags_trap) {
-    AssembleSourcePosition(instr);
   }
   // Assemble architecture-specific code for the instruction.
   CodeGenResult result = AssembleArchInstruction(instr);
@@ -487,10 +492,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
   return kSuccess;
 }
 
-
 void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
   SourcePosition source_position = SourcePosition::Unknown();
+  if (instr->IsNop() && instr->AreMovesRedundant()) return;
   if (!code()->GetSourcePosition(instr, &source_position)) return;
+  AssembleSourcePosition(source_position);
+}
+
+void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
   if (source_position == current_source_position_) return;
   current_source_position_ = source_position;
   if (!source_position.IsKnown()) return;
@@ -500,7 +509,13 @@ void CodeGenerator::AssembleSourcePosition(Instruction* instr) {
     CompilationInfo* info = this->info();
     if (!info->parse_info()) return;
     std::ostringstream buffer;
-    buffer << "-- " << source_position.InliningStack(info) << " --";
+    buffer << "-- ";
+    if (FLAG_trace_turbo) {
+      buffer << source_position;
+    } else {
+      buffer << source_position.InliningStack(info);
+    }
+    buffer << " --";
     masm()->RecordComment(StrDup(buffer.str().c_str()));
   }
 }

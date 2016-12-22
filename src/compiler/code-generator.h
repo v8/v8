@@ -72,6 +72,8 @@ class CodeGenerator final : public GapResolver::Assembler {
 
   void AssembleSourcePosition(Instruction* instr);
 
+  void AssembleSourcePosition(SourcePosition source_position);
+
   // Record a safepoint with the given pointer map.
   void RecordSafepoint(ReferenceMap* references, Safepoint::Kind kind,
                        int arguments, Safepoint::DeoptMode deopt_mode);
