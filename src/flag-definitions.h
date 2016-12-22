@@ -204,7 +204,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_class_fields, "harmony public fields in class literals")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                   \
+#define HARMONY_STAGED_BASE(V)                              \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind") \
   V(harmony_restrictive_generators,                         \
     "harmony restrictions on generator declarations")       \
@@ -212,16 +212,23 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_trailing_commas,                                \
     "harmony trailing commas in function parameter lists")
 
+#ifdef V8_I18N_SUPPORT
+#define HARMONY_STAGED(V)                                          \
+  HARMONY_STAGED_BASE(V)                                           \
+  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
+#else
+#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
+#endif
+
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                \
   V(harmony_async_await, "harmony async-await") \
   V(harmony_string_padding, "harmony String-padding methods")
 
 #ifdef V8_I18N_SUPPORT
-#define HARMONY_SHIPPING(V)                                        \
-  HARMONY_SHIPPING_BASE(V)                                         \
-  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts") \
-  V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
