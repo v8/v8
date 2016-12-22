@@ -17,7 +17,10 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
   typedef std::pair<void*, void*> WrapperInfo;
 
-  LocalEmbedderHeapTracer() : remote_tracer_(nullptr) {}
+  LocalEmbedderHeapTracer()
+      : remote_tracer_(nullptr),
+        num_v8_marking_deque_was_empty_(0),
+        in_final_pause_(false) {}
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer) { remote_tracer_ = tracer; }
   bool InUse() { return remote_tracer_ != nullptr; }
@@ -43,11 +46,17 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   // are too many of them.
   bool RequiresImmediateWrapperProcessing();
 
+  void NotifyV8MarkingDequeWasEmpty() { num_v8_marking_deque_was_empty_++; }
+
  private:
   typedef std::vector<WrapperInfo> WrapperCache;
 
+  static const size_t kMaxIncrementalMarkingRounds = 10;
+
   EmbedderHeapTracer* remote_tracer_;
   WrapperCache cached_wrappers_to_trace_;
+  size_t num_v8_marking_deque_was_empty_;
+  bool in_final_pause_;
 };
 
 }  // namespace internal

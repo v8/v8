@@ -1137,11 +1137,12 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
     const bool incremental_wrapper_tracing =
         FLAG_incremental_marking_wrappers &&
         heap_->local_embedder_heap_tracer()->InUse();
-    const bool process_wrappers =
-        incremental_wrapper_tracing &&
-        (heap_->local_embedder_heap_tracer()
-             ->RequiresImmediateWrapperProcessing() ||
-         heap_->mark_compact_collector()->marking_deque()->IsEmpty());
+    const bool v8_marking_deque_empty =
+        heap_->mark_compact_collector()->marking_deque()->IsEmpty();
+    const bool process_wrappers = incremental_wrapper_tracing &&
+                                  (heap_->local_embedder_heap_tracer()
+                                       ->RequiresImmediateWrapperProcessing() ||
+                                   v8_marking_deque_empty);
     bool wrapper_work_left = incremental_wrapper_tracing;
     if (!process_wrappers) {
       bytes_processed = ProcessMarkingDeque(bytes_to_process);
@@ -1153,6 +1154,8 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
           heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+      if (v8_marking_deque_empty)
+        heap_->local_embedder_heap_tracer()->NotifyV8MarkingDequeWasEmpty();
       wrapper_work_left = heap_->local_embedder_heap_tracer()->Trace(
           wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
                                 EmbedderHeapTracer::ForceCompletionAction::

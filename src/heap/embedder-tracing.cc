@@ -13,6 +13,8 @@ void LocalEmbedderHeapTracer::TracePrologue() {
   if (!InUse()) return;
 
   CHECK(cached_wrappers_to_trace_.empty());
+  num_v8_marking_deque_was_empty_ = 0;
+  in_final_pause_ = false;
   remote_tracer_->TracePrologue();
 }
 
@@ -33,6 +35,7 @@ void LocalEmbedderHeapTracer::AbortTracing() {
 void LocalEmbedderHeapTracer::EnterFinalPause() {
   if (!InUse()) return;
 
+  in_final_pause_ = true;
   remote_tracer_->EnterFinalPause();
 }
 
@@ -41,7 +44,10 @@ bool LocalEmbedderHeapTracer::Trace(
   if (!InUse()) return false;
 
   RegisterWrappersWithRemoteTracer();
-  return remote_tracer_->AdvanceTracing(deadline, actions);
+  return (in_final_pause_ ||
+          (num_v8_marking_deque_was_empty_ <= kMaxIncrementalMarkingRounds))
+             ? remote_tracer_->AdvanceTracing(deadline, actions)
+             : false;
 }
 
 size_t LocalEmbedderHeapTracer::NumberOfWrappersToTrace() {
