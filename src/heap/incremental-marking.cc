@@ -1038,8 +1038,28 @@ double IncrementalMarking::AdvanceIncrementalMarking(
       kStepSizeInMs,
       heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
 
+  const bool incremental_wrapper_tracing =
+      state_ == MARKING && FLAG_incremental_marking_wrappers &&
+      heap_->local_embedder_heap_tracer()->InUse();
+  bool trace_wrappers_toggle = true;
   do {
-    Step(step_size_in_bytes, completion_action, force_completion, step_origin);
+    if (incremental_wrapper_tracing && trace_wrappers_toggle) {
+      TRACE_GC(heap()->tracer(),
+               GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
+      const double wrapper_deadline =
+          heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
+      if (!heap_->local_embedder_heap_tracer()
+               ->ShouldFinalizeIncrementalMarking()) {
+        heap_->local_embedder_heap_tracer()->Trace(
+            wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
+                                  EmbedderHeapTracer::ForceCompletionAction::
+                                      DO_NOT_FORCE_COMPLETION));
+      }
+    } else {
+      Step(step_size_in_bytes, completion_action, force_completion,
+           step_origin);
+    }
+    trace_wrappers_toggle = !trace_wrappers_toggle;
     remaining_time_in_ms =
         deadline_in_ms - heap()->MonotonicallyIncreasingTimeInMs();
   } while (remaining_time_in_ms >= kStepSizeInMs && !IsComplete() &&
@@ -1138,42 +1158,26 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
 
   size_t bytes_processed = 0;
   if (state_ == MARKING) {
-    const bool incremental_wrapper_tracing =
-        FLAG_incremental_marking_wrappers &&
-        heap_->local_embedder_heap_tracer()->InUse();
-    const bool process_wrappers =
-        incremental_wrapper_tracing &&
-        (heap_->local_embedder_heap_tracer()
-             ->RequiresImmediateWrapperProcessing() ||
-         heap_->mark_compact_collector()->marking_deque()->IsEmpty());
-    bool wrapper_work_left = incremental_wrapper_tracing;
-    if (!process_wrappers) {
-      bytes_processed = ProcessMarkingDeque(bytes_to_process);
-      if (step_origin == StepOrigin::kTask) {
-        bytes_marked_ahead_of_schedule_ += bytes_processed;
-      }
-    } else {
-      const double wrapper_deadline =
-          heap_->MonotonicallyIncreasingTimeInMs() + kStepSizeInMs;
-      TRACE_GC(heap()->tracer(),
-               GCTracer::Scope::MC_INCREMENTAL_WRAPPER_TRACING);
-      wrapper_work_left = heap_->local_embedder_heap_tracer()->Trace(
-          wrapper_deadline, EmbedderHeapTracer::AdvanceTracingActions(
-                                EmbedderHeapTracer::ForceCompletionAction::
-                                    DO_NOT_FORCE_COMPLETION));
+    bytes_processed = ProcessMarkingDeque(bytes_to_process);
+    if (step_origin == StepOrigin::kTask) {
+      bytes_marked_ahead_of_schedule_ += bytes_processed;
     }
 
-    if (heap_->mark_compact_collector()->marking_deque()->IsEmpty() &&
-        !wrapper_work_left) {
-      if (completion == FORCE_COMPLETION ||
-          IsIdleMarkingDelayCounterLimitReached()) {
-        if (!finalize_marking_completed_) {
-          FinalizeMarking(action);
+    if (heap_->mark_compact_collector()->marking_deque()->IsEmpty()) {
+      if (heap_->local_embedder_heap_tracer()
+              ->ShouldFinalizeIncrementalMarking()) {
+        if (completion == FORCE_COMPLETION ||
+            IsIdleMarkingDelayCounterLimitReached()) {
+          if (!finalize_marking_completed_) {
+            FinalizeMarking(action);
+          } else {
+            MarkingComplete(action);
+          }
         } else {
-          MarkingComplete(action);
+          IncrementIdleMarkingDelayCounter();
         }
       } else {
-        IncrementIdleMarkingDelayCounter();
+        heap_->local_embedder_heap_tracer()->NotifyV8MarkingDequeWasEmpty();
       }
     }
   }

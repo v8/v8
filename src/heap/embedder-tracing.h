@@ -6,6 +6,7 @@
 #define V8_HEAP_EMBEDDER_TRACING_H_
 
 #include "include/v8.h"
+#include "src/flags.h"
 #include "src/globals.h"
 
 namespace v8 {
@@ -17,7 +18,8 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
  public:
   typedef std::pair<void*, void*> WrapperInfo;
 
-  LocalEmbedderHeapTracer() : remote_tracer_(nullptr) {}
+  LocalEmbedderHeapTracer()
+      : remote_tracer_(nullptr), num_v8_marking_deque_was_empty_(0) {}
 
   void SetRemoteTracer(EmbedderHeapTracer* tracer) { remote_tracer_ = tracer; }
   bool InUse() { return remote_tracer_ != nullptr; }
@@ -43,11 +45,20 @@ class V8_EXPORT_PRIVATE LocalEmbedderHeapTracer final {
   // are too many of them.
   bool RequiresImmediateWrapperProcessing();
 
+  void NotifyV8MarkingDequeWasEmpty() { num_v8_marking_deque_was_empty_++; }
+  bool ShouldFinalizeIncrementalMarking() {
+    static const size_t kMaxIncrementalFixpointRounds = 3;
+    return !FLAG_incremental_marking_wrappers || !InUse() ||
+           NumberOfWrappersToTrace() == 0 ||
+           num_v8_marking_deque_was_empty_ > kMaxIncrementalFixpointRounds;
+  }
+
  private:
   typedef std::vector<WrapperInfo> WrapperCache;
 
   EmbedderHeapTracer* remote_tracer_;
   WrapperCache cached_wrappers_to_trace_;
+  size_t num_v8_marking_deque_was_empty_;
 };
 
 }  // namespace internal
