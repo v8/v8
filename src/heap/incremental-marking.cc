@@ -1027,6 +1027,10 @@ void IncrementalMarking::Epilogue() {
 double IncrementalMarking::AdvanceIncrementalMarking(
     double deadline_in_ms, CompletionAction completion_action,
     ForceCompletionAction force_completion, StepOrigin step_origin) {
+  HistogramTimerScope incremental_marking_scope(
+      heap_->isolate()->counters()->gc_incremental_marking());
+  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
   DCHECK(!IsStopped());
 
   double remaining_time_in_ms = 0.0;
@@ -1110,6 +1114,10 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
       bytes_marked_ahead_of_schedule_ -= bytes_to_process;
       bytes_processed = bytes_to_process;
     } else {
+      HistogramTimerScope incremental_marking_scope(
+          heap_->isolate()->counters()->gc_incremental_marking());
+      TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
+      TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
       bytes_processed = Step(bytes_to_process, GC_VIA_STACK_GUARD,
                              FORCE_COMPLETION, StepOrigin::kV8);
     }
@@ -1121,10 +1129,6 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
                                 CompletionAction action,
                                 ForceCompletionAction completion,
                                 StepOrigin step_origin) {
-  HistogramTimerScope incremental_marking_scope(
-      heap_->isolate()->counters()->gc_incremental_marking());
-  TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
-  TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
   double start = heap_->MonotonicallyIncreasingTimeInMs();
 
   if (state_ == SWEEPING) {
