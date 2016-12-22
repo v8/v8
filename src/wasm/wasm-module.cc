@@ -1316,7 +1316,7 @@ class WasmInstanceBuilder {
         }
 
         FixedArray* protected_instructions = code->protected_instructions();
-
+        DCHECK(protected_instructions != nullptr);
         Zone zone(isolate_->allocator(), "Wasm Module");
         ZoneVector<trap_handler::ProtectedInstructionData> unpacked(&zone);
         for (int i = 0; i < protected_instructions->length();

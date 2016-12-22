@@ -5491,7 +5491,10 @@ class Code: public HeapObject {
   // For FUNCTION kind, we store the type feedback info here.
   static const int kTypeFeedbackInfoOffset =
       kSourcePositionTableOffset + kPointerSize;
-  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
+  static const int kProtectedInstructionOffset =
+      kTypeFeedbackInfoOffset + kPointerSize;
+  static const int kNextCodeLinkOffset =
+      kProtectedInstructionOffset + kPointerSize;
   static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kInstructionSizeOffset = kGCMetadataOffset + kPointerSize;
   static const int kICAgeOffset = kInstructionSizeOffset + kIntSize;
@@ -5504,12 +5507,10 @@ class Code: public HeapObject {
   static const int kConstantPoolOffset = kPrologueOffset + kIntSize;
   static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
-  static const int kProtectedInstructionOffset = kBuiltinIndexOffset + kIntSize;
+  static const int kHeaderPaddingStart = kBuiltinIndexOffset + kIntSize;
 
   enum TrapFields { kTrapCodeOffset, kTrapLandingOffset, kTrapDataSize };
 
-  static const int kHeaderPaddingStart =
-      kProtectedInstructionOffset + kPointerSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.

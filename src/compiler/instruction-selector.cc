@@ -839,7 +839,9 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     if (node->opcode() == IrOpcode::kStore ||
         node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCheckedStore ||
-        node->opcode() == IrOpcode::kCall) {
+        node->opcode() == IrOpcode::kCall ||
+        node->opcode() == IrOpcode::kProtectedLoad ||
+        node->opcode() == IrOpcode::kProtectedStore) {
       ++effect_level;
     }
     SetEffectLevel(node, effect_level);
@@ -1433,8 +1435,11 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kAtomicStore:
       return VisitAtomicStore(node);
-    case IrOpcode::kProtectedLoad:
+    case IrOpcode::kProtectedLoad: {
+      LoadRepresentation type = LoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
       return VisitProtectedLoad(node);
+    }
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);

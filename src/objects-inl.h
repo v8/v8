@@ -6838,6 +6838,7 @@ void Code::WipeOutHeader() {
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
   WRITE_FIELD(this, kGCMetadataOffset, NULL);
+  WRITE_FIELD(this, kProtectedInstructionOffset, NULL);
 }
 
 
@@ -6921,6 +6922,7 @@ int Code::SizeIncludingMetadata() {
   size += deoptimization_data()->Size();
   size += handler_table()->Size();
   if (kind() == FUNCTION) size += source_position_table()->Size();
+  size += protected_instructions()->Size();
   return size;
 }
 

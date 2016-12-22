@@ -3078,11 +3078,10 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
       jsgraph()->machine()->UnalignedLoadSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler && kTrapHandlerSupported) {
       DCHECK(FLAG_wasm_guard_pages);
-      Node* context = HeapConstant(module_->instance->context);
       Node* position_node = jsgraph()->Int32Constant(position);
       load = graph()->NewNode(jsgraph()->machine()->ProtectedLoad(memtype),
-                              MemBuffer(offset), index, context, position_node,
-                              *effect_, *control_);
+                              MemBuffer(offset), index, position_node, *effect_,
+                              *control_);
     } else {
       load = graph()->NewNode(jsgraph()->machine()->Load(memtype),
                               MemBuffer(offset), index, *effect_, *control_);
@@ -3138,12 +3137,10 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   if (aligned ||
       jsgraph()->machine()->UnalignedStoreSupported(memtype, alignment)) {
     if (FLAG_wasm_trap_handler && kTrapHandlerSupported) {
-      Node* context = HeapConstant(module_->instance->context);
       Node* position_node = jsgraph()->Int32Constant(position);
       store = graph()->NewNode(
           jsgraph()->machine()->ProtectedStore(memtype.representation()),
-          MemBuffer(offset), index, val, context, position_node, *effect_,
-          *control_);
+          MemBuffer(offset), index, val, position_node, *effect_, *control_);
     } else {
       StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
       store =

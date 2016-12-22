@@ -179,7 +179,7 @@ class X64OperandGenerator final : public OperandGenerator {
 };
 
 namespace {
-ArchOpcode GetLoadOpcode(LoadRepresentation load_rep, bool protect) {
+ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -251,38 +251,23 @@ void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   X64OperandGenerator g(this);
 
-  const bool protect = false;
-  ArchOpcode opcode = GetLoadOpcode(load_rep, protect);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  InstructionCode code = opcode | AddressingModeField::encode(mode);
-  Emit(code, 1, outputs, input_count, inputs);
-}
-
-void InstructionSelector::VisitProtectedLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  X64OperandGenerator g(this);
-
-  const bool protect = true;
-  ArchOpcode opcode = GetLoadOpcode(load_rep, protect);
+  ArchOpcode opcode = GetLoadOpcode(load_rep);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  // Add the context parameter as an input.
-  inputs[input_count++] = g.UseUniqueRegister(node->InputAt(2));
-  // Add the source position as an input
-  inputs[input_count++] = g.UseImmediate(node->InputAt(3));
-  InstructionCode code = opcode | AddressingModeField::encode(mode) |
-                         MiscField::encode(X64MemoryProtection::kProtected);
+  InstructionCode code = opcode | AddressingModeField::encode(mode);
+  if (node->opcode() == IrOpcode::kProtectedLoad) {
+    code |= MiscField::encode(X64MemoryProtection::kProtected);
+    // Add the source position as an input
+    inputs[input_count++] = g.UseImmediate(node->InputAt(2));
+  }
   Emit(code, 1, outputs, input_count, inputs);
 }
+
+void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitStore(Node* node) {
   X64OperandGenerator g(this);
@@ -347,13 +332,12 @@ void InstructionSelector::VisitStore(Node* node) {
 void InstructionSelector::VisitProtectedStore(Node* node) {
   X64OperandGenerator g(this);
   Node* value = node->InputAt(2);
-  Node* context = node->InputAt(3);
-  Node* position = node->InputAt(4);
+  Node* position = node->InputAt(3);
 
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
 
   ArchOpcode opcode = GetStoreOpcode(store_rep);
-  InstructionOperand inputs[6];
+  InstructionOperand inputs[5];
   size_t input_count = 0;
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
@@ -362,7 +346,6 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   inputs[input_count++] = value_operand;
-  inputs[input_count++] = g.UseRegister(context);
   inputs[input_count++] = g.UseImmediate(position);
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
 }
