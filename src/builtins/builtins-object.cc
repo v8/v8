@@ -645,13 +645,33 @@ Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
         RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
         return isolate->heap()->undefined_value();
 
-      case LookupIterator::JSPROXY:
-        return isolate->heap()->undefined_value();
+      case LookupIterator::JSPROXY: {
+        PropertyDescriptor desc;
+        Maybe<bool> found = JSProxy::GetOwnPropertyDescriptor(
+            isolate, it.GetHolder<JSProxy>(), it.GetName(), &desc);
+        MAYBE_RETURN(found, isolate->heap()->exception());
+        if (found.FromJust()) {
+          if (component == ACCESSOR_GETTER && desc.has_get()) {
+            return *desc.get();
+          }
+          if (component == ACCESSOR_SETTER && desc.has_set()) {
+            return *desc.set();
+          }
+          return isolate->heap()->undefined_value();
+        }
+        Handle<Object> prototype;
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
+        if (prototype->IsNull(isolate)) {
+          return isolate->heap()->undefined_value();
+        }
+        return ObjectLookupAccessor(isolate, prototype, key, component);
+      }
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return isolate->heap()->undefined_value();
       case LookupIterator::DATA:
-        continue;
+        return isolate->heap()->undefined_value();
+
       case LookupIterator::ACCESSOR: {
         Handle<Object> maybe_pair = it.GetAccessors();
         if (maybe_pair->IsAccessorPair()) {
