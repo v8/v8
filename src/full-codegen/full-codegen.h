@@ -402,6 +402,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(IsSmi)                              \
   F(IsArray)                            \
   F(IsTypedArray)                       \
+  F(IsRegExp)                           \
   F(IsJSProxy)                          \
   F(Call)                               \
   F(NewObject)                          \

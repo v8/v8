@@ -184,6 +184,10 @@ Node* IntrinsicsHelper::IsJSProxy(Node* input, Node* arg_count, Node* context) {
   return IsInstanceType(input, JS_PROXY_TYPE);
 }
 
+Node* IntrinsicsHelper::IsRegExp(Node* input, Node* arg_count, Node* context) {
+  return IsInstanceType(input, JS_REGEXP_TYPE);
+}
+
 Node* IntrinsicsHelper::IsTypedArray(Node* input, Node* arg_count,
                                      Node* context) {
   return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
