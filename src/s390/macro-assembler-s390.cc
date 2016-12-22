@@ -4132,6 +4132,19 @@ void MacroAssembler::Load(Register dst, const MemOperand& opnd) {
 #endif
 }
 
+void MacroAssembler::LoadPositiveP(Register result, Register input) {
+#if V8_TARGET_ARCH_S390X
+  lpgr(result, input);
+#else
+  lpr(result, input);
+#endif
+}
+
+void MacroAssembler::LoadPositive32(Register result, Register input) {
+  lpr(result, input);
+  lgfr(result, result);
+}
+
 //-----------------------------------------------------------------------------
 //  Compare Helpers
 //-----------------------------------------------------------------------------

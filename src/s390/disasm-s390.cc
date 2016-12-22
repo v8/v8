@@ -562,6 +562,9 @@ bool Decoder::DecodeTwoByte(Instruction* instr) {
     case BKPT:
       Format(instr, "bkpt");
       break;
+    case LPR:
+      Format(instr, "lpr\t'r1, 'r2");
+      break;
     default:
       return false;
   }
@@ -1036,6 +1039,12 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       Format(instr, "trap4");
       break;
     }
+    case LPGR:
+      Format(instr, "lpgr\t'r1, 'r2");
+      break;
+    case LPGFR:
+      Format(instr, "lpgfr\t'r1,'r2");
+      break;
     default:
       return false;
   }

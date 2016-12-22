@@ -6567,9 +6567,18 @@ EVALUATE(CLCL) {
 }
 
 EVALUATE(LPR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LPR);
+  // Load Positive (32)
+  DECODE_RR_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  // If negative, then negate it.
+  r2_val = (r2_val < 0) ? -r2_val : r2_val;
+  set_low_register(r1, r2_val);
+  SetS390ConditionCode<int32_t>(r2_val, 0);
+  if (r2_val == (static_cast<int32_t>(1) << 31)) {
+    SetS390OverflowCode(true);
+  }
+  return length;
 }
 
 EVALUATE(LNR) {
@@ -9909,9 +9918,17 @@ EVALUATE(RRXTR) {
 }
 
 EVALUATE(LPGR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LPGR);
+  // Load Positive (32)
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int64_t r2_val = get_register(r2);
+  r2_val = (r2_val < 0) ? -r2_val : r2_val;  // If negative, then negate it.
+  set_register(r1, r2_val);
+  SetS390ConditionCode<int64_t>(r2_val, 0);
+  if (r2_val == (static_cast<int64_t>(1) << 63)) {
+    SetS390OverflowCode(true);
+  }
+  return length;
 }
 
 EVALUATE(LNGR) {
@@ -10010,9 +10027,15 @@ EVALUATE(LRVGR) {
 }
 
 EVALUATE(LPGFR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LPGFR);
+  // Load Positive (32)
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  // If negative, then negate it.
+  int64_t r1_val = static_cast<int64_t>((r2_val < 0) ? -r2_val : r2_val);
+  set_register(r1, r1_val);
+  SetS390ConditionCode<int64_t>(r1_val, 0);
+  return length;
 }
 
 EVALUATE(LNGFR) {

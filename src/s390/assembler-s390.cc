@@ -1009,7 +1009,7 @@ void Assembler::si_form(Opcode op, const Operand& i2, Register b1, Disp d1) {
   }
 
 void Assembler::siy_form(Opcode op, const Operand& i2, Register b1, Disp d1) {
-  DCHECK(is_uint20(d1));
+  DCHECK(is_uint20(d1) || is_int20(d1));
   DCHECK(is_uint16(op));
   DCHECK(is_uint8(i2.imm_));
   uint64_t code = (static_cast<uint64_t>(op & 0xFF00)) * B32 |

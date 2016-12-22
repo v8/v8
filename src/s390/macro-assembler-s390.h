@@ -374,6 +374,9 @@ class MacroAssembler : public Assembler {
   // Load On Condition
   void LoadOnConditionP(Condition cond, Register dst, Register src);
 
+  void LoadPositiveP(Register result, Register input);
+  void LoadPositive32(Register result, Register input);
+
   // Store Floating Point
   void StoreDouble(DoubleRegister dst, const MemOperand& opnd);
   void StoreFloat32(DoubleRegister dst, const MemOperand& opnd);

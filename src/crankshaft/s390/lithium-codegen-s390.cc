@@ -3387,31 +3387,17 @@ void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LMathAbs* instr) {
 void LCodeGen::EmitMathAbs(LMathAbs* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Label done;
-  __ CmpP(input, Operand::Zero());
-  __ Move(result, input);
-  __ bge(&done, Label::kNear);
-  __ LoadComplementRR(result, result);
+  __ LoadPositiveP(result, input);
   // Deoptimize on overflow.
   DeoptimizeIf(overflow, instr, DeoptimizeReason::kOverflow, cr0);
-  __ bind(&done);
 }
 
 #if V8_TARGET_ARCH_S390X
 void LCodeGen::EmitInteger32MathAbs(LMathAbs* instr) {
   Register input = ToRegister(instr->value());
   Register result = ToRegister(instr->result());
-  Label done;
-  __ Cmp32(input, Operand::Zero());
-  __ Move(result, input);
-  __ bge(&done, Label::kNear);
-
-  // Deoptimize on overflow.
-  __ Cmp32(input, Operand(0x80000000));
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kOverflow);
-
-  __ LoadComplementRR(result, result);
-  __ bind(&done);
+  __ LoadPositive32(result, input);
+  DeoptimizeIf(overflow, instr, DeoptimizeReason::kOverflow);
 }
 #endif
 
