@@ -25,8 +25,7 @@ class JSCallReducer final : public AdvancedReducer {
   // Flags that control the mode of operation.
   enum Flag {
     kNoFlags = 0u,
-    kBailoutOnUninitialized = 1u << 0,
-    kDeoptimizationEnabled = 1u << 1
+    kDeoptimizationEnabled = 1u << 0,
   };
   typedef base::Flags<Flag> Flags;
 

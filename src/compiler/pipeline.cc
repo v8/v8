@@ -763,9 +763,6 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
-    if (data->info()->is_bailout_on_uninitialized()) {
-      call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
-    }
     if (data->info()->is_deoptimization_enabled()) {
       call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
     }

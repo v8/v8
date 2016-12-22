@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-call-reducer.h"
 
+#include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
@@ -485,26 +486,37 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
     return NoChange();
   }
 
-  // Not much we can do if deoptimization support is disabled.
-  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
-
   // Extract feedback from the {node} using the CallICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
-  if (nexus.IsUninitialized() && (flags() & kBailoutOnUninitialized)) {
-    Node* frame_state = NodeProperties::FindFrameStateBefore(node);
-    Node* deoptimize = graph()->NewNode(
-        common()->Deoptimize(
-            DeoptimizeKind::kSoft,
-            DeoptimizeReason::kInsufficientTypeFeedbackForCall),
-        frame_state, effect, control);
-    // TODO(bmeurer): This should be on the AdvancedReducer somehow.
-    NodeProperties::MergeControlToEnd(graph(), common(), deoptimize);
-    Revisit(graph()->end());
-    node->TrimInputCount(0);
-    NodeProperties::ChangeOp(node, common()->Dead());
+  if (nexus.IsUninitialized()) {
+    // TODO(turbofan): Tail-calling to a CallIC stub is not supported.
+    if (p.tail_call_mode() == TailCallMode::kAllow) return NoChange();
+
+    // Insert a CallIC here to collect feedback for uninitialized calls.
+    int const arg_count = static_cast<int>(p.arity() - 2);
+    Callable callable =
+        CodeFactory::CallICInOptimizedCode(isolate(), p.convert_mode());
+    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), arg_count + 1,
+        flags);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    Node* stub_arity = jsgraph()->Constant(arg_count);
+    Node* slot_index =
+        jsgraph()->Constant(TypeFeedbackVector::GetIndex(p.feedback().slot()));
+    Node* feedback_vector = jsgraph()->HeapConstant(p.feedback().vector());
+    node->InsertInput(graph()->zone(), 0, stub_code);
+    node->InsertInput(graph()->zone(), 2, stub_arity);
+    node->InsertInput(graph()->zone(), 3, slot_index);
+    node->InsertInput(graph()->zone(), 4, feedback_vector);
+    NodeProperties::ChangeOp(node, common()->Call(desc));
     return Changed(node);
   }
+
+  // Not much we can do if deoptimization support is disabled.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
   Handle<Object> feedback(nexus.GetFeedback(), isolate());
   if (feedback->IsAllocationSite()) {
     // Retrieve the Array function from the {node}.
