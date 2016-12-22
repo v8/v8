@@ -12,7 +12,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/isolate-inl.h"
-#include "src/type-feedback-vector.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -143,19 +142,9 @@ TEST_F(JSCreateLoweringTest, JSCreateClosureViaInlinedAllocation) {
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
   Handle<SharedFunctionInfo> shared(isolate()->number_function()->shared());
-
-  // Create a mock feedback vector. It just has to be an array with an array
-  // in slot 0.
-  Handle<TypeFeedbackVector> vector =
-      Handle<TypeFeedbackVector>::cast(isolate()->factory()->NewFixedArray(
-          TypeFeedbackVector::kReservedIndexCount + 1));
-  FeedbackVectorSlot slot(0);
-  vector->Set(slot, *vector);
-  VectorSlotPair pair(vector, slot);
-
-  Reduction r = Reduce(
-      graph()->NewNode(javascript()->CreateClosure(shared, pair, NOT_TENURED),
-                       context, effect, control));
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->CreateClosure(shared, NOT_TENURED),
+                              context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(JSFunction::kSize),

@@ -1351,6 +1351,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ ld(index, FieldMemOperand(map, FixedArray::kLengthOffset));
   __ Branch(&gotta_call_runtime, lt, index, Operand(Smi::FromInt(2)));
 
+  // Find literals.
   // a3  : native context
   // a2  : length / index
   // a0  : optimized code map
@@ -1370,6 +1371,20 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
                               SharedFunctionInfo::kOffsetToPreviousContext));
   __ ld(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ Branch(&loop_bottom, ne, temp, Operand(native_context));
+  // Literals available?
+  __ ld(temp, FieldMemOperand(array_pointer,
+                              SharedFunctionInfo::kOffsetToPreviousLiterals));
+  __ ld(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
+  __ JumpIfSmi(temp, &gotta_call_runtime);
+
+  // Save the literals in the closure.
+  __ ld(a4, MemOperand(sp, 0));
+  __ sd(temp, FieldMemOperand(a4, JSFunction::kLiteralsOffset));
+  __ push(index);
+  __ RecordWriteField(a4, JSFunction::kLiteralsOffset, temp, index,
+                      kRAHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ pop(index);
 
   // Code available?
   Register entry = a4;
@@ -1379,7 +1394,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ ld(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found code. Get it into the closure and return.
+  // Found literals and code. Get them into the closure and return.
   __ pop(closure);
   // Store code entry in the closure.
   __ Daddu(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -1414,7 +1429,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
            Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
   __ Branch(&loop_top, gt, index, Operand(Smi::FromInt(1)));
 
-  // We found no code.
+  // We found neither literals nor code.
   __ jmp(&gotta_call_runtime);
 
   __ bind(&try_shared);

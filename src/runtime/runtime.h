@@ -214,7 +214,7 @@ namespace internal {
   F(ForInNext, 4, 1)
 
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
-  F(InterpreterNewClosure, 4, 1)          \
+  F(InterpreterNewClosure, 2, 1)          \
   F(InterpreterTraceBytecodeEntry, 3, 1)  \
   F(InterpreterTraceBytecodeExit, 3, 1)   \
   F(InterpreterAdvanceBytecodeOffset, 2, 1)
@@ -492,8 +492,8 @@ namespace internal {
   F(NewRestParameter, 1, 1)             \
   F(NewSloppyArguments, 3, 1)           \
   F(NewArgumentsElements, 2, 1)         \
-  F(NewClosure, 3, 1)                   \
-  F(NewClosure_Tenured, 3, 1)           \
+  F(NewClosure, 1, 1)                   \
+  F(NewClosure_Tenured, 1, 1)           \
   F(NewScriptContext, 2, 1)             \
   F(NewFunctionContext, 2, 1)           \
   F(PushModuleContext, 3, 1)            \

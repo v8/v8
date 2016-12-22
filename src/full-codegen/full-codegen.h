@@ -443,8 +443,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
-  void EmitNewClosure(Handle<SharedFunctionInfo> info, FeedbackVectorSlot slot,
-                      bool pretenure);
+  void EmitNewClosure(Handle<SharedFunctionInfo> info, bool pretenure);
 
   // Re-usable portions of CallRuntime
   void EmitLoadJSRuntimeFunction(CallRuntime* expr);

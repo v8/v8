@@ -2328,8 +2328,6 @@ void GetPropertyStub::GenerateAssembly(
 // static
 compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
                                              compiler::Node* shared_info,
-                                             compiler::Node* feedback_vector,
-                                             compiler::Node* slot,
                                              compiler::Node* context) {
   typedef compiler::Node Node;
   typedef compiler::CodeAssembler::Label Label;
@@ -2443,14 +2441,14 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
   // Initialize the rest of the function.
   Node* empty_fixed_array =
       assembler->HeapConstant(factory->empty_fixed_array());
+  Node* empty_literals_array =
+      assembler->HeapConstant(factory->empty_literals_array());
   assembler->StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
                                             empty_fixed_array);
   assembler->StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                             empty_fixed_array);
-  Node* literals_array = assembler->LoadFixedArrayElement(
-      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
   assembler->StoreObjectFieldNoWriteBarrier(result, JSFunction::kLiteralsOffset,
-                                            literals_array);
+                                            empty_literals_array);
   assembler->StoreObjectFieldNoWriteBarrier(
       result, JSFunction::kPrototypeOrInitialMapOffset,
       assembler->TheHoleConstant());
@@ -2476,13 +2474,11 @@ compiler::Node* FastNewClosureStub::Generate(CodeStubAssembler* assembler,
 
 void FastNewClosureStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
-  CodeStubAssembler assembler(state);
   typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
   Node* shared = assembler.Parameter(Descriptor::kSharedFunctionInfo);
   Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  assembler.Return(Generate(&assembler, shared, vector, slot, context));
+  assembler.Return(Generate(&assembler, shared, context));
 }
 
 // static

@@ -413,17 +413,14 @@ const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
-                          VectorSlotPair const& feedback,
                           PretenureFlag pretenure)
-      : shared_info_(shared_info), feedback_(feedback), pretenure_(pretenure) {}
+      : shared_info_(shared_info), pretenure_(pretenure) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
   const Handle<SharedFunctionInfo> shared_info_;
-  VectorSlotPair const feedback_;
   const PretenureFlag pretenure_;
 };
 
@@ -511,7 +508,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                VectorSlotPair const& feedback,
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
   const Operator* CreateKeyValueArray();
