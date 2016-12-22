@@ -1579,25 +1579,18 @@ void MacroAssembler::Allocate(int object_size, Register result,
 
   // Set up allocation top address register.
   Register top_address = scratch1;
-  // This code stores a temporary value in ip. This is OK, as the code below
-  // does not need ip for implicit literal generation.
-  Register alloc_limit = ip;
   Register result_end = scratch2;
   mov(top_address, Operand(allocation_top));
 
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
     // Load allocation top into result and allocation limit into ip.
     LoadP(result, MemOperand(top_address));
-    LoadP(alloc_limit, MemOperand(top_address, kPointerSize));
   } else {
     if (emit_debug_code()) {
       // Assert that result actually contains top on entry.
-      LoadP(alloc_limit, MemOperand(top_address));
-      CmpP(result, alloc_limit);
+      CmpP(result, MemOperand(top_address));
       Check(eq, kUnexpectedAllocationTop);
     }
-    // Load allocation limit. Result already contains allocation top.
-    LoadP(alloc_limit, MemOperand(top_address, limit - top));
   }
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
@@ -1611,7 +1604,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
     Label aligned;
     beq(&aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
-      CmpLogicalP(result, alloc_limit);
+      CmpLogicalP(result, MemOperand(top_address, limit - top));
       bge(gc_required);
     }
     mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
@@ -1621,27 +1614,24 @@ void MacroAssembler::Allocate(int object_size, Register result,
 #endif
   }
 
-  // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top.
-  SubP(r0, alloc_limit, result);
-  if (is_int16(object_size)) {
-    CmpP(r0, Operand(object_size));
-    blt(gc_required);
-    AddP(result_end, result, Operand(object_size));
-  } else {
-    mov(result_end, Operand(object_size));
-    CmpP(r0, result_end);
-    blt(gc_required);
-    AddP(result_end, result, result_end);
-  }
+  AddP(result_end, result, Operand(object_size));
+
+  // Compare with allocation limit.
+  CmpLogicalP(result_end, MemOperand(top_address, limit - top));
+  bge(gc_required);
 
   if ((flags & ALLOCATION_FOLDING_DOMINATOR) == 0) {
     // The top pointer is not updated for allocation folding dominators.
     StoreP(result_end, MemOperand(top_address));
   }
 
+  // Prefetch the allocation_top's next cache line in advance to
+  // help alleviate potential cache misses.
+  // Mode 2 - Prefetch the data into a cache line for store access.
+  pfd(r2, MemOperand(result, 256));
+
   // Tag object.
-  AddP(result, result, Operand(kHeapObjectTag));
+  la(result, MemOperand(result, kHeapObjectTag));
 }
 
 void MacroAssembler::Allocate(Register object_size, Register result,
@@ -1676,24 +1666,17 @@ void MacroAssembler::Allocate(Register object_size, Register result,
 
   // Set up allocation top address and allocation limit registers.
   Register top_address = scratch;
-  // This code stores a temporary value in ip. This is OK, as the code below
-  // does not need ip for implicit literal generation.
-  Register alloc_limit = ip;
   mov(top_address, Operand(allocation_top));
 
   if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    // Load allocation top into result and allocation limit into alloc_limit..
+    // Load allocation top into result
     LoadP(result, MemOperand(top_address));
-    LoadP(alloc_limit, MemOperand(top_address, kPointerSize));
   } else {
     if (emit_debug_code()) {
       // Assert that result actually contains top on entry.
-      LoadP(alloc_limit, MemOperand(top_address));
-      CmpP(result, alloc_limit);
+      CmpP(result, MemOperand(top_address));
       Check(eq, kUnexpectedAllocationTop);
     }
-    // Load allocation limit. Result already contains allocation top.
-    LoadP(alloc_limit, MemOperand(top_address, limit - top));
   }
 
   if ((flags & DOUBLE_ALIGNMENT) != 0) {
@@ -1707,7 +1690,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     Label aligned;
     beq(&aligned, Label::kNear);
     if ((flags & PRETENURE) != 0) {
-      CmpLogicalP(result, alloc_limit);
+      CmpLogicalP(result, MemOperand(top_address, limit - top));
       bge(gc_required);
     }
     mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
@@ -1720,17 +1703,14 @@ void MacroAssembler::Allocate(Register object_size, Register result,
   // Calculate new top and bail out if new space is exhausted. Use result
   // to calculate the new top. Object size may be in words so a shift is
   // required to get the number of bytes.
-  SubP(r0, alloc_limit, result);
   if ((flags & SIZE_IN_WORDS) != 0) {
     ShiftLeftP(result_end, object_size, Operand(kPointerSizeLog2));
-    CmpP(r0, result_end);
-    blt(gc_required);
     AddP(result_end, result, result_end);
   } else {
-    CmpP(r0, object_size);
-    blt(gc_required);
     AddP(result_end, result, object_size);
   }
+  CmpLogicalP(result_end, MemOperand(top_address, limit - top));
+  bge(gc_required);
 
   // Update allocation top. result temporarily holds the new top.
   if (emit_debug_code()) {
@@ -1742,8 +1722,13 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     StoreP(result_end, MemOperand(top_address));
   }
 
+  // Prefetch the allocation_top's next cache line in advance to
+  // help alleviate potential cache misses.
+  // Mode 2 - Prefetch the data into a cache line for store access.
+  pfd(r2, MemOperand(result, 256));
+
   // Tag object.
-  AddP(result, result, Operand(kHeapObjectTag));
+  la(result, MemOperand(result, kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(Register object_size, Register result,
@@ -1795,8 +1780,13 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
   }
   StoreP(result_end, MemOperand(top_address));
 
+  // Prefetch the allocation_top's next cache line in advance to
+  // help alleviate potential cache misses.
+  // Mode 2 - Prefetch the data into a cache line for store access.
+  pfd(r2, MemOperand(result, 256));
+
   // Tag object.
-  AddP(result, result, Operand(kHeapObjectTag));
+  la(result, MemOperand(result, kHeapObjectTag));
 }
 
 void MacroAssembler::FastAllocate(int object_size, Register result,
@@ -1837,14 +1827,24 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
 #endif
   }
 
-  // Calculate new top using result.
-  AddP(result_end, result, Operand(object_size));
+  if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(object_size)) {
+    // Update allocation top.
+    AddP(MemOperand(top_address), Operand(object_size));
+  } else {
+    // Calculate new top using result.
+    AddP(result_end, result, Operand(object_size));
 
-  // The top pointer is not updated for allocation folding dominators.
-  StoreP(result_end, MemOperand(top_address));
+    // Update allocation top.
+    StoreP(result_end, MemOperand(top_address));
+  }
+
+  // Prefetch the allocation_top's next cache line in advance to
+  // help alleviate potential cache misses.
+  // Mode 2 - Prefetch the data into a cache line for store access.
+  pfd(r2, MemOperand(result, 256));
 
   // Tag object.
-  AddP(result, result, Operand(kHeapObjectTag));
+  la(result, MemOperand(result, kHeapObjectTag));
 }
 
 void MacroAssembler::CompareObjectType(Register object, Register map,

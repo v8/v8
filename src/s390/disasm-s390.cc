@@ -1415,6 +1415,9 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case SQDB:
       Format(instr, "sqdb\t'r1,'d1('r2d, 'r3)");
       break;
+    case PFD:
+      Format(instr, "pfd\t'm1,'d2('r2d,'r3)");
+      break;
     default:
       return false;
   }

@@ -11152,9 +11152,9 @@ EVALUATE(CGH) {
 }
 
 EVALUATE(PFD) {
-  UNIMPLEMENTED();
+  DCHECK_OPCODE(PFD);
   USE(instr);
-  return 0;
+  return 6;
 }
 
 EVALUATE(STRV) {
