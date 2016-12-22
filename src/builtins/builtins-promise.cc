@@ -1011,6 +1011,7 @@ TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(4);
 
   Label if_internalthen(this), if_customthen(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(promise), &if_customthen);
   BranchIfFastPath(context, promise, &if_internalthen, &if_customthen);
 
   Bind(&if_internalthen);
