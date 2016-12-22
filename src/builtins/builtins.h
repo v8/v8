@@ -104,6 +104,7 @@ namespace internal {
   TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                \
   TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                    \
   TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)             \
+  TFS(StringCharAt, BUILTIN, kNoExtraICState, StringCharAt)                    \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \

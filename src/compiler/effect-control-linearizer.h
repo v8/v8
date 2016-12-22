@@ -149,6 +149,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                        Node* control);
   ValueEffectControl LowerArrayBufferWasNeutered(Node* node, Node* effect,
                                                  Node* control);
+  ValueEffectControl LowerStringCharAt(Node* node, Node* effect, Node* control);
   ValueEffectControl LowerStringCharCodeAt(Node* node, Node* effect,
                                            Node* control);
   ValueEffectControl LowerStringFromCharCode(Node* node, Node* effect,

@@ -299,6 +299,7 @@
   V(PlainPrimitiveToWord32)         \
   V(PlainPrimitiveToFloat64)        \
   V(BooleanNot)                     \
+  V(StringCharAt)                   \
   V(StringCharCodeAt)               \
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \

@@ -1681,6 +1681,8 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
+Type* Typer::Visitor::TypeStringCharAt(Node* node) { return Type::String(); }
+
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
   return typer_->cache_.kUint16;
 }

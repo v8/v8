@@ -897,6 +897,12 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::String());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kStringCharAt:
+      // (String, Unsigned32) -> String
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckTypeIs(node, Type::String());
+      break;
     case IrOpcode::kStringCharCodeAt:
       // (String, Unsigned32) -> UnsignedSmall
       CheckValueInputIs(node, 0, Type::String());

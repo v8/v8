@@ -573,12 +573,9 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
                                       length, effect, control);
 
-    // Load the character from the {receiver}.
-    value = graph()->NewNode(simplified()->StringCharCodeAt(), receiver, index,
+    // Return the character from the {receiver} as single character string.
+    value = graph()->NewNode(simplified()->StringCharAt(), receiver, index,
                              control);
-
-    // Return it as a single character string.
-    value = graph()->NewNode(simplified()->StringFromCharCode(), value);
   } else {
     // Retrieve the native context from the given {node}.
     // Compute element access infos for the receiver maps.
@@ -831,12 +828,9 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
         index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
                                           length, effect, control);
 
-        // Load the character from the {receiver}.
-        value = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                 index, control);
-
-        // Return it as a single character string.
-        value = graph()->NewNode(simplified()->StringFromCharCode(), value);
+        // Return the character from the {receiver} as single character string.
+        value = graph()->NewNode(simplified()->StringCharAt(), receiver, index,
+                                 control);
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       }

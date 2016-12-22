@@ -745,6 +745,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringFromCodePoint:
       state = LowerStringFromCodePoint(node, *effect, *control);
       break;
+    case IrOpcode::kStringCharAt:
+      state = LowerStringCharAt(node, *effect, *control);
+      break;
     case IrOpcode::kStringCharCodeAt:
       state = LowerStringCharCodeAt(node, *effect, *control);
       break;
@@ -2223,6 +2226,22 @@ EffectControlLinearizer::LowerArrayBufferWasNeutered(Node* node, Node* effect,
       jsgraph()->Int32Constant(0));
 
   return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerStringCharAt(Node* node, Node* effect,
+                                           Node* control) {
+  Callable const callable = CodeFactory::StringCharAt(isolate());
+  Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  node->InsertInput(graph()->zone(), 0,
+                    jsgraph()->HeapConstant(callable.code()));
+  node->InsertInput(graph()->zone(), 3, jsgraph()->NoContextConstant());
+  node->InsertInput(graph()->zone(), 4, effect);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+  return ValueEffectControl(node, node, control);
 }
 
 EffectControlLinearizer::ValueEffectControl

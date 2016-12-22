@@ -3011,10 +3011,11 @@ Node* CodeStubAssembler::IsJSFunction(Node* object) {
   return HasInstanceType(object, JS_FUNCTION_TYPE);
 }
 
-Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index) {
+Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
+                                          ParameterMode parameter_mode) {
   CSA_ASSERT(this, IsString(string));
   // Translate the {index} into a Word.
-  index = SmiToWord(index);
+  index = ParameterToWord(index, parameter_mode);
 
   // We may need to loop in case of cons or sliced strings.
   Variable var_index(this, MachineType::PointerRepresentation());

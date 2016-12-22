@@ -669,7 +669,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
-  Node* StringCharCodeAt(Node* string, Node* smi_index);
+  Node* StringCharCodeAt(Node* string, Node* index,
+                         ParameterMode parameter_mode = SMI_PARAMETERS);
   // Return the single character string with only {code}.
   Node* StringFromCharCode(Node* code);
   // Return a new string object which holds a substring containing the range

@@ -1535,16 +1535,10 @@ Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
         Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                         check, control);
 
+        // Return the character from the {receiver} as single character string.
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* vtrue;
-        {
-          // Load the character from the {receiver}.
-          vtrue = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                   index, if_true);
-
-          // Return it as single character string.
-          vtrue = graph()->NewNode(simplified()->StringFromCharCode(), vtrue);
-        }
+        Node* vtrue = graph()->NewNode(simplified()->StringCharAt(), receiver,
+                                       index, if_true);
 
         // Return the empty string otherwise.
         Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

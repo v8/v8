@@ -463,6 +463,23 @@ void Builtins::Generate_StringGreaterThanOrEqual(
       &assembler, RelationalComparisonMode::kGreaterThanOrEqual);
 }
 
+// static
+void Builtins::Generate_StringCharAt(compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
+
+  Node* receiver = assembler.Parameter(0);
+  Node* position = assembler.Parameter(1);
+
+  // Load the character code at the {position} from the {receiver}.
+  Node* code = assembler.StringCharCodeAt(receiver, position,
+                                          CodeStubAssembler::INTPTR_PARAMETERS);
+
+  // And return the single character string with only that {code}
+  Node* result = assembler.StringFromCharCode(code);
+  assembler.Return(result);
+}
+
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 

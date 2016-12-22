@@ -2196,6 +2196,11 @@ class RepresentationSelector {
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);
       }
+      case IrOpcode::kStringCharAt: {
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kStringCharCodeAt: {
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
                    MachineRepresentation::kWord32);
