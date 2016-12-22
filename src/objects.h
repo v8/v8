@@ -1043,6 +1043,7 @@ template <class C> inline bool Is(Object* obj);
   V(FreeSpace)                   \
   V(JSReceiver)                  \
   V(JSObject)                    \
+  V(JSArgumentsObject)           \
   V(JSContextExtensionObject)    \
   V(JSGeneratorObject)           \
   V(JSModuleNamespace)           \

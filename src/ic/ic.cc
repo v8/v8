@@ -2422,17 +2422,14 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   Handle<Map> old_receiver_map;
-  bool sloppy_arguments_elements = false;
+  bool is_arguments = false;
   bool key_is_valid_index = false;
   KeyedAccessStoreMode store_mode = STANDARD_STORE;
   if (use_ic && object->IsJSObject()) {
     Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
-    sloppy_arguments_elements =
-        !is_sloppy(language_mode()) &&
-        receiver->elements()->map() ==
-            isolate()->heap()->sloppy_arguments_elements_map();
-    if (!sloppy_arguments_elements) {
+    is_arguments = receiver->IsJSArgumentsObject();
+    if (!is_arguments) {
       key_is_valid_index = key->IsSmi() && Smi::cast(*key)->value() >= 0;
       if (key_is_valid_index) {
         uint32_t index = static_cast<uint32_t>(Smi::cast(*key)->value());
@@ -2449,7 +2446,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
-      if (sloppy_arguments_elements) {
+      if (is_arguments) {
         TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
       } else if (key_is_valid_index) {
         // We should go generic if receiver isn't a dictionary, but our
