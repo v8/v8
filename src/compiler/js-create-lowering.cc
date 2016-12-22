@@ -753,26 +753,20 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> shared = p.shared_info();
+
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-
   int const function_map_index =
       Context::FunctionMapIndex(shared->language_mode(), shared->kind());
   Node* function_map = jsgraph()->HeapConstant(
       handle(Map::cast(native_context()->get(function_map_index)), isolate()));
-
-  FeedbackVectorSlot slot = p.feedback().slot();
-  Node* literals = jsgraph()->HeapConstant(
-      handle(LiteralsArray::cast(p.feedback().vector()->Get(slot)), isolate()));
-
   // Note that it is only safe to embed the raw entry point of the compile
   // lazy stub into the code, because that stub is immortal and immovable.
   Node* compile_entry = jsgraph()->PointerConstant(
       jsgraph()->isolate()->builtins()->CompileLazy()->entry());
   Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-  // TODO(mvstanton): With literals retrieved from the vector, we can
-  // remove EmptyLiteralsArrayConstant() from jsgraph().
+  Node* empty_literals_array = jsgraph()->EmptyLiteralsArrayConstant();
   Node* the_hole = jsgraph()->TheHoleConstant();
   Node* undefined = jsgraph()->UndefinedConstant();
   AllocationBuilder a(jsgraph(), effect, control);
@@ -781,7 +775,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
   a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
-  a.Store(AccessBuilder::ForJSFunctionLiterals(), literals);
+  a.Store(AccessBuilder::ForJSFunctionLiterals(), empty_literals_array);
   a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(), the_hole);
   a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
   a.Store(AccessBuilder::ForJSFunctionContext(), context);

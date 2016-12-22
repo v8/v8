@@ -528,7 +528,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 136
+bytecode array length: 135
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -585,7 +585,7 @@ bytecodes: [
   /*   32 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
-                B(CreateClosure), U8(1), U8(2), U8(0),
+                B(CreateClosure), U8(1), U8(0),
                 B(StaModuleVariable), U8(1), U8(0),
                 B(LdaUndefined),
   /*   32 S> */ B(Return),
@@ -603,7 +603,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 176
+bytecode array length: 175
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -662,7 +662,7 @@ bytecodes: [
   /*    0 E> */ B(Throw),
   /*   16 S> */ B(LdaTheHole),
                 B(Star), R(2),
-                B(CreateClosure), U8(1), U8(2), U8(0),
+                B(CreateClosure), U8(1), U8(0),
                 B(Star), R(3),
                 B(LdaSmi), U8(16),
                 B(Star), R(4),
@@ -670,7 +670,7 @@ bytecodes: [
                 B(Star), R(5),
                 B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
                 B(Star), R(2),
-                B(LdaNamedProperty), R(2), U8(2), U8(3),
+                B(LdaNamedProperty), R(2), U8(2), U8(2),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(2), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),

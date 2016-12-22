@@ -161,7 +161,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Create a new closure for a SharedFunctionInfo which will be inserted at
   // constant pool index |entry|.
-  BytecodeArrayBuilder& CreateClosure(size_t entry, int slot, int flags);
+  BytecodeArrayBuilder& CreateClosure(size_t entry, int flags);
 
   // Create a new local context for a |scope_info| and a closure which should be
   // in the accumulator.

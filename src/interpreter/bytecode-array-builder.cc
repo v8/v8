@@ -586,8 +586,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(size_t entry,
-                                                          int slot, int flags) {
-  OutputCreateClosure(entry, slot, flags);
+                                                          int flags) {
+  OutputCreateClosure(entry, flags);
   return *this;
 }
 

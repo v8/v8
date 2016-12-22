@@ -208,7 +208,7 @@ namespace interpreter {
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                  \
-    OperandType::kIdx, OperandType::kFlag8)                                    \
+    OperandType::kFlag8)                                                       \
                                                                                \
   /* Context allocation */                                                     \
   V(CreateBlockContext, AccumulatorUse::kReadWrite, OperandType::kIdx)         \

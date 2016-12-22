@@ -2576,18 +2576,6 @@ class FunctionLiteral final : public Expression {
   }
   LanguageMode language_mode() const;
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) {
-    // The + 1 is because we need an array with room for the literals
-    // as well as the feedback vector.
-    literal_feedback_slot_ =
-        spec->AddCreateClosureSlot(materialized_literal_count_ + 1);
-  }
-
-  FeedbackVectorSlot LiteralFeedbackSlot() const {
-    return literal_feedback_slot_;
-  }
-
   static bool NeedsHomeObject(Expression* expr);
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -2755,7 +2743,6 @@ class FunctionLiteral final : public Expression {
   Handle<String> inferred_name_;
   AstProperties ast_properties_;
   int function_literal_id_;
-  FeedbackVectorSlot literal_feedback_slot_;
 };
 
 // Property is used for passing information
@@ -2846,19 +2833,6 @@ class NativeFunctionLiteral final : public Expression {
  public:
   Handle<String> name() const { return name_->string(); }
   v8::Extension* extension() const { return extension_; }
-  FeedbackVectorSlot LiteralFeedbackSlot() const {
-    return literal_feedback_slot_;
-  }
-
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
-                                 FeedbackVectorSlotCache* cache) {
-    // 0 is a magic number here. It means we are holding the literals
-    // array for a native function literal, which needs to be
-    // the empty literals array.
-    // TODO(mvstanton): The FeedbackVectorSlotCache can be adapted
-    // to always return the same slot for this case.
-    literal_feedback_slot_ = spec->AddCreateClosureSlot(0);
-  }
 
  private:
   friend class AstNodeFactory;
@@ -2871,7 +2845,6 @@ class NativeFunctionLiteral final : public Expression {
 
   const AstRawString* name_;
   v8::Extension* extension_;
-  FeedbackVectorSlot literal_feedback_slot_;
 };
 
 

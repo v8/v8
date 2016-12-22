@@ -801,8 +801,6 @@ class FastNewClosureStub : public TurboFanCodeStub {
 
   static compiler::Node* Generate(CodeStubAssembler* assembler,
                                   compiler::Node* shared_info,
-                                  compiler::Node* feedback_vector,
-                                  compiler::Node* slot,
                                   compiler::Node* context);
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);

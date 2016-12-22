@@ -5051,25 +5051,18 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   // space for nested functions that don't need pretenuring.
   HConstant* shared_info_value = Add<HConstant>(shared_info);
   HInstruction* instr;
-  Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
-  HValue* vector_value = Add<HConstant>(vector);
-  int index = TypeFeedbackVector::GetIndex(expr->LiteralFeedbackSlot());
-  HValue* index_value = Add<HConstant>(index);
   if (!expr->pretenure()) {
     FastNewClosureStub stub(isolate());
     FastNewClosureDescriptor descriptor(isolate());
+    HValue* values[] = {shared_info_value};
     HConstant* stub_value = Add<HConstant>(stub.GetCode());
-    // Retrieve the literals array from the vector.
-    HValue* values[] = {shared_info_value, vector_value, index_value};
     instr = New<HCallWithDescriptor>(stub_value, 0, descriptor,
                                      ArrayVector(values));
   } else {
     Add<HPushArguments>(shared_info_value);
-    Add<HPushArguments>(vector_value);
-    Add<HPushArguments>(index_value);
     Runtime::FunctionId function_id =
         expr->pretenure() ? Runtime::kNewClosure_Tenured : Runtime::kNewClosure;
-    instr = New<HCallRuntime>(Runtime::FunctionForId(function_id), 3);
+    instr = New<HCallRuntime>(Runtime::FunctionForId(function_id), 1);
   }
   return ast_context()->ReturnInstruction(instr, expr->id());
 }

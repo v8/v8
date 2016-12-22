@@ -21,17 +21,12 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
   HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
-  CONVERT_SMI_ARG_CHECKED(pretenured_flag, 3);
+  CONVERT_SMI_ARG_CHECKED(pretenured_flag, 1);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
-  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
-                                 isolate);
   return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared, context, literals, static_cast<PretenureFlag>(pretenured_flag));
+      shared, context, static_cast<PretenureFlag>(pretenured_flag));
 }
 
 namespace {

@@ -1405,8 +1405,7 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   uint8_t flags = CreateClosureFlags::Encode(expr->pretenure(),
                                              scope()->is_function_scope());
   size_t entry = builder()->AllocateConstantPoolEntry();
-  int slot_index = feedback_index(expr->LiteralFeedbackSlot());
-  builder()->CreateClosure(entry, slot_index, flags);
+  builder()->CreateClosure(entry, flags);
   function_literals_.push_back(std::make_pair(expr, entry));
 }
 
@@ -1539,8 +1538,7 @@ void BytecodeGenerator::BuildClassLiteralNameProperty(ClassLiteral* expr,
 void BytecodeGenerator::VisitNativeFunctionLiteral(
     NativeFunctionLiteral* expr) {
   size_t entry = builder()->AllocateConstantPoolEntry();
-  int slot_index = feedback_index(expr->LiteralFeedbackSlot());
-  builder()->CreateClosure(entry, slot_index, NOT_TENURED);
+  builder()->CreateClosure(entry, NOT_TENURED);
   native_function_literals_.push_back(std::make_pair(expr, entry));
 }
 
