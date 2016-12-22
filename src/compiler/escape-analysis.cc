@@ -441,15 +441,6 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
   Node* rep = GetField(i);
   if (!rep || !IsCreatedPhi(i)) {
     Node* control = NodeProperties::GetControlInput(at);
-
-    // Check to debug canary.
-    CHECK_NOT_NULL(control);
-    CHECK(!control->IsDead());
-    for (Node* input : cache->fields()) {
-      CHECK_NOT_NULL(input);
-      CHECK(!input->IsDead());
-    }
-
     cache->fields().push_back(control);
     Node* phi = graph->NewNode(
         common->Phi(MachineRepresentation::kTagged, value_input_count),
