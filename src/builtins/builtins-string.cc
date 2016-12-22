@@ -480,6 +480,24 @@ void Builtins::Generate_StringCharAt(compiler::CodeAssemblerState* state) {
   assembler.Return(result);
 }
 
+// static
+void Builtins::Generate_StringCharCodeAt(compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
+
+  Node* receiver = assembler.Parameter(0);
+  Node* position = assembler.Parameter(1);
+
+  // Load the character code at the {position} from the {receiver}.
+  Node* code = assembler.StringCharCodeAt(receiver, position,
+                                          CodeStubAssembler::INTPTR_PARAMETERS);
+
+  // And return it as TaggedSigned value.
+  // TODO(turbofan): Allow builtins to return values untagged.
+  Node* result = assembler.SmiFromWord32(code);
+  assembler.Return(result);
+}
+
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 

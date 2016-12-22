@@ -2202,8 +2202,9 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kStringCharCodeAt: {
+        // TODO(turbofan): Allow builtins to return untagged values.
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32);
+                   MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kStringFromCharCode: {

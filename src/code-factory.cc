@@ -253,6 +253,7 @@ TFS_BUILTIN(NewRestParameterElements)
 TFS_BUILTIN(PromiseHandleReject)
 TFS_BUILTIN(GetSuperConstructor)
 TFS_BUILTIN(StringCharAt)
+TFS_BUILTIN(StringCharCodeAt)
 
 #undef TFS_BUILTIN
 

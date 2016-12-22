@@ -198,6 +198,21 @@ void StringCharAtDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }
 
+void StringCharCodeAtDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kReceiver, kPosition
+  // TODO(turbofan): Allow builtins to return untagged values.
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::IntPtr()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void StringCharCodeAtDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
 void StringCompareDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {LeftRegister(), RightRegister()};
