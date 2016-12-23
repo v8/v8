@@ -312,7 +312,7 @@ class LoadIC : public IC {
 
  private:
   // Creates a data handler that represents a load of a field by given index.
-  Handle<Object> SimpleFieldLoad(FieldIndex index);
+  static Handle<Object> SimpleFieldLoad(Isolate* isolate, FieldIndex index);
 
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
@@ -325,6 +325,7 @@ class LoadIC : public IC {
   Handle<Object> LoadNonExistent(Handle<Map> receiver_map, Handle<Name> name);
 
   friend class IC;
+  friend class NamedLoadHandlerCompiler;
 };
 
 class LoadGlobalIC : public LoadIC {

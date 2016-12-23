@@ -1929,6 +1929,11 @@ void StoreGlobalStub::GenerateAssembly(
   }
 }
 
+void LoadFieldStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  AccessorAssembler::GenerateLoadField(state);
+}
+
 void KeyedLoadSloppyArgumentsStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;

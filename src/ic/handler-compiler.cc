@@ -389,8 +389,11 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
       UNREACHABLE();
     case LookupIterator::DATA: {
       DCHECK_EQ(DATA, it->property_details().type());
-      __ Move(receiver(), reg);
-      LoadFieldStub stub(isolate(), it->GetFieldIndex());
+      __ Move(LoadFieldDescriptor::ReceiverRegister(), reg);
+      Handle<Object> smi_handler =
+          LoadIC::SimpleFieldLoad(isolate(), it->GetFieldIndex());
+      __ Move(LoadFieldDescriptor::SmiHandlerRegister(), smi_handler);
+      LoadFieldStub stub(isolate());
       GenerateTailCall(masm(), stub.GetCode());
       break;
     }

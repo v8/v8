@@ -396,18 +396,6 @@ HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
   return Add<HLoadNamedField>(object, nullptr, access);
 }
 
-
-template<>
-HValue* CodeStubGraphBuilder<LoadFieldStub>::BuildCodeStub() {
-  return BuildLoadNamedField(GetParameter(Descriptor::kReceiver),
-                             casted_stub()->index());
-}
-
-
-Handle<Code> LoadFieldStub::GenerateCode() {
-  return DoGenerateCode(this);
-}
-
 void CodeStubGraphBuilderBase::BuildStoreNamedField(
     HValue* object, HValue* value, FieldIndex index,
     Representation representation, bool transition_to_field) {

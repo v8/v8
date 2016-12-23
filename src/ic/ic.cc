@@ -883,9 +883,9 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   }
 }
 
-Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
-  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-  return LoadHandler::LoadField(isolate(), index);
+Handle<Object> LoadIC::SimpleFieldLoad(Isolate* isolate, FieldIndex index) {
+  TRACE_HANDLER_STATS(isolate, LoadIC_LoadFieldDH);
+  return LoadHandler::LoadField(isolate, index);
 }
 
 namespace {
@@ -1310,7 +1310,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   if (receiver->IsString() &&
       Name::Equals(isolate()->factory()->length_string(), lookup->name())) {
     FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
-    return SimpleFieldLoad(index);
+    return SimpleFieldLoad(isolate(), index);
   }
 
   if (receiver->IsStringWrapper() &&
@@ -1348,7 +1348,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
                                              &object_offset)) {
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
-        return SimpleFieldLoad(index);
+        return SimpleFieldLoad(isolate(), index);
       }
 
       if (IsCompatibleReceiver(lookup, map)) {
@@ -1419,7 +1419,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
         FieldIndex field = lookup->GetFieldIndex();
-        Handle<Object> smi_handler = SimpleFieldLoad(field);
+        Handle<Object> smi_handler = SimpleFieldLoad(isolate(), field);
         if (receiver_is_holder) {
           return smi_handler;
         }

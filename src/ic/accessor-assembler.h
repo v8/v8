@@ -30,6 +30,7 @@ class AccessorAssembler {
       compiler::CodeAssemblerState* state);
   static void GenerateKeyedLoadICMegamorphic(
       compiler::CodeAssemblerState* state);
+  static void GenerateLoadField(compiler::CodeAssemblerState* state);
   static void GenerateStoreIC(compiler::CodeAssemblerState* state);
   static void GenerateStoreICTrampoline(compiler::CodeAssemblerState* state);
   static void GenerateKeyedStoreICTF(compiler::CodeAssemblerState* state,

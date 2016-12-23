@@ -64,10 +64,6 @@ class Node;
   /* used universally */                      \
   V(CallICTrampoline)                         \
   /* --- HydrogenCodeStubs --- */             \
-  /* These will be ported/eliminated */       \
-  /* as part of the new IC system, ask */     \
-  /* ishell before doing anything  */         \
-  V(LoadField)                                \
   /* These should never be ported to TF */    \
   /* because they are either used only by */  \
   /* FCG/Crankshaft or are deprecated */      \
@@ -125,6 +121,7 @@ class Node;
   V(StoreInterceptor)                         \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
+  V(LoadField)                                \
   V(GrowArrayElements)                        \
   /* These are only called from FGC and */    \
   /* can be removed when we use ignition */   \
@@ -1167,28 +1164,16 @@ class HandlerStub : public HydrogenCodeStub {
   DEFINE_CODE_STUB_BASE(HandlerStub, HydrogenCodeStub);
 };
 
-
-class LoadFieldStub: public HandlerStub {
+class LoadFieldStub : public TurboFanCodeStub {
  public:
-  LoadFieldStub(Isolate* isolate, FieldIndex index) : HandlerStub(isolate) {
-    int property_index_key = index.GetFieldAccessStubKey();
-    set_sub_minor_key(LoadFieldByIndexBits::encode(property_index_key));
-  }
+  explicit LoadFieldStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
-  FieldIndex index() const {
-    int property_index_key = LoadFieldByIndexBits::decode(sub_minor_key());
-    return FieldIndex::FromFieldAccessStubKey(property_index_key);
-  }
-
- protected:
-  Code::Kind kind() const override { return Code::LOAD_IC; }
+  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
+  ExtraICState GetExtraICState() const override { return GetCodeKind(); }
 
  private:
-  class LoadFieldByIndexBits : public BitField<int, 0, 13> {};
-
-  // TODO(ishell): The stub uses only kReceiver parameter.
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_HANDLER_CODE_STUB(LoadField, HandlerStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadField);
+  DEFINE_TURBOFAN_CODE_STUB(LoadField, TurboFanCodeStub);
 };
 
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {

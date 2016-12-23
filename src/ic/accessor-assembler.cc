@@ -1654,6 +1654,20 @@ void AccessorAssemblerImpl::GenerateLoadICProtoArray(
   LoadICProtoArray(&p, handler, throw_reference_error_if_nonexistent);
 }
 
+void AccessorAssemblerImpl::GenerateLoadField() {
+  typedef LoadFieldStub::Descriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = nullptr;
+  Node* slot = nullptr;
+  Node* vector = nullptr;
+  Node* context = Parameter(Descriptor::kContext);
+  LoadICParameters p(context, receiver, name, slot, vector);
+
+  HandleLoadICSmiHandlerCase(&p, receiver, Parameter(Descriptor::kSmiHandler),
+                             nullptr, kOnlyProperties);
+}
+
 void AccessorAssemblerImpl::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   typedef LoadGlobalICStub::Descriptor Descriptor;
 
