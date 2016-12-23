@@ -18,8 +18,6 @@ var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
-var promiseHandledHintSymbol =
-    utils.ImportNow("promise_handled_hint_symbol");
 var ObjectHasOwnProperty; // Used by HAS_PRIVATE.
 var GlobalPromise = global.Promise;
 
@@ -263,68 +261,6 @@ function PromiseRace(iterable) {
   return deferred.promise;
 }
 
-
-// Utility for debugger
-
-function PromiseHasUserDefinedRejectHandlerCheck(handler, deferred) {
-  // Recurse to the forwarding Promise, if any. This may be due to
-  //  - await reaction forwarding to the throwaway Promise, which has
-  //    a dependency edge to the outer Promise.
-  //  - PromiseIdResolveHandler forwarding to the output of .then
-  //  - Promise.all/Promise.race forwarding to a throwaway Promise, which
-  //    has a dependency edge to the generated outer Promise.
-  if (GET_PRIVATE(handler, promiseForwardingHandlerSymbol)) {
-    return PromiseHasUserDefinedRejectHandlerRecursive(deferred.promise);
-  }
-
-  // Otherwise, this is a real reject handler for the Promise
-  return true;
-}
-
-function PromiseHasUserDefinedRejectHandlerRecursive(promise) {
-  // If this promise was marked as being handled by a catch block
-  // in an async function, then it has a user-defined reject handler.
-  if (GET_PRIVATE(promise, promiseHandledHintSymbol)) return true;
-
-  // If this Promise is subsumed by another Promise (a Promise resolved
-  // with another Promise, or an intermediate, hidden, throwaway Promise
-  // within async/await), then recurse on the outer Promise.
-  // In this case, the dependency is one possible way that the Promise
-  // could be resolved, so it does not subsume the other following cases.
-  var outerPromise = GET_PRIVATE(promise, promiseHandledBySymbol);
-  if (outerPromise &&
-      PromiseHasUserDefinedRejectHandlerRecursive(outerPromise)) {
-    return true;
-  }
-
-  if (!%is_promise(promise)) return false;
-
-  var queue = %PromiseRejectReactions(promise);
-  var deferred = %PromiseDeferred(promise);
-
-  if (IS_UNDEFINED(queue)) return false;
-
-  if (!IS_ARRAY(queue)) {
-    return PromiseHasUserDefinedRejectHandlerCheck(queue, deferred);
-  }
-
-  for (var i = 0; i < queue.length; i++) {
-    if (PromiseHasUserDefinedRejectHandlerCheck(queue[i], deferred[i])) {
-      return true;
-    }
-  }
-  return false;
-}
-
-// Return whether the promise will be handled by a user-defined reject
-// handler somewhere down the promise chain. For this, we do a depth-first
-// search for a reject handler that's not the default PromiseIdRejectHandler.
-// This function also traverses dependencies of one Promise on another,
-// set up through async/await and Promises resolved with Promises.
-function PromiseHasUserDefinedRejectHandler() {
-  return PromiseHasUserDefinedRejectHandlerRecursive(this);
-};
-
 function MarkPromiseAsHandled(promise) {
   %PromiseMarkAsHandled(promise);
 }
@@ -341,7 +277,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 
 %InstallToContext([
   "promise_create", PromiseCreate,
-  "promise_has_user_defined_reject_handler", PromiseHasUserDefinedRejectHandler,
   "promise_reject", DoRejectPromise,
   // TODO(gsathya): Remove this once we update the promise builtin.
   "promise_internal_reject", RejectPromise,

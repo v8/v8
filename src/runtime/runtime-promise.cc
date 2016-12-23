@@ -279,11 +279,20 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectReactions) {
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
-  HandleScope scope(isolate);
+  SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
 
   promise->set_has_handler(true);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_PromiseMarkHandledHint) {
+  SealHandleScope shs(isolate);
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+
+  promise->set_handled_hint(true);
   return isolate->heap()->undefined_value();
 }
 

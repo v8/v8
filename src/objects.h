@@ -8655,6 +8655,10 @@ class JSPromise : public JSObject {
   // [has_handler]: Whether this promise has a reject handler or not.
   DECL_BOOLEAN_ACCESSORS(has_handler)
 
+  // [handled_hint]: Whether this promise will be handled by a catch
+  // block in an async function.
+  DECL_BOOLEAN_ACCESSORS(handled_hint)
+
   static const char* Status(int status);
 
   DECLARE_CAST(JSPromise)
@@ -8675,6 +8679,7 @@ class JSPromise : public JSObject {
 
   // Flags layout.
   static const int kHasHandlerBit = 0;
+  static const int kHandledHintBit = 1;
 };
 
 // Regular expressions

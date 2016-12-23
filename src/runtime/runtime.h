@@ -313,6 +313,7 @@ namespace internal {
   F(PromiseHookBefore, 1, 1)                        \
   F(PromiseHookAfter, 1, 1)                         \
   F(PromiseMarkAsHandled, 1, 1)                     \
+  F(PromiseMarkHandledHint, 1, 1)                   \
   F(PromiseRejectEventFromStack, 2, 1)              \
   F(PromiseRejectReactions, 1, 1)                   \
   F(PromiseRevokeReject, 1, 1)                      \

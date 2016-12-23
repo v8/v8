@@ -1808,21 +1808,89 @@ void Isolate::PopPromise() {
   global_handles()->Destroy(global_promise.location());
 }
 
-bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
-  Handle<JSFunction> fun = promise_has_user_defined_reject_handler();
-  Handle<Object> has_reject_handler;
-  // If we are, e.g., overflowing the stack, don't try to call out to JS
-  if (!AllowJavascriptExecution::IsAllowed(this)) return false;
-  // Call the registered function to check for a handler
-  if (Execution::TryCall(this, fun, promise, 0, NULL)
-          .ToHandle(&has_reject_handler)) {
-    return has_reject_handler->IsTrue(this);
+namespace {
+bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
+                                                Handle<JSPromise> promise);
+
+bool PromiseHandlerCheck(Isolate* isolate, Handle<JSReceiver> handler,
+                         Handle<JSObject> deferred) {
+  // Recurse to the forwarding Promise, if any. This may be due to
+  //  - await reaction forwarding to the throwaway Promise, which has
+  //    a dependency edge to the outer Promise.
+  //  - PromiseIdResolveHandler forwarding to the output of .then
+  //  - Promise.all/Promise.race forwarding to a throwaway Promise, which
+  //    has a dependency edge to the generated outer Promise.
+  Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
+  Handle<Object> forwarding_handler = JSReceiver::GetDataProperty(handler, key);
+  if (forwarding_handler->IsUndefined(isolate)) {
+    return true;
   }
-  // If an exception is thrown in the course of execution of this built-in
-  // function, it indicates either a bug, or a synthetic uncatchable
-  // exception in the shutdown path. In either case, it's OK to predict either
-  // way in DevTools.
+
+  // TODO(gsathya): Remove this once we get rid of deferred objects.
+  Handle<String> promise_str = isolate->factory()->promise_string();
+  Handle<Object> deferred_promise_obj =
+      JSObject::GetDataProperty(deferred, promise_str);
+  if (!deferred_promise_obj->IsJSPromise()) {
+    return true;
+  }
+
+  return InternalPromiseHasUserDefinedRejectHandler(
+      isolate, Handle<JSPromise>::cast(deferred_promise_obj));
+
+  // Otherwise, this is a real reject handler for the Promise
+  return true;
+}
+
+bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
+                                                Handle<JSPromise> promise) {
+  // If this promise was marked as being handled by a catch block
+  // in an async function, then it has a user-defined reject handler.
+  if (promise->handled_hint()) return true;
+
+  // If this Promise is subsumed by another Promise (a Promise resolved
+  // with another Promise, or an intermediate, hidden, throwaway Promise
+  // within async/await), then recurse on the outer Promise.
+  // In this case, the dependency is one possible way that the Promise
+  // could be resolved, so it does not subsume the other following cases.
+  Handle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
+  Handle<Object> outer_promise_obj = JSObject::GetDataProperty(promise, key);
+  if (outer_promise_obj->IsJSPromise() &&
+      InternalPromiseHasUserDefinedRejectHandler(
+          isolate, Handle<JSPromise>::cast(outer_promise_obj))) {
+    return true;
+  }
+
+  Handle<Object> queue(promise->reject_reactions(), isolate);
+  Handle<Object> deferred(promise->deferred(), isolate);
+
+  if (queue->IsUndefined(isolate)) {
+    return false;
+  }
+
+  if (queue->IsCallable()) {
+    return PromiseHandlerCheck(isolate, Handle<JSReceiver>::cast(queue),
+                               Handle<JSObject>::cast(deferred));
+  }
+
+  Handle<FixedArray> queue_arr = Handle<FixedArray>::cast(queue);
+  Handle<FixedArray> deferred_arr = Handle<FixedArray>::cast(deferred);
+  for (int i = 0; i < deferred_arr->length(); i++) {
+    Handle<JSReceiver> queue_item(JSReceiver::cast(queue_arr->get(i)));
+    Handle<JSObject> deferred_item(JSObject::cast(deferred_arr->get(i)));
+    if (PromiseHandlerCheck(isolate, queue_item, deferred_item)) {
+      return true;
+    }
+  }
+
   return false;
+}
+
+}  // namespace
+
+bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
+  if (!promise->IsJSPromise()) return false;
+  return InternalPromiseHasUserDefinedRejectHandler(
+      this, Handle<JSPromise>::cast(promise));
 }
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
@@ -1842,7 +1910,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         continue;
       case HandlerTable::CAUGHT:
       case HandlerTable::DESUGARING:
-        if (retval->IsJSObject()) {
+        if (retval->IsJSPromise()) {
           // Caught the result of an inner async/await invocation.
           // Mark the inner promise as caught in the "synchronous case" so
           // that Debug::OnException will see. In the synchronous case,
@@ -1850,10 +1918,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
           // await, the function which has this exception event has not yet
           // returned, so the generated Promise has not yet been marked
           // by AsyncFunctionAwaitCaught with promiseHandledHintSymbol.
-          Handle<Symbol> key = factory()->promise_handled_hint_symbol();
-          JSObject::SetProperty(Handle<JSObject>::cast(retval), key,
-                                factory()->true_value(), STRICT)
-              .Assert();
+          Handle<JSPromise>::cast(retval)->set_handled_hint(true);
         }
         return retval;
       case HandlerTable::PROMISE:

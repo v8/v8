@@ -7096,6 +7096,7 @@ ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
 ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
 SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
+BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)

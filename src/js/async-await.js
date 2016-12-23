@@ -32,8 +32,6 @@ var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
-var promiseHandledHintSymbol =
-    utils.ImportNow("promise_handled_hint_symbol");
 
 // -------------------------------------------------------------------
 
@@ -114,7 +112,7 @@ function AsyncFunctionAwaitUncaught(generator, awaited, outerPromise) {
 // prediction indicates that there is a locally surrounding catch block
 function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
   if (DEBUG_IS_ACTIVE && %is_promise(awaited)) {
-    SET_PRIVATE(awaited, promiseHandledHintSymbol, true);
+    %PromiseMarkHandledHint(awaited);
   }
   AsyncFunctionAwait(generator, awaited, outerPromise);
 }
