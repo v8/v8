@@ -61,7 +61,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
       JobMap;
   class IdleTask;
 
-  bool IsEnabled() const;
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ScheduleIdleTaskIfNeeded();
   void DoIdleWork(double deadline_in_seconds);

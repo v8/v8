@@ -110,8 +110,6 @@ CompilerDispatcher::~CompilerDispatcher() {
 }
 
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
-  if (!IsEnabled()) return false;
-
   // We only handle functions (no eval / top-level code / wasm) that are
   // attached to a script.
   if (!function->script()->IsScript() || !function->is_function() ||
@@ -127,11 +125,6 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   jobs_.insert(std::make_pair(key, std::move(job)));
   ScheduleIdleTaskIfNeeded();
   return true;
-}
-
-bool CompilerDispatcher::IsEnabled() const {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  return FLAG_compiler_dispatcher && platform_->IdleTasksEnabled(v8_isolate);
 }
 
 bool CompilerDispatcher::IsEnqueued(Handle<SharedFunctionInfo> function) const {
@@ -190,7 +183,7 @@ CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
 
 void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  DCHECK(platform_->IdleTasksEnabled(v8_isolate));
+  if (!platform_->IdleTasksEnabled(v8_isolate)) return;
   if (idle_task_scheduled_) return;
   if (jobs_.empty()) return;
   idle_task_scheduled_ = true;
