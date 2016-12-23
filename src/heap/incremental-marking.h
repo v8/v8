@@ -298,6 +298,7 @@ class IncrementalMarking {
   bool was_activated_;
   bool black_allocation_;
   bool finalize_marking_completed_;
+  bool trace_wrappers_toggle_;
 
   GCRequestType request_type_;
 

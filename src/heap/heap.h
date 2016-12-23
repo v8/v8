@@ -1627,10 +1627,6 @@ class Heap {
     return current_gc_flags_ & kFinalizeIncrementalMarkingMask;
   }
 
-  // Checks whether both, the internal marking deque, and the embedder provided
-  // one are empty. Avoid in fast path as it potentially calls through the API.
-  bool MarkingDequesAreEmpty();
-
   void PreprocessStackTraces();
 
   // Checks whether a global GC is necessary

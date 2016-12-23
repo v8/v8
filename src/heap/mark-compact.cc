@@ -2157,7 +2157,8 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     work_to_do = !marking_deque()->IsEmpty();
     ProcessMarkingDeque<MarkCompactMode::FULL>();
   }
-  CHECK(heap_->MarkingDequesAreEmpty());
+  CHECK(marking_deque()->IsEmpty());
+  CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
 }
 
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
