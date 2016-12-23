@@ -488,6 +488,10 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     m_runningNestedMessageLoop = true;
     int groupId = m_inspector->contextGroupId(pausedContext);
     DCHECK(groupId);
+    v8::Context::Scope scope(pausedContext);
+    v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
+    CHECK(!context.IsEmpty() &&
+          context != v8::Debug::GetDebugContext(m_isolate));
     m_inspector->client()->runMessageLoopOnPause(groupId);
     // The agent may have been removed in the nested loop.
     agent = m_inspector->enabledDebuggerAgentForGroup(
