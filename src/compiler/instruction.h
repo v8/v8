@@ -1570,11 +1570,18 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   void ValidateDeferredBlockEntryPaths() const;
   void ValidateSSA() const;
 
+  static void SetRegisterConfigurationForTesting(
+      const RegisterConfiguration* regConfig);
+  static void ClearRegisterConfigurationForTesting();
+
  private:
   friend V8_EXPORT_PRIVATE std::ostream& operator<<(
       std::ostream& os, const PrintableInstructionSequence& code);
 
   typedef ZoneMap<const Instruction*, SourcePosition> SourcePositionMap;
+
+  static const RegisterConfiguration* RegisterConfigurationForTesting();
+  static const RegisterConfiguration* registerConfigurationForTesting_;
 
   Isolate* isolate_;
   Zone* const zone_;

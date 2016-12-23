@@ -12,7 +12,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-const auto GetRegConfig = RegisterConfiguration::Turbofan;
+const RegisterConfiguration* (*GetRegConfig)() =
+    RegisterConfiguration::Turbofan;
 
 FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
   switch (condition) {
@@ -983,6 +984,21 @@ void InstructionSequence::PrintBlock(const RegisterConfiguration* config,
 
 void InstructionSequence::PrintBlock(int block_id) const {
   PrintBlock(GetRegConfig(), block_id);
+}
+
+const RegisterConfiguration*
+    InstructionSequence::registerConfigurationForTesting_ = nullptr;
+
+const RegisterConfiguration*
+InstructionSequence::RegisterConfigurationForTesting() {
+  DCHECK(registerConfigurationForTesting_ != nullptr);
+  return registerConfigurationForTesting_;
+}
+
+void InstructionSequence::SetRegisterConfigurationForTesting(
+    const RegisterConfiguration* regConfig) {
+  registerConfigurationForTesting_ = regConfig;
+  GetRegConfig = InstructionSequence::RegisterConfigurationForTesting;
 }
 
 FrameStateDescriptor::FrameStateDescriptor(

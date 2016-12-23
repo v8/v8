@@ -85,7 +85,7 @@ int InstructionSequenceTest::GetAllocatableCode(int index,
   }
 }
 
-RegisterConfiguration* InstructionSequenceTest::config() {
+const RegisterConfiguration* InstructionSequenceTest::config() {
   if (!config_) {
     config_.reset(new RegisterConfiguration(
         num_general_registers_, num_double_registers_, num_general_registers_,
@@ -105,6 +105,8 @@ InstructionSequence* InstructionSequenceTest::sequence() {
   if (sequence_ == nullptr) {
     sequence_ = new (zone())
         InstructionSequence(isolate(), zone(), &instruction_blocks_);
+    sequence_->SetRegisterConfigurationForTesting(
+        InstructionSequenceTest::config());
   }
   return sequence_;
 }
