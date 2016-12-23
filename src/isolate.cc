@@ -1820,6 +1820,7 @@ bool PromiseHandlerCheck(Isolate* isolate, Handle<JSReceiver> handler,
   //  - PromiseIdResolveHandler forwarding to the output of .then
   //  - Promise.all/Promise.race forwarding to a throwaway Promise, which
   //    has a dependency edge to the generated outer Promise.
+  // Otherwise, this is a real reject handler for the Promise.
   Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
   Handle<Object> forwarding_handler = JSReceiver::GetDataProperty(handler, key);
   if (forwarding_handler->IsUndefined(isolate)) {
@@ -1836,9 +1837,6 @@ bool PromiseHandlerCheck(Isolate* isolate, Handle<JSReceiver> handler,
 
   return InternalPromiseHasUserDefinedRejectHandler(
       isolate, Handle<JSPromise>::cast(deferred_promise_obj));
-
-  // Otherwise, this is a real reject handler for the Promise
-  return true;
 }
 
 bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
