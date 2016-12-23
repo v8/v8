@@ -13,7 +13,6 @@ void LocalEmbedderHeapTracer::TracePrologue() {
   if (!InUse()) return;
 
   CHECK(cached_wrappers_to_trace_.empty());
-  num_v8_marking_deque_was_empty_ = 0;
   remote_tracer_->TracePrologue();
 }
 

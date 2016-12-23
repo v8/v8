@@ -4176,18 +4176,19 @@ void Heap::ReduceNewSpaceSize() {
   }
 }
 
+bool Heap::MarkingDequesAreEmpty() {
+  return mark_compact_collector()->marking_deque()->IsEmpty() &&
+         local_embedder_heap_tracer()->NumberOfWrappersToTrace() == 0;
+}
+
 void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        mark_compact_collector()->marking_deque()->IsEmpty() &&
-        local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
+        MarkingDequesAreEmpty()))) {
     FinalizeIncrementalMarking(gc_reason);
-  } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
-              local_embedder_heap_tracer()
-                  ->ShouldFinalizeIncrementalMarking())) {
+  } else if (incremental_marking()->IsComplete() || MarkingDequesAreEmpty()) {
     CollectAllGarbage(current_gc_flags_, gc_reason);
   }
 }
@@ -4199,16 +4200,13 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
       tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
       (!incremental_marking()->finalize_marking_completed() &&
-       mark_compact_collector()->marking_deque()->IsEmpty() &&
-       local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking() &&
+       MarkingDequesAreEmpty() &&
        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
            idle_time_in_ms))) {
     FinalizeIncrementalMarking(gc_reason);
     return true;
   } else if (incremental_marking()->IsComplete() ||
-             (mark_compact_collector()->marking_deque()->IsEmpty() &&
-              local_embedder_heap_tracer()
-                  ->ShouldFinalizeIncrementalMarking() &&
+             (MarkingDequesAreEmpty() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   idle_time_in_ms, size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
