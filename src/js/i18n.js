@@ -23,6 +23,7 @@ var GlobalDate = global.Date;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
+var IntlFallbackSymbol = utils.ImportNow("intl_fallback_symbol");
 var InstallFunctions = utils.InstallFunctions;
 var InstallGetter = utils.InstallGetter;
 var InternalArray = utils.InternalArray;
@@ -57,7 +58,8 @@ function InstallConstructor(object, name, func) {
 /**
  * Adds bound method to the prototype of the given object.
  */
-function AddBoundMethod(obj, methodName, implementation, length, type) {
+function AddBoundMethod(obj, methodName, implementation, length, typename,
+                        compat) {
   %CheckIsBootstrapping();
   var internalName = %CreatePrivateSymbol(methodName);
   // Making getter an anonymous function will cause
@@ -66,38 +68,73 @@ function AddBoundMethod(obj, methodName, implementation, length, type) {
   // than (as utils.InstallGetter would) on the SharedFunctionInfo
   // associated with all functions returned from AddBoundMethod.
   var getter = ANONYMOUS_FUNCTION(function() {
-    if (!%IsInitializedIntlObjectOfType(this, type)) {
-      throw %make_type_error(kMethodCalledOnWrongObject, methodName);
-    }
-    if (IS_UNDEFINED(this[internalName])) {
+    var receiver = Unwrap(this, typename, obj, methodName, compat);
+    if (IS_UNDEFINED(receiver[internalName])) {
       var boundMethod;
       if (IS_UNDEFINED(length) || length === 2) {
         boundMethod =
-          ANONYMOUS_FUNCTION((fst, snd) => implementation(this, fst, snd));
+          ANONYMOUS_FUNCTION((fst, snd) => implementation(receiver, fst, snd));
       } else if (length === 1) {
-        boundMethod = ANONYMOUS_FUNCTION(fst => implementation(this, fst));
+        boundMethod = ANONYMOUS_FUNCTION(fst => implementation(receiver, fst));
       } else {
         boundMethod = ANONYMOUS_FUNCTION((...args) => {
           // DateTimeFormat.format needs to be 0 arg method, but can still
           // receive an optional dateValue param. If one was provided, pass it
           // along.
           if (args.length > 0) {
-            return implementation(this, args[0]);
+            return implementation(receiver, args[0]);
           } else {
-            return implementation(this);
+            return implementation(receiver);
           }
         });
       }
       %SetNativeFlag(boundMethod);
-      this[internalName] = boundMethod;
+      receiver[internalName] = boundMethod;
     }
-    return this[internalName];
+    return receiver[internalName];
   });
 
   %FunctionRemovePrototype(getter);
   %DefineGetterPropertyUnchecked(obj.prototype, methodName, getter, DONT_ENUM);
   %SetNativeFlag(getter);
 }
+
+function IntlConstruct(receiver, constructor, initializer, newTarget, args,
+                       compat) {
+  var locales = args[0];
+  var options = args[1];
+
+  if (IS_UNDEFINED(newTarget)) {
+    if (compat && receiver instanceof constructor) {
+      let success = %object_define_property(receiver, IntlFallbackSymbol,
+                           { value: new constructor(locales, options) });
+      if (!success) {
+        throw %make_type_error(kReinitializeIntl, constructor);
+      }
+      return receiver;
+    }
+
+    return new constructor(locales, options);
+  }
+
+  return initializer(receiver, locales, options);
+}
+
+
+
+function Unwrap(receiver, typename, constructor, method, compat) {
+  if (!%IsInitializedIntlObjectOfType(receiver, typename)) {
+    if (compat && receiver instanceof constructor) {
+      let fallback = receiver[IntlFallbackSymbol];
+      if (%IsInitializedIntlObjectOfType(fallback, typename)) {
+        return fallback;
+      }
+    }
+    throw %make_type_error(kIncompatibleMethodReceiver, method, receiver);
+  }
+  return receiver;
+}
+
 
 // -------------------------------------------------------------------
 
@@ -1029,29 +1066,18 @@ function initializeCollator(collator, locales, options) {
  *
  * @constructor
  */
-InstallConstructor(Intl, 'Collator', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
-
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.Collator(locales, options);
-    }
-
-    return initializeCollator(TO_OBJECT(this), locales, options);
-  }
-);
+function Collator() {
+  return IntlConstruct(this, Collator, initializeCollator, new.target,
+                       arguments);
+}
+InstallConstructor(Intl, 'Collator', Collator);
 
 
 /**
  * Collator resolvedOptions method.
  */
 InstallFunction(Intl.Collator.prototype, 'resolvedOptions', function() {
-    if (!%IsInitializedIntlObjectOfType(this, 'collator')) {
-      throw %make_type_error(kResolvedOptionsCalledOnNonObject, "Collator");
-    }
-
-    var coll = this;
+    var coll = Unwrap(this, 'collator', Collator, 'resolvedOptions', false);
     var locale = getOptimalLanguageTag(coll[resolvedSymbol].requestedLocale,
                                        coll[resolvedSymbol].locale);
 
@@ -1096,7 +1122,7 @@ function compare(collator, x, y) {
 };
 
 
-AddBoundMethod(Intl.Collator, 'compare', compare, 2, 'collator');
+AddBoundMethod(Intl.Collator, 'compare', compare, 2, 'collator', false);
 
 /**
  * Verifies that the input is a well-formed ISO 4217 currency code.
@@ -1262,29 +1288,19 @@ function initializeNumberFormat(numberFormat, locales, options) {
  *
  * @constructor
  */
-InstallConstructor(Intl, 'NumberFormat', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
-
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.NumberFormat(locales, options);
-    }
-
-    return initializeNumberFormat(TO_OBJECT(this), locales, options);
-  }
-);
+function NumberFormat() {
+  return IntlConstruct(this, NumberFormat, initializeNumberFormat, new.target,
+                       arguments, true);
+}
+InstallConstructor(Intl, 'NumberFormat', NumberFormat);
 
 
 /**
  * NumberFormat resolvedOptions method.
  */
 InstallFunction(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
-    if (!%IsInitializedIntlObjectOfType(this, 'numberformat')) {
-      throw %make_type_error(kResolvedOptionsCalledOnNonObject, "NumberFormat");
-    }
-
-    var format = this;
+    var format = Unwrap(this, 'numberformat', NumberFormat,
+                        'resolvedOptions', true);
     var locale = getOptimalLanguageTag(format[resolvedSymbol].requestedLocale,
                                        format[resolvedSymbol].locale);
 
@@ -1345,7 +1361,8 @@ function formatNumber(formatter, value) {
 }
 
 
-AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat');
+AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat',
+               true);
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1638,27 +1655,19 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  *
  * @constructor
  */
-InstallConstructor(Intl, 'DateTimeFormat', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
-
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.DateTimeFormat(locales, options);
-    }
-
-    return initializeDateTimeFormat(TO_OBJECT(this), locales, options);
-  }
-);
+function DateTimeFormat() {
+  return IntlConstruct(this, DateTimeFormat, initializeDateTimeFormat,
+                       new.target, arguments, true);
+}
+InstallConstructor(Intl, 'DateTimeFormat', DateTimeFormat);
 
 
 /**
  * DateTimeFormat resolvedOptions method.
  */
 InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
-    if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
-      throw %make_type_error(kResolvedOptionsCalledOnNonObject, "DateTimeFormat");
-    }
+    var format = Unwrap(this, 'dateformat', DateTimeFormat,
+                        'resolvedOptions', true);
 
     /**
      * Maps ICU calendar names to LDML/BCP47 types for key 'ca'.
@@ -1671,7 +1680,6 @@ InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
       'ethiopic-amete-alem': 'ethioaa'
     };
 
-    var format = this;
     var fromPattern = fromLDMLString(format[resolvedSymbol][patternSymbol]);
     var userCalendar = ICU_CALENDAR_MAP[format[resolvedSymbol].calendar];
     if (IS_UNDEFINED(userCalendar)) {
@@ -1758,7 +1766,8 @@ function FormatDateToParts(dateValue) {
 
 
 // 0 because date is optional argument.
-AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0, 'dateformat');
+AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0, 'dateformat',
+               true);
 
 
 /**
@@ -1847,18 +1856,11 @@ function initializeBreakIterator(iterator, locales, options) {
  *
  * @constructor
  */
-InstallConstructor(Intl, 'v8BreakIterator', function() {
-    var locales = arguments[0];
-    var options = arguments[1];
-
-    if (!this || this === Intl) {
-      // Constructor is called as a function.
-      return new Intl.v8BreakIterator(locales, options);
-    }
-
-    return initializeBreakIterator(TO_OBJECT(this), locales, options);
-  }
-);
+function v8BreakIterator() {
+  return IntlConstruct(this, v8BreakIterator, initializeBreakIterator,
+                       new.target, arguments);
+}
+InstallConstructor(Intl, 'v8BreakIterator', v8BreakIterator);
 
 
 /**
@@ -1870,11 +1872,9 @@ InstallFunction(Intl.v8BreakIterator.prototype, 'resolvedOptions',
       throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    if (!%IsInitializedIntlObjectOfType(this, 'breakiterator')) {
-      throw %make_type_error(kResolvedOptionsCalledOnNonObject, "v8BreakIterator");
-    }
+    var segmenter = Unwrap(this, 'breakiterator', v8BreakIterator,
+                           'resolvedOptions', false);
 
-    var segmenter = this;
     var locale =
         getOptimalLanguageTag(segmenter[resolvedSymbol].requestedLocale,
                               segmenter[resolvedSymbol].locale);

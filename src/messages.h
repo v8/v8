@@ -458,9 +458,6 @@ class ErrorUtils : public AllStatic {
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
-  T(ResolvedOptionsCalledOnNonObject,                                          \
-    "resolvedOptions method called on a non-object or on a object that is "    \
-    "not Intl.%.")                                                             \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
   T(RestrictedFunctionProperties,                                              \
     "'caller' and 'arguments' are restricted function properties and cannot "  \

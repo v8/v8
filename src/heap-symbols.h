@@ -226,6 +226,7 @@
 
 #define PUBLIC_SYMBOL_LIST(V)                \
   V(iterator_symbol, Symbol.iterator)        \
+  V(intl_fallback_symbol, IntlFallback)      \
   V(match_symbol, Symbol.match)              \
   V(replace_symbol, Symbol.replace)          \
   V(search_symbol, Symbol.search)            \
