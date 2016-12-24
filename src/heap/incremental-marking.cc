@@ -892,11 +892,6 @@ intptr_t IncrementalMarking::ProcessMarkingDeque(
     VisitObject(map, obj, size);
     bytes_processed += size - unscanned_bytes_of_large_object_;
   }
-  // Report all found wrappers to the embedder. This is necessary as the
-  // embedder could potentially invalidate wrappers as soon as V8 is done
-  // with its incremental marking processing. Any cached wrappers could
-  // result in broken pointers at this point.
-  heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
   return bytes_processed;
 }
 
@@ -1038,8 +1033,6 @@ double IncrementalMarking::AdvanceIncrementalMarking(
   TRACE_EVENT0("v8", "V8.GCIncrementalMarking");
   TRACE_GC(heap_->tracer(), GCTracer::Scope::MC_INCREMENTAL);
   DCHECK(!IsStopped());
-  DCHECK_EQ(
-      0, heap_->local_embedder_heap_tracer()->NumberOfCachedWrappersToTrace());
 
   double remaining_time_in_ms = 0.0;
   intptr_t step_size_in_bytes = GCIdleTimeHandler::EstimateMarkingStepSize(
