@@ -117,17 +117,9 @@ def parse_args():
           os.path.isfile(options.testcase)), (
       'Test case %s doesn\'t exist' % options.testcase)
 
-  resources_path = os.path.join(
+  options.meta_data_path = os.path.join(
       os.path.dirname(options.testcase),
-      'resources' + os.path.basename(options.testcase)[len('fuzz'):])
-  assert os.path.exists(resources_path), (
-      'Resources file %s doesn\'t exist' % resources_path)
-
-  with open(resources_path) as f:
-    resources = f.read().strip().splitlines()
-    assert len(resources) == 1
-    options.meta_data_path = os.path.join(
-        os.path.dirname(resources_path), resources[0])
+      'meta' + os.path.basename(options.testcase)[len('fuzz'):])
   assert os.path.exists(options.meta_data_path), (
       'Metadata %s doesn\'t exist' % options.meta_data_path)
 
@@ -135,8 +127,10 @@ def parse_args():
   options.second_d8 = options.second_d8 or options.first_d8
 
   # Ensure absolute paths.
-  options.first_d8 = os.path.abspath(options.first_d8)
-  options.second_d8 = os.path.abspath(options.second_d8)
+  if not os.path.isabs(options.first_d8):
+    options.first_d8 = os.path.join(BASE_PATH, options.first_d8)
+  if not os.path.isabs(options.second_d8):
+    options.second_d8 = os.path.join(BASE_PATH, options.second_d8)
 
   # Ensure executables exist.
   assert os.path.exists(options.first_d8)
