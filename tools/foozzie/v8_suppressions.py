@@ -113,6 +113,9 @@ IGNORE_LINES = [
   r'^Warning: unknown flag .*$',
   r'^Warning: .+ is deprecated.*$',
   r'^Try --help for options$',
+
+  # crbug.com/677032
+  r'^.*:\d+:.*asm\.js.*: success$',
 ]
 
 
