@@ -2326,6 +2326,74 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
   }
 
+#ifdef V8_I18N_SUPPORT
+  {  // -- I n t l
+    Handle<String> name = factory->InternalizeUtf8String("Intl");
+    Handle<JSFunction> cons = factory->NewFunction(name);
+    JSFunction::SetInstancePrototype(
+        cons,
+        Handle<Object>(native_context()->initial_object_prototype(), isolate));
+    Handle<JSObject> intl = factory->NewJSObject(cons, TENURED);
+    DCHECK(intl->IsJSObject());
+    JSObject::AddProperty(global, name, intl, DONT_ENUM);
+
+    Handle<JSObject> date_time_format_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        date_time_format_prototype, factory->to_string_tag_symbol(),
+        factory->Object_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    Handle<JSFunction> date_time_format_constructor = InstallFunction(
+        intl, "DateTimeFormat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        date_time_format_prototype, Builtins::kIllegal);
+    JSObject::AddProperty(date_time_format_prototype,
+                          factory->constructor_string(),
+                          date_time_format_constructor, DONT_ENUM);
+
+    Handle<JSObject> number_format_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        number_format_prototype, factory->to_string_tag_symbol(),
+        factory->Object_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    Handle<JSFunction> number_format_constructor = InstallFunction(
+        intl, "NumberFormat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        number_format_prototype, Builtins::kIllegal);
+    JSObject::AddProperty(number_format_prototype,
+                          factory->constructor_string(),
+                          number_format_constructor, DONT_ENUM);
+
+    Handle<JSObject> collator_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        collator_prototype, factory->to_string_tag_symbol(),
+        factory->Object_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    Handle<JSFunction> collator_constructor =
+        InstallFunction(intl, "Collator", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        collator_prototype, Builtins::kIllegal);
+    JSObject::AddProperty(collator_prototype, factory->constructor_string(),
+                          collator_constructor, DONT_ENUM);
+
+    Handle<JSObject> v8_break_iterator_prototype =
+        factory->NewJSObject(isolate->object_function(), TENURED);
+    // Install the @@toStringTag property on the {prototype}.
+    JSObject::AddProperty(
+        v8_break_iterator_prototype, factory->to_string_tag_symbol(),
+        factory->Object_string(),
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    Handle<JSFunction> v8_break_iterator_constructor = InstallFunction(
+        intl, "v8BreakIterator", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        v8_break_iterator_prototype, Builtins::kIllegal);
+    JSObject::AddProperty(v8_break_iterator_prototype,
+                          factory->constructor_string(),
+                          v8_break_iterator_constructor, DONT_ENUM);
+  }
+#endif  // V8_I18N_SUPPORT
+
   {  // -- A r r a y B u f f e r
     Handle<JSFunction> array_buffer_fun = InstallArrayBuffer(
         global, "ArrayBuffer", Builtins::kArrayBufferPrototypeGetByteLength,

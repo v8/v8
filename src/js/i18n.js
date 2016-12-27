@@ -20,6 +20,11 @@
 var ArrayJoin;
 var ArrayPush;
 var GlobalDate = global.Date;
+var GlobalIntl = global.Intl;
+var GlobalIntlDateTimeFormat = GlobalIntl.DateTimeFormat;
+var GlobalIntlNumberFormat = GlobalIntl.NumberFormat;
+var GlobalIntlCollator = GlobalIntl.Collator;
+var GlobalIntlv8BreakIterator = GlobalIntl.v8BreakIterator;
 var GlobalNumber = global.Number;
 var GlobalRegExp = global.RegExp;
 var GlobalString = global.String;
@@ -46,14 +51,6 @@ function InstallFunction(object, name, func) {
   InstallFunctions(object, DONT_ENUM, [name, func]);
 }
 
-
-function InstallConstructor(object, name, func) {
-  %CheckIsBootstrapping();
-  SetFunctionName(func, name);
-  %AddNamedProperty(object, name, func, DONT_ENUM);
-  %SetNativeFlag(func);
-  %ToFastProperties(object);
-}
 
 /**
  * Adds bound method to the prototype of the given object.
@@ -137,10 +134,6 @@ function Unwrap(receiver, typename, constructor, method, compat) {
 
 
 // -------------------------------------------------------------------
-
-var Intl = {};
-
-%AddNamedProperty(global, "Intl", Intl, DONT_ENUM);
 
 /**
  * Caches available locales for each service.
@@ -948,7 +941,7 @@ var resolvedAccessor = {
 };
 
 // ECMA 402 section 8.2.1
-InstallFunction(Intl, 'getCanonicalLocales', function(locales) {
+InstallFunction(GlobalIntl, 'getCanonicalLocales', function(locales) {
     return makeArray(canonicalizeLocaleList(locales));
   }
 );
@@ -1066,18 +1059,19 @@ function initializeCollator(collator, locales, options) {
  *
  * @constructor
  */
-function Collator() {
-  return IntlConstruct(this, Collator, initializeCollator, new.target,
+function CollatorConstructor() {
+  return IntlConstruct(this, GlobalIntlCollator, initializeCollator, new.target,
                        arguments);
 }
-InstallConstructor(Intl, 'Collator', Collator);
+%SetCode(GlobalIntlCollator, CollatorConstructor);
 
 
 /**
  * Collator resolvedOptions method.
  */
-InstallFunction(Intl.Collator.prototype, 'resolvedOptions', function() {
-    var coll = Unwrap(this, 'collator', Collator, 'resolvedOptions', false);
+InstallFunction(GlobalIntlCollator.prototype, 'resolvedOptions', function() {
+    var coll = Unwrap(this, 'collator', GlobalIntlCollator, 'resolvedOptions',
+                      false);
     var locale = getOptimalLanguageTag(coll[resolvedSymbol].requestedLocale,
                                        coll[resolvedSymbol].locale);
 
@@ -1100,7 +1094,7 @@ InstallFunction(Intl.Collator.prototype, 'resolvedOptions', function() {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-InstallFunction(Intl.Collator, 'supportedLocalesOf', function(locales) {
+InstallFunction(GlobalIntlCollator, 'supportedLocalesOf', function(locales) {
     return supportedLocalesOf('collator', locales, arguments[1]);
   }
 );
@@ -1122,7 +1116,7 @@ function compare(collator, x, y) {
 };
 
 
-AddBoundMethod(Intl.Collator, 'compare', compare, 2, 'collator', false);
+AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, 'collator', false);
 
 /**
  * Verifies that the input is a well-formed ISO 4217 currency code.
@@ -1288,18 +1282,19 @@ function initializeNumberFormat(numberFormat, locales, options) {
  *
  * @constructor
  */
-function NumberFormat() {
-  return IntlConstruct(this, NumberFormat, initializeNumberFormat, new.target,
-                       arguments, true);
+function NumberFormatConstructor() {
+  return IntlConstruct(this, GlobalIntlNumberFormat, initializeNumberFormat,
+                       new.target, arguments, true);
 }
-InstallConstructor(Intl, 'NumberFormat', NumberFormat);
+%SetCode(GlobalIntlNumberFormat, NumberFormatConstructor);
 
 
 /**
  * NumberFormat resolvedOptions method.
  */
-InstallFunction(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
-    var format = Unwrap(this, 'numberformat', NumberFormat,
+InstallFunction(GlobalIntlNumberFormat.prototype, 'resolvedOptions',
+  function() {
+    var format = Unwrap(this, 'numberformat', GlobalIntlNumberFormat,
                         'resolvedOptions', true);
     var locale = getOptimalLanguageTag(format[resolvedSymbol].requestedLocale,
                                        format[resolvedSymbol].locale);
@@ -1341,7 +1336,8 @@ InstallFunction(Intl.NumberFormat.prototype, 'resolvedOptions', function() {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-InstallFunction(Intl.NumberFormat, 'supportedLocalesOf', function(locales) {
+InstallFunction(GlobalIntlNumberFormat, 'supportedLocalesOf',
+  function(locales) {
     return supportedLocalesOf('numberformat', locales, arguments[1]);
   }
 );
@@ -1361,8 +1357,8 @@ function formatNumber(formatter, value) {
 }
 
 
-AddBoundMethod(Intl.NumberFormat, 'format', formatNumber, 1, 'numberformat',
-               true);
+AddBoundMethod(GlobalIntlNumberFormat, 'format', formatNumber, 1,
+               'numberformat', true);
 
 /**
  * Returns a string that matches LDML representation of the options object.
@@ -1655,18 +1651,19 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  *
  * @constructor
  */
-function DateTimeFormat() {
-  return IntlConstruct(this, DateTimeFormat, initializeDateTimeFormat,
+function DateTimeFormatConstructor() {
+  return IntlConstruct(this, GlobalIntlDateTimeFormat, initializeDateTimeFormat,
                        new.target, arguments, true);
 }
-InstallConstructor(Intl, 'DateTimeFormat', DateTimeFormat);
+%SetCode(GlobalIntlDateTimeFormat, DateTimeFormatConstructor);
 
 
 /**
  * DateTimeFormat resolvedOptions method.
  */
-InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
-    var format = Unwrap(this, 'dateformat', DateTimeFormat,
+InstallFunction(GlobalIntlDateTimeFormat.prototype, 'resolvedOptions',
+  function() {
+    var format = Unwrap(this, 'dateformat', GlobalIntlDateTimeFormat,
                         'resolvedOptions', true);
 
     /**
@@ -1719,7 +1716,8 @@ InstallFunction(Intl.DateTimeFormat.prototype, 'resolvedOptions', function() {
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-InstallFunction(Intl.DateTimeFormat, 'supportedLocalesOf', function(locales) {
+InstallFunction(GlobalIntlDateTimeFormat, 'supportedLocalesOf',
+  function(locales) {
     return supportedLocalesOf('dateformat', locales, arguments[1]);
   }
 );
@@ -1766,7 +1764,7 @@ function FormatDateToParts(dateValue) {
 
 
 // 0 because date is optional argument.
-AddBoundMethod(Intl.DateTimeFormat, 'format', formatDate, 0, 'dateformat',
+AddBoundMethod(GlobalIntlDateTimeFormat, 'format', formatDate, 0, 'dateformat',
                true);
 
 
@@ -1856,23 +1854,23 @@ function initializeBreakIterator(iterator, locales, options) {
  *
  * @constructor
  */
-function v8BreakIterator() {
-  return IntlConstruct(this, v8BreakIterator, initializeBreakIterator,
+function v8BreakIteratorConstructor() {
+  return IntlConstruct(this, GlobalIntlv8BreakIterator, initializeBreakIterator,
                        new.target, arguments);
 }
-InstallConstructor(Intl, 'v8BreakIterator', v8BreakIterator);
+%SetCode(GlobalIntlv8BreakIterator, v8BreakIteratorConstructor);
 
 
 /**
  * BreakIterator resolvedOptions method.
  */
-InstallFunction(Intl.v8BreakIterator.prototype, 'resolvedOptions',
+InstallFunction(GlobalIntlv8BreakIterator.prototype, 'resolvedOptions',
   function() {
     if (!IS_UNDEFINED(new.target)) {
       throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
     }
 
-    var segmenter = Unwrap(this, 'breakiterator', v8BreakIterator,
+    var segmenter = Unwrap(this, 'breakiterator', GlobalIntlv8BreakIterator,
                            'resolvedOptions', false);
 
     var locale =
@@ -1893,7 +1891,7 @@ InstallFunction(Intl.v8BreakIterator.prototype, 'resolvedOptions',
  * order in the returned list as in the input list.
  * Options are optional parameter.
  */
-InstallFunction(Intl.v8BreakIterator, 'supportedLocalesOf',
+InstallFunction(GlobalIntlv8BreakIterator, 'supportedLocalesOf',
   function(locales) {
     if (!IS_UNDEFINED(new.target)) {
       throw %make_type_error(kOrdinaryFunctionCalledAsConstructor);
@@ -1946,21 +1944,22 @@ function breakType(iterator) {
 }
 
 
-AddBoundMethod(Intl.v8BreakIterator, 'adoptText', adoptText, 1,
+AddBoundMethod(GlobalIntlv8BreakIterator, 'adoptText', adoptText, 1,
                'breakiterator');
-AddBoundMethod(Intl.v8BreakIterator, 'first', first, 0, 'breakiterator');
-AddBoundMethod(Intl.v8BreakIterator, 'next', next, 0, 'breakiterator');
-AddBoundMethod(Intl.v8BreakIterator, 'current', current, 0, 'breakiterator');
-AddBoundMethod(Intl.v8BreakIterator, 'breakType', breakType, 0,
+AddBoundMethod(GlobalIntlv8BreakIterator, 'first', first, 0, 'breakiterator');
+AddBoundMethod(GlobalIntlv8BreakIterator, 'next', next, 0, 'breakiterator');
+AddBoundMethod(GlobalIntlv8BreakIterator, 'current', current, 0,
+               'breakiterator');
+AddBoundMethod(GlobalIntlv8BreakIterator, 'breakType', breakType, 0,
                'breakiterator');
 
 // Save references to Intl objects and methods we use, for added security.
 var savedObjects = {
-  'collator': Intl.Collator,
-  'numberformat': Intl.NumberFormat,
-  'dateformatall': Intl.DateTimeFormat,
-  'dateformatdate': Intl.DateTimeFormat,
-  'dateformattime': Intl.DateTimeFormat
+  'collator': GlobalIntlCollator,
+  'numberformat': GlobalIntlNumberFormat,
+  'dateformatall': GlobalIntlDateTimeFormat,
+  'dateformatdate': GlobalIntlDateTimeFormat,
+  'dateformattime': GlobalIntlDateTimeFormat
 };
 
 
