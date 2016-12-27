@@ -194,8 +194,9 @@ class Test262TestSuite(testsuite.TestSuite):
     test_record = self.GetTestRecord(testcase)
     if output.exit_code != 0:
       return True
-    if "negative" in test_record:
-      if self._ParseException(output.stdout) != test_record["negative"]:
+    if "negative" in test_record and \
+       "type" in test_record["negative"] and \
+       self._ParseException(output.stdout) != test_record["negative"]["type"]:
         return True
     return "FAILED!" in output.stdout
 

@@ -105,11 +105,16 @@
   'intl402/NumberFormat/11.1.1_1': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
-  'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
-  'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Get/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Get/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/GetOwnProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/HasProperty/detached-buffer-realm': [FAIL],
+  'built-ins/TypedArrays/internals/Set/detached-buffer': [FAIL],
+  'built-ins/TypedArrays/internals/Set/detached-buffer-realm': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
@@ -193,17 +198,6 @@
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4034
   'built-ins/ThrowTypeError/unique-per-realm-function-proto': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5535
-  'built-ins/ThrowTypeError/unique-per-realm-non-simple': [FAIL],
-  'built-ins/ThrowTypeError/unique-per-realm-unmapped-args': [FAIL],
-  'language/arguments-object/10.6-13-b-1-s': [FAIL],
-  'language/arguments-object/10.6-13-b-2-s': [FAIL],
-  'language/arguments-object/10.6-13-b-3-s': [FAIL],
-  'language/arguments-object/10.6-14-1-s': [FAIL],
-  'language/arguments-object/10.6-14-b-1-s': [FAIL],
-  'language/arguments-object/10.6-14-b-4-s': [FAIL],
-  'language/statements/class/strict-mode/arguments-caller': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4231
   'language/eval-code/direct/var-env-lower-lex-catch-non-strict': [FAIL],
@@ -294,9 +288,6 @@
   'built-ins/Function/prototype/toString/setter-object': [FAIL],
   'built-ins/Function/prototype/toString/unicode': [FAIL],
 
-  # https://github.com/tc39/test262/issues/743
-  'intl402/Intl/getCanonicalLocales/main': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5115
   'language/statements/class/subclass/class-definition-null-proto-missing-return-override': [FAIL],
   'language/statements/class/subclass/class-definition-null-proto-this': [FAIL],
@@ -360,18 +351,6 @@
   'built-ins/Number/S9.3.1_A3_T2_U180E': [FAIL],
   'built-ins/Number/S9.3.1_A3_T1_U180E': [FAIL],
   'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5051
-  'language/expressions/call/trailing-comma': [FAIL],
-  'language/statements/class/definition/params-trailing-comma': [FAIL],
-  'language/statements/class/definition/params-trailing-comma-arguments': [FAIL],
-
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5326
-  'language/expressions/super/call-new-target-undef': [FAIL],
-  'language/eval-code/direct/super-call-fn': [FAIL],
-  'language/expressions/super/prop-dot-fn-no-super-bndng': [FAIL],
-  'language/expressions/super/prop-expr-fn-no-super-bndng': [FAIL],
-  'language/expressions/super/prop-expr-fn-eval-before-has-super': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=5064
   'language/expressions/arrow-function/params-dflt-duplicates': [FAIL],
@@ -499,6 +478,16 @@
   # Test makes unjustified assumptions about the number of calls to SortCompare.
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
+
+  # https://github.com/tc39/test262/pull/688#pullrequestreview-14025354
+  'built-ins/Function/internals/Construct/derived-this-uninitialized-realm': [FAIL],
+
+  # https://github.com/tc39/test262/pull/688/files#r93657665
+  'built-ins/TypedArrays/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
+  'built-ins/TypedArrays/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
+
+  # https://github.com/tc39/test262/commit/c779cba592fcb39051fd1d467e472ea71aa2b1d6#commitcomment-20276482
+  'language/statements/class/strict-mode/arguments-caller': [FAIL],
 
   ############################ SKIPPED TESTS #############################
 
