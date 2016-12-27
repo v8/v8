@@ -1496,10 +1496,6 @@ class Object {
 
   inline void VerifyApiCallResultType();
 
-  // ES6 19.1.3.6 Object.prototype.toString
-  MUST_USE_RESULT static MaybeHandle<String> ObjectProtoToString(
-      Isolate* isolate, Handle<Object> object);
-
   // Prints this object without details.
   void ShortPrint(FILE* out = stdout);
 

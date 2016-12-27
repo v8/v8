@@ -4475,12 +4475,14 @@ MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context,
 
 MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Object, ObjectProtoToString, String);
-  auto obj = Utils::OpenHandle(this);
-  Local<String> result;
+  auto self = Utils::OpenHandle(this);
+  Local<Value> result;
   has_pending_exception =
-      !ToLocal<String>(i::JSObject::ObjectProtoToString(isolate, obj), &result);
+      !ToLocal<Value>(i::Execution::Call(isolate, isolate->object_to_string(),
+                                         self, 0, nullptr),
+                      &result);
   RETURN_ON_FAILED_EXECUTION(String);
-  RETURN_ESCAPED(result);
+  RETURN_ESCAPED(Local<String>::Cast(result));
 }
 
 
