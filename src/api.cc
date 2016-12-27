@@ -8440,6 +8440,16 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
   return isolate->SetRAILMode(rail_mode);
 }
 
+void Isolate::IncreaseHeapLimitForDebugging() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->IncreaseHeapLimitForDebugging();
+}
+
+void Isolate::RestoreOriginalHeapLimit() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RestoreOriginalHeapLimit();
+}
+
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8454,7 +8464,6 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
   CHECK(stack_limit);
   isolate->stack_guard()->SetStackLimit(stack_limit);
 }
-
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

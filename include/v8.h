@@ -7044,6 +7044,17 @@ class V8_EXPORT Isolate {
   void SetRAILMode(RAILMode rail_mode);
 
   /**
+   * Optional notification to tell V8 the current isolate is used for debugging
+   * and requires higher heap limit.
+   */
+  void IncreaseHeapLimitForDebugging();
+
+  /**
+   * Restores the original heap limit after IncreaseHeapLimitForDebugging().
+   */
+  void RestoreOriginalHeapLimit();
+
+  /**
    * Allows the host application to provide the address of a function that is
    * notified each time code is added, moved or removed.
    *

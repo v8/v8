@@ -26592,3 +26592,22 @@ TEST(SetPrototypeTemplate) {
 
   ExpectTrue("Image.prototype === HTMLImageElement.prototype");
 }
+
+UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
+  using namespace i;
+  v8::Isolate::CreateParams create_params;
+  create_params.constraints.set_max_old_space_size(16);
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  {
+    size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
+    CHECK_EQ(16 * MB, limit_before);
+    isolate->IncreaseHeapLimitForDebugging();
+    size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
+    CHECK_EQ(4 * 16 * MB, limit_after);
+    isolate->RestoreOriginalHeapLimit();
+    CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
+  }
+  isolate->Dispose();
+}

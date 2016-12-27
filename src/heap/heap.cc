@@ -81,6 +81,7 @@ Heap::Heap()
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(MB),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
+      initial_max_old_generation_size_(max_old_generation_size_),
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
       old_generation_size_configured_(false),
@@ -5057,7 +5058,7 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
-  max_old_generation_size_ =
+  initial_max_old_generation_size_ = max_old_generation_size_ =
       Max(static_cast<size_t>(paged_space_count * Page::kPageSize),
           max_old_generation_size_);
 
