@@ -1965,37 +1965,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
   __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
-
-void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
-                                          Register dest,
-                                          Register src,
-                                          Register count,
-                                          String::Encoding encoding) {
-  // Nothing to do for zero characters.
-  Label done;
-  __ testl(count, count);
-  __ j(zero, &done, Label::kNear);
-
-  // Make count the number of bytes to copy.
-  if (encoding == String::TWO_BYTE_ENCODING) {
-    STATIC_ASSERT(2 == sizeof(uc16));
-    __ addl(count, count);
-  }
-
-  // Copy remaining characters.
-  Label loop;
-  __ bind(&loop);
-  __ movb(kScratchRegister, Operand(src, 0));
-  __ movb(Operand(dest, 0), kScratchRegister);
-  __ incp(src);
-  __ incp(dest);
-  __ decl(count);
-  __ j(not_zero, &loop);
-
-  __ bind(&done);
-}
-
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,

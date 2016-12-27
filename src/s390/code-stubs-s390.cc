@@ -2155,44 +2155,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
   __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
-enum CopyCharactersFlags { COPY_ASCII = 1, DEST_ALWAYS_ALIGNED = 2 };
-
-void StringHelper::GenerateCopyCharacters(MacroAssembler* masm, Register dest,
-                                          Register src, Register count,
-                                          Register scratch,
-                                          String::Encoding encoding) {
-  if (FLAG_debug_code) {
-    // Check that destination is word aligned.
-    __ mov(r0, Operand(kPointerAlignmentMask));
-    __ AndP(r0, dest);
-    __ Check(eq, kDestinationOfCopyNotAligned, cr0);
-  }
-
-  // Nothing to do for zero characters.
-  Label done;
-  if (encoding == String::TWO_BYTE_ENCODING) {
-    // double the length
-    __ AddP(count, count, count);
-    __ beq(&done, Label::kNear);
-  } else {
-    __ CmpP(count, Operand::Zero());
-    __ beq(&done, Label::kNear);
-  }
-
-  // Copy count bytes from src to dst.
-  Label byte_loop;
-  // TODO(joransiu): Convert into MVC loop
-  __ bind(&byte_loop);
-  __ LoadlB(scratch, MemOperand(src));
-  __ la(src, MemOperand(src, 1));
-  __ stc(scratch, MemOperand(dest));
-  __ la(dest, MemOperand(dest, 1));
-  __ BranchOnCount(count, &byte_loop);
-
-  __ bind(&done);
-}
-
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,
