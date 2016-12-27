@@ -680,7 +680,7 @@ RUNTIME_FUNCTION(Runtime_InNewSpace) {
 RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
   if (!function->shared()->HasAsmWasmData()) {
     // Doesn't have wasm data.
     return isolate->heap()->false_value();
