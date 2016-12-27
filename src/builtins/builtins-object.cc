@@ -258,24 +258,6 @@ void ReturnToStringFormat(CodeStubAssembler* assembler, compiler::Node* context,
       rhs));
 }
 
-void ReturnIfPrimitive(CodeStubAssembler* assembler,
-                       compiler::Node* instance_type,
-                       CodeStubAssembler::Label* return_string,
-                       CodeStubAssembler::Label* return_boolean,
-                       CodeStubAssembler::Label* return_number) {
-  assembler->GotoIf(assembler->IsStringInstanceType(instance_type),
-                    return_string);
-
-  assembler->GotoIf(assembler->Word32Equal(
-                        instance_type, assembler->Int32Constant(ODDBALL_TYPE)),
-                    return_boolean);
-
-  assembler->GotoIf(
-      assembler->Word32Equal(instance_type,
-                             assembler->Int32Constant(HEAP_NUMBER_TYPE)),
-      return_number);
-}
-
 }  // namespace
 
 // ES6 section 19.1.3.6 Object.prototype.toString
@@ -292,9 +274,7 @@ void Builtins::Generate_ObjectProtoToString(
       return_api(&assembler, Label::kDeferred), return_object(&assembler),
       return_regexp(&assembler), return_function(&assembler),
       return_error(&assembler), return_date(&assembler),
-      return_string(&assembler), return_boolean(&assembler),
-      return_jsvalue(&assembler), return_jsproxy(&assembler, Label::kDeferred),
-      return_number(&assembler);
+      return_jsvalue(&assembler), return_jsproxy(&assembler, Label::kDeferred);
 
   Label if_isproxy(&assembler, Label::kDeferred);
 
@@ -310,11 +290,10 @@ void Builtins::Generate_ObjectProtoToString(
   assembler.GotoIf(assembler.WordEqual(receiver, assembler.NullConstant()),
                    &return_null);
 
-  assembler.GotoIf(assembler.TaggedIsSmi(receiver), &return_number);
+  Callable to_object = CodeFactory::ToObject(assembler.isolate());
+  receiver = assembler.CallStub(to_object, context, receiver);
 
   Node* receiver_instance_type = assembler.LoadInstanceType(receiver);
-  ReturnIfPrimitive(&assembler, receiver_instance_type, &return_string,
-                    &return_boolean, &return_number);
 
   // for proxies, check IsArray before getting @@toStringTag
   Variable var_proxy_is_array(&assembler, MachineRepresentation::kTagged);
@@ -389,18 +368,6 @@ void Builtins::Generate_ObjectProtoToString(
     assembler.Return(assembler.HeapConstant(
         assembler.isolate()->factory()->null_to_string()));
 
-    assembler.Bind(&return_number);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->number_to_string()));
-
-    assembler.Bind(&return_string);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->string_to_string()));
-
-    assembler.Bind(&return_boolean);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->boolean_to_string()));
-
     assembler.Bind(&return_arguments);
     assembler.Return(assembler.HeapConstant(
         assembler.isolate()->factory()->arguments_to_string()));
@@ -434,12 +401,40 @@ void Builtins::Generate_ObjectProtoToString(
 
     assembler.Bind(&return_jsvalue);
     {
+      Label return_boolean(&assembler), return_number(&assembler),
+          return_string(&assembler);
+
       Node* value = assembler.LoadJSValueValue(receiver);
       assembler.GotoIf(assembler.TaggedIsSmi(value), &return_number);
+      Node* instance_type = assembler.LoadInstanceType(value);
 
-      ReturnIfPrimitive(&assembler, assembler.LoadInstanceType(value),
-                        &return_string, &return_boolean, &return_number);
+      assembler.GotoIf(assembler.IsStringInstanceType(instance_type),
+                       &return_string);
+      assembler.GotoIf(
+          assembler.Word32Equal(instance_type,
+                                assembler.Int32Constant(HEAP_NUMBER_TYPE)),
+          &return_number);
+      assembler.GotoIf(
+          assembler.Word32Equal(instance_type,
+                                assembler.Int32Constant(ODDBALL_TYPE)),
+          &return_boolean);
+
+      CSA_ASSERT(&assembler,
+                 assembler.Word32Equal(instance_type,
+                                       assembler.Int32Constant(SYMBOL_TYPE)));
       assembler.Goto(&return_object);
+
+      assembler.Bind(&return_string);
+      assembler.Return(assembler.HeapConstant(
+          assembler.isolate()->factory()->string_to_string()));
+
+      assembler.Bind(&return_number);
+      assembler.Return(assembler.HeapConstant(
+          assembler.isolate()->factory()->number_to_string()));
+
+      assembler.Bind(&return_boolean);
+      assembler.Return(assembler.HeapConstant(
+          assembler.isolate()->factory()->boolean_to_string()));
     }
 
     assembler.Bind(&return_jsproxy);
