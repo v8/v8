@@ -6488,6 +6488,8 @@ class V8_EXPORT Isolate {
     kLegacyDateParser = 33,
     kDefineGetterOrSetterWouldThrow = 34,
     kFunctionConstructorReturnedUndefined = 35,
+    kAssigmentExpressionLHSIsCallInSloppy = 36,
+    kAssigmentExpressionLHSIsCallInStrict = 37,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml

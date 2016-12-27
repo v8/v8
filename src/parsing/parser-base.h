@@ -4331,7 +4331,12 @@ ParserBase<Impl>::CheckAndRewriteReferenceExpression(
   }
   if (expression->IsCall()) {
     // If it is a call, make it a runtime error for legacy web compatibility.
+    // Bug: https://bugs.chromium.org/p/v8/issues/detail?id=4480
     // Rewrite `expr' to `expr[throw ReferenceError]'.
+    impl()->CountUsage(
+        is_strict(language_mode())
+            ? v8::Isolate::kAssigmentExpressionLHSIsCallInStrict
+            : v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy);
     ExpressionT error = impl()->NewThrowReferenceError(message, beg_pos);
     return factory()->NewProperty(expression, error, beg_pos);
   }
