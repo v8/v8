@@ -96,9 +96,32 @@ void CodeAssembler::BreakOnNode(int node_id) {
   graph->AddDecorator(decorator);
 }
 
-void CodeAssembler::CallPrologue() {}
+void CodeAssembler::RegisterCallGenerationCallbacks(
+    const CodeAssemblerCallback& call_prologue,
+    const CodeAssemblerCallback& call_epilogue) {
+  // The callback can be registered only once.
+  DCHECK(!state_->call_prologue_);
+  DCHECK(!state_->call_epilogue_);
+  state_->call_prologue_ = call_prologue;
+  state_->call_epilogue_ = call_epilogue;
+}
 
-void CodeAssembler::CallEpilogue() {}
+void CodeAssembler::UnregisterCallGenerationCallbacks() {
+  state_->call_prologue_ = nullptr;
+  state_->call_epilogue_ = nullptr;
+}
+
+void CodeAssembler::CallPrologue() {
+  if (state_->call_prologue_) {
+    state_->call_prologue_();
+  }
+}
+
+void CodeAssembler::CallEpilogue() {
+  if (state_->call_epilogue_) {
+    state_->call_epilogue_();
+  }
+}
 
 // static
 Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
@@ -450,11 +473,7 @@ Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
 
   Node* nodes[] = {centry, args..., ref, arity, context};
 
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
-  CallEpilogue();
-  return return_value;
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
 // Instantiate TailCallRuntime() with up to 6 arguments.

@@ -40,6 +40,8 @@ class RawMachineLabel;
 
 typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
+typedef std::function<void()> CodeAssemblerCallback;
+
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
   V(Float32LessThan)                             \
@@ -189,8 +191,7 @@ typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
 class V8_EXPORT_PRIVATE CodeAssembler {
  public:
   explicit CodeAssembler(CodeAssemblerState* state) : state_(state) {}
-
-  virtual ~CodeAssembler();
+  ~CodeAssembler();
 
   static Handle<Code> GenerateCode(CodeAssemblerState* state);
 
@@ -374,12 +375,17 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void BreakOnNode(int node_id);
 
  protected:
-  // Enables subclasses to perform operations before and after a call.
-  virtual void CallPrologue();
-  virtual void CallEpilogue();
+  void RegisterCallGenerationCallbacks(
+      const CodeAssemblerCallback& call_prologue,
+      const CodeAssemblerCallback& call_epilogue);
+  void UnregisterCallGenerationCallbacks();
 
  private:
   RawMachineAssembler* raw_assembler() const;
+
+  // Calls respective callback registered in the state.
+  void CallPrologue();
+  void CallEpilogue();
 
   CodeAssemblerState* state_;
 
@@ -477,6 +483,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   const char* name_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*> variables_;
+  CodeAssemblerCallback call_prologue_;
+  CodeAssemblerCallback call_epilogue_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };

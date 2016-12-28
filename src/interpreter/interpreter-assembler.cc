@@ -42,6 +42,8 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
+  RegisterCallGenerationCallbacks([this] { CallPrologue(); },
+                                  [this] { CallEpilogue(); });
 }
 
 InterpreterAssembler::~InterpreterAssembler() {
@@ -49,6 +51,7 @@ InterpreterAssembler::~InterpreterAssembler() {
   // accumulator in the way described in the bytecode definitions in
   // bytecodes.h.
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  UnregisterCallGenerationCallbacks();
 }
 
 Node* InterpreterAssembler::GetInterpretedFramePointer() {
