@@ -1636,8 +1636,7 @@ void InstructionSelector::VisitStackSlot(Node* node) {
 }
 
 void InstructionSelector::VisitBitcastTaggedToWord(Node* node) {
-  OperandGenerator g(this);
-  Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(node->InputAt(0)));
+  EmitIdentity(node);
 }
 
 void InstructionSelector::VisitBitcastWordToTagged(Node* node) {
