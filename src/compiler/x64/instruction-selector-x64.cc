@@ -82,6 +82,15 @@ class X64OperandGenerator final : public OperandGenerator {
                                              InstructionOperand inputs[],
                                              size_t* input_count) {
     AddressingMode mode = kMode_MRI;
+    if (base != nullptr && (index != nullptr || displacement != nullptr)) {
+      if (base->opcode() == IrOpcode::kInt32Constant &&
+          OpParameter<int32_t>(base) == 0) {
+        base = nullptr;
+      } else if (base->opcode() == IrOpcode::kInt64Constant &&
+                 OpParameter<int64_t>(base) == 0) {
+        base = nullptr;
+      }
+    }
     if (base != nullptr) {
       inputs[(*input_count)++] = UseRegister(base);
       if (index != nullptr) {
@@ -110,17 +119,22 @@ class X64OperandGenerator final : public OperandGenerator {
         }
       }
     } else {
-      DCHECK_NOT_NULL(index);
       DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
-      inputs[(*input_count)++] = UseRegister(index);
       if (displacement != nullptr) {
-        inputs[(*input_count)++] = displacement_mode == kNegativeDisplacement
-                                       ? UseNegatedImmediate(displacement)
-                                       : UseImmediate(displacement);
-        static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
-                                                    kMode_M4I, kMode_M8I};
-        mode = kMnI_modes[scale_exponent];
+        if (index == nullptr) {
+          inputs[(*input_count)++] = UseRegister(displacement);
+          mode = kMode_MR;
+        } else {
+          inputs[(*input_count)++] = UseRegister(index);
+          inputs[(*input_count)++] = displacement_mode == kNegativeDisplacement
+                                         ? UseNegatedImmediate(displacement)
+                                         : UseImmediate(displacement);
+          static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
+                                                      kMode_M4I, kMode_M8I};
+          mode = kMnI_modes[scale_exponent];
+        }
       } else {
+        inputs[(*input_count)++] = UseRegister(index);
         static const AddressingMode kMn_modes[] = {kMode_MR, kMode_MR1,
                                                    kMode_M4, kMode_M8};
         mode = kMn_modes[scale_exponent];
