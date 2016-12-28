@@ -5052,11 +5052,10 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   HConstant* shared_info_value = Add<HConstant>(shared_info);
   HInstruction* instr;
   if (!expr->pretenure()) {
-    FastNewClosureStub stub(isolate());
-    FastNewClosureDescriptor descriptor(isolate());
+    Callable callable = CodeFactory::FastNewClosure(isolate());
     HValue* values[] = {shared_info_value};
-    HConstant* stub_value = Add<HConstant>(stub.GetCode());
-    instr = New<HCallWithDescriptor>(stub_value, 0, descriptor,
+    HConstant* stub_value = Add<HConstant>(callable.code());
+    instr = New<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
                                      ArrayVector(values));
   } else {
     Add<HPushArguments>(shared_info_value);

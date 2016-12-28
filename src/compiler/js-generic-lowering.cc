@@ -344,7 +344,8 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   Handle<SharedFunctionInfo> const shared_info = p.shared_info();
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
 
-  // Use the FastNewClosureStub only for functions allocated in new space.
+  // Use the FastNewClosurebuiltin only for functions allocated in new
+  // space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
     ReplaceWithStubCall(node, callable, flags);

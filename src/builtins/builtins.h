@@ -50,6 +50,8 @@ namespace internal {
   /* Code aging */                                                             \
   CODE_AGE_LIST_WITH_ARG(DECLARE_CODE_AGE_BUILTIN, ASM)                        \
                                                                                \
+  /* Declared first for dependency reasons */                                  \
+  ASM(CompileLazy)                                                             \
   TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion)                      \
                                                                                \
   /* Calls */                                                                  \
@@ -86,6 +88,7 @@ namespace internal {
   ASM(JSConstructStubGeneric)                                                  \
   ASM(JSBuiltinsConstructStub)                                                 \
   ASM(JSBuiltinsConstructStubForDerived)                                       \
+  TFS(FastNewClosure, BUILTIN, kNoExtraICState, FastNewClosure)                \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(Apply)                                                                   \
@@ -121,7 +124,6 @@ namespace internal {
   ASM(InterpreterOnStackReplacement)                                           \
                                                                                \
   /* Code life-cycle */                                                        \
-  ASM(CompileLazy)                                                             \
   ASM(CompileBaseline)                                                         \
   ASM(CompileOptimized)                                                        \
   ASM(CompileOptimizedConcurrent)                                              \

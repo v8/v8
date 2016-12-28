@@ -102,7 +102,6 @@ class Node;
   V(FastCloneRegExp)                          \
   V(FastCloneShallowArray)                    \
   V(FastCloneShallowObject)                   \
-  V(FastNewClosure)                           \
   V(FastNewFunctionContext)                   \
   V(KeyedLoadSloppyArguments)                 \
   V(KeyedStoreSloppyArguments)                \
@@ -786,18 +785,6 @@ class NumberToStringStub final : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
   DEFINE_TURBOFAN_CODE_STUB(NumberToString, TurboFanCodeStub);
-};
-
-class FastNewClosureStub : public TurboFanCodeStub {
- public:
-  explicit FastNewClosureStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* shared_info,
-                                  compiler::Node* context);
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewClosure);
-  DEFINE_TURBOFAN_CODE_STUB(FastNewClosure, TurboFanCodeStub);
 };
 
 class FastNewFunctionContextStub final : public TurboFanCodeStub {

@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/ast/prettyprinter.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -2397,7 +2398,8 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   Label call_runtime(assembler, Label::kDeferred);
   __ GotoUnless(__ IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags),
                 &call_runtime);
-  __ SetAccumulator(FastNewClosureStub::Generate(assembler, shared, context));
+  ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
+  __ SetAccumulator(constructor_assembler.EmitFastNewClosure(shared, context));
   __ Dispatch();
 
   __ Bind(&call_runtime);

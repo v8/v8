@@ -377,8 +377,8 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 
 // static
 Callable CodeFactory::FastNewClosure(Isolate* isolate) {
-  FastNewClosureStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->FastNewClosure(),
+                  FastNewClosureDescriptor(isolate));
 }
 
 // static

@@ -484,6 +484,8 @@
         'builtins/builtins-call.cc',
         'builtins/builtins-callsite.cc',
         'builtins/builtins-conversion.cc',
+        'builtins/builtins-constructor.cc',
+        'builtins/builtins-constructor.h',
         'builtins/builtins-dataview.cc',
         'builtins/builtins-date.cc',
         'builtins/builtins-debug.cc',

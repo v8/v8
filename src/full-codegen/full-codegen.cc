@@ -1030,9 +1030,9 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
   // doesn't just get a copy of the existing unoptimized code.
   if (!FLAG_always_opt && !FLAG_prepare_always_opt && !pretenure &&
       scope()->is_function_scope()) {
-    FastNewClosureStub stub(isolate());
-    __ Move(stub.GetCallInterfaceDescriptor().GetRegisterParameter(0), info);
-    __ CallStub(&stub);
+    Callable callable = CodeFactory::FastNewClosure(isolate());
+    __ Move(callable.descriptor().GetRegisterParameter(0), info);
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
   } else {
     __ Push(info);
     __ CallRuntime(pretenure ? Runtime::kNewClosure_Tenured
