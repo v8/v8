@@ -87,9 +87,7 @@ typedef std::function<void()> CodeAssemblerCallback;
   V(Float64Pow)                            \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
-  V(IntPtrAdd)                             \
   V(IntPtrAddWithOverflow)                 \
-  V(IntPtrSub)                             \
   V(IntPtrSubWithOverflow)                 \
   V(IntPtrMul)                             \
   V(Int32Add)                              \
@@ -276,6 +274,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #define DECLARE_CODE_ASSEMBLER_BINARY_OP(name) Node* name(Node* a, Node* b);
   CODE_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_ASSEMBLER_BINARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_BINARY_OP
+
+  Node* IntPtrAdd(Node* left, Node* right);
+  Node* IntPtrSub(Node* left, Node* right);
 
   Node* WordShl(Node* value, int shift);
   Node* WordShr(Node* value, int shift);

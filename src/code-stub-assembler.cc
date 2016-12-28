@@ -164,43 +164,6 @@ Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   }
 }
 
-Node* CodeStubAssembler::IntPtrAddFoldConstants(Node* left, Node* right) {
-  int32_t left_constant;
-  bool is_left_constant = ToInt32Constant(left, left_constant);
-  int32_t right_constant;
-  bool is_right_constant = ToInt32Constant(right, right_constant);
-  if (is_left_constant) {
-    if (is_right_constant) {
-      return IntPtrConstant(left_constant + right_constant);
-    }
-    if (left_constant == 0) {
-      return right;
-    }
-  } else if (is_right_constant) {
-    if (right_constant == 0) {
-      return left;
-    }
-  }
-  return IntPtrAdd(left, right);
-}
-
-Node* CodeStubAssembler::IntPtrSubFoldConstants(Node* left, Node* right) {
-  int32_t left_constant;
-  bool is_left_constant = ToInt32Constant(left, left_constant);
-  int32_t right_constant;
-  bool is_right_constant = ToInt32Constant(right, right_constant);
-  if (is_left_constant) {
-    if (is_right_constant) {
-      return IntPtrConstant(left_constant - right_constant);
-    }
-  } else if (is_right_constant) {
-    if (right_constant == 0) {
-      return left;
-    }
-  }
-  return IntPtrSub(left, right);
-}
-
 Node* CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(Node* value) {
   Comment("IntPtrRoundUpToPowerOfTwo32");
   CSA_ASSERT(this, UintPtrLessThanOrEqual(value, IntPtrConstant(0x80000000u)));
@@ -1520,7 +1483,7 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   // Resize the capacity of the fixed array if it doesn't fit.
   Label fits(this, &var_elements);
   Node* first = arg_index.value();
-  Node* growth = IntPtrSubFoldConstants(args.GetLength(), first);
+  Node* growth = IntPtrSub(args.GetLength(), first);
   Node* new_length =
       IntPtrOrSmiAdd(WordToParameter(growth, mode), var_length.value(), mode);
   GotoUnless(IntPtrOrSmiGreaterThanOrEqual(new_length, capacity, mode), &fits);
@@ -1902,8 +1865,8 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
 
   Node* length = EntryToIndex<NameDictionary>(capacity);
   Node* store_size =
-      IntPtrAddFoldConstants(WordShl(length, IntPtrConstant(kPointerSizeLog2)),
-                             IntPtrConstant(NameDictionary::kHeaderSize));
+      IntPtrAdd(WordShl(length, IntPtrConstant(kPointerSizeLog2)),
+                IntPtrConstant(NameDictionary::kHeaderSize));
 
   Node* result = Allocate(store_size);
   Comment("Initialize NameDictionary");
@@ -1935,8 +1898,7 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
                                       NameDictionary::kElementsStartIndex) -
                                   kHeapObjectTag));
   Node* end_address = IntPtrAdd(
-      result_word,
-      IntPtrSubFoldConstants(store_size, IntPtrConstant(kHeapObjectTag)));
+      result_word, IntPtrSub(store_size, IntPtrConstant(kHeapObjectTag)));
   StoreFieldsNoWriteBarrier(start_address, end_address, filler);
   return result;
 }
@@ -2309,7 +2271,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
   Node* to_offset =
       ElementOffsetFromIndex(to_index, to_kind, mode, header_size);
   Node* byte_count = ElementOffsetFromIndex(character_count, from_kind, mode);
-  Node* limit_offset = IntPtrAddFoldConstants(from_offset, byte_count);
+  Node* limit_offset = IntPtrAdd(from_offset, byte_count);
 
   // Prepare the fast loop
   MachineType type =
@@ -5480,7 +5442,7 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
           : ((element_size_shift > 0)
                  ? WordShl(index_node, IntPtrConstant(element_size_shift))
                  : WordShr(index_node, IntPtrConstant(-element_size_shift)));
-  return IntPtrAddFoldConstants(IntPtrConstant(base_size), shifted_index);
+  return IntPtrAdd(IntPtrConstant(base_size), shifted_index);
 }
 
 Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
@@ -8219,7 +8181,7 @@ CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
   Node* offset = assembler->ElementOffsetFromIndex(
       argc_, FAST_ELEMENTS, CodeStubAssembler::INTPTR_PARAMETERS,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
-  arguments_ = assembler_->IntPtrAddFoldConstants(fp_, offset);
+  arguments_ = assembler_->IntPtrAdd(fp_, offset);
 }
 
 Node* CodeStubArguments::GetReceiver() const {
@@ -8230,8 +8192,8 @@ Node* CodeStubArguments::GetReceiver() const {
 Node* CodeStubArguments::AtIndex(Node* index,
                                  CodeStubAssembler::ParameterMode mode) const {
   typedef compiler::Node Node;
-  Node* negated_index = assembler_->IntPtrSubFoldConstants(
-      assembler_->IntPtrOrSmiConstant(0, mode), index);
+  Node* negated_index =
+      assembler_->IntPtrSub(assembler_->IntPtrOrSmiConstant(0, mode), index);
   Node* offset =
       assembler_->ElementOffsetFromIndex(negated_index, FAST_ELEMENTS, mode, 0);
   return assembler_->Load(MachineType::AnyTagged(), arguments_, offset);
@@ -8254,10 +8216,10 @@ void CodeStubArguments::ForEach(
   if (last == nullptr) {
     last = argc_;
   }
-  Node* start = assembler_->IntPtrSubFoldConstants(
+  Node* start = assembler_->IntPtrSub(
       arguments_,
       assembler_->ElementOffsetFromIndex(first, FAST_ELEMENTS, mode));
-  Node* end = assembler_->IntPtrSubFoldConstants(
+  Node* end = assembler_->IntPtrSub(
       arguments_,
       assembler_->ElementOffsetFromIndex(last, FAST_ELEMENTS, mode));
   assembler_->BuildFastLoop(
@@ -8271,8 +8233,7 @@ void CodeStubArguments::ForEach(
 
 void CodeStubArguments::PopAndReturn(Node* value) {
   assembler_->PopAndReturn(
-      assembler_->IntPtrAddFoldConstants(argc_, assembler_->IntPtrConstant(1)),
-      value);
+      assembler_->IntPtrAdd(argc_, assembler_->IntPtrConstant(1)), value);
 }
 
 Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {

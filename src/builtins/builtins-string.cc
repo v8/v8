@@ -37,9 +37,9 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
     const int header = SeqOneByteString::kHeaderSize - kHeapObjectTag;
     Node* offset = index;
     if (encoding == String::TWO_BYTE_ENCODING) {
-      offset = IntPtrAddFoldConstants(offset, offset);
+      offset = IntPtrAdd(offset, offset);
     }
-    offset = IntPtrAddFoldConstants(offset, IntPtrConstant(header));
+    offset = IntPtrAdd(offset, IntPtrConstant(header));
     return offset;
   }
 

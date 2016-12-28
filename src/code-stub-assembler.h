@@ -135,8 +135,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
-  Node* IntPtrAddFoldConstants(Node* left, Node* right);
-  Node* IntPtrSubFoldConstants(Node* left, Node* right);
   // Round the 32bits payload of the provided word up to the next power of two.
   Node* IntPtrRoundUpToPowerOfTwo32(Node* value);
   // Select the maximum of the two provided IntPtr values.

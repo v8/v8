@@ -232,6 +232,10 @@ bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
 }
 
 bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
+  if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned ||
+      node->opcode() == IrOpcode::kBitcastWordToTagged) {
+    node = node->InputAt(0);
+  }
   IntPtrMatcher m(node);
   if (m.HasValue()) out_value = m.Value();
   return m.HasValue();
@@ -291,6 +295,43 @@ Node* CodeAssembler::LoadStackPointer() {
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
+
+Node* CodeAssembler::IntPtrAdd(Node* left, Node* right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant + right_constant);
+    }
+    if (left_constant == 0) {
+      return right;
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return raw_assembler()->IntPtrAdd(left, right);
+}
+
+Node* CodeAssembler::IntPtrSub(Node* left, Node* right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant - right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return raw_assembler()->IntPtrSub(left, right);
+}
 
 Node* CodeAssembler::WordShl(Node* value, int shift) {
   return (shift != 0) ? raw_assembler()->WordShl(value, IntPtrConstant(shift))
