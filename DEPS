@@ -39,7 +39,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "70184647b4240e4e7b38290ad3e049242a0dc0bc",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "d79b0df024265adae7a0dc039682035dfa763e2c",
 }
 
 deps_os = {
