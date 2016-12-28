@@ -51,12 +51,12 @@ Schedule* RawMachineAssembler::Export() {
     os << *schedule_;
   }
   schedule_->EnsureCFGWellFormedness();
+  Scheduler::ComputeSpecialRPO(zone(), schedule_);
   schedule_->PropagateDeferredMark();
   if (FLAG_trace_turbo_scheduler) {
     PrintF("--- EDGE SPLIT AND PROPAGATED DEFERRED SCHEDULE ------------\n");
     os << *schedule_;
   }
-  Scheduler::ComputeSpecialRPO(zone(), schedule_);
   // Invalidate RawMachineAssembler.
   Schedule* schedule = schedule_;
   schedule_ = nullptr;
