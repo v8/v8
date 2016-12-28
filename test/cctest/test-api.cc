@@ -18225,15 +18225,27 @@ TEST(PromiseHook) {
   v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
 
   promise_hook_data = new PromiseHookData();
+  isolate->SetPromiseHook(CustomPromiseHook);
+
+  // Test that an initialized promise is passed to init. Other hooks
+  // can not have un initialized promise.
+  promise_hook_data->check_value = false;
+  CompileRun("var p = new Promise(() => {});");
+
+  auto init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  auto init_promise_obj = v8::Local<v8::Promise>::Cast(init_promise);
+  CHECK(init_promise_obj->State() == v8::Promise::PromiseState::kPending);
+  CHECK_EQ(false, init_promise_obj->HasHandler());
+
+  promise_hook_data->Reset();
   promise_hook_data->promise_hook_value = "fulfilled";
   const char* source =
       "var resolve, value = ''; \n"
       "var p = new Promise(r => resolve = r); \n";
 
-  isolate->SetPromiseHook(CustomPromiseHook);
-
   CompileRun(source);
-  auto init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
   CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
   CHECK_EQ(1, promise_hook_data->promise_hook_count);
   CHECK_EQ(0, promise_hook_data->parent_promise_count);
@@ -18426,7 +18438,40 @@ TEST(PromiseHook) {
                      v8_str(promise_hook_data->promise_hook_value.c_str()))
             .FromJust());
 
+  promise_hook_data->Reset();
+  promise_hook_data->promise_hook_value = "subclass";
+  source =
+      "var resolve, value = '';\n"
+      "class MyPromise extends Promise { \n"
+      "  then(onFulfilled, onRejected) { \n"
+      "      return super.then(onFulfilled, onRejected); \n"
+      "  };\n"
+      "};\n"
+      "var p = new MyPromise(r => resolve = r);\n";
+
+  CompileRun(source);
+  // 1) init hook (p)
+  CHECK_EQ(1, promise_hook_data->promise_hook_count);
+
+  CompileRun("var p1 = p.then(() => value = 'subclass');\n");
+  // 2) init hook (p1)
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+
+  CompileRun("resolve();\n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  // 3) resolve hook (p)
+  // 4) before hook (p)
+  // 5) after hook (p)
+  // 6) resolve hook (p1)
+  CHECK_EQ(6, promise_hook_data->promise_hook_count);
+
   delete promise_hook_data;
+  isolate->SetPromiseHook(nullptr);
 }
 
 void AnalyzeStackOfDynamicScriptWithSourceURL(

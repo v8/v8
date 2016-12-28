@@ -672,7 +672,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   Node* const is_debug_active = IsDebugActive();
   Label if_targetisnotmodified(this),
       if_targetismodified(this, Label::kDeferred), run_executor(this),
-      debug_push(this, Label::kDeferred), init(this);
+      debug_push(this), init(this);
 
   Branch(WordEqual(promise_fun, new_target), &if_targetisnotmodified,
          &if_targetismodified);
@@ -685,9 +685,6 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   {
     Node* const instance = AllocateJSPromise(context);
     var_result.Bind(instance);
-    GotoUnless(IsPromiseHookEnabled(), &init);
-    CallRuntime(Runtime::kPromiseHookInit, context, instance,
-                UndefinedConstant());
     Goto(&init);
   }
 
@@ -704,11 +701,15 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   Bind(&init);
   {
     PromiseInit(var_result.value());
-    Branch(is_debug_active, &debug_push, &run_executor);
+    GotoUnless(IsPromiseHookEnabled(), &debug_push);
+    CallRuntime(Runtime::kPromiseHookInit, context, var_result.value(),
+                UndefinedConstant());
+    Goto(&debug_push);
   }
 
   Bind(&debug_push);
   {
+    GotoUnless(is_debug_active, &run_executor);
     CallRuntime(Runtime::kDebugPushPromise, context, var_result.value());
     Goto(&run_executor);
   }
