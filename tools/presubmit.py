@@ -62,6 +62,7 @@ LINT_RULES = """
 -build/include_what_you_use
 -build/namespaces
 -readability/check
+-readability/fn_size
 +readability/streams
 -runtime/references
 """.split()
