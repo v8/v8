@@ -1625,10 +1625,12 @@ void MacroAssembler::Allocate(int object_size, Register result,
     StoreP(result_end, MemOperand(top_address));
   }
 
-  // Prefetch the allocation_top's next cache line in advance to
-  // help alleviate potential cache misses.
-  // Mode 2 - Prefetch the data into a cache line for store access.
-  pfd(r2, MemOperand(result, 256));
+  if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+    // Prefetch the allocation_top's next cache line in advance to
+    // help alleviate potential cache misses.
+    // Mode 2 - Prefetch the data into a cache line for store access.
+    pfd(r2, MemOperand(result, 256));
+  }
 
   // Tag object.
   la(result, MemOperand(result, kHeapObjectTag));
@@ -1722,10 +1724,12 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     StoreP(result_end, MemOperand(top_address));
   }
 
-  // Prefetch the allocation_top's next cache line in advance to
-  // help alleviate potential cache misses.
-  // Mode 2 - Prefetch the data into a cache line for store access.
-  pfd(r2, MemOperand(result, 256));
+  if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+    // Prefetch the allocation_top's next cache line in advance to
+    // help alleviate potential cache misses.
+    // Mode 2 - Prefetch the data into a cache line for store access.
+    pfd(r2, MemOperand(result, 256));
+  }
 
   // Tag object.
   la(result, MemOperand(result, kHeapObjectTag));
@@ -1780,10 +1784,12 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
   }
   StoreP(result_end, MemOperand(top_address));
 
-  // Prefetch the allocation_top's next cache line in advance to
-  // help alleviate potential cache misses.
-  // Mode 2 - Prefetch the data into a cache line for store access.
-  pfd(r2, MemOperand(result, 256));
+  if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+    // Prefetch the allocation_top's next cache line in advance to
+    // help alleviate potential cache misses.
+    // Mode 2 - Prefetch the data into a cache line for store access.
+    pfd(r2, MemOperand(result, 256));
+  }
 
   // Tag object.
   la(result, MemOperand(result, kHeapObjectTag));
@@ -1827,21 +1833,31 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
 #endif
   }
 
+#if V8_TARGET_ARCH_S390X
+  // Limit to 64-bit only, as double alignment check above may adjust
+  // allocation top by an extra kDoubleSize/2.
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_int8(object_size)) {
     // Update allocation top.
     AddP(MemOperand(top_address), Operand(object_size));
   } else {
     // Calculate new top using result.
     AddP(result_end, result, Operand(object_size));
-
     // Update allocation top.
     StoreP(result_end, MemOperand(top_address));
   }
+#else
+  // Calculate new top using result.
+  AddP(result_end, result, Operand(object_size));
+  // Update allocation top.
+  StoreP(result_end, MemOperand(top_address));
+#endif
 
-  // Prefetch the allocation_top's next cache line in advance to
-  // help alleviate potential cache misses.
-  // Mode 2 - Prefetch the data into a cache line for store access.
-  pfd(r2, MemOperand(result, 256));
+  if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
+    // Prefetch the allocation_top's next cache line in advance to
+    // help alleviate potential cache misses.
+    // Mode 2 - Prefetch the data into a cache line for store access.
+    pfd(r2, MemOperand(result, 256));
+  }
 
   // Tag object.
   la(result, MemOperand(result, kHeapObjectTag));
