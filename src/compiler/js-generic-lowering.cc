@@ -5,6 +5,7 @@
 #include "src/compiler/js-generic-lowering.h"
 
 #include "src/ast/ast.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
@@ -364,7 +365,8 @@ void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
   ScopeType scope_type = parameters.scope_type();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
-  if (slot_count <= FastNewFunctionContextStub::MaximumSlots()) {
+  if (slot_count <=
+      ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
     Callable callable =
         CodeFactory::FastNewFunctionContext(isolate(), scope_type);
     node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));

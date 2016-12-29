@@ -16,6 +16,18 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   Node* EmitFastNewClosure(Node* shared_info, Node* context);
+  Node* EmitFastNewFunctionContext(Node* closure, Node* slots, Node* context,
+                                   ScopeType scope_type);
+  static int MaximumFunctionContextSlots();
+
+ private:
+  static const int kMaximumSlots = 0x8000;
+  static const int kSmallMaximumSlots = 10;
+
+  // FastNewFunctionContext can only allocate closures which fit in the
+  // new space.
+  STATIC_ASSERT(((kMaximumSlots + Context::MIN_CONTEXT_SLOTS) * kPointerSize +
+                 FixedArray::kHeaderSize) < kMaxRegularHeapObjectSize);
 };
 
 }  // namespace internal

@@ -12,15 +12,16 @@
 // places where we have to move a previous result in v0 to a0 for the
 // next call: mov(a0, v0). This is not needed on the other architectures.
 
-#include "src/full-codegen/full-codegen.h"
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/ic/ic.h"
 
 #include "src/mips64/code-stubs-mips64.h"
@@ -207,12 +208,14 @@ void FullCodeGenerator::Generate() {
       if (info->scope()->new_target_var() != nullptr) {
         __ push(a3);  // Preserve new target.
       }
-      if (slots <= FastNewFunctionContextStub::MaximumSlots()) {
-        FastNewFunctionContextStub stub(isolate(), info->scope()->scope_type());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info->scope()->scope_type());
         __ li(FastNewFunctionContextDescriptor::SlotsRegister(),
               Operand(slots));
-        __ CallStub(&stub);
-        // Result of FastNewFunctionContextStub is always in new space.
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
+        // Result of the FastNewFunctionContext builtin is always in new space.
         need_write_barrier = false;
       } else {
         __ push(a1);

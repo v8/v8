@@ -268,5 +268,93 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
   }
 }
 
+Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
+    Node* function, Node* slots, Node* context, ScopeType scope_type) {
+  slots = ChangeUint32ToWord(slots);
+
+  // TODO(ishell): Use CSA::OptimalParameterMode() here.
+  CodeStubAssembler::ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
+  Node* min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
+  Node* length = IntPtrAdd(slots, min_context_slots);
+  Node* size = GetFixedArrayAllocationSize(length, FAST_ELEMENTS, mode);
+
+  // Create a new closure from the given function info in new space
+  Node* function_context = Allocate(size);
+
+  Heap::RootListIndex context_type;
+  switch (scope_type) {
+    case EVAL_SCOPE:
+      context_type = Heap::kEvalContextMapRootIndex;
+      break;
+    case FUNCTION_SCOPE:
+      context_type = Heap::kFunctionContextMapRootIndex;
+      break;
+    default:
+      UNREACHABLE();
+  }
+  StoreMapNoWriteBarrier(function_context, context_type);
+  StoreObjectFieldNoWriteBarrier(function_context, Context::kLengthOffset,
+                                 SmiTag(length));
+
+  // Set up the fixed slots.
+  StoreFixedArrayElement(function_context, Context::CLOSURE_INDEX, function,
+                         SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(function_context, Context::PREVIOUS_INDEX, context,
+                         SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(function_context, Context::EXTENSION_INDEX,
+                         TheHoleConstant(), SKIP_WRITE_BARRIER);
+
+  // Copy the native context from the previous context.
+  Node* native_context = LoadNativeContext(context);
+  StoreFixedArrayElement(function_context, Context::NATIVE_CONTEXT_INDEX,
+                         native_context, SKIP_WRITE_BARRIER);
+
+  // Initialize the rest of the slots to undefined.
+  Node* undefined = UndefinedConstant();
+  BuildFastFixedArrayForEach(
+      function_context, FAST_ELEMENTS, min_context_slots, length,
+      [this, undefined](Node* context, Node* offset) {
+        StoreNoWriteBarrier(MachineRepresentation::kTagged, context, offset,
+                            undefined);
+      },
+      mode);
+
+  return function_context;
+}
+
+// static
+int ConstructorBuiltinsAssembler::MaximumFunctionContextSlots() {
+  return FLAG_test_small_max_function_context_stub_size ? kSmallMaximumSlots
+                                                        : kMaximumSlots;
+}
+
+TF_BUILTIN(FastNewFunctionContextEval, ConstructorBuiltinsAssembler) {
+  Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
+  Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
+  Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
+  Return(EmitFastNewFunctionContext(function, slots, context,
+                                    ScopeType::EVAL_SCOPE));
+}
+
+TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
+  Node* function = Parameter(FastNewFunctionContextDescriptor::kFunction);
+  Node* slots = Parameter(FastNewFunctionContextDescriptor::kSlots);
+  Node* context = Parameter(FastNewFunctionContextDescriptor::kContext);
+  Return(EmitFastNewFunctionContext(function, slots, context,
+                                    ScopeType::FUNCTION_SCOPE));
+}
+
+Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
+  switch (scope_type) {
+    case ScopeType::EVAL_SCOPE:
+      return FastNewFunctionContextEval();
+    case ScopeType::FUNCTION_SCOPE:
+      return FastNewFunctionContextFunction();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>::null();
+}
+
 }  // namespace internal
 }  // namespace v8

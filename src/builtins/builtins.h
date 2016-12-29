@@ -90,6 +90,10 @@ namespace internal {
   ASM(JSBuiltinsConstructStub)                                                 \
   ASM(JSBuiltinsConstructStubForDerived)                                       \
   TFS(FastNewClosure, BUILTIN, kNoExtraICState, FastNewClosure)                \
+  TFS(FastNewFunctionContextEval, BUILTIN, kNoExtraICState,                    \
+      FastNewFunctionContext)                                                  \
+  TFS(FastNewFunctionContextFunction, BUILTIN, kNoExtraICState,                \
+      FastNewFunctionContext)                                                  \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(Apply)                                                                   \
@@ -779,6 +783,7 @@ class Builtins {
       TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);
   Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
+  Handle<Code> NewFunctionContext(ScopeType scope_type);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins

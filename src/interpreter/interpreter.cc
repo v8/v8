@@ -2716,8 +2716,9 @@ void Interpreter::DoCreateFunctionContext(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* slots = __ BytecodeOperandUImm(0);
   Node* context = __ GetContext();
-  __ SetAccumulator(FastNewFunctionContextStub::Generate(
-      assembler, closure, slots, context, FUNCTION_SCOPE));
+  ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
+  __ SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
+      closure, slots, context, FUNCTION_SCOPE));
   __ Dispatch();
 }
 
@@ -2728,8 +2729,9 @@ void Interpreter::DoCreateEvalContext(InterpreterAssembler* assembler) {
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* slots = __ BytecodeOperandUImm(0);
   Node* context = __ GetContext();
-  __ SetAccumulator(FastNewFunctionContextStub::Generate(
-      assembler, closure, slots, context, EVAL_SCOPE));
+  ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
+  __ SetAccumulator(constructor_assembler.EmitFastNewFunctionContext(
+      closure, slots, context, EVAL_SCOPE));
   __ Dispatch();
 }
 

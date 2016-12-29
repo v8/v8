@@ -6,6 +6,7 @@
 
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -3014,7 +3015,8 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
   } else {
     DCHECK(scope->is_function_scope() || scope->is_eval_scope());
     int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (slot_count <= FastNewFunctionContextStub::MaximumSlots()) {
+    if (slot_count <=
+        ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
       switch (scope->scope_type()) {
         case EVAL_SCOPE:
           builder()->CreateEvalContext(slot_count);
