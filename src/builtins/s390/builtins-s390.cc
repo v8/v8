@@ -334,11 +334,11 @@ void Builtins::Generate_NumberConstructor_ConstructStub(MacroAssembler* masm) {
   __ bind(&new_object);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    FastNewObjectStub stub(masm->isolate());
     __ SmiTag(r8);
     __ EnterBuiltinFrame(cp, r3, r8);
     __ Push(r4);  // first argument
-    __ CallStub(&stub);
+    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
+            RelocInfo::CODE_TARGET);
     __ Pop(r4);
     __ LeaveBuiltinFrame(cp, r3, r8);
     __ SmiUntag(r8);
@@ -484,11 +484,11 @@ void Builtins::Generate_StringConstructor_ConstructStub(MacroAssembler* masm) {
   __ bind(&new_object);
   {
     FrameScope scope(masm, StackFrame::MANUAL);
-    FastNewObjectStub stub(masm->isolate());
     __ SmiTag(r8);
     __ EnterBuiltinFrame(cp, r3, r8);
     __ Push(r4);  // first argument
-    __ CallStub(&stub);
+    __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
+            RelocInfo::CODE_TARGET);
     __ Pop(r4);
     __ LeaveBuiltinFrame(cp, r3, r8);
     __ SmiUntag(r8);
@@ -584,8 +584,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
       // Allocate the new receiver object.
       __ Push(r3, r5);
-      FastNewObjectStub stub(masm->isolate());
-      __ CallStub(&stub);
+      __ Call(CodeFactory::FastNewObject(masm->isolate()).code(),
+              RelocInfo::CODE_TARGET);
       __ LoadRR(r6, r2);
       __ Pop(r3, r5);
 
