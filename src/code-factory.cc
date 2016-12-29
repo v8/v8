@@ -371,8 +371,8 @@ Callable CodeFactory::FastNewClosure(Isolate* isolate) {
 
 // static
 Callable CodeFactory::FastNewObject(Isolate* isolate) {
-  FastNewObjectStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->FastNewObject(),
+                  FastNewObjectDescriptor(isolate));
 }
 
 // static

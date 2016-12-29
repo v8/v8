@@ -53,6 +53,7 @@ namespace internal {
   /* Declared first for dependency reasons */                                  \
   ASM(CompileLazy)                                                             \
   TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion)                      \
+  TFS(FastNewObject, BUILTIN, kNoExtraICState, FastNewObject)                  \
                                                                                \
   /* Calls */                                                                  \
   ASM(ArgumentsAdaptorTrampoline)                                              \

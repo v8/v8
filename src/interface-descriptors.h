@@ -448,7 +448,10 @@ class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget)
   DECLARE_DESCRIPTOR(FastNewObjectDescriptor, CallInterfaceDescriptor)
+  static const Register TargetRegister();
+  static const Register NewTargetRegister();
 };
 
 class FastNewRestParameterDescriptor : public CallInterfaceDescriptor {

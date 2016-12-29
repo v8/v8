@@ -1065,6 +1065,11 @@ Node* CodeStubAssembler::HasInstanceType(Node* object,
   return Word32Equal(LoadInstanceType(object), Int32Constant(instance_type));
 }
 
+Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
+                                                InstanceType instance_type) {
+  return Word32NotEqual(LoadInstanceType(object), Int32Constant(instance_type));
+}
+
 Node* CodeStubAssembler::LoadProperties(Node* object) {
   return LoadObjectField(object, JSObject::kPropertiesOffset);
 }
@@ -6351,6 +6356,20 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
       direction == ForEachDirection::kReverse ? -increment : increment,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
+}
+
+void CodeStubAssembler::InitializeFieldsWithRoot(
+    Node* object, Node* start_offset, Node* end_offset,
+    Heap::RootListIndex root_index) {
+  start_offset = IntPtrAdd(start_offset, IntPtrConstant(-kHeapObjectTag));
+  end_offset = IntPtrAdd(end_offset, IntPtrConstant(-kHeapObjectTag));
+  Node* root_value = LoadRoot(root_index);
+  BuildFastLoop(MachineType::PointerRepresentation(), end_offset, start_offset,
+                [this, object, root_value](Node* current) {
+                  StoreNoWriteBarrier(MachineRepresentation::kTagged, object,
+                                      current, root_value);
+                },
+                -kPointerSize, CodeStubAssembler::IndexAdvanceMode::kPre);
 }
 
 void CodeStubAssembler::BranchIfNumericRelationalComparison(

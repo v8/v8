@@ -312,6 +312,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadInstanceType(Node* object);
   // Compare the instance the type of the object against the provided one.
   Node* HasInstanceType(Node* object, InstanceType type);
+  Node* DoesntHaveInstanceType(Node* object, InstanceType type);
   // Load the properties backing store of a JSObject.
   Node* LoadProperties(Node* object);
   // Load the elements backing store of a JSObject.
@@ -779,6 +780,29 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
+  // Returns true if all of the |T|'s bits in given |word32| are clear.
+  template <typename T>
+  Node* IsClearWord32(Node* word32) {
+    return IsClearWord32(word32, T::kMask);
+  }
+
+  // Returns true if all of the mask's bits in given |word32| are clear.
+  Node* IsClearWord32(Node* word32, uint32_t mask) {
+    return Word32Equal(Word32And(word32, Int32Constant(mask)),
+                       Int32Constant(0));
+  }
+
+  // Returns true if all of the |T|'s bits in given |word| are clear.
+  template <typename T>
+  Node* IsClearWord(Node* word) {
+    return IsClearWord(word, T::kMask);
+  }
+
+  // Returns true if all of the mask's bits in given |word| are clear.
+  Node* IsClearWord(Node* word, uint32_t mask) {
+    return WordEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
+  }
+
   void SetCounter(StatsCounter* counter, int value);
   void IncrementCounter(StatsCounter* counter, int delta);
   void DecrementCounter(StatsCounter* counter, int delta);
@@ -1044,6 +1068,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return GetArrayAllocationSize(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
   }
+
+  void InitializeFieldsWithRoot(Node* object, Node* start_offset,
+                                Node* end_offset, Heap::RootListIndex root);
 
   enum RelationalComparisonMode {
     kLessThan,

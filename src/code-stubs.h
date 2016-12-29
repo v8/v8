@@ -50,7 +50,6 @@ class Node;
   V(StoreElement)                             \
   V(SubString)                                \
   V(LoadGlobalIC)                             \
-  V(FastNewObject)                            \
   V(FastNewRestParameter)                     \
   V(FastNewSloppyArguments)                   \
   V(FastNewStrictArguments)                   \
@@ -802,15 +801,6 @@ class FastNewFunctionContextStub final : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewFunctionContext);
   DEFINE_TURBOFAN_CODE_STUB(FastNewFunctionContext, TurboFanCodeStub);
 };
-
-class FastNewObjectStub final : public PlatformCodeStub {
- public:
-  explicit FastNewObjectStub(Isolate* isolate) : PlatformCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastNewObject);
-  DEFINE_PLATFORM_CODE_STUB(FastNewObject, PlatformCodeStub);
-};
-
 
 // TODO(turbofan): This stub should be possible to write in TurboFan
 // using the CodeStubAssembler very soon in a way that is as efficient
