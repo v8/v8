@@ -165,9 +165,8 @@ void Parser::SetCachedData(ParseInfo* info) {
 }
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
-                                            bool call_super,
-                                            int pos, int end_pos,
-                                            LanguageMode language_mode) {
+                                            bool call_super, int pos,
+                                            int end_pos) {
   int materialized_literal_count = -1;
   int expected_property_count = -1;
   const int parameter_count = 0;
@@ -176,8 +175,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
   DeclarationScope* function_scope = NewFunctionScope(kind);
-  SetLanguageMode(function_scope,
-                  static_cast<LanguageMode>(language_mode | STRICT));
+  SetLanguageMode(function_scope, STRICT);
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -939,8 +937,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       DCHECK_EQ(scope(), outer);
       bool is_subclass_constructor = IsSubclassConstructor(kind);
       result = DefaultConstructor(raw_name, is_subclass_constructor,
-                                  info->start_position(), info->end_position(),
-                                  info->language_mode());
+                                  info->start_position(), info->end_position());
     } else {
       result = ParseFunctionLiteral(
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
@@ -3334,8 +3331,8 @@ Expression* Parser::RewriteClassLiteral(const AstRawString* name,
   bool has_extends = class_info->extends != nullptr;
   bool has_default_constructor = class_info->constructor == nullptr;
   if (has_default_constructor) {
-    class_info->constructor = DefaultConstructor(
-        name, has_extends, pos, end_pos, scope()->language_mode());
+    class_info->constructor =
+        DefaultConstructor(name, has_extends, pos, end_pos);
   }
 
   scope()->set_end_position(end_pos);
