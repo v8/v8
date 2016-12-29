@@ -94,10 +94,8 @@ class Node;
   V(MultiplyWithFeedback)                     \
   V(DivideWithFeedback)                       \
   V(ModulusWithFeedback)                      \
-  V(Inc)                                      \
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
-  V(Dec)                                      \
   V(ElementsTransitionAndStore)               \
   V(FastCloneRegExp)                          \
   V(FastCloneShallowArray)                    \
@@ -729,22 +727,6 @@ class ModulusWithFeedbackStub final : public TurboFanCodeStub {
   DEFINE_CALL_INTERFACE_DESCRIPTOR(BinaryOpWithVector);
   DEFINE_TURBOFAN_BINARY_OP_CODE_STUB_WITH_FEEDBACK(ModulusWithFeedback,
                                                     TurboFanCodeStub);
-};
-
-class IncStub final : public TurboFanCodeStub {
- public:
-  explicit IncStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Inc, TurboFanCodeStub);
-};
-
-class DecStub final : public TurboFanCodeStub {
- public:
-  explicit DecStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CountOp);
-  DEFINE_TURBOFAN_UNARY_OP_CODE_STUB_WITH_FEEDBACK(Dec, TurboFanCodeStub);
 };
 
 class StoreInterceptorStub : public TurboFanCodeStub {

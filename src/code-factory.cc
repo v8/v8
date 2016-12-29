@@ -258,18 +258,6 @@ TFS_BUILTIN(StringCharCodeAt)
 #undef TFS_BUILTIN
 
 // static
-Callable CodeFactory::Inc(Isolate* isolate) {
-  IncStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::Dec(Isolate* isolate) {
-  DecStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);
