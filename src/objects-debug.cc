@@ -888,8 +888,15 @@ void JSPromise::JSPromiseVerify() {
   JSObjectVerify();
   Isolate* isolate = GetIsolate();
   CHECK(result()->IsUndefined(isolate) || result()->IsObject());
-  CHECK(deferred()->IsUndefined(isolate) || deferred()->IsJSObject() ||
-        deferred()->IsFixedArray());
+  CHECK(deferred_promise()->IsUndefined(isolate) ||
+        deferred_promise()->IsJSReceiver() ||
+        deferred_promise()->IsFixedArray());
+  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
+        deferred_on_resolve()->IsCallable() ||
+        deferred_on_resolve()->IsFixedArray());
+  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
+        deferred_on_reject()->IsCallable() ||
+        deferred_on_reject()->IsFixedArray());
   CHECK(fulfill_reactions()->IsUndefined(isolate) ||
         fulfill_reactions()->IsCallable() ||
         fulfill_reactions()->IsFixedArray());
@@ -1025,7 +1032,15 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   CHECK(promise()->IsJSPromise());
   CHECK(value()->IsObject());
   CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
-  CHECK(deferred()->IsFixedArray() || deferred()->IsJSObject());
+  CHECK(deferred_promise()->IsUndefined(isolate) ||
+        deferred_promise()->IsJSReceiver() ||
+        deferred_promise()->IsFixedArray());
+  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
+        deferred_on_resolve()->IsCallable() ||
+        deferred_on_resolve()->IsFixedArray());
+  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
+        deferred_on_reject()->IsCallable() ||
+        deferred_on_reject()->IsFixedArray());
   CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
   CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
   CHECK(context()->IsContext());

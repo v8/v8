@@ -6586,7 +6586,12 @@ class PromiseReactionJobInfo : public Struct {
   DECL_ACCESSORS(promise, JSPromise)
   DECL_ACCESSORS(value, Object)
   DECL_ACCESSORS(tasks, Object)
-  DECL_ACCESSORS(deferred, Object)
+
+  // Check comment in JSPromise for information on what state these
+  // deferred fields could be in.
+  DECL_ACCESSORS(deferred_promise, Object)
+  DECL_ACCESSORS(deferred_on_resolve, Object)
+  DECL_ACCESSORS(deferred_on_reject, Object)
   DECL_ACCESSORS(debug_id, Object)
   DECL_ACCESSORS(debug_name, Object)
   DECL_ACCESSORS(context, Context)
@@ -6594,8 +6599,12 @@ class PromiseReactionJobInfo : public Struct {
   static const int kPromiseOffset = Struct::kHeaderSize;
   static const int kValueOffset = kPromiseOffset + kPointerSize;
   static const int kTasksOffset = kValueOffset + kPointerSize;
-  static const int kDeferredOffset = kTasksOffset + kPointerSize;
-  static const int kDebugIdOffset = kDeferredOffset + kPointerSize;
+  static const int kDeferredPromiseOffset = kTasksOffset + kPointerSize;
+  static const int kDeferredOnResolveOffset =
+      kDeferredPromiseOffset + kPointerSize;
+  static const int kDeferredOnRejectOffset =
+      kDeferredOnResolveOffset + kPointerSize;
+  static const int kDebugIdOffset = kDeferredOnRejectOffset + kPointerSize;
   static const int kDebugNameOffset = kDebugIdOffset + kPointerSize;
   static const int kContextOffset = kDebugNameOffset + kPointerSize;
   static const int kSize = kContextOffset + kPointerSize;
@@ -8636,13 +8645,18 @@ class JSPromise : public JSObject {
 
   // There are 3 possible states for these fields --
   // 1) Undefined -- This is the zero state when there is no callback
-  // or deferred registered.
+  // or deferred fields registered.
+  //
   // 2) Object -- There is a single Callable directly attached to the
-  // fulfill_reactions, reject_reactions and the deferred JSObject is
-  // directly attached to the deferred field.
+  // fulfill_reactions, reject_reactions and the deferred fields are
+  // directly attached to the slots. In this state, deferred_promise
+  // is a JSReceiver and deferred_on_{resolve, reject} are Callables.
+  //
   // 3) FixedArray -- There is more than one callback and deferred
-  // attached to a FixedArray.
-  DECL_ACCESSORS(deferred, Object)
+  // fields attached to a FixedArray.
+  DECL_ACCESSORS(deferred_promise, Object)
+  DECL_ACCESSORS(deferred_on_resolve, Object)
+  DECL_ACCESSORS(deferred_on_reject, Object)
   DECL_ACCESSORS(fulfill_reactions, Object)
   DECL_ACCESSORS(reject_reactions, Object)
 
@@ -8666,8 +8680,13 @@ class JSPromise : public JSObject {
   // Layout description.
   static const int kStatusOffset = JSObject::kHeaderSize;
   static const int kResultOffset = kStatusOffset + kPointerSize;
-  static const int kDeferredOffset = kResultOffset + kPointerSize;
-  static const int kFulfillReactionsOffset = kDeferredOffset + kPointerSize;
+  static const int kDeferredPromiseOffset = kResultOffset + kPointerSize;
+  static const int kDeferredOnResolveOffset =
+      kDeferredPromiseOffset + kPointerSize;
+  static const int kDeferredOnRejectOffset =
+      kDeferredOnResolveOffset + kPointerSize;
+  static const int kFulfillReactionsOffset =
+      kDeferredOnRejectOffset + kPointerSize;
   static const int kRejectReactionsOffset =
       kFulfillReactionsOffset + kPointerSize;
   static const int kFlagsOffset = kRejectReactionsOffset + kPointerSize;

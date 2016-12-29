@@ -1904,11 +1904,12 @@ TEST(AllocatePromiseReactionJobInfo) {
   Node* const promise = m.AllocateJSPromise(context);
   Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
-  Node* const deferred =
+  Node* const deferred_promise =
       m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
-  m.StoreFixedArrayElement(deferred, 0, m.UndefinedConstant());
-  Node* const info = m.AllocatePromiseReactionJobInfo(m.SmiConstant(1), promise,
-                                                      tasks, deferred, context);
+  m.StoreFixedArrayElement(deferred_promise, 0, m.UndefinedConstant());
+  Node* const info = m.AllocatePromiseReactionJobInfo(
+      promise, m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
+      m.UndefinedConstant(), context);
   m.Return(info);
 
   Handle<Code> code = data.GenerateCode();
@@ -1923,7 +1924,9 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK_EQ(Smi::FromInt(1), promise_info->value());
   CHECK(promise_info->promise()->IsJSPromise());
   CHECK(promise_info->tasks()->IsFixedArray());
-  CHECK(promise_info->deferred()->IsFixedArray());
+  CHECK(promise_info->deferred_promise()->IsFixedArray());
+  CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
+  CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
   CHECK(promise_info->context()->IsContext());
   CHECK(promise_info->debug_id()->IsUndefined(isolate));
   CHECK(promise_info->debug_name()->IsUndefined(isolate));

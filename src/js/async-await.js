@@ -13,7 +13,6 @@
 
 var AsyncFunctionNext;
 var AsyncFunctionThrow;
-var CreateInternalPromiseCapability;
 var PromiseCreate;
 var PromiseNextMicrotaskID;
 var RejectPromise;
@@ -21,7 +20,6 @@ var RejectPromise;
 utils.Import(function(from) {
   AsyncFunctionNext = from.AsyncFunctionNext;
   AsyncFunctionThrow = from.AsyncFunctionThrow;
-  CreateInternalPromiseCapability = from.CreateInternalPromiseCapability;
   PromiseCreate = from.PromiseCreate;
   RejectPromise = from.RejectPromise;
 });
@@ -40,7 +38,7 @@ function PromiseCastResolved(value) {
   if (%is_promise(value)) {
     return value;
   } else {
-    var promise = PromiseCreate();
+    var promise = PromiseCreate(UNDEFINED);
     %promise_resolve(promise, value);
     return promise;
   }
@@ -79,12 +77,11 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
     return;
   }
 
-  // Just forwarding the exception, so no debugEvent for throwawayCapability.
-  var throwawayCapability = CreateInternalPromiseCapability(promise);
+  var throwawayPromise = PromiseCreate(promise);
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done
-  %PromiseMarkAsHandled(throwawayCapability.promise);
+  %PromiseMarkAsHandled(throwawayPromise);
 
   if (DEBUG_IS_ACTIVE) {
     if (%is_promise(awaited)) {
@@ -95,11 +92,10 @@ function AsyncFunctionAwait(generator, awaited, outerPromise) {
 
     // Mark the dependency to outerPromise in case the throwaway Promise is
     // found on the Promise stack
-    SET_PRIVATE(throwawayCapability.promise, promiseHandledBySymbol,
-                outerPromise);
+    SET_PRIVATE(throwawayPromise, promiseHandledBySymbol, outerPromise);
   }
 
-  %perform_promise_then(promise, onFulfilled, onRejected, throwawayCapability);
+  %perform_promise_then(promise, onFulfilled, onRejected, throwawayPromise);
 }
 
 // Called by the parser from the desugaring of 'await' when catch

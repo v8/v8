@@ -292,7 +292,7 @@ namespace internal {
   F(CreateListFromArrayLike, 1, 1)                  \
   F(CreateResolvingFunctions, 1, 1)                 \
   F(EnqueueMicrotask, 1, 1)                         \
-  F(EnqueuePromiseReactionJob, 5, 1)                \
+  F(EnqueuePromiseReactionJob, 2, 1)                \
   F(EnqueuePromiseResolveThenableJob, 3, 1)         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(ExportExperimentalFromRuntime, 1, 1)            \

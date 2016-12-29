@@ -16,6 +16,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  Node* AllocateAndInitPromise(Node* context, Node* parent);
+
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate::Template msg_template);
 
@@ -34,7 +36,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* InternalPerformPromiseThen(Node* context, Node* promise,
                                    Node* on_resolve, Node* on_reject,
-                                   Node* deferred);
+                                   Node* deferred_promise,
+                                   Node* deferred_on_resolve,
+                                   Node* deferred_on_reject);
 
   void InternalResolvePromise(Node* context, Node* promise, Node* result);
 

@@ -8340,17 +8340,24 @@ void CodeStubAssembler::PromiseSet(Node* promise, Node* status, Node* result) {
 }
 
 Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
-    Node* value, Node* promise, Node* tasks, Node* deferred, Node* context) {
+    Node* promise, Node* value, Node* tasks, Node* deferred_promise,
+    Node* deferred_on_resolve, Node* deferred_on_reject, Node* context) {
   Node* const result = Allocate(PromiseReactionJobInfo::kSize);
   StoreMapNoWriteBarrier(result, Heap::kPromiseReactionJobInfoMapRootIndex);
-  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kPromiseOffset,
-                                 promise);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kValueOffset,
                                  value);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kPromiseOffset,
+                                 promise);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kTasksOffset,
                                  tasks);
   StoreObjectFieldNoWriteBarrier(
-      result, PromiseReactionJobInfo::kDeferredOffset, deferred);
+      result, PromiseReactionJobInfo::kDeferredPromiseOffset, deferred_promise);
+  StoreObjectFieldNoWriteBarrier(
+      result, PromiseReactionJobInfo::kDeferredOnResolveOffset,
+      deferred_on_resolve);
+  StoreObjectFieldNoWriteBarrier(
+      result, PromiseReactionJobInfo::kDeferredOnRejectOffset,
+      deferred_on_reject);
   StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugIdOffset,
                        Heap::kUndefinedValueRootIndex);
   StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugNameOffset,

@@ -1031,16 +1031,18 @@ Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
 
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
     Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
-    Handle<Object> deferred, Handle<Object> debug_id, Handle<Object> debug_name,
-    Handle<Context> context) {
+    Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
+    Handle<Object> deferred_on_reject, Handle<Context> context) {
   Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
       NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
   result->set_promise(*promise);
   result->set_value(*value);
   result->set_tasks(*tasks);
-  result->set_deferred(*deferred);
-  result->set_debug_id(*debug_id);
-  result->set_debug_name(*debug_name);
+  result->set_deferred_promise(*deferred_promise);
+  result->set_deferred_on_resolve(*deferred_on_resolve);
+  result->set_deferred_on_reject(*deferred_on_reject);
+  result->set_debug_id(isolate()->heap()->undefined_value());
+  result->set_debug_name(isolate()->heap()->undefined_value());
   result->set_context(*context);
   return result;
 }

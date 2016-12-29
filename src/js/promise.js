@@ -29,7 +29,7 @@ utils.Import(function(from) {
 
 // Core functionality.
 
-function PromiseDebugGetInfo(deferreds, status) {
+function PromiseDebugGetInfo(deferred_promise, status) {
   var id, name, instrumenting = DEBUG_IS_ACTIVE;
 
   if (instrumenting) {
@@ -39,11 +39,11 @@ function PromiseDebugGetInfo(deferreds, status) {
     // functions will not get a good stack trace, as async functions require
     // different stacks from direct Promise use, but we save and restore a
     // stack once for all reactions. TODO(littledan): Improve this case.
-    if (!IS_UNDEFINED(deferreds) &&
-        HAS_PRIVATE(deferreds.promise, promiseHandledBySymbol) &&
-        HAS_PRIVATE(GET_PRIVATE(deferreds.promise, promiseHandledBySymbol),
+    if (!IS_UNDEFINED(deferred_promise) &&
+        HAS_PRIVATE(deferred_promise, promiseHandledBySymbol) &&
+        HAS_PRIVATE(GET_PRIVATE(deferred_promise, promiseHandledBySymbol),
                     promiseAsyncStackIDSymbol)) {
-      id = GET_PRIVATE(GET_PRIVATE(deferreds.promise, promiseHandledBySymbol),
+      id = GET_PRIVATE(GET_PRIVATE(deferred_promise, promiseHandledBySymbol),
                        promiseAsyncStackIDSymbol);
       name = "async function";
     } else {
@@ -65,8 +65,8 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 // For bootstrapper.
 
 // This is used by utils and v8-extras.
-function PromiseCreate() {
-  return %promise_internal_constructor(UNDEFINED);
+function PromiseCreate(parent) {
+  return %promise_internal_constructor(parent);
 }
 
 // Only used by async-await.js
@@ -77,17 +77,6 @@ function RejectPromise(promise, reason, debugEvent) {
 // Export to bindings
 function DoRejectPromise(promise, reason) {
   %PromiseReject(promise, reason, true);
-}
-
-// The resultCapability.promise is only ever fulfilled internally,
-// so we don't need the closures to protect against accidentally
-// calling them multiple times.
-function CreateInternalPromiseCapability(parent) {
-  return {
-    promise: %promise_internal_constructor(parent),
-    resolve: UNDEFINED,
-    reject: UNDEFINED
-  };
 }
 
 // ES#sec-newpromisecapability
@@ -282,7 +271,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "promise_internal_reject", RejectPromise,
   "promise_debug_get_info", PromiseDebugGetInfo,
   "new_promise_capability", NewPromiseCapability,
-  "internal_promise_capability", CreateInternalPromiseCapability,
   "promise_id_resolve_handler", PromiseIdResolveHandler,
   "promise_id_reject_handler", PromiseIdRejectHandler
 ]);
@@ -299,7 +287,6 @@ utils.InstallFunctions(extrasUtils, 0, [
 utils.Export(function(to) {
   to.PromiseCreate = PromiseCreate;
 
-  to.CreateInternalPromiseCapability = CreateInternalPromiseCapability;
   to.RejectPromise = RejectPromise;
 });
 

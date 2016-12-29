@@ -16,6 +16,20 @@ typedef compiler::Node Node;
 typedef CodeStubAssembler::ParameterMode ParameterMode;
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
+Node* PromiseBuiltinsAssembler::AllocateAndInitPromise(Node* context,
+                                                       Node* parent) {
+  Node* const instance = AllocateJSPromise(context);
+  PromiseInit(instance);
+
+  Label out(this);
+  GotoUnless(IsPromiseHookEnabled(), &out);
+  CallRuntime(Runtime::kPromiseHookInit, context, instance, parent);
+  Goto(&out);
+
+  Bind(&out);
+  return instance;
+}
+
 Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
     Node* promise, Node* debug_event, Node* native_context) {
   Node* const context =
@@ -201,22 +215,20 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   Callable call_callable = CodeFactory::Call(isolate);
   Label fast_promise_capability(this), promise_capability(this),
       perform_promise_then(this);
-  Variable var_deferred(this, MachineRepresentation::kTagged);
+  Variable var_deferred_promise(this, MachineRepresentation::kTagged),
+      var_deferred_on_resolve(this, MachineRepresentation::kTagged),
+      var_deferred_on_reject(this, MachineRepresentation::kTagged);
 
   Branch(WordEqual(promise_fun, constructor), &fast_promise_capability,
          &promise_capability);
 
-  // TODO(gsathya): Remove deferred object and move
-  // NewPromiseCapabability functions to TF.
   Bind(&fast_promise_capability);
   {
-    // TODO(gsathya): Move this to TF.
-    Node* const promise_internal_capability = LoadContextElement(
-        native_context, Context::INTERNAL_PROMISE_CAPABILITY_INDEX);
-    Node* const capability =
-        CallJS(call_callable, context, promise_internal_capability,
-               UndefinedConstant(), promise);
-    var_deferred.Bind(capability);
+    Node* const deferred_promise = AllocateAndInitPromise(context, promise);
+    PromiseInit(deferred_promise);
+    var_deferred_promise.Bind(deferred_promise);
+    var_deferred_on_resolve.Bind(UndefinedConstant());
+    var_deferred_on_reject.Bind(UndefinedConstant());
     Goto(&perform_promise_then);
   }
 
@@ -225,10 +237,25 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
     // TODO(gsathya): Move this to TF.
     Node* const new_promise_capability = LoadContextElement(
         native_context, Context::NEW_PROMISE_CAPABILITY_INDEX);
-    Node* const capability =
+    Node* const deferred =
         CallJS(call_callable, context, new_promise_capability,
                UndefinedConstant(), constructor);
-    var_deferred.Bind(capability);
+    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+    Node* key = HeapConstant(isolate->factory()->promise_string());
+    Node* const deferred_promise =
+        CallStub(getproperty_callable, context, deferred, key);
+    var_deferred_promise.Bind(deferred_promise);
+
+    key = HeapConstant(isolate->factory()->resolve_string());
+    Node* const deferred_on_resolve =
+        CallStub(getproperty_callable, context, deferred, key);
+    var_deferred_on_resolve.Bind(deferred_on_resolve);
+
+    key = HeapConstant(isolate->factory()->reject_string());
+    Node* const deferred_on_reject =
+        CallStub(getproperty_callable, context, deferred, key);
+    var_deferred_on_reject.Bind(deferred_on_reject);
+
     Goto(&perform_promise_then);
   }
 
@@ -236,15 +263,15 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   //    resultCapability).
   Bind(&perform_promise_then);
   Node* const result = InternalPerformPromiseThen(
-      context, promise, on_resolve, on_reject, var_deferred.value());
+      context, promise, on_resolve, on_reject, var_deferred_promise.value(),
+      var_deferred_on_resolve.value(), var_deferred_on_reject.value());
   return result;
 }
 
-Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
-                                                           Node* promise,
-                                                           Node* on_resolve,
-                                                           Node* on_reject,
-                                                           Node* deferred) {
+Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
+    Node* context, Node* promise, Node* on_resolve, Node* on_reject,
+    Node* deferred_promise, Node* deferred_on_resolve,
+    Node* deferred_on_reject) {
   Node* const native_context = LoadNativeContext(context);
 
   Variable var_on_resolve(this, MachineRepresentation::kTagged),
@@ -292,17 +319,22 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     GotoUnless(SmiEqual(status, SmiConstant(v8::Promise::kPending)),
                &fulfilled_check);
 
-    Node* const existing_deferred =
-        LoadObjectField(promise, JSPromise::kDeferredOffset);
+    Node* const existing_deferred_promise =
+        LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
 
     Label if_noexistingcallbacks(this), if_existingcallbacks(this);
-    Branch(IsUndefined(existing_deferred), &if_noexistingcallbacks,
+    Branch(IsUndefined(existing_deferred_promise), &if_noexistingcallbacks,
            &if_existingcallbacks);
 
     Bind(&if_noexistingcallbacks);
     {
       // Store callbacks directly in the slots.
-      StoreObjectField(promise, JSPromise::kDeferredOffset, deferred);
+      StoreObjectField(promise, JSPromise::kDeferredPromiseOffset,
+                       deferred_promise);
+      StoreObjectField(promise, JSPromise::kDeferredOnResolveOffset,
+                       deferred_on_resolve);
+      StoreObjectField(promise, JSPromise::kDeferredOnRejectOffset,
+                       deferred_on_reject);
       StoreObjectField(promise, JSPromise::kFulfillReactionsOffset,
                        var_on_resolve.value());
       StoreObjectField(promise, JSPromise::kRejectReactionsOffset,
@@ -313,17 +345,32 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     Bind(&if_existingcallbacks);
     {
       Label if_singlecallback(this), if_multiplecallbacks(this);
-      BranchIfJSObject(existing_deferred, &if_singlecallback,
+      BranchIfJSObject(existing_deferred_promise, &if_singlecallback,
                        &if_multiplecallbacks);
 
       Bind(&if_singlecallback);
       {
         // Create new FixedArrays to store callbacks, and migrate
         // existing callbacks.
-        Node* const deferreds =
+        Node* const deferred_promise_arr =
             AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
-        StoreFixedArrayElement(deferreds, 0, existing_deferred);
-        StoreFixedArrayElement(deferreds, 1, deferred);
+        StoreFixedArrayElement(deferred_promise_arr, 0,
+                               existing_deferred_promise);
+        StoreFixedArrayElement(deferred_promise_arr, 1, deferred_promise);
+
+        Node* const deferred_on_resolve_arr =
+            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+        StoreFixedArrayElement(
+            deferred_on_resolve_arr, 0,
+            LoadObjectField(promise, JSPromise::kDeferredOnResolveOffset));
+        StoreFixedArrayElement(deferred_on_resolve_arr, 1, deferred_on_resolve);
+
+        Node* const deferred_on_reject_arr =
+            AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
+        StoreFixedArrayElement(
+            deferred_on_reject_arr, 0,
+            LoadObjectField(promise, JSPromise::kDeferredOnRejectOffset));
+        StoreFixedArrayElement(deferred_on_reject_arr, 1, deferred_on_reject);
 
         Node* const fulfill_reactions =
             AllocateFixedArray(FAST_ELEMENTS, IntPtrConstant(2));
@@ -340,7 +387,12 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
         StoreFixedArrayElement(reject_reactions, 1, var_on_reject.value());
 
         // Store new FixedArrays in promise.
-        StoreObjectField(promise, JSPromise::kDeferredOffset, deferreds);
+        StoreObjectField(promise, JSPromise::kDeferredPromiseOffset,
+                         deferred_promise_arr);
+        StoreObjectField(promise, JSPromise::kDeferredOnResolveOffset,
+                         deferred_on_resolve_arr);
+        StoreObjectField(promise, JSPromise::kDeferredOnRejectOffset,
+                         deferred_on_reject_arr);
         StoreObjectField(promise, JSPromise::kFulfillReactionsOffset,
                          fulfill_reactions);
         StoreObjectField(promise, JSPromise::kRejectReactionsOffset,
@@ -350,7 +402,12 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
 
       Bind(&if_multiplecallbacks);
       {
-        AppendPromiseCallback(JSPromise::kDeferredOffset, promise, deferred);
+        AppendPromiseCallback(JSPromise::kDeferredPromiseOffset, promise,
+                              deferred_promise);
+        AppendPromiseCallback(JSPromise::kDeferredOnResolveOffset, promise,
+                              deferred_on_resolve);
+        AppendPromiseCallback(JSPromise::kDeferredOnRejectOffset, promise,
+                              deferred_on_reject);
         AppendPromiseCallback(JSPromise::kFulfillReactionsOffset, promise,
                               var_on_resolve.value());
         AppendPromiseCallback(JSPromise::kRejectReactionsOffset, promise,
@@ -366,9 +423,11 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
       GotoUnless(WordEqual(status, SmiConstant(v8::Promise::kFulfilled)),
                  &reject);
 
-      // TODO(gsathya): Move this to TF.
-      CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise, result,
-                  var_on_resolve.value(), deferred,
+      Node* info = AllocatePromiseReactionJobInfo(
+          promise, result, var_on_resolve.value(), deferred_promise,
+          deferred_on_resolve, deferred_on_reject, context);
+      // TODO(gsathya): Move this to TF
+      CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info,
                   SmiConstant(v8::Promise::kFulfilled));
       Goto(&out);
 
@@ -384,10 +443,12 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
 
         Bind(&enqueue);
         {
-          CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise,
-                      result, var_on_reject.value(), deferred,
+          Node* info = AllocatePromiseReactionJobInfo(
+              promise, result, var_on_reject.value(), deferred_promise,
+              deferred_on_resolve, deferred_on_reject, context);
+          // TODO(gsathya): Move this to TF
+          CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info,
                       SmiConstant(v8::Promise::kRejected));
-
           Goto(&out);
         }
       }
@@ -396,16 +457,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
 
   Bind(&out);
   PromiseSetHasHandler(promise);
-
-  // TODO(gsathya): This call will be removed once we don't have to
-  // deal with deferred objects.
-  Isolate* isolate = this->isolate();
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-  Node* const key =
-      HeapConstant(isolate->factory()->NewStringFromAsciiChecked("promise"));
-  Node* const result = CallStub(getproperty_callable, context, deferred, key);
-
-  return result;
+  return deferred_promise;
 }
 
 // Promise fast path implementations rely on unmodified JSPromise instances.
@@ -557,6 +609,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     // PromiseResolveThenableJob, « promise, resolution, thenAction
     // »).
     Bind(&enqueue);
+    // TODO(gsathya): Move this to TF
     CallRuntime(Runtime::kEnqueuePromiseResolveThenableJob, context, promise,
                 result, var_then.value());
     Goto(&out);
@@ -767,16 +820,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
   Node* const parent = Parameter(1);
   Node* const context = Parameter(4);
-  Node* const instance = AllocateJSPromise(context);
-  PromiseInit(instance);
-
-  Label out(this);
-  GotoUnless(IsPromiseHookEnabled(), &out);
-  CallRuntime(Runtime::kPromiseHookInit, context, instance, parent);
-  Goto(&out);
-  Bind(&out);
-
-  Return(instance);
+  Return(AllocateAndInitPromise(context, parent));
 }
 
 TF_BUILTIN(PromiseCreateAndSet, PromiseBuiltinsAssembler) {
@@ -814,11 +858,14 @@ TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
   Node* const promise = Parameter(1);
   Node* const on_resolve = Parameter(2);
   Node* const on_reject = Parameter(3);
-  Node* const deferred = Parameter(4);
+  Node* const deferred_promise = Parameter(4);
   Node* const context = Parameter(7);
 
-  Node* const result = InternalPerformPromiseThen(context, promise, on_resolve,
-                                                  on_reject, deferred);
+  // No deferred_on_resolve/deferred_on_reject because this is just an
+  // internal promise created by async-await.
+  Node* const result = InternalPerformPromiseThen(
+      context, promise, on_resolve, on_reject, deferred_promise,
+      UndefinedConstant(), UndefinedConstant());
 
   // TODO(gsathya): This is unused, but value is returned according to spec.
   Return(result);
@@ -911,16 +958,11 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   Node* const promise = Parameter(1);
   Node* const value = Parameter(2);
   Node* const handler = Parameter(3);
-  Node* const deferred = Parameter(4);
-  Node* const context = Parameter(7);
+  Node* const deferred_promise = Parameter(4);
+  Node* const deferred_on_resolve = Parameter(5);
+  Node* const deferred_on_reject = Parameter(6);
+  Node* const context = Parameter(9);
   Isolate* isolate = this->isolate();
-
-  // Get promise from deferred
-  // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
-  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
-  Node* const key = HeapConstant(isolate->factory()->promise_string());
-  Node* const deferred_promise =
-      CallStub(getproperty_callable, context, deferred, key);
 
   Variable var_reason(this, MachineRepresentation::kTagged);
 
@@ -942,19 +984,14 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   Bind(&run_handler);
   {
     Callable call_callable = CodeFactory::Call(isolate);
-
     Node* const result =
         CallJS(call_callable, context, handler, UndefinedConstant(), value);
 
     GotoIfException(result, &if_rejectpromise, &var_reason);
 
-    // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
-    Node* const key = HeapConstant(isolate->factory()->resolve_string());
-    Node* const on_resolve =
-        CallStub(getproperty_callable, context, deferred, key);
-
     Label if_internalhandler(this), if_customhandler(this, Label::kDeferred);
-    Branch(IsUndefined(on_resolve), &if_internalhandler, &if_customhandler);
+    Branch(IsUndefined(deferred_on_resolve), &if_internalhandler,
+           &if_customhandler);
 
     Bind(&if_internalhandler);
     InternalResolvePromise(context, deferred_promise, result);
@@ -962,8 +999,9 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
     Bind(&if_customhandler);
     {
-      Node* const maybe_exception = CallJS(call_callable, context, on_resolve,
-                                           UndefinedConstant(), result);
+      Node* const maybe_exception =
+          CallJS(call_callable, context, deferred_on_resolve,
+                 UndefinedConstant(), result);
       GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
       Goto(&promisehook_after);
     }
@@ -971,14 +1009,9 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
   Bind(&if_rejectpromise);
   {
-    // TODO(gsathya): Remove this lookup by getting rid of the deferred object.
-    Node* const key = HeapConstant(isolate->factory()->reject_string());
-    Node* const on_reject =
-        CallStub(getproperty_callable, context, deferred, key);
-
     Callable promise_handle_reject = CodeFactory::PromiseHandleReject(isolate);
-    CallStub(promise_handle_reject, context, deferred_promise, on_reject,
-             var_reason.value());
+    CallStub(promise_handle_reject, context, deferred_promise,
+             deferred_on_reject, var_reason.value());
     Goto(&promisehook_after);
   }
 

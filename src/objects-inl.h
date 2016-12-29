@@ -5731,7 +5731,12 @@ ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
 ACCESSORS(PromiseReactionJobInfo, promise, JSPromise, kPromiseOffset);
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred, Object, kDeferredOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred_promise, Object,
+          kDeferredPromiseOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred_on_resolve, Object,
+          kDeferredOnResolveOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred_on_reject, Object,
+          kDeferredOnRejectOffset);
 ACCESSORS(PromiseReactionJobInfo, debug_id, Object, kDebugIdOffset);
 ACCESSORS(PromiseReactionJobInfo, debug_name, Object, kDebugNameOffset);
 ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
@@ -7091,7 +7096,9 @@ ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 
 SMI_ACCESSORS(JSPromise, status, kStatusOffset)
 ACCESSORS(JSPromise, result, Object, kResultOffset)
-ACCESSORS(JSPromise, deferred, Object, kDeferredOffset)
+ACCESSORS(JSPromise, deferred_promise, Object, kDeferredPromiseOffset)
+ACCESSORS(JSPromise, deferred_on_resolve, Object, kDeferredOnResolveOffset)
+ACCESSORS(JSPromise, deferred_on_reject, Object, kDeferredOnRejectOffset)
 ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
 ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
 SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)

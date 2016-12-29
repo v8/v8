@@ -60,16 +60,14 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 }
 
 namespace {
-void EnqueuePromiseReactionJob(Isolate* isolate, Handle<JSPromise> promise,
-                               Handle<Object> value, Handle<Object> tasks,
-                               Handle<Object> deferred, Handle<Object> status) {
-  Handle<Object> debug_id = isolate->factory()->undefined_value();
-  Handle<Object> debug_name = isolate->factory()->undefined_value();
+void EnqueuePromiseReactionJob(Isolate* isolate,
+                               Handle<PromiseReactionJobInfo> info,
+                               Handle<Object> status) {
   if (isolate->debug()->is_active()) {
     MaybeHandle<Object> maybe_result;
-    Handle<Object> deferred_obj(deferred);
+    Handle<Object> deferred_obj(info->deferred_promise(), isolate);
 
-    if (deferred->IsFixedArray()) {
+    if (info->deferred_promise()->IsFixedArray()) {
       deferred_obj = isolate->factory()->undefined_value();
     }
 
@@ -85,14 +83,10 @@ void EnqueuePromiseReactionJob(Isolate* isolate, Handle<JSPromise> promise,
       ElementsAccessor* accessor = array->GetElementsAccessor();
       DCHECK(accessor->HasElement(array, 0));
       DCHECK(accessor->HasElement(array, 1));
-      debug_id = accessor->Get(array, 0);
-      debug_name = accessor->Get(array, 1);
+      info->set_debug_id(*accessor->Get(array, 0));
+      info->set_debug_name(*accessor->Get(array, 1));
     }
   }
-  Handle<PromiseReactionJobInfo> info =
-      isolate->factory()->NewPromiseReactionJobInfo(
-          promise, value, tasks, deferred, debug_id, debug_name,
-          isolate->native_context());
   isolate->EnqueueMicrotask(info);
 }
 
@@ -100,7 +94,9 @@ void PromiseSet(Isolate* isolate, Handle<JSPromise> promise, int status,
                 Handle<Object> result) {
   promise->set_status(status);
   promise->set_result(*result);
-  promise->set_deferred(isolate->heap()->undefined_value());
+  promise->set_deferred_promise(isolate->heap()->undefined_value());
+  promise->set_deferred_on_resolve(isolate->heap()->undefined_value());
+  promise->set_deferred_on_reject(isolate->heap()->undefined_value());
   promise->set_fulfill_reactions(isolate->heap()->undefined_value());
   promise->set_reject_reactions(isolate->heap()->undefined_value());
 }
@@ -108,13 +104,18 @@ void PromiseSet(Isolate* isolate, Handle<JSPromise> promise, int status,
 void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
                     Handle<Smi> status, Handle<Object> value) {
   // Check if there are any callbacks.
-  if (!promise->deferred()->IsUndefined(isolate)) {
+  if (!promise->deferred_promise()->IsUndefined(isolate)) {
     Handle<Object> tasks((status->value() == v8::Promise::kFulfilled)
                              ? promise->fulfill_reactions()
                              : promise->reject_reactions(),
                          isolate);
-    Handle<Object> deferred(promise->deferred(), isolate);
-    EnqueuePromiseReactionJob(isolate, promise, value, tasks, deferred, status);
+    Handle<PromiseReactionJobInfo> info =
+        isolate->factory()->NewPromiseReactionJobInfo(
+            promise, value, tasks, handle(promise->deferred_promise(), isolate),
+            handle(promise->deferred_on_resolve(), isolate),
+            handle(promise->deferred_on_reject(), isolate),
+            isolate->native_context());
+    EnqueuePromiseReactionJob(isolate, info, status);
   }
 
   PromiseSet(isolate, promise, status->value(), value);
@@ -148,13 +149,10 @@ RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, tasks, 2);
-  CONVERT_ARG_HANDLE_CHECKED(Object, deferred, 3);
-  CONVERT_ARG_HANDLE_CHECKED(Object, status, 4);
-  EnqueuePromiseReactionJob(isolate, promise, value, tasks, deferred, status);
+  DCHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(PromiseReactionJobInfo, info, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, status, 1);
+  EnqueuePromiseReactionJob(isolate, info, status);
   return isolate->heap()->undefined_value();
 }
 
@@ -245,7 +243,7 @@ RUNTIME_FUNCTION(Runtime_PromiseDeferred) {
   DCHECK(args.length() == 1);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
 
-  Handle<Object> deferred(promise->deferred(), isolate);
+  Handle<Object> deferred(promise->deferred_promise(), isolate);
   if (deferred->IsUndefined(isolate)) {
     return isolate->heap()->undefined_value();
   }

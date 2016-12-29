@@ -545,7 +545,9 @@ void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSPromise");
   os << "\n - status = " << JSPromise::Status(status());
   os << "\n - result = " << Brief(result());
-  os << "\n - deferreds = " << Brief(deferred());
+  os << "\n - deferred_promise: " << Brief(deferred_promise());
+  os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
+  os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
   os << "\n - fulfill_reactions = " << Brief(fulfill_reactions());
   os << "\n - reject_reactions = " << Brief(reject_reactions());
   os << "\n - has_handler = " << has_handler();
@@ -1233,7 +1235,9 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
   os << "\n - promise: " << Brief(promise());
   os << "\n - value: " << Brief(value());
   os << "\n - tasks: " << Brief(tasks());
-  os << "\n - deferred: " << Brief(deferred());
+  os << "\n - deferred_promise: " << Brief(deferred_promise());
+  os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
+  os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
   os << "\n - debug id: " << Brief(debug_id());
   os << "\n - debug name: " << Brief(debug_name());
   os << "\n - reaction context: " << Brief(context());
