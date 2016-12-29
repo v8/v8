@@ -888,6 +888,14 @@ enum ScopeType : uint8_t {
   WITH_SCOPE       // The scope introduced by with.
 };
 
+// AllocationSiteMode controls whether allocations are tracked by an allocation
+// site.
+enum AllocationSiteMode {
+  DONT_TRACK_ALLOCATION_SITE,
+  TRACK_ALLOCATION_SITE,
+  LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
+};
+
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
 // The x87 FPU convert the sNaN to qNaN automatically when loading sNaN from
 // memmory.

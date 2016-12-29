@@ -392,11 +392,13 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
-  // Use the FastCloneShallowArrayStub only for shallow boilerplates without
+  // Use the FastCloneShallowArray builtin only for shallow boilerplates without
   // properties up to the number of elements that the stubs can handle.
   if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
-      p.length() < FastCloneShallowArrayStub::kMaximumClonedElements) {
-    Callable callable = CodeFactory::FastCloneShallowArray(isolate());
+      p.length() <
+          ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements) {
+    Callable callable = CodeFactory::FastCloneShallowArray(
+        isolate(), DONT_TRACK_ALLOCATION_SITE);
     ReplaceWithStubCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
@@ -412,10 +414,11 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
-  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
-  // elements up to the number of properties that the stubs can handle.
+  // Use the FastCloneShallowObject builtin only for shallow boilerplates
+  // without elements up to the number of properties that the stubs can handle.
   if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
-      p.length() <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
+      p.length() <=
+          ConstructorBuiltinsAssembler::kMaximumClonedShallowObjectProperties) {
     Callable callable =
         CodeFactory::FastCloneShallowObject(isolate(), p.length());
     ReplaceWithStubCall(node, callable, flags);

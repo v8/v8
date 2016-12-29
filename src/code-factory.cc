@@ -338,23 +338,22 @@ Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
 
 // static
 Callable CodeFactory::FastCloneRegExp(Isolate* isolate) {
-  FastCloneRegExpStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->FastCloneRegExp(),
+                  FastCloneRegExpDescriptor(isolate));
 }
 
 // static
-Callable CodeFactory::FastCloneShallowArray(Isolate* isolate) {
-  // TODO(mstarzinger): Thread through AllocationSiteMode at some point.
-  FastCloneShallowArrayStub stub(isolate, DONT_TRACK_ALLOCATION_SITE);
-  return make_callable(stub);
+Callable CodeFactory::FastCloneShallowArray(
+    Isolate* isolate, AllocationSiteMode allocation_mode) {
+  return Callable(isolate->builtins()->NewCloneShallowArray(allocation_mode),
+                  FastCloneShallowArrayDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::FastCloneShallowObject(Isolate* isolate, int length) {
-  FastCloneShallowObjectStub stub(isolate, length);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->NewCloneShallowObject(length),
+                  FastCloneShallowObjectDescriptor(isolate));
 }
-
 
 // static
 Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,

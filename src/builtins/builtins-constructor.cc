@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-constructor.h"
+#include "src/ast/ast.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -350,6 +351,387 @@ Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
       return FastNewFunctionContextEval();
     case ScopeType::FUNCTION_SCOPE:
       return FastNewFunctionContextFunction();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>::null();
+}
+
+Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
+                                                        Node* literal_index,
+                                                        Node* pattern,
+                                                        Node* flags,
+                                                        Node* context) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef compiler::Node Node;
+
+  Label call_runtime(this, Label::kDeferred), end(this);
+
+  Variable result(this, MachineRepresentation::kTagged);
+
+  Node* literals_array = LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* boilerplate =
+      LoadFixedArrayElement(literals_array, literal_index,
+                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
+                            CodeStubAssembler::SMI_PARAMETERS);
+  GotoIf(IsUndefined(boilerplate), &call_runtime);
+
+  {
+    int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
+    Node* copy = Allocate(size);
+    for (int offset = 0; offset < size; offset += kPointerSize) {
+      Node* value = LoadObjectField(boilerplate, offset);
+      StoreObjectFieldNoWriteBarrier(copy, offset, value);
+    }
+    result.Bind(copy);
+    Goto(&end);
+  }
+
+  Bind(&call_runtime);
+  {
+    result.Bind(CallRuntime(Runtime::kCreateRegExpLiteral, context, closure,
+                            literal_index, pattern, flags));
+    Goto(&end);
+  }
+
+  Bind(&end);
+  return result.value();
+}
+
+TF_BUILTIN(FastCloneRegExp, ConstructorBuiltinsAssembler) {
+  Node* closure = Parameter(FastCloneRegExpDescriptor::kClosure);
+  Node* literal_index = Parameter(FastCloneRegExpDescriptor::kLiteralIndex);
+  Node* pattern = Parameter(FastCloneRegExpDescriptor::kPattern);
+  Node* flags = Parameter(FastCloneRegExpDescriptor::kFlags);
+  Node* context = Parameter(FastCloneRegExpDescriptor::kContext);
+
+  Return(EmitFastCloneRegExp(closure, literal_index, pattern, flags, context));
+}
+
+Node* ConstructorBuiltinsAssembler::NonEmptyShallowClone(
+    Node* boilerplate, Node* boilerplate_map, Node* boilerplate_elements,
+    Node* allocation_site, Node* capacity, ElementsKind kind) {
+  typedef CodeStubAssembler::ParameterMode ParameterMode;
+
+  ParameterMode param_mode = OptimalParameterMode();
+
+  Node* length = LoadJSArrayLength(boilerplate);
+  capacity = TaggedToParameter(capacity, param_mode);
+
+  Node *array, *elements;
+  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+      kind, boilerplate_map, length, allocation_site, capacity, param_mode);
+
+  Comment("copy elements header");
+  // Header consists of map and length.
+  STATIC_ASSERT(FixedArrayBase::kHeaderSize == 2 * kPointerSize);
+  StoreMap(elements, LoadMap(boilerplate_elements));
+  {
+    int offset = FixedArrayBase::kLengthOffset;
+    StoreObjectFieldNoWriteBarrier(
+        elements, offset, LoadObjectField(boilerplate_elements, offset));
+  }
+
+  length = TaggedToParameter(length, param_mode);
+
+  Comment("copy boilerplate elements");
+  CopyFixedArrayElements(kind, boilerplate_elements, elements, length,
+                         SKIP_WRITE_BARRIER, param_mode);
+  IncrementCounter(isolate()->counters()->inlined_copied_elements(), 1);
+
+  return array;
+}
+
+Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
+    Node* closure, Node* literal_index, Node* context,
+    CodeAssemblerLabel* call_runtime, AllocationSiteMode allocation_site_mode) {
+  typedef CodeStubAssembler::Label Label;
+  typedef CodeStubAssembler::Variable Variable;
+  typedef compiler::Node Node;
+
+  Label zero_capacity(this), cow_elements(this), fast_elements(this),
+      return_result(this);
+  Variable result(this, MachineRepresentation::kTagged);
+
+  Node* literals_array = LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* allocation_site =
+      LoadFixedArrayElement(literals_array, literal_index,
+                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
+                            CodeStubAssembler::SMI_PARAMETERS);
+
+  GotoIf(IsUndefined(allocation_site), call_runtime);
+  allocation_site =
+      LoadFixedArrayElement(literals_array, literal_index,
+                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
+                            CodeStubAssembler::SMI_PARAMETERS);
+
+  Node* boilerplate =
+      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = LoadMap(boilerplate);
+  Node* boilerplate_elements = LoadElements(boilerplate);
+  Node* capacity = LoadFixedArrayBaseLength(boilerplate_elements);
+  allocation_site =
+      allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
+
+  Node* zero = SmiConstant(Smi::kZero);
+  GotoIf(SmiEqual(capacity, zero), &zero_capacity);
+
+  Node* elements_map = LoadMap(boilerplate_elements);
+  GotoIf(IsFixedCOWArrayMap(elements_map), &cow_elements);
+
+  GotoIf(IsFixedArrayMap(elements_map), &fast_elements);
+  {
+    Comment("fast double elements path");
+    if (FLAG_debug_code) {
+      Label correct_elements_map(this), abort(this, Label::kDeferred);
+      Branch(IsFixedDoubleArrayMap(elements_map), &correct_elements_map,
+             &abort);
+
+      Bind(&abort);
+      {
+        Node* abort_id = SmiConstant(
+            Smi::FromInt(BailoutReason::kExpectedFixedDoubleArrayMap));
+        CallRuntime(Runtime::kAbort, context, abort_id);
+        result.Bind(UndefinedConstant());
+        Goto(&return_result);
+      }
+      Bind(&correct_elements_map);
+    }
+
+    Node* array =
+        NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
+                             allocation_site, capacity, FAST_DOUBLE_ELEMENTS);
+    result.Bind(array);
+    Goto(&return_result);
+  }
+
+  Bind(&fast_elements);
+  {
+    Comment("fast elements path");
+    Node* array =
+        NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
+                             allocation_site, capacity, FAST_ELEMENTS);
+    result.Bind(array);
+    Goto(&return_result);
+  }
+
+  Variable length(this, MachineRepresentation::kTagged),
+      elements(this, MachineRepresentation::kTagged);
+  Label allocate_without_elements(this);
+
+  Bind(&cow_elements);
+  {
+    Comment("fixed cow path");
+    length.Bind(LoadJSArrayLength(boilerplate));
+    elements.Bind(boilerplate_elements);
+
+    Goto(&allocate_without_elements);
+  }
+
+  Bind(&zero_capacity);
+  {
+    Comment("zero capacity path");
+    length.Bind(zero);
+    elements.Bind(LoadRoot(Heap::kEmptyFixedArrayRootIndex));
+
+    Goto(&allocate_without_elements);
+  }
+
+  Bind(&allocate_without_elements);
+  {
+    Node* array = AllocateUninitializedJSArrayWithoutElements(
+        FAST_ELEMENTS, boilerplate_map, length.value(), allocation_site);
+    StoreObjectField(array, JSObject::kElementsOffset, elements.value());
+    result.Bind(array);
+    Goto(&return_result);
+  }
+
+  Bind(&return_result);
+  return result.value();
+}
+
+void ConstructorBuiltinsAssembler::CreateFastCloneShallowArrayBuiltin(
+    AllocationSiteMode allocation_site_mode) {
+  typedef compiler::Node Node;
+  typedef CodeStubAssembler::Label Label;
+
+  Node* closure = Parameter(FastCloneShallowArrayDescriptor::kClosure);
+  Node* literal_index =
+      Parameter(FastCloneShallowArrayDescriptor::kLiteralIndex);
+  Node* constant_elements =
+      Parameter(FastCloneShallowArrayDescriptor::kConstantElements);
+  Node* context = Parameter(FastCloneShallowArrayDescriptor::kContext);
+  Label call_runtime(this, Label::kDeferred);
+  Return(EmitFastCloneShallowArray(closure, literal_index, context,
+                                   &call_runtime, allocation_site_mode));
+
+  Bind(&call_runtime);
+  {
+    Comment("call runtime");
+    Node* flags =
+        SmiConstant(Smi::FromInt(ArrayLiteral::kShallowElements |
+                                 (allocation_site_mode == TRACK_ALLOCATION_SITE
+                                      ? 0
+                                      : ArrayLiteral::kDisableMementos)));
+    Return(CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
+                       literal_index, constant_elements, flags));
+  }
+}
+
+TF_BUILTIN(FastCloneShallowArrayTrack, ConstructorBuiltinsAssembler) {
+  CreateFastCloneShallowArrayBuiltin(TRACK_ALLOCATION_SITE);
+}
+
+TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
+  CreateFastCloneShallowArrayBuiltin(DONT_TRACK_ALLOCATION_SITE);
+}
+
+Handle<Code> Builtins::NewCloneShallowArray(
+    AllocationSiteMode allocation_mode) {
+  switch (allocation_mode) {
+    case TRACK_ALLOCATION_SITE:
+      return FastCloneShallowArrayTrack();
+    case DONT_TRACK_ALLOCATION_SITE:
+      return FastCloneShallowArrayDontTrack();
+    default:
+      UNREACHABLE();
+  }
+  return Handle<Code>::null();
+}
+
+// static
+int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
+    int literal_length) {
+  // This heuristic of setting empty literals to have
+  // kInitialGlobalObjectUnusedPropertiesCount must remain in-sync with the
+  // runtime.
+  // TODO(verwaest): Unify this with the heuristic in the runtime.
+  return literal_length == 0
+             ? JSObject::kInitialGlobalObjectUnusedPropertiesCount
+             : literal_length;
+}
+
+Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
+    CodeAssemblerLabel* call_runtime, Node* closure, Node* literals_index,
+    Node* properties_count) {
+  Node* literals_array = LoadObjectField(closure, JSFunction::kLiteralsOffset);
+  Node* allocation_site =
+      LoadFixedArrayElement(literals_array, literals_index,
+                            LiteralsArray::kFirstLiteralIndex * kPointerSize,
+                            CodeStubAssembler::SMI_PARAMETERS);
+  GotoIf(IsUndefined(allocation_site), call_runtime);
+
+  // Calculate the object and allocation size based on the properties count.
+  Node* object_size = IntPtrAdd(WordShl(properties_count, kPointerSizeLog2),
+                                IntPtrConstant(JSObject::kHeaderSize));
+  Node* allocation_size = object_size;
+  if (FLAG_allocation_site_pretenuring) {
+    allocation_size =
+        IntPtrAdd(object_size, IntPtrConstant(AllocationMemento::kSize));
+  }
+  Node* boilerplate =
+      LoadObjectField(allocation_site, AllocationSite::kTransitionInfoOffset);
+  Node* boilerplate_map = LoadMap(boilerplate);
+  Node* instance_size = LoadMapInstanceSize(boilerplate_map);
+  Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
+  GotoUnless(WordEqual(instance_size, size_in_words), call_runtime);
+
+  Node* copy = Allocate(allocation_size);
+
+  // Copy boilerplate elements.
+  Variable offset(this, MachineType::PointerRepresentation());
+  offset.Bind(IntPtrConstant(-kHeapObjectTag));
+  Node* end_offset = IntPtrAdd(object_size, offset.value());
+  Label loop_body(this, &offset), loop_check(this, &offset);
+  // We should always have an object size greater than zero.
+  Goto(&loop_body);
+  Bind(&loop_body);
+  {
+    // The Allocate above guarantees that the copy lies in new space. This
+    // allows us to skip write barriers. This is necessary since we may also be
+    // copying unboxed doubles.
+    Node* field = Load(MachineType::IntPtr(), boilerplate, offset.value());
+    StoreNoWriteBarrier(MachineType::PointerRepresentation(), copy,
+                        offset.value(), field);
+    Goto(&loop_check);
+  }
+  Bind(&loop_check);
+  {
+    offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
+    GotoUnless(IntPtrGreaterThanOrEqual(offset.value(), end_offset),
+               &loop_body);
+  }
+
+  if (FLAG_allocation_site_pretenuring) {
+    Node* memento = InnerAllocate(copy, object_size);
+    StoreMapNoWriteBarrier(memento, Heap::kAllocationMementoMapRootIndex);
+    StoreObjectFieldNoWriteBarrier(
+        memento, AllocationMemento::kAllocationSiteOffset, allocation_site);
+    Node* memento_create_count = LoadObjectField(
+        allocation_site, AllocationSite::kPretenureCreateCountOffset);
+    memento_create_count =
+        SmiAdd(memento_create_count, SmiConstant(Smi::FromInt(1)));
+    StoreObjectFieldNoWriteBarrier(allocation_site,
+                                   AllocationSite::kPretenureCreateCountOffset,
+                                   memento_create_count);
+  }
+
+  // TODO(verwaest): Allocate and fill in double boxes.
+  return copy;
+}
+
+void ConstructorBuiltinsAssembler::CreateFastCloneShallowObjectBuiltin(
+    int properties_count) {
+  DCHECK_GE(properties_count, 0);
+  DCHECK_LE(properties_count, kMaximumClonedShallowObjectProperties);
+  Label call_runtime(this);
+  Node* closure = Parameter(0);
+  Node* literals_index = Parameter(1);
+
+  Node* properties_count_node =
+      IntPtrConstant(FastCloneShallowObjectPropertiesCount(properties_count));
+  Node* copy = EmitFastCloneShallowObject(
+      &call_runtime, closure, literals_index, properties_count_node);
+  Return(copy);
+
+  Bind(&call_runtime);
+  Node* constant_properties = Parameter(2);
+  Node* flags = Parameter(3);
+  Node* context = Parameter(4);
+  TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
+                  literals_index, constant_properties, flags);
+}
+
+#define SHALLOW_OBJECT_BUILTIN(props)                                       \
+  TF_BUILTIN(FastCloneShallowObject##props, ConstructorBuiltinsAssembler) { \
+    CreateFastCloneShallowObjectBuiltin(props);                             \
+  }
+
+SHALLOW_OBJECT_BUILTIN(0);
+SHALLOW_OBJECT_BUILTIN(1);
+SHALLOW_OBJECT_BUILTIN(2);
+SHALLOW_OBJECT_BUILTIN(3);
+SHALLOW_OBJECT_BUILTIN(4);
+SHALLOW_OBJECT_BUILTIN(5);
+SHALLOW_OBJECT_BUILTIN(6);
+
+Handle<Code> Builtins::NewCloneShallowObject(int length) {
+  switch (length) {
+    case 0:
+      return FastCloneShallowObject0();
+    case 1:
+      return FastCloneShallowObject1();
+    case 2:
+      return FastCloneShallowObject2();
+    case 3:
+      return FastCloneShallowObject3();
+    case 4:
+      return FastCloneShallowObject4();
+    case 5:
+      return FastCloneShallowObject5();
+    case 6:
+      return FastCloneShallowObject6();
     default:
       UNREACHABLE();
   }

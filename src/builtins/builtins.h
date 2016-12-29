@@ -94,6 +94,25 @@ namespace internal {
       FastNewFunctionContext)                                                  \
   TFS(FastNewFunctionContextFunction, BUILTIN, kNoExtraICState,                \
       FastNewFunctionContext)                                                  \
+  TFS(FastCloneRegExp, BUILTIN, kNoExtraICState, FastCloneRegExp)              \
+  TFS(FastCloneShallowArrayTrack, BUILTIN, kNoExtraICState,                    \
+      FastCloneShallowArray)                                                   \
+  TFS(FastCloneShallowArrayDontTrack, BUILTIN, kNoExtraICState,                \
+      FastCloneShallowArray)                                                   \
+  TFS(FastCloneShallowObject0, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
+  TFS(FastCloneShallowObject1, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
+  TFS(FastCloneShallowObject2, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
+  TFS(FastCloneShallowObject3, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
+  TFS(FastCloneShallowObject4, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
+  TFS(FastCloneShallowObject5, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
+  TFS(FastCloneShallowObject6, BUILTIN, kNoExtraICState,                       \
+      FastCloneShallowObject)                                                  \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(Apply)                                                                   \
@@ -784,6 +803,8 @@ class Builtins {
       CallableType function_type = CallableType::kAny);
   Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
+  Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
+  Handle<Code> NewCloneShallowObject(int length);
 
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins

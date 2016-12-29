@@ -1603,7 +1603,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
       expr->IsFastCloningSupported(),
-      FastCloneShallowObjectStub::PropertiesCount(expr->properties_count()),
+      ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
+          expr->properties_count()),
       expr->ComputeFlags());
   // If constant properties is an empty fixed array, use our cached
   // empty_fixed_array to ensure it's only added to the constant pool once.

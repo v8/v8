@@ -10,6 +10,7 @@
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/hashmap.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stubs.h"
 #include "src/contexts.h"
@@ -577,12 +578,12 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 }
 
 bool ObjectLiteral::IsFastCloningSupported() const {
-  // FastCloneShallowObjectStub doesn't copy elements, and object literals don't
-  // support copy-on-write (COW) elements for now.
+  // The FastCloneShallowObject builtin doesn't copy elements, and object
+  // literals don't support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
   return fast_elements() && has_shallow_properties() &&
-         properties_count() <=
-             FastCloneShallowObjectStub::kMaximumClonedProperties;
+         properties_count() <= ConstructorBuiltinsAssembler::
+                                   kMaximumClonedShallowObjectProperties;
 }
 
 void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
@@ -659,7 +660,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
          values()->length() <=
-             FastCloneShallowArrayStub::kMaximumClonedElements;
+             ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements;
 }
 
 void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,

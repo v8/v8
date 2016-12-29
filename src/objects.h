@@ -8987,14 +8987,6 @@ class TypeFeedbackInfo: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
 };
 
-
-enum AllocationSiteMode {
-  DONT_TRACK_ALLOCATION_SITE,
-  TRACK_ALLOCATION_SITE,
-  LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
-};
-
-
 class AllocationSite: public Struct {
  public:
   static const uint32_t kMaximumArrayBytesToPretransition = 8 * 1024;

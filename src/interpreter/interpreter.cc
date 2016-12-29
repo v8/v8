@@ -2551,8 +2551,9 @@ void Interpreter::DoCreateRegExpLiteral(InterpreterAssembler* assembler) {
   Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(2));
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result = FastCloneRegExpStub::Generate(
-      assembler, closure, literal_index, pattern, flags, context);
+  ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
+  Node* result = constructor_assembler.EmitFastCloneRegExp(
+      closure, literal_index, pattern, flags, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2576,9 +2577,9 @@ void Interpreter::DoCreateArrayLiteral(InterpreterAssembler* assembler) {
   __ Bind(&fast_shallow_clone);
   {
     DCHECK(FLAG_allocation_site_pretenuring);
-    Node* result = FastCloneShallowArrayStub::Generate(
-        assembler, closure, literal_index, context, &call_runtime,
-        TRACK_ALLOCATION_SITE);
+    ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
+    Node* result = constructor_assembler.EmitFastCloneShallowArray(
+        closure, literal_index, context, &call_runtime, TRACK_ALLOCATION_SITE);
     __ SetAccumulator(result);
     __ Dispatch();
   }
@@ -2619,8 +2620,9 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   __ Bind(&if_fast_clone);
   {
     // If we can do a fast clone do the fast-path in FastCloneShallowObjectStub.
-    Node* result = FastCloneShallowObjectStub::GenerateFastPath(
-        assembler, &if_not_fast_clone, closure, literal_index,
+    ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
+    Node* result = constructor_assembler.EmitFastCloneShallowObject(
+        &if_not_fast_clone, closure, literal_index,
         fast_clone_properties_count);
     __ StoreRegister(result, __ BytecodeOperandReg(3));
     __ Dispatch();

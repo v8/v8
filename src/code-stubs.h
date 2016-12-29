@@ -96,9 +96,6 @@ class Node;
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
   V(ElementsTransitionAndStore)               \
-  V(FastCloneRegExp)                          \
-  V(FastCloneShallowArray)                    \
-  V(FastCloneShallowObject)                   \
   V(KeyedLoadSloppyArguments)                 \
   V(KeyedStoreSloppyArguments)                \
   V(LoadScriptContextField)                   \
@@ -828,81 +825,6 @@ class FastNewStrictArgumentsStub final : public PlatformCodeStub {
 
  private:
   class SkipStubFrameBits : public BitField<bool, 0, 1> {};
-};
-
-class FastCloneRegExpStub final : public TurboFanCodeStub {
- public:
-  explicit FastCloneRegExpStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* closure,
-                                  compiler::Node* literal_index,
-                                  compiler::Node* pattern,
-                                  compiler::Node* flags,
-                                  compiler::Node* context);
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneRegExp);
-  DEFINE_TURBOFAN_CODE_STUB(FastCloneRegExp, TurboFanCodeStub);
-};
-
-class FastCloneShallowArrayStub : public TurboFanCodeStub {
- public:
-  // Maximum number of elements in copied array (chosen so that even an array
-  // backed by a double backing store will fit into new-space).
-  static const int kMaximumClonedElements =
-      JSArray::kInitialMaxFastElementArray * kPointerSize / kDoubleSize;
-
-  FastCloneShallowArrayStub(Isolate* isolate,
-                            AllocationSiteMode allocation_site_mode)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = AllocationSiteModeBits::encode(allocation_site_mode);
-  }
-
-  static compiler::Node* Generate(CodeStubAssembler* assembler,
-                                  compiler::Node* closure,
-                                  compiler::Node* literal_index,
-                                  compiler::Node* context,
-                                  compiler::CodeAssemblerLabel* call_runtime,
-                                  AllocationSiteMode allocation_site_mode);
-
-  AllocationSiteMode allocation_site_mode() const {
-    return AllocationSiteModeBits::decode(minor_key_);
-  }
-
- private:
-  class AllocationSiteModeBits: public BitField<AllocationSiteMode, 0, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowArray);
-  DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowArray, TurboFanCodeStub);
-};
-
-class FastCloneShallowObjectStub : public TurboFanCodeStub {
- public:
-  // Maximum number of properties in copied object.
-  static const int kMaximumClonedProperties = 6;
-
-  FastCloneShallowObjectStub(Isolate* isolate, int length)
-      : TurboFanCodeStub(isolate) {
-    DCHECK_GE(length, 0);
-    DCHECK_LE(length, kMaximumClonedProperties);
-    minor_key_ = LengthBits::encode(LengthBits::encode(length));
-  }
-
-  static compiler::Node* GenerateFastPath(
-      CodeStubAssembler* assembler, compiler::CodeAssemblerLabel* call_runtime,
-      compiler::Node* closure, compiler::Node* literals_index,
-      compiler::Node* properties_count);
-
-  static int PropertiesCount(int literal_length);
-
-  int length() const { return LengthBits::decode(minor_key_); }
-
- private:
-  class LengthBits : public BitField<int, 0, 4> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(FastCloneShallowObject);
-  DEFINE_TURBOFAN_CODE_STUB(FastCloneShallowObject, TurboFanCodeStub);
 };
 
 class CreateAllocationSiteStub : public TurboFanCodeStub {

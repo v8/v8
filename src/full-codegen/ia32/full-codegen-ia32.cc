@@ -1149,8 +1149,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_properties));
     __ mov(edx, Immediate(Smi::FromInt(flags)));
-    FastCloneShallowObjectStub stub(isolate(), expr->properties_count());
-    __ CallStub(&stub);
+    Callable callable = CodeFactory::FastCloneShallowObject(
+        isolate(), expr->properties_count());
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), BailoutState::TOS_REGISTER);
@@ -1282,8 +1283,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_elements));
-    FastCloneShallowArrayStub stub(isolate(), allocation_site_mode);
-    __ CallStub(&stub);
+    Callable callable =
+        CodeFactory::FastCloneShallowArray(isolate(), allocation_site_mode);
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), BailoutState::TOS_REGISTER);
