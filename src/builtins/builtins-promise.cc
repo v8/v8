@@ -225,7 +225,6 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   Bind(&fast_promise_capability);
   {
     Node* const deferred_promise = AllocateAndInitPromise(context, promise);
-    PromiseInit(deferred_promise);
     var_deferred_promise.Bind(deferred_promise);
     var_deferred_on_resolve.Bind(UndefinedConstant());
     var_deferred_on_reject.Bind(UndefinedConstant());
