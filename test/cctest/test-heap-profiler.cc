@@ -69,10 +69,10 @@ class NamedEntriesDetector {
     CheckEntry(root);
     while (!list.is_empty()) {
       i::HeapEntry* entry = list.RemoveLast();
-      i::Vector<i::HeapGraphEdge*> children = entry->children();
-      for (int i = 0; i < children.length(); ++i) {
-        if (children[i]->type() == i::HeapGraphEdge::kShortcut) continue;
-        i::HeapEntry* child = children[i]->to();
+      for (int i = 0; i < entry->children_count(); ++i) {
+        i::HeapGraphEdge* edge = entry->child(i);
+        if (edge->type() == i::HeapGraphEdge::kShortcut) continue;
+        i::HeapEntry* child = edge->to();
         v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
             reinterpret_cast<void*>(child),
             static_cast<uint32_t>(reinterpret_cast<uintptr_t>(child)));
@@ -137,8 +137,8 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 
   v8::base::HashMap visited;
-  i::List<i::HeapGraphEdge>& edges = heap_snapshot->edges();
-  for (int i = 0; i < edges.length(); ++i) {
+  std::deque<i::HeapGraphEdge>& edges = heap_snapshot->edges();
+  for (size_t i = 0; i < edges.size(); ++i) {
     v8::base::HashMap::Entry* entry = visited.LookupOrInsert(
         reinterpret_cast<void*>(edges[i].to()),
         static_cast<uint32_t>(reinterpret_cast<uintptr_t>(edges[i].to())));

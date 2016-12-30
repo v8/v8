@@ -9549,13 +9549,12 @@ size_t HeapGraphNode::GetShallowSize() const {
 
 
 int HeapGraphNode::GetChildrenCount() const {
-  return ToInternal(this)->children().length();
+  return ToInternal(this)->children_count();
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
-  return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->children()[index]);
+  return reinterpret_cast<const HeapGraphEdge*>(ToInternal(this)->child(index));
 }
 
 
