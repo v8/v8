@@ -1832,6 +1832,7 @@ TEST(AllocateJSPromise) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseInit(promise);
   m.Return(promise);
 
   Handle<Code> code = data.GenerateCode();
@@ -1902,6 +1903,7 @@ TEST(AllocatePromiseReactionJobInfo) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const promise = m.AllocateJSPromise(context);
+  m.PromiseInit(promise);
   Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred_promise =

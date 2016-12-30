@@ -887,6 +887,7 @@ void JSPromise::JSPromiseVerify() {
   CHECK(IsJSPromise());
   JSObjectVerify();
   Isolate* isolate = GetIsolate();
+  VerifySmiField(kStatusOffset);
   CHECK(result()->IsUndefined(isolate) || result()->IsObject());
   CHECK(deferred_promise()->IsUndefined(isolate) ||
         deferred_promise()->IsJSReceiver() ||
