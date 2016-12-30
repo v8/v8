@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-promise.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -742,9 +743,9 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 
   Bind(&if_targetismodified);
   {
-    Callable fast_new_object_stub = CodeFactory::FastNewObject(isolate);
-    Node* const instance =
-        CallStub(fast_new_object_stub, context, promise_fun, new_target);
+    ConstructorBuiltinsAssembler constructor_assembler(this->state());
+    Node* const instance = constructor_assembler.EmitFastNewObject(
+        context, promise_fun, new_target);
 
     var_result.Bind(instance);
     Goto(&init);

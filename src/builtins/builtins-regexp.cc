@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -786,9 +787,9 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     Bind(&allocate_generic);
     {
-      Callable fastnewobject_callable = CodeFactory::FastNewObject(isolate);
-      Node* const regexp = CallStub(fastnewobject_callable, context,
-                                    regexp_function, var_new_target.value());
+      ConstructorBuiltinsAssembler constructor_assembler(this->state());
+      Node* const regexp = constructor_assembler.EmitFastNewObject(
+          context, regexp_function, var_new_target.value());
       var_regexp.Bind(regexp);
       Goto(&next);
     }

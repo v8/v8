@@ -161,30 +161,57 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
   Node* target = Parameter(Descriptor::kTarget);
   Node* new_target = Parameter(Descriptor::kNewTarget);
 
+  Label call_runtime(this);
+
+  Node* result = EmitFastNewObject(context, target, new_target, &call_runtime);
+  Return(result);
+
+  Bind(&call_runtime);
+  TailCallRuntime(Runtime::kNewObject, context, target, new_target);
+}
+
+Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
+                                                      Node* target,
+                                                      Node* new_target) {
+  Variable var_obj(this, MachineRepresentation::kTagged);
+  Label call_runtime(this), end(this);
+
+  Node* result = EmitFastNewObject(context, target, new_target, &call_runtime);
+  var_obj.Bind(result);
+  Goto(&end);
+
+  Bind(&call_runtime);
+  var_obj.Bind(CallRuntime(Runtime::kNewObject, context, target, new_target));
+  Goto(&end);
+
+  Bind(&end);
+  return var_obj.value();
+}
+
+Node* ConstructorBuiltinsAssembler::EmitFastNewObject(
+    Node* context, Node* target, Node* new_target,
+    CodeAssemblerLabel* call_runtime) {
   CSA_ASSERT(this, HasInstanceType(target, JS_FUNCTION_TYPE));
   CSA_ASSERT(this, IsJSReceiver(new_target));
 
   // Verify that the new target is a JSFunction.
-  Label runtime(this), fast(this);
+  Label fast(this), end(this);
   GotoIf(HasInstanceType(new_target, JS_FUNCTION_TYPE), &fast);
-  Goto(&runtime);
-
-  Bind(&runtime);
-  TailCallRuntime(Runtime::kNewObject, context, target, new_target);
+  Goto(call_runtime);
 
   Bind(&fast);
 
   // Load the initial map and verify that it's in fact a map.
   Node* initial_map =
       LoadObjectField(new_target, JSFunction::kPrototypeOrInitialMapOffset);
-  GotoIf(TaggedIsSmi(initial_map), &runtime);
-  GotoIf(DoesntHaveInstanceType(initial_map, MAP_TYPE), &runtime);
+  GotoIf(TaggedIsSmi(initial_map), call_runtime);
+  GotoIf(DoesntHaveInstanceType(initial_map, MAP_TYPE), call_runtime);
 
   // Fall back to runtime if the target differs from the new target's
   // initial map constructor.
   Node* new_target_constructor =
       LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
-  GotoIf(WordNotEqual(target, new_target_constructor), &runtime);
+  GotoIf(WordNotEqual(target, new_target_constructor), call_runtime);
 
   Node* instance_size_words = ChangeUint32ToWord(LoadObjectField(
       initial_map, Map::kInstanceSizeOffset, MachineType::Uint8()));
@@ -214,7 +241,7 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
     Comment("no slack tracking");
     InitializeFieldsWithRoot(object, IntPtrConstant(JSObject::kHeaderSize),
                              instance_size, Heap::kUndefinedValueRootIndex);
-    Return(object);
+    Goto(&end);
   }
 
   {
@@ -243,7 +270,7 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
     Comment("initialize undefined fields (no finalize)");
     InitializeFieldsWithRoot(object, IntPtrConstant(JSObject::kHeaderSize),
                              used_size, Heap::kUndefinedValueRootIndex);
-    Return(object);
+    Goto(&end);
   }
 
   {
@@ -265,8 +292,11 @@ TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
                              used_size, Heap::kUndefinedValueRootIndex);
 
     CallRuntime(Runtime::kFinalizeInstanceSize, context, initial_map);
-    Return(object);
+    Goto(&end);
   }
+
+  Bind(&end);
+  return object;
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(

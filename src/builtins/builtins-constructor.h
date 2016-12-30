@@ -44,6 +44,11 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
                                    Node* properties_count);
   void CreateFastCloneShallowObjectBuiltin(int properties_count);
 
+  Node* EmitFastNewObject(Node* context, Node* target, Node* new_target);
+
+  Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
+                          CodeAssemblerLabel* call_runtime);
+
  private:
   static const int kMaximumSlots = 0x8000;
   static const int kSmallMaximumSlots = 10;
