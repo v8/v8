@@ -33,8 +33,12 @@ function assertCompileError(bytes) {
   assertThrows(() => module(bytes), WebAssembly.CompileError);
 }
 
-function assertLinkError(bytes, imports = {}) {
+function assertTypeError(bytes, imports = {}) {
   assertThrows(() => instance(bytes, imports), TypeError);
+}
+
+function assertLinkError(bytes, imports = {}) {
+  assertThrows(() => instance(bytes, imports), WebAssembly.LinkError);
 }
 
 function assertRuntimeError(bytes, imports = {}) {
@@ -67,40 +71,44 @@ function assertConversionError(bytes, imports = {}) {
   let b;
 
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
-  assertLinkError(b.toBuffer(), {});
+  b.addImport("foo", "bar", kSig_v_v);
+  assertTypeError(b.toBuffer(), {});
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {}});
   b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_v);
+  b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {bar: 9}});
 
   b = builder();
-  b.addImportedGlobal("foo", "bar", kAstI32);
-  assertLinkError(b.toBuffer(), {});
-  // TODO(titzer): implement stricter import checks for globals.
-  // b = builder();
-  // b.addImportedGlobal("foo", "bar", kAstI32);
-  // assertLinkError(b.toBuffer(), {foo: {}});
-  // b = builder();
-  // b.addImportedGlobal("foo", "bar", kAstI32);
-  // assertLinkError(b.toBuffer(), {foo: {bar: ""}});
-  // b = builder();
-  // b.addImportedGlobal("foo", "bar", kAstI32);
-  // assertLinkError(b.toBuffer(), {foo: {bar: () => 9}});
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertTypeError(b.toBuffer(), {});
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {}});
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {bar: ""}});
+  b = builder();
+  b.addImportedGlobal("foo", "bar", kWasmI32);
+  assertLinkError(b.toBuffer(), {foo: {bar: () => 9}});
 
   b = builder();
   b.addImportedMemory("foo", "bar");
-  assertLinkError(b.toBuffer(), {});
+  assertTypeError(b.toBuffer(), {});
   b = builder();
   b.addImportedMemory("foo", "bar");
   assertLinkError(b.toBuffer(), {foo: {}});
-  // TODO(titzer): implement stricter import checks for globals.
-  // b = builder();
-  // b.addImportedMemory("foo", "bar", 1);
-  // assertLinkError(b.toBuffer(),
-  //     {foo: {bar: new WebAssembly.Memory({initial: 0})}});
+  b = builder();
+  b.addImportedMemory("foo", "bar", 1);
+  assertLinkError(b.toBuffer(),
+      {foo: {bar: () => new WebAssembly.Memory({initial: 0})}});
+
+  b = builder();
+  b.addFunction("f", kSig_v_v).addBody([
+    kExprUnreachable,
+  ]).end().addStart(0);
+  assertRuntimeError(b.toBuffer());
 })();
 
 (function TestTrapError() {
@@ -124,10 +132,11 @@ function assertConversionError(bytes, imports = {}) {
 
 (function TestConversionError() {
   let b = builder();
-  b.addImportWithModule("foo", "bar", kSig_v_l);
+  b.addImport("foo", "bar", kSig_v_l);
   assertConversionError(b.addFunction("run", kSig_v_v).addBody([
     kExprI64Const, 0, kExprCallFunction, 0
   ]).exportFunc().end().toBuffer());
+
   assertConversionError(builder().addFunction("run", kSig_l_v).addBody([
     kExprI64Const, 0
   ]).exportFunc().end().toBuffer());

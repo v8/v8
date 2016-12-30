@@ -19,11 +19,12 @@ class BytecodePeepholeOptimizerTest : public BytecodePipelineStage,
                                       public TestWithIsolateAndZone {
  public:
   BytecodePeepholeOptimizerTest()
-      : peephole_optimizer_(this), last_written_(Bytecode::kIllegal) {}
+      : peephole_optimizer_(this),
+        last_written_(BytecodeNode::Illegal(BytecodeSourceInfo())) {}
   ~BytecodePeepholeOptimizerTest() override {}
 
   void Reset() {
-    last_written_.set_bytecode(Bytecode::kIllegal);
+    last_written_ = BytecodeNode::Illegal(BytecodeSourceInfo());
     write_count_ = 0;
   }
 

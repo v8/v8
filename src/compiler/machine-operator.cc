@@ -483,41 +483,41 @@ struct MachineOperatorGlobalCache {
   OVERFLOW_OP_LIST(OVERFLOW_OP)
 #undef OVERFLOW_OP
 
-#define LOAD(Type)                                                           \
-  struct Load##Type##Operator final : public Operator1<LoadRepresentation> { \
-    Load##Type##Operator()                                                   \
-        : Operator1<LoadRepresentation>(                                     \
-              IrOpcode::kLoad,                                               \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}              \
-  };                                                                         \
-  struct UnalignedLoad##Type##Operator final                                 \
-      : public Operator1<UnalignedLoadRepresentation> {                      \
-    UnalignedLoad##Type##Operator()                                          \
-        : Operator1<UnalignedLoadRepresentation>(                            \
-              IrOpcode::kUnalignedLoad,                                      \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
-  };                                                                         \
-  struct CheckedLoad##Type##Operator final                                   \
-      : public Operator1<CheckedLoadRepresentation> {                        \
-    CheckedLoad##Type##Operator()                                            \
-        : Operator1<CheckedLoadRepresentation>(                              \
-              IrOpcode::kCheckedLoad,                                        \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
-  };                                                                         \
-  struct ProtectedLoad##Type##Operator final                                 \
-      : public Operator1<LoadRepresentation> {                               \
-    ProtectedLoad##Type##Operator()                                          \
-        : Operator1<LoadRepresentation>(                                     \
-              IrOpcode::kProtectedLoad,                                      \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,  \
-              "ProtectedLoad", 4, 1, 1, 1, 1, 0, MachineType::Type()) {}     \
-  };                                                                         \
-  Load##Type##Operator kLoad##Type;                                          \
-  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                        \
-  CheckedLoad##Type##Operator kCheckedLoad##Type;                            \
+#define LOAD(Type)                                                            \
+  struct Load##Type##Operator final : public Operator1<LoadRepresentation> {  \
+    Load##Type##Operator()                                                    \
+        : Operator1<LoadRepresentation>(                                      \
+              IrOpcode::kLoad,                                                \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}               \
+  };                                                                          \
+  struct UnalignedLoad##Type##Operator final                                  \
+      : public Operator1<UnalignedLoadRepresentation> {                       \
+    UnalignedLoad##Type##Operator()                                           \
+        : Operator1<UnalignedLoadRepresentation>(                             \
+              IrOpcode::kUnalignedLoad,                                       \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}      \
+  };                                                                          \
+  struct CheckedLoad##Type##Operator final                                    \
+      : public Operator1<CheckedLoadRepresentation> {                         \
+    CheckedLoad##Type##Operator()                                             \
+        : Operator1<CheckedLoadRepresentation>(                               \
+              IrOpcode::kCheckedLoad,                                         \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}        \
+  };                                                                          \
+  struct ProtectedLoad##Type##Operator final                                  \
+      : public Operator1<LoadRepresentation> {                                \
+    ProtectedLoad##Type##Operator()                                           \
+        : Operator1<LoadRepresentation>(                                      \
+              IrOpcode::kProtectedLoad,                                       \
+              Operator::kNoDeopt | Operator::kNoThrow, "ProtectedLoad", 3, 1, \
+              1, 1, 1, 0, MachineType::Type()) {}                             \
+  };                                                                          \
+  Load##Type##Operator kLoad##Type;                                           \
+  UnalignedLoad##Type##Operator kUnalignedLoad##Type;                         \
+  CheckedLoad##Type##Operator kCheckedLoad##Type;                             \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -589,7 +589,7 @@ struct MachineOperatorGlobalCache {
         : Operator1<StoreRepresentation>(                                      \
               IrOpcode::kProtectedStore,                                       \
               Operator::kNoDeopt | Operator::kNoRead | Operator::kNoThrow,     \
-              "Store", 5, 1, 1, 0, 1, 0,                                       \
+              "Store", 4, 1, 1, 0, 1, 0,                                       \
               StoreRepresentation(MachineRepresentation::Type,                 \
                                   kNoWriteBarrier)) {}                         \
   };                                                                           \

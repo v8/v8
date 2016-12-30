@@ -2212,19 +2212,49 @@ void MacroAssembler::Trunc_ul_s(FPURegister fd, Register rs,
   bind(&fail);
 }
 
+void MacroAssembler::Madd_s(FPURegister fd, FPURegister fr, FPURegister fs,
+                            FPURegister ft, FPURegister scratch) {
+  if (kArchVariant == kMips64r2) {
+    madd_s(fd, fr, fs, ft);
+  } else {
+    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+    mul_s(scratch, fs, ft);
+    add_s(fd, fr, scratch);
+  }
+}
 
 void MacroAssembler::Madd_d(FPURegister fd, FPURegister fr, FPURegister fs,
     FPURegister ft, FPURegister scratch) {
-  if (0) {  // TODO(plind): find reasonable arch-variant symbol names.
+  if (kArchVariant == kMips64r2) {
     madd_d(fd, fr, fs, ft);
   } else {
-    // Can not change source regs's value.
     DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
     mul_d(scratch, fs, ft);
     add_d(fd, fr, scratch);
   }
 }
 
+void MacroAssembler::Msub_s(FPURegister fd, FPURegister fr, FPURegister fs,
+                            FPURegister ft, FPURegister scratch) {
+  if (kArchVariant == kMips64r2) {
+    msub_s(fd, fr, fs, ft);
+  } else {
+    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+    mul_s(scratch, fs, ft);
+    sub_s(fd, scratch, fr);
+  }
+}
+
+void MacroAssembler::Msub_d(FPURegister fd, FPURegister fr, FPURegister fs,
+                            FPURegister ft, FPURegister scratch) {
+  if (kArchVariant == kMips64r2) {
+    msub_d(fd, fr, fs, ft);
+  } else {
+    DCHECK(!fr.is(scratch) && !fs.is(scratch) && !ft.is(scratch));
+    mul_d(scratch, fs, ft);
+    sub_d(fd, scratch, fr);
+  }
+}
 
 void MacroAssembler::BranchFCommon(SecondaryField sizeField, Label* target,
                                    Label* nan, Condition cond, FPURegister cmp1,
@@ -4291,111 +4321,6 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
 
   Daddu(result, result, Operand(kHeapObjectTag));
 }
-
-void MacroAssembler::AllocateTwoByteString(Register result,
-                                           Register length,
-                                           Register scratch1,
-                                           Register scratch2,
-                                           Register scratch3,
-                                           Label* gc_required) {
-  // Calculate the number of bytes needed for the characters in the string while
-  // observing object alignment.
-  DCHECK((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  dsll(scratch1, length, 1);  // Length in bytes, not chars.
-  daddiu(scratch1, scratch1,
-       kObjectAlignmentMask + SeqTwoByteString::kHeaderSize);
-  And(scratch1, scratch1, Operand(~kObjectAlignmentMask));
-
-  // Allocate two-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  // Set the map, length and hash field.
-  InitializeNewString(result,
-                      length,
-                      Heap::kStringMapRootIndex,
-                      scratch1,
-                      scratch2);
-}
-
-
-void MacroAssembler::AllocateOneByteString(Register result, Register length,
-                                           Register scratch1, Register scratch2,
-                                           Register scratch3,
-                                           Label* gc_required) {
-  // Calculate the number of bytes needed for the characters in the string
-  // while observing object alignment.
-  DCHECK((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  DCHECK(kCharSize == 1);
-  daddiu(scratch1, length,
-      kObjectAlignmentMask + SeqOneByteString::kHeaderSize);
-  And(scratch1, scratch1, Operand(~kObjectAlignmentMask));
-
-  // Allocate one-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  // Set the map, length and hash field.
-  InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
-                      scratch1, scratch2);
-}
-
-
-void MacroAssembler::AllocateTwoByteConsString(Register result,
-                                               Register length,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
-  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-  InitializeNewString(result,
-                      length,
-                      Heap::kConsStringMapRootIndex,
-                      scratch1,
-                      scratch2);
-}
-
-
-void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
-  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
-                      scratch1, scratch2);
-}
-
-
-void MacroAssembler::AllocateTwoByteSlicedString(Register result,
-                                                 Register length,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Label* gc_required) {
-  Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result,
-                      length,
-                      Heap::kSlicedStringMapRootIndex,
-                      scratch1,
-                      scratch2);
-}
-
-
-void MacroAssembler::AllocateOneByteSlicedString(Register result,
-                                                 Register length,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Label* gc_required) {
-  Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
-                      scratch1, scratch2);
-}
-
 
 void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
                                                      Label* not_unique_name) {
@@ -6486,18 +6411,6 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
   Branch(failure, ne, scratch1, Operand(kFlatOneByteStringTag));
   andi(scratch2, second, kFlatOneByteStringMask);
   Branch(failure, ne, scratch2, Operand(kFlatOneByteStringTag));
-}
-
-
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialOneByte(Register type,
-                                                              Register scratch,
-                                                              Label* failure) {
-  const int kFlatOneByteStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  const int kFlatOneByteStringTag =
-      kStringTag | kOneByteStringTag | kSeqStringTag;
-  And(scratch, type, Operand(kFlatOneByteStringMask));
-  Branch(failure, ne, scratch, Operand(kFlatOneByteStringTag));
 }
 
 static const int kRegisterPassedArguments = 8;

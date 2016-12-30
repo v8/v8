@@ -30,6 +30,7 @@
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
+#include "src/objects/scope-info.h"
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
@@ -58,22 +59,6 @@ int PropertyDetails::field_width_in_words() const {
   if (kDoubleSize == kPointerSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
 }
-
-#define TYPE_CHECKER(type, instancetype)           \
-  bool HeapObject::Is##type() const {              \
-    return map()->instance_type() == instancetype; \
-  }
-
-#define CAST_ACCESSOR(type)                       \
-  type* type::cast(Object* object) {              \
-    SLOW_DCHECK(object->Is##type());              \
-    return reinterpret_cast<type*>(object);       \
-  }                                               \
-  const type* type::cast(const Object* object) {  \
-    SLOW_DCHECK(object->Is##type());              \
-    return reinterpret_cast<const type*>(object); \
-  }
-
 
 #define INT_ACCESSORS(holder, name, offset)                                   \
   int holder::name() const { return READ_INT_FIELD(this, offset); }           \
@@ -140,6 +125,61 @@ int PropertyDetails::field_width_in_words() const {
     set_##field(BooleanBit::set(field(), offset, value));  \
   }
 
+#define TYPE_CHECKER(type, instancetype)           \
+  bool HeapObject::Is##type() const {              \
+    return map()->instance_type() == instancetype; \
+  }
+
+TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
+TYPE_CHECKER(BytecodeArray, BYTECODE_ARRAY_TYPE)
+TYPE_CHECKER(Cell, CELL_TYPE)
+TYPE_CHECKER(Code, CODE_TYPE)
+TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
+TYPE_CHECKER(Foreign, FOREIGN_TYPE)
+TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
+TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
+TYPE_CHECKER(JSArgumentsObject, JS_ARGUMENTS_TYPE)
+TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
+TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
+TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
+TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
+TYPE_CHECKER(JSDataView, JS_DATA_VIEW_TYPE)
+TYPE_CHECKER(JSDate, JS_DATE_TYPE)
+TYPE_CHECKER(JSError, JS_ERROR_TYPE)
+TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
+TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
+TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
+TYPE_CHECKER(JSMap, JS_MAP_TYPE)
+TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
+TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
+TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
+TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
+TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
+TYPE_CHECKER(JSSet, JS_SET_TYPE)
+TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
+TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
+TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
+TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
+TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
+TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
+TYPE_CHECKER(Map, MAP_TYPE)
+TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
+TYPE_CHECKER(Oddball, ODDBALL_TYPE)
+TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
+TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
+TYPE_CHECKER(Simd128Value, SIMD128_VALUE_TYPE)
+TYPE_CHECKER(Symbol, SYMBOL_TYPE)
+TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
+TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
+TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
+
+#define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
+  TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
+TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
+#undef TYPED_ARRAY_TYPE_CHECKER
+
+#undef TYPE_CHECKER
+
 bool HeapObject::IsFixedArrayBase() const {
   return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
 }
@@ -150,17 +190,10 @@ bool HeapObject::IsFixedArray() const {
          instance_type == TRANSITION_ARRAY_TYPE;
 }
 
-
 // External objects are not extensible, so the map check is enough.
 bool HeapObject::IsExternal() const {
   return map() == GetHeap()->external_map();
 }
-
-
-TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
-TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
-TYPE_CHECKER(Symbol, SYMBOL_TYPE)
-TYPE_CHECKER(Simd128Value, SIMD128_VALUE_TYPE)
 
 #define SIMD128_TYPE_CHECKER(TYPE, Type, type, lane_count, lane_type) \
   bool HeapObject::Is##Type() const { return map() == GetHeap()->type##_map(); }
@@ -266,411 +299,12 @@ bool HeapObject::IsExternalTwoByteString() const {
          String::cast(this)->IsTwoByteRepresentation();
 }
 
-bool Object::HasValidElements() {
-  // Dictionary is covered under FixedArray.
-  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
-}
-
-
-bool Object::KeyEquals(Object* second) {
-  Object* first = this;
-  if (second->IsNumber()) {
-    if (first->IsNumber()) return first->Number() == second->Number();
-    Object* temp = first;
-    first = second;
-    second = temp;
-  }
-  if (first->IsNumber()) {
-    DCHECK_LE(0, first->Number());
-    uint32_t expected = static_cast<uint32_t>(first->Number());
-    uint32_t index;
-    return Name::cast(second)->AsArrayIndex(&index) && index == expected;
-  }
-  return Name::cast(first)->Equals(Name::cast(second));
-}
-
-
-bool Object::FilterKey(PropertyFilter filter) {
-  if (IsSymbol()) {
-    if (filter & SKIP_SYMBOLS) return true;
-    if (Symbol::cast(this)->is_private()) return true;
-  } else {
-    if (filter & SKIP_STRINGS) return true;
-  }
-  return false;
-}
-
-
-Handle<Object> Object::NewStorageFor(Isolate* isolate,
-                                     Handle<Object> object,
-                                     Representation representation) {
-  if (representation.IsSmi() && object->IsUninitialized(isolate)) {
-    return handle(Smi::kZero, isolate);
-  }
-  if (!representation.IsDouble()) return object;
-  double value;
-  if (object->IsUninitialized(isolate)) {
-    value = 0;
-  } else if (object->IsMutableHeapNumber()) {
-    value = HeapNumber::cast(*object)->value();
-  } else {
-    value = object->Number();
-  }
-  return isolate->factory()->NewHeapNumber(value, MUTABLE);
-}
-
-
-Handle<Object> Object::WrapForRead(Isolate* isolate,
-                                   Handle<Object> object,
-                                   Representation representation) {
-  DCHECK(!object->IsUninitialized(isolate));
-  if (!representation.IsDouble()) {
-    DCHECK(object->FitsRepresentation(representation));
-    return object;
-  }
-  return isolate->factory()->NewHeapNumber(HeapNumber::cast(*object)->value());
-}
-
-
-StringShape::StringShape(const String* str)
-  : type_(str->map()->instance_type()) {
-  set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
-}
-
-
-StringShape::StringShape(Map* map)
-  : type_(map->instance_type()) {
-  set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
-}
-
-
-StringShape::StringShape(InstanceType t)
-  : type_(static_cast<uint32_t>(t)) {
-  set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
-}
-
-
-bool StringShape::IsInternalized() {
-  DCHECK(valid());
-  STATIC_ASSERT(kNotInternalizedTag != 0);
-  return (type_ & (kIsNotStringMask | kIsNotInternalizedMask)) ==
-      (kStringTag | kInternalizedTag);
-}
-
-
-bool String::IsOneByteRepresentation() const {
-  uint32_t type = map()->instance_type();
-  return (type & kStringEncodingMask) == kOneByteStringTag;
-}
-
-
-bool String::IsTwoByteRepresentation() const {
-  uint32_t type = map()->instance_type();
-  return (type & kStringEncodingMask) == kTwoByteStringTag;
-}
-
-
-bool String::IsOneByteRepresentationUnderneath() {
-  uint32_t type = map()->instance_type();
-  STATIC_ASSERT(kIsIndirectStringTag != 0);
-  STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
-  DCHECK(IsFlat());
-  switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
-    case kOneByteStringTag:
-      return true;
-    case kTwoByteStringTag:
-      return false;
-    default:  // Cons or sliced string.  Need to go deeper.
-      return GetUnderlying()->IsOneByteRepresentation();
-  }
-}
-
-
-bool String::IsTwoByteRepresentationUnderneath() {
-  uint32_t type = map()->instance_type();
-  STATIC_ASSERT(kIsIndirectStringTag != 0);
-  STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
-  DCHECK(IsFlat());
-  switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
-    case kOneByteStringTag:
-      return false;
-    case kTwoByteStringTag:
-      return true;
-    default:  // Cons or sliced string.  Need to go deeper.
-      return GetUnderlying()->IsTwoByteRepresentation();
-  }
-}
-
-
-bool String::HasOnlyOneByteChars() {
-  uint32_t type = map()->instance_type();
-  return (type & kOneByteDataHintMask) == kOneByteDataHintTag ||
-         IsOneByteRepresentation();
-}
-
-
-bool StringShape::IsCons() {
-  return (type_ & kStringRepresentationMask) == kConsStringTag;
-}
-
-
-bool StringShape::IsSliced() {
-  return (type_ & kStringRepresentationMask) == kSlicedStringTag;
-}
-
-
-bool StringShape::IsIndirect() {
-  return (type_ & kIsIndirectStringMask) == kIsIndirectStringTag;
-}
-
-
-bool StringShape::IsExternal() {
-  return (type_ & kStringRepresentationMask) == kExternalStringTag;
-}
-
-
-bool StringShape::IsSequential() {
-  return (type_ & kStringRepresentationMask) == kSeqStringTag;
-}
-
-
-StringRepresentationTag StringShape::representation_tag() {
-  uint32_t tag = (type_ & kStringRepresentationMask);
-  return static_cast<StringRepresentationTag>(tag);
-}
-
-
-uint32_t StringShape::encoding_tag() {
-  return type_ & kStringEncodingMask;
-}
-
-
-uint32_t StringShape::full_representation_tag() {
-  return (type_ & (kStringRepresentationMask | kStringEncodingMask));
-}
-
-
-STATIC_ASSERT((kStringRepresentationMask | kStringEncodingMask) ==
-             Internals::kFullStringRepresentationMask);
-
-STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
-             Internals::kStringEncodingMask);
-
-
-bool StringShape::IsSequentialOneByte() {
-  return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
-}
-
-
-bool StringShape::IsSequentialTwoByte() {
-  return full_representation_tag() == (kSeqStringTag | kTwoByteStringTag);
-}
-
-
-bool StringShape::IsExternalOneByte() {
-  return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
-}
-
-
-STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
-              Internals::kExternalOneByteRepresentationTag);
-
-STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
-
-
-bool StringShape::IsExternalTwoByte() {
-  return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
-}
-
-
-STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
-             Internals::kExternalTwoByteRepresentationTag);
-
-STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
-
-
-uc32 FlatStringReader::Get(int index) {
-  if (is_one_byte_) {
-    return Get<uint8_t>(index);
-  } else {
-    return Get<uc16>(index);
-  }
-}
-
-
-template <typename Char>
-Char FlatStringReader::Get(int index) {
-  DCHECK_EQ(is_one_byte_, sizeof(Char) == 1);
-  DCHECK(0 <= index && index <= length_);
-  if (sizeof(Char) == 1) {
-    return static_cast<Char>(static_cast<const uint8_t*>(start_)[index]);
-  } else {
-    return static_cast<Char>(static_cast<const uc16*>(start_)[index]);
-  }
-}
-
-
-Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-
-Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
-                                               HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-
-Handle<Object> CodeCacheHashTableShape::AsHandle(Isolate* isolate,
-                                                 HashTableKey* key) {
-  return key->AsHandle(isolate);
-}
-
-template <typename Char>
-class SequentialStringKey : public HashTableKey {
- public:
-  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  uint32_t Hash() override {
-    hash_field_ = StringHasher::HashSequentialString<Char>(string_.start(),
-                                                           string_.length(),
-                                                           seed_);
-
-    uint32_t result = hash_field_ >> String::kHashShift;
-    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
-  }
-
-  Vector<const Char> string_;
-  uint32_t hash_field_;
-  uint32_t seed_;
-};
-
-
-class OneByteStringKey : public SequentialStringKey<uint8_t> {
- public:
-  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
-      : SequentialStringKey<uint8_t>(str, seed) { }
-
-  bool IsMatch(Object* string) override {
-    return String::cast(string)->IsOneByteEqualTo(string_);
-  }
-
-  Handle<Object> AsHandle(Isolate* isolate) override;
-};
-
-
-class SeqOneByteSubStringKey : public HashTableKey {
- public:
-  SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
-      : string_(string), from_(from), length_(length) {
-    DCHECK(string_->IsSeqOneByteString());
-  }
-
-  uint32_t Hash() override {
-    DCHECK(length_ >= 0);
-    DCHECK(from_ + length_ <= string_->length());
-    const uint8_t* chars = string_->GetChars() + from_;
-    hash_field_ = StringHasher::HashSequentialString(
-        chars, length_, string_->GetHeap()->HashSeed());
-    uint32_t result = hash_field_ >> String::kHashShift;
-    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
-  }
-
-  bool IsMatch(Object* string) override;
-  Handle<Object> AsHandle(Isolate* isolate) override;
-
- private:
-  Handle<SeqOneByteString> string_;
-  int from_;
-  int length_;
-  uint32_t hash_field_;
-};
-
-
-class TwoByteStringKey : public SequentialStringKey<uc16> {
- public:
-  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
-      : SequentialStringKey<uc16>(str, seed) { }
-
-  bool IsMatch(Object* string) override {
-    return String::cast(string)->IsTwoByteEqualTo(string_);
-  }
-
-  Handle<Object> AsHandle(Isolate* isolate) override;
-};
-
-
-// Utf8StringKey carries a vector of chars as key.
-class Utf8StringKey : public HashTableKey {
- public:
-  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
-      : string_(string), hash_field_(0), seed_(seed) { }
-
-  bool IsMatch(Object* string) override {
-    return String::cast(string)->IsUtf8EqualTo(string_);
-  }
-
-  uint32_t Hash() override {
-    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
-    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
-    uint32_t result = hash_field_ >> String::kHashShift;
-    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
-    return result;
-  }
-
-  uint32_t HashForObject(Object* other) override {
-    return String::cast(other)->Hash();
-  }
-
-  Handle<Object> AsHandle(Isolate* isolate) override {
-    if (hash_field_ == 0) Hash();
-    return isolate->factory()->NewInternalizedStringFromUtf8(
-        string_, chars_, hash_field_);
-  }
-
-  Vector<const char> string_;
-  uint32_t hash_field_;
-  int chars_;  // Caches the number of characters when computing the hash code.
-  uint32_t seed_;
-};
-
-
-bool Object::IsNumber() const {
-  return IsSmi() || IsHeapNumber();
-}
-
-
-TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
-TYPE_CHECKER(BytecodeArray, BYTECODE_ARRAY_TYPE)
-TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
+bool Object::IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
 bool HeapObject::IsFiller() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
-
-
-
-#define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size)               \
-  TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
-
-TYPED_ARRAYS(TYPED_ARRAY_TYPE_CHECKER)
-#undef TYPED_ARRAY_TYPE_CHECKER
 
 bool HeapObject::IsFixedTypedArrayBase() const {
   InstanceType instance_type = map()->instance_type();
@@ -695,20 +329,6 @@ bool HeapObject::IsJSArrayIterator() const {
   return (instance_type >= FIRST_ARRAY_ITERATOR_TYPE &&
           instance_type <= LAST_ARRAY_ITERATOR_TYPE);
 }
-
-TYPE_CHECKER(JSSet, JS_SET_TYPE)
-TYPE_CHECKER(JSMap, JS_MAP_TYPE)
-TYPE_CHECKER(JSSetIterator, JS_SET_ITERATOR_TYPE)
-TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
-TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
-TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
-TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
-TYPE_CHECKER(Map, MAP_TYPE)
-TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
-TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
-TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
-TYPE_CHECKER(JSFixedArrayIterator, JS_FIXED_ARRAY_ITERATOR_TYPE)
 
 bool HeapObject::IsJSWeakCollection() const {
   return IsJSWeakMap() || IsJSWeakSet();
@@ -787,7 +407,7 @@ bool HeapObject::IsContext() const {
       map == heap->function_context_map() || map == heap->catch_context_map() ||
       map == heap->with_context_map() || map == heap->native_context_map() ||
       map == heap->block_context_map() || map == heap->module_context_map() ||
-      map == heap->script_context_map() ||
+      map == heap->eval_context_map() || map == heap->script_context_map() ||
       map == heap->debug_evaluate_context_map());
 }
 
@@ -807,27 +427,10 @@ bool HeapObject::IsModuleInfo() const {
   return map() == GetHeap()->module_info_map();
 }
 
-TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
-TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
-
-
-template <> inline bool Is<JSFunction>(Object* obj) {
+template <>
+inline bool Is<JSFunction>(Object* obj) {
   return obj->IsJSFunction();
 }
-
-
-TYPE_CHECKER(Code, CODE_TYPE)
-TYPE_CHECKER(Oddball, ODDBALL_TYPE)
-TYPE_CHECKER(Cell, CELL_TYPE)
-TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
-TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
-TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(JSDate, JS_DATE_TYPE)
-TYPE_CHECKER(JSError, JS_ERROR_TYPE)
-TYPE_CHECKER(JSGeneratorObject, JS_GENERATOR_OBJECT_TYPE)
-TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
-TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
-TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 
 bool HeapObject::IsAbstractCode() const {
   return IsBytecodeArray() || IsCode();
@@ -837,28 +440,17 @@ bool HeapObject::IsStringWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsString();
 }
 
-
-TYPE_CHECKER(Foreign, FOREIGN_TYPE)
-
 bool HeapObject::IsBoolean() const {
   return IsOddball() &&
-      ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
+         ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
 }
-
-
-TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
-TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
-TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
-TYPE_CHECKER(JSDataView, JS_DATA_VIEW_TYPE)
 
 bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
-
-TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
-
-template <> inline bool Is<JSArray>(Object* obj) {
+template <>
+inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
 }
 
@@ -872,18 +464,11 @@ bool HeapObject::IsDictionary() const {
   return IsHashTable() && this != GetHeap()->string_table();
 }
 
-
-bool Object::IsNameDictionary() const {
-  return IsDictionary();
-}
-
+bool Object::IsNameDictionary() const { return IsDictionary(); }
 
 bool Object::IsGlobalDictionary() const { return IsDictionary(); }
 
-
-bool Object::IsSeededNumberDictionary() const {
-  return IsDictionary();
-}
+bool Object::IsSeededNumberDictionary() const { return IsDictionary(); }
 
 bool HeapObject::IsUnseededNumberDictionary() const {
   return map() == GetHeap()->unseeded_number_dictionary_map();
@@ -898,7 +483,6 @@ bool HeapObject::IsObjectHashSet() const { return IsHashTable(); }
 bool HeapObject::IsNormalizedMapCache() const {
   return NormalizedMapCache::IsNormalizedMapCache(this);
 }
-
 
 int NormalizedMapCache::GetIndex(Handle<Map> map) {
   return map->Hash() % NormalizedMapCache::kEntries;
@@ -930,16 +514,9 @@ bool HeapObject::IsOrderedHashTable() const {
   return map() == GetHeap()->ordered_hash_table_map();
 }
 
+bool Object::IsOrderedHashSet() const { return IsOrderedHashTable(); }
 
-bool Object::IsOrderedHashSet() const {
-  return IsOrderedHashTable();
-}
-
-
-bool Object::IsOrderedHashMap() const {
-  return IsOrderedHashTable();
-}
-
+bool Object::IsOrderedHashMap() const { return IsOrderedHashTable(); }
 
 bool Object::IsPrimitive() const {
   return IsSmi() || HeapObject::cast(this)->map()->IsPrimitiveMap();
@@ -950,9 +527,6 @@ bool HeapObject::IsJSGlobalProxy() const {
   DCHECK(!result || map()->is_access_check_needed());
   return result;
 }
-
-
-TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 
 bool HeapObject::IsUndetectable() const { return map()->is_undetectable(); }
 
@@ -967,10 +541,13 @@ bool HeapObject::IsAccessCheckNeeded() const {
 
 bool HeapObject::IsStruct() const {
   switch (map()->instance_type()) {
-#define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return true;
-  STRUCT_LIST(MAKE_STRUCT_CASE)
+#define MAKE_STRUCT_CASE(NAME, Name, name) \
+  case NAME##_TYPE:                        \
+    return true;
+    STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-    default: return false;
+    default:
+      return false;
   }
 }
 
@@ -991,17 +568,469 @@ double Object::Number() const {
              : reinterpret_cast<const HeapNumber*>(this)->value();
 }
 
-
 bool Object::IsNaN() const {
   return this->IsHeapNumber() && std::isnan(HeapNumber::cast(this)->value());
 }
-
 
 bool Object::IsMinusZero() const {
   return this->IsHeapNumber() &&
          i::IsMinusZero(HeapNumber::cast(this)->value());
 }
 
+// ------------------------------------
+// Cast operations
+
+#define CAST_ACCESSOR(type)                       \
+  type* type::cast(Object* object) {              \
+    SLOW_DCHECK(object->Is##type());              \
+    return reinterpret_cast<type*>(object);       \
+  }                                               \
+  const type* type::cast(const Object* object) {  \
+    SLOW_DCHECK(object->Is##type());              \
+    return reinterpret_cast<const type*>(object); \
+  }
+
+CAST_ACCESSOR(AbstractCode)
+CAST_ACCESSOR(ArrayList)
+CAST_ACCESSOR(Bool16x8)
+CAST_ACCESSOR(Bool32x4)
+CAST_ACCESSOR(Bool8x16)
+CAST_ACCESSOR(ByteArray)
+CAST_ACCESSOR(BytecodeArray)
+CAST_ACCESSOR(Cell)
+CAST_ACCESSOR(Code)
+CAST_ACCESSOR(CodeCacheHashTable)
+CAST_ACCESSOR(CompilationCacheTable)
+CAST_ACCESSOR(ConsString)
+CAST_ACCESSOR(DeoptimizationInputData)
+CAST_ACCESSOR(DeoptimizationOutputData)
+CAST_ACCESSOR(DependentCode)
+CAST_ACCESSOR(DescriptorArray)
+CAST_ACCESSOR(ExternalOneByteString)
+CAST_ACCESSOR(ExternalString)
+CAST_ACCESSOR(ExternalTwoByteString)
+CAST_ACCESSOR(FixedArray)
+CAST_ACCESSOR(FixedArrayBase)
+CAST_ACCESSOR(FixedDoubleArray)
+CAST_ACCESSOR(FixedTypedArrayBase)
+CAST_ACCESSOR(Float32x4)
+CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(FrameArray)
+CAST_ACCESSOR(GlobalDictionary)
+CAST_ACCESSOR(HandlerTable)
+CAST_ACCESSOR(HeapObject)
+CAST_ACCESSOR(Int16x8)
+CAST_ACCESSOR(Int32x4)
+CAST_ACCESSOR(Int8x16)
+CAST_ACCESSOR(JSArray)
+CAST_ACCESSOR(JSArrayBuffer)
+CAST_ACCESSOR(JSArrayBufferView)
+CAST_ACCESSOR(JSBoundFunction)
+CAST_ACCESSOR(JSDataView)
+CAST_ACCESSOR(JSDate)
+CAST_ACCESSOR(JSFunction)
+CAST_ACCESSOR(JSGeneratorObject)
+CAST_ACCESSOR(JSGlobalObject)
+CAST_ACCESSOR(JSGlobalProxy)
+CAST_ACCESSOR(JSMap)
+CAST_ACCESSOR(JSMapIterator)
+CAST_ACCESSOR(JSMessageObject)
+CAST_ACCESSOR(JSModuleNamespace)
+CAST_ACCESSOR(JSObject)
+CAST_ACCESSOR(JSProxy)
+CAST_ACCESSOR(JSReceiver)
+CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSPromise)
+CAST_ACCESSOR(JSSet)
+CAST_ACCESSOR(JSSetIterator)
+CAST_ACCESSOR(JSStringIterator)
+CAST_ACCESSOR(JSArrayIterator)
+CAST_ACCESSOR(JSTypedArray)
+CAST_ACCESSOR(JSValue)
+CAST_ACCESSOR(JSWeakCollection)
+CAST_ACCESSOR(JSWeakMap)
+CAST_ACCESSOR(JSWeakSet)
+CAST_ACCESSOR(LayoutDescriptor)
+CAST_ACCESSOR(Map)
+CAST_ACCESSOR(ModuleInfo)
+CAST_ACCESSOR(Name)
+CAST_ACCESSOR(NameDictionary)
+CAST_ACCESSOR(NormalizedMapCache)
+CAST_ACCESSOR(Object)
+CAST_ACCESSOR(ObjectHashTable)
+CAST_ACCESSOR(ObjectHashSet)
+CAST_ACCESSOR(Oddball)
+CAST_ACCESSOR(OrderedHashMap)
+CAST_ACCESSOR(OrderedHashSet)
+CAST_ACCESSOR(PropertyCell)
+CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(RegExpMatchInfo)
+CAST_ACCESSOR(ScopeInfo)
+CAST_ACCESSOR(SeededNumberDictionary)
+CAST_ACCESSOR(SeqOneByteString)
+CAST_ACCESSOR(SeqString)
+CAST_ACCESSOR(SeqTwoByteString)
+CAST_ACCESSOR(SharedFunctionInfo)
+CAST_ACCESSOR(Simd128Value)
+CAST_ACCESSOR(SlicedString)
+CAST_ACCESSOR(Smi)
+CAST_ACCESSOR(String)
+CAST_ACCESSOR(StringSet)
+CAST_ACCESSOR(StringTable)
+CAST_ACCESSOR(Struct)
+CAST_ACCESSOR(Symbol)
+CAST_ACCESSOR(TemplateInfo)
+CAST_ACCESSOR(Uint16x8)
+CAST_ACCESSOR(Uint32x4)
+CAST_ACCESSOR(Uint8x16)
+CAST_ACCESSOR(UnseededNumberDictionary)
+CAST_ACCESSOR(WeakCell)
+CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR(WeakHashTable)
+
+#define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
+STRUCT_LIST(MAKE_STRUCT_CAST)
+#undef MAKE_STRUCT_CAST
+
+#undef CAST_ACCESSOR
+
+bool Object::HasValidElements() {
+  // Dictionary is covered under FixedArray.
+  return IsFixedArray() || IsFixedDoubleArray() || IsFixedTypedArrayBase();
+}
+
+bool Object::KeyEquals(Object* second) {
+  Object* first = this;
+  if (second->IsNumber()) {
+    if (first->IsNumber()) return first->Number() == second->Number();
+    Object* temp = first;
+    first = second;
+    second = temp;
+  }
+  if (first->IsNumber()) {
+    DCHECK_LE(0, first->Number());
+    uint32_t expected = static_cast<uint32_t>(first->Number());
+    uint32_t index;
+    return Name::cast(second)->AsArrayIndex(&index) && index == expected;
+  }
+  return Name::cast(first)->Equals(Name::cast(second));
+}
+
+bool Object::FilterKey(PropertyFilter filter) {
+  if (IsSymbol()) {
+    if (filter & SKIP_SYMBOLS) return true;
+    if (Symbol::cast(this)->is_private()) return true;
+  } else {
+    if (filter & SKIP_STRINGS) return true;
+  }
+  return false;
+}
+
+Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
+                                     Representation representation) {
+  if (representation.IsSmi() && object->IsUninitialized(isolate)) {
+    return handle(Smi::kZero, isolate);
+  }
+  if (!representation.IsDouble()) return object;
+  double value;
+  if (object->IsUninitialized(isolate)) {
+    value = 0;
+  } else if (object->IsMutableHeapNumber()) {
+    value = HeapNumber::cast(*object)->value();
+  } else {
+    value = object->Number();
+  }
+  return isolate->factory()->NewHeapNumber(value, MUTABLE);
+}
+
+Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
+                                   Representation representation) {
+  DCHECK(!object->IsUninitialized(isolate));
+  if (!representation.IsDouble()) {
+    DCHECK(object->FitsRepresentation(representation));
+    return object;
+  }
+  return isolate->factory()->NewHeapNumber(HeapNumber::cast(*object)->value());
+}
+
+StringShape::StringShape(const String* str)
+    : type_(str->map()->instance_type()) {
+  set_valid();
+  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+}
+
+StringShape::StringShape(Map* map) : type_(map->instance_type()) {
+  set_valid();
+  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+}
+
+StringShape::StringShape(InstanceType t) : type_(static_cast<uint32_t>(t)) {
+  set_valid();
+  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+}
+
+bool StringShape::IsInternalized() {
+  DCHECK(valid());
+  STATIC_ASSERT(kNotInternalizedTag != 0);
+  return (type_ & (kIsNotStringMask | kIsNotInternalizedMask)) ==
+         (kStringTag | kInternalizedTag);
+}
+
+bool String::IsOneByteRepresentation() const {
+  uint32_t type = map()->instance_type();
+  return (type & kStringEncodingMask) == kOneByteStringTag;
+}
+
+bool String::IsTwoByteRepresentation() const {
+  uint32_t type = map()->instance_type();
+  return (type & kStringEncodingMask) == kTwoByteStringTag;
+}
+
+bool String::IsOneByteRepresentationUnderneath() {
+  uint32_t type = map()->instance_type();
+  STATIC_ASSERT(kIsIndirectStringTag != 0);
+  STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
+  DCHECK(IsFlat());
+  switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
+    case kOneByteStringTag:
+      return true;
+    case kTwoByteStringTag:
+      return false;
+    default:  // Cons or sliced string.  Need to go deeper.
+      return GetUnderlying()->IsOneByteRepresentation();
+  }
+}
+
+bool String::IsTwoByteRepresentationUnderneath() {
+  uint32_t type = map()->instance_type();
+  STATIC_ASSERT(kIsIndirectStringTag != 0);
+  STATIC_ASSERT((kIsIndirectStringMask & kStringEncodingMask) == 0);
+  DCHECK(IsFlat());
+  switch (type & (kIsIndirectStringMask | kStringEncodingMask)) {
+    case kOneByteStringTag:
+      return false;
+    case kTwoByteStringTag:
+      return true;
+    default:  // Cons or sliced string.  Need to go deeper.
+      return GetUnderlying()->IsTwoByteRepresentation();
+  }
+}
+
+bool String::HasOnlyOneByteChars() {
+  uint32_t type = map()->instance_type();
+  return (type & kOneByteDataHintMask) == kOneByteDataHintTag ||
+         IsOneByteRepresentation();
+}
+
+bool StringShape::IsCons() {
+  return (type_ & kStringRepresentationMask) == kConsStringTag;
+}
+
+bool StringShape::IsSliced() {
+  return (type_ & kStringRepresentationMask) == kSlicedStringTag;
+}
+
+bool StringShape::IsIndirect() {
+  return (type_ & kIsIndirectStringMask) == kIsIndirectStringTag;
+}
+
+bool StringShape::IsExternal() {
+  return (type_ & kStringRepresentationMask) == kExternalStringTag;
+}
+
+bool StringShape::IsSequential() {
+  return (type_ & kStringRepresentationMask) == kSeqStringTag;
+}
+
+StringRepresentationTag StringShape::representation_tag() {
+  uint32_t tag = (type_ & kStringRepresentationMask);
+  return static_cast<StringRepresentationTag>(tag);
+}
+
+uint32_t StringShape::encoding_tag() { return type_ & kStringEncodingMask; }
+
+uint32_t StringShape::full_representation_tag() {
+  return (type_ & (kStringRepresentationMask | kStringEncodingMask));
+}
+
+STATIC_ASSERT((kStringRepresentationMask | kStringEncodingMask) ==
+              Internals::kFullStringRepresentationMask);
+
+STATIC_ASSERT(static_cast<uint32_t>(kStringEncodingMask) ==
+              Internals::kStringEncodingMask);
+
+bool StringShape::IsSequentialOneByte() {
+  return full_representation_tag() == (kSeqStringTag | kOneByteStringTag);
+}
+
+bool StringShape::IsSequentialTwoByte() {
+  return full_representation_tag() == (kSeqStringTag | kTwoByteStringTag);
+}
+
+bool StringShape::IsExternalOneByte() {
+  return full_representation_tag() == (kExternalStringTag | kOneByteStringTag);
+}
+
+STATIC_ASSERT((kExternalStringTag | kOneByteStringTag) ==
+              Internals::kExternalOneByteRepresentationTag);
+
+STATIC_ASSERT(v8::String::ONE_BYTE_ENCODING == kOneByteStringTag);
+
+bool StringShape::IsExternalTwoByte() {
+  return full_representation_tag() == (kExternalStringTag | kTwoByteStringTag);
+}
+
+STATIC_ASSERT((kExternalStringTag | kTwoByteStringTag) ==
+              Internals::kExternalTwoByteRepresentationTag);
+
+STATIC_ASSERT(v8::String::TWO_BYTE_ENCODING == kTwoByteStringTag);
+
+uc32 FlatStringReader::Get(int index) {
+  if (is_one_byte_) {
+    return Get<uint8_t>(index);
+  } else {
+    return Get<uc16>(index);
+  }
+}
+
+template <typename Char>
+Char FlatStringReader::Get(int index) {
+  DCHECK_EQ(is_one_byte_, sizeof(Char) == 1);
+  DCHECK(0 <= index && index <= length_);
+  if (sizeof(Char) == 1) {
+    return static_cast<Char>(static_cast<const uint8_t*>(start_)[index]);
+  } else {
+    return static_cast<Char>(static_cast<const uc16*>(start_)[index]);
+  }
+}
+
+Handle<Object> StringTableShape::AsHandle(Isolate* isolate, HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+Handle<Object> CompilationCacheShape::AsHandle(Isolate* isolate,
+                                               HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+Handle<Object> CodeCacheHashTableShape::AsHandle(Isolate* isolate,
+                                                 HashTableKey* key) {
+  return key->AsHandle(isolate);
+}
+
+template <typename Char>
+class SequentialStringKey : public HashTableKey {
+ public:
+  explicit SequentialStringKey(Vector<const Char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) {}
+
+  uint32_t Hash() override {
+    hash_field_ = StringHasher::HashSequentialString<Char>(
+        string_.start(), string_.length(), seed_);
+
+    uint32_t result = hash_field_ >> String::kHashShift;
+    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+  uint32_t HashForObject(Object* other) override {
+    return String::cast(other)->Hash();
+  }
+
+  Vector<const Char> string_;
+  uint32_t hash_field_;
+  uint32_t seed_;
+};
+
+class OneByteStringKey : public SequentialStringKey<uint8_t> {
+ public:
+  OneByteStringKey(Vector<const uint8_t> str, uint32_t seed)
+      : SequentialStringKey<uint8_t>(str, seed) {}
+
+  bool IsMatch(Object* string) override {
+    return String::cast(string)->IsOneByteEqualTo(string_);
+  }
+
+  Handle<Object> AsHandle(Isolate* isolate) override;
+};
+
+class SeqOneByteSubStringKey : public HashTableKey {
+ public:
+  SeqOneByteSubStringKey(Handle<SeqOneByteString> string, int from, int length)
+      : string_(string), from_(from), length_(length) {
+    DCHECK(string_->IsSeqOneByteString());
+  }
+
+  uint32_t Hash() override {
+    DCHECK(length_ >= 0);
+    DCHECK(from_ + length_ <= string_->length());
+    const uint8_t* chars = string_->GetChars() + from_;
+    hash_field_ = StringHasher::HashSequentialString(
+        chars, length_, string_->GetHeap()->HashSeed());
+    uint32_t result = hash_field_ >> String::kHashShift;
+    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+  uint32_t HashForObject(Object* other) override {
+    return String::cast(other)->Hash();
+  }
+
+  bool IsMatch(Object* string) override;
+  Handle<Object> AsHandle(Isolate* isolate) override;
+
+ private:
+  Handle<SeqOneByteString> string_;
+  int from_;
+  int length_;
+  uint32_t hash_field_;
+};
+
+class TwoByteStringKey : public SequentialStringKey<uc16> {
+ public:
+  explicit TwoByteStringKey(Vector<const uc16> str, uint32_t seed)
+      : SequentialStringKey<uc16>(str, seed) {}
+
+  bool IsMatch(Object* string) override {
+    return String::cast(string)->IsTwoByteEqualTo(string_);
+  }
+
+  Handle<Object> AsHandle(Isolate* isolate) override;
+};
+
+// Utf8StringKey carries a vector of chars as key.
+class Utf8StringKey : public HashTableKey {
+ public:
+  explicit Utf8StringKey(Vector<const char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) {}
+
+  bool IsMatch(Object* string) override {
+    return String::cast(string)->IsUtf8EqualTo(string_);
+  }
+
+  uint32_t Hash() override {
+    if (hash_field_ != 0) return hash_field_ >> String::kHashShift;
+    hash_field_ = StringHasher::ComputeUtf8Hash(string_, seed_, &chars_);
+    uint32_t result = hash_field_ >> String::kHashShift;
+    DCHECK(result != 0);  // Ensure that the hash value of 0 is never computed.
+    return result;
+  }
+
+  uint32_t HashForObject(Object* other) override {
+    return String::cast(other)->Hash();
+  }
+
+  Handle<Object> AsHandle(Isolate* isolate) override {
+    if (hash_field_ == 0) Hash();
+    return isolate->factory()->NewInternalizedStringFromUtf8(string_, chars_,
+                                                             hash_field_);
+  }
+
+  Vector<const char> string_;
+  uint32_t hash_field_;
+  int chars_;  // Caches the number of characters when computing the hash code.
+  uint32_t seed_;
+};
 
 Representation Object::OptimalRepresentation() {
   if (!FLAG_track_fields) return Representation::Tagged();
@@ -1075,12 +1104,64 @@ MaybeHandle<Name> Object::ToName(Isolate* isolate, Handle<Object> input) {
 }
 
 // static
+MaybeHandle<Object> Object::ToPropertyKey(Isolate* isolate,
+                                          Handle<Object> value) {
+  if (value->IsSmi() || HeapObject::cast(*value)->IsName()) return value;
+  return ConvertToPropertyKey(isolate, value);
+}
+
+// static
 MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
                                         ToPrimitiveHint hint) {
   if (input->IsPrimitive()) return input;
   return JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input), hint);
 }
 
+// static
+MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
+  if (input->IsNumber()) return input;
+  return ConvertToNumber(HeapObject::cast(*input)->GetIsolate(), input);
+}
+
+// static
+MaybeHandle<Object> Object::ToInteger(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) return input;
+  return ConvertToInteger(isolate, input);
+}
+
+// static
+MaybeHandle<Object> Object::ToInt32(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) return input;
+  return ConvertToInt32(isolate, input);
+}
+
+// static
+MaybeHandle<Object> Object::ToUint32(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) return handle(Smi::cast(*input)->ToUint32Smi(), isolate);
+  return ConvertToUint32(isolate, input);
+}
+
+// static
+MaybeHandle<String> Object::ToString(Isolate* isolate, Handle<Object> input) {
+  if (input->IsString()) return Handle<String>::cast(input);
+  return ConvertToString(isolate, input);
+}
+
+// static
+MaybeHandle<Object> Object::ToLength(Isolate* isolate, Handle<Object> input) {
+  if (input->IsSmi()) {
+    int value = std::max(Smi::cast(*input)->value(), 0);
+    return handle(Smi::FromInt(value), isolate);
+  }
+  return ConvertToLength(isolate, input);
+}
+
+// static
+MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
+                                    MessageTemplate::Template error_index) {
+  if (input->IsSmi() && Smi::cast(*input)->value() >= 0) return input;
+  return ConvertToIndex(isolate, input, error_index);
+}
 
 bool Object::HasSpecificClassOf(String* name) {
   return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
@@ -2106,9 +2187,13 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSObject::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:
       return JSStringIterator::kSize;
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
-      return JSFixedArrayIterator::kHeaderSize;
+    case JS_MODULE_NAMESPACE_TYPE:
+      return JSModuleNamespace::kSize;
     default:
+      if (type >= FIRST_ARRAY_ITERATOR_TYPE &&
+          type <= LAST_ARRAY_ITERATOR_TYPE) {
+        return JSArrayIterator::kSize;
+      }
       UNREACHABLE();
       return 0;
   }
@@ -3268,108 +3353,6 @@ void SeededNumberDictionary::set_requires_slow_elements() {
 }
 
 
-// ------------------------------------
-// Cast operations
-
-CAST_ACCESSOR(AbstractCode)
-CAST_ACCESSOR(ArrayList)
-CAST_ACCESSOR(Bool16x8)
-CAST_ACCESSOR(Bool32x4)
-CAST_ACCESSOR(Bool8x16)
-CAST_ACCESSOR(ByteArray)
-CAST_ACCESSOR(BytecodeArray)
-CAST_ACCESSOR(Cell)
-CAST_ACCESSOR(Code)
-CAST_ACCESSOR(CodeCacheHashTable)
-CAST_ACCESSOR(CompilationCacheTable)
-CAST_ACCESSOR(ConsString)
-CAST_ACCESSOR(DeoptimizationInputData)
-CAST_ACCESSOR(DeoptimizationOutputData)
-CAST_ACCESSOR(DependentCode)
-CAST_ACCESSOR(DescriptorArray)
-CAST_ACCESSOR(ExternalOneByteString)
-CAST_ACCESSOR(ExternalString)
-CAST_ACCESSOR(ExternalTwoByteString)
-CAST_ACCESSOR(FixedArray)
-CAST_ACCESSOR(FixedArrayBase)
-CAST_ACCESSOR(FixedDoubleArray)
-CAST_ACCESSOR(FixedTypedArrayBase)
-CAST_ACCESSOR(Float32x4)
-CAST_ACCESSOR(Foreign)
-CAST_ACCESSOR(FrameArray)
-CAST_ACCESSOR(GlobalDictionary)
-CAST_ACCESSOR(HandlerTable)
-CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(Int16x8)
-CAST_ACCESSOR(Int32x4)
-CAST_ACCESSOR(Int8x16)
-CAST_ACCESSOR(JSArray)
-CAST_ACCESSOR(JSArrayBuffer)
-CAST_ACCESSOR(JSArrayBufferView)
-CAST_ACCESSOR(JSBoundFunction)
-CAST_ACCESSOR(JSDataView)
-CAST_ACCESSOR(JSDate)
-CAST_ACCESSOR(JSFunction)
-CAST_ACCESSOR(JSGeneratorObject)
-CAST_ACCESSOR(JSGlobalObject)
-CAST_ACCESSOR(JSGlobalProxy)
-CAST_ACCESSOR(JSMap)
-CAST_ACCESSOR(JSMapIterator)
-CAST_ACCESSOR(JSMessageObject)
-CAST_ACCESSOR(JSModuleNamespace)
-CAST_ACCESSOR(JSFixedArrayIterator)
-CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(JSProxy)
-CAST_ACCESSOR(JSReceiver)
-CAST_ACCESSOR(JSRegExp)
-CAST_ACCESSOR(JSPromise)
-CAST_ACCESSOR(JSSet)
-CAST_ACCESSOR(JSSetIterator)
-CAST_ACCESSOR(JSStringIterator)
-CAST_ACCESSOR(JSArrayIterator)
-CAST_ACCESSOR(JSTypedArray)
-CAST_ACCESSOR(JSValue)
-CAST_ACCESSOR(JSWeakCollection)
-CAST_ACCESSOR(JSWeakMap)
-CAST_ACCESSOR(JSWeakSet)
-CAST_ACCESSOR(LayoutDescriptor)
-CAST_ACCESSOR(Map)
-CAST_ACCESSOR(ModuleInfo)
-CAST_ACCESSOR(Name)
-CAST_ACCESSOR(NameDictionary)
-CAST_ACCESSOR(NormalizedMapCache)
-CAST_ACCESSOR(Object)
-CAST_ACCESSOR(ObjectHashTable)
-CAST_ACCESSOR(ObjectHashSet)
-CAST_ACCESSOR(Oddball)
-CAST_ACCESSOR(OrderedHashMap)
-CAST_ACCESSOR(OrderedHashSet)
-CAST_ACCESSOR(PropertyCell)
-CAST_ACCESSOR(TemplateList)
-CAST_ACCESSOR(RegExpMatchInfo)
-CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(SeededNumberDictionary)
-CAST_ACCESSOR(SeqOneByteString)
-CAST_ACCESSOR(SeqString)
-CAST_ACCESSOR(SeqTwoByteString)
-CAST_ACCESSOR(SharedFunctionInfo)
-CAST_ACCESSOR(Simd128Value)
-CAST_ACCESSOR(SlicedString)
-CAST_ACCESSOR(Smi)
-CAST_ACCESSOR(String)
-CAST_ACCESSOR(StringSet)
-CAST_ACCESSOR(StringTable)
-CAST_ACCESSOR(Struct)
-CAST_ACCESSOR(Symbol)
-CAST_ACCESSOR(TemplateInfo)
-CAST_ACCESSOR(Uint16x8)
-CAST_ACCESSOR(Uint32x4)
-CAST_ACCESSOR(Uint8x16)
-CAST_ACCESSOR(UnseededNumberDictionary)
-CAST_ACCESSOR(WeakCell)
-CAST_ACCESSOR(WeakFixedArray)
-CAST_ACCESSOR(WeakHashTable)
-
 template <class T>
 PodArray<T>* PodArray<T>::cast(Object* object) {
   SLOW_DCHECK(object->IsByteArray());
@@ -3599,11 +3582,6 @@ void HandlerTable::SetReturnHandler(int index, int offset) {
 int HandlerTable::NumberOfRangeEntries() const {
   return length() / kRangeEntrySize;
 }
-
-#define MAKE_STRUCT_CAST(NAME, Name, name) CAST_ACCESSOR(Name)
-  STRUCT_LIST(MAKE_STRUCT_CAST)
-#undef MAKE_STRUCT_CAST
-
 
 template <typename Derived, typename Shape, typename Key>
 HashTable<Derived, Shape, Key>*
@@ -3851,6 +3829,12 @@ inline Vector<const uc16> String::GetCharVector() {
   return flat.ToUC16Vector();
 }
 
+uint32_t String::ToValidIndex(Object* number) {
+  uint32_t index = PositiveNumberToUint32(number);
+  uint32_t length_value = static_cast<uint32_t>(length());
+  if (index > length_value) return length_value;
+  return index;
+}
 
 uint16_t SeqOneByteString::SeqOneByteStringGet(int index) {
   DCHECK(index >= 0 && index < length());
@@ -5145,6 +5129,19 @@ inline void Code::set_is_promise_rejection(bool value) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
+inline bool Code::is_exception_caught() {
+  DCHECK(kind() == BUILTIN);
+  return IsExceptionCaughtField::decode(
+      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+}
+
+inline void Code::set_is_exception_caught(bool value) {
+  DCHECK(kind() == BUILTIN);
+  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int updated = IsExceptionCaughtField::update(previous, value);
+  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+}
+
 bool Code::has_deoptimization_support() {
   DCHECK_EQ(FUNCTION, kind());
   unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
@@ -5731,9 +5728,15 @@ ACCESSORS(PromiseResolveThenableJobInfo, debug_id, Object, kDebugIdOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, debug_name, Object, kDebugNameOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
 
+ACCESSORS(PromiseReactionJobInfo, promise, JSPromise, kPromiseOffset);
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred, Object, kDeferredOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred_promise, Object,
+          kDeferredPromiseOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred_on_resolve, Object,
+          kDeferredOnResolveOffset);
+ACCESSORS(PromiseReactionJobInfo, deferred_on_reject, Object,
+          kDeferredOnRejectOffset);
 ACCESSORS(PromiseReactionJobInfo, debug_id, Object, kDebugIdOffset);
 ACCESSORS(PromiseReactionJobInfo, debug_name, Object, kDebugNameOffset);
 ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
@@ -5794,11 +5797,11 @@ ACCESSORS(Tuple3, value3, Object, kValue3Offset)
 ACCESSORS(ContextExtension, scope_info, ScopeInfo, kScopeInfoOffset)
 ACCESSORS(ContextExtension, extension, Object, kExtensionOffset)
 
-ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
+SMI_ACCESSORS(ConstantElementsPair, elements_kind, kElementsKindOffset)
+ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
+          kConstantValuesOffset)
 
-ACCESSORS(JSFixedArrayIterator, array, FixedArray, kArrayOffset)
-SMI_ACCESSORS(JSFixedArrayIterator, index, kIndexOffset)
-ACCESSORS(JSFixedArrayIterator, initial_next, JSFunction, kNextOffset)
+ACCESSORS(JSModuleNamespace, module, Module, kModuleOffset)
 
 ACCESSORS(Module, code, Object, kCodeOffset)
 ACCESSORS(Module, exports, ObjectHashTable, kExportsOffset)
@@ -6787,8 +6790,6 @@ bool JSGeneratorObject::is_executing() const {
   return continuation() == kGeneratorExecuting;
 }
 
-TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
-
 ACCESSORS(JSValue, value, Object, kValueOffset)
 
 
@@ -6845,6 +6846,7 @@ void Code::WipeOutHeader() {
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
   WRITE_FIELD(this, kGCMetadataOffset, NULL);
+  WRITE_FIELD(this, kProtectedInstructionOffset, NULL);
 }
 
 
@@ -6928,6 +6930,7 @@ int Code::SizeIncludingMetadata() {
   size += deoptimization_data()->Size();
   size += handler_table()->Size();
   if (kind() == FUNCTION) size += source_position_table()->Size();
+  size += protected_instructions()->Size();
   return size;
 }
 
@@ -7106,11 +7109,14 @@ ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 
 SMI_ACCESSORS(JSPromise, status, kStatusOffset)
 ACCESSORS(JSPromise, result, Object, kResultOffset)
-ACCESSORS(JSPromise, deferred, Object, kDeferredOffset)
+ACCESSORS(JSPromise, deferred_promise, Object, kDeferredPromiseOffset)
+ACCESSORS(JSPromise, deferred_on_resolve, Object, kDeferredOnResolveOffset)
+ACCESSORS(JSPromise, deferred_on_reject, Object, kDeferredOnRejectOffset)
 ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
 ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
 SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
+BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
 ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
@@ -8079,32 +8085,6 @@ Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
 }
 
 
-bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
-
-
-bool ScopeInfo::IsAsmFunction() { return AsmFunctionField::decode(Flags()); }
-
-
-bool ScopeInfo::IsTyped() { return TypedField::decode(Flags()); }
-
-
-bool ScopeInfo::HasSimpleParameters() {
-  return HasSimpleParametersField::decode(Flags());
-}
-
-
-#define SCOPE_INFO_FIELD_ACCESSORS(name)                                      \
-  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  int ScopeInfo::name() {                                                     \
-    if (length() > 0) {                                                       \
-      return Smi::cast(get(k##name))->value();                                \
-    } else {                                                                  \
-      return 0;                                                               \
-    }                                                                         \
-  }
-FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(SCOPE_INFO_FIELD_ACCESSORS)
-#undef SCOPE_INFO_FIELD_ACCESSORS
-
 ACCESSORS(ModuleInfoEntry, export_name, Object, kExportNameOffset)
 ACCESSORS(ModuleInfoEntry, local_name, Object, kLocalNameOffset)
 ACCESSORS(ModuleInfoEntry, import_name, Object, kImportNameOffset)
@@ -8439,8 +8419,6 @@ ACCESSORS(JSArrayIterator, object_map, Object, kIteratedObjectMapOffset)
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
-#undef TYPE_CHECKER
-#undef CAST_ACCESSOR
 #undef INT_ACCESSORS
 #undef ACCESSORS
 #undef SMI_ACCESSORS

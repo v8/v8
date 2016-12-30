@@ -20,6 +20,7 @@
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-stats.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
@@ -80,6 +81,7 @@ Heap::Heap()
       max_semi_space_size_(8 * (kPointerSize / 4) * MB),
       initial_semispace_size_(MB),
       max_old_generation_size_(700ul * (kPointerSize / 4) * MB),
+      initial_max_old_generation_size_(max_old_generation_size_),
       initial_old_generation_size_(max_old_generation_size_ /
                                    kInitalOldGenerationLimitFactor),
       old_generation_size_configured_(false),
@@ -155,7 +157,7 @@ Heap::Heap()
       deserialization_complete_(false),
       strong_roots_list_(NULL),
       heap_iterator_depth_(0),
-      embedder_heap_tracer_(nullptr),
+      local_embedder_heap_tracer_(nullptr),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
@@ -1169,7 +1171,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, Map::kSize,
-                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
+                                 ClearRecordedSlots::kNo);
             maps->Add(free_space_address);
           } else {
             perform_gc = true;
@@ -1200,7 +1202,7 @@ bool Heap::ReserveSpace(Reservation* reservations, List<Address>* maps) {
             // deserializing.
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, size,
-                                 ClearRecordedSlots::kNo, ClearBlackArea::kNo);
+                                 ClearRecordedSlots::kNo);
             DCHECK(space < SerializerDeserializer::kNumberOfPreallocatedSpaces);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
@@ -1608,12 +1610,7 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
-  if (UsingEmbedderHeapTracer()) {
-    // Register found wrappers with embedder so it can add them to its marking
-    // deque and correctly manage the case when v8 scavenger collects the
-    // wrappers by either keeping wrappables alive, or cleaning marking deque.
-    RegisterWrappersWithEmbedderHeapTracer();
-  }
+  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
@@ -2100,8 +2097,7 @@ AllocationResult Heap::AllocateFillerObject(int size, bool double_align,
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
   DCHECK(chunk->owner()->identity() == space);
 #endif
-  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo,
-                       ClearBlackArea::kNo);
+  CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
 }
 
@@ -2337,6 +2333,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, debug_evaluate_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, block_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_context)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, eval_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context_table)
 
@@ -2863,6 +2860,7 @@ void Heap::CreateInitialObjects() {
   set_array_buffer_neutering_protector(*cell);
 
   set_serialized_templates(empty_fixed_array());
+  set_serialized_global_proxy_sizes(empty_fixed_array());
 
   set_weak_stack_trace_list(Smi::kZero);
 
@@ -2896,6 +2894,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:
+    case kSerializedGlobalProxySizesRootIndex:
     case kPublicSymbolTableRootIndex:
     case kApiSymbolTableRootIndex:
     case kApiPrivateSymbolTableRootIndex:
@@ -3063,8 +3062,8 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   return result;
 }
 
-void Heap::CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode,
-                                ClearBlackArea black_area_mode) {
+void Heap::CreateFillerObjectAt(Address addr, int size,
+                                ClearRecordedSlots mode) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
@@ -3081,16 +3080,6 @@ void Heap::CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode,
   }
   if (mode == ClearRecordedSlots::kYes) {
     ClearRecordedSlotRange(addr, addr + size);
-  }
-
-  // If the location where the filler is created is within a black area we have
-  // to clear the mark bits of the filler space.
-  if (black_area_mode == ClearBlackArea::kYes &&
-      incremental_marking()->black_allocation() &&
-      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(addr))) {
-    Page* page = Page::FromAddress(addr);
-    page->markbits()->ClearRange(page->AddressToMarkbitIndex(addr),
-                                 page->AddressToMarkbitIndex(addr + size));
   }
 
   // At this point, we may be deserializing the heap from a snapshot, and
@@ -3167,6 +3156,17 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // debug mode which iterates through the heap), but to play safer
   // we still do it.
   CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
+
+  // Clear the mark bits of the black area that belongs now to the filler.
+  // This is an optimization. The sweeper will release black fillers anyway.
+  if (incremental_marking()->black_allocation() &&
+      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(old_start))) {
+    Page* page = Page::FromAddress(old_start);
+    page->markbits()->ClearRange(
+        page->AddressToMarkbitIndex(old_start),
+        page->AddressToMarkbitIndex(old_start + bytes_to_trim));
+  }
+
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
   // object does not require synchronization.
@@ -3236,6 +3236,15 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
     CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
+    // Clear the mark bits of the black area that belongs now to the filler.
+    // This is an optimization. The sweeper will release black fillers anyway.
+    if (incremental_marking()->black_allocation() &&
+        Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(new_end))) {
+      Page* page = Page::FromAddress(new_end);
+      page->markbits()->ClearRange(
+          page->AddressToMarkbitIndex(new_end),
+          page->AddressToMarkbitIndex(new_end + bytes_to_trim));
+    }
   }
 
   // Initialize header of the trimmed array. We are storing the new length
@@ -4168,21 +4177,18 @@ void Heap::ReduceNewSpaceSize() {
   }
 }
 
-bool Heap::MarkingDequesAreEmpty() {
-  return mark_compact_collector()->marking_deque()->IsEmpty() &&
-         (!UsingEmbedderHeapTracer() ||
-          (wrappers_to_trace() == 0 &&
-           embedder_heap_tracer()->NumberOfWrappersToTrace() == 0));
-}
-
 void Heap::FinalizeIncrementalMarkingIfComplete(
     GarbageCollectionReason gc_reason) {
   if (incremental_marking()->IsMarking() &&
       (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
        (!incremental_marking()->finalize_marking_completed() &&
-        MarkingDequesAreEmpty()))) {
+        mark_compact_collector()->marking_deque()->IsEmpty() &&
+        local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking()))) {
     FinalizeIncrementalMarking(gc_reason);
-  } else if (incremental_marking()->IsComplete() || MarkingDequesAreEmpty()) {
+  } else if (incremental_marking()->IsComplete() ||
+             (mark_compact_collector()->marking_deque()->IsEmpty() &&
+              local_embedder_heap_tracer()
+                  ->ShouldFinalizeIncrementalMarking())) {
     CollectAllGarbage(current_gc_flags_, gc_reason);
   }
 }
@@ -4194,13 +4200,16 @@ bool Heap::TryFinalizeIdleIncrementalMarking(
       tracer()->FinalIncrementalMarkCompactSpeedInBytesPerMillisecond();
   if (incremental_marking()->IsReadyToOverApproximateWeakClosure() ||
       (!incremental_marking()->finalize_marking_completed() &&
-       MarkingDequesAreEmpty() &&
+       mark_compact_collector()->marking_deque()->IsEmpty() &&
+       local_embedder_heap_tracer()->ShouldFinalizeIncrementalMarking() &&
        gc_idle_time_handler_->ShouldDoOverApproximateWeakClosure(
            idle_time_in_ms))) {
     FinalizeIncrementalMarking(gc_reason);
     return true;
   } else if (incremental_marking()->IsComplete() ||
-             (MarkingDequesAreEmpty() &&
+             (mark_compact_collector()->marking_deque()->IsEmpty() &&
+              local_embedder_heap_tracer()
+                  ->ShouldFinalizeIncrementalMarking() &&
               gc_idle_time_handler_->ShouldDoFinalIncrementalMarkCompact(
                   idle_time_in_ms, size_of_objects,
                   final_incremental_mark_compact_speed_in_bytes_per_ms))) {
@@ -5049,7 +5058,7 @@ bool Heap::ConfigureHeap(size_t max_semi_space_size, size_t max_old_space_size,
 
   // The old generation is paged and needs at least one page for each space.
   int paged_space_count = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
-  max_old_generation_size_ =
+  initial_max_old_generation_size_ = max_old_generation_size_ =
       Max(static_cast<size_t>(paged_space_count * Page::kPageSize),
           max_old_generation_size_);
 
@@ -5304,6 +5313,13 @@ void Heap::DampenOldGenerationAllocationLimit(size_t old_gen_size,
   }
 }
 
+bool Heap::ShouldOptimizeForLoadTime() {
+  return isolate()->rail_mode() == PERFORMANCE_LOAD &&
+         !AllocationLimitOvershotByLargeMargin() &&
+         MonotonicallyIncreasingTimeInMs() <
+             isolate()->LoadStartTimeMs() + kMaxLoadTimeMs;
+}
+
 // This predicate is called when an old generation space cannot allocated from
 // the free list and is about to add a new page. Returning false will cause a
 // major GC. It happens when the old generation allocation limit is reached and
@@ -5314,6 +5330,8 @@ bool Heap::ShouldExpandOldGenerationOnSlowAllocation() {
   // We reached the old generation allocation limit.
 
   if (ShouldOptimizeForMemoryUsage()) return false;
+
+  if (ShouldOptimizeForLoadTime()) return true;
 
   if (incremental_marking()->NeedsFinalization()) {
     return !AllocationLimitOvershotByLargeMargin();
@@ -5349,9 +5367,13 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
   if (old_generation_space_available > new_space_->Capacity()) {
     return IncrementalMarkingLimit::kNoLimit;
   }
-  // We are close to the allocation limit.
-  // Choose between the hard and the soft limits.
-  if (old_generation_space_available == 0 || ShouldOptimizeForMemoryUsage()) {
+  if (ShouldOptimizeForMemoryUsage()) {
+    return IncrementalMarkingLimit::kHardLimit;
+  }
+  if (ShouldOptimizeForLoadTime()) {
+    return IncrementalMarkingLimit::kNoLimit;
+  }
+  if (old_generation_space_available == 0) {
     return IncrementalMarkingLimit::kHardLimit;
   }
   return IncrementalMarkingLimit::kSoftLimit;
@@ -5474,6 +5496,7 @@ bool Heap::SetUp() {
     dead_object_stats_ = new ObjectStats(this);
   }
   scavenge_job_ = new ScavengeJob();
+  local_embedder_heap_tracer_ = new LocalEmbedderHeapTracer();
 
   LOG(isolate_, IntPtrTEvent("heap-capacity", Capacity()));
   LOG(isolate_, IntPtrTEvent("heap-available", Available()));
@@ -5549,16 +5572,7 @@ void Heap::NotifyDeserializationComplete() {
 
 void Heap::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   DCHECK_EQ(gc_state_, HeapState::NOT_IN_GC);
-  embedder_heap_tracer_ = tracer;
-}
-
-void Heap::RegisterWrappersWithEmbedderHeapTracer() {
-  DCHECK(UsingEmbedderHeapTracer());
-  if (wrappers_to_trace_.empty()) {
-    return;
-  }
-  embedder_heap_tracer()->RegisterV8References(wrappers_to_trace_);
-  wrappers_to_trace_.clear();
+  local_embedder_heap_tracer()->SetRemoteTracer(tracer);
 }
 
 void Heap::TracePossibleWrapper(JSObject* js_object) {
@@ -5568,15 +5582,10 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
       js_object->GetInternalField(0) != undefined_value() &&
       js_object->GetInternalField(1) != undefined_value()) {
     DCHECK(reinterpret_cast<intptr_t>(js_object->GetInternalField(0)) % 2 == 0);
-    wrappers_to_trace_.push_back(std::pair<void*, void*>(
+    local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
         reinterpret_cast<void*>(js_object->GetInternalField(0)),
         reinterpret_cast<void*>(js_object->GetInternalField(1))));
   }
-}
-
-bool Heap::RequiresImmediateWrapperProcessing() {
-  const size_t kTooManyWrappers = 16000;
-  return wrappers_to_trace_.size() > kTooManyWrappers;
 }
 
 void Heap::RegisterExternallyReferencedObject(Object** object) {
@@ -5654,6 +5663,9 @@ void Heap::TearDown() {
     delete dead_object_stats_;
     dead_object_stats_ = nullptr;
   }
+
+  delete local_embedder_heap_tracer_;
+  local_embedder_heap_tracer_ = nullptr;
 
   delete scavenge_job_;
   scavenge_job_ = nullptr;

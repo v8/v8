@@ -21,12 +21,10 @@ static inline bool IsDebugContext(Isolate* isolate, Context* context) {
   return context->native_context() == *isolate->debug()->debug_context();
 }
 
-
-MaybeHandle<Object> DebugEvaluate::Global(
-    Isolate* isolate, Handle<String> source, bool disable_break,
-    Handle<HeapObject> context_extension) {
+MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
+                                          Handle<String> source) {
   // Handle the processing of break.
-  DisableBreak disable_break_scope(isolate->debug(), disable_break);
+  DisableBreak disable_break_scope(isolate->debug());
 
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);
@@ -41,19 +39,15 @@ MaybeHandle<Object> DebugEvaluate::Global(
   Handle<Context> context = isolate->native_context();
   Handle<JSObject> receiver(context->global_proxy());
   Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
-  return Evaluate(isolate, outer_info, context, context_extension, receiver,
-                  source);
+  return Evaluate(isolate, outer_info, context, receiver, source);
 }
-
 
 MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
                                          StackFrame::Id frame_id,
                                          int inlined_jsframe_index,
-                                         Handle<String> source,
-                                         bool disable_break,
-                                         Handle<HeapObject> context_extension) {
+                                         Handle<String> source) {
   // Handle the processing of break.
-  DisableBreak disable_break_scope(isolate->debug(), disable_break);
+  DisableBreak disable_break_scope(isolate->debug());
 
   // Get the frame where the debugging is performed.
   StackTraceFrameIterator it(isolate, frame_id);
@@ -78,9 +72,8 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 
   Handle<Context> context = context_builder.evaluation_context();
   Handle<JSObject> receiver(context->global_proxy());
-  MaybeHandle<Object> maybe_result =
-      Evaluate(isolate, context_builder.outer_info(), context,
-               context_extension, receiver, source);
+  MaybeHandle<Object> maybe_result = Evaluate(
+      isolate, context_builder.outer_info(), context, receiver, source);
   if (!maybe_result.is_null()) context_builder.UpdateValues();
   return maybe_result;
 }
@@ -89,20 +82,7 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(
     Isolate* isolate, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, Handle<HeapObject> context_extension,
-    Handle<Object> receiver, Handle<String> source) {
-  if (context_extension->IsJSObject()) {
-    Handle<JSObject> extension = Handle<JSObject>::cast(context_extension);
-    Handle<JSFunction> closure(context->closure(), isolate);
-    context = isolate->factory()->NewWithContext(
-        closure, context,
-        ScopeInfo::CreateForWithScope(
-            isolate, context->IsNativeContext()
-                         ? Handle<ScopeInfo>::null()
-                         : Handle<ScopeInfo>(context->scope_info())),
-        extension);
-  }
-
+    Handle<Context> context, Handle<Object> receiver, Handle<String> source) {
   Handle<JSFunction> eval_fun;
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, eval_fun,

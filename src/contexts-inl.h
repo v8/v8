@@ -118,6 +118,10 @@ bool Context::IsModuleContext() {
   return map == map->GetHeap()->module_context_map();
 }
 
+bool Context::IsEvalContext() {
+  Map* map = this->map();
+  return map == map->GetHeap()->eval_context_map();
+}
 
 bool Context::IsScriptContext() {
   Map* map = this->map();

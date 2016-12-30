@@ -18,6 +18,7 @@ using compiler::Node;
 
 #define ACCESSOR_ASSEMBLER_PUBLIC_INTERFACE(V) \
   V(LoadIC)                                    \
+  V(LoadField)                                 \
   V(LoadICTrampoline)                          \
   V(KeyedLoadICTF)                             \
   V(KeyedLoadICTrampolineTF)                   \

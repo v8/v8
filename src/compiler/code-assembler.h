@@ -12,6 +12,7 @@
 // Do not include anything from src/compiler here!
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
+#include "src/code-factory.h"
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
@@ -38,6 +39,8 @@ class RawMachineAssembler;
 class RawMachineLabel;
 
 typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
+
+typedef std::function<void()> CodeAssemblerCallback;
 
 #define CODE_ASSEMBLER_COMPARE_BINARY_OP_LIST(V) \
   V(Float32Equal)                                \
@@ -84,9 +87,7 @@ typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
   V(Float64Pow)                            \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
-  V(IntPtrAdd)                             \
   V(IntPtrAddWithOverflow)                 \
-  V(IntPtrSub)                             \
   V(IntPtrSubWithOverflow)                 \
   V(IntPtrMul)                             \
   V(Int32Add)                              \
@@ -162,6 +163,7 @@ typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
   V(Float64RoundTiesEven)               \
   V(Float64RoundTruncate)               \
   V(Word32Clz)                          \
+  V(Word32Not)                          \
   V(Word32BinaryNot)
 
 // A "public" interface used by components outside of compiler directory to
@@ -187,8 +189,7 @@ typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
 class V8_EXPORT_PRIVATE CodeAssembler {
  public:
   explicit CodeAssembler(CodeAssemblerState* state) : state_(state) {}
-
-  virtual ~CodeAssembler();
+  ~CodeAssembler();
 
   static Handle<Code> GenerateCode(CodeAssemblerState* state);
 
@@ -274,6 +275,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   CODE_ASSEMBLER_BINARY_OP_LIST(DECLARE_CODE_ASSEMBLER_BINARY_OP)
 #undef DECLARE_CODE_ASSEMBLER_BINARY_OP
 
+  Node* IntPtrAdd(Node* left, Node* right);
+  Node* IntPtrSub(Node* left, Node* right);
+
   Node* WordShl(Node* value, int shift);
   Node* WordShr(Node* value, int shift);
   Node* Word32Shr(Node* value, int shift);
@@ -300,148 +304,63 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Projection(int index, Node* value);
 
   // Calls
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3, Node* arg4);
-  Node* CallRuntime(Runtime::FunctionId function_id, Node* context, Node* arg1,
-                    Node* arg2, Node* arg3, Node* arg4, Node* arg5);
+  template <class... TArgs>
+  Node* CallRuntime(Runtime::FunctionId function, Node* context, TArgs... args);
 
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                        Node* arg5);
-  Node* TailCallRuntime(Runtime::FunctionId function_id, Node* context,
-                        Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                        Node* arg5, Node* arg6);
+  template <class... TArgs>
+  Node* TailCallRuntime(Runtime::FunctionId function, Node* context,
+                        TArgs... args);
 
-  // A pair of a zero-based argument index and a value.
-  // It helps writing arguments order independent code.
-  struct Arg {
-    Arg(int index, Node* value) : index(index), value(value) {}
-
-    int const index;
-    Node* const value;
-  };
-
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, Node* arg3, size_t result_size = 1);
-  Node* CallStub(Callable const& callable, Node* context, Node* arg1,
-                 Node* arg2, Node* arg3, Node* arg4, size_t result_size = 1);
-  Node* CallStubN(Callable const& callable, Node** args,
-                  size_t result_size = 1);
-
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                 Node* arg5, size_t result_size = 1);
-
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 const Arg& arg3, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 const Arg& arg3, const Arg& arg4, size_t result_size = 1);
-  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                 Node* context, const Arg& arg1, const Arg& arg2,
-                 const Arg& arg3, const Arg& arg4, const Arg& arg5,
-                 size_t result_size = 1);
-
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor,
-                  int js_parameter_count, Node* target, Node** args,
-                  size_t result_size = 1);
-  Node* CallStubN(const CallInterfaceDescriptor& descriptor, Node* target,
-                  Node** args, size_t result_size = 1) {
-    return CallStubN(descriptor, 0, target, args, result_size);
+  template <class... TArgs>
+  Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
+    Node* target = HeapConstant(callable.code());
+    return CallStub(callable.descriptor(), target, context, args...);
   }
 
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, Node* arg3, size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, Node* arg3, Node* arg4,
-                     size_t result_size = 1);
-  Node* TailCallStub(Callable const& callable, Node* context, Node* arg1,
-                     Node* arg2, Node* arg3, Node* arg4, Node* arg5,
-                     size_t result_size = 1);
+  template <class... TArgs>
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, TArgs... args) {
+    return CallStubR(descriptor, 1, target, context, args...);
+  }
 
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2,
-                     size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     Node* arg4, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     Node* arg4, Node* arg5, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, Node* arg1, Node* arg2, Node* arg3,
-                     Node* arg4, Node* arg5, Node* arg6,
-                     size_t result_size = 1);
+  template <class... TArgs>
+  Node* CallStubR(const CallInterfaceDescriptor& descriptor, size_t result_size,
+                  Node* target, Node* context, TArgs... args);
 
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, const Arg& arg1, const Arg& arg2,
-                     const Arg& arg3, const Arg& arg4, size_t result_size = 1);
-  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
-                     Node* context, const Arg& arg1, const Arg& arg2,
-                     const Arg& arg3, const Arg& arg4, const Arg& arg5,
-                     size_t result_size = 1);
+  Node* CallStubN(const CallInterfaceDescriptor& descriptor, size_t result_size,
+                  int input_count, Node* const* inputs);
 
+  template <class... TArgs>
+  Node* TailCallStub(Callable const& callable, Node* context, TArgs... args) {
+    Node* target = HeapConstant(callable.code());
+    return TailCallStub(callable.descriptor(), target, context, args...);
+  }
+
+  template <class... TArgs>
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, TArgs... args);
+
+  template <class... TArgs>
   Node* TailCallBytecodeDispatch(const CallInterfaceDescriptor& descriptor,
-                                 Node* code_target_address, Node** args);
+                                 Node* target, TArgs... args);
 
+  template <class... TArgs>
   Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, Node* arg2, size_t result_size = 1);
-  Node* CallJS(Callable const& callable, Node* context, Node* function,
-               Node* receiver, Node* arg1, Node* arg2, Node* arg3,
-               size_t result_size = 1);
+               Node* receiver, TArgs... args) {
+    int argc = static_cast<int>(sizeof...(args));
+    Node* arity = Int32Constant(argc);
+    return CallStub(callable, context, function, arity, receiver, args...);
+  }
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
                        Node* arg1);
+
+  // Call to a C function with three arguments.
+  Node* CallCFunction3(MachineType return_type, MachineType arg0_type,
+                       MachineType arg1_type, MachineType arg2_type,
+                       Node* function, Node* arg0, Node* arg1, Node* arg2);
 
   // Exception handling support.
   void GotoIfException(Node* node, Label* if_exception,
@@ -454,16 +373,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   CodeAssemblerState* state() { return state_; }
 
+  void BreakOnNode(int node_id);
+
  protected:
-  // Enables subclasses to perform operations before and after a call.
-  virtual void CallPrologue();
-  virtual void CallEpilogue();
+  void RegisterCallGenerationCallbacks(
+      const CodeAssemblerCallback& call_prologue,
+      const CodeAssemblerCallback& call_epilogue);
+  void UnregisterCallGenerationCallbacks();
 
  private:
-  Node* CallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-  Node* TailCallN(CallDescriptor* descriptor, Node* code_target, Node** args);
-
   RawMachineAssembler* raw_assembler() const;
+
+  // Calls respective callback registered in the state.
+  void CallPrologue();
+  void CallEpilogue();
 
   CodeAssemblerState* state_;
 
@@ -545,6 +468,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   ~CodeAssemblerState();
 
+  const char* name() const { return name_; }
+
  private:
   friend class CodeAssembler;
   friend class CodeAssemblerLabel;
@@ -559,6 +484,8 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   const char* name_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*> variables_;
+  CodeAssemblerCallback call_prologue_;
+  CodeAssemblerCallback call_epilogue_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeAssemblerState);
 };

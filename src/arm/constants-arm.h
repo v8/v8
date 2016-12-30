@@ -190,6 +190,7 @@ enum {
   B7 = 1 << 7,
   B8 = 1 << 8,
   B9 = 1 << 9,
+  B10 = 1 << 10,
   B12 = 1 << 12,
   B16 = 1 << 16,
   B17 = 1 << 17,
@@ -217,7 +218,6 @@ enum {
   kOff12Mask = (1 << 12) - 1,
   kOff8Mask = (1 << 8) - 1
 };
-
 
 enum BarrierOption {
   OSHLD = 0x1,
@@ -327,12 +327,12 @@ enum LFlag {
 
 // NEON data type
 enum NeonDataType {
-  NeonS8 = 0x1,   // U = 0, imm3 = 0b001
-  NeonS16 = 0x2,  // U = 0, imm3 = 0b010
-  NeonS32 = 0x4,  // U = 0, imm3 = 0b100
+  NeonS8 = 0x1,             // U = 0, imm3 = 0b001
+  NeonS16 = 0x2,            // U = 0, imm3 = 0b010
+  NeonS32 = 0x4,            // U = 0, imm3 = 0b100
   NeonU8 = 1 << 24 | 0x1,   // U = 1, imm3 = 0b001
   NeonU16 = 1 << 24 | 0x2,  // U = 1, imm3 = 0b010
-  NeonU32 = 1 << 24 | 0x4,   // U = 1, imm3 = 0b100
+  NeonU32 = 1 << 24 | 0x4,  // U = 1, imm3 = 0b100
   NeonDataTypeSizeMask = 0x7,
   NeonDataTypeUMask = 1 << 24
 };
@@ -667,7 +667,7 @@ class Instruction {
 
 
  private:
-  // Join split register codes, depending on single or double precision.
+  // Join split register codes, depending on register precision.
   // four_bit is the position of the least-significant bit of the four
   // bit specifier. one_bit is the position of the additional single bit
   // specifier.

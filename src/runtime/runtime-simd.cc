@@ -171,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 // TODO(gdeepti): Fix to use ToNumber conversion once polyfill is updated.
 #define CONVERT_SIMD_LANE_ARG_CHECKED(name, index, lanes)            \
-  Handle<Object> name_object = args.at<Object>(index);               \
+  Handle<Object> name_object = args.at(index);                       \
   if (!name_object->IsNumber()) {                                    \
     THROW_NEW_ERROR_RETURN_FAILURE(                                  \
         isolate, NewTypeError(MessageTemplate::kInvalidSimdIndex));  \
@@ -228,10 +228,10 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 // Common functions.
 
-#define GET_NUMERIC_ARG(lane_type, name, index)              \
-  Handle<Object> a;                                          \
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                        \
-      isolate, a, Object::ToNumber(args.at<Object>(index))); \
+#define GET_NUMERIC_ARG(lane_type, name, index)                         \
+  Handle<Object> a;                                                     \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, a,                        \
+                                     Object::ToNumber(args.at(index))); \
   name = ConvertNumber<lane_type>(a->Number());
 
 #define GET_BOOLEAN_ARG(lane_type, name, index) \
@@ -409,7 +409,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   FUNCTION(Uint8x16, uint8_t, 8, 16)
 
 #define CONVERT_SHIFT_ARG_CHECKED(name, index)                          \
-  Handle<Object> name_object = args.at<Object>(index);                  \
+  Handle<Object> name_object = args.at(index);                          \
   if (!name_object->IsNumber()) {                                       \
     THROW_NEW_ERROR_RETURN_FAILURE(                                     \
         isolate, NewTypeError(MessageTemplate::kInvalidSimdOperation)); \
@@ -880,16 +880,16 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
   FUNCTION(Int32x4, int32_t, 4)           \
   FUNCTION(Uint32x4, uint32_t, 4)
 
-#define SIMD_COERCE_INDEX(name, i)                                            \
-  Handle<Object> length_object, number_object;                                \
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                         \
-      isolate, length_object, Object::ToLength(isolate, args.at<Object>(i))); \
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_object,                  \
-                                     Object::ToNumber(args.at<Object>(i)));   \
-  if (number_object->Number() != length_object->Number()) {                   \
-    THROW_NEW_ERROR_RETURN_FAILURE(                                           \
-        isolate, NewTypeError(MessageTemplate::kInvalidSimdIndex));           \
-  }                                                                           \
+#define SIMD_COERCE_INDEX(name, i)                                           \
+  Handle<Object> length_object, number_object;                               \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, length_object,                 \
+                                     Object::ToLength(isolate, args.at(i))); \
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, number_object,                 \
+                                     Object::ToNumber(args.at(i)));          \
+  if (number_object->Number() != length_object->Number()) {                  \
+    THROW_NEW_ERROR_RETURN_FAILURE(                                          \
+        isolate, NewTypeError(MessageTemplate::kInvalidSimdIndex));          \
+  }                                                                          \
   int32_t name = number_object->Number();
 
 // Common Load and Store Functions

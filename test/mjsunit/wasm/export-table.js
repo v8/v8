@@ -54,6 +54,27 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertSame(module.exports.blah, module.exports.foo);
 })();
 
+(function testEmptyName() {
+  print("TestEmptyName...");
+  var kReturnValue = 93;
+
+  var builder = new WasmModuleBuilder();
+
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprI8Const,
+      kReturnValue,
+      kExprReturn
+    ])
+    .exportAs("");
+
+  var module = builder.instantiate();
+
+  assertEquals("object", typeof module.exports);
+  assertEquals("function", typeof module.exports[""]);
+
+  assertEquals(kReturnValue, module.exports[""]());
+})();
 
 (function testNumericName() {
   print("TestNumericName...");
@@ -111,4 +132,45 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertSame(e.a, e.b);
   assertSame(e.a, e.c);
   assertEquals(String(f.index), e.a.name);
+})();
+
+
+(function testReexportJSMultipleIdentity() {
+  print("TestReexportMultipleIdentity...");
+  var builder = new WasmModuleBuilder();
+
+  function js() {}
+
+  var a = builder.addImport("m", "a", kSig_v_v);
+  builder.addExport("f", a);
+  builder.addExport("g", a);
+
+  let instance = builder.instantiate({m: {a: js}});
+  let e = instance.exports;
+  assertEquals("function", typeof e.f);
+  assertEquals("function", typeof e.g);
+  assertFalse(e.f == js);
+  assertFalse(e.g == js);
+  assertTrue(e.f == e.g);
+})();
+
+
+(function testReexportJSMultiple() {
+  print("TestReexportMultiple...");
+  var builder = new WasmModuleBuilder();
+
+  function js() {}
+
+  var a = builder.addImport("q", "a", kSig_v_v);
+  var b = builder.addImport("q", "b", kSig_v_v);
+  builder.addExport("f", a);
+  builder.addExport("g", b);
+
+  let instance = builder.instantiate({q: {a: js, b: js}});
+  let e = instance.exports;
+  assertEquals("function", typeof e.f);
+  assertEquals("function", typeof e.g);
+  assertFalse(e.f == js);
+  assertFalse(e.g == js);
+  assertFalse(e.f == e.g);
 })();

@@ -37,7 +37,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let builder = new WasmModuleBuilder();
 
-  let d = builder.addImport("js_div", kSig_i_ii);
+  let d = builder.addImport("q", "js_div", kSig_i_ii);
   let f = AddFunctions(builder);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
@@ -50,7 +50,7 @@ function js_div(a, b) { return (a / b) | 0; }
   f.add.exportAs("blarg");
 
   builder.setFunctionTableLength(10);
-  let g = builder.addImportedGlobal("base", undefined, kAstI32);
+  let g = builder.addImportedGlobal("q", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
                                          d]);
@@ -60,7 +60,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   for (let i = 0; i < 5; i++) {
     print(" base = " + i);
-    let instance = new WebAssembly.Instance(module, {base: i, js_div: js_div});
+    let instance = new WebAssembly.Instance(module, {q: {base: i, js_div: js_div}});
     main = instance.exports.main;
     let table = instance.exports.table;
     assertTrue(table instanceof WebAssembly.Table);
@@ -107,10 +107,10 @@ function js_div(a, b) { return (a / b) | 0; }
   print("ImportedTableTest...");
   var builder = new WasmModuleBuilder();
 
-  let d = builder.addImport("js_div", kSig_i_ii);
+  let d = builder.addImport("q", "js_div", kSig_i_ii);
   let f = AddFunctions(builder);
   builder.setFunctionTableLength(kTableSize);
-  let g = builder.addImportedGlobal("base", undefined, kAstI32);
+  let g = builder.addImportedGlobal("q", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
                                          d]);
@@ -120,7 +120,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   var builder = new WasmModuleBuilder();
 
-  builder.addImportedTable("table", undefined, kTableSize, kTableSize);
+  builder.addImportedTable("r", "table", kTableSize, kTableSize);
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprI32Const, 33,  // --
@@ -134,10 +134,10 @@ function js_div(a, b) { return (a / b) | 0; }
   // Run 5 trials at different table bases.
   for (let i = 0; i < 5; i++) {
     print(" base = " + i);
-    let i1 = new WebAssembly.Instance(m1, {base: i, js_div: js_div});
+    let i1 = new WebAssembly.Instance(m1, {q: {base: i, js_div: js_div}});
     let table = i1.exports.table;
     assertEquals(10, table.length);
-    let i2 = new WebAssembly.Instance(m2, {table: table});
+    let i2 = new WebAssembly.Instance(m2, {r: {table: table}});
     let main = i2.exports.main;
 
     for (var j = 0; j < i; j++) {
@@ -178,9 +178,9 @@ function js_div(a, b) { return (a / b) | 0; }
 
   var builder = new WasmModuleBuilder();
 
-  let d = builder.addImport("js_div", kSig_i_ii);
-  builder.addImportedTable("table", undefined, kTableSize, kTableSize);
-  let g = builder.addImportedGlobal("base", undefined, kAstI32);
+  let d = builder.addImport("q", "js_div", kSig_i_ii);
+  builder.addImportedTable("q", "table", kTableSize, kTableSize);
+  let g = builder.addImportedGlobal("q", "base", kWasmI32);
   let f = AddFunctions(builder);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
@@ -201,8 +201,8 @@ function js_div(a, b) { return (a / b) | 0; }
     let table = new WebAssembly.Table({element: "anyfunc",
                                        initial: kTableSize});
     assertEquals(10, table.length);
-    let i2 = new WebAssembly.Instance(m2, {base: i, table: table,
-                                           js_div: js_div});
+    let i2 = new WebAssembly.Instance(m2, {q: {base: i, table: table,
+                                               js_div: js_div}});
     let main = i2.exports.main;
 
     for (var j = 0; j < i; j++) {
@@ -246,8 +246,8 @@ function js_div(a, b) { return (a / b) | 0; }
 
   var builder = new WasmModuleBuilder();
 
-  builder.addImportedTable("table", undefined, kTableSize, kTableSize);
-  let g = builder.addImportedGlobal("base", undefined, kAstI32);
+  builder.addImportedTable("x", "table", kTableSize, kTableSize);
+  let g = builder.addImportedGlobal("x", "base", kWasmI32);
   let sig_index = builder.addType(kSig_i_v);
   builder.addFunction("g", sig_index)
     .addBody([
@@ -264,7 +264,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   for (var i = 0; i < kTableSize; i++) {
     print(" base = " + i);
-    let instance = new WebAssembly.Instance(module, {base: i, table: table});
+    let instance = new WebAssembly.Instance(module, {x: {base: i, table: table}});
 
     for (var j = 0; j < kTableSize; j++) {
       let func = table.get(j);
@@ -319,14 +319,14 @@ function js_div(a, b) { return (a / b) | 0; }
 
   builder.setFunctionTableLength(kTableSize);
   builder.addFunctionTableInit(1, false, [f2.index]);
-  builder.addImportedTable("table", undefined, kTableSize, kTableSize);
+  builder.addImportedTable("z", "table", kTableSize, kTableSize);
 
   var m2 = new WebAssembly.Module(builder.toBuffer());
 
   assertFalse(sig_index1 == sig_index2);
 
   var i1 = new WebAssembly.Instance(m1);
-  var i2 = new WebAssembly.Instance(m2, {table: i1.exports.table});
+  var i2 = new WebAssembly.Instance(m2, {z: {table: i1.exports.table}});
 
   assertEquals(11, i1.exports.main(0));
   assertEquals(11, i2.exports.main(0));
@@ -355,7 +355,7 @@ function js_div(a, b) { return (a / b) | 0; }
       let m1 = new WebAssembly.Module(builder.toBuffer());
 
       var builder = new WasmModuleBuilder();
-      builder.addImportedTable("impfoo", undefined, impsize, impsize);
+      builder.addImportedTable("y", "impfoo", impsize, impsize);
 
       let m2 = new WebAssembly.Module(builder.toBuffer());
 
@@ -363,7 +363,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
       // TODO(titzer): v8 currently requires import table size to match
       // export table size.
-      var ffi = {impfoo: i1.exports.expfoo};
+      var ffi = {y: {impfoo: i1.exports.expfoo}};
       if (expsize == impsize) {
         var i2 = new WebAssembly.Instance(m2, ffi);
       } else {

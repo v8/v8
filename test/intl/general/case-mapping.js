@@ -16,13 +16,32 @@ assertEquals("σς", "\u03A3\u03A3".toLowerCase());
 // Expand sharp s in latin1 fastpath
 assertEquals("ASSB", "A\u00DFB".toUpperCase());
 assertEquals("AB", "Ab".toUpperCase());
-// Find first upper case in fastpath
+// Find first uppercase in fastpath
+// Input length < a machine word size
+assertEquals("ab", "ab".toLowerCase());
 assertEquals("ab", "aB".toLowerCase());
 assertEquals("AÜ", "aü".toUpperCase());
 assertEquals("AÜ", "AÜ".toUpperCase());
 assertEquals("aü", "aü".toLowerCase());
+assertEquals("aü", "aÜ".toLowerCase());
 assertEquals("aü", "AÜ".toLowerCase());
 assertEquals("aü", "AÜ".toLowerCase());
+
+// Input length >= a machine word size
+assertEquals("abcdefghij", "abcdefghij".toLowerCase());
+assertEquals("abcdefghij", "abcdefghiJ".toLowerCase());
+assertEquals("abçdefghij", "abçdefghiJ".toLowerCase());
+assertEquals("abçdefghij", "abÇdefghiJ".toLowerCase());
+assertEquals("abcdefghiá", "abcdeFghiá".toLowerCase());
+assertEquals("abcdefghiá", "abcdeFghiÁ".toLowerCase());
+
+assertEquals("ABCDEFGHIJ", "ABCDEFGHIJ".toUpperCase());
+assertEquals("ABCDEFGHIJ", "ABCDEFGHIj".toUpperCase());
+assertEquals("ABÇDEFGHIJ", "ABÇDEFGHIj".toUpperCase());
+assertEquals("ABÇDEFGHIJ", "ABçDEFGHIj".toUpperCase());
+assertEquals("ABCDEFGHIÁ", "ABCDEfGHIÁ".toUpperCase());
+assertEquals("ABCDEFGHIÁ", "ABCDEfGHIá".toUpperCase());
+
 
 // Starts with fastpath, but switches to full Unicode path
 // U+00FF is uppercased to U+0178.
@@ -33,6 +52,10 @@ assertEquals("AΜ", "aµ".toUpperCase());
 // Buffer size increase
 assertEquals("CSSBẶ", "cßbặ".toUpperCase());
 assertEquals("FIFLFFIFFL", "\uFB01\uFB02\uFB03\uFB04".toUpperCase());
+assertEquals("ABCÀCSSA", "abcàcßa".toUpperCase());
+assertEquals("ABCDEFGHIÀCSSA", "ABCDEFGHIàcßa".toUpperCase());
+assertEquals("ABCDEFGHIÀCSSA", "abcdeFghiàcßa".toUpperCase());
+
 // OneByte input with buffer size increase: non-fast path
 assertEquals("ABCSS", "abCß".toLocaleUpperCase("tr"));
 

@@ -22,7 +22,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
  public:
   InterpreterAssembler(compiler::CodeAssemblerState* state, Bytecode bytecode,
                        OperandScale operand_scale);
-  virtual ~InterpreterAssembler();
+  ~InterpreterAssembler();
 
   // Returns the 32-bit unsigned count immediate for bytecode operand
   // |operand_index| in the current bytecode.
@@ -218,8 +218,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
-  void CallPrologue() override;
-  void CallEpilogue() override;
+  void CallPrologue();
+  void CallEpilogue();
 
   // Increment the dispatch counter for the (current, next) bytecode pair.
   void TraceBytecodeDispatch(compiler::Node* target_index);

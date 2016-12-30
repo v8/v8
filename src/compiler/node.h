@@ -294,7 +294,7 @@ class V8_EXPORT_PRIVATE Node final {
   void set_type(Type* type) { type_ = type; }
 
   // Only NodeMarkers should manipulate the marks on nodes.
-  Mark mark() { return mark_; }
+  Mark mark() const { return mark_; }
   void set_mark(Mark mark) { mark_ = mark; }
 
   inline bool has_inline_inputs() const {

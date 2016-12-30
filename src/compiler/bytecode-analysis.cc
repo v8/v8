@@ -14,6 +14,73 @@ namespace compiler {
 
 using namespace interpreter;
 
+BytecodeLoopAssignments::BytecodeLoopAssignments(int parameter_count,
+                                                 int register_count, Zone* zone)
+    : parameter_count_(parameter_count),
+      bit_vector_(new (zone)
+                      BitVector(parameter_count + register_count, zone)) {}
+
+void BytecodeLoopAssignments::Add(interpreter::Register r) {
+  if (r.is_parameter()) {
+    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
+  } else {
+    bit_vector_->Add(parameter_count_ + r.index());
+  }
+}
+
+void BytecodeLoopAssignments::AddPair(interpreter::Register r) {
+  if (r.is_parameter()) {
+    DCHECK(interpreter::Register(r.index() + 1).is_parameter());
+    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
+    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 1);
+  } else {
+    DCHECK(!interpreter::Register(r.index() + 1).is_parameter());
+    bit_vector_->Add(parameter_count_ + r.index());
+    bit_vector_->Add(parameter_count_ + r.index() + 1);
+  }
+}
+
+void BytecodeLoopAssignments::AddTriple(interpreter::Register r) {
+  if (r.is_parameter()) {
+    DCHECK(interpreter::Register(r.index() + 1).is_parameter());
+    DCHECK(interpreter::Register(r.index() + 2).is_parameter());
+    bit_vector_->Add(r.ToParameterIndex(parameter_count_));
+    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 1);
+    bit_vector_->Add(r.ToParameterIndex(parameter_count_) + 2);
+  } else {
+    DCHECK(!interpreter::Register(r.index() + 1).is_parameter());
+    DCHECK(!interpreter::Register(r.index() + 2).is_parameter());
+    bit_vector_->Add(parameter_count_ + r.index());
+    bit_vector_->Add(parameter_count_ + r.index() + 1);
+    bit_vector_->Add(parameter_count_ + r.index() + 2);
+  }
+}
+
+void BytecodeLoopAssignments::AddAll() { bit_vector_->AddAll(); }
+
+void BytecodeLoopAssignments::Union(const BytecodeLoopAssignments& other) {
+  bit_vector_->Union(*other.bit_vector_);
+}
+
+bool BytecodeLoopAssignments::ContainsParameter(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, parameter_count());
+  return bit_vector_->Contains(index);
+}
+
+bool BytecodeLoopAssignments::ContainsLocal(int index) const {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, local_count());
+  return bit_vector_->Contains(parameter_count_ + index);
+}
+
+bool BytecodeLoopAssignments::ContainsAccumulator() const {
+  // TODO(leszeks): This assumes the accumulator is always assigned. This is
+  // probably correct, but that assignment is also probably dead, so we should
+  // check liveness.
+  return true;
+}
+
 BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
                                    Zone* zone, bool do_liveness_analysis)
     : bytecode_array_(bytecode_array),
@@ -22,7 +89,7 @@ BytecodeAnalysis::BytecodeAnalysis(Handle<BytecodeArray> bytecode_array,
       loop_stack_(zone),
       loop_end_index_queue_(zone),
       end_to_header_(zone),
-      header_to_parent_(zone),
+      header_to_info_(zone),
       liveness_map_(bytecode_array->length(), zone) {}
 
 namespace {
@@ -145,12 +212,41 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
   }
 }
 
+void UpdateAssignments(Bytecode bytecode, BytecodeLoopAssignments& assignments,
+                       const BytecodeArrayAccessor& accessor) {
+  int num_operands = Bytecodes::NumberOfOperands(bytecode);
+  const OperandType* operand_types = Bytecodes::GetOperandTypes(bytecode);
+
+  for (int i = 0; i < num_operands; ++i) {
+    switch (operand_types[i]) {
+      case OperandType::kRegOut: {
+        assignments.Add(accessor.GetRegisterOperand(i));
+        break;
+      }
+      case OperandType::kRegOutPair: {
+        assignments.AddPair(accessor.GetRegisterOperand(i));
+        break;
+      }
+      case OperandType::kRegOutTriple: {
+        assignments.AddTriple(accessor.GetRegisterOperand(i));
+        break;
+      }
+      default:
+        DCHECK(!Bytecodes::IsRegisterOutputOperandType(operand_types[i]));
+        break;
+    }
+  }
+}
+
 }  // namespace
 
-void BytecodeAnalysis::Analyze() {
-  loop_stack_.push(-1);
+void BytecodeAnalysis::Analyze(BailoutId osr_bailout_id) {
+  loop_stack_.push({-1, nullptr});
 
   BytecodeLivenessState* next_bytecode_in_liveness = nullptr;
+
+  int osr_loop_end_offset =
+      osr_bailout_id.IsNone() ? -1 : osr_bailout_id.ToInt();
 
   BytecodeArrayRandomIterator iterator(bytecode_array(), zone());
   for (iterator.GoToEnd(); iterator.IsValid(); --iterator) {
@@ -163,12 +259,46 @@ void BytecodeAnalysis::Analyze() {
       int loop_end = current_offset + iterator.current_bytecode_size();
       PushLoop(iterator.GetJumpTargetOffset(), loop_end);
 
+      // Normally prefixed bytecodes are treated as if the prefix's offset was
+      // the actual bytecode's offset. However, the OSR id is the offset of the
+      // actual JumpLoop bytecode, so we need to find the location of that
+      // bytecode ignoring the prefix.
+      int jump_loop_offset = current_offset + iterator.current_prefix_offset();
+      bool is_osr_loop = (jump_loop_offset == osr_loop_end_offset);
+
+      // Check that is_osr_loop is set iff the osr_loop_end_offset is within
+      // this bytecode.
+      DCHECK(!is_osr_loop ||
+             iterator.OffsetWithinBytecode(osr_loop_end_offset));
+
+      // OSR "assigns" everything to OSR values on entry into an OSR loop, so we
+      // need to make sure to considered everything to be assigned.
+      if (is_osr_loop) {
+        loop_stack_.top().loop_info->assignments().AddAll();
+      }
+
       // Save the index so that we can do another pass later.
       if (do_liveness_analysis_) {
         loop_end_index_queue_.push_back(iterator.current_index());
       }
-    } else if (current_offset == loop_stack_.top()) {
-      loop_stack_.pop();
+    } else if (loop_stack_.size() > 1) {
+      LoopStackEntry& current_loop = loop_stack_.top();
+      LoopInfo* current_loop_info = current_loop.loop_info;
+
+      // TODO(leszeks): Ideally, we'd only set values that were assigned in
+      // the loop *and* are live when the loop exits. However, this requires
+      // tracking the out-liveness of *all* loop exits, which is not
+      // information we currently have.
+      UpdateAssignments(bytecode, current_loop_info->assignments(), iterator);
+
+      if (current_offset == current_loop.header_offset) {
+        loop_stack_.pop();
+        if (loop_stack_.size() > 1) {
+          // Propagate inner loop assignments to outer loop.
+          loop_stack_.top().loop_info->assignments().Union(
+              current_loop_info->assignments());
+        }
+      }
     }
 
     if (do_liveness_analysis_) {
@@ -185,7 +315,7 @@ void BytecodeAnalysis::Analyze() {
   }
 
   DCHECK_EQ(loop_stack_.size(), 1u);
-  DCHECK_EQ(loop_stack_.top(), -1);
+  DCHECK_EQ(loop_stack_.top().header_offset, -1);
 
   if (!do_liveness_analysis_) return;
 
@@ -259,18 +389,24 @@ void BytecodeAnalysis::Analyze() {
 
 void BytecodeAnalysis::PushLoop(int loop_header, int loop_end) {
   DCHECK(loop_header < loop_end);
-  DCHECK(loop_stack_.top() < loop_header);
+  DCHECK(loop_stack_.top().header_offset < loop_header);
   DCHECK(end_to_header_.find(loop_end) == end_to_header_.end());
-  DCHECK(header_to_parent_.find(loop_header) == header_to_parent_.end());
+  DCHECK(header_to_info_.find(loop_header) == header_to_info_.end());
 
-  end_to_header_.insert(ZoneMap<int, int>::value_type(loop_end, loop_header));
-  header_to_parent_.insert(
-      ZoneMap<int, int>::value_type(loop_header, loop_stack_.top()));
-  loop_stack_.push(loop_header);
+  int parent_offset = loop_stack_.top().header_offset;
+
+  end_to_header_.insert({loop_end, loop_header});
+  auto it = header_to_info_.insert(
+      {loop_header, LoopInfo(parent_offset, bytecode_array_->parameter_count(),
+                             bytecode_array_->register_count(), zone_)});
+  // Get the loop info pointer from the output of insert.
+  LoopInfo* loop_info = &it.first->second;
+
+  loop_stack_.push({loop_header, loop_info});
 }
 
 bool BytecodeAnalysis::IsLoopHeader(int offset) const {
-  return header_to_parent_.find(offset) != header_to_parent_.end();
+  return header_to_info_.find(offset) != header_to_info_.end();
 }
 
 int BytecodeAnalysis::GetLoopOffsetFor(int offset) const {
@@ -300,16 +436,16 @@ int BytecodeAnalysis::GetLoopOffsetFor(int offset) const {
   //   | `- end
   //   |
   //   `- end
-  // We just return the parent of the next loop header (might be -1).
-  DCHECK(header_to_parent_.upper_bound(offset) != header_to_parent_.end());
+  // We just return the parent of the next loop (might be -1).
+  DCHECK(header_to_info_.upper_bound(offset) != header_to_info_.end());
 
-  return header_to_parent_.upper_bound(offset)->second;
+  return header_to_info_.upper_bound(offset)->second.parent_offset();
 }
 
-int BytecodeAnalysis::GetParentLoopFor(int header_offset) const {
+const LoopInfo& BytecodeAnalysis::GetLoopInfoFor(int header_offset) const {
   DCHECK(IsLoopHeader(header_offset));
 
-  return header_to_parent_.find(header_offset)->second;
+  return header_to_info_.find(header_offset)->second;
 }
 
 const BytecodeLivenessState* BytecodeAnalysis::GetInLivenessFor(

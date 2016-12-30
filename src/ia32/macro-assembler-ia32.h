@@ -612,31 +612,6 @@ class MacroAssembler: public Assembler {
   void AllocateHeapNumber(Register result, Register scratch1, Register scratch2,
                           Label* gc_required, MutableMode mode = IMMUTABLE);
 
-  // Allocate a sequential string. All the header fields of the string object
-  // are initialized.
-  void AllocateTwoByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-  void AllocateOneByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-  void AllocateOneByteString(Register result, int length, Register scratch1,
-                             Register scratch2, Label* gc_required);
-
-  // Allocate a raw cons string object. Only the map field of the result is
-  // initialized.
-  void AllocateTwoByteConsString(Register result, Register scratch1,
-                                 Register scratch2, Label* gc_required);
-  void AllocateOneByteConsString(Register result, Register scratch1,
-                                 Register scratch2, Label* gc_required);
-
-  // Allocate a raw sliced string object. Only the map field of the result is
-  // initialized.
-  void AllocateTwoByteSlicedString(Register result, Register scratch1,
-                                   Register scratch2, Label* gc_required);
-  void AllocateOneByteSlicedString(Register result, Register scratch1,
-                                   Register scratch2, Label* gc_required);
-
   // Allocate and initialize a JSValue wrapper with the specified {constructor}
   // and {value}.
   void AllocateJSValue(Register result, Register constructor, Register value,
@@ -860,13 +835,6 @@ class MacroAssembler: public Assembler {
 
   // ---------------------------------------------------------------------------
   // String utilities.
-
-  // Check whether the instance type represents a flat one-byte string. Jump to
-  // the label if not. If the instance type can be scratched specify same
-  // register for both instance type and scratch.
-  void JumpIfInstanceTypeIsNotSequentialOneByte(
-      Register instance_type, Register scratch,
-      Label* on_not_flat_one_byte_string);
 
   // Checks if both objects are sequential one-byte strings, and jumps to label
   // if either is not.

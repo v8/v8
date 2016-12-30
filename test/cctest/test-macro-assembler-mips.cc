@@ -532,7 +532,7 @@ TEST(cvt_s_w_Trunc_uw_s) {
     uint32_t input = *i;
     auto fn = [](MacroAssembler* masm) {
       __ cvt_s_w(f0, f4);
-      __ Trunc_uw_s(f2, f0, f1);
+      __ Trunc_uw_s(f2, f0, f6);
     };
     CHECK_EQ(static_cast<float>(input), run_Cvt<uint32_t>(input, fn));
   }

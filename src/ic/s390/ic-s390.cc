@@ -358,13 +358,13 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
     cc = static_cast<Condition>((branch_instr & 0x00f00000) >> 20);
     DCHECK((cc == ne) || (cc == eq));
     cc = (cc == ne) ? eq : ne;
-    patcher.masm()->brc(cc, Operand((branch_instr & 0xffff) << 1));
+    patcher.masm()->brc(cc, Operand(branch_instr & 0xffff));
   } else if (Instruction::S390OpcodeValue(branch_address) == BRCL) {
     cc = static_cast<Condition>(
         (branch_instr & (static_cast<uint64_t>(0x00f0) << 32)) >> 36);
     DCHECK((cc == ne) || (cc == eq));
     cc = (cc == ne) ? eq : ne;
-    patcher.masm()->brcl(cc, Operand((branch_instr & 0xffffffff) << 1));
+    patcher.masm()->brcl(cc, Operand(branch_instr & 0xffffffff));
   } else {
     DCHECK(false);
   }

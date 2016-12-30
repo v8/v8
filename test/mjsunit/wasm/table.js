@@ -153,7 +153,7 @@ function assertTableIsValid(table) {
 (function TestSet() {
   let builder = new WasmModuleBuilder;
   builder.addExport("wasm", builder.addFunction("", kSig_v_v));
-  builder.addExport("host", builder.addImportWithModule("test", "f", kSig_v_v));
+  builder.addExport("host", builder.addImport("test", "f", kSig_v_v));
   let {wasm, host} = builder.instantiate({test: {f() {}}}).exports;
 
   let table = new WebAssembly.Table({element: "anyfunc", initial: 10});
@@ -201,7 +201,7 @@ function assertTableIsValid(table) {
 (function TestIndexing() {
   let builder = new WasmModuleBuilder;
   builder.addExport("wasm", builder.addFunction("", kSig_v_v));
-  builder.addExport("host", builder.addImportWithModule("test", "f", kSig_v_v));
+  builder.addExport("host", builder.addImport("test", "f", kSig_v_v));
   let {wasm, host} = builder.instantiate({test: {f() {}}}).exports;
 
   let table = new WebAssembly.Table({element: "anyfunc", initial: 10});
@@ -224,7 +224,7 @@ function assertTableIsValid(table) {
 (function TestGrow() {
   let builder = new WasmModuleBuilder;
   builder.addExport("wasm", builder.addFunction("", kSig_v_v));
-  builder.addExport("host", builder.addImportWithModule("test", "f", kSig_v_v));
+  builder.addExport("host", builder.addImport("test", "f", kSig_v_v));
   let {wasm, host} = builder.instantiate({test: {f() {}}}).exports;
 
   function init(table) {

@@ -194,8 +194,8 @@ TEST(3) {
   __ ay(r13, MemOperand(r1, r2, 123));
   __ brc(Condition(14), Operand(123));
   __ brc(Condition(14), Operand(-123));
-  __ brcl(Condition(14), Operand(123), false);
-  __ brcl(Condition(14), Operand(-123), false);
+  __ brcl(Condition(14), Operand(123));
+  __ brcl(Condition(14), Operand(-123));
   __ iilf(r13, Operand(123456789));
   __ iihf(r13, Operand(-123456789));
   __ mvc(MemOperand(r0, 123), MemOperand(r4, 567), 89);

@@ -6,6 +6,7 @@
 
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -491,10 +492,11 @@ class BytecodeGenerator::TestResultScope final : public ExpressionResultScope {
 // Used to build a list of global declaration initial value pairs.
 class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
  public:
-  explicit GlobalDeclarationsBuilder(Zone* zone)
+  GlobalDeclarationsBuilder(Zone* zone, LazyCompilationMode mode)
       : declarations_(0, zone),
         constant_pool_entry_(0),
-        has_constant_pool_entry_(false) {}
+        has_constant_pool_entry_(false),
+        compilation_mode_(mode) {}
 
   void AddFunctionDeclaration(Handle<String> name, FeedbackVectorSlot slot,
                               FunctionLiteral* func) {
@@ -518,8 +520,8 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
       if (func == nullptr) {
         initial_value = info->isolate()->factory()->undefined_value();
       } else {
-        initial_value =
-            Compiler::GetSharedFunctionInfo(func, info->script(), info);
+        initial_value = Compiler::GetSharedFunctionInfo(
+            func, info->script(), info, compilation_mode_);
       }
 
       // Return a null handle if any initial values can't be created. Caller
@@ -561,9 +563,11 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   ZoneVector<Declaration> declarations_;
   size_t constant_pool_entry_;
   bool has_constant_pool_entry_;
+  LazyCompilationMode compilation_mode_;
 };
 
-BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
+BytecodeGenerator::BytecodeGenerator(CompilationInfo* info,
+                                     LazyCompilationMode mode)
     : zone_(info->zone()),
       builder_(new (zone()) BytecodeArrayBuilder(
           info->isolate(), info->zone(), info->num_parameters_including_this(),
@@ -572,7 +576,9 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
           info->SourcePositionRecordingMode())),
       info_(info),
       scope_(info->scope()),
-      globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->zone())),
+      compilation_mode_(mode),
+      globals_builder_(new (zone())
+                           GlobalDeclarationsBuilder(info->zone(), mode)),
       global_declarations_(0, info->zone()),
       function_literals_(0, info->zone()),
       native_function_literals_(0, info->zone()),
@@ -611,8 +617,8 @@ void BytecodeGenerator::AllocateDeferredConstants() {
   // Find or build shared function infos.
   for (std::pair<FunctionLiteral*, size_t> literal : function_literals_) {
     FunctionLiteral* expr = literal.first;
-    Handle<SharedFunctionInfo> shared_info =
-        Compiler::GetSharedFunctionInfo(expr, info()->script(), info());
+    Handle<SharedFunctionInfo> shared_info = Compiler::GetSharedFunctionInfo(
+        expr, info()->script(), info(), compilation_mode_);
     if (shared_info.is_null()) return SetStackOverflow();
     builder()->InsertConstantPoolEntryAt(literal.second, shared_info);
   }
@@ -949,7 +955,8 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
 
   // Push and reset globals builder.
   global_declarations_.push_back(globals_builder());
-  globals_builder_ = new (zone()) GlobalDeclarationsBuilder(zone());
+  globals_builder_ =
+      new (zone()) GlobalDeclarationsBuilder(zone(), compilation_mode_);
 }
 
 void BytecodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
@@ -1494,9 +1501,11 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 
     switch (property->kind()) {
       case ClassLiteral::Property::METHOD: {
-        builder()
-            ->LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
-            .StoreDataPropertyInLiteral(receiver, key, value, attr);
+        DataPropertyInLiteralFlags flags = DataPropertyInLiteralFlag::kDontEnum;
+        if (property->NeedsSetFunctionName()) {
+          flags |= DataPropertyInLiteralFlag::kSetFunctionName;
+        }
+        builder()->StoreDataPropertyInLiteral(receiver, key, value, flags);
         break;
       }
       case ClassLiteral::Property::GETTER: {
@@ -1591,10 +1600,11 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  // Copy the literal boilerplate.
+  // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
-      FastCloneShallowObjectStub::IsSupported(expr),
-      FastCloneShallowObjectStub::PropertiesCount(expr->properties_count()),
+      expr->IsFastCloningSupported(),
+      ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
+          expr->properties_count()),
       expr->ComputeFlags());
   // If constant properties is an empty fixed array, use our cached
   // empty_fixed_array to ensure it's only added to the constant pool once.
@@ -1731,13 +1741,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         Register value = VisitForRegisterValue(property->value());
         VisitSetHomeObject(value, literal, property);
 
-        Register attr = register_allocator()->NewRegister();
+        DataPropertyInLiteralFlags data_property_flags =
+            DataPropertyInLiteralFlag::kNoFlags;
+        if (property->NeedsSetFunctionName()) {
+          data_property_flags |= DataPropertyInLiteralFlag::kSetFunctionName;
+        }
 
-        builder()
-            ->LoadLiteral(Smi::FromInt(NONE))
-            .StoreAccumulatorInRegister(attr)
-            .LoadLiteral(Smi::FromInt(property->NeedsSetFunctionName()))
-            .StoreDataPropertyInLiteral(literal, key, value, attr);
+        builder()->StoreDataPropertyInLiteral(literal, key, value,
+                                              data_property_flags);
         break;
       }
       case ObjectLiteral::Property::GETTER:
@@ -1769,12 +1780,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 
 void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
-  int runtime_flags = expr->ComputeFlags();
-  bool use_fast_shallow_clone =
-      (runtime_flags & ArrayLiteral::kShallowElements) != 0 &&
-      expr->values()->length() <= JSArray::kInitialMaxFastElementArray;
-  uint8_t flags =
-      CreateArrayLiteralFlags::Encode(use_fast_shallow_clone, runtime_flags);
+  uint8_t flags = CreateArrayLiteralFlags::Encode(
+      expr->IsFastCloningSupported(), expr->ComputeFlags());
   builder()->CreateArrayLiteral(expr->constant_elements(),
                                 expr->literal_index(), flags);
   Register index, literal;
@@ -2327,10 +2334,12 @@ void BytecodeGenerator::VisitPropertyLoad(Register obj, Property* expr) {
   }
 }
 
-void BytecodeGenerator::VisitPropertyLoadForAccumulator(Register obj,
-                                                        Property* expr) {
+void BytecodeGenerator::VisitPropertyLoadForRegister(Register obj,
+                                                     Property* expr,
+                                                     Register destination) {
   ValueResultScope result_scope(this);
   VisitPropertyLoad(obj, expr);
+  builder()->StoreAccumulatorInRegister(destination);
 }
 
 void BytecodeGenerator::VisitNamedSuperPropertyLoad(Property* property,
@@ -2379,11 +2388,10 @@ void BytecodeGenerator::VisitProperty(Property* expr) {
 }
 
 void BytecodeGenerator::VisitArguments(ZoneList<Expression*>* args,
-                                       RegisterList arg_regs,
-                                       size_t first_argument_register) {
+                                       RegisterList* arg_regs) {
   // Visit arguments.
   for (int i = 0; i < static_cast<int>(args->length()); i++) {
-    VisitForRegisterValue(args->at(i), arg_regs[first_argument_register + i]);
+    VisitAndPushIntoRegisterList(args->at(i), arg_regs);
   }
 }
 
@@ -2396,11 +2404,11 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   }
 
   Register callee = register_allocator()->NewRegister();
-
-  // Add an argument register for the receiver.
-  RegisterList args =
-      register_allocator()->NewRegisterList(expr->arguments()->length() + 1);
-  Register receiver = args[0];
+  // Grow the args list as we visit receiver / arguments to avoid allocating all
+  // the registers up-front. Otherwise these registers are unavailable during
+  // receiver / argument visiting and we can end up with memory leaks due to
+  // registers keeping objects alive.
+  RegisterList args = register_allocator()->NewGrowableRegisterList();
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
@@ -2408,15 +2416,13 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     case Call::NAMED_PROPERTY_CALL:
     case Call::KEYED_PROPERTY_CALL: {
       Property* property = callee_expr->AsProperty();
-      VisitForAccumulatorValue(property->obj());
-      builder()->StoreAccumulatorInRegister(receiver);
-      VisitPropertyLoadForAccumulator(receiver, property);
-      builder()->StoreAccumulatorInRegister(callee);
+      VisitAndPushIntoRegisterList(property->obj(), &args);
+      VisitPropertyLoadForRegister(args[0], property, callee);
       break;
     }
     case Call::GLOBAL_CALL: {
       // Receiver is undefined for global calls.
-      builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
+      BuildPushUndefinedIntoRegisterList(&args);
       // Load callee as a global variable.
       VariableProxy* proxy = callee_expr->AsVariableProxy();
       BuildVariableLoadForAccumulatorValue(proxy->var(),
@@ -2426,32 +2432,39 @@ void BytecodeGenerator::VisitCall(Call* expr) {
       break;
     }
     case Call::WITH_CALL: {
+      Register receiver = register_allocator()->GrowRegisterList(&args);
       DCHECK(callee_expr->AsVariableProxy()->var()->IsLookupSlot());
-      RegisterAllocationScope inner_register_scope(this);
-      Register name = register_allocator()->NewRegister();
+      {
+        RegisterAllocationScope inner_register_scope(this);
+        Register name = register_allocator()->NewRegister();
 
-      // Call %LoadLookupSlotForCall to get the callee and receiver.
-      DCHECK(Register::AreContiguous(callee, receiver));
-      RegisterList result_pair(callee.index(), 2);
-      Variable* variable = callee_expr->AsVariableProxy()->var();
-      builder()
-          ->LoadLiteral(variable->name())
-          .StoreAccumulatorInRegister(name)
-          .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name,
-                              result_pair);
+        // Call %LoadLookupSlotForCall to get the callee and receiver.
+        DCHECK(Register::AreContiguous(callee, receiver));
+        RegisterList result_pair(callee.index(), 2);
+        USE(receiver);
+        Variable* variable = callee_expr->AsVariableProxy()->var();
+        builder()
+            ->LoadLiteral(variable->name())
+            .StoreAccumulatorInRegister(name)
+            .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name,
+                                result_pair);
+      }
       break;
     }
-    case Call::OTHER_CALL:
-      builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
+    case Call::OTHER_CALL: {
+      BuildPushUndefinedIntoRegisterList(&args);
       VisitForRegisterValue(callee_expr, callee);
       break;
+    }
     case Call::NAMED_SUPER_PROPERTY_CALL: {
+      Register receiver = register_allocator()->GrowRegisterList(&args);
       Property* property = callee_expr->AsProperty();
       VisitNamedSuperPropertyLoad(property, receiver);
       builder()->StoreAccumulatorInRegister(callee);
       break;
     }
     case Call::KEYED_SUPER_PROPERTY_CALL: {
+      Register receiver = register_allocator()->GrowRegisterList(&args);
       Property* property = callee_expr->AsProperty();
       VisitKeyedSuperPropertyLoad(property, receiver);
       builder()->StoreAccumulatorInRegister(callee);
@@ -2464,7 +2477,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   // Evaluate all arguments to the function call and store in sequential args
   // registers.
-  VisitArguments(expr->arguments(), args, 1);
+  VisitArguments(expr->arguments(), &args);
+  CHECK_EQ(expr->arguments()->length() + 1, args.register_count());
 
   // Resolve callee for a potential direct eval call. This block will mutate the
   // callee value.
@@ -2504,27 +2518,29 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   SuperCallReference* super = expr->expression()->AsSuperCallReference();
 
   // Prepare the constructor to the super call.
-  Register this_function = VisitForRegisterValue(super->this_function_var());
-  builder()->CallRuntime(Runtime::kInlineGetSuperConstructor, this_function);
-
-  Register constructor = this_function;  // Re-use dead this_function register.
-  builder()->StoreAccumulatorInRegister(constructor);
+  VisitForAccumulatorValue(super->this_function_var());
+  Register constructor = register_allocator()->NewRegister();
+  builder()->GetSuperConstructor(constructor);
 
   ZoneList<Expression*>* args = expr->arguments();
 
   // When a super call contains a spread, a CallSuper AST node is only created
   // if there is exactly one spread, and it is the last argument.
   if (!args->is_empty() && args->last()->IsSpread()) {
-    RegisterList args_regs =
-        register_allocator()->NewRegisterList(args->length() + 2);
-    builder()->MoveRegister(constructor, args_regs[0]);
-    VisitArguments(args, args_regs, 2);
-    VisitForRegisterValue(super->new_target_var(), args_regs[1]);
+    RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
+    Register constructor_arg =
+        register_allocator()->GrowRegisterList(&args_regs);
+    builder()->MoveRegister(constructor, constructor_arg);
+    // Reserve argument reg for new.target in correct place for runtime call.
+    // TODO(petermarshall): Remove this when changing bytecode to use the new
+    // stub.
+    Register new_target = register_allocator()->GrowRegisterList(&args_regs);
+    VisitArguments(args, &args_regs);
+    VisitForRegisterValue(super->new_target_var(), new_target);
     builder()->NewWithSpread(args_regs);
   } else {
-    RegisterList args_regs =
-        register_allocator()->NewRegisterList(args->length());
-    VisitArguments(args, args_regs);
+    RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
+    VisitArguments(args, &args_regs);
     // The new target is loaded into the accumulator from the
     // {new.target} variable.
     VisitForAccumulatorValue(super->new_target_var());
@@ -2544,9 +2560,8 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 
 void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   Register constructor = VisitForRegisterValue(expr->expression());
-  RegisterList args =
-      register_allocator()->NewRegisterList(expr->arguments()->length());
-  VisitArguments(expr->arguments(), args);
+  RegisterList args = register_allocator()->NewGrowableRegisterList();
+  VisitArguments(expr->arguments(), &args);
 
   builder()->SetExpressionPosition(expr);
   // The accumulator holds new target which is the same as the
@@ -2558,18 +2573,15 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
+    RegisterList args = register_allocator()->NewGrowableRegisterList();
     // Allocate a register for the receiver and load it with undefined.
-    RegisterList args =
-        register_allocator()->NewRegisterList(expr->arguments()->length() + 1);
-    Register receiver = args[0];
-    builder()->LoadUndefined().StoreAccumulatorInRegister(receiver);
-    VisitArguments(expr->arguments(), args, 1);
+    BuildPushUndefinedIntoRegisterList(&args);
+    VisitArguments(expr->arguments(), &args);
     builder()->CallJSRuntime(expr->context_index(), args);
   } else {
     // Evaluate all arguments to the runtime call.
-    RegisterList args =
-        register_allocator()->NewRegisterList(expr->arguments()->length());
-    VisitArguments(expr->arguments(), args);
+    RegisterList args = register_allocator()->NewGrowableRegisterList();
+    VisitArguments(expr->arguments(), &args);
     Runtime::FunctionId function_id = expr->function()->function_id;
     builder()->CallRuntime(function_id, args);
   }
@@ -3002,12 +3014,27 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
         .StoreAccumulatorInRegister(args[2])
         .CallRuntime(Runtime::kPushModuleContext, args);
   } else {
+    DCHECK(scope->is_function_scope() || scope->is_eval_scope());
     int slot_count = scope->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
-    if (slot_count <= FastNewFunctionContextStub::kMaximumSlots) {
-      builder()->CreateFunctionContext(slot_count);
+    if (slot_count <=
+        ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+      switch (scope->scope_type()) {
+        case EVAL_SCOPE:
+          builder()->CreateEvalContext(slot_count);
+          break;
+        case FUNCTION_SCOPE:
+          builder()->CreateFunctionContext(slot_count);
+          break;
+        default:
+          UNREACHABLE();
+      }
     } else {
-      builder()->CallRuntime(Runtime::kNewFunctionContext,
-                             Register::function_closure());
+      RegisterList args = register_allocator()->NewRegisterList(2);
+      builder()
+          ->MoveRegister(Register::function_closure(), args[0])
+          .LoadLiteral(Smi::FromInt(scope->scope_type()))
+          .StoreAccumulatorInRegister(args[1])
+          .CallRuntime(Runtime::kNewFunctionContext, args);
     }
   }
 }
@@ -3208,6 +3235,28 @@ void BytecodeGenerator::VisitForRegisterValue(Expression* expr,
   ValueResultScope register_scope(this);
   Visit(expr);
   builder()->StoreAccumulatorInRegister(destination);
+}
+
+// Visits the expression |expr| and pushes the result into a new register
+// added to the end of |reg_list|.
+void BytecodeGenerator::VisitAndPushIntoRegisterList(Expression* expr,
+                                                     RegisterList* reg_list) {
+  {
+    ValueResultScope register_scope(this);
+    Visit(expr);
+  }
+  // Grow the register list after visiting the expression to avoid reserving
+  // the register across the expression evaluation, which could cause memory
+  // leaks for deep expressions due to dead objects being kept alive by pointers
+  // in registers.
+  Register destination = register_allocator()->GrowRegisterList(reg_list);
+  builder()->StoreAccumulatorInRegister(destination);
+}
+
+void BytecodeGenerator::BuildPushUndefinedIntoRegisterList(
+    RegisterList* reg_list) {
+  Register reg = register_allocator()->GrowRegisterList(reg_list);
+  builder()->LoadUndefined().StoreAccumulatorInRegister(reg);
 }
 
 // Visits the expression |expr| for testing its boolean value and jumping to the

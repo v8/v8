@@ -129,6 +129,15 @@ Handle<ContextExtension> Factory::NewContextExtension(
   return result;
 }
 
+Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
+    ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
+  Handle<ConstantElementsPair> result = Handle<ConstantElementsPair>::cast(
+      NewStruct(CONSTANT_ELEMENTS_PAIR_TYPE));
+  result->set_elements_kind(elements_kind);
+  result->set_constant_values(*constant_values);
+  return result;
+}
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {
@@ -889,13 +898,24 @@ Handle<Context> Factory::NewModuleContext(Handle<Module> module,
   return context;
 }
 
-
 Handle<Context> Factory::NewFunctionContext(int length,
-                                            Handle<JSFunction> function) {
-  DCHECK(function->shared()->scope_info()->scope_type() == FUNCTION_SCOPE);
+                                            Handle<JSFunction> function,
+                                            ScopeType scope_type) {
+  DCHECK(function->shared()->scope_info()->scope_type() == scope_type);
   DCHECK(length >= Context::MIN_CONTEXT_SLOTS);
   Handle<FixedArray> array = NewFixedArray(length);
-  array->set_map_no_write_barrier(*function_context_map());
+  Handle<Map> map;
+  switch (scope_type) {
+    case EVAL_SCOPE:
+      map = eval_context_map();
+      break;
+    case FUNCTION_SCOPE:
+      map = function_context_map();
+      break;
+    default:
+      UNREACHABLE();
+  }
+  array->set_map_no_write_barrier(*map);
   Handle<Context> context = Handle<Context>::cast(array);
   context->set_closure(*function);
   context->set_previous(function->context());
@@ -1010,16 +1030,19 @@ Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
 }
 
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
-    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred,
-    Handle<Object> debug_id, Handle<Object> debug_name,
-    Handle<Context> context) {
+    Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
+    Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
+    Handle<Object> deferred_on_reject, Handle<Context> context) {
   Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
       NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
+  result->set_promise(*promise);
   result->set_value(*value);
   result->set_tasks(*tasks);
-  result->set_deferred(*deferred);
-  result->set_debug_id(*debug_id);
-  result->set_debug_name(*debug_name);
+  result->set_deferred_promise(*deferred_promise);
+  result->set_deferred_on_resolve(*deferred_on_resolve);
+  result->set_deferred_on_reject(*deferred_on_reject);
+  result->set_debug_id(isolate()->heap()->undefined_value());
+  result->set_debug_name(isolate()->heap()->undefined_value());
   result->set_context(*context);
   return result;
 }
@@ -1360,6 +1383,7 @@ DEFINE_ERROR(ReferenceError, reference_error)
 DEFINE_ERROR(SyntaxError, syntax_error)
 DEFINE_ERROR(TypeError, type_error)
 DEFINE_ERROR(WasmCompileError, wasm_compile_error)
+DEFINE_ERROR(WasmLinkError, wasm_link_error)
 DEFINE_ERROR(WasmRuntimeError, wasm_runtime_error)
 #undef DEFINE_ERROR
 
@@ -1604,6 +1628,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc,
   code->set_prologue_offset(prologue_offset);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
+  code->set_protected_instructions(*empty_fixed_array());
 
   if (code->kind() == Code::OPTIMIZED_FUNCTION) {
     code->set_marked_for_deoptimization(false);
@@ -2633,8 +2658,8 @@ void Factory::SetFunctionInstanceDescriptor(Handle<Map> map,
   Handle<AccessorInfo> length =
       Accessors::FunctionLengthInfo(isolate(), roc_attribs);
   {  // Add length.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(length->name())),
-                                 length, roc_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(length->name())), length, roc_attribs);
     map->AppendDescriptor(&d);
   }
 
@@ -2642,22 +2667,22 @@ void Factory::SetFunctionInstanceDescriptor(Handle<Map> map,
   Handle<AccessorInfo> name =
       Accessors::FunctionNameInfo(isolate(), ro_attribs);
   {  // Add name.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(name->name())), name,
-                                 roc_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(name->name())), name, roc_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> args =
       Accessors::FunctionArgumentsInfo(isolate(), ro_attribs);
   {  // Add arguments.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(args->name())), args,
-                                 ro_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(args->name())), args, ro_attribs);
     map->AppendDescriptor(&d);
   }
   Handle<AccessorInfo> caller =
       Accessors::FunctionCallerInfo(isolate(), ro_attribs);
   {  // Add caller.
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(caller->name())),
-                                 caller, ro_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(caller->name())), caller, ro_attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -2666,8 +2691,8 @@ void Factory::SetFunctionInstanceDescriptor(Handle<Map> map,
     }
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), ro_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                                 prototype, ro_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(prototype->name())), prototype, ro_attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -2701,8 +2726,8 @@ void Factory::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   {  // Add length.
     Handle<AccessorInfo> length =
         Accessors::FunctionLengthInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(handle(Name::cast(length->name())), length,
-                                 roc_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        handle(Name::cast(length->name())), length, roc_attribs);
     map->AppendDescriptor(&d);
   }
 
@@ -2710,8 +2735,8 @@ void Factory::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
   {  // Add name.
     Handle<AccessorInfo> name =
         Accessors::FunctionNameInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(handle(Name::cast(name->name())), name,
-                                 roc_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        handle(Name::cast(name->name())), name, roc_attribs);
     map->AppendDescriptor(&d);
   }
   if (IsFunctionModeWithPrototype(function_mode)) {
@@ -2721,8 +2746,8 @@ void Factory::SetStrictFunctionInstanceDescriptor(Handle<Map> map,
                                                            : ro_attribs;
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                                 prototype, attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(prototype->name())), prototype, attribs);
     map->AppendDescriptor(&d);
   }
 }
@@ -2748,8 +2773,8 @@ void Factory::SetClassFunctionInstanceDescriptor(Handle<Map> map) {
   {  // Add length.
     Handle<AccessorInfo> length =
         Accessors::FunctionLengthInfo(isolate(), roc_attribs);
-    AccessorConstantDescriptor d(handle(Name::cast(length->name())), length,
-                                 roc_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        handle(Name::cast(length->name())), length, roc_attribs);
     map->AppendDescriptor(&d);
   }
 
@@ -2757,31 +2782,10 @@ void Factory::SetClassFunctionInstanceDescriptor(Handle<Map> map) {
     // Add prototype.
     Handle<AccessorInfo> prototype =
         Accessors::FunctionPrototypeInfo(isolate(), rw_attribs);
-    AccessorConstantDescriptor d(Handle<Name>(Name::cast(prototype->name())),
-                                 prototype, rw_attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        Handle<Name>(Name::cast(prototype->name())), prototype, rw_attribs);
     map->AppendDescriptor(&d);
   }
-}
-
-Handle<JSFixedArrayIterator> Factory::NewJSFixedArrayIterator(
-    Handle<FixedArray> array) {
-  // Create the "next" function (must be unique per iterator object).
-  Handle<Code> code(
-      isolate()->builtins()->builtin(Builtins::kFixedArrayIteratorNext));
-  // TODO(neis): Don't create a new SharedFunctionInfo each time.
-  Handle<JSFunction> next = isolate()->factory()->NewFunctionWithoutPrototype(
-      isolate()->factory()->next_string(), code, false);
-  next->shared()->set_native(true);
-
-  // Create the iterator.
-  Handle<Map> map(isolate()->native_context()->fixed_array_iterator_map());
-  Handle<JSFixedArrayIterator> iterator =
-      Handle<JSFixedArrayIterator>::cast(NewJSObjectFromMap(map));
-  iterator->set_initial_next(*next);
-  iterator->set_array(*array);
-  iterator->set_index(0);
-  iterator->InObjectPropertyAtPut(JSFixedArrayIterator::kNextIndex, *next);
-  return iterator;
 }
 
 }  // namespace internal

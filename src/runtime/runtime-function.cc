@@ -260,10 +260,10 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
 RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  CONVERT_ARG_CHECKED(Object, object, 0);
 
   if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(*object);
+    JSFunction* func = JSFunction::cast(object);
     func->shared()->set_force_inline(true);
   }
   return isolate->heap()->undefined_value();
@@ -278,7 +278,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 1);
   ScopedVector<Handle<Object>> argv(argc);
   for (int i = 0; i < argc; ++i) {
-    argv[i] = args.at<Object>(2 + i);
+    argv[i] = args.at(2 + i);
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, Execution::Call(isolate, target, receiver, argc, argv.start()));

@@ -142,9 +142,6 @@ void HeapObject::HeapObjectVerify() {
     case JS_MODULE_NAMESPACE_TYPE:
       JSModuleNamespace::cast(this)->JSModuleNamespaceVerify();
       break;
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
-      JSFixedArrayIterator::cast(this)->JSFixedArrayIteratorVerify();
-      break;
     case JS_SET_TYPE:
       JSSet::cast(this)->JSSetVerify();
       break;
@@ -890,9 +887,17 @@ void JSPromise::JSPromiseVerify() {
   CHECK(IsJSPromise());
   JSObjectVerify();
   Isolate* isolate = GetIsolate();
+  VerifySmiField(kStatusOffset);
   CHECK(result()->IsUndefined(isolate) || result()->IsObject());
-  CHECK(deferred()->IsUndefined(isolate) || deferred()->IsJSObject() ||
-        deferred()->IsFixedArray());
+  CHECK(deferred_promise()->IsUndefined(isolate) ||
+        deferred_promise()->IsJSReceiver() ||
+        deferred_promise()->IsFixedArray());
+  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
+        deferred_on_resolve()->IsCallable() ||
+        deferred_on_resolve()->IsFixedArray());
+  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
+        deferred_on_reject()->IsCallable() ||
+        deferred_on_reject()->IsFixedArray());
   CHECK(fulfill_reactions()->IsUndefined(isolate) ||
         fulfill_reactions()->IsCallable() ||
         fulfill_reactions()->IsFixedArray());
@@ -1025,9 +1030,18 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
 void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(IsPromiseReactionJobInfo());
+  CHECK(promise()->IsJSPromise());
   CHECK(value()->IsObject());
   CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
-  CHECK(deferred()->IsFixedArray() || deferred()->IsJSObject());
+  CHECK(deferred_promise()->IsUndefined(isolate) ||
+        deferred_promise()->IsJSReceiver() ||
+        deferred_promise()->IsFixedArray());
+  CHECK(deferred_on_resolve()->IsUndefined(isolate) ||
+        deferred_on_resolve()->IsCallable() ||
+        deferred_on_resolve()->IsFixedArray());
+  CHECK(deferred_on_reject()->IsUndefined(isolate) ||
+        deferred_on_reject()->IsCallable() ||
+        deferred_on_reject()->IsFixedArray());
   CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
   CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
   CHECK(context()->IsContext());
@@ -1036,16 +1050,6 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
   VerifyPointer(module());
-}
-
-void JSFixedArrayIterator::JSFixedArrayIteratorVerify() {
-  CHECK(IsJSFixedArrayIterator());
-
-  VerifyPointer(array());
-  VerifyPointer(initial_next());
-  VerifySmiField(kIndexOffset);
-
-  CHECK_LE(index(), array()->length());
 }
 
 void ModuleInfoEntry::ModuleInfoEntryVerify() {
@@ -1120,6 +1124,11 @@ void ContextExtension::ContextExtensionVerify() {
   VerifyObjectField(kExtensionOffset);
 }
 
+void ConstantElementsPair::ConstantElementsPairVerify() {
+  CHECK(IsConstantElementsPair());
+  VerifySmiField(kElementsKindOffset);
+  VerifyObjectField(kConstantValuesOffset);
+}
 
 void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());

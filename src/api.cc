@@ -551,6 +551,8 @@ StartupData SnapshotCreator::CreateBlob(
   DCHECK(!data->created_);
   DCHECK(!data->default_context_.IsEmpty());
 
+  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
+
   {
     int num_templates = static_cast<int>(data->templates_.Size());
     i::HandleScope scope(isolate);
@@ -561,6 +563,18 @@ StartupData SnapshotCreator::CreateBlob(
     }
     isolate->heap()->SetSerializedTemplates(*templates);
     data->templates_.Clear();
+
+    // We need to store the global proxy size upfront in case we need the
+    // bootstrapper to create a global proxy before we deserialize the context.
+    i::Handle<i::FixedArray> global_proxy_sizes =
+        isolate->factory()->NewFixedArray(num_additional_contexts, i::TENURED);
+    for (int i = 0; i < num_additional_contexts; i++) {
+      i::Handle<i::Context> context =
+          v8::Utils::OpenHandle(*data->contexts_.Get(i));
+      global_proxy_sizes->set(i,
+                              i::Smi::FromInt(context->global_proxy()->Size()));
+    }
+    isolate->heap()->SetSerializedGlobalProxySizes(*global_proxy_sizes);
   }
 
   // If we don't do this then we end up with a stray root pointing at the
@@ -571,7 +585,6 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  int num_additional_contexts = static_cast<int>(data->contexts_.Size());
   i::List<i::Object*> contexts(num_additional_contexts);
   i::Object* default_context;
   {
@@ -965,6 +978,12 @@ HandleScope::~HandleScope() {
   i::HandleScope::CloseScope(isolate_, prev_next_, prev_limit_);
 }
 
+V8_NORETURN void* HandleScope::operator new(size_t) {
+  base::OS::Abort();
+  abort();
+}
+
+void HandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 
 int HandleScope::NumberOfHandles(Isolate* isolate) {
   return i::HandleScope::NumberOfHandles(
@@ -1003,6 +1022,13 @@ i::Object** EscapableHandleScope::Escape(i::Object** escape_value) {
   return escape_slot_;
 }
 
+V8_NORETURN void* EscapableHandleScope::operator new(size_t) {
+  base::OS::Abort();
+  abort();
+}
+
+void EscapableHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
+
 SealHandleScope::SealHandleScope(Isolate* isolate)
     : isolate_(reinterpret_cast<i::Isolate*>(isolate)) {
   i::HandleScopeData* current = isolate_->handle_scope_data();
@@ -1021,6 +1047,12 @@ SealHandleScope::~SealHandleScope() {
   current->sealed_level = prev_sealed_level_;
 }
 
+V8_NORETURN void* SealHandleScope::operator new(size_t) {
+  base::OS::Abort();
+  abort();
+}
+
+void SealHandleScope::operator delete(void*, size_t) { base::OS::Abort(); }
 
 void Context::Enter() {
   i::Handle<i::Context> env = Utils::OpenHandle(this);
@@ -2501,6 +2533,12 @@ v8::TryCatch::~TryCatch() {
   }
 }
 
+V8_NORETURN void* v8::TryCatch::operator new(size_t) {
+  base::OS::Abort();
+  abort();
+}
+
+void v8::TryCatch::operator delete(void*, size_t) { base::OS::Abort(); }
 
 bool v8::TryCatch::HasCaught() const {
   return !reinterpret_cast<i::Object*>(exception_)->IsTheHole(isolate_);
@@ -4462,12 +4500,14 @@ MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context,
 
 MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Object, ObjectProtoToString, String);
-  auto obj = Utils::OpenHandle(this);
-  Local<String> result;
+  auto self = Utils::OpenHandle(this);
+  Local<Value> result;
   has_pending_exception =
-      !ToLocal<String>(i::JSObject::ObjectProtoToString(isolate, obj), &result);
+      !ToLocal<Value>(i::Execution::Call(isolate, isolate->object_to_string(),
+                                         self, 0, nullptr),
+                      &result);
   RETURN_ON_FAILED_EXECUTION(String);
-  RETURN_ESCAPED(result);
+  RETURN_ESCAPED(Local<String>::Cast(result));
 }
 
 
@@ -6245,7 +6285,7 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
-    v8::ExtensionConfiguration* extensions) {
+    v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object) {
   size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
           reinterpret_cast<i::Isolate*>(external_isolate),
@@ -6253,7 +6293,7 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
     return MaybeLocal<Context>();
   }
   return NewContext(external_isolate, extensions, MaybeLocal<ObjectTemplate>(),
-                    MaybeLocal<Value>(), index_including_default_context);
+                    global_object, index_including_default_context);
 }
 
 MaybeLocal<Object> v8::Context::NewRemoteContext(
@@ -7276,6 +7316,24 @@ bool Promise::HasHandler() {
   return false;
 }
 
+Local<Value> Promise::Result() {
+  i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, Promise, Result);
+  i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
+  Utils::ApiCheck(js_promise->status() != kPending, "v8_Promise_Result",
+                  "Promise is still pending");
+  i::Handle<i::Object> result(js_promise->result(), isolate);
+  return Utils::ToLocal(result);
+}
+
+Promise::PromiseState Promise::State() {
+  i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
+  i::Isolate* isolate = promise->GetIsolate();
+  LOG_API(isolate, Promise, Status);
+  i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
+  return static_cast<PromiseState>(js_promise->status());
+}
 
 Local<Object> Proxy::GetTarget() {
   i::Handle<i::JSProxy> self = Utils::OpenHandle(this);
@@ -7320,7 +7378,7 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::WasmCompiledModule> compiled_part =
       i::handle(i::WasmCompiledModule::cast(obj->GetInternalField(0)));
-  i::Handle<i::String> wire_bytes = compiled_part->module_bytes();
+  i::Handle<i::String> wire_bytes(compiled_part->module_bytes());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
@@ -7382,7 +7440,7 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
       i::wasm::CreateModuleObjectFromBytes(
           i_isolate, start, start + length, &thrower,
           i::wasm::ModuleOrigin::kWasmOrigin, i::Handle<i::Script>::null(),
-          nullptr, nullptr);
+          i::Vector<const uint8_t>::empty());
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
@@ -8247,6 +8305,10 @@ void Isolate::RemoveCallCompletedCallback(
       reinterpret_cast<CallCompletedCallback>(callback));
 }
 
+void Isolate::SetPromiseHook(PromiseHook hook) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetPromiseHook(hook);
+}
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   if (callback == NULL) return;
@@ -8405,6 +8467,16 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
   return isolate->SetRAILMode(rail_mode);
 }
 
+void Isolate::IncreaseHeapLimitForDebugging() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->IncreaseHeapLimitForDebugging();
+}
+
+void Isolate::RestoreOriginalHeapLimit() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RestoreOriginalHeapLimit();
+}
+
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -8419,7 +8491,6 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
   CHECK(stack_limit);
   isolate->stack_guard()->SetStackLimit(stack_limit);
 }
-
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

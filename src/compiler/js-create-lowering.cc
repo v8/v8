@@ -162,7 +162,9 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
           }
         }
       }
-    } else if (!boilerplate->HasFastDoubleElements()) {
+    } else if (boilerplate->HasFastDoubleElements()) {
+      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
+    } else {
       return false;
     }
   }
@@ -870,7 +872,10 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateFunctionContext, node->opcode());
-  int slot_count = OpParameter<int>(node->op());
+  const CreateFunctionContextParameters& parameters =
+      CreateFunctionContextParametersOf(node->op());
+  int slot_count = parameters.slot_count();
+  ScopeType scope_type = parameters.scope_type();
   Node* const closure = NodeProperties::GetValueInput(node, 0);
 
   // Use inline allocation for function contexts up to a size limit.
@@ -883,7 +888,18 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
     AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
     int context_length = slot_count + Context::MIN_CONTEXT_SLOTS;
-    a.AllocateArray(context_length, factory()->function_context_map());
+    Handle<Map> map;
+    switch (scope_type) {
+      case EVAL_SCOPE:
+        map = factory()->eval_context_map();
+        break;
+      case FUNCTION_SCOPE:
+        map = factory()->function_context_map();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    a.AllocateArray(context_length, map);
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);

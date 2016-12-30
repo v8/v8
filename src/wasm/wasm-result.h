@@ -95,6 +95,7 @@ class V8_EXPORT_PRIVATE ErrorThrower {
   PRINTF_FORMAT(2, 3) void TypeError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RangeError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void CompileError(const char* fmt, ...);
+  PRINTF_FORMAT(2, 3) void LinkError(const char* fmt, ...);
   PRINTF_FORMAT(2, 3) void RuntimeError(const char* fmt, ...);
 
   template <typename T>

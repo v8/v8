@@ -162,7 +162,7 @@ BUILTIN(ObjectAssign) {
   //    second argument.
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
-    Handle<Object> next_source = args.at<Object>(i);
+    Handle<Object> next_source = args.at(i);
     Maybe<bool> fast_assign = FastAssign(to, next_source);
     if (fast_assign.IsNothing()) return isolate->heap()->exception();
     if (fast_assign.FromJust()) continue;
@@ -258,24 +258,6 @@ void ReturnToStringFormat(CodeStubAssembler* assembler, compiler::Node* context,
       rhs));
 }
 
-void ReturnIfPrimitive(CodeStubAssembler* assembler,
-                       compiler::Node* instance_type,
-                       CodeStubAssembler::Label* return_string,
-                       CodeStubAssembler::Label* return_boolean,
-                       CodeStubAssembler::Label* return_number) {
-  assembler->GotoIf(assembler->IsStringInstanceType(instance_type),
-                    return_string);
-
-  assembler->GotoIf(assembler->Word32Equal(
-                        instance_type, assembler->Int32Constant(ODDBALL_TYPE)),
-                    return_boolean);
-
-  assembler->GotoIf(
-      assembler->Word32Equal(instance_type,
-                             assembler->Int32Constant(HEAP_NUMBER_TYPE)),
-      return_number);
-}
-
 }  // namespace
 
 // ES6 section 19.1.3.6 Object.prototype.toString
@@ -292,9 +274,7 @@ void Builtins::Generate_ObjectProtoToString(
       return_api(&assembler, Label::kDeferred), return_object(&assembler),
       return_regexp(&assembler), return_function(&assembler),
       return_error(&assembler), return_date(&assembler),
-      return_string(&assembler), return_boolean(&assembler),
-      return_jsvalue(&assembler), return_jsproxy(&assembler, Label::kDeferred),
-      return_number(&assembler);
+      return_jsvalue(&assembler), return_jsproxy(&assembler, Label::kDeferred);
 
   Label if_isproxy(&assembler, Label::kDeferred);
 
@@ -310,11 +290,10 @@ void Builtins::Generate_ObjectProtoToString(
   assembler.GotoIf(assembler.WordEqual(receiver, assembler.NullConstant()),
                    &return_null);
 
-  assembler.GotoIf(assembler.TaggedIsSmi(receiver), &return_number);
+  Callable to_object = CodeFactory::ToObject(assembler.isolate());
+  receiver = assembler.CallStub(to_object, context, receiver);
 
   Node* receiver_instance_type = assembler.LoadInstanceType(receiver);
-  ReturnIfPrimitive(&assembler, receiver_instance_type, &return_string,
-                    &return_boolean, &return_number);
 
   // for proxies, check IsArray before getting @@toStringTag
   Variable var_proxy_is_array(&assembler, MachineRepresentation::kTagged);
@@ -389,18 +368,6 @@ void Builtins::Generate_ObjectProtoToString(
     assembler.Return(assembler.HeapConstant(
         assembler.isolate()->factory()->null_to_string()));
 
-    assembler.Bind(&return_number);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->number_to_string()));
-
-    assembler.Bind(&return_string);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->string_to_string()));
-
-    assembler.Bind(&return_boolean);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->boolean_to_string()));
-
     assembler.Bind(&return_arguments);
     assembler.Return(assembler.HeapConstant(
         assembler.isolate()->factory()->arguments_to_string()));
@@ -434,12 +401,40 @@ void Builtins::Generate_ObjectProtoToString(
 
     assembler.Bind(&return_jsvalue);
     {
+      Label return_boolean(&assembler), return_number(&assembler),
+          return_string(&assembler);
+
       Node* value = assembler.LoadJSValueValue(receiver);
       assembler.GotoIf(assembler.TaggedIsSmi(value), &return_number);
+      Node* instance_type = assembler.LoadInstanceType(value);
 
-      ReturnIfPrimitive(&assembler, assembler.LoadInstanceType(value),
-                        &return_string, &return_boolean, &return_number);
+      assembler.GotoIf(assembler.IsStringInstanceType(instance_type),
+                       &return_string);
+      assembler.GotoIf(
+          assembler.Word32Equal(instance_type,
+                                assembler.Int32Constant(HEAP_NUMBER_TYPE)),
+          &return_number);
+      assembler.GotoIf(
+          assembler.Word32Equal(instance_type,
+                                assembler.Int32Constant(ODDBALL_TYPE)),
+          &return_boolean);
+
+      CSA_ASSERT(&assembler,
+                 assembler.Word32Equal(instance_type,
+                                       assembler.Int32Constant(SYMBOL_TYPE)));
       assembler.Goto(&return_object);
+
+      assembler.Bind(&return_string);
+      assembler.Return(assembler.HeapConstant(
+          assembler.isolate()->factory()->string_to_string()));
+
+      assembler.Bind(&return_number);
+      assembler.Return(assembler.HeapConstant(
+          assembler.isolate()->factory()->number_to_string()));
+
+      assembler.Bind(&return_boolean);
+      assembler.Return(assembler.HeapConstant(
+          assembler.isolate()->factory()->boolean_to_string()));
     }
 
     assembler.Bind(&return_jsproxy);
@@ -558,8 +553,8 @@ void Builtins::Generate_ObjectCreate(compiler::CodeAssemblerState* state) {
 BUILTIN(ObjectDefineProperties) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> properties = args.at<Object>(2);
+  Handle<Object> target = args.at(1);
+  Handle<Object> properties = args.at(2);
 
   RETURN_RESULT_OR_FAILURE(
       isolate, JSReceiver::DefineProperties(isolate, target, properties));
@@ -569,9 +564,9 @@ BUILTIN(ObjectDefineProperties) {
 BUILTIN(ObjectDefineProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
-  Handle<Object> target = args.at<Object>(1);
-  Handle<Object> key = args.at<Object>(2);
-  Handle<Object> attributes = args.at<Object>(3);
+  Handle<Object> target = args.at(1);
+  Handle<Object> key = args.at(2);
+  Handle<Object> attributes = args.at(3);
 
   return JSReceiver::DefineProperty(isolate, target, key, attributes);
 }
@@ -645,13 +640,33 @@ Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
         RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
         return isolate->heap()->undefined_value();
 
-      case LookupIterator::JSPROXY:
-        return isolate->heap()->undefined_value();
+      case LookupIterator::JSPROXY: {
+        PropertyDescriptor desc;
+        Maybe<bool> found = JSProxy::GetOwnPropertyDescriptor(
+            isolate, it.GetHolder<JSProxy>(), it.GetName(), &desc);
+        MAYBE_RETURN(found, isolate->heap()->exception());
+        if (found.FromJust()) {
+          if (component == ACCESSOR_GETTER && desc.has_get()) {
+            return *desc.get();
+          }
+          if (component == ACCESSOR_SETTER && desc.has_set()) {
+            return *desc.set();
+          }
+          return isolate->heap()->undefined_value();
+        }
+        Handle<Object> prototype;
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+            isolate, prototype, JSProxy::GetPrototype(it.GetHolder<JSProxy>()));
+        if (prototype->IsNull(isolate)) {
+          return isolate->heap()->undefined_value();
+        }
+        return ObjectLookupAccessor(isolate, prototype, key, component);
+      }
 
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return isolate->heap()->undefined_value();
       case LookupIterator::DATA:
-        continue;
+        return isolate->heap()->undefined_value();
+
       case LookupIterator::ACCESSOR: {
         Handle<Object> maybe_pair = it.GetAccessors();
         if (maybe_pair->IsAccessorPair()) {
@@ -671,9 +686,9 @@ Object* ObjectLookupAccessor(Isolate* isolate, Handle<Object> object,
 // https://tc39.github.io/ecma262/#sec-object.prototype.__defineGetter__
 BUILTIN(ObjectDefineGetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);  // Receiver.
-  Handle<Object> name = args.at<Object>(1);
-  Handle<Object> getter = args.at<Object>(2);
+  Handle<Object> object = args.at(0);  // Receiver.
+  Handle<Object> name = args.at(1);
+  Handle<Object> getter = args.at(2);
   return ObjectDefineAccessor<ACCESSOR_GETTER>(isolate, object, name, getter);
 }
 
@@ -681,9 +696,9 @@ BUILTIN(ObjectDefineGetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__defineSetter__
 BUILTIN(ObjectDefineSetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);  // Receiver.
-  Handle<Object> name = args.at<Object>(1);
-  Handle<Object> setter = args.at<Object>(2);
+  Handle<Object> object = args.at(0);  // Receiver.
+  Handle<Object> name = args.at(1);
+  Handle<Object> setter = args.at(2);
   return ObjectDefineAccessor<ACCESSOR_SETTER>(isolate, object, name, setter);
 }
 
@@ -691,8 +706,8 @@ BUILTIN(ObjectDefineSetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__lookupGetter__
 BUILTIN(ObjectLookupGetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> object = args.at(0);
+  Handle<Object> name = args.at(1);
   return ObjectLookupAccessor(isolate, object, name, ACCESSOR_GETTER);
 }
 
@@ -700,8 +715,8 @@ BUILTIN(ObjectLookupGetter) {
 // https://tc39.github.io/ecma262/#sec-object.prototype.__lookupSetter__
 BUILTIN(ObjectLookupSetter) {
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> name = args.at<Object>(1);
+  Handle<Object> object = args.at(0);
+  Handle<Object> name = args.at(1);
   return ObjectLookupAccessor(isolate, object, name, ACCESSOR_SETTER);
 }
 
@@ -790,7 +805,7 @@ BUILTIN(ObjectPrototypeSetProto) {
   }
 
   // 2. If Type(proto) is neither Object nor Null, return undefined.
-  Handle<Object> proto = args.at<Object>(1);
+  Handle<Object> proto = args.at(1);
   if (!proto->IsNull(isolate) && !proto->IsJSReceiver()) {
     return isolate->heap()->undefined_value();
   }
@@ -865,8 +880,8 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
 BUILTIN(ObjectIs) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(3, args.length());
-  Handle<Object> value1 = args.at<Object>(1);
-  Handle<Object> value2 = args.at<Object>(2);
+  Handle<Object> value1 = args.at(1);
+  Handle<Object> value2 = args.at(2);
   return isolate->heap()->ToBoolean(value1->SameValue(*value2));
 }
 
@@ -1076,6 +1091,18 @@ void Builtins::Generate_OrdinaryHasInstance(
   Node* context = assembler.Parameter(Descriptor::kContext);
 
   assembler.Return(assembler.OrdinaryHasInstance(context, constructor, object));
+}
+
+void Builtins::Generate_GetSuperConstructor(
+    compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  typedef TypeofDescriptor Descriptor;
+  CodeStubAssembler assembler(state);
+
+  Node* object = assembler.Parameter(Descriptor::kObject);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+
+  assembler.Return(assembler.GetSuperConstructor(object, context));
 }
 
 }  // namespace internal

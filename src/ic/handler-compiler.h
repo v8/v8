@@ -134,8 +134,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   virtual ~NamedLoadHandlerCompiler() {}
 
-  Handle<Code> CompileLoadField(Handle<Name> name, FieldIndex index);
-
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    Handle<AccessorInfo> callback,
                                    Handle<Code> slow_stub);
@@ -143,8 +141,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization,
                                    int accessor_index, Handle<Code> slow_stub);
-
-  Handle<Code> CompileLoadConstant(Handle<Name> name, int constant_index);
 
   // The LookupIterator is used to perform a lookup behind the interceptor. If
   // the iterator points to a LookupIterator::PROPERTY, its access will be
@@ -244,9 +240,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   void ZapStackArgumentsRegisterAliases();
 
-  Handle<Code> CompileStoreTransition(Handle<Map> transition,
-                                      Handle<Name> name);
-  Handle<Code> CompileStoreField(LookupIterator* it);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<AccessorInfo> callback,
                                     LanguageMode language_mode);

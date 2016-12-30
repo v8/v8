@@ -212,6 +212,7 @@ InjectedScript.closureTypes["script"] = "Script";
 InjectedScript.closureTypes["with"] = "With Block";
 InjectedScript.closureTypes["global"] = "Global";
 InjectedScript.closureTypes["eval"] = "Eval";
+InjectedScript.closureTypes["module"] = "Module";
 
 InjectedScript.prototype = {
     /**

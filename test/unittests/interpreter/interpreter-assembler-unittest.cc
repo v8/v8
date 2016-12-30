@@ -563,7 +563,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, IntPtrAdd) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
-    Node* a = m.Int32Constant(0);
+    Node* a = m.Parameter(0);
     Node* b = m.Int32Constant(1);
     Node* add = m.IntPtrAdd(a, b);
     EXPECT_THAT(add, IsIntPtrAdd(a, b));
@@ -574,7 +574,7 @@ TARGET_TEST_F(InterpreterAssemblerTest, IntPtrSub) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
-    Node* a = m.Int32Constant(0);
+    Node* a = m.Parameter(0);
     Node* b = m.Int32Constant(1);
     Node* add = m.IntPtrSub(a, b);
     EXPECT_THAT(add, IsIntPtrSub(a, b));

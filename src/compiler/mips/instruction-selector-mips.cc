@@ -904,33 +904,21 @@ void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
   MipsOperandGenerator g(this);
-  Float32BinopMatcher m(node);
-  if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
-    // For Add.S(Mul.S(x, y), z):
-    Float32BinopMatcher mleft(m.left().node());
-    if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.S(z, x, y).
+  if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.S(z, x, y).
+    Float32BinopMatcher m(node);
+    if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
+      // For Add.S(Mul.S(x, y), z):
+      Float32BinopMatcher mleft(m.left().node());
       Emit(kMipsMaddS, g.DefineAsRegister(node),
            g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
            g.UseRegister(mleft.right().node()));
       return;
-    } else if (IsMipsArchVariant(kMips32r6)) {  // Select Maddf.S(z, x, y).
-      Emit(kMipsMaddfS, g.DefineSameAsFirst(node),
-           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()));
-      return;
     }
-  }
-  if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
-    // For Add.S(x, Mul.S(y, z)):
-    Float32BinopMatcher mright(m.right().node());
-    if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.S(x, y, z).
+    if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
+      // For Add.S(x, Mul.S(y, z)):
+      Float32BinopMatcher mright(m.right().node());
       Emit(kMipsMaddS, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()));
-      return;
-    } else if (IsMipsArchVariant(kMips32r6)) {  // Select Maddf.S(x, y, z).
-      Emit(kMipsMaddfS, g.DefineSameAsFirst(node),
-           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
            g.UseRegister(mright.right().node()));
       return;
     }
@@ -941,33 +929,21 @@ void InstructionSelector::VisitFloat32Add(Node* node) {
 
 void InstructionSelector::VisitFloat64Add(Node* node) {
   MipsOperandGenerator g(this);
-  Float64BinopMatcher m(node);
-  if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
-    // For Add.D(Mul.D(x, y), z):
-    Float64BinopMatcher mleft(m.left().node());
-    if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.D(z, x, y).
+  if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.S(z, x, y).
+    Float64BinopMatcher m(node);
+    if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
+      // For Add.D(Mul.D(x, y), z):
+      Float64BinopMatcher mleft(m.left().node());
       Emit(kMipsMaddD, g.DefineAsRegister(node),
            g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
            g.UseRegister(mleft.right().node()));
       return;
-    } else if (IsMipsArchVariant(kMips32r6)) {  // Select Maddf.D(z, x, y).
-      Emit(kMipsMaddfD, g.DefineSameAsFirst(node),
-           g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
-           g.UseRegister(mleft.right().node()));
-      return;
     }
-  }
-  if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-    // For Add.D(x, Mul.D(y, z)):
-    Float64BinopMatcher mright(m.right().node());
-    if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.D(x, y, z).
+    if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
+      // For Add.D(x, Mul.D(y, z)):
+      Float64BinopMatcher mright(m.right().node());
       Emit(kMipsMaddD, g.DefineAsRegister(node), g.UseRegister(m.left().node()),
            g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()));
-      return;
-    } else if (IsMipsArchVariant(kMips32r6)) {  // Select Maddf.D(x, y, z).
-      Emit(kMipsMaddfD, g.DefineSameAsFirst(node),
-           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
            g.UseRegister(mright.right().node()));
       return;
     }
@@ -978,23 +954,14 @@ void InstructionSelector::VisitFloat64Add(Node* node) {
 
 void InstructionSelector::VisitFloat32Sub(Node* node) {
   MipsOperandGenerator g(this);
-  Float32BinopMatcher m(node);
-  if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
-    if (IsMipsArchVariant(kMips32r2)) {
+  if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.S(z, x, y).
+    Float32BinopMatcher m(node);
+    if (m.left().IsFloat32Mul() && CanCover(node, m.left().node())) {
       // For Sub.S(Mul.S(x,y), z) select Msub.S(z, x, y).
       Float32BinopMatcher mleft(m.left().node());
       Emit(kMipsMsubS, g.DefineAsRegister(node),
            g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
            g.UseRegister(mleft.right().node()));
-      return;
-    }
-  } else if (m.right().IsFloat32Mul() && CanCover(node, m.right().node())) {
-    if (IsMipsArchVariant(kMips32r6)) {
-      // For Sub.S(x,Mul.S(y,z)) select Msubf.S(x, y, z).
-      Float32BinopMatcher mright(m.right().node());
-      Emit(kMipsMsubfS, g.DefineSameAsFirst(node),
-           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()));
       return;
     }
   }
@@ -1003,23 +970,14 @@ void InstructionSelector::VisitFloat32Sub(Node* node) {
 
 void InstructionSelector::VisitFloat64Sub(Node* node) {
   MipsOperandGenerator g(this);
-  Float64BinopMatcher m(node);
-  if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
-    if (IsMipsArchVariant(kMips32r2)) {
+  if (IsMipsArchVariant(kMips32r2)) {  // Select Madd.S(z, x, y).
+    Float64BinopMatcher m(node);
+    if (m.left().IsFloat64Mul() && CanCover(node, m.left().node())) {
       // For Sub.D(Mul.S(x,y), z) select Msub.D(z, x, y).
       Float64BinopMatcher mleft(m.left().node());
       Emit(kMipsMsubD, g.DefineAsRegister(node),
            g.UseRegister(m.right().node()), g.UseRegister(mleft.left().node()),
            g.UseRegister(mleft.right().node()));
-      return;
-    }
-  } else if (m.right().IsFloat64Mul() && CanCover(node, m.right().node())) {
-    if (IsMipsArchVariant(kMips32r6)) {
-      // For Sub.D(x,Mul.S(y,z)) select Msubf.D(x, y, z).
-      Float64BinopMatcher mright(m.right().node());
-      Emit(kMipsMsubfD, g.DefineSameAsFirst(node),
-           g.UseRegister(m.left().node()), g.UseRegister(mright.left().node()),
-           g.UseRegister(mright.right().node()));
       return;
     }
   }
@@ -1645,6 +1603,15 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  UNREACHABLE();
+}
+
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  UNREACHABLE();
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {

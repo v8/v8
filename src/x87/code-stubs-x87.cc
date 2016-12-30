@@ -1867,40 +1867,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
   __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
-
-void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
-                                          Register dest,
-                                          Register src,
-                                          Register count,
-                                          Register scratch,
-                                          String::Encoding encoding) {
-  DCHECK(!scratch.is(dest));
-  DCHECK(!scratch.is(src));
-  DCHECK(!scratch.is(count));
-
-  // Nothing to do for zero characters.
-  Label done;
-  __ test(count, count);
-  __ j(zero, &done);
-
-  // Make count the number of bytes to copy.
-  if (encoding == String::TWO_BYTE_ENCODING) {
-    __ shl(count, 1);
-  }
-
-  Label loop;
-  __ bind(&loop);
-  __ mov_b(scratch, Operand(src, 0));
-  __ mov_b(Operand(dest, 0), scratch);
-  __ inc(src);
-  __ inc(dest);
-  __ dec(count);
-  __ j(not_zero, &loop);
-
-  __ bind(&done);
-}
-
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,

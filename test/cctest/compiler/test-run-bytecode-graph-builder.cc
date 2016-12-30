@@ -3027,35 +3027,32 @@ TEST(BytecodeGraphBuilderIllegalConstDeclaration) {
   }
 }
 
+static int debug_break_count = 0;
+static void DebugEventCounter(const v8::Debug::EventDetails& event_details) {
+  if (event_details.GetEvent() == v8::Break) debug_break_count++;
+}
+
 TEST(BytecodeGraphBuilderDebuggerStatement) {
-  FLAG_expose_debug_as = "debug";
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
+  v8::Debug::SetDebugEventListener(CcTest::isolate(), DebugEventCounter);
+
   ExpectedSnippet<0> snippet = {
-      "var Debug = debug.Debug;"
-      "var count = 0;"
       "function f() {"
       "  debugger;"
       "}"
-      "function listener(event) {"
-      "  if (event == Debug.DebugEvent.Break) count++;"
-      "}"
-      "Debug.setListener(listener);"
-      "f();"
-      "Debug.setListener(null);"
-      "return count;",
-      {handle(Smi::FromInt(1), isolate)}};
+      "f();",
+      {isolate->factory()->undefined_value()}};
 
-  ScopedVector<char> script(1024);
-  SNPrintF(script, "function %s() { %s }\n%s();", kFunctionName,
-           snippet.code_snippet, kFunctionName);
-
-  BytecodeGraphTester tester(isolate, zone, script.start());
+  BytecodeGraphTester tester(isolate, zone, snippet.code_snippet);
   auto callable = tester.GetCallable<>();
   Handle<Object> return_value = callable().ToHandleChecked();
-  CHECK(return_value->SameValue(*snippet.return_value()));
+
+  v8::Debug::SetDebugEventListener(CcTest::isolate(), nullptr);
+  CHECK(return_value.is_identical_to(snippet.return_value()));
+  CHECK_EQ(2, debug_break_count);
 }
 
 }  // namespace compiler

@@ -838,11 +838,8 @@ ExecutionState.prototype.prepareStep = function(action) {
   throw %make_type_error(kDebuggerType);
 };
 
-ExecutionState.prototype.evaluateGlobal = function(source, disable_break,
-    opt_additional_context) {
-  return MakeMirror(%DebugEvaluateGlobal(this.break_id, source,
-                                         TO_BOOLEAN(disable_break),
-                                         opt_additional_context));
+ExecutionState.prototype.evaluateGlobal = function(source) {
+  return MakeMirror(%DebugEvaluateGlobal(this.break_id, source));
 };
 
 ExecutionState.prototype.frameCount = function() {
@@ -1874,8 +1871,6 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   var expression = request.arguments.expression;
   var frame = request.arguments.frame;
   var global = request.arguments.global;
-  var disable_break = request.arguments.disable_break;
-  var additional_context = request.arguments.additional_context;
 
   // The expression argument could be an integer so we convert it to a
   // string.
@@ -1890,33 +1885,11 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     return response.failed('Arguments "frame" and "global" are exclusive');
   }
 
-  var additional_context_object;
-  if (additional_context) {
-    additional_context_object = {};
-    for (var i = 0; i < additional_context.length; i++) {
-      var mapping = additional_context[i];
-
-      if (!IS_STRING(mapping.name)) {
-        return response.failed("Context element #" + i +
-            " doesn't contain name:string property");
-      }
-
-      var raw_value = DebugCommandProcessor.resolveValue_(mapping);
-      additional_context_object[mapping.name] = raw_value;
-    }
-  }
-
   // Global evaluate.
   if (global) {
     // Evaluate in the native context.
-    response.body = this.exec_state_.evaluateGlobal(
-        expression, TO_BOOLEAN(disable_break), additional_context_object);
+    response.body = this.exec_state_.evaluateGlobal(expression);
     return;
-  }
-
-  // Default value for disable_break is true.
-  if (IS_UNDEFINED(disable_break)) {
-    disable_break = true;
   }
 
   // No frames no evaluate in frame.
@@ -1931,13 +1904,11 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
       return response.failed('Invalid frame "' + frame + '"');
     }
     // Evaluate in the specified frame.
-    response.body = this.exec_state_.frame(frame_number).evaluate(
-        expression, TO_BOOLEAN(disable_break), additional_context_object);
+    response.body = this.exec_state_.frame(frame_number).evaluate(expression);
     return;
   } else {
     // Evaluate in the selected frame.
-    response.body = this.exec_state_.frame().evaluate(
-        expression, TO_BOOLEAN(disable_break), additional_context_object);
+    response.body = this.exec_state_.frame().evaluate(expression);
     return;
   }
 };

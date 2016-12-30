@@ -680,7 +680,6 @@ class ParserBase {
           scope(nullptr),
           init_block(parser->impl()->NullBlock()),
           inner_block(parser->impl()->NullBlock()),
-          for_promise_reject(false),
           bound_names(1, parser->zone()),
           tail_call_expressions(parser->zone()) {}
     IdentifierT name;
@@ -689,7 +688,6 @@ class ParserBase {
     Scope* scope;
     BlockT init_block;
     BlockT inner_block;
-    bool for_promise_reject;
     ZoneList<const AstRawString*> bound_names;
     TailCallExpressionList tail_call_expressions;
   };
@@ -713,19 +711,15 @@ class ParserBase {
         : proxy(nullptr),
           extends(parser->impl()->EmptyExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
-          instance_field_initializers(parser->impl()->NewExpressionList(0)),
           constructor(parser->impl()->EmptyFunctionLiteral()),
           has_seen_constructor(false),
-          static_initializer_var(nullptr),
           has_name_static_property(false),
           has_static_computed_names(false) {}
     VariableProxy* proxy;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
-    ExpressionListT instance_field_initializers;
     FunctionLiteralT constructor;
     bool has_seen_constructor;
-    Variable* static_initializer_var;
     bool has_name_static_property;
     bool has_static_computed_names;
   };
@@ -2541,7 +2535,6 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
       initializer_scope->start_position(), true, GetNextFunctionLiteralId());
-  function_literal->set_is_class_field_initializer(true);
   return function_literal;
 }
 
@@ -3475,7 +3468,6 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         // Explicit calls to the super constructor using super() perform an
         // implicit binding assignment to the 'this' variable.
         if (is_super_call) {
-          result = impl()->RewriteSuperCall(result);
           ExpressionT this_expr = impl()->ThisExpression(pos);
           result =
               factory()->NewAssignment(Token::INIT, this_expr, result, pos);
@@ -4764,7 +4756,12 @@ ParserBase<Impl>::CheckAndRewriteReferenceExpression(
   }
   if (expression->IsCall()) {
     // If it is a call, make it a runtime error for legacy web compatibility.
+    // Bug: https://bugs.chromium.org/p/v8/issues/detail?id=4480
     // Rewrite `expr' to `expr[throw ReferenceError]'.
+    impl()->CountUsage(
+        is_strict(language_mode())
+            ? v8::Isolate::kAssigmentExpressionLHSIsCallInStrict
+            : v8::Isolate::kAssigmentExpressionLHSIsCallInSloppy);
     ExpressionT error = impl()->NewThrowReferenceError(message, beg_pos);
     return factory()->NewProperty(expression, error, beg_pos);
   }
@@ -5585,7 +5582,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
   }
 
   CatchInfo catch_info(this);
-  catch_info.for_promise_reject = allow_natives() && Check(Token::MOD);
 
   if (peek() != Token::CATCH && peek() != Token::FINALLY) {
     ReportMessage(MessageTemplate::kNoCatchOrFinally);

@@ -561,6 +561,16 @@ class MacroAssembler: public Assembler {
   void VmovExtended(int dst_code, const MemOperand& src, Register scratch);
   void VmovExtended(const MemOperand& dst, int src_code, Register scratch);
 
+  void ExtractLane(Register dst, QwNeonRegister src, NeonDataType dt, int lane);
+  void ExtractLane(SwVfpRegister dst, QwNeonRegister src, Register scratch,
+                   int lane);
+  void ReplaceLane(QwNeonRegister dst, QwNeonRegister src, Register src_lane,
+                   NeonDataType dt, int lane);
+  void ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                   SwVfpRegister src_lane, Register scratch, int lane);
+  void Swizzle(QwNeonRegister dst, QwNeonRegister src, Register scratch,
+               NeonSize size, uint32_t lanes);
+
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, Register scratch, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
@@ -786,32 +796,6 @@ class MacroAssembler: public Assembler {
 
   void FastAllocate(Register object_size, Register result, Register result_end,
                     Register scratch, AllocationFlags flags);
-
-  void AllocateTwoByteString(Register result,
-                             Register length,
-                             Register scratch1,
-                             Register scratch2,
-                             Register scratch3,
-                             Label* gc_required);
-  void AllocateOneByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-  void AllocateTwoByteConsString(Register result,
-                                 Register length,
-                                 Register scratch1,
-                                 Register scratch2,
-                                 Label* gc_required);
-  void AllocateOneByteConsString(Register result, Register length,
-                                 Register scratch1, Register scratch2,
-                                 Label* gc_required);
-  void AllocateTwoByteSlicedString(Register result,
-                                   Register length,
-                                   Register scratch1,
-                                   Register scratch2,
-                                   Label* gc_required);
-  void AllocateOneByteSlicedString(Register result, Register length,
-                                   Register scratch1, Register scratch2,
-                                   Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed. All registers are clobbered also
@@ -1345,11 +1329,6 @@ class MacroAssembler: public Assembler {
   void JumpIfBothInstanceTypesAreNotSequentialOneByte(
       Register first_object_instance_type, Register second_object_instance_type,
       Register scratch1, Register scratch2, Label* failure);
-
-  // Check if instance type is sequential one-byte string and jump to label if
-  // it is not.
-  void JumpIfInstanceTypeIsNotSequentialOneByte(Register type, Register scratch,
-                                                Label* failure);
 
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
 

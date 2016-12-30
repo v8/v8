@@ -35,8 +35,11 @@
 #include "src/assembler.h"
 
 #include <math.h>
+#include <string.h>
 #include <cmath>
+
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/base/cpu.h"
 #include "src/base/functional.h"
 #include "src/base/ieee754.h"
@@ -61,28 +64,6 @@
 #include "src/simulator.h"  // For flushing instruction cache.
 #include "src/snapshot/serializer-common.h"
 #include "src/wasm/wasm-external-refs.h"
-
-#if V8_TARGET_ARCH_IA32
-#include "src/ia32/assembler-ia32-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_X64
-#include "src/x64/assembler-x64-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM64
-#include "src/arm64/assembler-arm64-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_ARM
-#include "src/arm/assembler-arm-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_PPC
-#include "src/ppc/assembler-ppc-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS
-#include "src/mips/assembler-mips-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_MIPS64
-#include "src/mips64/assembler-mips64-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_S390
-#include "src/s390/assembler-s390-inl.h"  // NOLINT
-#elif V8_TARGET_ARCH_X87
-#include "src/x87/assembler-x87-inl.h"  // NOLINT
-#else
-#error "Unknown architecture."
-#endif
 
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
@@ -1201,6 +1182,12 @@ ExternalReference ExternalReference::f64_mod_wrapper_function(
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f64_mod_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_call_trap_callback_for_testing(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::call_trap_callback_for_testing)));
+}
+
 ExternalReference ExternalReference::log_enter_external_function(
     Isolate* isolate) {
   return ExternalReference(
@@ -1545,6 +1532,14 @@ ExternalReference ExternalReference::ieee754_tanh_function(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(base::ieee754::tanh), BUILTIN_FP_CALL));
 }
 
+void* libc_memchr(void* string, int character, size_t search_length) {
+  return memchr(string, character, search_length);
+}
+
+ExternalReference ExternalReference::libc_memchr_function(Isolate* isolate) {
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(libc_memchr)));
+}
+
 ExternalReference ExternalReference::page_flags(Page* page) {
   return ExternalReference(reinterpret_cast<Address>(page) +
                            MemoryChunk::kFlagsOffset);
@@ -1566,9 +1561,8 @@ ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
   return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
 }
 
-ExternalReference ExternalReference::is_promisehook_enabled_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->is_promisehook_enabled_address());
+ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
+  return ExternalReference(isolate->promise_hook_address());
 }
 
 ExternalReference ExternalReference::debug_is_active_address(

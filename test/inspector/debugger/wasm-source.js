@@ -9,7 +9,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 
 var builder = new WasmModuleBuilder();
 
-var imported_idx = builder.addImport("func", kSig_v_v);
+var imported_idx = builder.addImport("xxx", "func", kSig_v_v);
 
 var call_imported_idx = builder.addFunction("call_func", kSig_v_v)
     .addBody([kExprCallFunction, imported_idx])
@@ -19,7 +19,7 @@ var sig_index = builder.addType(kSig_v_v);
 
 builder.addFunction('main', kSig_v_v)
     .addBody([
-      kExprBlock, kAstStmt, kExprI32Const, 0, kExprCallIndirect, sig_index,
+      kExprBlock, kWasmStmt, kExprI32Const, 0, kExprCallIndirect, sig_index,
       kTableZero, kExprEnd
     ])
     .exportAs('main');
@@ -40,7 +40,7 @@ function testFunction(bytes) {
   }
 
   var module = new WebAssembly.Module(buffer);
-  var instance = new WebAssembly.Instance(module, {func: call_debugger});
+  var instance = new WebAssembly.Instance(module, {xxx: {func: call_debugger}});
 
   instance.exports.main();
 }

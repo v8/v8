@@ -366,7 +366,8 @@ bool ShouldUseIgnition(CompilationInfo* info) {
   return shared->PassesFilter(FLAG_ignition_filter);
 }
 
-CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
+CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info,
+                                             LazyCompilationMode mode) {
   // Function should have been parsed and analyzed before creating a compilation
   // job.
   DCHECK_NOT_NULL(info->literal());
@@ -374,9 +375,9 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
 
   EnsureFeedbackMetadata(info);
   if (ShouldUseIgnition(info)) {
-    return interpreter::Interpreter::NewCompilationJob(info);
+    return interpreter::Interpreter::NewCompilationJob(info, mode);
   } else {
-    return FullCodeGenerator::NewCompilationJob(info);
+    return FullCodeGenerator::NewCompilationJob(info, mode);
   }
 }
 
@@ -430,7 +431,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
       !info->shared_info()->is_asm_wasm_broken() && !info->is_debug()) {
     EnsureFeedbackMetadata(info);
     MaybeHandle<FixedArray> wasm_data;
-    wasm_data = AsmJs::ConvertAsmToWasm(info->parse_info());
+    wasm_data = AsmJs::CompileAsmViaWasm(info);
     if (!wasm_data.is_null()) {
       info->shared_info()->set_asm_wasm_data(*wasm_data.ToHandleChecked());
       info->SetCode(info->isolate()->builtins()->InstantiateAsmJs());
@@ -439,7 +440,8 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
     }
   }
 
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+  std::unique_ptr<CompilationJob> job(
+      GetUnoptimizedCompilationJob(info, LazyCompilationMode::kIfRequested));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) return false;
   if (FinalizeUnoptimizedCompilationJob(job.get()) !=
@@ -897,7 +899,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return cached_code;
   }
 
-  if (function->shared()->marked_for_tier_up()) {
+  if (function->shared()->is_compiled() &&
+      function->shared()->marked_for_tier_up()) {
     DCHECK(FLAG_mark_shared_functions_for_tier_up);
 
     function->shared()->set_marked_for_tier_up(false);
@@ -1367,6 +1370,15 @@ bool CodeGenerationFromStringsAllowed(Isolate* isolate,
   }
 }
 
+bool ContainsAsmModule(Handle<Script> script) {
+  DisallowHeapAllocation no_gc;
+  SharedFunctionInfo::ScriptIterator iter(script);
+  while (SharedFunctionInfo* info = iter.Next()) {
+    if (info->HasAsmWasmData()) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
@@ -1509,7 +1521,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, context, language_mode, result);
       if (FLAG_serialize_toplevel &&
-          compile_options == ScriptCompiler::kProduceCodeCache) {
+          compile_options == ScriptCompiler::kProduceCodeCache &&
+          !ContainsAsmModule(script)) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
         RuntimeCallTimerScope runtimeTimer(isolate,
@@ -1557,10 +1570,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
   return result;
 }
 
-
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
-    CompilationInfo* outer_info) {
+    CompilationInfo* outer_info, LazyCompilationMode mode) {
   // Precondition: code has been parsed and scopes have been analyzed.
   Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
@@ -1613,7 +1625,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // This is especially important for generators. We must not replace the
   // code for generators, as there may be suspended generator objects.
   if (!result->is_compiled()) {
-    if (!literal->ShouldEagerCompile()) {
+    if (mode == LazyCompilationMode::kAlways ||
+        !literal->ShouldEagerCompile()) {
       info.SetCode(isolate->builtins()->CompileLazy());
       Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
       if (outer_scope) {
@@ -1686,9 +1699,9 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 }
 
 CompilationJob* Compiler::PrepareUnoptimizedCompilationJob(
-    CompilationInfo* info) {
+    CompilationInfo* info, LazyCompilationMode mode) {
   VMState<COMPILER> state(info->isolate());
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
+  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info, mode));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) {
     return nullptr;
   }

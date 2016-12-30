@@ -134,36 +134,6 @@ TEST_F(BytecodeNodeTest, NoEqualityWithDifferentSourceInfo) {
   CHECK_NE(node, other);
 }
 
-TEST_F(BytecodeNodeTest, SetBytecode0) {
-  uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
-  BytecodeSourceInfo source_info(77, false);
-  BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], source_info);
-  CHECK_EQ(node.source_info(), source_info);
-
-  BytecodeNode clone(Bytecode::kIllegal);
-  clone = node;
-  clone.set_bytecode(Bytecode::kNop);
-  CHECK_EQ(clone.bytecode(), Bytecode::kNop);
-  CHECK_EQ(clone.operand_count(), 0);
-  CHECK_EQ(clone.source_info(), source_info);
-}
-
-TEST_F(BytecodeNodeTest, SetBytecode1) {
-  uint32_t operands[] = {0x71, 0xa5, 0x5a, 0xfc};
-  BytecodeSourceInfo source_info(77, false);
-  BytecodeNode node(Bytecode::kForInNext, operands[0], operands[1], operands[2],
-                    operands[3], source_info);
-
-  BytecodeNode clone(Bytecode::kIllegal);
-  clone = node;
-  clone.set_bytecode(Bytecode::kJump, 0x01aabbcc);
-  CHECK_EQ(clone.bytecode(), Bytecode::kJump);
-  CHECK_EQ(clone.operand_count(), 1);
-  CHECK_EQ(clone.operand(0), 0x01aabbccu);
-  CHECK_EQ(clone.source_info(), source_info);
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

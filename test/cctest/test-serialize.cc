@@ -2172,11 +2172,14 @@ v8::StartupData SerializeInternalFields(v8::Local<v8::Object> holder,
   return {payload, size};
 }
 
+std::vector<InternalFieldData*> deserialized_data;
+
 void DeserializeInternalFields(v8::Local<v8::Object> holder, int index,
                                v8::StartupData payload) {
   InternalFieldData* data = new InternalFieldData{0};
   memcpy(data, payload.data, payload.raw_size);
   holder->SetAlignedPointerInInternalField(index, data);
+  deserialized_data.push_back(data);
 }
 
 TEST(SnapshotCreatorTemplates) {
@@ -2314,9 +2317,8 @@ TEST(SnapshotCreatorTemplates) {
         CHECK(v8::FunctionTemplate::FromSnapshot(isolate, 2).IsEmpty());
         CHECK(v8::Context::FromSnapshot(isolate, 1).IsEmpty());
 
-        delete a1;
-        delete b0;
-        delete c0;
+        for (auto data : deserialized_data) delete data;
+        deserialized_data.clear();
       }
 
       {
@@ -2334,6 +2336,9 @@ TEST(SnapshotCreatorTemplates) {
         v8::Context::Scope context_scope(context);
         ExpectInt32("g()", 1337);
         ExpectInt32("f()", 42);
+
+        for (auto data : deserialized_data) delete data;
+        deserialized_data.clear();
       }
     }
     isolate->Dispose();
@@ -2384,19 +2389,42 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
           v8::ObjectTemplate::New(isolate);
       v8::Local<v8::FunctionTemplate> callback =
           v8::FunctionTemplate::New(isolate, SerializedCallback);
+      global_template->SetInternalFieldCount(3);
       global_template->Set(v8_str("f"), callback);
       global_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
           NamedPropertyGetterForSerialization));
       global_template->SetAccessor(v8_str("y"), AccessorForSerialization);
+      v8::Local<v8::Private> priv =
+          v8::Private::ForApi(isolate, v8_str("cached"));
+      global_template->SetAccessorProperty(
+          v8_str("cached"),
+          v8::FunctionTemplate::NewWithCache(isolate, SerializedCallback, priv,
+                                             v8::Local<v8::Value>()));
       v8::Local<v8::Context> context =
           v8::Context::New(isolate, &extensions, global_template);
       v8::Context::Scope context_scope(context);
+
+      CHECK(context->Global()
+                ->SetPrivate(context, priv, v8_str("cached string"))
+                .FromJust());
+      v8::Local<v8::Private> hidden =
+          v8::Private::ForApi(isolate, v8_str("hidden"));
+      CHECK(context->Global()
+                ->SetPrivate(context, hidden, v8_str("hidden string"))
+                .FromJust());
+
       ExpectInt32("f()", 42);
       ExpectInt32("g()", 12);
       ExpectInt32("h()", 13);
       ExpectInt32("o.p", 7);
       ExpectInt32("x", 2016);
       ExpectInt32("y", 2017);
+      CHECK(v8_str("hidden string")
+                ->Equals(context, context->Global()
+                                      ->GetPrivate(context, hidden)
+                                      .ToLocalChecked())
+                .FromJust());
+
       CHECK_EQ(0u, creator.AddContext(context));
     }
     blob = creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear,
@@ -2443,15 +2471,61 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
         v8::HandleScope handle_scope(isolate);
         v8::Local<v8::Context> context =
             v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
-        v8::Context::Scope context_scope(context);
-        ExpectInt32("f()", 42);
-        ExpectInt32("g()", 12);
-        ExpectInt32("h()", 13);
-        ExpectInt32("i()", 24);
-        ExpectInt32("j()", 25);
-        ExpectInt32("o.p", 8);
-        ExpectInt32("x", 2016);
-        ExpectInt32("y", 2017);
+        {
+          v8::Context::Scope context_scope(context);
+          ExpectInt32("f()", 42);
+          ExpectInt32("g()", 12);
+          ExpectInt32("h()", 13);
+          ExpectInt32("i()", 24);
+          ExpectInt32("j()", 25);
+          ExpectInt32("o.p", 8);
+          ExpectInt32("x", 2016);
+          v8::Local<v8::Private> hidden =
+              v8::Private::ForApi(isolate, v8_str("hidden"));
+          CHECK(v8_str("hidden string")
+                    ->Equals(context, context->Global()
+                                          ->GetPrivate(context, hidden)
+                                          .ToLocalChecked())
+                    .FromJust());
+          ExpectString("cached", "cached string");
+        }
+
+        v8::Local<v8::Object> global = context->Global();
+        CHECK_EQ(3, global->InternalFieldCount());
+        context->DetachGlobal();
+
+        // New context, but reuse global proxy.
+        v8::ExtensionConfiguration* no_extensions = nullptr;
+        v8::Local<v8::Context> context2 =
+            v8::Context::FromSnapshot(isolate, 0, no_extensions, global)
+                .ToLocalChecked();
+        {
+          v8::Context::Scope context_scope(context2);
+          ExpectInt32("f()", 42);
+          ExpectInt32("g()", 12);
+          ExpectInt32("h()", 13);
+          ExpectInt32("i()", 24);
+          ExpectInt32("j()", 25);
+          ExpectInt32("o.p", 8);
+          ExpectInt32("x", 2016);
+          v8::Local<v8::Private> hidden =
+              v8::Private::ForApi(isolate, v8_str("hidden"));
+          CHECK(v8_str("hidden string")
+                    ->Equals(context2, context2->Global()
+                                           ->GetPrivate(context2, hidden)
+                                           .ToLocalChecked())
+                    .FromJust());
+
+          // Set cached accessor property again.
+          v8::Local<v8::Private> priv =
+              v8::Private::ForApi(isolate, v8_str("cached"));
+          CHECK(context2->Global()
+                    ->SetPrivate(context2, priv, v8_str("cached string 1"))
+                    .FromJust());
+          ExpectString("cached", "cached string 1");
+        }
+
+        CHECK(context2->Global()->Equals(context2, global).FromJust());
       }
     }
     isolate->Dispose();

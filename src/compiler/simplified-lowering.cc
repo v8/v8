@@ -2196,9 +2196,15 @@ class RepresentationSelector {
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);
       }
-      case IrOpcode::kStringCharCodeAt: {
+      case IrOpcode::kStringCharAt: {
         VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32);
+                   MachineRepresentation::kTaggedPointer);
+        return;
+      }
+      case IrOpcode::kStringCharCodeAt: {
+        // TODO(turbofan): Allow builtins to return untagged values.
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kTaggedSigned);
         return;
       }
       case IrOpcode::kStringFromCharCode: {

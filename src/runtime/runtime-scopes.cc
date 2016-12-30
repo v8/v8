@@ -88,8 +88,7 @@ Object* DeclareGlobal(
       // function.
       PropertyDetails old_details = it.property_details();
       if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
-          (it.state() == LookupIterator::ACCESSOR &&
-           it.GetAccessors()->IsAccessorPair())) {
+          (it.state() == LookupIterator::ACCESSOR)) {
         // ECMA-262 section 15.1.11 GlobalDeclarationInstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
         // ECMA-262 section 18.2.1.3 EvalDeclarationInstantiation 8.a.iv.1.b:
@@ -224,15 +223,15 @@ namespace {
 
 Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
                           Handle<Object> value) {
-  // Declarations are always made in a function, native, or script context, or
-  // a declaration block scope. Since this is called from eval, the context
-  // passed is the context of the caller, which may be some nested context and
-  // not the declaration context.
+  // Declarations are always made in a function, native, eval, or script
+  // context, or a declaration block scope. Since this is called from eval, the
+  // context passed is the context of the caller, which may be some nested
+  // context and not the declaration context.
   Handle<Context> context_arg(isolate->context(), isolate);
   Handle<Context> context(context_arg->declaration_context(), isolate);
 
   DCHECK(context->IsFunctionContext() || context->IsNativeContext() ||
-         context->IsScriptContext() ||
+         context->IsScriptContext() || context->IsEvalContext() ||
          (context->IsBlockContext() && context->has_extension()));
 
   bool is_function = value->IsJSFunction();
@@ -313,6 +312,8 @@ Object* DeclareEvalHelper(Isolate* isolate, Handle<String> name,
     }
     DCHECK(object->IsJSContextExtensionObject() || object->IsJSGlobalObject());
   } else {
+    // Sloppy eval will never have an extension object, as vars are hoisted out,
+    // and lets are known statically.
     DCHECK(context->IsFunctionContext());
     object =
         isolate->factory()->NewJSObject(isolate->context_extension_function());
@@ -702,18 +703,18 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   return *result;
 }
 
-
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK(args.length() == 2);
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_ARG_CHECKED(scope_type, 1);
 
   DCHECK(function->context() == isolate->context());
   int length = function->shared()->scope_info()->ContextLength();
-  return *isolate->factory()->NewFunctionContext(length, function);
+  return *isolate->factory()->NewFunctionContext(
+      length, function, static_cast<ScopeType>(scope_type));
 }
-
 
 RUNTIME_FUNCTION(Runtime_PushWithContext) {
   HandleScope scope(isolate);

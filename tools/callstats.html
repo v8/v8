@@ -1656,11 +1656,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     Group.add('parse-background',
         new Group('Parse-Background', /.*ParseBackground.*/, "#af744d"));
     Group.add('parse', new Group('Parse', /.*Parse.*/, "#FF6600"));
-    Group.add('callback', new Group('Callback', /.*Callback.*/, "#109618"));
+    Group.add('callback', new Group('Blink C++', /.*Callback.*/, "#109618"));
     Group.add('api', new Group('API', /.*API.*/, "#990099"));
     Group.add('gc', new Group('GC', /GC|AllocateInTargetSpace/, "#0099C6"));
     Group.add('javascript', new Group('JavaScript', /JS_Execution/, "#DD4477"));
-    Group.add('runtime', new Group('Runtime', /.*/, "#88BB00"));
+    Group.add('runtime', new Group('V8 C++', /.*/, "#88BB00"));
     var group = 
       Group.add('unclassified', new Group('Unclassified', /.*/, "#000"));
     group.enabled = false;

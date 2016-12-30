@@ -82,6 +82,15 @@ class X64OperandGenerator final : public OperandGenerator {
                                              InstructionOperand inputs[],
                                              size_t* input_count) {
     AddressingMode mode = kMode_MRI;
+    if (base != nullptr && (index != nullptr || displacement != nullptr)) {
+      if (base->opcode() == IrOpcode::kInt32Constant &&
+          OpParameter<int32_t>(base) == 0) {
+        base = nullptr;
+      } else if (base->opcode() == IrOpcode::kInt64Constant &&
+                 OpParameter<int64_t>(base) == 0) {
+        base = nullptr;
+      }
+    }
     if (base != nullptr) {
       inputs[(*input_count)++] = UseRegister(base);
       if (index != nullptr) {
@@ -110,17 +119,22 @@ class X64OperandGenerator final : public OperandGenerator {
         }
       }
     } else {
-      DCHECK_NOT_NULL(index);
       DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
-      inputs[(*input_count)++] = UseRegister(index);
       if (displacement != nullptr) {
-        inputs[(*input_count)++] = displacement_mode == kNegativeDisplacement
-                                       ? UseNegatedImmediate(displacement)
-                                       : UseImmediate(displacement);
-        static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
-                                                    kMode_M4I, kMode_M8I};
-        mode = kMnI_modes[scale_exponent];
+        if (index == nullptr) {
+          inputs[(*input_count)++] = UseRegister(displacement);
+          mode = kMode_MR;
+        } else {
+          inputs[(*input_count)++] = UseRegister(index);
+          inputs[(*input_count)++] = displacement_mode == kNegativeDisplacement
+                                         ? UseNegatedImmediate(displacement)
+                                         : UseImmediate(displacement);
+          static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,
+                                                      kMode_M4I, kMode_M8I};
+          mode = kMnI_modes[scale_exponent];
+        }
       } else {
+        inputs[(*input_count)++] = UseRegister(index);
         static const AddressingMode kMn_modes[] = {kMode_MR, kMode_MR1,
                                                    kMode_M4, kMode_M8};
         mode = kMn_modes[scale_exponent];
@@ -179,7 +193,7 @@ class X64OperandGenerator final : public OperandGenerator {
 };
 
 namespace {
-ArchOpcode GetLoadOpcode(LoadRepresentation load_rep, bool protect) {
+ArchOpcode GetLoadOpcode(LoadRepresentation load_rep) {
   ArchOpcode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -251,38 +265,23 @@ void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   X64OperandGenerator g(this);
 
-  const bool protect = false;
-  ArchOpcode opcode = GetLoadOpcode(load_rep, protect);
-  InstructionOperand outputs[1];
-  outputs[0] = g.DefineAsRegister(node);
-  InstructionOperand inputs[3];
-  size_t input_count = 0;
-  AddressingMode mode =
-      g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  InstructionCode code = opcode | AddressingModeField::encode(mode);
-  Emit(code, 1, outputs, input_count, inputs);
-}
-
-void InstructionSelector::VisitProtectedLoad(Node* node) {
-  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
-  X64OperandGenerator g(this);
-
-  const bool protect = true;
-  ArchOpcode opcode = GetLoadOpcode(load_rep, protect);
+  ArchOpcode opcode = GetLoadOpcode(load_rep);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[4];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  // Add the context parameter as an input.
-  inputs[input_count++] = g.UseUniqueRegister(node->InputAt(2));
-  // Add the source position as an input
-  inputs[input_count++] = g.UseImmediate(node->InputAt(3));
-  InstructionCode code = opcode | AddressingModeField::encode(mode) |
-                         MiscField::encode(X64MemoryProtection::kProtected);
+  InstructionCode code = opcode | AddressingModeField::encode(mode);
+  if (node->opcode() == IrOpcode::kProtectedLoad) {
+    code |= MiscField::encode(X64MemoryProtection::kProtected);
+    // Add the source position as an input
+    inputs[input_count++] = g.UseImmediate(node->InputAt(2));
+  }
   Emit(code, 1, outputs, input_count, inputs);
 }
+
+void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitStore(Node* node) {
   X64OperandGenerator g(this);
@@ -347,13 +346,12 @@ void InstructionSelector::VisitStore(Node* node) {
 void InstructionSelector::VisitProtectedStore(Node* node) {
   X64OperandGenerator g(this);
   Node* value = node->InputAt(2);
-  Node* context = node->InputAt(3);
-  Node* position = node->InputAt(4);
+  Node* position = node->InputAt(3);
 
   StoreRepresentation store_rep = StoreRepresentationOf(node->op());
 
   ArchOpcode opcode = GetStoreOpcode(store_rep);
-  InstructionOperand inputs[6];
+  InstructionOperand inputs[5];
   size_t input_count = 0;
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
@@ -362,7 +360,6 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   inputs[input_count++] = value_operand;
-  inputs[input_count++] = g.UseRegister(context);
   inputs[input_count++] = g.UseImmediate(position);
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
 }
@@ -1687,10 +1684,13 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
                              cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     InstructionOperand output = g.DefineAsRegister(cont->result());
     selector->Emit(opcode, 1, &output, input_count, inputs);
+  } else {
+    DCHECK(cont->IsTrap());
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, 0, nullptr, input_count, inputs);
   }
 }
 
@@ -1706,9 +1706,12 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
                              cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1724,21 +1727,54 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   VisitCompare(selector, opcode, g.UseRegister(left), g.Use(right), cont);
 }
 
+MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
+  if (hint_node->opcode() == IrOpcode::kLoad) {
+    MachineType hint = LoadRepresentationOf(hint_node->op());
+    if (node->opcode() == IrOpcode::kInt32Constant ||
+        node->opcode() == IrOpcode::kInt64Constant) {
+      int64_t constant = node->opcode() == IrOpcode::kInt32Constant
+                             ? OpParameter<int32_t>(node)
+                             : OpParameter<int64_t>(node);
+      if (hint == MachineType::Int8()) {
+        if (constant >= std::numeric_limits<int8_t>::min() &&
+            constant <= std::numeric_limits<int8_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Uint8()) {
+        if (constant >= std::numeric_limits<uint8_t>::min() &&
+            constant <= std::numeric_limits<uint8_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Int16()) {
+        if (constant >= std::numeric_limits<int16_t>::min() &&
+            constant <= std::numeric_limits<int16_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Uint16()) {
+        if (constant >= std::numeric_limits<uint16_t>::min() &&
+            constant <= std::numeric_limits<uint16_t>::max()) {
+          return hint;
+        }
+      } else if (hint == MachineType::Int32()) {
+        return hint;
+      } else if (hint == MachineType::Uint32()) {
+        if (constant >= 0) return hint;
+      }
+    }
+  }
+  return node->opcode() == IrOpcode::kLoad ? LoadRepresentationOf(node->op())
+                                           : MachineType::None();
+}
+
 // Tries to match the size of the given opcode to that of the operands, if
 // possible.
 InstructionCode TryNarrowOpcodeSize(InstructionCode opcode, Node* left,
                                     Node* right, FlagsContinuation* cont) {
-  // Currently, if one of the two operands is not a Load, we don't know what its
-  // machine representation is, so we bail out.
-  // TODO(epertoso): we can probably get some size information out of immediates
-  // and phi nodes.
-  if (left->opcode() != IrOpcode::kLoad || right->opcode() != IrOpcode::kLoad) {
-    return opcode;
-  }
+  // TODO(epertoso): we can probably get some size information out phi nodes.
   // If the load representations don't match, both operands will be
   // zero/sign-extended to 32bit.
-  MachineType left_type = LoadRepresentationOf(left->op());
-  MachineType right_type = LoadRepresentationOf(right->op());
+  MachineType left_type = MachineTypeForNarrow(left, right);
+  MachineType right_type = MachineTypeForNarrow(right, left);
   if (left_type == right_type) {
     switch (left_type.representation()) {
       case MachineRepresentation::kBit:
@@ -1858,9 +1894,11 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
       } else if (cont->IsDeoptimize()) {
         selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->reason(),
                                  cont->frame_state());
-      } else {
-        DCHECK(cont->IsSet());
+      } else if (cont->IsSet()) {
         selector->Emit(opcode, g.DefineAsRegister(cont->result()));
+      } else {
+        DCHECK(cont->IsTrap());
+        selector->Emit(opcode, g.NoOutput(), g.UseImmediate(cont->trap_id()));
       }
       return;
     }
@@ -2065,6 +2103,19 @@ void InstructionSelector::VisitDeoptimizeIf(Node* node) {
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+}
+
+void InstructionSelector::VisitTrapUnless(Node* node,
+                                          Runtime::FunctionId func_id) {
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 

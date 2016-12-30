@@ -106,13 +106,14 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
     TestPropertyKind kind = props[i];
 
     if (kind == PROP_CONSTANT) {
-      DataConstantDescriptor d(name, func, NONE);
+      Descriptor d = Descriptor::DataConstant(name, func, NONE);
       descriptors->Append(&d);
 
     } else {
-      DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
-      next_field_offset += f.GetDetails().field_width_in_words();
-      descriptors->Append(&f);
+      Descriptor d = Descriptor::DataField(name, next_field_offset, NONE,
+                                           representations[kind]);
+      next_field_offset += d.GetDetails().field_width_in_words();
+      descriptors->Append(&d);
     }
   }
   return descriptors;
@@ -628,18 +629,19 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     Handle<LayoutDescriptor> layout_descriptor;
     TestPropertyKind kind = props[i];
     if (kind == PROP_CONSTANT) {
-      DataConstantDescriptor d(name, func, NONE);
+      Descriptor d = Descriptor::DataConstant(name, func, NONE);
       layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
       descriptors->Append(&d);
 
     } else {
-      DataDescriptor f(name, next_field_offset, NONE, representations[kind]);
-      int field_width_in_words = f.GetDetails().field_width_in_words();
+      Descriptor d = Descriptor::DataField(name, next_field_offset, NONE,
+                                           representations[kind]);
+      int field_width_in_words = d.GetDetails().field_width_in_words();
       next_field_offset += field_width_in_words;
-      layout_descriptor = LayoutDescriptor::ShareAppend(map, f.GetDetails());
-      descriptors->Append(&f);
+      layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
+      descriptors->Append(&d);
 
-      int field_index = f.GetDetails().field_index();
+      int field_index = d.GetDetails().field_index();
       bool is_inobject = field_index < map->GetInObjectProperties();
       for (int bit = 0; bit < field_width_in_words; bit++) {
         CHECK_EQ(is_inobject && (kind == PROP_DOUBLE),

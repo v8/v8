@@ -18,13 +18,38 @@ namespace internal {
 // Each descriptor has a key, property attributes, property type,
 // property index (in the actual instance-descriptor array) and
 // optionally a piece of data.
-class Descriptor BASE_EMBEDDED {
+class Descriptor final BASE_EMBEDDED {
  public:
   Handle<Name> GetKey() const { return key_; }
   Handle<Object> GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
 
   void SetSortedKeyIndex(int index) { details_ = details_.set_pointer(index); }
+
+  static Descriptor DataField(Handle<Name> key, int field_index,
+                              PropertyAttributes attributes,
+                              Representation representation);
+
+  static Descriptor DataField(Handle<Name> key, int field_index,
+                              Handle<Object> wrapped_field_type,
+                              PropertyAttributes attributes,
+                              Representation representation) {
+    DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
+    return Descriptor(key, wrapped_field_type, attributes, DATA, representation,
+                      field_index);
+  }
+
+  static Descriptor DataConstant(Handle<Name> key, Handle<Object> value,
+                                 PropertyAttributes attributes) {
+    return Descriptor(key, value, attributes, DATA_CONSTANT,
+                      value->OptimalRepresentation());
+  }
+
+  static Descriptor AccessorConstant(Handle<Name> key, Handle<Object> foreign,
+                                     PropertyAttributes attributes) {
+    return Descriptor(key, foreign, attributes, ACCESSOR_CONSTANT,
+                      Representation::Tagged());
+  }
 
  private:
   Handle<Name> key_;
@@ -62,42 +87,7 @@ class Descriptor BASE_EMBEDDED {
   friend class Map;
 };
 
-
 std::ostream& operator<<(std::ostream& os, const Descriptor& d);
-
-
-class DataDescriptor final : public Descriptor {
- public:
-  DataDescriptor(Handle<Name> key, int field_index,
-                 PropertyAttributes attributes, Representation representation);
-  // The field type is either a simple type or a map wrapped in a weak cell.
-  DataDescriptor(Handle<Name> key, int field_index,
-                 Handle<Object> wrapped_field_type,
-                 PropertyAttributes attributes, Representation representation)
-      : Descriptor(key, wrapped_field_type, attributes, DATA, representation,
-                   field_index) {
-    DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
-  }
-};
-
-
-class DataConstantDescriptor final : public Descriptor {
- public:
-  DataConstantDescriptor(Handle<Name> key, Handle<Object> value,
-                         PropertyAttributes attributes)
-      : Descriptor(key, value, attributes, DATA_CONSTANT,
-                   value->OptimalRepresentation()) {}
-};
-
-
-class AccessorConstantDescriptor final : public Descriptor {
- public:
-  AccessorConstantDescriptor(Handle<Name> key, Handle<Object> foreign,
-                             PropertyAttributes attributes)
-      : Descriptor(key, foreign, attributes, ACCESSOR_CONSTANT,
-                   Representation::Tagged()) {}
-};
-
 
 }  // namespace internal
 }  // namespace v8

@@ -619,7 +619,9 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
     LOperand* left = UseRegisterAtStart(instr->BetterLeftOperand());
     LOperand* right = UseRegisterAtStart(instr->BetterRightOperand());
     LArithmeticD* result = new (zone()) LArithmeticD(op, left, right);
-    return DefineSameAsFirst(result);
+    return CpuFeatures::IsSupported(VECTOR_FACILITY)
+               ? DefineAsRegister(result)
+               : DefineSameAsFirst(result);
   }
 }
 
@@ -1676,7 +1678,7 @@ LInstruction* LChunkBuilder::DoChange(HChange* instr) {
 }
 
 LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* value = UseAtStart(instr->value());
   LInstruction* result = new (zone()) LCheckNonSmi(value);
   if (!instr->value()->type().IsHeapObject()) {
     result = AssignEnvironment(result);
@@ -1685,7 +1687,7 @@ LInstruction* LChunkBuilder::DoCheckHeapObject(HCheckHeapObject* instr) {
 }
 
 LInstruction* LChunkBuilder::DoCheckSmi(HCheckSmi* instr) {
-  LOperand* value = UseRegisterAtStart(instr->value());
+  LOperand* value = UseAtStart(instr->value());
   return AssignEnvironment(new (zone()) LCheckSmi(value));
 }
 

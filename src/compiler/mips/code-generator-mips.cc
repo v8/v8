@@ -1152,36 +1152,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputDoubleRegister(1));
       break;
     case kMipsMaddS:
-      __ madd_s(i.OutputFloatRegister(), i.InputFloatRegister(0),
-                i.InputFloatRegister(1), i.InputFloatRegister(2));
+      __ Madd_s(i.OutputFloatRegister(), i.InputFloatRegister(0),
+                i.InputFloatRegister(1), i.InputFloatRegister(2),
+                kScratchDoubleReg);
       break;
     case kMipsMaddD:
-      __ madd_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputDoubleRegister(1), i.InputDoubleRegister(2));
-      break;
-    case kMipsMaddfS:
-      __ maddf_s(i.OutputFloatRegister(), i.InputFloatRegister(1),
-                 i.InputFloatRegister(2));
-      break;
-    case kMipsMaddfD:
-      __ maddf_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
-                 i.InputDoubleRegister(2));
+      __ Madd_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1), i.InputDoubleRegister(2),
+                kScratchDoubleReg);
       break;
     case kMipsMsubS:
-      __ msub_s(i.OutputFloatRegister(), i.InputFloatRegister(0),
-                i.InputFloatRegister(1), i.InputFloatRegister(2));
+      __ Msub_s(i.OutputFloatRegister(), i.InputFloatRegister(0),
+                i.InputFloatRegister(1), i.InputFloatRegister(2),
+                kScratchDoubleReg);
       break;
     case kMipsMsubD:
-      __ msub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
-                i.InputDoubleRegister(1), i.InputDoubleRegister(2));
-      break;
-    case kMipsMsubfS:
-      __ msubf_s(i.OutputFloatRegister(), i.InputFloatRegister(1),
-                 i.InputFloatRegister(2));
-      break;
-    case kMipsMsubfD:
-      __ msubf_d(i.OutputDoubleRegister(), i.InputDoubleRegister(1),
-                 i.InputDoubleRegister(2));
+      __ Msub_d(i.OutputDoubleRegister(), i.InputDoubleRegister(0),
+                i.InputDoubleRegister(1), i.InputDoubleRegister(2),
+                kScratchDoubleReg);
       break;
     case kMipsMulD:
       // TODO(plind): add special case: right op is -1.0, see arm port.
@@ -1738,6 +1726,10 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ Branch(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  UNREACHABLE();
+}
 
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,

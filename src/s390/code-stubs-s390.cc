@@ -2155,44 +2155,6 @@ void StringCharFromCodeGenerator::GenerateSlow(
   __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
-enum CopyCharactersFlags { COPY_ASCII = 1, DEST_ALWAYS_ALIGNED = 2 };
-
-void StringHelper::GenerateCopyCharacters(MacroAssembler* masm, Register dest,
-                                          Register src, Register count,
-                                          Register scratch,
-                                          String::Encoding encoding) {
-  if (FLAG_debug_code) {
-    // Check that destination is word aligned.
-    __ mov(r0, Operand(kPointerAlignmentMask));
-    __ AndP(r0, dest);
-    __ Check(eq, kDestinationOfCopyNotAligned, cr0);
-  }
-
-  // Nothing to do for zero characters.
-  Label done;
-  if (encoding == String::TWO_BYTE_ENCODING) {
-    // double the length
-    __ AddP(count, count, count);
-    __ beq(&done, Label::kNear);
-  } else {
-    __ CmpP(count, Operand::Zero());
-    __ beq(&done, Label::kNear);
-  }
-
-  // Copy count bytes from src to dst.
-  Label byte_loop;
-  // TODO(joransiu): Convert into MVC loop
-  __ bind(&byte_loop);
-  __ LoadlB(scratch, MemOperand(src));
-  __ la(src, MemOperand(src, 1));
-  __ stc(scratch, MemOperand(dest));
-  __ la(dest, MemOperand(dest, 1));
-  __ BranchOnCount(count, &byte_loop);
-
-  __ bind(&done);
-}
-
-
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
                                                    Register left,
                                                    Register right,
@@ -3509,124 +3471,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
   GenerateCase(masm, FAST_ELEMENTS);
 }
 
-void FastNewObjectStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r3 : target
-  //  -- r5 : new target
-  //  -- cp : context
-  //  -- lr : return address
-  // -----------------------------------
-  __ AssertFunction(r3);
-  __ AssertReceiver(r5);
-
-  // Verify that the new target is a JSFunction.
-  Label new_object;
-  __ CompareObjectType(r5, r4, r4, JS_FUNCTION_TYPE);
-  __ bne(&new_object);
-
-  // Load the initial map and verify that it's in fact a map.
-  __ LoadP(r4, FieldMemOperand(r5, JSFunction::kPrototypeOrInitialMapOffset));
-  __ JumpIfSmi(r4, &new_object);
-  __ CompareObjectType(r4, r2, r2, MAP_TYPE);
-  __ bne(&new_object);
-
-  // Fall back to runtime if the target differs from the new target's
-  // initial map constructor.
-  __ LoadP(r2, FieldMemOperand(r4, Map::kConstructorOrBackPointerOffset));
-  __ CmpP(r2, r3);
-  __ bne(&new_object);
-
-  // Allocate the JSObject on the heap.
-  Label allocate, done_allocate;
-  __ LoadlB(r6, FieldMemOperand(r4, Map::kInstanceSizeOffset));
-  __ Allocate(r6, r2, r7, r8, &allocate, SIZE_IN_WORDS);
-  __ bind(&done_allocate);
-
-  // Initialize the JSObject fields.
-  __ StoreP(r4, FieldMemOperand(r2, JSObject::kMapOffset));
-  __ LoadRoot(r5, Heap::kEmptyFixedArrayRootIndex);
-  __ StoreP(r5, FieldMemOperand(r2, JSObject::kPropertiesOffset));
-  __ StoreP(r5, FieldMemOperand(r2, JSObject::kElementsOffset));
-  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ AddP(r3, r2, Operand(JSObject::kHeaderSize - kHeapObjectTag));
-
-  // ----------- S t a t e -------------
-  //  -- r2 : result (tagged)
-  //  -- r3 : result fields (untagged)
-  //  -- r7 : result end (untagged)
-  //  -- r4 : initial map
-  //  -- cp : context
-  //  -- lr : return address
-  // -----------------------------------
-
-  // Perform in-object slack tracking if requested.
-  Label slack_tracking;
-  STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  __ LoadRoot(r8, Heap::kUndefinedValueRootIndex);
-  __ LoadlW(r5, FieldMemOperand(r4, Map::kBitField3Offset));
-  __ DecodeField<Map::ConstructionCounter>(r9, r5);
-  __ LoadAndTestP(r9, r9);
-  __ bne(&slack_tracking);
-  {
-    // Initialize all in-object fields with undefined.
-    __ InitializeFieldsWithFiller(r3, r7, r8);
-
-    __ Ret();
-  }
-  __ bind(&slack_tracking);
-  {
-    // Decrease generous allocation count.
-    STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
-    __ Add32(r5, r5, Operand(-(1 << Map::ConstructionCounter::kShift)));
-    __ StoreW(r5, FieldMemOperand(r4, Map::kBitField3Offset));
-
-    // Initialize the in-object fields with undefined.
-    __ LoadlB(r6, FieldMemOperand(r4, Map::kUnusedPropertyFieldsOffset));
-    __ ShiftLeftP(r6, r6, Operand(kPointerSizeLog2));
-    __ SubP(r6, r7, r6);
-    __ InitializeFieldsWithFiller(r3, r6, r8);
-
-    // Initialize the remaining (reserved) fields with one pointer filler map.
-    __ LoadRoot(r8, Heap::kOnePointerFillerMapRootIndex);
-    __ InitializeFieldsWithFiller(r3, r7, r8);
-
-    // Check if we can finalize the instance size.
-    __ CmpP(r9, Operand(Map::kSlackTrackingCounterEnd));
-    __ Ret(ne);
-
-    // Finalize the instance size.
-    {
-      FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ Push(r2, r4);
-      __ CallRuntime(Runtime::kFinalizeInstanceSize);
-      __ Pop(r2);
-    }
-    __ Ret();
-  }
-
-  // Fall back to %AllocateInNewSpace.
-  __ bind(&allocate);
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    STATIC_ASSERT(kSmiTag == 0);
-    __ ShiftLeftP(r6, r6,
-                  Operand(kPointerSizeLog2 + kSmiTagSize + kSmiShiftSize));
-    __ Push(r4, r6);
-    __ CallRuntime(Runtime::kAllocateInNewSpace);
-    __ Pop(r4);
-  }
-  __ LoadlB(r7, FieldMemOperand(r4, Map::kInstanceSizeOffset));
-  __ ShiftLeftP(r7, r7, Operand(kPointerSizeLog2));
-  __ AddP(r7, r2, r7);
-  __ SubP(r7, r7, Operand(kHeapObjectTag));
-  __ b(&done_allocate);
-
-  // Fall back to %NewObject.
-  __ bind(&new_object);
-  __ Push(r3, r5);
-  __ TailCallRuntime(Runtime::kNewObject);
-}
-
 void FastNewRestParameterStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r3 : function
@@ -3831,7 +3675,8 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   Label adaptor_frame, try_allocate, runtime;
   __ LoadP(r6, MemOperand(r9, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(r2, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ CmpSmiLiteral(r2, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ LoadSmiLiteral(r0, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ CmpP(r2, r0);
   __ beq(&adaptor_frame);
 
   // No adaptor, parameter count = argument count.

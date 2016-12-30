@@ -657,9 +657,10 @@ Handle<Object> WasmStackFrame::GetFunction() const {
 Handle<Object> WasmStackFrame::GetFunctionName() {
   Handle<Object> name;
   Handle<WasmCompiledModule> compiled_module(
-      Handle<WasmInstanceObject>::cast(wasm_instance_)->get_compiled_module(),
+      Handle<WasmInstanceObject>::cast(wasm_instance_)->compiled_module(),
       isolate_);
-  if (!WasmCompiledModule::GetFunctionName(compiled_module, wasm_func_index_)
+  if (!WasmCompiledModule::GetFunctionNameOrNull(isolate_, compiled_module,
+                                                 wasm_func_index_)
            .ToHandle(&name)) {
     name = isolate_->factory()->null_value();
   }
@@ -703,9 +704,9 @@ Handle<Object> WasmStackFrame::Null() const {
 bool WasmStackFrame::HasScript() const { return true; }
 
 Handle<Script> WasmStackFrame::GetScript() const {
-  return WasmInstanceObject::cast(*wasm_instance_)
-      ->get_compiled_module()
-      ->script();
+  return handle(
+      WasmInstanceObject::cast(*wasm_instance_)->compiled_module()->script(),
+      isolate_);
 }
 
 AsmJsWasmStackFrame::AsmJsWasmStackFrame() {}
@@ -746,8 +747,7 @@ int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
   int byte_offset = code_->SourcePosition(offset_);
   Handle<WasmCompiledModule> compiled_module(
-      WasmInstanceObject::cast(*wasm_instance_)->get_compiled_module(),
-      isolate_);
+      WasmInstanceObject::cast(*wasm_instance_)->compiled_module(), isolate_);
   DCHECK_LE(0, byte_offset);
   return WasmCompiledModule::GetAsmJsSourcePosition(
       compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset),

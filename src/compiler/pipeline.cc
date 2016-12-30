@@ -177,6 +177,10 @@ class PipelineData {
   PipelineStatistics* pipeline_statistics() { return pipeline_statistics_; }
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
+
+  bool verify_graph() const { return verify_graph_; }
+  void set_verify_graph(bool value) { verify_graph_ = value; }
+
   Handle<Code> code() { return code_; }
   void set_code(Handle<Code> code) {
     DCHECK(code_.is_null());
@@ -298,7 +302,7 @@ class PipelineData {
     DCHECK(register_allocation_data_ == nullptr);
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
-                               sequence(), debug_name_.get());
+                               sequence(), debug_name());
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -313,6 +317,8 @@ class PipelineData {
     }
   }
 
+  const char* debug_name() const { return debug_name_.get(); }
+
  private:
   Isolate* const isolate_;
   CompilationInfo* const info_;
@@ -321,6 +327,7 @@ class PipelineData {
   ZoneStats* const zone_stats_;
   PipelineStatistics* pipeline_statistics_ = nullptr;
   bool compilation_failed_ = false;
+  bool verify_graph_ = false;
   Handle<Code> code_ = Handle<Code>::null();
 
   // All objects in the following group of fields are allocated in graph_zone_.
@@ -756,9 +763,6 @@ struct InliningPhase {
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
-    if (data->info()->is_bailout_on_uninitialized()) {
-      call_reducer_flags |= JSCallReducer::kBailoutOnUninitialized;
-    }
     if (data->info()->is_deoptimization_enabled()) {
       call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
     }
@@ -975,6 +979,17 @@ struct LoopExitEliminationPhase {
   }
 };
 
+struct GenericLoweringPrepPhase {
+  static const char* phase_name() { return "generic lowering prep"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    // Make sure we cache these code stubs.
+    data->jsgraph()->CEntryStubConstant(1);
+    data->jsgraph()->CEntryStubConstant(2);
+    data->jsgraph()->CEntryStubConstant(3);
+  }
+};
+
 struct GenericLoweringPhase {
   static const char* phase_name() { return "generic lowering"; }
 
@@ -1171,21 +1186,6 @@ struct LateGraphTrimmingPhase {
       data->jsgraph()->GetCachedNodes(&roots);
     }
     trimmer.TrimGraph(roots.begin(), roots.end());
-  }
-};
-
-
-struct StressLoopPeelingPhase {
-  static const char* phase_name() { return "stress loop peeling"; }
-
-  void Run(PipelineData* data, Zone* temp_zone) {
-    // Peel the first outer loop for testing.
-    // TODO(titzer): peel all loops? the N'th loop? Innermost loops?
-    LoopTree* loop_tree = LoopFinder::BuildLoopTree(data->graph(), temp_zone);
-    if (loop_tree != nullptr && loop_tree->outer_loops().size() > 0) {
-      LoopPeeler::Peel(data->graph(), data->common(), loop_tree,
-                       loop_tree->outer_loops()[0], temp_zone);
-    }
   }
 };
 
@@ -1535,11 +1535,6 @@ bool PipelineImpl::CreateGraph() {
       RunPrintAndVerify("Loop exits eliminated", true);
     }
 
-    if (FLAG_turbo_stress_loop_peeling) {
-      Run<StressLoopPeelingPhase>();
-      RunPrintAndVerify("Loop peeled");
-    }
-
     if (!info()->shared_info()->asm_function()) {
       if (FLAG_turbo_load_elimination) {
         Run<LoadEliminationPhase>();
@@ -1581,9 +1576,8 @@ bool PipelineImpl::CreateGraph() {
   RunPrintAndVerify("Untyped", true);
 #endif
 
-  // Run generic lowering pass.
-  Run<GenericLoweringPhase>();
-  RunPrintAndVerify("Generic lowering", true);
+  // Do some hacky things to prepare generic lowering.
+  Run<GenericLoweringPrepPhase>();
 
   data->EndPhaseKind();
 
@@ -1592,6 +1586,10 @@ bool PipelineImpl::CreateGraph() {
 
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
+
+  // Run generic lowering pass.
+  Run<GenericLoweringPhase>();
+  RunPrintAndVerify("Generic lowering", true);
 
   data->BeginPhaseKind("block building");
 
@@ -1643,6 +1641,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
+  data.set_verify_graph(FLAG_csa_verify);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1772,33 +1771,28 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
         info(), data->graph(), data->schedule()));
   }
 
-  // TODO(ishell): Always enable graph verification of stubs in debug mode
-  // once all the issues are fixed.
-  bool verify_stub_graph =
-      DEBUG_BOOL && FLAG_csa_verify && data->info()->IsStub();
-
-  if (verify_stub_graph || (FLAG_turbo_verify_machine_graph != nullptr &&
-                            (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
-                             !strcmp(FLAG_turbo_verify_machine_graph,
-                                     data->info()->GetDebugName().get())))) {
+  bool verify_stub_graph = data->verify_graph();
+  if (verify_stub_graph ||
+      (FLAG_turbo_verify_machine_graph != nullptr &&
+       (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
+        !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
     if (FLAG_trace_csa_verify) {
       AllowHandleDereference allow_deref;
       CompilationInfo* info = data->info();
       CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
       OFStream os(tracing_scope.file());
       os << "--------------------------------------------------\n"
-         << "--- Verifying " << info->GetDebugName().get()
-         << " generated by TurboFan\n"
+         << "--- Verifying " << data->debug_name() << " generated by TurboFan\n"
          << "--------------------------------------------------\n"
          << *data->schedule()
          << "--------------------------------------------------\n"
-         << "--- End of " << info->GetDebugName().get()
-         << " generated by TurboFan\n"
+         << "--- End of " << data->debug_name() << " generated by TurboFan\n"
          << "--------------------------------------------------\n";
     }
     Zone temp_zone(data->isolate()->allocator(), ZONE_NAME);
     MachineGraphVerifier::Run(data->graph(), data->schedule(), linkage,
-                              data->info()->IsStub(), &temp_zone);
+                              data->info()->IsStub(), data->debug_name(),
+                              &temp_zone);
   }
 
   data->InitializeInstructionSequence(call_descriptor);

@@ -127,11 +127,11 @@ class WasmGraphBuilder {
   //-----------------------------------------------------------------------
   Node* Error();
   Node* Start(unsigned params);
-  Node* Param(unsigned index, wasm::LocalType type);
+  Node* Param(unsigned index);
   Node* Loop(Node* entry);
   Node* Terminate(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
-  Node* Phi(wasm::LocalType type, unsigned count, Node** vals, Node* control);
+  Node* Phi(wasm::ValueType type, unsigned count, Node** vals, Node* control);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
   Node* NumberConstant(int32_t value);
   Node* Uint32Constant(uint32_t value);
@@ -166,7 +166,12 @@ class WasmGraphBuilder {
   Node* Switch(unsigned count, Node* key);
   Node* IfValue(int32_t value, Node* sw);
   Node* IfDefault(Node* sw);
-  Node* Return(unsigned count, Node** vals);
+  Node* Return(unsigned count, Node** nodes);
+  template <typename... Nodes>
+  Node* Return(Node* fst, Nodes*... more) {
+    Node* arr[] = {fst, more...};
+    return Return(arraysize(arr), arr);
+  }
   Node* ReturnVoid();
   Node* Unreachable(wasm::WasmCodePosition position);
 
@@ -178,8 +183,8 @@ class WasmGraphBuilder {
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
 
-  Node* ToJS(Node* node, wasm::LocalType type);
-  Node* FromJS(Node* node, Node* context, wasm::LocalType type);
+  Node* ToJS(Node* node, wasm::ValueType type);
+  Node* FromJS(Node* node, Node* context, wasm::ValueType type);
   Node* Invert(Node* node);
   void EnsureFunctionTableNodes();
 
@@ -189,7 +194,7 @@ class WasmGraphBuilder {
   Node* CurrentMemoryPages();
   Node* GetGlobal(uint32_t index);
   Node* SetGlobal(uint32_t index, Node* val);
-  Node* LoadMem(wasm::LocalType type, MachineType memtype, Node* index,
+  Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
   Node* StoreMem(MachineType type, Node* index, uint32_t offset,
@@ -259,7 +264,7 @@ class WasmGraphBuilder {
                       wasm::WasmCodePosition position);
 
   Node* BuildChangeEndianness(Node* node, MachineType type,
-                              wasm::LocalType wasmtype = wasm::kAstStmt);
+                              wasm::ValueType wasmtype = wasm::kWasmStmt);
 
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);

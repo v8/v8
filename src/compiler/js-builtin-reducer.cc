@@ -1522,8 +1522,17 @@ Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
 
-    if (index_type->Is(Type::Unsigned32())) {
+    if (index_type->Is(Type::Integral32OrMinusZeroOrNaN())) {
       if (Node* receiver = GetStringWitness(node)) {
+        if (!index_type->Is(Type::Unsigned32())) {
+          // Map -0 and NaN to 0 (as per ToInteger), and the values in
+          // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
+          // be considered out-of-bounds as well, because of the maximal
+          // String length limit in V8.
+          STATIC_ASSERT(String::kMaxLength <= kMaxInt);
+          index = graph()->NewNode(simplified()->NumberToUint32(), index);
+        }
+
         // Determine the {receiver} length.
         Node* receiver_length = effect = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
@@ -1535,16 +1544,10 @@ Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
         Node* branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                         check, control);
 
+        // Return the character from the {receiver} as single character string.
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-        Node* vtrue;
-        {
-          // Load the character from the {receiver}.
-          vtrue = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                   index, if_true);
-
-          // Return it as single character string.
-          vtrue = graph()->NewNode(simplified()->StringFromCharCode(), vtrue);
-        }
+        Node* vtrue = graph()->NewNode(simplified()->StringCharAt(), receiver,
+                                       index, if_true);
 
         // Return the empty string otherwise.
         Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -1573,8 +1576,17 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
     Node* effect = NodeProperties::GetEffectInput(node);
     Node* control = NodeProperties::GetControlInput(node);
 
-    if (index_type->Is(Type::Unsigned32())) {
+    if (index_type->Is(Type::Integral32OrMinusZeroOrNaN())) {
       if (Node* receiver = GetStringWitness(node)) {
+        if (!index_type->Is(Type::Unsigned32())) {
+          // Map -0 and NaN to 0 (as per ToInteger), and the values in
+          // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
+          // be considered out-of-bounds as well, because of the maximal
+          // String length limit in V8.
+          STATIC_ASSERT(String::kMaxLength <= kMaxInt);
+          index = graph()->NewNode(simplified()->NumberToUint32(), index);
+        }
+
         // Determine the {receiver} length.
         Node* receiver_length = effect = graph()->NewNode(
             simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,

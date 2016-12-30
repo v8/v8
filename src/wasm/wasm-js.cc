@@ -92,7 +92,7 @@ static i::MaybeHandle<i::WasmModuleObject> CreateModuleObject(
   DCHECK(source->IsArrayBuffer() || source->IsTypedArray());
   return i::wasm::CreateModuleObjectFromBytes(
       i_isolate, buffer.start, buffer.end, thrower, i::wasm::kWasmOrigin,
-      i::Handle<i::Script>::null(), nullptr, nullptr);
+      i::Handle<i::Script>::null(), i::Vector<const byte>::empty());
 }
 
 static bool ValidateModule(v8::Isolate* isolate,
@@ -221,8 +221,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
     i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
     if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
       memory = i::Handle<i::JSArrayBuffer>(
-          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->get_buffer(),
-          i_isolate);
+          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
     } else {
       thrower.TypeError("Argument 2 must be a WebAssembly.Memory");
       return;
@@ -402,7 +401,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> old_array(receiver->get_functions(), i_isolate);
+  i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
   int old_size = old_array->length();
   int64_t new_size64 = 0;
   if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
@@ -444,7 +443,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> array(receiver->get_functions(), i_isolate);
+  i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
   int i = 0;
   if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
@@ -488,7 +487,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::FixedArray> array(receiver->get_functions(), i_isolate);
+  i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
   int i;
   if (!args[0]->Int32Value(context).To(&i)) return;
   if (i < 0 || i >= array->length()) {
@@ -498,7 +497,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::Handle<i::FixedArray> dispatch_tables(receiver->get_dispatch_tables(),
+  i::Handle<i::FixedArray> dispatch_tables(receiver->dispatch_tables(),
                                            i_isolate);
   if (value->IsNull(i_isolate)) {
     i::wasm::UpdateDispatchTables(i_isolate, dispatch_tables, i,
@@ -555,7 +554,7 @@ void WebAssemblyMemoryGetBuffer(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmMemoryObject> receiver =
       i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
-  i::Handle<i::Object> buffer(receiver->get_buffer(), i_isolate);
+  i::Handle<i::Object> buffer(receiver->buffer(), i_isolate);
   DCHECK(buffer->IsJSArrayBuffer());
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(Utils::ToLocal(buffer));
@@ -574,13 +573,15 @@ static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
 namespace internal {
 
 Handle<JSFunction> InstallFunc(Isolate* isolate, Handle<JSObject> object,
-                               const char* str, FunctionCallback func) {
+                               const char* str, FunctionCallback func,
+                               int length = 0) {
   Handle<String> name = v8_str(isolate, str);
   Handle<FunctionTemplateInfo> temp = NewTemplate(isolate, func);
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp).ToHandleChecked();
-  PropertyAttributes attributes =
-      static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  JSFunction::SetName(function, name, isolate->factory()->empty_string());
+  function->shared()->set_length(length);
+  PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(object, name, function, attributes);
   return function;
 }
@@ -592,7 +593,7 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
   Handle<JSFunction> function =
       ApiNatives::InstantiateFunction(temp).ToHandleChecked();
   v8::PropertyAttribute attributes =
-      static_cast<v8::PropertyAttribute>(v8::DontDelete | v8::ReadOnly);
+      static_cast<v8::PropertyAttribute>(v8::DontEnum);
   Utils::ToLocal(object)->SetAccessorProperty(Utils::ToLocal(name),
                                               Utils::ToLocal(function),
                                               Local<Function>(), attributes);
@@ -638,14 +639,14 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSObject::AddProperty(global, name, webassembly, attributes);
 
   // Setup compile
-  InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile);
+  InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
 
   // Setup compile
-  InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate);
+  InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
 
   // Setup Module
   Handle<JSFunction> module_constructor =
-      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule);
+      InstallFunc(isolate, webassembly, "Module", WebAssemblyModule, 1);
   context->set_wasm_module_constructor(*module_constructor);
   Handle<JSObject> module_proto =
       factory->NewJSObject(module_constructor, TENURED);
@@ -658,12 +659,12 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup Instance
   Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance);
+      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
 
   // Setup Table
   Handle<JSFunction> table_constructor =
-      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable);
+      InstallFunc(isolate, webassembly, "Table", WebAssemblyTable, 1);
   context->set_wasm_table_constructor(*table_constructor);
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
@@ -674,13 +675,13 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
                         table_constructor, DONT_ENUM);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
-  InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow);
-  InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet);
-  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet);
+  InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
+  InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
+  InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
 
   // Setup Memory
   Handle<JSFunction> memory_constructor =
-      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory);
+      InstallFunc(isolate, webassembly, "Memory", WebAssemblyMemory, 1);
   context->set_wasm_memory_constructor(*memory_constructor);
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
@@ -690,15 +691,19 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSFunction::SetInitialMap(memory_constructor, map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
                         memory_constructor, DONT_ENUM);
-  InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow);
+  InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
 
   // Setup errors
-  attributes = static_cast<PropertyAttributes>(DONT_DELETE | READ_ONLY);
+  attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   Handle<JSFunction> compile_error(
       isolate->native_context()->wasm_compile_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->CompileError_string(),
                         compile_error, attributes);
+  Handle<JSFunction> link_error(
+      isolate->native_context()->wasm_link_error_function());
+  JSObject::AddProperty(webassembly, isolate->factory()->LinkError_string(),
+                        link_error, attributes);
   Handle<JSFunction> runtime_error(
       isolate->native_context()->wasm_runtime_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),

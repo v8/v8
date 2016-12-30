@@ -342,7 +342,9 @@ class ErrorUtils : public AllStatic {
   T(NotIterable, "% is not iterable")                                          \
   T(NotPropertyName, "% is not a valid property name")                         \
   T(NotTypedArray, "this is not a typed array.")                               \
-  T(NotSharedTypedArray, "% is not a shared typed array.")                     \
+  T(NotSuperConstructor, "Super constructor % of % is not a constructor")      \
+  T(NotSuperConstructorAnonymousClass,                                         \
+    "Super constructor % of anonymous class is not a constructor")             \
   T(NotIntegerSharedTypedArray, "% is not an integer shared typed array.")     \
   T(NotInt32SharedTypedArray, "% is not an int32 shared typed array.")         \
   T(ObjectGetterExpectingFunction,                                             \
@@ -456,9 +458,6 @@ class ErrorUtils : public AllStatic {
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ReinitializeIntl, "Trying to re-initialize % object.")                     \
-  T(ResolvedOptionsCalledOnNonObject,                                          \
-    "resolvedOptions method called on a non-object or on a object that is "    \
-    "not Intl.%.")                                                             \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
   T(RestrictedFunctionProperties,                                              \
     "'caller' and 'arguments' are restricted function properties and cannot "  \
@@ -683,8 +682,10 @@ class ErrorUtils : public AllStatic {
   T(WasmTrapFuncSigMismatch, "function signature mismatch")                    \
   T(WasmTrapInvalidIndex, "invalid index into function table")                 \
   T(WasmTrapTypeError, "invalid type")                                         \
-  /* Asm.js validation warnings */                                             \
+  /* Asm.js validation related */                                              \
   T(AsmJsInvalid, "Invalid asm.js: %")                                         \
+  T(AsmJsCompiled, "Converted asm.js to WebAssembly: %")                       \
+  T(AsmJsInstantiated, "Instantiated asm.js: %")                               \
   /* DataCloneError messages */                                                \
   T(DataCloneError, "% could not be cloned.")                                  \
   T(DataCloneErrorNeuteredArrayBuffer,                                         \

@@ -1362,10 +1362,6 @@ HGraph* HGraphBuilder::CreateGraph() {
   DCHECK(!FLAG_minimal);
   graph_ = new (zone()) HGraph(info_, descriptor_);
   if (FLAG_hydrogen_stats) isolate()->GetHStatistics()->Initialize(info_);
-  if (!info_->IsStub() && is_tracking_positions()) {
-    TraceInlinedFunction(info_->shared_info(), SourcePosition::Unknown(),
-                         SourcePosition::kNotInlined);
-  }
   CompilationPhase phase("H_Block building", info_);
   set_current_block(graph()->entry_block());
   if (!BuildGraph()) return NULL;
@@ -1373,49 +1369,6 @@ HGraph* HGraphBuilder::CreateGraph() {
   return graph_;
 }
 
-void HGraphBuilder::TraceInlinedFunction(Handle<SharedFunctionInfo> shared,
-                                         SourcePosition position,
-                                         int inlining_id) {
-  DCHECK(is_tracking_positions());
-
-  if (!shared->script()->IsUndefined(isolate())) {
-    Handle<Script> script(Script::cast(shared->script()), isolate());
-
-    if (FLAG_hydrogen_track_positions &&
-        !script->source()->IsUndefined(isolate())) {
-      CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-      Object* source_name = script->name();
-      OFStream os(tracing_scope.file());
-      os << "--- FUNCTION SOURCE (";
-      if (source_name->IsString()) {
-        os << String::cast(source_name)->ToCString().get() << ":";
-      }
-      os << shared->DebugName()->ToCString().get() << ") id{";
-      os << info_->optimization_id() << "," << inlining_id << "} ---\n";
-      {
-        DisallowHeapAllocation no_allocation;
-        int start = shared->start_position();
-        int len = shared->end_position() - start;
-        String::SubStringRange source(String::cast(script->source()), start,
-                                      len);
-        for (const auto& c : source) {
-          os << AsReversiblyEscapedUC16(c);
-        }
-      }
-
-      os << "\n--- END ---\n";
-    }
-  }
-
-  if (FLAG_hydrogen_track_positions &&
-      inlining_id != SourcePosition::kNotInlined) {
-    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
-    OFStream os(tracing_scope.file());
-    os << "INLINE (" << shared->DebugName()->ToCString().get() << ") id{"
-       << info_->optimization_id() << "," << inlining_id << "} AS "
-       << inlining_id << " AT " << position.ScriptOffset() << std::endl;
-  }
-}
 
 HInstruction* HGraphBuilder::AddInstruction(HInstruction* instr) {
   DCHECK(current_block() != NULL);
@@ -5099,11 +5052,10 @@ void HOptimizedGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
   HConstant* shared_info_value = Add<HConstant>(shared_info);
   HInstruction* instr;
   if (!expr->pretenure()) {
-    FastNewClosureStub stub(isolate());
-    FastNewClosureDescriptor descriptor(isolate());
+    Callable callable = CodeFactory::FastNewClosure(isolate());
     HValue* values[] = {shared_info_value};
-    HConstant* stub_value = Add<HConstant>(stub.GetCode());
-    instr = New<HCallWithDescriptor>(stub_value, 0, descriptor,
+    HConstant* stub_value = Add<HConstant>(callable.code());
+    instr = New<HCallWithDescriptor>(stub_value, 0, callable.descriptor(),
                                      ArrayVector(values));
   } else {
     Add<HPushArguments>(shared_info_value);
@@ -5446,7 +5398,9 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
           }
         }
       }
-    } else if (!boilerplate->HasFastDoubleElements()) {
+    } else if (boilerplate->HasFastDoubleElements()) {
+      if (elements->Size() > kMaxRegularHeapObjectSize) return false;
+    } else {
       return false;
     }
   }
@@ -5632,7 +5586,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     site_context.ExitScope(site, boilerplate_object);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    Handle<FixedArray> constants = expr->constant_elements();
+    Handle<ConstantElementsPair> constants = expr->constant_elements();
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
 
@@ -7553,6 +7507,12 @@ void HOptimizedGraphBuilder::BuildLoad(Property* expr,
     HValue* string = Pop();
     HInstruction* char_code = BuildStringCharCodeAt(string, index);
     AddInstruction(char_code);
+    if (char_code->IsConstant()) {
+      HConstant* c_code = HConstant::cast(char_code);
+      if (c_code->HasNumberValue() && std::isnan(c_code->DoubleValue())) {
+        Add<HDeoptimize>(DeoptimizeReason::kOutOfBounds, Deoptimizer::EAGER);
+      }
+    }
     instr = NewUncasted<HStringCharFromCode>(char_code);
 
   } else if (expr->key()->IsPropertyName()) {
@@ -7606,27 +7566,38 @@ void HOptimizedGraphBuilder::VisitProperty(Property* expr) {
   BuildLoad(expr, expr->id());
 }
 
-
-HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant) {
+HInstruction* HGraphBuilder::BuildConstantMapCheck(Handle<JSObject> constant,
+                                                   bool ensure_no_elements) {
   HCheckMaps* check = Add<HCheckMaps>(
       Add<HConstant>(constant), handle(constant->map()));
   check->ClearDependsOnFlag(kElementsKind);
+  if (ensure_no_elements) {
+    // TODO(ishell): remove this once we support NO_ELEMENTS elements kind.
+    HValue* elements = AddLoadElements(check, nullptr);
+    HValue* empty_elements =
+        Add<HConstant>(isolate()->factory()->empty_fixed_array());
+    IfBuilder if_empty(this);
+    if_empty.IfNot<HCompareObjectEqAndBranch>(elements, empty_elements);
+    if_empty.ThenDeopt(DeoptimizeReason::kWrongMap);
+    if_empty.End();
+  }
   return check;
 }
 
-
 HInstruction* HGraphBuilder::BuildCheckPrototypeMaps(Handle<JSObject> prototype,
-                                                     Handle<JSObject> holder) {
+                                                     Handle<JSObject> holder,
+                                                     bool ensure_no_elements) {
   PrototypeIterator iter(isolate(), prototype, kStartAtReceiver);
   while (holder.is_null() ||
          !PrototypeIterator::GetCurrent(iter).is_identical_to(holder)) {
-    BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));
+    BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter),
+                          ensure_no_elements);
     iter.Advance();
     if (iter.IsAtEnd()) {
       return NULL;
     }
   }
-  return BuildConstantMapCheck(PrototypeIterator::GetCurrent<JSObject>(iter));
+  return BuildConstantMapCheck(holder);
 }
 
 
@@ -8161,10 +8132,6 @@ bool HOptimizedGraphBuilder::TryInline(Handle<JSFunction> target,
            &bounds_)
       .Run();
 
-  if (is_tracking_positions()) {
-    TraceInlinedFunction(target_shared, source_position(), inlining_id);
-  }
-
   // Save the pending call context. Set up new one for the inlined function.
   // The function state is new-allocated because we need to delete it
   // in two different places.
@@ -8491,6 +8458,23 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinGetterCall(
   }
 }
 
+// static
+bool HOptimizedGraphBuilder::NoElementsInPrototypeChain(
+    Handle<Map> receiver_map) {
+  // TODO(ishell): remove this once we support NO_ELEMENTS elements kind.
+  PrototypeIterator iter(receiver_map);
+  Handle<Object> empty_fixed_array =
+      iter.isolate()->factory()->empty_fixed_array();
+  while (true) {
+    Handle<JSObject> current = PrototypeIterator::GetCurrent<JSObject>(iter);
+    if (current->elements() != *empty_fixed_array) return false;
+    iter.Advance();
+    if (iter.IsAtEnd()) {
+      return true;
+    }
+  }
+}
+
 bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     Handle<JSFunction> function, Handle<Map> receiver_map, BailoutId ast_id,
     int args_count_no_receiver) {
@@ -8745,6 +8729,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
     }
     case kArrayShift: {
       if (!CanInlineArrayResizeOperation(receiver_map)) return false;
+      if (!NoElementsInPrototypeChain(receiver_map)) return false;
       ElementsKind kind = receiver_map->elements_kind();
 
       // If there may be elements accessors in the prototype chain, the fast
@@ -8758,7 +8743,7 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
       // in a map change.
       BuildCheckPrototypeMaps(
           handle(JSObject::cast(receiver_map->prototype()), isolate()),
-          Handle<JSObject>::null());
+          Handle<JSObject>::null(), true);
 
       // Threshold for fast inlined Array.shift().
       HConstant* inline_threshold = Add<HConstant>(static_cast<int32_t>(16));
@@ -10973,14 +10958,11 @@ static bool IsClassOfTest(CompareOperation* expr) {
   Literal* literal = expr->right()->AsLiteral();
   if (literal == NULL) return false;
   if (!literal->value()->IsString()) return false;
-  if (!call->is_jsruntime() &&
-      call->function()->function_id != Runtime::kInlineClassOf) {
-    return false;
-  }
-  DCHECK(call->arguments()->length() == 1);
+  if (call->is_jsruntime()) return false;
+  if (call->function()->function_id != Runtime::kInlineClassOf) return false;
+  DCHECK_EQ(call->arguments()->length(), 1);
   return true;
 }
-
 
 void HOptimizedGraphBuilder::VisitBinaryOperation(BinaryOperation* expr) {
   DCHECK(!HasStackOverflow());
@@ -12115,19 +12097,6 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   HInstruction* result = New<HCallWithDescriptor>(
       stub, 0, callable.descriptor(), ArrayVector(values));
   result->set_type(HType::String());
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-// Support for direct creation of new objects.
-void HOptimizedGraphBuilder::GenerateNewObject(CallRuntime* call) {
-  DCHECK_EQ(2, call->arguments()->length());
-  CHECK_ALIVE(VisitExpressions(call->arguments()));
-  FastNewObjectStub stub(isolate());
-  FastNewObjectDescriptor descriptor(isolate());
-  HValue* values[] = {Pop(), Pop()};
-  HConstant* stub_value = Add<HConstant>(stub.GetCode());
-  HInstruction* result =
-      New<HCallWithDescriptor>(stub_value, 0, descriptor, ArrayVector(values));
   return ast_context()->ReturnInstruction(result, call->id());
 }
 

@@ -43,6 +43,7 @@ enum ContextLookupFlags {
   V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)                  \
   V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                      \
   V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                        \
+  V(OBJECT_CREATE, JSFunction, object_create)                                \
   V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)          \
   V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)              \
   V(OBJECT_FREEZE, JSFunction, object_freeze)                                \
@@ -67,7 +68,9 @@ enum ContextLookupFlags {
   V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)            \
   V(PROMISE_CREATE_AND_SET_INDEX, JSFunction, promise_create_and_set)        \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                      \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                            \
+  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                        \
+  V(PROMISE_HANDLE_REJECT_INDEX, JSFunction, promise_handle_reject)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                     \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                             \
@@ -91,6 +94,7 @@ enum ContextLookupFlags {
   V(ERROR_TO_STRING, JSFunction, error_to_string)                             \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)               \
   V(GLOBAL_EVAL_FUN_INDEX, JSFunction, global_eval_fun)                       \
+  V(GLOBAL_PROXY_FUNCTION_INDEX, JSFunction, global_proxy_function)           \
   V(MAP_DELETE_METHOD_INDEX, JSFunction, map_delete)                          \
   V(MAP_GET_METHOD_INDEX, JSFunction, map_get)                                \
   V(MAP_HAS_METHOD_INDEX, JSFunction, map_has)                                \
@@ -101,9 +105,6 @@ enum ContextLookupFlags {
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
   V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
-  V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                         \
-  V(PROMISE_HAS_USER_DEFINED_REJECT_HANDLER_INDEX, JSFunction,                \
-    promise_has_user_defined_reject_handler)                                  \
   V(PROMISE_DEBUG_GET_INFO_INDEX, JSFunction, promise_debug_get_info)         \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject)       \
@@ -124,6 +125,7 @@ enum ContextLookupFlags {
   V(URI_ERROR_FUNCTION_INDEX, JSFunction, uri_error_function)                 \
   V(WASM_COMPILE_ERROR_FUNCTION_INDEX, JSFunction,                            \
     wasm_compile_error_function)                                              \
+  V(WASM_LINK_ERROR_FUNCTION_INDEX, JSFunction, wasm_link_error_function)     \
   V(WASM_RUNTIME_ERROR_FUNCTION_INDEX, JSFunction, wasm_runtime_error_function)
 
 #define NATIVE_CONTEXT_JS_ARRAY_ITERATOR_MAPS(V)                               \
@@ -229,7 +231,6 @@ enum ContextLookupFlags {
   V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
   V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, FixedArray,                      \
     fast_template_instantiations_cache)                                        \
-  V(FIXED_ARRAY_ITERATOR_MAP_INDEX, Map, fixed_array_iterator_map)             \
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
   V(FLOAT32X4_FUNCTION_INDEX, JSFunction, float32x4_function)                  \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
@@ -556,6 +557,7 @@ class Context: public FixedArray {
   inline bool IsDebugEvaluateContext();
   inline bool IsBlockContext();
   inline bool IsModuleContext();
+  inline bool IsEvalContext();
   inline bool IsScriptContext();
 
   inline bool HasSameSecurityTokenAs(Context* that);
@@ -636,7 +638,7 @@ class Context: public FixedArray {
   }
 
   static int FunctionMapIndex(LanguageMode language_mode, FunctionKind kind) {
-    // Note: Must be kept in sync with FastNewClosureStub::Generate.
+    // Note: Must be kept in sync with the FastNewClosure builtin.
     if (IsGeneratorFunction(kind)) {
       return is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
                                       : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;

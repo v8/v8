@@ -2976,7 +2976,6 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   InsertChunkMapEntries(page);
 
   HeapObject* object = page->GetObject();
-  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(object->address(), object_size);
 
   if (Heap::ShouldZapGarbage()) {
     // Make the object consistent so the heap can be verified in OldSpaceStep.

@@ -490,11 +490,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       LanguageMode language_mode, bool is_typed,
       typesystem::TypeFlags type_flags, bool* ok);
 
-  Expression* InstallHomeObject(Expression* function_literal,
-                                Expression* home_object);
-  FunctionLiteral* SynthesizeClassFieldInitializer(int count);
-  FunctionLiteral* InsertClassFieldInitializer(FunctionLiteral* constructor);
-
   // Get odd-ball literals.
   Literal* GetLiteralUndefined(int position);
 
@@ -537,8 +532,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Factory methods.
   FunctionLiteral* DefaultConstructor(const AstRawString* name, bool call_super,
-                                      bool requires_class_field_init, int pos,
-                                      int end_pos, LanguageMode language_mode);
+                                      int pos, int end_pos);
 
   // Skip over a lazy function, either using cached data if we have it, or
   // by parsing the function with PreParser. Consumes the ending }.
@@ -1126,19 +1120,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       auto mode = is_simple || parameter->is_rest ? VAR : TEMPORARY;
       if (!is_simple) scope->SetHasNonSimpleParameters();
       bool is_optional = parameter->initializer != nullptr;
-      Variable* var =
-          scope->DeclareParameter(name, mode, is_optional, parameter->is_rest,
-                                  &is_duplicate, ast_value_factory());
+      scope->DeclareParameter(name, mode, is_optional, parameter->is_rest,
+                              &is_duplicate, ast_value_factory());
       if (is_duplicate &&
           classifier()->is_valid_formal_parameter_list_without_duplicates()) {
         classifier()->RecordDuplicateFormalParameterError(
             scanner()->location());
-      }
-      if (is_sloppy(scope->language_mode())) {
-        // TODO(sigurds) Mark every parameter as maybe assigned. This is a
-        // conservative approximation necessary to account for parameters
-        // that are assigned via the arguments array.
-        var->set_maybe_assigned();
       }
     }
   }

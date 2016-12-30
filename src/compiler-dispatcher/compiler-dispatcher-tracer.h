@@ -69,10 +69,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
 
   double EstimatePrepareToParseInMs() const;
   double EstimateParseInMs(size_t source_length) const;
-  double EstimateFinalizeParsingInMs();
-  double EstimatePrepareToCompileInMs();
-  double EstimateCompileInMs(size_t ast_size_in_bytes);
-  double EstimateFinalizeCompilingInMs();
+  double EstimateFinalizeParsingInMs() const;
+  double EstimatePrepareToCompileInMs() const;
+  double EstimateCompileInMs(size_t ast_size_in_bytes) const;
+  double EstimateFinalizeCompilingInMs() const;
 
  private:
   static double Average(const base::RingBuffer<double>& buffer);

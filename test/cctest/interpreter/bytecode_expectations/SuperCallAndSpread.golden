@@ -19,7 +19,7 @@ snippet: "
 "
 frame size: 7
 parameter count: 1
-bytecode array length: 32
+bytecode array length: 29
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -27,8 +27,8 @@ bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
   /*   93 E> */ B(StackCheck),
-  /*   93 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
-                B(Star), R(3),
+  /*   93 S> */ B(Ldar), R(1),
+                B(GetSuperConstructor), R(3),
                 B(Mov), R(3), R(4),
                 B(Mov), R(0), R(5),
                 B(Mov), R(2), R(6),
@@ -55,7 +55,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 69
+bytecode array length: 66
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -63,8 +63,8 @@ bytecodes: [
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
   /*  128 E> */ B(StackCheck),
-  /*  140 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
-                B(Star), R(3),
+  /*  140 S> */ B(Ldar), R(1),
+                B(GetSuperConstructor), R(3),
                 B(LdaSmi), U8(1),
                 B(Star), R(6),
                 B(Mov), R(3), R(4),
@@ -105,7 +105,7 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 13
+frame size: 9
 parameter count: 1
 bytecode array length: 96
 bytecodes: [
@@ -120,20 +120,20 @@ bytecodes: [
   /*  140 E> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
                 B(Star), R(4),
                 B(LdaUndefined),
-                B(Star), R(7),
+                B(Star), R(5),
                 B(CreateArrayLiteral), U8(0), U8(0), U8(9),
-                B(Star), R(8),
+                B(Star), R(6),
                 B(LdaUndefined),
-                B(Star), R(11),
-                B(Mov), R(2), R(12),
-  /*  152 E> */ B(CallJSRuntime), U8(157), R(11), U8(2),
-                B(Star), R(9),
+                B(Star), R(7),
+                B(Mov), R(2), R(8),
+  /*  152 E> */ B(CallJSRuntime), U8(%spread_iterable), R(7), U8(2),
+                B(Star), R(7),
                 B(CreateArrayLiteral), U8(1), U8(1), U8(9),
-                B(Star), R(10),
-                B(CallJSRuntime), U8(156), R(7), U8(4),
+                B(Star), R(8),
+                B(CallJSRuntime), U8(%spread_arguments), R(5), U8(4),
                 B(Star), R(5),
                 B(Mov), R(0), R(6),
-  /*  140 E> */ B(CallJSRuntime), U8(153), R(3), U8(4),
+  /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(3), U8(4),
                 B(Star), R(3),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
@@ -150,8 +150,8 @@ bytecodes: [
   /*  162 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
-  FIXED_ARRAY_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
+  CONSTANT_ELEMENTS_PAIR_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["this"],
 ]
 handlers: [

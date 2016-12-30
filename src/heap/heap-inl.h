@@ -21,6 +21,7 @@
 #include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
+#include "src/objects/scope-info.h"
 #include "src/type-feedback-vector-inl.h"
 
 namespace v8 {
@@ -812,7 +813,14 @@ int Heap::GetNextTemplateSerialNumber() {
 
 void Heap::SetSerializedTemplates(FixedArray* templates) {
   DCHECK_EQ(empty_fixed_array(), serialized_templates());
+  DCHECK(isolate()->serializer_enabled());
   set_serialized_templates(templates);
+}
+
+void Heap::SetSerializedGlobalProxySizes(FixedArray* sizes) {
+  DCHECK_EQ(empty_fixed_array(), serialized_global_proxy_sizes());
+  DCHECK(isolate()->serializer_enabled());
+  set_serialized_global_proxy_sizes(sizes);
 }
 
 void Heap::CreateObjectStats() {

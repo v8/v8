@@ -334,6 +334,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitCall(Node* call, BasicBlock* handler = nullptr);
   void VisitDeoptimizeIf(Node* node);
   void VisitDeoptimizeUnless(Node* node);
+  void VisitTrapIf(Node* node, Runtime::FunctionId func_id);
+  void VisitTrapUnless(Node* node, Runtime::FunctionId func_id);
   void VisitTailCall(Node* call);
   void VisitGoto(BasicBlock* target);
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
@@ -364,6 +366,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   bool instruction_selection_failed() { return instruction_selection_failed_; }
 
   void MarkPairProjectionsAsWord32(Node* node);
+  bool IsSourcePositionUsed(Node* node);
 
   // ===========================================================================
 

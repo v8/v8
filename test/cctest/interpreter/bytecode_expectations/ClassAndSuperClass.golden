@@ -107,14 +107,14 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 82
+bytecode array length: 79
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
   /*  113 E> */ B(StackCheck),
-  /*  118 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
-                B(Star), R(2),
+  /*  118 S> */ B(Ldar), R(1),
+                B(GetSuperConstructor), R(2),
                 B(LdaSmi), U8(1),
                 B(Star), R(3),
                 B(Ldar), R(0),
@@ -164,14 +164,14 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 78
+bytecode array length: 75
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
                 B(Ldar), R(new_target),
   /*  112 E> */ B(StackCheck),
-  /*  117 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(1), U8(1),
-                B(Star), R(2),
+  /*  117 S> */ B(Ldar), R(1),
+                B(GetSuperConstructor), R(2),
                 B(Ldar), R(0),
   /*  117 E> */ B(New), R(2), R(0), U8(0), U8(2),
                 B(Star), R(2),

@@ -471,18 +471,20 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
     object = free_list_.Allocate(allocation_size);
     if (object == NULL) {
       object = SlowAllocateRaw(allocation_size);
-      if (object != NULL && heap()->incremental_marking()->black_allocation()) {
+    }
+    if (object != NULL) {
+      if (heap()->incremental_marking()->black_allocation()) {
         Address start = object->address();
-        Address end = object->address() + size_in_bytes;
+        Address end = object->address() + allocation_size;
         Page::FromAllocationAreaAddress(start)->CreateBlackArea(start, end);
       }
-    }
-    if (object != NULL && filler_size != 0) {
-      object = heap()->AlignWithFiller(object, size_in_bytes, allocation_size,
-                                       alignment);
-      // Filler objects are initialized, so mark only the aligned object memory
-      // as uninitialized.
-      allocation_size = size_in_bytes;
+      if (filler_size != 0) {
+        object = heap()->AlignWithFiller(object, size_in_bytes, allocation_size,
+                                         alignment);
+        // Filler objects are initialized, so mark only the aligned object
+        // memory as uninitialized.
+        allocation_size = size_in_bytes;
+      }
     }
   }
 
@@ -594,6 +596,17 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
     FATAL("Code page is too large.");
   }
   heap->incremental_marking()->SetOldSpacePageFlags(chunk);
+
+  MSAN_ALLOCATED_UNINITIALIZED_MEMORY(chunk->area_start(), chunk->area_size());
+
+  // Initialize the owner field for each contained page (except the first, which
+  // is initialized by MemoryChunk::Initialize).
+  for (Address addr = chunk->address() + Page::kPageSize + Page::kOwnerOffset;
+       addr < chunk->area_end(); addr += Page::kPageSize) {
+    // Clear out kPageHeaderTag.
+    Memory::Address_at(addr) = 0;
+  }
+
   return static_cast<LargePage*>(chunk);
 }
 

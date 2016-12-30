@@ -168,7 +168,7 @@ class VirtualObject : public ZoneObject {
 
   void SetField(size_t offset, Node* node, bool created_phi = false) {
     fields_[offset] = node;
-    phi_[offset] = created_phi;
+    phi_[offset] = phi_[offset] || created_phi;
   }
   bool IsTracked() const { return status_ & kTracked; }
   bool IsInitialized() const { return status_ & kInitialized; }
@@ -485,7 +485,8 @@ bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
       size_t arity = at->opcode() == IrOpcode::kEffectPhi
                          ? at->op()->EffectInputCount()
                          : at->op()->ValueInputCount();
-      if (cache->fields().size() == arity) {
+      if (cache->fields().size() == arity &&
+          (GetField(i) || !IsCreatedPhi(i))) {
         changed = MergeFields(i, at, cache, graph, common) || changed;
       } else {
         if (GetField(i) != nullptr) {
@@ -1083,6 +1084,9 @@ bool EscapeAnalysis::Process(Node* node) {
       ProcessAllocationUsers(node);
       break;
   }
+  if (OperatorProperties::HasFrameStateInput(node->op())) {
+    virtual_states_[node->id()]->SetCopyRequired();
+  }
   return true;
 }
 
@@ -1176,8 +1180,7 @@ void EscapeAnalysis::ForwardVirtualState(Node* node) {
           static_cast<void*>(virtual_states_[effect->id()]),
           effect->op()->mnemonic(), effect->id(), node->op()->mnemonic(),
           node->id());
-    if (status_analysis_->IsEffectBranchPoint(effect) ||
-        OperatorProperties::HasFrameStateInput(node->op())) {
+    if (status_analysis_->IsEffectBranchPoint(effect)) {
       virtual_states_[node->id()]->SetCopyRequired();
       TRACE(", effect input %s#%d is branch point", effect->op()->mnemonic(),
             effect->id());
@@ -1586,7 +1589,7 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         cache_->fields().clear();
         for (size_t i = 0; i < vobj->field_count(); ++i) {
           if (Node* field = vobj->GetField(i)) {
-            cache_->fields().push_back(field);
+            cache_->fields().push_back(ResolveReplacement(field));
           }
         }
         int input_count = static_cast<int>(cache_->fields().size());

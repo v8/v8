@@ -453,7 +453,7 @@ bool Debug::Load() {
 
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
-  DisableBreak disable(this, true);
+  DisableBreak disable(this);
   PostponeInterruptsScope postpone(isolate_);
 
   // Create the debugger context.

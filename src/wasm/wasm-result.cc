@@ -70,6 +70,14 @@ void ErrorThrower::CompileError(const char* format, ...) {
   va_end(arguments);
 }
 
+void ErrorThrower::LinkError(const char* format, ...) {
+  if (error()) return;
+  va_list arguments;
+  va_start(arguments, format);
+  Format(isolate_->wasm_link_error_function(), format, arguments);
+  va_end(arguments);
+}
+
 void ErrorThrower::RuntimeError(const char* format, ...) {
   if (error()) return;
   va_list arguments;

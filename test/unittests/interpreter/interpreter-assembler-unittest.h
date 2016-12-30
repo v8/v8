@@ -36,7 +36,7 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
         InterpreterAssemblerTestState* state, Bytecode bytecode,
         OperandScale operand_scale = OperandScale::kSingle)
         : InterpreterAssembler(state, bytecode, operand_scale) {}
-    ~InterpreterAssemblerForTest() override;
+    ~InterpreterAssemblerForTest();
 
     Matcher<compiler::Node*> IsLoad(
         const Matcher<compiler::LoadRepresentation>& rep_matcher,

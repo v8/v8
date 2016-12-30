@@ -17,7 +17,7 @@ enum PointerDirection { OLD_TO_OLD, OLD_TO_NEW };
 
 // TODO(ulan): Investigate performance of de-templatizing this class.
 template <PointerDirection direction>
-class RememberedSet {
+class RememberedSet : public AllStatic {
  public:
   // Given a page and a slot in that page, this function adds the slot to the
   // remembered set.

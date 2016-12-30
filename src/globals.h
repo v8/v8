@@ -11,6 +11,7 @@
 #include <ostream>
 
 #include "src/base/build_config.h"
+#include "src/base/flags.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 
@@ -606,14 +607,6 @@ enum ParseRestriction {
   ONLY_SINGLE_FUNCTION_LITERAL  // Only a single FunctionLiteral expression.
 };
 
-// TODO(gsathya): Move this to JSPromise once we create it.
-// This should be in sync with the constants in promise.js
-enum PromiseStatus {
-  kPromisePending,
-  kPromiseFulfilled,
-  kPromiseRejected,
-};
-
 // A CodeDesc describes a buffer holding instructions and relocation
 // information. The instructions start at the beginning of the buffer
 // and grow forward, the relocation information starts at the end of
@@ -795,6 +788,7 @@ enum CpuFeature {
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,
   FLOATING_POINT_EXT,
+  VECTOR_FACILITY,
 
   NUMBER_OF_CPU_FEATURES,
 
@@ -892,6 +886,14 @@ enum ScopeType : uint8_t {
   CATCH_SCOPE,     // The scope introduced by catch.
   BLOCK_SCOPE,     // The scope introduced by a new block.
   WITH_SCOPE       // The scope introduced by with.
+};
+
+// AllocationSiteMode controls whether allocations are tracked by an allocation
+// site.
+enum AllocationSiteMode {
+  DONT_TRACK_ALLOCATION_SITE,
+  TRACK_ALLOCATION_SITE,
+  LAST_ALLOCATION_SITE_MODE = TRACK_ALLOCATION_SITE
 };
 
 // The mips architecture prior to revision 5 has inverted encoding for sNaN.
@@ -1308,6 +1310,17 @@ inline std::ostream& operator<<(std::ostream& os, IterationKind kind) {
   UNREACHABLE();
   return os;
 }
+
+// Flags for the runtime function kDefineDataPropertyInLiteral. A property can
+// be enumerable or not, and, in case of functions, the function name
+// can be set or not.
+enum class DataPropertyInLiteralFlag {
+  kNoFlags = 0,
+  kDontEnum = 1 << 0,
+  kSetFunctionName = 1 << 1
+};
+typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
+DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
 
 }  // namespace internal
 }  // namespace v8

@@ -25,6 +25,10 @@ function CheckInstance(instance) {
   assertFalse(instance === 0);
   assertEquals("object", typeof instance);
 
+  // Check the exports object is frozen.
+  assertFalse(Object.isExtensible(instance.exports));
+  assertTrue(Object.isFrozen(instance.exports));
+
   // Check the memory is an ArrayBuffer.
   var mem = instance.exports.memory;
   assertFalse(mem === undefined);
@@ -114,10 +118,10 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   print("InstancesAreIsolatedFromEachother...");
   var builder = new WasmModuleBuilder();
   builder.addMemory(1,1, true);
-  var kSig_v_i = makeSig([kAstI32], []);
+  var kSig_v_i = makeSig([kWasmI32], []);
   var signature = builder.addType(kSig_v_i);
-  builder.addImport("some_value", kSig_i_v);
-  builder.addImport("writer", signature);
+  builder.addImport("m", "some_value", kSig_i_v);
+  builder.addImport("m", "writer", signature);
 
   builder.addFunction("main", kSig_i_i)
     .addBody([
@@ -151,10 +155,12 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
   var outval_1;
   var outval_2;
-  var i1 = new WebAssembly.Instance(module, {some_value: () => 1,
-                                    writer: (x)=>outval_1 = x }, mem_1);
-  var i2 = new WebAssembly.Instance(module, {some_value: () => 2,
-                                    writer: (x)=>outval_2 = x }, mem_2);
+  var i1 = new WebAssembly.Instance(module, {m: {some_value: () => 1,
+                                                 writer: (x)=>outval_1 = x }},
+                                    mem_1);
+  var i2 = new WebAssembly.Instance(module, {m: {some_value: () => 2,
+                                                 writer: (x)=>outval_2 = x }},
+                                    mem_2);
 
   assertEquals(43, i1.exports.main(0));
   assertEquals(1002, i2.exports.main(0));
@@ -166,7 +172,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function GlobalsArePrivateToTheInstance() {
   print("GlobalsArePrivateToTheInstance...");
     var builder = new WasmModuleBuilder();
-    builder.addGlobal(kAstI32, true);
+    builder.addGlobal(kWasmI32, true);
     builder.addFunction("read", kSig_i_v)
         .addBody([
             kExprGetGlobal, 0])

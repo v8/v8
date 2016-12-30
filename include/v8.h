@@ -867,8 +867,8 @@ class V8_EXPORT HandleScope {
 
   HandleScope(const HandleScope&) = delete;
   void operator=(const HandleScope&) = delete;
-  void* operator new(size_t size) = delete;
-  void operator delete(void*, size_t) = delete;
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
 
  protected:
   V8_INLINE HandleScope() {}
@@ -919,8 +919,8 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
 
   EscapableHandleScope(const EscapableHandleScope&) = delete;
   void operator=(const EscapableHandleScope&) = delete;
-  void* operator new(size_t size) = delete;
-  void operator delete(void*, size_t) = delete;
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
 
  private:
   internal::Object** Escape(internal::Object** escape_value);
@@ -934,8 +934,8 @@ class V8_EXPORT SealHandleScope {
 
   SealHandleScope(const SealHandleScope&) = delete;
   void operator=(const SealHandleScope&) = delete;
-  void* operator new(size_t size) = delete;
-  void operator delete(void*, size_t) = delete;
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
 
  private:
   internal::Isolate* const isolate_;
@@ -3699,6 +3699,12 @@ class V8_EXPORT Function : public Object {
  */
 class V8_EXPORT Promise : public Object {
  public:
+  /**
+   * State of the promise. Each value corresponds to one of the possible values
+   * of the [[PromiseState]] field.
+   */
+  enum PromiseState { kPending, kFulfilled, kRejected };
+
   class V8_EXPORT Resolver : public Object {
    public:
     /**
@@ -3754,6 +3760,17 @@ class V8_EXPORT Promise : public Object {
    * therefore resolve/reject handlers (including default handler).
    */
   bool HasHandler();
+
+  /**
+   * Returns the content of the [[PromiseResult]] field. The Promise must not
+   * be pending.
+   */
+  Local<Value> Result();
+
+  /**
+   * Returns the value of the [[PromiseState]] field.
+   */
+  PromiseState State();
 
   V8_INLINE static Promise* Cast(Value* obj);
 
@@ -5756,6 +5773,27 @@ typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
 typedef void (*DeprecatedCallCompletedCallback)();
 
+/**
+ * PromiseHook with type kInit is called when a new promise is
+ * created. When a new promise is created as part of the chain in the
+ * case of Promise.then or in the intermediate promises created by
+ * Promise.{race, all}/AsyncFunctionAwait, we pass the parent promise
+ * otherwise we pass undefined.
+ *
+ * PromiseHook with type kResolve is called at the beginning of
+ * resolve or reject function defined by CreateResolvingFunctions.
+ *
+ * PromiseHook with type kBefore is called at the beginning of the
+ * PromiseReactionJob.
+ *
+ * PromiseHook with type kAfter is called right at the end of the
+ * PromiseReactionJob.
+ */
+enum class PromiseHookType { kInit, kResolve, kBefore, kAfter };
+
+typedef void (*PromiseHook)(PromiseHookType type, Local<Promise> promise,
+                            Local<Value> parent);
+
 // --- Promise Reject Callback ---
 enum PromiseRejectEvent {
   kPromiseRejectWithNoHandler = 0,
@@ -6450,6 +6488,8 @@ class V8_EXPORT Isolate {
     kLegacyDateParser = 33,
     kDefineGetterOrSetterWouldThrow = 34,
     kFunctionConstructorReturnedUndefined = 35,
+    kAssigmentExpressionLHSIsCallInSloppy = 36,
+    kAssigmentExpressionLHSIsCallInStrict = 37,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
@@ -6867,6 +6907,12 @@ class V8_EXPORT Isolate {
           DeprecatedCallCompletedCallback callback));
 
   /**
+   * Experimental: Set the PromiseHook callback for various promise
+   * lifecycle events.
+   */
+  void SetPromiseHook(PromiseHook hook);
+
+  /**
    * Set callback to notify about promise reject with no handler, or
    * revocation of such a previous notification once the handler is added.
    */
@@ -6998,6 +7044,17 @@ class V8_EXPORT Isolate {
    * may change frequently.
    */
   void SetRAILMode(RAILMode rail_mode);
+
+  /**
+   * Optional notification to tell V8 the current isolate is used for debugging
+   * and requires higher heap limit.
+   */
+  void IncreaseHeapLimitForDebugging();
+
+  /**
+   * Restores the original heap limit after IncreaseHeapLimitForDebugging().
+   */
+  void RestoreOriginalHeapLimit();
 
   /**
    * Allows the host application to provide the address of a function that is
@@ -7835,8 +7892,8 @@ class V8_EXPORT TryCatch {
 
   TryCatch(const TryCatch&) = delete;
   void operator=(const TryCatch&) = delete;
-  void* operator new(size_t size) = delete;
-  void operator delete(void*, size_t) = delete;
+  void* operator new(size_t size);
+  void operator delete(void*, size_t);
 
  private:
   void ResetInternal();
@@ -7927,8 +7984,8 @@ class V8_EXPORT Context {
 
   /**
    * Create a new context from a (non-default) context snapshot. There
-   * is no way to provide a global template or global proxy since the
-   * context snapshot already contains a global proxy.
+   * is no way to provide a global object template since we do not create
+   * a new global object from template, but we can reuse a global object.
    *
    * \param isolate See v8::Context::New.
    *
@@ -7936,11 +7993,14 @@ class V8_EXPORT Context {
    * deserialize from. Use v8::Context::New for the default snapshot.
    *
    * \param extensions See v8::Context::New.
+   *
+   * \param global_object See v8::Context::New.
    */
 
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
-      ExtensionConfiguration* extensions = nullptr);
+      ExtensionConfiguration* extensions = nullptr,
+      MaybeLocal<Value> global_object = MaybeLocal<Value>());
 
   /**
    * Returns an global object that isn't backed by an actual context.
@@ -8350,8 +8410,8 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSObjectType = 0xbd;
-  static const int kJSApiObjectType = 0xbc;
+  static const int kJSApiObjectType = 0xbb;
+  static const int kJSObjectType = 0xbc;
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;

@@ -55,7 +55,6 @@ from testrunner.local import utils
 # build/include_what_you_use: Started giving false positives for variables
 #   named "string" and "map" assuming that you needed to include STL headers.
 # TODO(bmeurer): Fix and re-enable readability/check
-# TODO(epertoso): Maybe re-enable readability/fn_size after
 # http://crrev.com/2199323003 relands.
 
 LINT_RULES = """
@@ -342,6 +341,7 @@ class SourceProcessor(SourceFileProcessor):
                        'primes.js',
                        'raytrace.js',
                        'regexp-pcre.js',
+                       'resources-test1.js',
                        'rjsmin.py',
                        'script-breakpoint.h',
                        'sqlite.js',

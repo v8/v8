@@ -42,6 +42,8 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
   }
+  RegisterCallGenerationCallbacks([this] { CallPrologue(); },
+                                  [this] { CallEpilogue(); });
 }
 
 InterpreterAssembler::~InterpreterAssembler() {
@@ -49,6 +51,7 @@ InterpreterAssembler::~InterpreterAssembler() {
   // accumulator in the way described in the bytecode definitions in
   // bytecodes.h.
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
+  UnregisterCallGenerationCallbacks();
 }
 
 Node* InterpreterAssembler::GetInterpretedFramePointer() {
@@ -451,7 +454,7 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);
-  return LoadFixedArrayElement(constant_pool, index, 0, INTPTR_PARAMETERS);
+  return LoadFixedArrayElement(constant_pool, index);
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
@@ -490,13 +493,12 @@ Node* InterpreterAssembler::IncrementCallCount(Node* type_feedback_vector,
                                                Node* slot_id) {
   Comment("increment call count");
   Node* call_count_slot = IntPtrAdd(slot_id, IntPtrConstant(1));
-  Node* call_count = LoadFixedArrayElement(
-      type_feedback_vector, call_count_slot, 0, INTPTR_PARAMETERS);
+  Node* call_count =
+      LoadFixedArrayElement(type_feedback_vector, call_count_slot);
   Node* new_count = SmiAdd(call_count, SmiConstant(1));
   // Count is Smi, so we don't need a write barrier.
   return StoreFixedArrayElement(type_feedback_vector, call_count_slot,
-                                new_count, SKIP_WRITE_BARRIER, 0,
-                                INTPTR_PARAMETERS);
+                                new_count, SKIP_WRITE_BARRIER);
 }
 
 Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
@@ -524,8 +526,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       end(this);
 
   // The checks. First, does function match the recorded monomorphic target?
-  Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id,
-                                                 0, INTPTR_PARAMETERS);
+  Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(function, feedback_value);
   GotoUnless(is_monomorphic, &extra_checks);
@@ -645,7 +646,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       StoreFixedArrayElement(
           type_feedback_vector, slot_id,
           HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())),
-          SKIP_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+          SKIP_WRITE_BARRIER);
       Goto(&call);
     }
   }
@@ -706,8 +707,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   GotoUnless(is_js_function, &call_construct);
 
   // Check if it is a monomorphic constructor.
-  Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id,
-                                                 0, INTPTR_PARAMETERS);
+  Node* feedback_element = LoadFixedArrayElement(type_feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(constructor, feedback_value);
   allocation_feedback.Bind(UndefinedConstant());
@@ -812,7 +812,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
       StoreFixedArrayElement(
           type_feedback_vector, slot_id,
           HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate())),
-          SKIP_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+          SKIP_WRITE_BARRIER);
       Goto(&call_construct_function);
     }
   }
@@ -850,8 +850,8 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
       Load(MachineType::Pointer(), function,
            IntPtrConstant(offsetof(Runtime::Function, entry)));
 
-  return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  first_arg, function_entry, result_size);
+  return CallStubR(callable.descriptor(), result_size, code_target, context,
+                   arg_count, first_arg, function_entry);
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
@@ -1012,9 +1012,9 @@ Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset) {
   InterpreterDispatchDescriptor descriptor(isolate());
-  Node* args[] = {GetAccumulatorUnchecked(), bytecode_offset,
-                  BytecodeArrayTaggedPointer(), DispatchTableRawPointer()};
-  return TailCallBytecodeDispatch(descriptor, handler_entry, args);
+  return TailCallBytecodeDispatch(
+      descriptor, handler_entry, GetAccumulatorUnchecked(), bytecode_offset,
+      BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -1263,8 +1263,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
     Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     Node* value = LoadRegister(reg_index);
 
-    StoreFixedArrayElement(array, index, value, UPDATE_WRITE_BARRIER, 0,
-                           INTPTR_PARAMETERS);
+    StoreFixedArrayElement(array, index, value);
 
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);
@@ -1294,13 +1293,12 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
     Node* index = var_index.value();
     GotoUnless(UintPtrLessThan(index, register_count), &done_loop);
 
-    Node* value = LoadFixedArrayElement(array, index, 0, INTPTR_PARAMETERS);
+    Node* value = LoadFixedArrayElement(array, index);
 
     Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     StoreRegister(value, reg_index);
 
-    StoreFixedArrayElement(array, index, StaleRegisterConstant(),
-                           UPDATE_WRITE_BARRIER, 0, INTPTR_PARAMETERS);
+    StoreFixedArrayElement(array, index, StaleRegisterConstant());
 
     var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
     Goto(&loop);

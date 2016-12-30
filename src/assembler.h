@@ -943,6 +943,10 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
   static ExternalReference f64_mod_wrapper_function(Isolate* isolate);
 
+  // Trap callback function for cctest/wasm/wasm-run-utils.h
+  static ExternalReference wasm_call_trap_callback_for_testing(
+      Isolate* isolate);
+
   // Log support.
   static ExternalReference log_enter_external_function(Isolate* isolate);
   static ExternalReference log_leave_external_function(Isolate* isolate);
@@ -1025,6 +1029,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_tan_function(Isolate* isolate);
   static ExternalReference ieee754_tanh_function(Isolate* isolate);
 
+  static ExternalReference libc_memchr_function(Isolate* isolate);
+
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);
@@ -1041,7 +1047,7 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference invoke_function_callback(Isolate* isolate);
   static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
 
-  static ExternalReference is_promisehook_enabled_address(Isolate* isolate);
+  static ExternalReference promise_hook_address(Isolate* isolate);
 
   V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
       Isolate* isolate);
@@ -1113,6 +1119,7 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ExternalReference);
 
 // -----------------------------------------------------------------------------
 // Utility functions
+void* libc_memchr(void* string, int character, size_t search_length);
 
 inline int NumberOfBitsSet(uint32_t x) {
   unsigned int num_bits_set;

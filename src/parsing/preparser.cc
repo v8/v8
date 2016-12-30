@@ -149,11 +149,19 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       ExpectSemicolon(CHECK_OK_VALUE(kPreParseSuccess));
       return kPreParseAbort;
     }
+
+    if (track_unresolved_variables_) {
+      function_scope->DeclareVariableName(
+          ast_value_factory()->arguments_string(), VAR);
+      function_scope->DeclareVariableName(ast_value_factory()->this_string(),
+                                          VAR);
+    }
   }
 
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
   LazyParsingResult result = ParseStatementListAndLogFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
+
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
 

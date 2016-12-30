@@ -21,7 +21,7 @@ namespace interpreter {
   V(ChangeBytecodeAction)                             \
   V(TransformLdaSmiBinaryOpToBinaryOpWithSmiAction)   \
   V(TransformLdaZeroBinaryOpToBinaryOpWithZeroAction) \
-  V(TransformEqualityWithNullOrUndefinedToTestUndetectableAction)
+  V(TransformEqualityWithNullOrUndefinedAction)
 
 #define PEEPHOLE_JUMP_ACTION_LIST(V) \
   V(DefaultJumpAction)               \

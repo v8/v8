@@ -1081,8 +1081,8 @@ void MacroAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 void MacroAssembler::VmovExtended(Register dst, int src_code) {
-  DCHECK_LE(32, src_code);
-  DCHECK_GT(64, src_code);
+  DCHECK_LE(SwVfpRegister::kMaxNumRegisters, src_code);
+  DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, src_code);
   if (src_code & 0x1) {
     VmovHigh(dst, DwVfpRegister::from_code(src_code / 2));
   } else {
@@ -1091,8 +1091,8 @@ void MacroAssembler::VmovExtended(Register dst, int src_code) {
 }
 
 void MacroAssembler::VmovExtended(int dst_code, Register src) {
-  DCHECK_LE(32, dst_code);
-  DCHECK_GT(64, dst_code);
+  DCHECK_LE(SwVfpRegister::kMaxNumRegisters, dst_code);
+  DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, dst_code);
   if (dst_code & 0x1) {
     VmovHigh(DwVfpRegister::from_code(dst_code / 2), src);
   } else {
@@ -1102,22 +1102,23 @@ void MacroAssembler::VmovExtended(int dst_code, Register src) {
 
 void MacroAssembler::VmovExtended(int dst_code, int src_code,
                                   Register scratch) {
-  if (src_code < 32 && dst_code < 32) {
+  if (src_code < SwVfpRegister::kMaxNumRegisters &&
+      dst_code < SwVfpRegister::kMaxNumRegisters) {
     // src and dst are both s-registers.
     vmov(SwVfpRegister::from_code(dst_code),
          SwVfpRegister::from_code(src_code));
-  } else if (src_code < 32) {
+  } else if (src_code < SwVfpRegister::kMaxNumRegisters) {
     // src is an s-register.
     vmov(scratch, SwVfpRegister::from_code(src_code));
     VmovExtended(dst_code, scratch);
-  } else if (dst_code < 32) {
+  } else if (dst_code < SwVfpRegister::kMaxNumRegisters) {
     // dst is an s-register.
     VmovExtended(scratch, src_code);
     vmov(SwVfpRegister::from_code(dst_code), scratch);
   } else {
     // Neither src or dst are s-registers.
-    DCHECK_GT(64, src_code);
-    DCHECK_GT(64, dst_code);
+    DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, src_code);
+    DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, dst_code);
     VmovExtended(scratch, src_code);
     VmovExtended(dst_code, scratch);
   }
@@ -1125,7 +1126,7 @@ void MacroAssembler::VmovExtended(int dst_code, int src_code,
 
 void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
                                   Register scratch) {
-  if (dst_code >= 32) {
+  if (dst_code >= SwVfpRegister::kMaxNumRegisters) {
     ldr(scratch, src);
     VmovExtended(dst_code, scratch);
   } else {
@@ -1135,11 +1136,110 @@ void MacroAssembler::VmovExtended(int dst_code, const MemOperand& src,
 
 void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
                                   Register scratch) {
-  if (src_code >= 32) {
+  if (src_code >= SwVfpRegister::kMaxNumRegisters) {
     VmovExtended(scratch, src_code);
     str(scratch, dst);
   } else {
     vstr(SwVfpRegister::from_code(src_code), dst);
+  }
+}
+
+void MacroAssembler::ExtractLane(Register dst, QwNeonRegister src,
+                                 NeonDataType dt, int lane) {
+  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
+  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
+  int byte = lane << log2_bytes_per_lane;
+  int double_word = byte >> kDoubleSizeLog2;
+  int double_byte = byte & (kDoubleSize - 1);
+  int double_lane = double_byte >> log2_bytes_per_lane;
+  DwVfpRegister double_source =
+      DwVfpRegister::from_code(src.code() * 2 + double_word);
+  vmov(dt, dst, double_source, double_lane);
+}
+
+void MacroAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
+                                 Register scratch, int lane) {
+  int s_code = src.code() * 4 + lane;
+  VmovExtended(dst.code(), s_code, scratch);
+}
+
+void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                                 Register src_lane, NeonDataType dt, int lane) {
+  Move(dst, src);
+  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
+  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
+  int byte = lane << log2_bytes_per_lane;
+  int double_word = byte >> kDoubleSizeLog2;
+  int double_byte = byte & (kDoubleSize - 1);
+  int double_lane = double_byte >> log2_bytes_per_lane;
+  DwVfpRegister double_dst =
+      DwVfpRegister::from_code(dst.code() * 2 + double_word);
+  vmov(dt, double_dst, double_lane, src_lane);
+}
+
+void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
+                                 SwVfpRegister src_lane, Register scratch,
+                                 int lane) {
+  Move(dst, src);
+  int s_code = dst.code() * 4 + lane;
+  VmovExtended(s_code, src_lane.code(), scratch);
+}
+
+void MacroAssembler::Swizzle(QwNeonRegister dst, QwNeonRegister src,
+                             Register scratch, NeonSize size, uint32_t lanes) {
+  // TODO(bbudge) Handle Int16x8, Int8x16 vectors.
+  DCHECK_EQ(Neon32, size);
+  DCHECK_IMPLIES(size == Neon32, lanes < 0xFFFFu);
+  if (size == Neon32) {
+    switch (lanes) {
+      // TODO(bbudge) Handle more special cases.
+      case 0x3210:  // Identity.
+        Move(dst, src);
+        return;
+      case 0x1032:  // Swap top and bottom.
+        vext(dst, src, src, 8);
+        return;
+      case 0x2103:  // Rotation.
+        vext(dst, src, src, 12);
+        return;
+      case 0x0321:  // Rotation.
+        vext(dst, src, src, 4);
+        return;
+      case 0x0000:  // Equivalent to vdup.
+      case 0x1111:
+      case 0x2222:
+      case 0x3333: {
+        int lane_code = src.code() * 4 + (lanes & 0xF);
+        if (lane_code >= SwVfpRegister::kMaxNumRegisters) {
+          // TODO(bbudge) use vdup (vdup.32 dst, D<src>[lane]) once implemented.
+          int temp_code = kScratchDoubleReg.code() * 2;
+          VmovExtended(temp_code, lane_code, scratch);
+          lane_code = temp_code;
+        }
+        vdup(dst, SwVfpRegister::from_code(lane_code));
+        return;
+      }
+      case 0x2301:  // Swap lanes 0, 1 and lanes 2, 3.
+        vrev64(Neon32, dst, src);
+        return;
+      default:  // Handle all other cases with vmovs.
+        int src_code = src.code() * 4;
+        int dst_code = dst.code() * 4;
+        bool in_place = src.is(dst);
+        if (in_place) {
+          vmov(kScratchQuadReg, src);
+          src_code = kScratchQuadReg.code() * 4;
+        }
+        for (int i = 0; i < 4; i++) {
+          int lane = (lanes >> (i * 4) & 0xF);
+          VmovExtended(dst_code + i, src_code + lane, scratch);
+        }
+        if (in_place) {
+          // Restore zero reg.
+          veor(kDoubleRegZero, kDoubleRegZero, kDoubleRegZero);
+        }
+        return;
+    }
   }
 }
 
@@ -2206,112 +2306,6 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
   add(result, result, Operand(kHeapObjectTag));
 }
 
-void MacroAssembler::AllocateTwoByteString(Register result,
-                                           Register length,
-                                           Register scratch1,
-                                           Register scratch2,
-                                           Register scratch3,
-                                           Label* gc_required) {
-  // Calculate the number of bytes needed for the characters in the string while
-  // observing object alignment.
-  DCHECK((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  mov(scratch1, Operand(length, LSL, 1));  // Length in bytes, not chars.
-  add(scratch1, scratch1,
-      Operand(kObjectAlignmentMask + SeqTwoByteString::kHeaderSize));
-  and_(scratch1, scratch1, Operand(~kObjectAlignmentMask));
-
-  // Allocate two-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  // Set the map, length and hash field.
-  InitializeNewString(result,
-                      length,
-                      Heap::kStringMapRootIndex,
-                      scratch1,
-                      scratch2);
-}
-
-
-void MacroAssembler::AllocateOneByteString(Register result, Register length,
-                                           Register scratch1, Register scratch2,
-                                           Register scratch3,
-                                           Label* gc_required) {
-  // Calculate the number of bytes needed for the characters in the string while
-  // observing object alignment.
-  DCHECK((SeqOneByteString::kHeaderSize & kObjectAlignmentMask) == 0);
-  DCHECK(kCharSize == 1);
-  add(scratch1, length,
-      Operand(kObjectAlignmentMask + SeqOneByteString::kHeaderSize));
-  and_(scratch1, scratch1, Operand(~kObjectAlignmentMask));
-
-  // Allocate one-byte string in new space.
-  Allocate(scratch1, result, scratch2, scratch3, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  // Set the map, length and hash field.
-  InitializeNewString(result, length, Heap::kOneByteStringMapRootIndex,
-                      scratch1, scratch2);
-}
-
-
-void MacroAssembler::AllocateTwoByteConsString(Register result,
-                                               Register length,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
-  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result,
-                      length,
-                      Heap::kConsStringMapRootIndex,
-                      scratch1,
-                      scratch2);
-}
-
-
-void MacroAssembler::AllocateOneByteConsString(Register result, Register length,
-                                               Register scratch1,
-                                               Register scratch2,
-                                               Label* gc_required) {
-  Allocate(ConsString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result, length, Heap::kConsOneByteStringMapRootIndex,
-                      scratch1, scratch2);
-}
-
-
-void MacroAssembler::AllocateTwoByteSlicedString(Register result,
-                                                 Register length,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Label* gc_required) {
-  Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result,
-                      length,
-                      Heap::kSlicedStringMapRootIndex,
-                      scratch1,
-                      scratch2);
-}
-
-
-void MacroAssembler::AllocateOneByteSlicedString(Register result,
-                                                 Register length,
-                                                 Register scratch1,
-                                                 Register scratch2,
-                                                 Label* gc_required) {
-  Allocate(SlicedString::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  InitializeNewString(result, length, Heap::kSlicedOneByteStringMapRootIndex,
-                      scratch1, scratch2);
-}
-
-
 void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
@@ -3344,19 +3338,6 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
   cmp(scratch1, Operand(kFlatOneByteStringTag));
   // Ignore second test if first test failed.
   cmp(scratch2, Operand(kFlatOneByteStringTag), eq);
-  b(ne, failure);
-}
-
-
-void MacroAssembler::JumpIfInstanceTypeIsNotSequentialOneByte(Register type,
-                                                              Register scratch,
-                                                              Label* failure) {
-  const int kFlatOneByteStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  const int kFlatOneByteStringTag =
-      kStringTag | kOneByteStringTag | kSeqStringTag;
-  and_(scratch, type, Operand(kFlatOneByteStringMask));
-  cmp(scratch, Operand(kFlatOneByteStringTag));
   b(ne, failure);
 }
 

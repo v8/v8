@@ -85,12 +85,6 @@ class BytecodeGraphBuilder {
     return MakeNode(op, arraysize(buffer), buffer, false);
   }
 
-  Node* NewNode(const Operator* op, Node* n1, Node* n2, Node* n3, Node* n4,
-                Node* n5) {
-    Node* buffer[] = {n1, n2, n3, n4, n5};
-    return MakeNode(op, arraysize(buffer), buffer, false);
-  }
-
   // Helpers to create new control nodes.
   Node* NewIfTrue() { return NewNode(common()->IfTrue()); }
   Node* NewIfFalse() { return NewNode(common()->IfFalse()); }

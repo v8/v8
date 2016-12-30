@@ -4,15 +4,16 @@
 
 #if V8_TARGET_ARCH_IA32
 
-#include "src/full-codegen/full-codegen.h"
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/debug/debug.h"
+#include "src/full-codegen/full-codegen.h"
 #include "src/ia32/frames-ia32.h"
 #include "src/ic/ic.h"
 
@@ -187,15 +188,18 @@ void FullCodeGenerator::Generate() {
       if (info->scope()->new_target_var() != nullptr) {
         __ push(edx);  // Preserve new target.
       }
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info->scope()->scope_type());
         __ mov(FastNewFunctionContextDescriptor::SlotsRegister(),
                Immediate(slots));
-        __ CallStub(&stub);
-        // Result of FastNewFunctionContextStub is always in new space.
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
+        // Result of the FastNewFunctionContext builtin is always in new space.
         need_write_barrier = false;
       } else {
         __ push(edi);
+        __ Push(Smi::FromInt(info->scope()->scope_type()));
         __ CallRuntime(Runtime::kNewFunctionContext);
       }
       if (info->scope()->new_target_var() != nullptr) {
@@ -746,8 +750,8 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
-      Handle<SharedFunctionInfo> function =
-          Compiler::GetSharedFunctionInfo(declaration->fun(), script(), info_);
+      Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
+          declaration->fun(), script(), info_, compilation_mode_);
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals_->Add(function, zone());
@@ -1145,8 +1149,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_properties));
     __ mov(edx, Immediate(Smi::FromInt(flags)));
-    FastCloneShallowObjectStub stub(isolate(), expr->properties_count());
-    __ CallStub(&stub);
+    Callable callable = CodeFactory::FastCloneShallowObject(
+        isolate(), expr->properties_count());
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), BailoutState::TOS_REGISTER);
@@ -1257,7 +1262,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  Handle<FixedArray> constant_elements = expr->constant_elements();
+  Handle<ConstantElementsPair> constant_elements = expr->constant_elements();
   bool has_constant_fast_elements =
       IsFastObjectElementsKind(expr->constant_elements_kind());
 
@@ -1278,8 +1283,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
     __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
     __ mov(ecx, Immediate(constant_elements));
-    FastCloneShallowArrayStub stub(isolate(), allocation_site_mode);
-    __ CallStub(&stub);
+    Callable callable =
+        CodeFactory::FastCloneShallowArray(isolate(), allocation_site_mode);
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
     RestoreContext();
   }
   PrepareForBailoutForId(expr->CreateLiteralId(), BailoutState::TOS_REGISTER);

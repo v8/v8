@@ -43,8 +43,8 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
 
   // Fail if the array's instance type is not JSTypedArray.
   a->Bind(&not_smi);
-  a->Branch(a->WordEqual(a->LoadInstanceType(tagged),
-                         a->Int32Constant(JS_TYPED_ARRAY_TYPE)),
+  a->Branch(a->Word32Equal(a->LoadInstanceType(tagged),
+                           a->Int32Constant(JS_TYPED_ARRAY_TYPE)),
             &is_typed_array, &not_typed_array);
   a->Bind(&not_typed_array);
   a->Goto(&invalid);
@@ -88,7 +88,8 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
   Node* byte_offset = a->ChangeUint32ToWord(a->TruncateTaggedToWord32(
       context,
       a->LoadObjectField(tagged, JSArrayBufferView::kByteOffsetOffset)));
-  *out_backing_store = a->IntPtrAdd(backing_store, byte_offset);
+  *out_backing_store =
+      a->IntPtrAdd(a->BitcastTaggedToWord(backing_store), byte_offset);
 }
 
 // https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
@@ -144,8 +145,8 @@ void ValidateAtomicIndex(CodeStubAssembler* a, compiler::Node* index_word,
   CodeStubAssembler::Label if_inbounds(a), if_notinbounds(a);
   // TODO(jkummerow): Use unsigned comparison instead of "i<0 || i>length".
   a->Branch(
-      a->WordOr(a->Int32LessThan(index_word, a->Int32Constant(0)),
-                a->Int32GreaterThanOrEqual(index_word, array_length_word)),
+      a->Word32Or(a->Int32LessThan(index_word, a->Int32Constant(0)),
+                  a->Int32GreaterThanOrEqual(index_word, array_length_word)),
       &if_notinbounds, &if_inbounds);
   a->Bind(&if_notinbounds);
   a->Return(
@@ -185,20 +186,20 @@ void Builtins::Generate_AtomicsLoad(compiler::CodeAssemblerState* state) {
            arraysize(case_labels));
 
   a.Bind(&i8);
-  a.Return(
-      a.SmiTag(a.AtomicLoad(MachineType::Int8(), backing_store, index_word)));
+  a.Return(a.SmiFromWord32(
+      a.AtomicLoad(MachineType::Int8(), backing_store, index_word)));
 
   a.Bind(&u8);
-  a.Return(
-      a.SmiTag(a.AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
+  a.Return(a.SmiFromWord32(
+      a.AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
 
   a.Bind(&i16);
-  a.Return(a.SmiTag(a.AtomicLoad(MachineType::Int16(), backing_store,
-                                 a.WordShl(index_word, 1))));
+  a.Return(a.SmiFromWord32(a.AtomicLoad(MachineType::Int16(), backing_store,
+                                        a.WordShl(index_word, 1))));
 
   a.Bind(&u16);
-  a.Return(a.SmiTag(a.AtomicLoad(MachineType::Uint16(), backing_store,
-                                 a.WordShl(index_word, 1))));
+  a.Return(a.SmiFromWord32(a.AtomicLoad(MachineType::Uint16(), backing_store,
+                                        a.WordShl(index_word, 1))));
 
   a.Bind(&i32);
   a.Return(a.ChangeInt32ToTagged(a.AtomicLoad(
@@ -210,7 +211,7 @@ void Builtins::Generate_AtomicsLoad(compiler::CodeAssemblerState* state) {
 
   // This shouldn't happen, we've already validated the type.
   a.Bind(&other);
-  a.Return(a.Int32Constant(0));
+  a.Return(a.SmiConstant(0));
 }
 
 void Builtins::Generate_AtomicsStore(compiler::CodeAssemblerState* state) {
@@ -262,7 +263,7 @@ void Builtins::Generate_AtomicsStore(compiler::CodeAssemblerState* state) {
 
   // This shouldn't happen, we've already validated the type.
   a.Bind(&other);
-  a.Return(a.Int32Constant(0));
+  a.Return(a.SmiConstant(0));
 }
 
 }  // namespace internal

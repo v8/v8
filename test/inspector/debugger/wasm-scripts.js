@@ -12,7 +12,7 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
 var builder = new WasmModuleBuilder();
 builder.addFunction('nopFunction', kSig_v_v).addBody([kExprNop]);
 builder.addFunction('main', kSig_v_v)
-    .addBody([kExprBlock, kAstStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
+    .addBody([kExprBlock, kWasmStmt, kExprI32Const, 2, kExprDrop, kExprEnd])
     .exportAs('main');
 var module_bytes = builder.toArray();
 

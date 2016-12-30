@@ -16,6 +16,8 @@ double MonotonicallyIncreasingTimeInMs() {
          static_cast<double>(base::Time::kMillisecondsPerSecond);
 }
 
+const double kEstimatedRuntimeWithoutData = 1.0;
+
 }  // namespace
 
 CompilerDispatcherTracer::Scope::Scope(CompilerDispatcherTracer* tracer,
@@ -129,22 +131,23 @@ double CompilerDispatcherTracer::EstimateParseInMs(size_t source_length) const {
   return Estimate(parse_events_, source_length);
 }
 
-double CompilerDispatcherTracer::EstimateFinalizeParsingInMs() {
+double CompilerDispatcherTracer::EstimateFinalizeParsingInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Average(finalize_parsing_events_);
 }
 
-double CompilerDispatcherTracer::EstimatePrepareToCompileInMs() {
+double CompilerDispatcherTracer::EstimatePrepareToCompileInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Average(prepare_compile_events_);
 }
 
-double CompilerDispatcherTracer::EstimateCompileInMs(size_t ast_size_in_bytes) {
+double CompilerDispatcherTracer::EstimateCompileInMs(
+    size_t ast_size_in_bytes) const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Estimate(compile_events_, ast_size_in_bytes);
 }
 
-double CompilerDispatcherTracer::EstimateFinalizeCompilingInMs() {
+double CompilerDispatcherTracer::EstimateFinalizeCompilingInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Average(finalize_compiling_events_);
 }
@@ -158,7 +161,7 @@ double CompilerDispatcherTracer::Average(
 
 double CompilerDispatcherTracer::Estimate(
     const base::RingBuffer<std::pair<size_t, double>>& buffer, size_t num) {
-  if (buffer.Count() == 0) return 0.0;
+  if (buffer.Count() == 0) return kEstimatedRuntimeWithoutData;
   std::pair<size_t, double> sum = buffer.Sum(
       [](std::pair<size_t, double> a, std::pair<size_t, double> b) {
         return std::make_pair(a.first + b.first, a.second + b.second);

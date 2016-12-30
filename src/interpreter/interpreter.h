@@ -23,6 +23,7 @@ class Isolate;
 class Callable;
 class CompilationInfo;
 class CompilationJob;
+enum class LazyCompilationMode;
 
 namespace compiler {
 class Node;
@@ -44,7 +45,8 @@ class Interpreter {
   static int InterruptBudget();
 
   // Creates a compilation job which will generate bytecode for |info|.
-  static CompilationJob* NewCompilationJob(CompilationInfo* info);
+  static CompilationJob* NewCompilationJob(CompilationInfo* info,
+                                           LazyCompilationMode mode);
 
   // Return bytecode handler for |bytecode|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);

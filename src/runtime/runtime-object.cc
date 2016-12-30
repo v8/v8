@@ -133,7 +133,7 @@ Maybe<bool> Runtime::DeleteObjectProperty(Isolate* isolate,
 // ES6 19.1.3.2
 RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   HandleScope scope(isolate);
-  Handle<Object> property = args.at<Object>(1);
+  Handle<Object> property = args.at(1);
 
   Handle<Name> key;
   uint32_t index;
@@ -145,7 +145,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
     key_is_array_index = key->AsArrayIndex(&index);
   }
 
-  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> object = args.at(0);
 
   if (object->IsJSObject()) {
     Handle<JSObject> js_obj = Handle<JSObject>::cast(object);
@@ -212,7 +212,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 // an Object.create stub.
 RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   HandleScope scope(isolate);
-  Handle<Object> prototype = args.at<Object>(0);
+  Handle<Object> prototype = args.at(0);
   if (!prototype->IsNull(isolate) && !prototype->IsJSReceiver()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kProtoObjectOrNull, prototype));
@@ -262,7 +262,7 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   }
 
   // Define the properties if properties was specified and is not undefined.
-  Handle<Object> properties = args.at<Object>(1);
+  Handle<Object> properties = args.at(1);
   if (!properties->IsUndefined(isolate)) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, JSReceiver::DefineProperties(isolate, object, properties));
@@ -648,14 +648,20 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
 
 RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
+  DCHECK(args.length() == 4);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
-  CONVERT_SMI_ARG_CHECKED(set_function_name, 4);
+  CONVERT_SMI_ARG_CHECKED(flag, 3);
 
-  if (set_function_name) {
+  DataPropertyInLiteralFlags flags =
+      static_cast<DataPropertyInLiteralFlag>(flag);
+
+  PropertyAttributes attrs = (flags & DataPropertyInLiteralFlag::kDontEnum)
+                                 ? PropertyAttributes::DONT_ENUM
+                                 : PropertyAttributes::NONE;
+
+  if (flags & DataPropertyInLiteralFlag::kSetFunctionName) {
     DCHECK(value->IsJSFunction());
     JSFunction::SetName(Handle<JSFunction>::cast(value), name,
                         isolate->factory()->empty_string());
@@ -669,38 +675,6 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
                                                     Object::DONT_THROW)
             .IsJust());
   return *object;
-}
-
-RUNTIME_FUNCTION(Runtime_DefineDataProperty) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 5);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  CONVERT_PROPERTY_ATTRIBUTES_CHECKED(attrs, 3);
-  CONVERT_SMI_ARG_CHECKED(set_function_name, 4);
-
-  if (set_function_name) {
-    DCHECK(value->IsJSFunction());
-    JSFunction::SetName(Handle<JSFunction>::cast(value), name,
-                        isolate->factory()->empty_string());
-  }
-
-  PropertyDescriptor desc;
-  desc.set_writable(!(attrs & ReadOnly));
-  desc.set_enumerable(!(attrs & DontEnum));
-  desc.set_configurable(!(attrs & DontDelete));
-  desc.set_value(value);
-
-  Maybe<bool> result = JSReceiver::DefineOwnProperty(isolate, receiver, name,
-                                                     &desc, Object::DONT_THROW);
-  RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
-  if (result.IsNothing()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
-  }
-
-  return *receiver;
 }
 
 // Return property without being observable by accessors or interceptors.

@@ -1535,7 +1535,7 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
     raw_func_name = STATIC_CHAR_VECTOR("<undefined>");
   } else {
     raw_func_name = WasmInstanceObject::cast(instance_or_undef)
-                        ->get_compiled_module()
+                        ->compiled_module()
                         ->GetRawFunctionName(this->function_index());
   }
   const int kMaxPrintedFunctionName = 64;
@@ -1558,10 +1558,11 @@ Address WasmFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-Object* WasmFrame::wasm_instance() const {
-  Object* ret = wasm::GetOwningWasmInstance(LookupCode());
-  if (ret == nullptr) ret = isolate()->heap()->undefined_value();
-  return ret;
+WasmInstanceObject* WasmFrame::wasm_instance() const {
+  WasmInstanceObject* obj = wasm::GetOwningWasmInstance(LookupCode());
+  // This is a live stack frame; it must have a live instance.
+  DCHECK_NOT_NULL(obj);
+  return obj;
 }
 
 uint32_t WasmFrame::function_index() const {
@@ -1577,9 +1578,9 @@ Script* WasmFrame::script() const {
 
 int WasmFrame::position() const {
   int position = StandardFrame::position();
-  if (wasm::WasmIsAsmJs(wasm_instance(), isolate())) {
+  if (wasm_instance()->compiled_module()->is_asm_js()) {
     Handle<WasmCompiledModule> compiled_module(
-        WasmInstanceObject::cast(wasm_instance())->get_compiled_module(),
+        WasmInstanceObject::cast(wasm_instance())->compiled_module(),
         isolate());
     DCHECK_LE(0, position);
     position = WasmCompiledModule::GetAsmJsSourcePosition(

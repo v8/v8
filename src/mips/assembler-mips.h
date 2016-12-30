@@ -68,7 +68,7 @@ namespace internal {
 
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(f0)  V(f2)  V(f4)  V(f6)  V(f8)  V(f10) V(f12) V(f14) \
-  V(f16) V(f18) V(f20) V(f22) V(f24) V(f26)
+  V(f16) V(f18) V(f20) V(f22) V(f24)
 // clang-format on
 
 // CPU Registers.
@@ -282,8 +282,7 @@ const DoubleRegister f31 = {31};
 #define kLithiumScratchDouble f30
 #define kDoubleRegZero f28
 // Used on mips32r6 for compare operations.
-// We use the last non-callee saved odd register for O32 ABI
-#define kDoubleCompareReg f19
+#define kDoubleCompareReg f26
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.

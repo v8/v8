@@ -284,6 +284,11 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
+    case IrOpcode::kTrapIf:
+    case IrOpcode::kTrapUnless:
+      // Type is empty.
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kDeoptimize:
     case IrOpcode::kReturn:
     case IrOpcode::kThrow:
@@ -635,6 +640,13 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is String.
       CheckTypeIs(node, Type::String());
       break;
+    case IrOpcode::kJSGetSuperConstructor:
+      // We don't check the input for Type::Function because
+      // this_function can be context-allocated.
+      // Any -> Callable.
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Callable());
+      break;
 
     case IrOpcode::kJSLoadContext:
       // Type can be anything.
@@ -884,6 +896,12 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::String());
       CheckValueInputIs(node, 1, Type::String());
       CheckTypeIs(node, Type::Boolean());
+      break;
+    case IrOpcode::kStringCharAt:
+      // (String, Unsigned32) -> String
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::Unsigned32());
+      CheckTypeIs(node, Type::String());
       break;
     case IrOpcode::kStringCharCodeAt:
       // (String, Unsigned32) -> UnsignedSmall

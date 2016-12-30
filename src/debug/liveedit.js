@@ -668,6 +668,8 @@
                   old_children[old_index].corresponding_node = UNDEFINED;
                   old_node.status = FunctionStatus.CHANGED;
                 }
+              } else {
+                ProcessNode(old_children[old_index], new_children[new_index]);
               }
             } else {
               old_children[old_index].status = FunctionStatus.DAMAGED;

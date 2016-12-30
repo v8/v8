@@ -20,6 +20,7 @@
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
 #include "src/codegen.h"
+#include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/isolate.h"
 #include "src/parsing/parse-info.h"
@@ -41,12 +42,12 @@ enum ValueFate { kDrop, kLeaveOnStack };
 struct ForeignVariable {
   Handle<Name> name;
   Variable* var;
-  LocalType type;
+  ValueType type;
 };
 
 class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
-  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone,
+  AsmWasmBuilderImpl(Isolate* isolate, Zone* zone, CompilationInfo* info,
                      AstValueFactory* ast_value_factory, Handle<Script> script,
                      FunctionLiteral* literal, AsmTyper* typer)
       : local_variables_(ZoneHashMap::kDefaultHashMapCapacity,
@@ -61,6 +62,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         literal_(literal),
         isolate_(isolate),
         zone_(zone),
+        info_(info),
         ast_value_factory_(ast_value_factory),
         script_(script),
         typer_(typer),
@@ -136,12 +138,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     Zone zone(isolate_->allocator(), ZONE_NAME);
     DeclarationScope* new_func_scope = nullptr;
     if (decl->fun()->body() == nullptr) {
-      // TODO(bradnelson): Refactor parser so we don't need a
-      // SharedFunctionInfo to parse a single function,
-      // or squirrel away the SharedFunctionInfo to use later.
-      Handle<SharedFunctionInfo> shared =
-          isolate_->factory()->NewSharedFunctionInfoForLiteral(decl->fun(),
-                                                               script_);
+      // TODO(titzer/bradnelson): Reuse SharedFunctionInfos used here when
+      // compiling the wasm module.
+      Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfo(
+          decl->fun(), script_, info_, LazyCompilationMode::kAlways);
       shared->set_is_toplevel(false);
       ParseInfo info(&zone, script_);
       info.set_shared_info(shared);
@@ -516,8 +516,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         // Add the parameters for the function.
         const auto& arguments = func_type->Arguments();
         for (int i = 0; i < expr->parameter_count(); ++i) {
-          LocalType type = TypeFrom(arguments[i]);
-          DCHECK_NE(kAstStmt, type);
+          ValueType type = TypeFrom(arguments[i]);
+          DCHECK_NE(kWasmStmt, type);
           InsertParameter(scope->parameter(i), type, i);
         }
       } else {
@@ -538,18 +538,18 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     RECURSE(Visit(expr->condition()));
     // WASM ifs come with implicit blocks for both arms.
     breakable_blocks_.push_back(std::make_pair(nullptr, false));
-    LocalTypeCode type;
+    ValueTypeCode type;
     switch (TypeOf(expr)) {
-      case kAstI32:
+      case kWasmI32:
         type = kLocalI32;
         break;
-      case kAstI64:
+      case kWasmI64:
         type = kLocalI64;
         break;
-      case kAstF32:
+      case kWasmF32:
         type = kLocalF32;
         break;
-      case kAstF64:
+      case kWasmF64:
         type = kLocalF64;
         break;
       default:
@@ -621,8 +621,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       if (VisitStdlibConstant(var)) {
         return;
       }
-      LocalType var_type = TypeOf(expr);
-      DCHECK_NE(kAstStmt, var_type);
+      ValueType var_type = TypeOf(expr);
+      DCHECK_NE(kWasmStmt, var_type);
       if (var->IsContextSlot()) {
         current_function_builder_->EmitWithVarInt(
             kExprGetGlobal, LookupOrInsertGlobal(var, var_type));
@@ -755,10 +755,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     auto* func_table_type = typer_->TypeOf(p->obj()->AsVariableProxy()->var())
                                 ->AsFunctionTableType();
     const auto& arguments = func_type->Arguments();
-    LocalType return_type = TypeFrom(func_type->ReturnType());
-    FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
+    ValueType return_type = TypeFrom(func_type->ReturnType());
+    FunctionSig::Builder sig(zone(), return_type == kWasmStmt ? 0 : 1,
                              arguments.size());
-    if (return_type != kAstStmt) {
+    if (return_type != kWasmStmt) {
       sig.AddReturn(return_type);
     }
     for (auto* arg : arguments) {
@@ -924,8 +924,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (target_var != nullptr) {
       // Left hand side is a local or a global variable.
       Variable* var = target_var->var();
-      LocalType var_type = TypeOf(expr);
-      DCHECK_NE(kAstStmt, var_type);
+      ValueType var_type = TypeOf(expr);
+      DCHECK_NE(kWasmStmt, var_type);
       if (var->IsContextSlot()) {
         uint32_t index = LookupOrInsertGlobal(var, var_type);
         current_function_builder_->EmitWithVarInt(kExprSetGlobal, index);
@@ -946,7 +946,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     Property* target_prop = expr->target()->AsProperty();
     if (target_prop != nullptr) {
       // Left hand side is a property access, i.e. the asm.js heap.
-      if (TypeOf(expr->value()) == kAstF64 && expr->target()->IsProperty() &&
+      if (TypeOf(expr->value()) == kWasmF64 && expr->target()->IsProperty() &&
           typer_->TypeOf(expr->target()->AsProperty()->obj())
               ->IsA(AsmType::Float32Array())) {
         current_function_builder_->Emit(kExprF32ConvertF64);
@@ -1054,7 +1054,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (!key_literal->value().is_null()) {
       Handle<Name> name =
           Object::ToName(isolate_, key_literal->value()).ToHandleChecked();
-      LocalType type = is_float ? kAstF64 : kAstI32;
+      ValueType type = is_float ? kWasmF64 : kWasmI32;
       foreign_variables_.push_back({name, var, type});
     }
   }
@@ -1075,7 +1075,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     Literal* value = expr->key()->AsLiteral();
     if (value) {
       DCHECK(value->raw_value()->IsNumber());
-      DCHECK_EQ(kAstI32, TypeOf(value));
+      DCHECK_EQ(kWasmI32, TypeOf(value));
       int32_t val = static_cast<int32_t>(value->raw_value()->AsNumber());
       // TODO(titzer): handle overflow here.
       current_function_builder_->EmitI32Const(val * size);
@@ -1085,7 +1085,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (binop) {
       DCHECK_EQ(Token::SAR, binop->op());
       DCHECK(binop->right()->AsLiteral()->raw_value()->IsNumber());
-      DCHECK(kAstI32 == TypeOf(binop->right()->AsLiteral()));
+      DCHECK(kWasmI32 == TypeOf(binop->right()->AsLiteral()));
       DCHECK_EQ(size,
                 1 << static_cast<int>(
                     binop->right()->AsLiteral()->raw_value()->AsNumber()));
@@ -1131,7 +1131,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     AsmTyper::StandardMember standard_object =
         typer_->VariableAsStandardMember(var);
     ZoneList<Expression*>* args = call->arguments();
-    LocalType call_type = TypeOf(call);
+    ValueType call_type = TypeOf(call);
 
     switch (standard_object) {
       case AsmTyper::kNone: {
@@ -1139,57 +1139,57 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathAcos: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Acos);
         break;
       }
       case AsmTyper::kMathAsin: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Asin);
         break;
       }
       case AsmTyper::kMathAtan: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Atan);
         break;
       }
       case AsmTyper::kMathCos: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Cos);
         break;
       }
       case AsmTyper::kMathSin: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Sin);
         break;
       }
       case AsmTyper::kMathTan: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Tan);
         break;
       }
       case AsmTyper::kMathExp: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Exp);
         break;
       }
       case AsmTyper::kMathLog: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Log);
         break;
       }
       case AsmTyper::kMathCeil: {
         VisitCallArgs(call);
-        if (call_type == kAstF32) {
+        if (call_type == kWasmF32) {
           current_function_builder_->Emit(kExprF32Ceil);
-        } else if (call_type == kAstF64) {
+        } else if (call_type == kWasmF64) {
           current_function_builder_->Emit(kExprF64Ceil);
         } else {
           UNREACHABLE();
@@ -1198,9 +1198,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathFloor: {
         VisitCallArgs(call);
-        if (call_type == kAstF32) {
+        if (call_type == kWasmF32) {
           current_function_builder_->Emit(kExprF32Floor);
-        } else if (call_type == kAstF64) {
+        } else if (call_type == kWasmF64) {
           current_function_builder_->Emit(kExprF64Floor);
         } else {
           UNREACHABLE();
@@ -1209,9 +1209,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathSqrt: {
         VisitCallArgs(call);
-        if (call_type == kAstF32) {
+        if (call_type == kWasmF32) {
           current_function_builder_->Emit(kExprF32Sqrt);
-        } else if (call_type == kAstF64) {
+        } else if (call_type == kWasmF64) {
           current_function_builder_->Emit(kExprF64Sqrt);
         } else {
           UNREACHABLE();
@@ -1220,13 +1220,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathClz32: {
         VisitCallArgs(call);
-        DCHECK(call_type == kAstI32);
+        DCHECK(call_type == kWasmI32);
         current_function_builder_->Emit(kExprI32Clz);
         break;
       }
       case AsmTyper::kMathAbs: {
-        if (call_type == kAstI32) {
-          WasmTemporary tmp(current_function_builder_, kAstI32);
+        if (call_type == kWasmI32) {
+          WasmTemporary tmp(current_function_builder_, kWasmI32);
 
           // if set_local(tmp, x) < 0
           Visit(call->arguments()->at(0));
@@ -1247,10 +1247,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           // end
           current_function_builder_->Emit(kExprEnd);
 
-        } else if (call_type == kAstF32) {
+        } else if (call_type == kWasmF32) {
           VisitCallArgs(call);
           current_function_builder_->Emit(kExprF32Abs);
-        } else if (call_type == kAstF64) {
+        } else if (call_type == kWasmF64) {
           VisitCallArgs(call);
           current_function_builder_->Emit(kExprF64Abs);
         } else {
@@ -1260,9 +1260,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathMin: {
         // TODO(bradnelson): Change wasm to match Math.min in asm.js mode.
-        if (call_type == kAstI32) {
-          WasmTemporary tmp_x(current_function_builder_, kAstI32);
-          WasmTemporary tmp_y(current_function_builder_, kAstI32);
+        if (call_type == kWasmI32) {
+          WasmTemporary tmp_x(current_function_builder_, kWasmI32);
+          WasmTemporary tmp_y(current_function_builder_, kWasmI32);
 
           // if set_local(tmp_x, x) < set_local(tmp_y, y)
           Visit(call->arguments()->at(0));
@@ -1282,10 +1282,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           current_function_builder_->EmitGetLocal(tmp_y.index());
           current_function_builder_->Emit(kExprEnd);
 
-        } else if (call_type == kAstF32) {
+        } else if (call_type == kWasmF32) {
           VisitCallArgs(call);
           current_function_builder_->Emit(kExprF32Min);
-        } else if (call_type == kAstF64) {
+        } else if (call_type == kWasmF64) {
           VisitCallArgs(call);
           current_function_builder_->Emit(kExprF64Min);
         } else {
@@ -1295,9 +1295,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathMax: {
         // TODO(bradnelson): Change wasm to match Math.max in asm.js mode.
-        if (call_type == kAstI32) {
-          WasmTemporary tmp_x(current_function_builder_, kAstI32);
-          WasmTemporary tmp_y(current_function_builder_, kAstI32);
+        if (call_type == kWasmI32) {
+          WasmTemporary tmp_x(current_function_builder_, kWasmI32);
+          WasmTemporary tmp_y(current_function_builder_, kWasmI32);
 
           // if set_local(tmp_x, x) < set_local(tmp_y, y)
           Visit(call->arguments()->at(0));
@@ -1318,10 +1318,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           current_function_builder_->EmitGetLocal(tmp_x.index());
           current_function_builder_->Emit(kExprEnd);
 
-        } else if (call_type == kAstF32) {
+        } else if (call_type == kWasmF32) {
           VisitCallArgs(call);
           current_function_builder_->Emit(kExprF32Max);
-        } else if (call_type == kAstF64) {
+        } else if (call_type == kWasmF64) {
           VisitCallArgs(call);
           current_function_builder_->Emit(kExprF64Max);
         } else {
@@ -1331,13 +1331,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       case AsmTyper::kMathAtan2: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Atan2);
         break;
       }
       case AsmTyper::kMathPow: {
         VisitCallArgs(call);
-        DCHECK_EQ(kAstF64, call_type);
+        DCHECK_EQ(kWasmF64, call_type);
         current_function_builder_->Emit(kExprF64Pow);
         break;
       }
@@ -1418,11 +1418,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VariableProxy* vp = expr->expression()->AsVariableProxy();
         DCHECK_NOT_NULL(vp);
         if (typer_->TypeOf(vp)->AsFFIType() != nullptr) {
-          LocalType return_type = TypeOf(expr);
+          ValueType return_type = TypeOf(expr);
           ZoneList<Expression*>* args = expr->arguments();
-          FunctionSig::Builder sig(zone(), return_type == kAstStmt ? 0 : 1,
+          FunctionSig::Builder sig(zone(), return_type == kWasmStmt ? 0 : 1,
                                    args->length());
-          if (return_type != kAstStmt) {
+          if (return_type != kWasmStmt) {
             sig.AddReturn(return_type);
           } else {
             returns_value = false;
@@ -1466,7 +1466,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         // We have to use a temporary for the correct order of evaluation.
         current_function_builder_->EmitI32Const(indices->start_index);
         current_function_builder_->Emit(kExprI32Add);
-        WasmTemporary tmp(current_function_builder_, kAstI32);
+        WasmTemporary tmp(current_function_builder_, kWasmI32);
         current_function_builder_->EmitSetLocal(tmp.index());
 
         VisitCallArgs(expr);
@@ -1496,7 +1496,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     RECURSE(Visit(expr->expression()));
     switch (expr->op()) {
       case Token::NOT: {
-        DCHECK_EQ(kAstI32, TypeOf(expr->expression()));
+        DCHECK_EQ(kWasmI32, TypeOf(expr->expression()));
         current_function_builder_->Emit(kExprI32Eqz);
         break;
       }
@@ -1511,7 +1511,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                                int32_t val) {
     DCHECK_NOT_NULL(expr->right());
     if (expr->op() == op && expr->right()->IsLiteral() &&
-        TypeOf(expr) == kAstI32) {
+        TypeOf(expr) == kWasmI32) {
       Literal* right = expr->right()->AsLiteral();
       if (right->raw_value()->IsNumber() &&
           static_cast<int32_t>(right->raw_value()->AsNumber()) == val) {
@@ -1525,7 +1525,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                                   double val) {
     DCHECK_NOT_NULL(expr->right());
     if (expr->op() == op && expr->right()->IsLiteral() &&
-        TypeOf(expr) == kAstF64) {
+        TypeOf(expr) == kWasmF64) {
       Literal* right = expr->right()->AsLiteral();
       DCHECK(right->raw_value()->IsNumber());
       if (right->raw_value()->AsNumber() == val) {
@@ -1539,7 +1539,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   ConvertOperation MatchOr(BinaryOperation* expr) {
     if (MatchIntBinaryOperation(expr, Token::BIT_OR, 0) &&
-        (TypeOf(expr->left()) == kAstI32)) {
+        (TypeOf(expr->left()) == kWasmI32)) {
       return kAsIs;
     } else {
       return kNone;
@@ -1549,7 +1549,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   ConvertOperation MatchShr(BinaryOperation* expr) {
     if (MatchIntBinaryOperation(expr, Token::SHR, 0)) {
       // TODO(titzer): this probably needs to be kToUint
-      return (TypeOf(expr->left()) == kAstI32) ? kAsIs : kToInt;
+      return (TypeOf(expr->left()) == kWasmI32) ? kAsIs : kToInt;
     } else {
       return kNone;
     }
@@ -1557,13 +1557,13 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   ConvertOperation MatchXor(BinaryOperation* expr) {
     if (MatchIntBinaryOperation(expr, Token::BIT_XOR, 0xffffffff)) {
-      DCHECK_EQ(kAstI32, TypeOf(expr->left()));
-      DCHECK_EQ(kAstI32, TypeOf(expr->right()));
+      DCHECK_EQ(kWasmI32, TypeOf(expr->left()));
+      DCHECK_EQ(kWasmI32, TypeOf(expr->right()));
       BinaryOperation* op = expr->left()->AsBinaryOperation();
       if (op != nullptr) {
         if (MatchIntBinaryOperation(op, Token::BIT_XOR, 0xffffffff)) {
-          DCHECK_EQ(kAstI32, TypeOf(op->right()));
-          if (TypeOf(op->left()) != kAstI32) {
+          DCHECK_EQ(kWasmI32, TypeOf(op->right()));
+          if (TypeOf(op->left()) != kWasmI32) {
             return kToInt;
           } else {
             return kAsIs;
@@ -1576,8 +1576,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   ConvertOperation MatchMul(BinaryOperation* expr) {
     if (MatchDoubleBinaryOperation(expr, Token::MUL, 1.0)) {
-      DCHECK_EQ(kAstF64, TypeOf(expr->right()));
-      if (TypeOf(expr->left()) != kAstF64) {
+      DCHECK_EQ(kWasmF64, TypeOf(expr->right()));
+      if (TypeOf(expr->left()) != kWasmF64) {
         return kToDouble;
       } else {
         return kAsIs;
@@ -1836,7 +1836,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     uint32_t index;
   };
 
-  uint32_t LookupOrInsertLocal(Variable* v, LocalType type) {
+  uint32_t LookupOrInsertLocal(Variable* v, ValueType type) {
     DCHECK_NOT_NULL(current_function_builder_);
     ZoneHashMap::Entry* entry =
         local_variables_.Lookup(v, ComputePointerHash(v));
@@ -1853,7 +1853,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     return (reinterpret_cast<IndexContainer*>(entry->value))->index;
   }
 
-  void InsertParameter(Variable* v, LocalType type, uint32_t index) {
+  void InsertParameter(Variable* v, ValueType type, uint32_t index) {
     DCHECK(v->IsParameter());
     DCHECK_NOT_NULL(current_function_builder_);
     ZoneHashMap::Entry* entry =
@@ -1866,7 +1866,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     entry->value = container;
   }
 
-  uint32_t LookupOrInsertGlobal(Variable* v, LocalType type) {
+  uint32_t LookupOrInsertGlobal(Variable* v, ValueType type) {
     ZoneHashMap::Entry* entry =
         global_variables_.Lookup(v, ComputePointerHash(v));
     if (entry == nullptr) {
@@ -1887,14 +1887,14 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       auto* func_type = typer_->TypeOf(v)->AsFunctionType();
       DCHECK_NOT_NULL(func_type);
       // Build the signature for the function.
-      LocalType return_type = TypeFrom(func_type->ReturnType());
+      ValueType return_type = TypeFrom(func_type->ReturnType());
       const auto& arguments = func_type->Arguments();
-      FunctionSig::Builder b(zone(), return_type == kAstStmt ? 0 : 1,
+      FunctionSig::Builder b(zone(), return_type == kWasmStmt ? 0 : 1,
                              arguments.size());
-      if (return_type != kAstStmt) b.AddReturn(return_type);
+      if (return_type != kWasmStmt) b.AddReturn(return_type);
       for (int i = 0; i < static_cast<int>(arguments.size()); ++i) {
-        LocalType type = TypeFrom(arguments[i]);
-        DCHECK_NE(kAstStmt, type);
+        ValueType type = TypeFrom(arguments[i]);
+        DCHECK_NE(kWasmStmt, type);
         b.AddParam(type);
       }
 
@@ -1909,22 +1909,22 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     return (reinterpret_cast<WasmFunctionBuilder*>(entry->value));
   }
 
-  LocalType TypeOf(Expression* expr) { return TypeFrom(typer_->TypeOf(expr)); }
+  ValueType TypeOf(Expression* expr) { return TypeFrom(typer_->TypeOf(expr)); }
 
-  LocalType TypeFrom(AsmType* type) {
+  ValueType TypeFrom(AsmType* type) {
     if (type->IsA(AsmType::Intish())) {
-      return kAstI32;
+      return kWasmI32;
     }
 
     if (type->IsA(AsmType::Floatish())) {
-      return kAstF32;
+      return kWasmF32;
     }
 
     if (type->IsA(AsmType::DoubleQ())) {
-      return kAstF64;
+      return kWasmF64;
     }
 
-    return kAstStmt;
+    return kWasmStmt;
   }
 
   Zone* zone() { return zone_; }
@@ -1938,6 +1938,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   FunctionLiteral* literal_;
   Isolate* isolate_;
   Zone* zone_;
+  CompilationInfo* info_;
   AstValueFactory* ast_value_factory_;
   Handle<Script> script_;
   AsmTyper* typer_;
@@ -1959,26 +1960,22 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   DISALLOW_COPY_AND_ASSIGN(AsmWasmBuilderImpl);
 };
 
-AsmWasmBuilder::AsmWasmBuilder(Isolate* isolate, Zone* zone,
-                               AstValueFactory* ast_value_factory,
-                               Handle<Script> script, FunctionLiteral* literal)
-    : isolate_(isolate),
-      zone_(zone),
-      ast_value_factory_(ast_value_factory),
-      script_(script),
-      literal_(literal),
-      typer_(isolate, zone, script, literal) {}
+AsmWasmBuilder::AsmWasmBuilder(CompilationInfo* info)
+    : info_(info),
+      typer_(info->isolate(), info->zone(), info->script(), info->literal()) {}
 
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
 AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
-  AsmWasmBuilderImpl impl(isolate_, zone_, ast_value_factory_, script_,
-                          literal_, &typer_);
+  Zone* zone = info_->zone();
+  AsmWasmBuilderImpl impl(info_->isolate(), zone, info_,
+                          info_->parse_info()->ast_value_factory(),
+                          info_->script(), info_->literal(), &typer_);
   bool success = impl.Build();
   *foreign_args = impl.GetForeignArgs();
-  ZoneBuffer* module_buffer = new (zone_) ZoneBuffer(zone_);
+  ZoneBuffer* module_buffer = new (zone) ZoneBuffer(zone);
   impl.builder_->WriteTo(*module_buffer);
-  ZoneBuffer* asm_offsets_buffer = new (zone_) ZoneBuffer(zone_);
+  ZoneBuffer* asm_offsets_buffer = new (zone) ZoneBuffer(zone);
   impl.builder_->WriteAsmJsOffsetTable(*asm_offsets_buffer);
   return {module_buffer, asm_offsets_buffer, success};
 }

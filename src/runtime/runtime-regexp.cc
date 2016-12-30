@@ -1390,7 +1390,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   uint32_t limit;
   RETURN_FAILURE_ON_EXCEPTION(isolate, ToUint32(isolate, limit_obj, &limit));
 
-  const int length = string->length();
+  const uint32_t length = string->length();
 
   if (limit == 0) return *factory->NewJSArray(0);
 
@@ -1411,8 +1411,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Handle<FixedArray> elems = factory->NewFixedArrayWithHoles(kInitialArraySize);
   int num_elems = 0;
 
-  int string_index = 0;
-  int prev_string_index = 0;
+  uint32_t string_index = 0;
+  uint32_t prev_string_index = 0;
   while (string_index < length) {
     RETURN_FAILURE_ON_EXCEPTION(
         isolate, RegExpUtils::SetLastIndex(isolate, splitter, string_index));
@@ -1434,9 +1434,9 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
-    const int last_index = Handle<Smi>::cast(last_index_obj)->value();
 
-    const int end = std::min(last_index, length);
+    const uint32_t end =
+        std::min(PositiveNumberToUint32(*last_index_obj), length);
     if (end == prev_string_index) {
       string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
                                                      string_index, unicode);
@@ -1461,8 +1461,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num_captures_obj, Object::ToLength(isolate, num_captures_obj));
-    const int num_captures =
-        std::max(Handle<Smi>::cast(num_captures_obj)->value(), 0);
+    const int num_captures = PositiveNumberToUint32(*num_captures_obj);
 
     for (int i = 1; i < num_captures; i++) {
       Handle<Object> capture;
@@ -1495,7 +1494,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, recv, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string, 1);
-  Handle<Object> replace_obj = args.at<Object>(2);
+  Handle<Object> replace_obj = args.at(2);
 
   Factory* factory = isolate->factory();
 
@@ -1508,7 +1507,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
                                replace_obj));
   }
 
-  const int length = string->length();
+  const uint32_t length = string->length();
   const bool functional_replace = replace_obj->IsCallable();
 
   Handle<String> replace;
@@ -1565,7 +1564,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
   // TODO(jgruber): Look into ReplacementStringBuilder instead.
   IncrementalStringBuilder builder(isolate);
-  int next_source_position = 0;
+  uint32_t next_source_position = 0;
 
   for (const auto& result : results) {
     Handle<Object> captures_length_obj;
@@ -1576,8 +1575,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
         Object::ToLength(isolate, captures_length_obj));
-    const int captures_length =
-        std::max(Handle<Smi>::cast(captures_length_obj)->value(), 0);
+    const int captures_length = PositiveNumberToUint32(*captures_length_obj);
 
     Handle<Object> match_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_obj,
@@ -1598,8 +1596,8 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     // 2^53 - 1 (at least for ToLength), we might actually need uint64_t here?
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, position_obj, Object::ToInteger(isolate, position_obj));
-    const int position =
-        std::max(std::min(Handle<Smi>::cast(position_obj)->value(), length), 0);
+    const uint32_t position =
+        std::min(PositiveNumberToUint32(*position_obj), length);
 
     ZoneVector<Handle<Object>> captures(&zone);
     for (int n = 0; n < captures_length; n++) {

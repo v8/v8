@@ -173,6 +173,7 @@ class PrototypeIterator {
   }
 
   bool IsAtEnd() const { return is_at_end_; }
+  Isolate* isolate() const { return isolate_; }
 
  private:
   Isolate* isolate_;

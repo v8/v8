@@ -339,6 +339,8 @@ class Simulator {
   void DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(Instruction* instr);
   void DecodeVCMP(Instruction* instr);
   void DecodeVCVTBetweenDoubleAndSingle(Instruction* instr);
+  int32_t ConvertDoubleToInt(double val, bool unsigned_integer,
+                             VFPRoundingMode mode);
   void DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr);
 
   // Executes one instruction.

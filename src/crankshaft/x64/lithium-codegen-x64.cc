@@ -7,6 +7,7 @@
 #include "src/crankshaft/x64/lithium-codegen-x64.h"
 
 #include "src/base/bits.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/crankshaft/hydrogen-osr.h"
@@ -179,14 +180,17 @@ void LCodeGen::DoPrologue(LPrologue* instr) {
       __ CallRuntime(Runtime::kNewScriptContext);
       deopt_mode = Safepoint::kLazyDeopt;
     } else {
-      if (slots <= FastNewFunctionContextStub::kMaximumSlots) {
-        FastNewFunctionContextStub stub(isolate());
+      if (slots <=
+          ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+        Callable callable = CodeFactory::FastNewFunctionContext(
+            isolate(), info()->scope()->scope_type());
         __ Set(FastNewFunctionContextDescriptor::SlotsRegister(), slots);
-        __ CallStub(&stub);
+        __ Call(callable.code(), RelocInfo::CODE_TARGET);
         // Result of FastNewFunctionContextStub is always in new space.
         need_write_barrier = false;
       } else {
         __ Push(rdi);
+        __ Push(Smi::FromInt(info()->scope()->scope_type()));
         __ CallRuntime(Runtime::kNewFunctionContext);
       }
     }

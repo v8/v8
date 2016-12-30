@@ -463,6 +463,9 @@ TEST(PropertyCall) {
       REPEAT_127(" a.func;\n")  //
       " return a.func(); }\n"
       "f(" FUNC_ARG ")",
+
+      "function f(a) { return a.func(1).func(2).func(3); }\n"
+      "f(new (function Obj() { this.func = function(a) { return this; }})())",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
@@ -1750,17 +1753,40 @@ TEST(GenerateTestUndetectable) {
       "var b = 10;\n"
       "if (obj_a == null) { b = 20;}\n"
       "return b;\n",
+
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a == undefined) { b = 20;}\n"
       "return b;\n",
+
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a != null) { b = 20;}\n"
       "return b;\n",
+
       "var obj_a = {val:1};\n"
       "var b = 10;\n"
       "if (obj_a != undefined) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a === null) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a === undefined) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a !== null) { b = 20;}\n"
+      "return b;\n",
+
+      "var obj_a = {val:1};\n"
+      "var b = 10;\n"
+      "if (obj_a !== undefined) { b = 20;}\n"
       "return b;\n"};
 
   CHECK(CompareTexts(BuildActual(printer, snippets),

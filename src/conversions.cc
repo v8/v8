@@ -436,6 +436,8 @@ char* DoubleToRadixCString(double value, int radix) {
   double fraction = value - integer;
   // We only compute fractional digits up to the input double's precision.
   double delta = 0.5 * (Double(value).NextDouble() - value);
+  delta = std::max(Double(0.0).NextDouble(), delta);
+  DCHECK_GT(delta, 0.0);
   if (fraction > delta) {
     // Insert decimal point.
     buffer[fraction_cursor++] = '.';
@@ -488,6 +490,8 @@ char* DoubleToRadixCString(double value, int radix) {
   // Add sign and terminate string.
   if (negative) buffer[--integer_cursor] = '-';
   buffer[fraction_cursor++] = '\0';
+  DCHECK_LT(fraction_cursor, kBufferSize);
+  DCHECK_LE(0, integer_cursor);
   // Allocate new string as return value.
   char* result = NewArray<char>(fraction_cursor - integer_cursor);
   memcpy(result, buffer + integer_cursor, fraction_cursor - integer_cursor);

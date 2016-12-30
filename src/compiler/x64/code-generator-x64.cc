@@ -271,13 +271,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 class WasmOutOfLineTrap final : public OutOfLineCode {
  public:
   WasmOutOfLineTrap(CodeGenerator* gen, int pc, bool frame_elided,
-                    Register context, int32_t position)
+                    int32_t position, Instruction* instr)
       : OutOfLineCode(gen),
         gen_(gen),
         pc_(pc),
         frame_elided_(frame_elided),
-        context_(context),
-        position_(position) {}
+        position_(position),
+        instr_(instr) {}
 
   // TODO(eholk): Refactor this method to take the code generator as a
   // parameter.
@@ -294,27 +294,32 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     int trap_reason = wasm::WasmOpcodes::TrapReasonToMessageId(trap_id);
     __ Push(Smi::FromInt(trap_reason));
     __ Push(Smi::FromInt(position_));
-    __ Move(rsi, context_);
+    __ Move(rsi, gen_->isolate()->native_context());
     __ CallRuntime(Runtime::kThrowWasmError);
+
+    if (instr_->reference_map() != nullptr) {
+      gen_->RecordSafepoint(instr_->reference_map(), Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+    }
   }
 
  private:
   CodeGenerator* gen_;
   int pc_;
   bool frame_elided_;
-  Register context_;
   int32_t position_;
+  Instruction* instr_;
 };
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
-                         InstructionCode opcode, X64OperandConverter& i,
-                         int pc) {
-  X64MemoryProtection protection =
+                         InstructionCode opcode, size_t input_count,
+                         X64OperandConverter& i, int pc, Instruction* instr) {
+  const X64MemoryProtection protection =
       static_cast<X64MemoryProtection>(MiscField::decode(opcode));
   if (protection == X64MemoryProtection::kProtected) {
-    bool frame_elided = !codegen->frame_access_state()->has_frame();
-    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, i.InputRegister(2),
-                                 i.InputInt32(3));
+    const bool frame_elided = !codegen->frame_access_state()->has_frame();
+    const int32_t position = i.InputInt32(input_count - 1);
+    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, position, instr);
   }
 }
 }  // namespace
@@ -1853,25 +1858,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Subsd(i.InputDoubleRegister(0), kScratchDoubleReg);
       break;
     case kX64Movsxbl:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxbl);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxbl);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxbq:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxbq);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movzxbq:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxbq);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movb: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
@@ -1879,29 +1890,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ movb(operand, i.InputRegister(index));
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     }
     case kX64Movsxwl:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxwl);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxwl);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxwq:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxwq);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movzxwq:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxwq);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
@@ -1909,10 +1925,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ movw(operand, i.InputRegister(index));
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     }
     case kX64Movl:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         if (instr->addressing_mode() == kMode_None) {
           if (instr->InputAt(0)->IsRegister()) {
@@ -1923,7 +1940,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ movl(i.OutputRegister(), i.MemoryOperand());
         }
-        EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
         __ AssertZeroExtended(i.OutputRegister());
       } else {
         size_t index = 0;
@@ -1933,14 +1949,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         } else {
           __ movl(operand, i.InputRegister(index));
         }
-        EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       }
       break;
     case kX64Movsxlq:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxlq);
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movq:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         __ movq(i.OutputRegister(), i.MemoryOperand());
       } else {
@@ -1952,9 +1970,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ movq(operand, i.InputRegister(index));
         }
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movss:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
@@ -1962,9 +1981,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Operand operand = i.MemoryOperand(&index);
         __ movss(operand, i.InputDoubleRegister(index));
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64Movsd:
+      EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
@@ -1972,7 +1992,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Operand operand = i.MemoryOperand(&index);
         __ Movsd(operand, i.InputDoubleRegister(index));
       }
-      EmitOOLTrapIfNeeded(zone(), this, opcode, i, __ pc_offset());
       break;
     case kX64BitcastFI:
       if (instr->InputAt(0)->IsFPStackSlot()) {
@@ -2226,61 +2245,58 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
   return kSuccess;
 }  // NOLINT(readability/fn_size)
 
+namespace {
+
+Condition FlagsConditionToCondition(FlagsCondition condition) {
+  switch (condition) {
+    case kUnorderedEqual:
+    case kEqual:
+      return equal;
+    case kUnorderedNotEqual:
+    case kNotEqual:
+      return not_equal;
+    case kSignedLessThan:
+      return less;
+    case kSignedGreaterThanOrEqual:
+      return greater_equal;
+    case kSignedLessThanOrEqual:
+      return less_equal;
+    case kSignedGreaterThan:
+      return greater;
+    case kUnsignedLessThan:
+      return below;
+    case kUnsignedGreaterThanOrEqual:
+      return above_equal;
+    case kUnsignedLessThanOrEqual:
+      return below_equal;
+    case kUnsignedGreaterThan:
+      return above;
+    case kOverflow:
+      return overflow;
+    case kNotOverflow:
+      return no_overflow;
+    default:
+      break;
+  }
+  UNREACHABLE();
+  return no_condition;
+}
+
+}  // namespace
 
 // Assembles branches after this instruction.
 void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
-  X64OperandConverter i(this, instr);
   Label::Distance flabel_distance =
       branch->fallthru ? Label::kNear : Label::kFar;
   Label* tlabel = branch->true_label;
   Label* flabel = branch->false_label;
-  switch (branch->condition) {
-    case kUnorderedEqual:
-      __ j(parity_even, flabel, flabel_distance);
-    // Fall through.
-    case kEqual:
-      __ j(equal, tlabel);
-      break;
-    case kUnorderedNotEqual:
-      __ j(parity_even, tlabel);
-    // Fall through.
-    case kNotEqual:
-      __ j(not_equal, tlabel);
-      break;
-    case kSignedLessThan:
-      __ j(less, tlabel);
-      break;
-    case kSignedGreaterThanOrEqual:
-      __ j(greater_equal, tlabel);
-      break;
-    case kSignedLessThanOrEqual:
-      __ j(less_equal, tlabel);
-      break;
-    case kSignedGreaterThan:
-      __ j(greater, tlabel);
-      break;
-    case kUnsignedLessThan:
-      __ j(below, tlabel);
-      break;
-    case kUnsignedGreaterThanOrEqual:
-      __ j(above_equal, tlabel);
-      break;
-    case kUnsignedLessThanOrEqual:
-      __ j(below_equal, tlabel);
-      break;
-    case kUnsignedGreaterThan:
-      __ j(above, tlabel);
-      break;
-    case kOverflow:
-      __ j(overflow, tlabel);
-      break;
-    case kNotOverflow:
-      __ j(no_overflow, tlabel);
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  if (branch->condition == kUnorderedEqual) {
+    __ j(parity_even, flabel, flabel_distance);
+  } else if (branch->condition == kUnorderedNotEqual) {
+    __ j(parity_even, tlabel);
   }
+  __ j(FlagsConditionToCondition(branch->condition), tlabel);
+
   if (!branch->fallthru) __ jmp(flabel, flabel_distance);
 }
 
@@ -2289,6 +2305,71 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  class OutOfLineTrap final : public OutOfLineCode {
+   public:
+    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
+        : OutOfLineCode(gen),
+          frame_elided_(frame_elided),
+          instr_(instr),
+          gen_(gen) {}
+
+    void Generate() final {
+      X64OperandConverter i(gen_, instr_);
+
+      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
+          i.InputInt32(instr_->InputCount() - 1));
+      bool old_has_frame = __ has_frame();
+      if (frame_elided_) {
+        __ set_has_frame(true);
+        __ EnterFrame(StackFrame::WASM);
+      }
+      GenerateCallToTrap(trap_id);
+      if (frame_elided_) {
+        __ set_has_frame(old_has_frame);
+      }
+      if (FLAG_debug_code) {
+        __ ud2();
+      }
+    }
+
+   private:
+    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
+      if (trap_id == Runtime::kNumFunctions) {
+        // We cannot test calls to the runtime in cctest/test-run-wasm.
+        // Therefore we emit a call to C here instead of a call to the runtime.
+        __ PrepareCallCFunction(0);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
+            0);
+      } else {
+        __ Move(rsi, isolate()->native_context());
+        gen_->AssembleSourcePosition(instr_);
+        __ CallRuntime(trap_id);
+      }
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+    }
+
+    bool frame_elided_;
+    Instruction* instr_;
+    CodeGenerator* gen_;
+  };
+  bool frame_elided = !frame_access_state()->has_frame();
+  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  Label* tlabel = ool->entry();
+  Label end;
+  if (condition == kUnorderedEqual) {
+    __ j(parity_even, &end);
+  } else if (condition == kUnorderedNotEqual) {
+    __ j(parity_even, tlabel);
+  }
+  __ j(FlagsConditionToCondition(condition), tlabel);
+  __ bind(&end);
+}
 
 // Assembles boolean materializations after this instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,
@@ -2301,60 +2382,17 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   Label check;
   DCHECK_NE(0u, instr->OutputCount());
   Register reg = i.OutputRegister(instr->OutputCount() - 1);
-  Condition cc = no_condition;
-  switch (condition) {
-    case kUnorderedEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(0));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
-    case kEqual:
-      cc = equal;
-      break;
-    case kUnorderedNotEqual:
-      __ j(parity_odd, &check, Label::kNear);
-      __ movl(reg, Immediate(1));
-      __ jmp(&done, Label::kNear);
-    // Fall through.
-    case kNotEqual:
-      cc = not_equal;
-      break;
-    case kSignedLessThan:
-      cc = less;
-      break;
-    case kSignedGreaterThanOrEqual:
-      cc = greater_equal;
-      break;
-    case kSignedLessThanOrEqual:
-      cc = less_equal;
-      break;
-    case kSignedGreaterThan:
-      cc = greater;
-      break;
-    case kUnsignedLessThan:
-      cc = below;
-      break;
-    case kUnsignedGreaterThanOrEqual:
-      cc = above_equal;
-      break;
-    case kUnsignedLessThanOrEqual:
-      cc = below_equal;
-      break;
-    case kUnsignedGreaterThan:
-      cc = above;
-      break;
-    case kOverflow:
-      cc = overflow;
-      break;
-    case kNotOverflow:
-      cc = no_overflow;
-      break;
-    default:
-      UNREACHABLE();
-      break;
+  if (condition == kUnorderedEqual) {
+    __ j(parity_odd, &check, Label::kNear);
+    __ movl(reg, Immediate(0));
+    __ jmp(&done, Label::kNear);
+  } else if (condition == kUnorderedNotEqual) {
+    __ j(parity_odd, &check, Label::kNear);
+    __ movl(reg, Immediate(1));
+    __ jmp(&done, Label::kNear);
   }
   __ bind(&check);
-  __ setcc(cc, reg);
+  __ setcc(FlagsConditionToCondition(condition), reg);
   __ movzxbl(reg, reg);
   __ bind(&done);
 }

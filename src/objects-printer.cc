@@ -235,9 +235,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayPrint(os);
       break;
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
-      JSFixedArrayIterator::cast(this)->JSFixedArrayIteratorPrint(os);
-      break;
     case JS_DATA_VIEW_TYPE:
       JSDataView::cast(this)->JSDataViewPrint(os);
       break;
@@ -548,7 +545,9 @@ void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSPromise");
   os << "\n - status = " << JSPromise::Status(status());
   os << "\n - result = " << Brief(result());
-  os << "\n - deferreds = " << Brief(deferred());
+  os << "\n - deferred_promise: " << Brief(deferred_promise());
+  os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
+  os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
   os << "\n - fulfill_reactions = " << Brief(fulfill_reactions());
   os << "\n - reject_reactions = " << Brief(reject_reactions());
   os << "\n - has_handler = " << has_handler();
@@ -1013,15 +1012,6 @@ void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
   JSObjectPrintBody(os, this);
 }
 
-void JSFixedArrayIterator::JSFixedArrayIteratorPrint(
-    std::ostream& os) {  // NOLINT
-  JSObjectPrintHeader(os, this, "JSFixedArrayIterator");
-  os << "\n - array = " << Brief(array());
-  os << "\n - index = " << index();
-  os << "\n - initial_next = " << Brief(initial_next());
-  JSObjectPrintBody(os, this);
-}
-
 void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDataView");
   os << "\n - buffer =" << Brief(buffer());
@@ -1242,9 +1232,12 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
 void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PromiseReactionJobInfo");
+  os << "\n - promise: " << Brief(promise());
   os << "\n - value: " << Brief(value());
   os << "\n - tasks: " << Brief(tasks());
-  os << "\n - deferred: " << Brief(deferred());
+  os << "\n - deferred_promise: " << Brief(deferred_promise());
+  os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
+  os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
   os << "\n - debug id: " << Brief(debug_id());
   os << "\n - debug name: " << Brief(debug_name());
   os << "\n - reaction context: " << Brief(context());
@@ -1310,6 +1303,13 @@ void ContextExtension::ContextExtensionPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void ConstantElementsPair::ConstantElementsPairPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "ConstantElementsPair");
+  os << "\n - elements_kind: " << static_cast<ElementsKind>(elements_kind());
+  os << "\n - constant_values: " << Brief(constant_values());
+  os << "\n";
+}
 
 void AccessorPair::AccessorPairPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorPair");

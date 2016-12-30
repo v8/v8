@@ -360,7 +360,10 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                 kSourcePositionTableOffset);
   STATIC_ASSERT(kSourcePositionTableOffset + kPointerSize ==
                 kTypeFeedbackInfoOffset);
-  STATIC_ASSERT(kTypeFeedbackInfoOffset + kPointerSize == kNextCodeLinkOffset);
+  STATIC_ASSERT(kTypeFeedbackInfoOffset + kPointerSize ==
+                kProtectedInstructionOffset);
+  STATIC_ASSERT(kProtectedInstructionOffset + kPointerSize ==
+                kNextCodeLinkOffset);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -469,7 +472,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case JS_DATE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
-    case JS_FIXED_ARRAY_ITERATOR_TYPE:
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_SET_TYPE:

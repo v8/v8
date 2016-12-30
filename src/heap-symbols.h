@@ -125,6 +125,7 @@
   V(preventExtensions_string, "preventExtensions")                 \
   V(Promise_string, "Promise")                                     \
   V(PromiseResolveThenableJob_string, "PromiseResolveThenableJob") \
+  V(promise_string, "promise")                                     \
   V(proto_string, "__proto__")                                     \
   V(prototype_string, "prototype")                                 \
   V(Proxy_string, "Proxy")                                         \
@@ -132,6 +133,8 @@
   V(RangeError_string, "RangeError")                               \
   V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
+  V(reject_string, "reject")                                       \
+  V(resolve_string, "resolve")                                     \
   V(script_string, "script")                                       \
   V(second_string, "second")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
@@ -149,6 +152,7 @@
   V(String_string, "String")                                       \
   V(symbol_string, "symbol")                                       \
   V(Symbol_string, "Symbol")                                       \
+  V(symbol_species_string, "[Symbol.species]")                     \
   V(SyntaxError_string, "SyntaxError")                             \
   V(then_string, "then")                                           \
   V(this_string, "this")                                           \
@@ -161,6 +165,7 @@
   V(TypeError_string, "TypeError")                                 \
   V(type_string, "type")                                           \
   V(CompileError_string, "CompileError")                           \
+  V(LinkError_string, "LinkError")                                 \
   V(RuntimeError_string, "RuntimeError")                           \
   V(uint16x8_string, "uint16x8")                                   \
   V(Uint16x8_string, "Uint16x8")                                   \
@@ -213,7 +218,6 @@
   V(promise_debug_marker_symbol)       \
   V(promise_forwarding_handler_symbol) \
   V(promise_handled_by_symbol)         \
-  V(promise_handled_hint_symbol)       \
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \
@@ -221,6 +225,7 @@
 
 #define PUBLIC_SYMBOL_LIST(V)                \
   V(iterator_symbol, Symbol.iterator)        \
+  V(intl_fallback_symbol, IntlFallback)      \
   V(match_symbol, Symbol.match)              \
   V(replace_symbol, Symbol.replace)          \
   V(search_symbol, Symbol.search)            \

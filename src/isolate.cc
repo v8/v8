@@ -512,19 +512,15 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
 
       case StackFrame::WASM: {
         WasmFrame* wasm_frame = WasmFrame::cast(frame);
-        Handle<Object> instance(wasm_frame->wasm_instance(), this);
+        Handle<WasmInstanceObject> instance(wasm_frame->wasm_instance(), this);
         const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
         Handle<AbstractCode> abstract_code(AbstractCode::cast(code), this);
         const int offset =
             static_cast<int>(wasm_frame->pc() - code->instruction_start());
 
-        // TODO(wasm): The wasm object returned by the WasmFrame should always
-        //             be a wasm object.
-        DCHECK(wasm::IsWasmInstance(*instance) || instance->IsUndefined(this));
-
         int flags = 0;
-        if (wasm::WasmIsAsmJs(*instance, this)) {
+        if (instance->compiled_module()->is_asm_js()) {
           flags |= FrameArray::kIsAsmJsWasmFrame;
           if (wasm_frame->at_to_number_conversion()) {
             flags |= FrameArray::kAsmJsAtNumberConversion;
@@ -708,9 +704,10 @@ class CaptureStackTraceHelper {
         factory()->NewJSObject(isolate_->object_function());
 
     if (!function_key_.is_null()) {
-      Handle<String> name = wasm::GetWasmFunctionName(
-          isolate_, handle(frame->wasm_instance(), isolate_),
-          frame->function_index());
+      Handle<WasmCompiledModule> compiled_module(
+          frame->wasm_instance()->compiled_module(), isolate_);
+      Handle<String> name = WasmCompiledModule::GetFunctionName(
+          isolate_, compiled_module, frame->function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
     // Encode the function index as line number (1-based).
@@ -1342,10 +1339,18 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       frame->Summarize(&summaries);
       for (const FrameSummary& summary : summaries) {
         Handle<AbstractCode> code = summary.abstract_code();
-        if (code->IsCode() && code->kind() == AbstractCode::BUILTIN &&
-            code->GetCode()->is_promise_rejection()) {
-          return HandlerTable::PROMISE;
+        if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
+          if (code->GetCode()->is_promise_rejection()) {
+            return HandlerTable::PROMISE;
+          }
+
+          // This the exception throw in PromiseHandle which doesn't
+          // cause a promise rejection.
+          if (code->GetCode()->is_exception_caught()) {
+            return HandlerTable::CAUGHT;
+          }
         }
+
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
           DCHECK(summary.function()->shared()->asm_function());
           // asm code cannot contain try-catch.
@@ -1554,7 +1559,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
       Handle<WasmCompiledModule> compiled_module(
           WasmInstanceObject::cast(elements->WasmInstance(i))
-              ->get_compiled_module());
+              ->compiled_module());
       int func_index = elements->WasmFunctionIndex(i)->value();
       int code_offset = elements->Offset(i)->value();
       // TODO(wasm): Clean this up (bug 5007).
@@ -1573,7 +1578,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
         // adding the function offset.
         pos += compiled_module->GetFunctionOffset(func_index);
       }
-      Handle<Script> script = compiled_module->script();
+      Handle<Script> script(compiled_module->script());
 
       *target = MessageLocation(script, pos, pos + 1);
       return true;
@@ -1803,21 +1808,85 @@ void Isolate::PopPromise() {
   global_handles()->Destroy(global_promise.location());
 }
 
-bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
-  Handle<JSFunction> fun = promise_has_user_defined_reject_handler();
-  Handle<Object> has_reject_handler;
-  // If we are, e.g., overflowing the stack, don't try to call out to JS
-  if (!AllowJavascriptExecution::IsAllowed(this)) return false;
-  // Call the registered function to check for a handler
-  if (Execution::TryCall(this, fun, promise, 0, NULL)
-          .ToHandle(&has_reject_handler)) {
-    return has_reject_handler->IsTrue(this);
+namespace {
+bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
+                                                Handle<JSPromise> promise);
+
+bool PromiseHandlerCheck(Isolate* isolate, Handle<JSReceiver> handler,
+                         Handle<JSReceiver> deferred_promise) {
+  // Recurse to the forwarding Promise, if any. This may be due to
+  //  - await reaction forwarding to the throwaway Promise, which has
+  //    a dependency edge to the outer Promise.
+  //  - PromiseIdResolveHandler forwarding to the output of .then
+  //  - Promise.all/Promise.race forwarding to a throwaway Promise, which
+  //    has a dependency edge to the generated outer Promise.
+  // Otherwise, this is a real reject handler for the Promise.
+  Handle<Symbol> key = isolate->factory()->promise_forwarding_handler_symbol();
+  Handle<Object> forwarding_handler = JSReceiver::GetDataProperty(handler, key);
+  if (forwarding_handler->IsUndefined(isolate)) {
+    return true;
   }
-  // If an exception is thrown in the course of execution of this built-in
-  // function, it indicates either a bug, or a synthetic uncatchable
-  // exception in the shutdown path. In either case, it's OK to predict either
-  // way in DevTools.
+
+  if (!deferred_promise->IsJSPromise()) {
+    return true;
+  }
+
+  return InternalPromiseHasUserDefinedRejectHandler(
+      isolate, Handle<JSPromise>::cast(deferred_promise));
+}
+
+bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
+                                                Handle<JSPromise> promise) {
+  // If this promise was marked as being handled by a catch block
+  // in an async function, then it has a user-defined reject handler.
+  if (promise->handled_hint()) return true;
+
+  // If this Promise is subsumed by another Promise (a Promise resolved
+  // with another Promise, or an intermediate, hidden, throwaway Promise
+  // within async/await), then recurse on the outer Promise.
+  // In this case, the dependency is one possible way that the Promise
+  // could be resolved, so it does not subsume the other following cases.
+  Handle<Symbol> key = isolate->factory()->promise_handled_by_symbol();
+  Handle<Object> outer_promise_obj = JSObject::GetDataProperty(promise, key);
+  if (outer_promise_obj->IsJSPromise() &&
+      InternalPromiseHasUserDefinedRejectHandler(
+          isolate, Handle<JSPromise>::cast(outer_promise_obj))) {
+    return true;
+  }
+
+  Handle<Object> queue(promise->reject_reactions(), isolate);
+  Handle<Object> deferred_promise(promise->deferred_promise(), isolate);
+
+  if (queue->IsUndefined(isolate)) {
+    return false;
+  }
+
+  if (queue->IsCallable()) {
+    return PromiseHandlerCheck(isolate, Handle<JSReceiver>::cast(queue),
+                               Handle<JSReceiver>::cast(deferred_promise));
+  }
+
+  Handle<FixedArray> queue_arr = Handle<FixedArray>::cast(queue);
+  Handle<FixedArray> deferred_promise_arr =
+      Handle<FixedArray>::cast(deferred_promise);
+  for (int i = 0; i < deferred_promise_arr->length(); i++) {
+    Handle<JSReceiver> queue_item(JSReceiver::cast(queue_arr->get(i)));
+    Handle<JSReceiver> deferred_promise_item(
+        JSReceiver::cast(deferred_promise_arr->get(i)));
+    if (PromiseHandlerCheck(isolate, queue_item, deferred_promise_item)) {
+      return true;
+    }
+  }
+
   return false;
+}
+
+}  // namespace
+
+bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
+  if (!promise->IsJSPromise()) return false;
+  return InternalPromiseHasUserDefinedRejectHandler(
+      this, Handle<JSPromise>::cast(promise));
 }
 
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
@@ -1837,7 +1906,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
         continue;
       case HandlerTable::CAUGHT:
       case HandlerTable::DESUGARING:
-        if (retval->IsJSObject()) {
+        if (retval->IsJSPromise()) {
           // Caught the result of an inner async/await invocation.
           // Mark the inner promise as caught in the "synchronous case" so
           // that Debug::OnException will see. In the synchronous case,
@@ -1845,10 +1914,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
           // await, the function which has this exception event has not yet
           // returned, so the generated Promise has not yet been marked
           // by AsyncFunctionAwaitCaught with promiseHandledHintSymbol.
-          Handle<Symbol> key = factory()->promise_handled_hint_symbol();
-          JSObject::SetProperty(Handle<JSObject>::cast(retval), key,
-                                factory()->true_value(), STRICT)
-              .Assert();
+          Handle<JSPromise>::cast(retval)->set_handled_hint(true);
         }
         return retval;
       case HandlerTable::PROMISE:
@@ -2140,10 +2206,11 @@ Isolate::Isolate(bool enable_serializer)
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
       rail_mode_(PERFORMANCE_ANIMATION),
+      promise_hook_(NULL),
+      load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
-      is_promisehook_enabled_(false),
       is_tail_call_elimination_enabled_(true),
       is_isolate_in_background_(false),
       cpu_profiler_(NULL),
@@ -2510,7 +2577,8 @@ bool Isolate::Init(Deserializer* des) {
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);
-  compiler_dispatcher_ = new CompilerDispatcher(this, FLAG_stack_size);
+  compiler_dispatcher_ =
+      new CompilerDispatcher(this, V8::GetCurrentPlatform(), FLAG_stack_size);
 
   // Enable logging before setting up the heap
   logger_->SetUp(this);
@@ -3160,9 +3228,14 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
-void Isolate::EnablePromiseHook() { is_promisehook_enabled_ = true; }
+void Isolate::SetPromiseHook(PromiseHook hook) { promise_hook_ = hook; }
 
-void Isolate::DisablePromiseHook() { is_promisehook_enabled_ = false; }
+void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+                             Handle<Object> parent) {
+  if (promise_hook_ == nullptr) return;
+  promise_hook_(type, v8::Utils::PromiseToLocal(promise),
+                v8::Utils::ToLocal(parent));
+}
 
 void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
   promise_reject_callback_ = callback;
@@ -3219,19 +3292,29 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* maybe_exception) {
   PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
 
+  Handle<JSPromise> promise(info->promise(), this);
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
   Handle<Object> undefined = factory()->undefined_value();
-  Handle<Object> deferred(info->deferred(), this);
+  Handle<Object> deferred_promise(info->deferred_promise(), this);
 
-  if (deferred->IsFixedArray()) {
+  if (deferred_promise->IsFixedArray()) {
     DCHECK(tasks->IsFixedArray());
-    Handle<FixedArray> deferred_arr = Handle<FixedArray>::cast(deferred);
+    Handle<FixedArray> deferred_promise_arr =
+        Handle<FixedArray>::cast(deferred_promise);
+    Handle<FixedArray> deferred_on_resolve_arr(
+        FixedArray::cast(info->deferred_on_resolve()), this);
+    Handle<FixedArray> deferred_on_reject_arr(
+        FixedArray::cast(info->deferred_on_reject()), this);
     Handle<FixedArray> tasks_arr = Handle<FixedArray>::cast(tasks);
-    for (int i = 0; i < deferred_arr->length(); i++) {
-      Handle<Object> argv[] = {value, handle(tasks_arr->get(i), this),
-                               handle(deferred_arr->get(i), this)};
+    for (int i = 0; i < deferred_promise_arr->length(); i++) {
+      Handle<Object> argv[] = {promise,
+                               value,
+                               handle(tasks_arr->get(i), this),
+                               handle(deferred_promise_arr->get(i), this),
+                               handle(deferred_on_resolve_arr->get(i), this),
+                               handle(deferred_on_reject_arr->get(i), this)};
       *result = Execution::TryCall(this, promise_handle_fn, undefined,
                                    arraysize(argv), argv, maybe_exception);
       // If execution is terminating, just bail out.
@@ -3240,7 +3323,12 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
       }
     }
   } else {
-    Handle<Object> argv[] = {value, tasks, deferred};
+    Handle<Object> argv[] = {promise,
+                             value,
+                             tasks,
+                             deferred_promise,
+                             handle(info->deferred_on_resolve(), this),
+                             handle(info->deferred_on_reject(), this)};
     *result = Execution::TryCall(this, promise_handle_fn, undefined,
                                  arraysize(argv), argv, maybe_exception);
   }
@@ -3495,8 +3583,22 @@ void Isolate::CheckDetachedContextsAfterGC() {
   }
 }
 
+double Isolate::LoadStartTimeMs() {
+  base::LockGuard<base::Mutex> guard(&rail_mutex_);
+  return load_start_time_ms_;
+}
+
 void Isolate::SetRAILMode(RAILMode rail_mode) {
+  RAILMode old_rail_mode = rail_mode_.Value();
+  if (old_rail_mode != PERFORMANCE_LOAD && rail_mode == PERFORMANCE_LOAD) {
+    base::LockGuard<base::Mutex> guard(&rail_mutex_);
+    load_start_time_ms_ = heap()->MonotonicallyIncreasingTimeInMs();
+  }
   rail_mode_.SetValue(rail_mode);
+  if (old_rail_mode == PERFORMANCE_LOAD && rail_mode != PERFORMANCE_LOAD) {
+    heap()->incremental_marking()->incremental_marking_job()->ScheduleTask(
+        heap());
+  }
   if (FLAG_trace_rail) {
     PrintIsolate(this, "RAIL mode: %s\n", RAILModeName(rail_mode));
   }

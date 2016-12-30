@@ -160,9 +160,9 @@ TEST_F(JSCreateLoweringTest, JSCreateFunctionContextViaInlinedAllocation) {
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
-  Reduction const r =
-      Reduce(graph()->NewNode(javascript()->CreateFunctionContext(8), closure,
-                              context, effect, control));
+  Reduction const r = Reduce(
+      graph()->NewNode(javascript()->CreateFunctionContext(8, FUNCTION_SCOPE),
+                       closure, context, effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsFinishRegion(IsAllocate(IsNumberConstant(Context::SizeFor(

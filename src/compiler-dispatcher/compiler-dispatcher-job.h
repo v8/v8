@@ -83,6 +83,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // Transition from any state to kInitial and free all resources.
   void ResetOnMainThread();
 
+  // Estimate how long the next step will take using the tracer.
+  double EstimateRuntimeOfNextStepInMs() const;
+
  private:
   FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
 

@@ -3435,6 +3435,95 @@ TEST(InnerAssignment) {
   }
 }
 
+TEST(MaybeAssignedParameters) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  struct {
+    bool arg_assigned;
+    const char* source;
+  } tests[] = {
+      {false, "function f(arg) {}"},
+      {false, "function f(arg) {g(arg)}"},
+      {false, "function f(arg) {function h() { g(arg) }; h()}"},
+      {false, "function f(arg) {function h() { g(arg) }; return h}"},
+      {false, "function f(arg=1) {}"},
+      {false, "function f(arg=1) {g(arg)}"},
+      {false, "function f(arg, arguments) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false,
+       "function f(arg, ...arguments) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false,
+       "function f(arg, arguments=[]) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false, "function f(...arg) {g(arg); arguments[0] = 42; g(arg)}"},
+
+      // strict arguments object
+      {false, "function f(arg, x=1) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false, "function f(arg, ...x) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false, "function f(arg=1) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false,
+       "function f(arg) {'use strict'; g(arg); arguments[0] = 42; g(arg)}"},
+      {false, "function f(arg) {g(arg); f.arguments[0] = 42; g(arg)}"},
+      {false, "function f(arg, args=arguments) {g(arg); args[0] = 42; g(arg)}"},
+
+      {true, "function f(arg) {g(arg); arg = 42; g(arg)}"},
+      {true, "function f(arg) {g(arg); eval('arg = 42'); g(arg)}"},
+      {true, "function f(arg) {g(arg); var arg = 42; g(arg)}"},
+      {true, "function f(arg, x=1) {g(arg); arg = 42; g(arg)}"},
+      {true, "function f(arg, ...x) {g(arg); arg = 42; g(arg)}"},
+      {true, "function f(arg=1) {g(arg); arg = 42; g(arg)}"},
+      {true, "function f(arg) {'use strict'; g(arg); arg = 42; g(arg)}"},
+      {true, "function f(arg, {a=(g(arg), arg=42)}) {g(arg)}"},
+      {true, "function f(arg) {g(arg); g(() => arg = 42); g(arg)}"},
+      {true, "function f(arg) {g(arg); g(() => eval('arg = 42')); g(arg)}"},
+      {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
+      {true, "function f(...arg) {g(arg); eval('arg = 42'); g(arg)}"},
+
+      // sloppy arguments object
+      {true, "function f(arg) {g(arg); arguments[0] = 42; g(arg)}"},
+      {true, "function f(arg) {g(arg); h(arguments); g(arg)}"},
+      {true,
+       "function f(arg) {((args) => {arguments[0] = 42})(arguments); "
+       "g(arg)}"},
+      {true, "function f(arg) {g(arg); eval('arguments[0] = 42'); g(arg)}"},
+  };
+
+  const char* suffix = "; f";
+
+  for (unsigned i = 0; i < arraysize(tests); ++i) {
+    bool assigned = tests[i].arg_assigned;
+    const char* source = tests[i].source;
+    for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
+      i::ScopedVector<char> program(Utf8LengthHelper(source) +
+                                    Utf8LengthHelper(suffix) + 1);
+      i::SNPrintF(program, "%s%s", source, suffix);
+      i::Zone zone(isolate->allocator(), ZONE_NAME);
+      std::unique_ptr<i::ParseInfo> info;
+      printf("%s\n", program.start());
+      v8::Local<v8::Value> v = CompileRun(program.start());
+      i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
+      i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
+      i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
+      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
+      info->set_allow_lazy_parsing(allow_lazy);
+      CHECK(i::parsing::ParseFunction(info.get()));
+      CHECK(i::Compiler::Analyze(info.get()));
+      CHECK_NOT_NULL(info->literal());
+
+      i::Scope* scope = info->literal()->scope();
+      CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
+      CHECK_NULL(scope->sibling());
+      CHECK(scope->is_function_scope());
+      const i::AstRawString* var_name =
+          info->ast_value_factory()->GetOneByteString("arg");
+      i::Variable* var = scope->Lookup(var_name);
+      CHECK(var->is_used() || !assigned);
+      bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
+      CHECK_EQ(is_maybe_assigned, assigned);
+    }
+  }
+}
+
 namespace {
 
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,
@@ -8470,6 +8559,12 @@ TEST(NoPessimisticContextAllocation) {
       {"function inner() { var {my_var : a} = {my_var}; }", true},
       {"function inner() { let {my_var : a} = {my_var}; }", true},
       {"function inner() { const {my_var : a} = {my_var}; }", true},
+      {"function inner(a = my_var) { }", true},
+      {"function inner() { function inner2(a = my_var) { } }", true},
+      {"function inner({a} = {a: my_var}) { }", true},
+      {"function inner() { function inner2({a} = {a: my_var}) { } }", true},
+      {"function inner([a] = [my_var]) { }", true},
+      {"function inner() { function inner2([a] = [my_var]) { } }", true},
       // No pessimistic context allocation:
       {"function inner() { var my_var; my_var; }", false},
       {"function inner() { var my_var; }", false},
@@ -8488,35 +8583,66 @@ TEST(NoPessimisticContextAllocation) {
       {"function inner() { const {my_var} = {my_var: 3}; my_var; }", false},
       {"function inner(my_var) { my_var; }", false},
       {"function inner(my_var) { }", false},
+      {"function inner(my_var = 5) { my_var; }", false},
+      {"function inner(my_var = 5) { }", false},
       {"function inner(...my_var) { my_var; }", false},
       {"function inner(...my_var) { }", false},
       {"function inner([a, my_var, b]) { my_var; }", false},
       {"function inner([a, my_var, b]) { }", false},
+      {"function inner([a, my_var, b] = [1, 2, 3]) { my_var; }", false},
+      {"function inner([a, my_var, b] = [1, 2, 3]) { }", false},
       {"function inner({x: my_var}) { my_var; }", false},
       {"function inner({x: my_var}) { }", false},
+      {"function inner({x: my_var} = {x: 0}) { my_var; }", false},
+      {"function inner({x: my_var} = {x: 0}) { }", false},
       {"function inner({my_var}) { my_var; }", false},
       {"function inner({my_var}) { }", false},
+      {"function inner({my_var} = {my_var: 0}) { my_var; }", false},
+      {"function inner({my_var} = {my_var: 0}) { }", false},
       {"function inner() { function inner2(my_var) { my_var; } }", false},
       {"function inner() { function inner2(my_var) { } }", false},
+      {"function inner() { function inner2(my_var = 5) { my_var; } }", false},
+      {"function inner() { function inner2(my_var = 5) { } }", false},
       {"function inner() { function inner2(...my_var) { my_var; } }", false},
       {"function inner() { function inner2(...my_var) { } }", false},
       {"function inner() { function inner2([a, my_var, b]) { my_var; } }",
        false},
       {"function inner() { function inner2([a, my_var, b]) { } }", false},
+      {"function inner() { function inner2([a, my_var, b] = [1, 2, 3]) { "
+       "my_var; } }",
+       false},
+      {"function inner() { function inner2([a, my_var, b] = [1, 2, 3]) { } }",
+       false},
       {"function inner() { function inner2({x: my_var}) { my_var; } }", false},
       {"function inner() { function inner2({x: my_var}) { } }", false},
+      {"function inner() { function inner2({x: my_var} = {x: 0}) { my_var; } }",
+       false},
+      {"function inner() { function inner2({x: my_var} = {x: 0}) { } }", false},
       {"function inner() { function inner2({my_var}) { my_var; } }", false},
       {"function inner() { function inner2({my_var}) { } }", false},
+      {"function inner() { function inner2({my_var} = {my_var: 8}) { my_var; } "
+       "}",
+       false},
+      {"function inner() { function inner2({my_var} = {my_var: 8}) { } }",
+       false},
       {"my_var =>  my_var; ", false},
       {"my_var => { }", false},
+      {"(my_var = 5) =>  my_var; ", false},
+      {"(my_var = 5) => { }", false},
       {"(...my_var) =>  my_var;", false},
       {"(...my_var) => { }", false},
       {"([a, my_var, b]) => my_var;", false},
       {"([a, my_var, b]) => { }", false},
+      {"([a, my_var, b] = [1, 2, 3]) => my_var;", false},
+      {"([a, my_var, b] = [1, 2, 3]) => { }", false},
       {"({x: my_var}) => my_var;", false},
       {"({x: my_var}) => { }", false},
+      {"({x: my_var} = {x: 0}) => my_var;", false},
+      {"({x: my_var} = {x: 0}) => { }", false},
       {"({my_var}) => my_var;", false},
       {"({my_var}) => { }", false},
+      {"({my_var} = {my_var: 5}) => my_var;", false},
+      {"({my_var} = {my_var: 5}) => { }", false},
       {"function inner() { try { } catch (my_var) { } }", false},
       {"function inner() { class my_var {}; }", false},
       // In the following cases we still context allocate pessimistically:
@@ -8528,16 +8654,24 @@ TEST(NoPessimisticContextAllocation) {
       {"function inner() { for (my_var of {}) { } }", true},
       {"function inner() { for (my_var in []) { my_var; } }", true},
       {"function inner() { for (my_var in []) { } }", true},
-      {"function inner() { my_var =>  my_var; }", true},
+      {"function inner() { my_var => my_var; }", true},
       {"function inner() { my_var => { }}", true},
-      {"function inner() { (...my_var) =>  my_var;}", true},
+      {"function inner() { (my_var = 5) => my_var; }", true},
+      {"function inner() { (my_var = 5) => { }}", true},
+      {"function inner() { (...my_var) => my_var;}", true},
       {"function inner() { (...my_var) => { }}", true},
       {"function inner() { ([a, my_var, b]) => my_var;}", true},
       {"function inner() { ([a, my_var, b]) => { }}", true},
+      {"function inner() { ([a, my_var, b] = [1, 2, 3]) => my_var;}", true},
+      {"function inner() { ([a, my_var, b] = [1, 2, 3]) => { }}", true},
       {"function inner() { ({x: my_var}) => my_var;}", true},
       {"function inner() { ({x: my_var}) => { }}", true},
+      {"function inner() { ({x: my_var} = {x: 0}) => my_var;}", true},
+      {"function inner() { ({x: my_var} = {x: 0}) => { }}", true},
       {"function inner() { ({my_var}) => my_var;}", true},
       {"function inner() { ({my_var}) => { }}", true},
+      {"function inner() { ({my_var} = {my_var: 5}) => my_var;}", true},
+      {"function inner() { ({my_var} = {my_var: 5}) => { }}", true},
       {"function inner() { class my_var {}; my_var }", true},
   };
 

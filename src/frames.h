@@ -29,9 +29,10 @@ int JSCallerSavedCode(int n);
 
 // Forward declarations.
 class ExternalCallbackScope;
+class Isolate;
 class StackFrameIteratorBase;
 class ThreadLocalTop;
-class Isolate;
+class WasmInstanceObject;
 
 class InnerPointerToCodeCache {
  public:
@@ -1109,7 +1110,7 @@ class WasmFrame : public StandardFrame {
   Code* unchecked_code() const override;
 
   // Accessors.
-  Object* wasm_instance() const;
+  WasmInstanceObject* wasm_instance() const;
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;

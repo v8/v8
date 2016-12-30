@@ -222,6 +222,7 @@ class AstNode: public ZoneObject {
   int position() const { return position_; }
 
 #ifdef DEBUG
+  void Print();
   void Print(Isolate* isolate);
 #endif  // DEBUG
 
@@ -1453,6 +1454,9 @@ class ObjectLiteral final : public MaterializedLiteral {
   // marked expressions, no store code is emitted.
   void CalculateEmitStore(Zone* zone);
 
+  // Determines whether the {FastCloneShallowObject} builtin can be used.
+  bool IsFastCloningSupported() const;
+
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
     int flags = fast_elements() ? kFastElements : kNoFlags;
@@ -1575,11 +1579,11 @@ class RegExpLiteral final : public MaterializedLiteral {
 // for minimizing the work when constructing it at runtime.
 class ArrayLiteral final : public MaterializedLiteral {
  public:
-  Handle<FixedArray> constant_elements() const { return constant_elements_; }
+  Handle<ConstantElementsPair> constant_elements() const {
+    return constant_elements_;
+  }
   ElementsKind constant_elements_kind() const {
-    DCHECK_EQ(2, constant_elements_->length());
-    return static_cast<ElementsKind>(
-        Smi::cast(constant_elements_->get(0))->value());
+    return static_cast<ElementsKind>(constant_elements()->elements_kind());
   }
 
   ZoneList<Expression*>* values() const { return values_; }
@@ -1595,6 +1599,9 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
+
+  // Determines whether the {FastCloneShallowArray} builtin can be used.
+  bool IsFastCloningSupported() const;
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.
   int ComputeFlags(bool disable_mementos = false) const {
@@ -1642,7 +1649,7 @@ class ArrayLiteral final : public MaterializedLiteral {
 
   int first_spread_index_;
   FeedbackVectorSlot literal_slot_;
-  Handle<FixedArray> constant_elements_;
+  Handle<ConstantElementsPair> constant_elements_;
   ZoneList<Expression*>* values_;
 };
 
@@ -2700,21 +2707,6 @@ class FunctionLiteral final : public Expression {
   int yield_count() { return yield_count_; }
   void set_yield_count(int yield_count) { yield_count_ = yield_count; }
 
-  bool requires_class_field_init() {
-    return RequiresClassFieldInit::decode(bit_field_);
-  }
-  void set_requires_class_field_init(bool requires_class_field_init) {
-    bit_field_ =
-        RequiresClassFieldInit::update(bit_field_, requires_class_field_init);
-  }
-  bool is_class_field_initializer() {
-    return IsClassFieldInitializer::decode(bit_field_);
-  }
-  void set_is_class_field_initializer(bool is_class_field_initializer) {
-    bit_field_ =
-        IsClassFieldInitializer::update(bit_field_, is_class_field_initializer);
-  }
-
   int return_position() {
     return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
   }
@@ -2749,15 +2741,13 @@ class FunctionLiteral final : public Expression {
         raw_inferred_name_(ast_value_factory->empty_string()),
         ast_properties_(zone),
         function_literal_id_(function_literal_id) {
-    bit_field_ |=
-        FunctionTypeBits::encode(function_type) | Pretenure::encode(false) |
-        HasDuplicateParameters::encode(has_duplicate_parameters ==
-                                       kHasDuplicateParameters) |
-        IsFunction::encode(is_function) |
-        RequiresClassFieldInit::encode(false) |
-        ShouldNotBeUsedOnceHintField::encode(false) |
-        DontOptimizeReasonField::encode(kNoReason) |
-        IsClassFieldInitializer::encode(false);
+    bit_field_ |= FunctionTypeBits::encode(function_type) |
+                  Pretenure::encode(false) |
+                  HasDuplicateParameters::encode(has_duplicate_parameters ==
+                                                 kHasDuplicateParameters) |
+                  IsFunction::encode(is_function) |
+                  ShouldNotBeUsedOnceHintField::encode(false) |
+                  DontOptimizeReasonField::encode(kNoReason);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
   }
 
@@ -2768,12 +2758,9 @@ class FunctionLiteral final : public Expression {
   class IsFunction : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
       : public BitField<bool, IsFunction::kNext, 1> {};
-  class RequiresClassFieldInit
-      : public BitField<bool, ShouldNotBeUsedOnceHintField::kNext, 1> {};
-  class IsClassFieldInitializer
-      : public BitField<bool, RequiresClassFieldInit::kNext, 1> {};
   class DontOptimizeReasonField
-      : public BitField<BailoutReason, IsClassFieldInitializer::kNext, 8> {};
+      : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
+  };
 
   int materialized_literal_count_;
   int expected_property_count_;
@@ -2831,13 +2818,6 @@ class ClassLiteral final : public Expression {
     return HasStaticComputedNames::decode(bit_field_);
   }
 
-  VariableProxy* static_initializer_proxy() const {
-    return static_initializer_proxy_;
-  }
-  void set_static_initializer_proxy(VariableProxy* proxy) {
-    static_initializer_proxy_ = proxy;
-  }
-
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
@@ -2863,8 +2843,7 @@ class ClassLiteral final : public Expression {
         class_variable_proxy_(class_variable_proxy),
         extends_(extends),
         constructor_(constructor),
-        properties_(properties),
-        static_initializer_proxy_(nullptr) {
+        properties_(properties) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names);
   }
@@ -2876,7 +2855,6 @@ class ClassLiteral final : public Expression {
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
-  VariableProxy* static_initializer_proxy_;
 
   class HasNameStaticProperty
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
@@ -3723,15 +3701,6 @@ class AstNodeFactory final BASE_EMBEDDED {
                                                     int pos) {
     return new (zone_) TryCatchStatement(
         try_block, scope, variable, catch_block, HandlerTable::UNCAUGHT, pos);
-  }
-
-  TryCatchStatement* NewTryCatchStatementForPromiseReject(Block* try_block,
-                                                          Scope* scope,
-                                                          Variable* variable,
-                                                          Block* catch_block,
-                                                          int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::PROMISE, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,

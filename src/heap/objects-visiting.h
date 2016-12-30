@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
+#include "src/heap/embedder-tracing.h"
 #include "src/heap/heap.h"
 #include "src/heap/spaces.h"
 #include "src/layout-descriptor.h"
@@ -424,7 +425,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
    private:
     INLINE(static void TracePossibleWrapper(HeapObject* object)) {
-      if (object->GetHeap()->UsingEmbedderHeapTracer()) {
+      if (object->GetHeap()->local_embedder_heap_tracer()->InUse()) {
         DCHECK(object->IsJSObject());
         object->GetHeap()->TracePossibleWrapper(JSObject::cast(object));
       }

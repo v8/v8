@@ -124,10 +124,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
-  BytecodeArrayBuilder& StoreDataPropertyInLiteral(Register object,
-                                                   Register name,
-                                                   Register value,
-                                                   Register attrs);
+  BytecodeArrayBuilder& StoreDataPropertyInLiteral(
+      Register object, Register name, Register value,
+      DataPropertyInLiteralFlags flags);
 
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,
@@ -177,6 +176,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Create a new context with size |slots|.
   BytecodeArrayBuilder& CreateFunctionContext(int slots);
 
+  // Create a new eval context with size |slots|.
+  BytecodeArrayBuilder& CreateEvalContext(int slots);
+
   // Creates a new context with the given |scope_info| for a with-statement
   // with the |object| in a register and the closure in the accumulator.
   BytecodeArrayBuilder& CreateWithContext(Register object,
@@ -188,8 +190,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,
                                             int literal_index, int flags);
-  BytecodeArrayBuilder& CreateArrayLiteral(Handle<FixedArray> constant_elements,
-                                           int literal_index, int flags);
+  BytecodeArrayBuilder& CreateArrayLiteral(
+      Handle<ConstantElementsPair> constant_elements, int literal_index,
+      int flags);
   BytecodeArrayBuilder& CreateObjectLiteral(
       Handle<FixedArray> constant_properties, int literal_index, int flags,
       Register output);
@@ -257,6 +260,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Unary Operators.
   BytecodeArrayBuilder& LogicalNot();
   BytecodeArrayBuilder& TypeOf();
+
+  // Expects a heap object in the accumulator. Returns its super constructor in
+  // the register |out| if it passes the IsConstructor test. Otherwise, it
+  // throws a TypeError exception.
+  BytecodeArrayBuilder& GetSuperConstructor(Register out);
 
   // Deletes property from an object. This expects that accumulator contains
   // the key to be deleted and the register contains a reference to the object.
@@ -365,7 +373,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
  private:
   friend class BytecodeRegisterAllocator;
-  template <OperandType... operand_types>
+  template <Bytecode bytecode, AccumulatorUse accumulator_use,
+            OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
   // Returns the current source position for the given |bytecode|.
@@ -393,7 +402,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // during bytecode generation.
   BytecodeArrayBuilder& Illegal();
 
-  void PrepareToOutputBytecode(Bytecode bytecode);
+  template <Bytecode bytecode, AccumulatorUse accumulator_use>
+  void PrepareToOutputBytecode();
 
   void LeaveBasicBlock() { return_seen_in_block_ = false; }
 

@@ -40,7 +40,6 @@ function g() {
 };
 
 
-// Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
 listenerCalled = false;

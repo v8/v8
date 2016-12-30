@@ -6,7 +6,7 @@
 #define V8_WASM_MODULE_DECODER_H_
 
 #include "src/globals.h"
-#include "src/wasm/ast-decoder.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-result.h"
 

@@ -228,6 +228,10 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "f64_asin_wrapper");
   Add(ExternalReference::f64_mod_wrapper_function(isolate).address(),
       "f64_mod_wrapper");
+  Add(ExternalReference::wasm_call_trap_callback_for_testing(isolate).address(),
+      "wasm::call_trap_callback_for_testing");
+  Add(ExternalReference::libc_memchr_function(isolate).address(),
+      "libc_memchr");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),
@@ -249,8 +253,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "double_absolute_constant");
   Add(ExternalReference::address_of_double_neg_constant().address(),
       "double_negate_constant");
-  Add(ExternalReference::is_promisehook_enabled_address(isolate).address(),
-      "Isolate::is_promisehook_enabled_address()");
+  Add(ExternalReference::promise_hook_address(isolate).address(),
+      "Isolate::promise_hook_address()");
 
   // Debug addresses
   Add(ExternalReference::debug_after_break_target_address(isolate).address(),

@@ -53,8 +53,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
  public:
   typedef compiler::Node Node;
 
-  CodeStubAssembler(compiler::CodeAssemblerState* state)
-      : compiler::CodeAssembler(state) {}
+  CodeStubAssembler(compiler::CodeAssemblerState* state);
 
   enum AllocationFlag : uint8_t {
     kNone = 0,
@@ -65,9 +64,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef base::Flags<AllocationFlag> AllocationFlags;
 
-  // TODO(ishell): Fix all loads/stores from arrays by int32 offsets/indices
-  // and eventually remove INTEGER_PARAMETERS in favour of INTPTR_PARAMETERS.
-  enum ParameterMode { INTEGER_PARAMETERS, SMI_PARAMETERS, INTPTR_PARAMETERS };
+  enum ParameterMode { SMI_PARAMETERS, INTPTR_PARAMETERS };
 
   // On 32-bit platforms, there is a slight performance advantage to doing all
   // of the array offset/index arithmetic with SMIs, since it's possible
@@ -85,36 +82,43 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                : MachineRepresentation::kTaggedSigned;
   }
 
-  Node* UntagParameter(Node* value, ParameterMode mode) {
-    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
+  Node* ParameterToWord(Node* value, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
 
-  Node* TagParameter(Node* value, ParameterMode mode) {
+  Node* WordToParameter(Node* value, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) value = SmiTag(value);
+    return value;
+  }
+
+  Node* ParameterToTagged(Node* value, ParameterMode mode) {
     if (mode != SMI_PARAMETERS) value = SmiTag(value);
     return value;
   }
 
-#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName, Int32OpName) \
-  Node* OpName(Node* a, Node* b, ParameterMode mode) {                \
-    if (mode == SMI_PARAMETERS) {                                     \
-      return SmiOpName(a, b);                                         \
-    } else if (mode == INTPTR_PARAMETERS) {                           \
-      return IntPtrOpName(a, b);                                      \
-    } else {                                                          \
-      DCHECK_EQ(INTEGER_PARAMETERS, mode);                            \
-      return Int32OpName(a, b);                                       \
-    }                                                                 \
+  Node* TaggedToParameter(Node* value, ParameterMode mode) {
+    if (mode != SMI_PARAMETERS) value = SmiUntag(value);
+    return value;
   }
-  PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd, Int32Add)
-  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan,
-                  Int32LessThan)
-  PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan,
-                  Int32GreaterThan)
-  PARAMETER_BINOP(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow,
-                  Uint32LessThan)
+
+#define PARAMETER_BINOP(OpName, IntPtrOpName, SmiOpName) \
+  Node* OpName(Node* a, Node* b, ParameterMode mode) {   \
+    if (mode == SMI_PARAMETERS) {                        \
+      return SmiOpName(a, b);                            \
+    } else {                                             \
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);                \
+      return IntPtrOpName(a, b);                         \
+    }                                                    \
+  }
+  PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd)
+  PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
+  PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
+  PARAMETER_BINOP(IntPtrOrSmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual,
+                  SmiGreaterThanOrEqual)
+  PARAMETER_BINOP(UintPtrOrSmiLessThan, UintPtrLessThan, SmiBelow)
   PARAMETER_BINOP(UintPtrOrSmiGreaterThanOrEqual, UintPtrGreaterThanOrEqual,
-                  SmiAboveOrEqual, Uint32GreaterThanOrEqual)
+                  SmiAboveOrEqual)
 #undef PARAMETER_BINOP
 
   Node* NoContextConstant();
@@ -131,11 +135,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
-  Node* IntPtrAddFoldConstants(Node* left, Node* right);
-  Node* IntPtrSubFoldConstants(Node* left, Node* right);
   // Round the 32bits payload of the provided word up to the next power of two.
   Node* IntPtrRoundUpToPowerOfTwo32(Node* value);
+  // Select the maximum of the two provided IntPtr values.
   Node* IntPtrMax(Node* left, Node* right);
+  // Select the minimum of the two provided IntPtr values.
+  Node* IntPtrMin(Node* left, Node* right);
 
   // Float64 operations.
   Node* Float64Ceil(Node* x);
@@ -190,6 +195,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   SMI_COMPARISON_OP(SmiLessThan, IntPtrLessThan)
   SMI_COMPARISON_OP(SmiLessThanOrEqual, IntPtrLessThanOrEqual)
   SMI_COMPARISON_OP(SmiGreaterThan, IntPtrGreaterThan)
+  SMI_COMPARISON_OP(SmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual)
 #undef SMI_COMPARISON_OP
   Node* SmiMax(Node* a, Node* b);
   Node* SmiMin(Node* a, Node* b);
@@ -306,6 +312,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadInstanceType(Node* object);
   // Compare the instance the type of the object against the provided one.
   Node* HasInstanceType(Node* object, InstanceType type);
+  Node* DoesntHaveInstanceType(Node* object, InstanceType type);
   // Load the properties backing store of a JSObject.
   Node* LoadProperties(Node* object);
   // Load the elements backing store of a JSObject.
@@ -360,23 +367,23 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadWeakCellValue(Node* weak_cell, Label* if_cleared = nullptr);
 
   // Load an array element from a FixedArray.
-  Node* LoadFixedArrayElement(
-      Node* object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+  Node* LoadFixedArrayElement(Node* object, Node* index,
+                              int additional_offset = 0,
+                              ParameterMode parameter_mode = INTPTR_PARAMETERS);
   Node* LoadFixedArrayElement(Node* object, int index,
                               int additional_offset = 0) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
-                                 additional_offset, INTPTR_PARAMETERS);
+                                 additional_offset);
   }
   // Load an array element from a FixedArray, untag it and return it as Word32.
   Node* LoadAndUntagToWord32FixedArrayElement(
       Node* object, Node* index, int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
   // Load an array element from a FixedDoubleArray.
   Node* LoadFixedDoubleArrayElement(
       Node* object, Node* index, MachineType machine_type,
       int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
       Label* if_hole = nullptr);
 
   // Load Float64 value by |base| + |offset| address. If the value is a double
@@ -387,13 +394,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       MachineType machine_type = MachineType::Float64());
   Node* LoadFixedTypedArrayElement(
       Node* data_pointer, Node* index_node, ElementsKind elements_kind,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Context manipulation
   Node* LoadContextElement(Node* context, int slot_index);
   Node* LoadContextElement(Node* context, Node* slot_index);
   Node* StoreContextElement(Node* context, int slot_index, Node* value);
   Node* StoreContextElement(Node* context, Node* slot_index, Node* value);
+  Node* StoreContextElementNoWriteBarrier(Node* context, int slot_index,
+                                          Node* value);
   Node* LoadNativeContext(Node* context);
 
   Node* LoadJSArrayElementsMap(ElementsKind kind, Node* native_context);
@@ -421,18 +430,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* object, int index, Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER) {
     return StoreFixedArrayElement(object, IntPtrConstant(index), value,
-                                  barrier_mode, 0, INTPTR_PARAMETERS);
+                                  barrier_mode);
   }
 
   Node* StoreFixedArrayElement(
       Node* object, Node* index, Node* value,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
       int additional_offset = 0,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   Node* StoreFixedDoubleArrayElement(
       Node* object, Node* index, Node* value,
-      ParameterMode parameter_mode = INTEGER_PARAMETERS);
+      ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   Node* BuildAppendJSArray(ElementsKind kind, Node* context, Node* array,
                            CodeStubArguments& args, Variable& arg_index,
@@ -490,7 +499,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateNameDictionary(Node* capacity);
 
   Node* AllocateJSObjectFromMap(Node* map, Node* properties = nullptr,
-                                Node* elements = nullptr);
+                                Node* elements = nullptr,
+                                AllocationFlags flags = kNone);
 
   void InitializeJSObjectFromMap(Node* object, Node* map, Node* size,
                                  Node* properties = nullptr,
@@ -509,15 +519,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // The ParameterMode argument is only used for the capacity parameter.
   std::pair<Node*, Node*> AllocateUninitializedJSArrayWithElements(
       ElementsKind kind, Node* array_map, Node* length, Node* allocation_site,
-      Node* capacity, ParameterMode capacity_mode = INTEGER_PARAMETERS);
+      Node* capacity, ParameterMode capacity_mode = INTPTR_PARAMETERS);
   // Allocate a JSArray and fill elements with the hole.
   // The ParameterMode argument is only used for the capacity parameter.
   Node* AllocateJSArray(ElementsKind kind, Node* array_map, Node* capacity,
                         Node* length, Node* allocation_site = nullptr,
-                        ParameterMode capacity_mode = INTEGER_PARAMETERS);
+                        ParameterMode capacity_mode = INTPTR_PARAMETERS);
 
   Node* AllocateFixedArray(ElementsKind kind, Node* capacity,
-                           ParameterMode mode = INTEGER_PARAMETERS,
+                           ParameterMode mode = INTPTR_PARAMETERS,
                            AllocationFlags flags = kNone);
 
   // Perform CreateArrayIterator (ES6 #sec-createarrayiterator).
@@ -529,14 +539,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
                                Node* to_index,
                                Heap::RootListIndex value_root_index,
-                               ParameterMode mode = INTEGER_PARAMETERS);
+                               ParameterMode mode = INTPTR_PARAMETERS);
 
   // Copies all elements from |from_array| of |length| size to
   // |to_array| of the same size respecting the elements kind.
   void CopyFixedArrayElements(
       ElementsKind kind, Node* from_array, Node* to_array, Node* length,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTEGER_PARAMETERS) {
+      ParameterMode mode = INTPTR_PARAMETERS) {
     CopyFixedArrayElements(kind, from_array, kind, to_array, length, length,
                            barrier_mode, mode);
   }
@@ -547,7 +557,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       ElementsKind from_kind, Node* from_array, ElementsKind to_kind,
       Node* to_array, Node* element_count, Node* capacity,
       WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER,
-      ParameterMode mode = INTEGER_PARAMETERS);
+      ParameterMode mode = INTPTR_PARAMETERS);
 
   // Copies |character_count| elements from |from_string| to |to_string|
   // starting at the |from_index|'th character. |from_string| and |to_string|
@@ -572,7 +582,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                       ElementsKind to_kind, Label* if_hole);
 
   Node* CalculateNewElementsCapacity(Node* old_capacity,
-                                     ParameterMode mode = INTEGER_PARAMETERS);
+                                     ParameterMode mode = INTPTR_PARAMETERS);
 
   // Tries to grow the |elements| array of given |object| to store the |key|
   // or bails out if the growing gap is too big. Returns new elements.
@@ -639,6 +649,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsMap(Node* object);
   Node* IsCallableMap(Node* map);
   Node* IsName(Node* object);
+  Node* IsSymbol(Node* object);
+  Node* IsPrivateSymbol(Node* object);
   Node* IsJSValue(Node* object);
   Node* IsJSArray(Node* object);
   Node* IsNativeContext(Node* object);
@@ -647,6 +659,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsHashTable(Node* object);
   Node* IsDictionary(Node* object);
   Node* IsUnseededNumberDictionary(Node* object);
+  Node* IsConstructorMap(Node* map);
+  Node* IsJSFunction(Node* object);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
@@ -654,7 +668,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
-  Node* StringCharCodeAt(Node* string, Node* smi_index);
+  Node* StringCharCodeAt(Node* string, Node* index,
+                         ParameterMode parameter_mode = SMI_PARAMETERS);
   // Return the single character string with only {code}.
   Node* StringFromCharCode(Node* code);
   // Return a new string object which holds a substring containing the range
@@ -757,13 +772,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns true if any of the |T|'s bits in given |word| are set.
   template <typename T>
   Node* IsSetWord(Node* word) {
-    return WordNotEqual(WordAnd(word, IntPtrConstant(T::kMask)),
-                        IntPtrConstant(0));
+    return IsSetWord(word, T::kMask);
   }
 
   // Returns true if any of the mask's bits in given |word| are set.
   Node* IsSetWord(Node* word, uint32_t mask) {
-    return WordNotEqual(WordAnd(word, Int32Constant(mask)), Int32Constant(0));
+    return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
+  }
+
+  // Returns true if all of the |T|'s bits in given |word32| are clear.
+  template <typename T>
+  Node* IsClearWord32(Node* word32) {
+    return IsClearWord32(word32, T::kMask);
+  }
+
+  // Returns true if all of the mask's bits in given |word32| are clear.
+  Node* IsClearWord32(Node* word32, uint32_t mask) {
+    return Word32Equal(Word32And(word32, Int32Constant(mask)),
+                       Int32Constant(0));
+  }
+
+  // Returns true if all of the |T|'s bits in given |word| are clear.
+  template <typename T>
+  Node* IsClearWord(Node* word) {
+    return IsClearWord(word, T::kMask);
+  }
+
+  // Returns true if all of the mask's bits in given |word| are clear.
+  Node* IsClearWord(Node* word, uint32_t mask) {
+    return WordEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
   void SetCounter(StatsCounter* counter, int value);
@@ -1032,6 +1069,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   FixedArray::kHeaderSize);
   }
 
+  void InitializeFieldsWithRoot(Node* object, Node* start_offset,
+                                Node* end_offset, Heap::RootListIndex root);
+
   enum RelationalComparisonMode {
     kLessThan,
     kLessThanOrEqual,
@@ -1068,6 +1108,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* Typeof(Node* value, Node* context);
 
+  Node* GetSuperConstructor(Node* value, Node* context);
+
   Node* InstanceOf(Node* object, Node* callable, Node* context);
 
   // Debug helpers
@@ -1079,6 +1121,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                ParameterMode mode, int base_size = 0);
 
+  Node* AllocateFunctionWithMapAndContext(Node* map, Node* shared_info,
+                                          Node* context);
+
   // Promise helpers
   Node* IsPromiseHookEnabled();
 
@@ -1088,6 +1133,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Other promise fields may also be need to set/reset. This only
   // provides a helper for certain init patterns.
   void PromiseSet(Node* promise, Node* status, Node* result);
+
+  Node* AllocatePromiseReactionJobInfo(Node* promise, Node* value, Node* tasks,
+                                       Node* deferred_promise,
+                                       Node* deferred_on_resolve,
+                                       Node* deferred_on_reject, Node* context);
 
  protected:
   void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,
@@ -1105,6 +1155,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
  private:
   friend class CodeStubArguments;
+
+  void HandleBreakOnNode();
 
   Node* AllocateRawAligned(Node* size_in_bytes, AllocationFlags flags,
                            Node* top_address, Node* limit_address);
@@ -1136,11 +1188,9 @@ class CodeStubArguments {
  public:
   typedef compiler::Node Node;
 
-  // |argc| specifies the number of arguments passed to the builtin excluding
-  // the receiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
-                    CodeStubAssembler::ParameterMode mode =
-                        CodeStubAssembler::INTPTR_PARAMETERS);
+  // |argc| is an uint32 value which specifies the number of arguments passed
+  // to the builtin excluding the receiver.
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc);
 
   Node* GetReceiver() const;
 

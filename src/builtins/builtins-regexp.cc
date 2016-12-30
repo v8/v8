@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -566,7 +567,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   do {                                                         \
     Label next(this);                                          \
     GotoUnless(IsSetWord(flags_intptr, FLAG), &next);          \
-    Node* const value = IntPtrConstant(CHAR);                  \
+    Node* const value = Int32Constant(CHAR);                   \
     StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
                         var_offset.value(), value);            \
     var_offset.Bind(IntPtrAdd(var_offset.value(), int_one));   \
@@ -590,8 +591,8 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
                                         Node* const maybe_receiver) {
   Label out(this), if_isregexp(this);
 
-  Variable var_result(this, MachineType::PointerRepresentation());
-  var_result.Bind(IntPtrConstant(0));
+  Variable var_result(this, MachineRepresentation::kWord32);
+  var_result.Bind(Int32Constant(0));
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
   GotoUnless(IsJSReceiver(maybe_receiver), &out);
@@ -615,7 +616,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
   }
 
   Bind(&if_isregexp);
-  var_result.Bind(IntPtrConstant(1));
+  var_result.Bind(Int32Constant(1));
   Goto(&out);
 
   Bind(&out);
@@ -786,9 +787,9 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
     Bind(&allocate_generic);
     {
-      Callable fastnewobject_callable = CodeFactory::FastNewObject(isolate);
-      Node* const regexp = CallStub(fastnewobject_callable, context,
-                                    regexp_function, var_new_target.value());
+      ConstructorBuiltinsAssembler constructor_assembler(this->state());
+      Node* const regexp = constructor_assembler.EmitFastNewObject(
+          context, regexp_function, var_new_target.value());
       var_regexp.Bind(regexp);
       Goto(&next);
     }
@@ -849,12 +850,9 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
     Bind(&next);
   }
 
-  RegExpInitialize(context, receiver, var_pattern.value(), var_flags.value());
-
-  // Return undefined for compatibility with JSC.
-  // See http://crbug.com/585775 for web compat details.
-
-  Return(UndefinedConstant());
+  Node* const result = RegExpInitialize(context, receiver, var_pattern.value(),
+                                        var_flags.value());
+  Return(result);
 }
 
 // ES6 21.2.5.10.
@@ -950,19 +948,13 @@ BUILTIN(RegExpPrototypeToString) {
   RETURN_RESULT_OR_FAILURE(isolate, builder.Finish());
 }
 
-// ES6 21.2.4.2.
-TF_BUILTIN(RegExpPrototypeSpeciesGetter, RegExpBuiltinsAssembler) {
-  Node* const receiver = Parameter(0);
-  Return(receiver);
-}
-
 // Fast-path implementation for flag checks on an unmodified JSRegExp instance.
 Node* RegExpBuiltinsAssembler::FastFlagGetter(Node* const regexp,
                                               JSRegExp::Flag flag) {
   Node* const smi_zero = SmiConstant(Smi::kZero);
   Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
   Node* const mask = SmiConstant(Smi::FromInt(flag));
-  Node* const is_flag_set = WordNotEqual(WordAnd(flags, mask), smi_zero);
+  Node* const is_flag_set = WordNotEqual(SmiAnd(flags, mask), smi_zero);
 
   return is_flag_set;
 }
@@ -974,7 +966,7 @@ Node* RegExpBuiltinsAssembler::SlowFlagGetter(Node* const context,
   Factory* factory = isolate()->factory();
 
   Label out(this);
-  Variable var_result(this, MachineType::PointerRepresentation());
+  Variable var_result(this, MachineRepresentation::kWord32);
 
   Node* name;
 
@@ -1006,13 +998,13 @@ Node* RegExpBuiltinsAssembler::SlowFlagGetter(Node* const context,
 
   Bind(&if_true);
   {
-    var_result.Bind(IntPtrConstant(1));
+    var_result.Bind(Int32Constant(1));
     Goto(&out);
   }
 
   Bind(&if_false);
   {
-    var_result.Bind(IntPtrConstant(0));
+    var_result.Bind(Int32Constant(0));
     Goto(&out);
   }
 
@@ -1374,9 +1366,6 @@ class GrowableFixedArray {
   void Push(Node* const value) {
     CodeStubAssembler* a = assembler_;
 
-    const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-
     Node* const length = var_length_.value();
     Node* const capacity = var_capacity_.value();
 
@@ -1386,7 +1375,7 @@ class GrowableFixedArray {
     a->Bind(&grow);
     {
       Node* const new_capacity = NewCapacity(a, capacity);
-      Node* const new_array = ResizeFixedArray(length, new_capacity, mode);
+      Node* const new_array = ResizeFixedArray(length, new_capacity);
 
       var_capacity_.Bind(new_capacity);
       var_array_.Bind(new_array);
@@ -1396,7 +1385,7 @@ class GrowableFixedArray {
     a->Bind(&store);
     {
       Node* const array = var_array_.value();
-      a->StoreFixedArrayElement(array, length, value, barrier_mode, 0, mode);
+      a->StoreFixedArrayElement(array, length, value);
 
       Node* const new_length = a->IntPtrAdd(length, a->IntPtrConstant(1));
       var_length_.Bind(new_length);
@@ -1407,7 +1396,6 @@ class GrowableFixedArray {
     CodeStubAssembler* a = assembler_;
 
     const ElementsKind kind = FAST_ELEMENTS;
-    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
     Node* const native_context = a->LoadNativeContext(context);
     Node* const array_map = a->LoadJSArrayElementsMap(kind, native_context);
@@ -1421,7 +1409,7 @@ class GrowableFixedArray {
 
       a->GotoIf(a->WordEqual(length, capacity), &next);
 
-      Node* const array = ResizeFixedArray(length, length, mode);
+      Node* const array = ResizeFixedArray(length, length);
       var_array_.Bind(array);
       var_capacity_.Bind(length);
       a->Goto(&next);
@@ -1445,14 +1433,13 @@ class GrowableFixedArray {
     CodeStubAssembler* a = assembler_;
 
     const ElementsKind kind = FAST_ELEMENTS;
-    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
 
     static const int kInitialArraySize = 8;
     Node* const capacity = a->IntPtrConstant(kInitialArraySize);
-    Node* const array = a->AllocateFixedArray(kind, capacity, mode);
+    Node* const array = a->AllocateFixedArray(kind, capacity);
 
     a->FillFixedArrayWithValue(kind, array, a->IntPtrConstant(0), capacity,
-                               Heap::kTheHoleValueRootIndex, mode);
+                               Heap::kTheHoleValueRootIndex);
 
     var_array_.Bind(array);
     var_capacity_.Bind(capacity);
@@ -1474,10 +1461,7 @@ class GrowableFixedArray {
 
   // Creates a new array with {new_capacity} and copies the first
   // {element_count} elements from the current array.
-  Node* ResizeFixedArray(Node* const element_count, Node* const new_capacity,
-                         ParameterMode mode) {
-    DCHECK(mode == CodeStubAssembler::INTPTR_PARAMETERS);
-
+  Node* ResizeFixedArray(Node* const element_count, Node* const new_capacity) {
     CodeStubAssembler* a = assembler_;
 
     CSA_ASSERT(a, a->IntPtrGreaterThan(element_count, a->IntPtrConstant(0)));
@@ -1486,6 +1470,7 @@ class GrowableFixedArray {
 
     const ElementsKind kind = FAST_ELEMENTS;
     const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
+    const ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
     const CodeStubAssembler::AllocationFlags flags =
         CodeStubAssembler::kAllowLargeObjectAllocation;
 
@@ -2202,8 +2187,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
       Node* const i = var_i.value();
       GotoUnless(IntPtrLessThan(i, end), &create_result);
 
-      ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-      Node* const elem = LoadFixedArrayElement(res_elems, i, 0, mode);
+      Node* const elem = LoadFixedArrayElement(res_elems, i);
 
       Label if_issmi(this), if_isstring(this), loop_epilogue(this);
       Branch(TaggedIsSmi(elem), &if_issmi, &if_isstring);
@@ -2230,8 +2214,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           Node* const next_i = IntPtrAdd(i, int_one);
           var_i.Bind(next_i);
 
-          Node* const next_elem =
-              LoadFixedArrayElement(res_elems, next_i, 0, mode);
+          Node* const next_elem = LoadFixedArrayElement(res_elems, next_i);
 
           Node* const new_match_start = SmiSub(next_elem, elem);
           var_match_start.Bind(new_match_start);
@@ -2269,8 +2252,6 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
   Bind(&if_hasexplicitcaptures);
   {
-    ParameterMode mode = CodeStubAssembler::INTPTR_PARAMETERS;
-
     Node* const from = int_zero;
     Node* const to = SmiUntag(res_length);
     const int increment = 1;
@@ -2278,8 +2259,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     BuildFastLoop(
         MachineType::PointerRepresentation(), from, to,
         [this, res_elems, isolate, native_context, context, undefined,
-         replace_callable, mode](Node* index) {
-          Node* const elem = LoadFixedArrayElement(res_elems, index, 0, mode);
+         replace_callable](Node* index) {
+          Node* const elem = LoadFixedArrayElement(res_elems, index);
 
           Label do_continue(this);
           GotoIf(TaggedIsSmi(elem), &do_continue);
@@ -2302,8 +2283,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           // back from the callback function.
 
           Node* const replacement_str = ToString(context, replacement_obj);
-          StoreFixedArrayElement(res_elems, index, replacement_str,
-                                 UPDATE_WRITE_BARRIER, 0, mode);
+          StoreFixedArrayElement(res_elems, index, replacement_str);
 
           Goto(&do_continue);
           Bind(&do_continue);
@@ -2439,8 +2419,6 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const replace_value = Parameter(2);
   Node* const context = Parameter(5);
 
-  Node* const int_zero = IntPtrConstant(0);
-
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
       context, maybe_receiver, MessageTemplate::kIncompatibleMethodReceiver,
@@ -2472,10 +2450,10 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
     Node* const replace_string =
         CallStub(tostring_callable, context, replace_value);
 
-    Node* const dollar_char = IntPtrConstant('$');
+    Node* const dollar_char = Int32Constant('$');
     Node* const smi_minusone = SmiConstant(Smi::FromInt(-1));
     GotoUnless(SmiEqual(StringIndexOfChar(context, replace_string, dollar_char,
-                                          int_zero),
+                                          SmiConstant(0)),
                         smi_minusone),
                &runtime);
 

@@ -72,8 +72,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceToString(node);
     case Runtime::kInlineCall:
       return ReduceCall(node);
-    case Runtime::kInlineNewObject:
-      return ReduceNewObject(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
     default:
@@ -286,10 +284,6 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
                                        ConvertReceiverMode::kAny,
                                        TailCallMode::kDisallow));
   return Changed(node);
-}
-
-Reduction JSIntrinsicLowering::ReduceNewObject(Node* node) {
-  return Change(node, CodeFactory::FastNewObject(isolate()), 0);
 }
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {

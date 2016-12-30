@@ -122,6 +122,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Deoptimize)
       DECLARE_CASE(DeoptimizeIf)
       DECLARE_CASE(DeoptimizeUnless)
+      DECLARE_CASE(TrapIf)
+      DECLARE_CASE(TrapUnless)
       DECLARE_CASE(Return)
       DECLARE_CASE(TailCall)
       DECLARE_CASE(Terminate)
@@ -185,6 +187,8 @@ class Typer::Visitor : public Reducer {
       DECLARE_CASE(Deoptimize)
       DECLARE_CASE(DeoptimizeIf)
       DECLARE_CASE(DeoptimizeUnless)
+      DECLARE_CASE(TrapIf)
+      DECLARE_CASE(TrapUnless)
       DECLARE_CASE(Return)
       DECLARE_CASE(TailCall)
       DECLARE_CASE(Terminate)
@@ -1255,6 +1259,10 @@ Type* Typer::Visitor::JSOrdinaryHasInstanceTyper(Type* lhs, Type* rhs,
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeJSGetSuperConstructor(Node* node) {
+  return Type::Callable();
+}
+
 // JS context operators.
 
 
@@ -1672,6 +1680,8 @@ Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
 Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
   return Type::String();
 }
+
+Type* Typer::Visitor::TypeStringCharAt(Node* node) { return Type::String(); }
 
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
   return typer_->cache_.kUint16;

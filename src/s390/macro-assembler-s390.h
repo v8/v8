@@ -374,6 +374,9 @@ class MacroAssembler : public Assembler {
   // Load On Condition
   void LoadOnConditionP(Condition cond, Register dst, Register src);
 
+  void LoadPositiveP(Register result, Register input);
+  void LoadPositive32(Register result, Register input);
+
   // Store Floating Point
   void StoreDouble(DoubleRegister dst, const MemOperand& opnd);
   void StoreFloat32(DoubleRegister dst, const MemOperand& opnd);
@@ -828,8 +831,10 @@ class MacroAssembler : public Assembler {
   void StoreRepresentation(Register src, const MemOperand& mem,
                            Representation r, Register scratch = no_reg);
 
-  void AddSmiLiteral(Register dst, Register src, Smi* smi, Register scratch);
-  void SubSmiLiteral(Register dst, Register src, Smi* smi, Register scratch);
+  void AddSmiLiteral(Register dst, Register src, Smi* smi,
+                     Register scratch = r0);
+  void SubSmiLiteral(Register dst, Register src, Smi* smi,
+                     Register scratch = r0);
   void CmpSmiLiteral(Register src1, Smi* smi, Register scratch);
   void CmpLogicalSmiLiteral(Register src1, Smi* smi, Register scratch);
   void AndSmiLiteral(Register dst, Register src, Smi* smi);
@@ -979,25 +984,6 @@ class MacroAssembler : public Assembler {
 
   void FastAllocate(Register object_size, Register result, Register result_end,
                     Register scratch, AllocationFlags flags);
-
-  void AllocateTwoByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-  void AllocateOneByteString(Register result, Register length,
-                             Register scratch1, Register scratch2,
-                             Register scratch3, Label* gc_required);
-  void AllocateTwoByteConsString(Register result, Register length,
-                                 Register scratch1, Register scratch2,
-                                 Label* gc_required);
-  void AllocateOneByteConsString(Register result, Register length,
-                                 Register scratch1, Register scratch2,
-                                 Label* gc_required);
-  void AllocateTwoByteSlicedString(Register result, Register length,
-                                   Register scratch1, Register scratch2,
-                                   Label* gc_required);
-  void AllocateOneByteSlicedString(Register result, Register length,
-                                   Register scratch1, Register scratch2,
-                                   Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed. All registers are clobbered also
@@ -1552,6 +1538,17 @@ class MacroAssembler : public Assembler {
 
   inline void TestIfSmi(Register value) { tmll(value, Operand(1)); }
 
+  inline void TestIfSmi(MemOperand value) {
+    if (is_uint12(value.offset())) {
+      tm(value, Operand(1));
+    } else if (is_int20(value.offset())) {
+      tmy(value, Operand(1));
+    } else {
+      LoadB(r0, value);
+      tmll(r0, Operand(1));
+    }
+  }
+
   inline void TestIfPositiveSmi(Register value, Register scratch) {
     STATIC_ASSERT((kSmiTagMask | kSmiSignMask) ==
                   (intptr_t)(1UL << (kBitsPerPointer - 1) | 1));
@@ -1664,11 +1661,6 @@ class MacroAssembler : public Assembler {
   void JumpIfBothInstanceTypesAreNotSequentialOneByte(
       Register first_object_instance_type, Register second_object_instance_type,
       Register scratch1, Register scratch2, Label* failure);
-
-  // Check if instance type is sequential one-byte string and jump to label if
-  // it is not.
-  void JumpIfInstanceTypeIsNotSequentialOneByte(Register type, Register scratch,
-                                                Label* failure);
 
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
 

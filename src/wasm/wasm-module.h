@@ -62,7 +62,6 @@ inline bool IsValidSectionCode(uint8_t byte) {
 const char* SectionName(WasmSectionCode code);
 
 // Constants for fixed-size elements within a module.
-static const uint32_t kMaxReturnCount = 1;
 static const uint8_t kResizableMaximumFlag = 1;
 static const int32_t kInvalidFunctionIndex = -1;
 
@@ -117,7 +116,7 @@ struct WasmFunction {
 
 // Static representation of a wasm global variable.
 struct WasmGlobal {
-  LocalType type;        // type of the global.
+  ValueType type;        // type of the global.
   bool mutability;       // {true} if mutable.
   WasmInitExpr init;     // the initialization expression of the global.
   uint32_t offset;       // offset into global memory.
@@ -222,7 +221,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   MaybeHandle<WasmCompiledModule> CompileFunctions(
       Isolate* isolate, Handle<Managed<WasmModule>> module_wrapper,
-      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes) const;
+      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+      Handle<Script> asm_js_script,
+      Vector<const byte> asm_js_offset_table_bytes) const;
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
@@ -319,7 +320,7 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
   bool IsValidTable(uint32_t index) const {
     return module && index < module->function_tables.size();
   }
-  LocalType GetGlobalType(uint32_t index) {
+  ValueType GetGlobalType(uint32_t index) {
     DCHECK(IsValidGlobal(index));
     return module->globals[index].type;
   }
@@ -374,13 +375,6 @@ std::ostream& operator<<(std::ostream& os, const WasmModule& module);
 std::ostream& operator<<(std::ostream& os, const WasmFunction& function);
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 
-// Extract a function name from the given wasm instance.
-// Returns "<WASM UNNAMED>" if no instance is passed, the function is unnamed or
-// the name is not a valid UTF-8 string.
-// TODO(5620): Refactor once we always get a wasm instance.
-Handle<String> GetWasmFunctionName(Isolate* isolate, Handle<Object> instance,
-                                   uint32_t func_index);
-
 // Get the debug info associated with the given wasm object.
 // If no debug info exists yet, it is created automatically.
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
@@ -392,9 +386,6 @@ Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 // else.
 bool IsWasmInstance(Object* instance);
 
-// Check whether the wasm module was generated from asm.js code.
-bool WasmIsAsmJs(Object* instance, Isolate* isolate);
-
 // Get the script of the wasm module. If the origin of the module is asm.js, the
 // returned Script will be a JavaScript Script of Script::TYPE_NORMAL, otherwise
 // it's of type TYPE_WASM.
@@ -403,7 +394,7 @@ Handle<Script> GetScript(Handle<JSObject> instance);
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
     ModuleOrigin origin, Handle<Script> asm_js_script,
-    const byte* asm_offset_tables_start, const byte* asm_offset_tables_end);
+    Vector<const byte> asm_offset_table);
 
 V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            const byte* end,

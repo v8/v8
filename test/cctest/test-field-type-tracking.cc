@@ -376,8 +376,8 @@ class Expectations {
 
     Handle<String> name = MakeName("prop", property_index);
 
-    AccessorConstantDescriptor new_desc(name, pair, attributes);
-    return Map::CopyInsertDescriptor(map, &new_desc, INSERT_TRANSITION);
+    Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
+    return Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
   }
 
   Handle<Map> AddAccessorConstant(Handle<Map> map,
@@ -396,14 +396,14 @@ class Expectations {
     if (!getter->IsNull(isolate_)) {
       Handle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *factory->null_value());
-      AccessorConstantDescriptor new_desc(name, pair, attributes);
-      map = Map::CopyInsertDescriptor(map, &new_desc, INSERT_TRANSITION);
+      Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
+      map = Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
     }
     if (!setter->IsNull(isolate_)) {
       Handle<AccessorPair> pair = factory->NewAccessorPair();
       pair->SetComponents(*getter, *setter);
-      AccessorConstantDescriptor new_desc(name, pair, attributes);
-      map = Map::CopyInsertDescriptor(map, &new_desc, INSERT_TRANSITION);
+      Descriptor d = Descriptor::AccessorConstant(name, pair, attributes);
+      map = Map::CopyInsertDescriptor(map, &d, INSERT_TRANSITION);
     }
     return map;
   }

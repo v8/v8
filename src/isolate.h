@@ -1125,12 +1125,12 @@ class Isolate {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
-  Address is_promisehook_enabled_address() {
-    return reinterpret_cast<Address>(&is_promisehook_enabled_);
+  Address promise_hook_address() {
+    return reinterpret_cast<Address>(&promise_hook_);
   }
-  bool IsPromiseHookEnabled() { return is_promisehook_enabled_; }
-  void EnablePromiseHook();
-  void DisablePromiseHook();
+  void SetPromiseHook(PromiseHook hook);
+  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+                      Handle<Object> parent);
 
   // Support for dynamically disabling tail call elimination.
   Address is_tail_call_elimination_enabled_address() {
@@ -1176,6 +1176,10 @@ class Isolate {
   bool IsInAnyContext(Object* object, uint32_t index);
 
   void SetRAILMode(RAILMode rail_mode);
+
+  RAILMode rail_mode() { return rail_mode_.Value(); }
+
+  double LoadStartTimeMs();
 
   void IsolateInForegroundNotification();
 
@@ -1362,6 +1366,9 @@ class Isolate {
   AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::AtomicValue<RAILMode> rail_mode_;
+  PromiseHook promise_hook_;
+  base::Mutex rail_mutex_;
+  double load_start_time_ms_;
 
   // Whether the isolate has been created for snapshotting.
   bool serializer_enabled_;
@@ -1371,9 +1378,6 @@ class Isolate {
 
   // True if this isolate was initialized from a snapshot.
   bool initialized_from_snapshot_;
-
-  // True if PromiseHook feature is enabled.
-  bool is_promisehook_enabled_;
 
   // True if ES2015 tail call elimination feature is enabled.
   bool is_tail_call_elimination_enabled_;

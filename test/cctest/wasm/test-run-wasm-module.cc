@@ -139,7 +139,7 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
 
-    uint16_t localIndex = f->AddLocal(kAstI32);
+    uint16_t localIndex = f->AddLocal(kWasmI32);
     ExportAsMain(f);
     byte code[] = {WASM_BLOCK_I(
         WASM_WHILE(
@@ -163,7 +163,7 @@ TEST(Run_WasmModule_CallMain_recursive) {
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
 
-    uint16_t localIndex = f->AddLocal(kAstI32);
+    uint16_t localIndex = f->AddLocal(kWasmI32);
     ExportAsMain(f);
     byte code[] = {
         WASM_SET_LOCAL(localIndex,
@@ -186,8 +186,8 @@ TEST(Run_WasmModule_Global) {
     TestSignatures sigs;
 
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
-    uint32_t global1 = builder->AddGlobal(kAstI32, 0);
-    uint32_t global2 = builder->AddGlobal(kAstI32, 0);
+    uint32_t global1 = builder->AddGlobal(kWasmI32, 0);
+    uint32_t global2 = builder->AddGlobal(kWasmI32, 0);
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
     byte code1[] = {
         WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
@@ -317,7 +317,8 @@ class WasmSerializationTest {
       MaybeHandle<WasmCompiledModule> compiled_module =
           decoding_result.val->CompileFunctions(
               serialization_isolate, module_wrapper, &thrower,
-              ModuleWireBytes(buffer.begin(), buffer.end()));
+              ModuleWireBytes(buffer.begin(), buffer.end()),
+              Handle<Script>::null(), Vector<const byte>::empty());
       CHECK(!compiled_module.is_null());
       Handle<JSObject> module_obj = WasmModuleObject::New(
           serialization_isolate, compiled_module.ToHandleChecked());
@@ -715,9 +716,9 @@ TEST(Run_WasmModule_Global_init) {
 
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     uint32_t global1 =
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(777777));
+        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(777777));
     uint32_t global2 =
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(222222));
+        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(222222));
     WasmFunctionBuilder* f1 = builder->AddFunction(sigs.i_v());
     byte code[] = {
         WASM_I32_ADD(WASM_GET_GLOBAL(global1), WASM_GET_GLOBAL(global2))};
@@ -729,13 +730,13 @@ TEST(Run_WasmModule_Global_init) {
 }
 
 template <typename CType>
-static void RunWasmModuleGlobalInitTest(LocalType type, CType expected) {
+static void RunWasmModuleGlobalInitTest(ValueType type, CType expected) {
   {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
     TestSignatures sigs;
 
-    LocalType types[] = {type};
+    ValueType types[] = {type};
     FunctionSig sig(1, 0, types);
 
     for (int padding = 0; padding < 5; padding++) {
@@ -743,12 +744,12 @@ static void RunWasmModuleGlobalInitTest(LocalType type, CType expected) {
       WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
 
       for (int i = 0; i < padding; i++) {  // pad global before
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 20000));
+        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(i + 20000));
       }
       uint32_t global =
           builder->AddGlobal(type, false, false, WasmInitExpr(expected));
       for (int i = 0; i < padding; i++) {  // pad global after
-        builder->AddGlobal(kAstI32, false, false, WasmInitExpr(i + 30000));
+        builder->AddGlobal(kWasmI32, false, false, WasmInitExpr(i + 30000));
       }
 
       WasmFunctionBuilder* f1 = builder->AddFunction(&sig);
@@ -762,18 +763,18 @@ static void RunWasmModuleGlobalInitTest(LocalType type, CType expected) {
 }
 
 TEST(Run_WasmModule_Global_i32) {
-  RunWasmModuleGlobalInitTest<int32_t>(kAstI32, -983489);
-  RunWasmModuleGlobalInitTest<int32_t>(kAstI32, 11223344);
+  RunWasmModuleGlobalInitTest<int32_t>(kWasmI32, -983489);
+  RunWasmModuleGlobalInitTest<int32_t>(kWasmI32, 11223344);
 }
 
 TEST(Run_WasmModule_Global_f32) {
-  RunWasmModuleGlobalInitTest<float>(kAstF32, -983.9f);
-  RunWasmModuleGlobalInitTest<float>(kAstF32, 1122.99f);
+  RunWasmModuleGlobalInitTest<float>(kWasmF32, -983.9f);
+  RunWasmModuleGlobalInitTest<float>(kWasmF32, 1122.99f);
 }
 
 TEST(Run_WasmModule_Global_f64) {
-  RunWasmModuleGlobalInitTest<double>(kAstF64, -833.9);
-  RunWasmModuleGlobalInitTest<double>(kAstF64, 86374.25);
+  RunWasmModuleGlobalInitTest<double>(kWasmF64, -833.9);
+  RunWasmModuleGlobalInitTest<double>(kWasmF64, 86374.25);
 }
 
 TEST(InitDataAtTheUpperLimit) {

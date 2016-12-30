@@ -120,7 +120,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
  public:
   // Building methods.
   void SetSignature(FunctionSig* sig);
-  uint32_t AddLocal(LocalType type);
+  uint32_t AddLocal(ValueType type);
   void EmitVarInt(uint32_t val);
   void EmitCode(const byte* code, uint32_t code_size);
   void Emit(WasmOpcode opcode);
@@ -175,18 +175,18 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
 
 class WasmTemporary {
  public:
-  WasmTemporary(WasmFunctionBuilder* builder, LocalType type) {
+  WasmTemporary(WasmFunctionBuilder* builder, ValueType type) {
     switch (type) {
-      case kAstI32:
+      case kWasmI32:
         temporary_ = &builder->i32_temps_;
         break;
-      case kAstI64:
+      case kWasmI64:
         temporary_ = &builder->i64_temps_;
         break;
-      case kAstF32:
+      case kWasmF32:
         temporary_ = &builder->f32_temps_;
         break;
-      case kAstF64:
+      case kWasmF64:
         temporary_ = &builder->f64_temps_;
         break;
       default:
@@ -223,7 +223,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
     imports_[index].name_length = name_length;
   }
   WasmFunctionBuilder* AddFunction(FunctionSig* sig = nullptr);
-  uint32_t AddGlobal(LocalType type, bool exported, bool mutability = true,
+  uint32_t AddGlobal(ValueType type, bool exported, bool mutability = true,
                      const WasmInitExpr& init = WasmInitExpr());
   void AddDataSegment(const byte* data, uint32_t size, uint32_t dest);
   uint32_t AddSignature(FunctionSig* sig);
@@ -254,7 +254,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   };
 
   struct WasmGlobal {
-    LocalType type;
+    ValueType type;
     bool exported;
     bool mutability;
     WasmInitExpr init;

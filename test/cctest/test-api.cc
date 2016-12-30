@@ -14579,13 +14579,18 @@ void SetFunctionEntryHookTest::RunTest() {
       CHECK_EQ(2, CountInvocations(NULL, "bar"));
       CHECK_EQ(200, CountInvocations("bar", "foo"));
       CHECK_EQ(200, CountInvocations(NULL, "foo"));
-    } else {
+    } else if (i::FLAG_crankshaft || i::FLAG_turbo) {
       // For ignition we don't see the actual functions being called, instead
-      // we see the IterpreterEntryTrampoline at least 102 times
+      // we see the InterpreterEntryTrampoline at least 102 times
       // (100 unoptimized calls to foo, and 2 calls to bar).
       CHECK_LE(102, CountInvocations(NULL, "InterpreterEntryTrampoline"));
       // We should also see the calls to the optimized function foo.
       CHECK_EQ(100, CountInvocations(NULL, "foo"));
+    } else {
+      // For ignition without an optimizing compiler, we should only see the
+      // InterpreterEntryTrampoline.
+      // (200 unoptimized calls to foo, and 2 calls to bar).
+      CHECK_LE(202, CountInvocations(NULL, "InterpreterEntryTrampoline"));
     }
 
     // Verify that we have an entry hook on some specific stubs.
@@ -18139,6 +18144,335 @@ TEST(InlineScriptWithSourceURLInStackTrace) {
   CHECK(CompileRunWithOrigin(code.start(), "url", 0, 1)->IsUndefined());
 }
 
+void SetPromise(const char* name, v8::Local<v8::Promise> promise) {
+  CcTest::global()
+      ->Set(CcTest::isolate()->GetCurrentContext(), v8_str(name), promise)
+      .FromJust();
+}
+
+class PromiseHookData {
+ public:
+  int before_hook_count = 0;
+  int after_hook_count = 0;
+  int promise_hook_count = 0;
+  int parent_promise_count = 0;
+  bool check_value = true;
+  std::string promise_hook_value;
+
+  void Reset() {
+    before_hook_count = 0;
+    after_hook_count = 0;
+    promise_hook_count = 0;
+    parent_promise_count = 0;
+    check_value = true;
+    promise_hook_value = "";
+  }
+};
+
+PromiseHookData* promise_hook_data;
+
+void CustomPromiseHook(v8::PromiseHookType type, v8::Local<v8::Promise> promise,
+                       v8::Local<v8::Value> parentPromise) {
+  promise_hook_data->promise_hook_count++;
+  switch (type) {
+    case v8::PromiseHookType::kInit:
+      SetPromise("init", promise);
+
+      if (!parentPromise->IsUndefined()) {
+        promise_hook_data->parent_promise_count++;
+        SetPromise("parent", v8::Local<v8::Promise>::Cast(parentPromise));
+      }
+
+      break;
+    case v8::PromiseHookType::kResolve:
+      SetPromise("resolve", promise);
+      break;
+    case v8::PromiseHookType::kBefore:
+      promise_hook_data->before_hook_count++;
+      CHECK(promise_hook_data->before_hook_count >
+            promise_hook_data->after_hook_count);
+      CHECK(CcTest::global()
+                ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("value"))
+                .ToLocalChecked()
+                ->Equals(CcTest::isolate()->GetCurrentContext(), v8_str(""))
+                .FromJust());
+      SetPromise("before", promise);
+      break;
+    case v8::PromiseHookType::kAfter:
+      promise_hook_data->after_hook_count++;
+      CHECK(promise_hook_data->after_hook_count <=
+            promise_hook_data->before_hook_count);
+      if (promise_hook_data->check_value) {
+        CHECK(
+            CcTest::global()
+                ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("value"))
+                .ToLocalChecked()
+                ->Equals(CcTest::isolate()->GetCurrentContext(),
+                         v8_str(promise_hook_data->promise_hook_value.c_str()))
+                .FromJust());
+      }
+      SetPromise("after", promise);
+      break;
+  }
+}
+
+TEST(PromiseHook) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  v8::Local<v8::Object> global = CcTest::global();
+  v8::Local<v8::Context> context = CcTest::isolate()->GetCurrentContext();
+
+  promise_hook_data = new PromiseHookData();
+  isolate->SetPromiseHook(CustomPromiseHook);
+
+  // Test that an initialized promise is passed to init. Other hooks
+  // can not have un initialized promise.
+  promise_hook_data->check_value = false;
+  CompileRun("var p = new Promise(() => {});");
+
+  auto init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  auto init_promise_obj = v8::Local<v8::Promise>::Cast(init_promise);
+  CHECK(init_promise_obj->State() == v8::Promise::PromiseState::kPending);
+  CHECK_EQ(false, init_promise_obj->HasHandler());
+
+  promise_hook_data->Reset();
+  promise_hook_data->promise_hook_value = "fulfilled";
+  const char* source =
+      "var resolve, value = ''; \n"
+      "var p = new Promise(r => resolve = r); \n";
+
+  CompileRun(source);
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  CHECK_EQ(1, promise_hook_data->promise_hook_count);
+  CHECK_EQ(0, promise_hook_data->parent_promise_count);
+
+  CompileRun("var p1 = p.then(() => { value = 'fulfilled'; }); \n");
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  auto parent_promise = global->Get(context, v8_str("parent")).ToLocalChecked();
+  CHECK(GetPromise("p1")->Equals(env.local(), init_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), parent_promise).FromJust());
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+  CHECK_EQ(1, promise_hook_data->parent_promise_count);
+
+  CompileRun("resolve(); \n");
+  auto resolve_promise =
+      global->Get(context, v8_str("resolve")).ToLocalChecked();
+  auto before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  auto after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK_EQ(6, promise_hook_data->promise_hook_count);
+
+  promise_hook_data->Reset();
+  promise_hook_data->promise_hook_value = "rejected";
+  source =
+      "var reject, value = ''; \n"
+      "var p = new Promise((_, r) => reject = r); \n";
+
+  CompileRun(source);
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  CHECK_EQ(1, promise_hook_data->promise_hook_count);
+  CHECK_EQ(0, promise_hook_data->parent_promise_count);
+
+  CompileRun("var p1 = p.catch(() => { value = 'rejected'; }); \n");
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  parent_promise = global->Get(context, v8_str("parent")).ToLocalChecked();
+  CHECK(GetPromise("p1")->Equals(env.local(), init_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), parent_promise).FromJust());
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+  CHECK_EQ(1, promise_hook_data->parent_promise_count);
+
+  CompileRun("reject(); \n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK_EQ(6, promise_hook_data->promise_hook_count);
+
+  promise_hook_data->Reset();
+  promise_hook_data->promise_hook_value = "Promise.resolve";
+  source =
+      "var value = ''; \n"
+      "var p = Promise.resolve('Promise.resolve'); \n";
+
+  CompileRun(source);
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  // init hook and resolve hook
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+  CHECK_EQ(0, promise_hook_data->parent_promise_count);
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), resolve_promise).FromJust());
+
+  CompileRun("var p1 = p.then((v) => { value = v; }); \n");
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  parent_promise = global->Get(context, v8_str("parent")).ToLocalChecked();
+  before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p1")->Equals(env.local(), init_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), parent_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK_EQ(6, promise_hook_data->promise_hook_count);
+  CHECK_EQ(1, promise_hook_data->parent_promise_count);
+
+  promise_hook_data->Reset();
+  source =
+      "var resolve, value = ''; \n"
+      "var p = new Promise((_, r) => resolve = r); \n";
+
+  CompileRun(source);
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  CHECK_EQ(1, promise_hook_data->promise_hook_count);
+  CHECK_EQ(0, promise_hook_data->parent_promise_count);
+
+  CompileRun("resolve(); \n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+
+  promise_hook_data->Reset();
+  source =
+      "var reject, value = ''; \n"
+      "var p = new Promise((_, r) => reject = r); \n";
+
+  CompileRun(source);
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
+  CHECK_EQ(1, promise_hook_data->promise_hook_count);
+  CHECK_EQ(0, promise_hook_data->parent_promise_count);
+
+  CompileRun("reject(); \n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+
+  promise_hook_data->Reset();
+  // This test triggers after callbacks right after each other, so
+  // lets just check the value at the end.
+  promise_hook_data->check_value = false;
+  promise_hook_data->promise_hook_value = "Promise.all";
+  source =
+      "var resolve, value = ''; \n"
+      "var tempPromise = new Promise(r => resolve = r); \n"
+      "var p = Promise.all([tempPromise]);\n "
+      "var p1 = p.then(v => value = v[0]); \n";
+
+  CompileRun(source);
+  // 1) init hook (tempPromise)
+  // 2) init hook (p)
+  // 3) init hook (throwaway Promise in Promise.all, p)
+  // 4) init hook (p1, p)
+  CHECK_EQ(4, promise_hook_data->promise_hook_count);
+  CHECK_EQ(2, promise_hook_data->parent_promise_count);
+
+  promise_hook_data->promise_hook_value = "Promise.all";
+  CompileRun("resolve('Promise.all'); \n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  // 5) resolve hook (tempPromise)
+  // 6) resolve hook (throwaway Promise in Promise.all)
+  // 6) before hook (throwaway Promise in Promise.all)
+  // 7) after hook (throwaway Promise in Promise.all)
+  // 8) before hook (p)
+  // 9) after hook (p)
+  // 10) resolve hook (p1)
+  // 11) before hook (p1)
+  // 12) after hook (p1)
+  CHECK_EQ(12, promise_hook_data->promise_hook_count);
+  CHECK(CcTest::global()
+            ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("value"))
+            .ToLocalChecked()
+            ->Equals(CcTest::isolate()->GetCurrentContext(),
+                     v8_str(promise_hook_data->promise_hook_value.c_str()))
+            .FromJust());
+
+  promise_hook_data->Reset();
+  // This test triggers after callbacks right after each other, so
+  // lets just check the value at the end.
+  promise_hook_data->check_value = false;
+  promise_hook_data->promise_hook_value = "Promise.race";
+  source =
+      "var resolve, value = ''; \n"
+      "var tempPromise = new Promise(r => resolve = r); \n"
+      "var p = Promise.race([tempPromise]);\n "
+      "var p1 = p.then(v => value = v); \n";
+
+  CompileRun(source);
+  // 1) init hook (tempPromise)
+  // 2) init hook (p)
+  // 3) init hook (throwaway Promise in Promise.race, p)
+  // 4) init hook (p1, p)
+  CHECK_EQ(4, promise_hook_data->promise_hook_count);
+  CHECK_EQ(2, promise_hook_data->parent_promise_count);
+
+  promise_hook_data->promise_hook_value = "Promise.race";
+  CompileRun("resolve('Promise.race'); \n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  // 5) resolve hook (tempPromise)
+  // 6) resolve hook (throwaway Promise in Promise.race)
+  // 6) before hook (throwaway Promise in Promise.race)
+  // 7) after hook (throwaway Promise in Promise.race)
+  // 8) before hook (p)
+  // 9) after hook (p)
+  // 10) resolve hook (p1)
+  // 11) before hook (p1)
+  // 12) after hook (p1)
+  CHECK_EQ(12, promise_hook_data->promise_hook_count);
+  CHECK(CcTest::global()
+            ->Get(CcTest::isolate()->GetCurrentContext(), v8_str("value"))
+            .ToLocalChecked()
+            ->Equals(CcTest::isolate()->GetCurrentContext(),
+                     v8_str(promise_hook_data->promise_hook_value.c_str()))
+            .FromJust());
+
+  promise_hook_data->Reset();
+  promise_hook_data->promise_hook_value = "subclass";
+  source =
+      "var resolve, value = '';\n"
+      "class MyPromise extends Promise { \n"
+      "  then(onFulfilled, onRejected) { \n"
+      "      return super.then(onFulfilled, onRejected); \n"
+      "  };\n"
+      "};\n"
+      "var p = new MyPromise(r => resolve = r);\n";
+
+  CompileRun(source);
+  // 1) init hook (p)
+  CHECK_EQ(1, promise_hook_data->promise_hook_count);
+
+  CompileRun("var p1 = p.then(() => value = 'subclass');\n");
+  // 2) init hook (p1)
+  CHECK_EQ(2, promise_hook_data->promise_hook_count);
+
+  CompileRun("resolve();\n");
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
+  // 3) resolve hook (p)
+  // 4) before hook (p)
+  // 5) after hook (p)
+  // 6) resolve hook (p1)
+  CHECK_EQ(6, promise_hook_data->promise_hook_count);
+
+  delete promise_hook_data;
+  isolate->SetPromiseHook(nullptr);
+}
 
 void AnalyzeStackOfDynamicScriptWithSourceURL(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -21827,29 +22161,9 @@ void Recompile(Args... args) {
 }
 
 void RecompileICStubs(i::Isolate* isolate) {
-  using namespace i;
-  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
-  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(INSIDE_TYPEOF));
-  Recompile<LoadGlobalICTrampolineStub>(isolate,
-                                        LoadGlobalICState(NOT_INSIDE_TYPEOF));
-  Recompile<LoadGlobalICTrampolineStub>(isolate,
-                                        LoadGlobalICState(INSIDE_TYPEOF));
-
-  Recompile<LoadICStub>(isolate);
-  Recompile<LoadICTrampolineStub>(isolate);
-
-  Recompile<KeyedLoadICTFStub>(isolate);
-  Recompile<KeyedLoadICTrampolineTFStub>(isolate);
-
-  Recompile<StoreICStub>(isolate, StoreICState(SLOPPY));
-  Recompile<StoreICTrampolineStub>(isolate, StoreICState(SLOPPY));
-  Recompile<StoreICStub>(isolate, StoreICState(STRICT));
-  Recompile<StoreICTrampolineStub>(isolate, StoreICState(STRICT));
-
-  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(SLOPPY));
-  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(SLOPPY));
-  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(STRICT));
-  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(STRICT));
+  // BUG(5784): We had a list of IC stubs here to recompile. These are now
+  // builtins and we can't compile them again (easily). Bug 5784 tracks
+  // our progress in finding another way to do this.
 }
 
 }  // namespace
@@ -24063,6 +24377,25 @@ TEST(PromiseThen) {
                   .FromJust());
 }
 
+TEST(PromiseStateAndValue) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Value> result = CompileRun(
+      "var resolver;"
+      "new Promise((res, rej) => { resolver = res; })");
+  v8::Local<v8::Promise> promise = v8::Local<v8::Promise>::Cast(result);
+  CHECK(promise->State() == v8::Promise::PromiseState::kPending);
+
+  CompileRun("resolver('fulfilled')");
+  CHECK(promise->State() == v8::Promise::PromiseState::kFulfilled);
+  CHECK(v8_str("fulfilled")->SameValue(promise->Result()));
+
+  result = CompileRun("Promise.reject('rejected')");
+  promise = v8::Local<v8::Promise>::Cast(result);
+  CHECK(promise->State() == v8::Promise::PromiseState::kRejected);
+  CHECK(v8_str("rejected")->SameValue(promise->Result()));
+}
 
 TEST(DisallowJavascriptExecutionScope) {
   LocalContext context;
@@ -26283,4 +26616,23 @@ TEST(SetPrototypeTemplate) {
   CHECK(env->Global()->Set(env.local(), v8_str("Image"), Image).FromJust());
 
   ExpectTrue("Image.prototype === HTMLImageElement.prototype");
+}
+
+UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
+  using namespace i;
+  v8::Isolate::CreateParams create_params;
+  create_params.constraints.set_max_old_space_size(16);
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  {
+    size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
+    CHECK_EQ(16 * MB, limit_before);
+    isolate->IncreaseHeapLimitForDebugging();
+    size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
+    CHECK_EQ(4 * 16 * MB, limit_after);
+    isolate->RestoreOriginalHeapLimit();
+    CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
+  }
+  isolate->Dispose();
 }

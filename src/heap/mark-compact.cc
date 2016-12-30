@@ -796,24 +796,17 @@ void MarkCompactCollector::Prepare() {
     AbortWeakCells();
     AbortTransitionArrays();
     AbortCompaction();
-    if (heap_->UsingEmbedderHeapTracer()) {
-      heap_->embedder_heap_tracer()->AbortTracing();
-      heap_->clear_wrappers_to_trace();
-    }
+    heap_->local_embedder_heap_tracer()->AbortTracing();
     marking_deque()->Clear();
     was_marked_incrementally_ = false;
   }
 
   if (!was_marked_incrementally_) {
-    if (heap_->UsingEmbedderHeapTracer()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
-      heap_->embedder_heap_tracer()->TracePrologue();
-    }
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
+    heap_->local_embedder_heap_tracer()->TracePrologue();
   }
 
-  if (heap_->UsingEmbedderHeapTracer()) {
-    heap_->embedder_heap_tracer()->EnterFinalPause();
-  }
+  heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
   // Don't start compaction if we are in the middle of incremental
   // marking cycle. We did not collect any slots.
@@ -2140,23 +2133,32 @@ void MarkCompactCollector::ProcessEphemeralMarking(
   DCHECK(marking_deque()->IsEmpty() && !marking_deque()->overflowed());
   bool work_to_do = true;
   while (work_to_do) {
-    if (heap_->UsingEmbedderHeapTracer()) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
-      heap_->RegisterWrappersWithEmbedderHeapTracer();
-      heap_->embedder_heap_tracer()->AdvanceTracing(
-          0, EmbedderHeapTracer::AdvanceTracingActions(
-                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
-    }
     if (!only_process_harmony_weak_collections) {
-      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_OBJECT_GROUPING);
-      isolate()->global_handles()->IterateObjectGroups(
-          visitor, &IsUnmarkedHeapObjectWithHeap);
-      MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
+      if (heap_->local_embedder_heap_tracer()->InUse()) {
+        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
+        heap_->local_embedder_heap_tracer()->Trace(
+            0,
+            EmbedderHeapTracer::AdvanceTracingActions(
+                EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
+      } else {
+        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_OBJECT_GROUPING);
+        isolate()->global_handles()->IterateObjectGroups(
+            visitor, &IsUnmarkedHeapObjectWithHeap);
+        MarkImplicitRefGroups(&MarkCompactMarkingVisitor::MarkObject);
+      }
+    } else {
+      // TODO(mlippautz): We currently do not trace through blink when
+      // discovering new objects reachable from weak roots (that have been made
+      // strong). This is a limitation of not having a separate handle type
+      // that doesn't require zapping before this phase. See crbug.com/668060.
+      heap_->local_embedder_heap_tracer()->ClearCachedWrappersToTrace();
     }
     ProcessWeakCollections();
     work_to_do = !marking_deque()->IsEmpty();
     ProcessMarkingDeque<MarkCompactMode::FULL>();
   }
+  CHECK(marking_deque()->IsEmpty());
+  CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
 }
 
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
@@ -2493,9 +2495,9 @@ void MarkCompactCollector::MarkLiveObjects() {
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
       ProcessEphemeralMarking(&root_visitor, true);
-      if (heap_->UsingEmbedderHeapTracer()) {
+      {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
-        heap()->embedder_heap_tracer()->TraceEpilogue();
+        heap()->local_embedder_heap_tracer()->TraceEpilogue();
       }
     }
   }

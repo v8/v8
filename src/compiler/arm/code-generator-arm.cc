@@ -32,6 +32,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
       case kFlags_branch:
       case kFlags_deoptimize:
       case kFlags_set:
+      case kFlags_trap:
         return SetCC;
       case kFlags_none:
         return LeaveCC;
@@ -1504,6 +1505,110 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmFloat32x4Splat: {
+      __ vdup(i.OutputSimd128Register(), i.InputFloatRegister(0));
+      break;
+    }
+    case kArmFloat32x4ExtractLane: {
+      __ ExtractLane(i.OutputFloatRegister(), i.InputSimd128Register(0),
+                     kScratchReg, i.InputInt8(1));
+      break;
+    }
+    case kArmFloat32x4ReplaceLane: {
+      __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputFloatRegister(2), kScratchReg, i.InputInt8(1));
+      break;
+    }
+    case kArmFloat32x4FromInt32x4: {
+      __ vcvt_f32_s32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4FromUint32x4: {
+      __ vcvt_f32_u32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4Abs: {
+      __ vabs(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4Neg: {
+      __ vneg(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4Add: {
+      __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Sub: {
+      __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Eq: {
+      __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Ne: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vceq(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
+      __ vmvn(dst, dst);
+      break;
+    }
+    case kArmInt32x4Splat: {
+      __ vdup(Neon32, i.OutputSimd128Register(), i.InputRegister(0));
+      break;
+    }
+    case kArmInt32x4ExtractLane: {
+      __ ExtractLane(i.OutputRegister(), i.InputSimd128Register(0), NeonS32,
+                     i.InputInt8(1));
+      break;
+    }
+    case kArmInt32x4ReplaceLane: {
+      __ ReplaceLane(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                     i.InputRegister(2), NeonS32, i.InputInt8(1));
+      break;
+    }
+    case kArmInt32x4FromFloat32x4: {
+      __ vcvt_s32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmUint32x4FromFloat32x4: {
+      __ vcvt_u32_f32(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmInt32x4Add: {
+      __ vadd(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Sub: {
+      __ vsub(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Eq: {
+      __ vceq(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt32x4Ne: {
+      Simd128Register dst = i.OutputSimd128Register();
+      __ vceq(Neon32, dst, i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      __ vmvn(dst, dst);
+      break;
+    }
+    case kArmSimd32x4Select: {
+      // Select is a ternary op, so we need to move one input into the
+      // destination. Use vtst to canonicalize the 'boolean' input #0.
+      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
+      break;
+    }
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(ldrsb);
       break;
@@ -1590,6 +1695,67 @@ void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
 }
 
+void CodeGenerator::AssembleArchTrap(Instruction* instr,
+                                     FlagsCondition condition) {
+  class OutOfLineTrap final : public OutOfLineCode {
+   public:
+    OutOfLineTrap(CodeGenerator* gen, bool frame_elided, Instruction* instr)
+        : OutOfLineCode(gen),
+          frame_elided_(frame_elided),
+          instr_(instr),
+          gen_(gen) {}
+
+    void Generate() final {
+      ArmOperandConverter i(gen_, instr_);
+
+      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
+          i.InputInt32(instr_->InputCount() - 1));
+      bool old_has_frame = __ has_frame();
+      if (frame_elided_) {
+        __ set_has_frame(true);
+        __ EnterFrame(StackFrame::WASM);
+      }
+      GenerateCallToTrap(trap_id);
+      if (frame_elided_) {
+        __ set_has_frame(old_has_frame);
+      }
+      if (FLAG_debug_code) {
+        __ stop(GetBailoutReason(kUnexpectedReturnFromWasmTrap));
+      }
+    }
+
+   private:
+    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
+      if (trap_id == Runtime::kNumFunctions) {
+        // We cannot test calls to the runtime in cctest/test-run-wasm.
+        // Therefore we emit a call to C here instead of a call to the runtime.
+        // We use the context register as the scratch register, because we do
+        // not have a context here.
+        __ PrepareCallCFunction(0, 0, cp);
+        __ CallCFunction(
+            ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
+            0);
+      } else {
+        __ Move(cp, isolate()->native_context());
+        gen_->AssembleSourcePosition(instr_);
+        __ CallRuntime(trap_id);
+      }
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+    }
+
+    bool frame_elided_;
+    Instruction* instr_;
+    CodeGenerator* gen_;
+  };
+  bool frame_elided = !frame_access_state()->has_frame();
+  auto ool = new (zone()) OutOfLineTrap(this, frame_elided, instr);
+  Label* tlabel = ool->entry();
+  Condition cc = FlagsConditionToCondition(condition);
+  __ b(cc, tlabel);
+}
 
 // Assembles boolean materializations after an instruction.
 void CodeGenerator::AssembleArchBoolean(Instruction* instr,

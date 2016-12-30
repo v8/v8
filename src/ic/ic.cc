@@ -883,14 +883,9 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   }
 }
 
-Handle<Object> LoadIC::SimpleFieldLoad(FieldIndex index) {
-  if (FLAG_tf_load_ic_stub) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-    return LoadHandler::LoadField(isolate(), index);
-  }
-  TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldStub);
-  LoadFieldStub stub(isolate(), index);
-  return stub.GetCode();
+Handle<Object> LoadIC::SimpleFieldLoad(Isolate* isolate, FieldIndex index) {
+  TRACE_HANDLER_STATS(isolate, LoadIC_LoadFieldDH);
+  return LoadHandler::LoadField(isolate, index);
 }
 
 namespace {
@@ -1121,15 +1116,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
     if (kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC) {
-      if (FLAG_tf_load_ic_stub) {
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-        code = LoadNonExistent(receiver_map(), lookup->name());
-      } else {
-        code = NamedLoadHandlerCompiler::ComputeLoadNonexistent(lookup->name(),
-                                                                receiver_map());
-        // TODO(jkummerow/verwaest): Introduce a builtin that handles this case.
-        if (code.is_null()) code = slow_stub();
-      }
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+      code = LoadNonExistent(receiver_map(), lookup->name());
     } else {
       code = slow_stub();
     }
@@ -1322,7 +1310,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   if (receiver->IsString() &&
       Name::Equals(isolate()->factory()->length_string(), lookup->name())) {
     FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
-    return SimpleFieldLoad(index);
+    return SimpleFieldLoad(isolate(), index);
   }
 
   if (receiver->IsStringWrapper() &&
@@ -1360,7 +1348,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
                                              &object_offset)) {
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
-        return SimpleFieldLoad(index);
+        return SimpleFieldLoad(isolate(), index);
       }
 
       if (IsCompatibleReceiver(lookup, map)) {
@@ -1390,26 +1378,15 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
             return slow_stub();
           }
-          if (FLAG_tf_load_ic_stub) {
-            Handle<Object> smi_handler = LoadHandler::LoadApiGetter(
-                isolate(), lookup->GetAccessorIndex());
-            if (receiver_is_holder) {
-              TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
-              return smi_handler;
-            }
-            if (kind() != Code::LOAD_GLOBAL_IC) {
-              TRACE_HANDLER_STATS(isolate(),
-                                  LoadIC_LoadApiGetterFromPrototypeDH);
-              return LoadFromPrototype(map, holder, lookup->name(),
-                                       smi_handler);
-            }
-          } else {
-            if (receiver_is_holder) {
-              TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterStub);
-              int index = lookup->GetAccessorIndex();
-              LoadApiGetterStub stub(isolate(), true, index);
-              return stub.GetCode();
-            }
+          Handle<Object> smi_handler =
+              LoadHandler::LoadApiGetter(isolate(), lookup->GetAccessorIndex());
+          if (receiver_is_holder) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterDH);
+            return smi_handler;
+          }
+          if (kind() != Code::LOAD_GLOBAL_IC) {
+            TRACE_HANDLER_STATS(isolate(), LoadIC_LoadApiGetterFromPrototypeDH);
+            return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
           }
           break;  // Custom-compiled handler.
         }
@@ -1442,36 +1419,24 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
         FieldIndex field = lookup->GetFieldIndex();
-        Handle<Object> smi_handler = SimpleFieldLoad(field);
+        Handle<Object> smi_handler = SimpleFieldLoad(isolate(), field);
         if (receiver_is_holder) {
           return smi_handler;
         }
-        if (FLAG_tf_load_ic_stub) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
-          return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
-        }
-        break;  // Custom-compiled handler.
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
+        return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
       }
 
       // -------------- Constant properties --------------
       DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      if (FLAG_tf_load_ic_stub) {
-        Handle<Object> smi_handler =
-            LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
-        if (receiver_is_holder) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
-          return smi_handler;
-        }
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
-        return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
-      } else {
-        if (receiver_is_holder) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantStub);
-          LoadConstantStub stub(isolate(), lookup->GetConstantIndex());
-          return stub.GetCode();
-        }
+      Handle<Object> smi_handler =
+          LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
+      if (receiver_is_holder) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
+        return smi_handler;
       }
-      break;  // Custom-compiled handler.
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
+      return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -1575,33 +1540,15 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
     }
 
     case LookupIterator::DATA: {
-      if (lookup->is_dictionary_holder()) {
-        DCHECK(kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC);
-        DCHECK(holder->IsJSGlobalObject());
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobal);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        Handle<PropertyCell> cell = lookup->GetPropertyCell();
-        Handle<Code> code = compiler.CompileLoadGlobal(
-            cell, lookup->name(), lookup->IsConfigurable());
-        return code;
-      }
-
-      // -------------- Fields --------------
-      if (lookup->property_details().type() == DATA) {
-        FieldIndex field = lookup->GetFieldIndex();
-        DCHECK(!receiver_is_holder);
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadField);
-        NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-        return compiler.CompileLoadField(lookup->name(), field);
-      }
-
-      // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      DCHECK(!receiver_is_holder);
-      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstant);
+      DCHECK(lookup->is_dictionary_holder());
+      DCHECK(kind() == Code::LOAD_IC || kind() == Code::LOAD_GLOBAL_IC);
+      DCHECK(holder->IsJSGlobalObject());
+      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobal);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
-      return compiler.CompileLoadConstant(lookup->name(),
-                                          lookup->GetConstantIndex());
+      Handle<PropertyCell> cell = lookup->GetPropertyCell();
+      Handle<Code> code = compiler.CompileLoadGlobal(cell, lookup->name(),
+                                                     lookup->IsConfigurable());
+      return code;
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -2011,13 +1958,10 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         return slow_stub();
       }
       DCHECK(lookup->IsCacheableTransition());
-      if (FLAG_tf_store_ic_stub) {
-        Handle<Map> transition = lookup->transition_map();
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
-        return StoreTransition(receiver_map(), holder, transition,
-                               lookup->name());
-      }
-      break;  // Custom-compiled handler.
+      Handle<Map> transition = lookup->transition_map();
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
+      return StoreTransition(receiver_map(), holder, transition,
+                             lookup->name());
     }
 
     case LookupIterator::INTERCEPTOR: {
@@ -2094,27 +2038,11 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
       // -------------- Fields --------------
       if (lookup->property_details().type() == DATA) {
-        if (FLAG_tf_store_ic_stub) {
-          TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
-          int descriptor = lookup->GetFieldDescriptorIndex();
-          FieldIndex index = lookup->GetFieldIndex();
-          return StoreHandler::StoreField(isolate(), descriptor, index,
-                                          lookup->representation());
-        } else {
-          bool use_stub = true;
-          if (lookup->representation().IsHeapObject()) {
-            // Only use a generic stub if no types need to be tracked.
-            Handle<FieldType> field_type = lookup->GetFieldType();
-            use_stub = !field_type->IsClass();
-          }
-          if (use_stub) {
-            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldStub);
-            StoreFieldStub stub(isolate(), lookup->GetFieldIndex(),
-                                lookup->representation());
-            return stub.GetCode();
-          }
-        }
-        break;  // Custom-compiled handler.
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
+        int descriptor = lookup->GetFieldDescriptorIndex();
+        FieldIndex index = lookup->GetFieldIndex();
+        return StoreHandler::StoreField(isolate(), descriptor, index,
+                                        lookup->representation());
       }
 
       // -------------- Constant properties --------------
@@ -2156,15 +2084,7 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
         cell->set_value(isolate()->heap()->the_hole_value());
         return code;
       }
-      DCHECK(!FLAG_tf_store_ic_stub);
-      Handle<Map> transition = lookup->transition_map();
-      // Currently not handled by CompileStoreTransition.
-      DCHECK(holder->HasFastProperties());
-
-      DCHECK(lookup->IsCacheableTransition());
-      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransition);
-      NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-      return compiler.CompileStoreTransition(transition, lookup->name());
+      UNREACHABLE();
     }
 
     case LookupIterator::INTERCEPTOR:
@@ -2212,40 +2132,18 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
     }
 
     case LookupIterator::DATA: {
-      if (lookup->is_dictionary_holder()) {
-        DCHECK(holder->IsJSGlobalObject());
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobal);
-        DCHECK(holder.is_identical_to(receiver) ||
-               receiver->map()->prototype() == *holder);
-        auto cell = lookup->GetPropertyCell();
-        auto updated_type =
-            PropertyCell::UpdatedType(cell, value, lookup->property_details());
-        auto code = PropertyCellStoreHandler(
-            isolate(), receiver, Handle<JSGlobalObject>::cast(holder),
-            lookup->name(), cell, updated_type);
-        return code;
-      }
-
-      // -------------- Fields --------------
-      if (lookup->property_details().type() == DATA) {
-        DCHECK(!FLAG_tf_store_ic_stub);
-#ifdef DEBUG
-        bool use_stub = true;
-        if (lookup->representation().IsHeapObject()) {
-          // Only use a generic stub if no types need to be tracked.
-          Handle<FieldType> field_type = lookup->GetFieldType();
-          use_stub = !field_type->IsClass();
-        }
-        DCHECK(!use_stub);
-#endif
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreField);
-        NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-        return compiler.CompileStoreField(lookup);
-      }
-
-      // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
-      UNREACHABLE();
+      DCHECK(lookup->is_dictionary_holder());
+      DCHECK(holder->IsJSGlobalObject());
+      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobal);
+      DCHECK(holder.is_identical_to(receiver) ||
+             receiver->map()->prototype() == *holder);
+      auto cell = lookup->GetPropertyCell();
+      auto updated_type =
+          PropertyCell::UpdatedType(cell, value, lookup->property_details());
+      auto code = PropertyCellStoreHandler(isolate(), receiver,
+                                           Handle<JSGlobalObject>::cast(holder),
+                                           lookup->name(), cell, updated_type);
+      return code;
     }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
@@ -2524,17 +2422,14 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   Handle<Map> old_receiver_map;
-  bool sloppy_arguments_elements = false;
+  bool is_arguments = false;
   bool key_is_valid_index = false;
   KeyedAccessStoreMode store_mode = STANDARD_STORE;
   if (use_ic && object->IsJSObject()) {
     Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
-    sloppy_arguments_elements =
-        !is_sloppy(language_mode()) &&
-        receiver->elements()->map() ==
-            isolate()->heap()->sloppy_arguments_elements_map();
-    if (!sloppy_arguments_elements) {
+    is_arguments = receiver->IsJSArgumentsObject();
+    if (!is_arguments) {
       key_is_valid_index = key->IsSmi() && Smi::cast(*key)->value() >= 0;
       if (key_is_valid_index) {
         uint32_t index = static_cast<uint32_t>(Smi::cast(*key)->value());
@@ -2551,7 +2446,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 
   if (use_ic) {
     if (!old_receiver_map.is_null()) {
-      if (sloppy_arguments_elements) {
+      if (is_arguments) {
         TRACE_GENERIC_IC(isolate(), "KeyedStoreIC", "arguments receiver");
       } else if (key_is_valid_index) {
         // We should go generic if receiver isn't a dictionary, but our
@@ -2636,7 +2531,7 @@ RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> function = args.at<Object>(0);
+  Handle<Object> function = args.at(0);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2652,7 +2547,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> receiver = args.at<Object>(0);
+  Handle<Object> receiver = args.at(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
@@ -2749,8 +2644,8 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> receiver = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
+  Handle<Object> receiver = args.at(0);
+  Handle<Object> key = args.at(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2765,8 +2660,8 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
   HandleScope scope(isolate);
   typedef LoadWithVectorDescriptor Descriptor;
   DCHECK_EQ(Descriptor::kParameterCount, args.length());
-  Handle<Object> receiver = args.at<Object>(Descriptor::kReceiver);
-  Handle<Object> key = args.at<Object>(Descriptor::kName);
+  Handle<Object> receiver = args.at(Descriptor::kReceiver);
+  Handle<Object> key = args.at(Descriptor::kName);
   Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
   Handle<TypeFeedbackVector> vector =
       args.at<TypeFeedbackVector>(Descriptor::kVector);
@@ -2783,10 +2678,10 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
-  Handle<Object> receiver = args.at<Object>(3);
+  Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
@@ -2810,11 +2705,11 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
-  Handle<Object> receiver = args.at<Object>(3);
-  Handle<Object> key = args.at<Object>(4);
+  Handle<Object> receiver = args.at(3);
+  Handle<Object> key = args.at(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2827,10 +2722,10 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> value = args.at<Object>(0);
+  Handle<Object> value = args.at(0);
   // slot and vector parameters are not used.
-  Handle<Object> object = args.at<Object>(3);
-  Handle<Object> key = args.at<Object>(4);
+  Handle<Object> object = args.at(3);
+  Handle<Object> key = args.at(4);
   LanguageMode language_mode;
   KeyedStoreICNexus nexus(isolate);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2844,9 +2739,9 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   HandleScope scope(isolate);
   // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> object = args.at<Object>(0);
-  Handle<Object> key = args.at<Object>(1);
-  Handle<Object> value = args.at<Object>(2);
+  Handle<Object> object = args.at(0);
+  Handle<Object> key = args.at(1);
+  Handle<Object> value = args.at(2);
   Handle<Map> map = args.at<Map>(3);
   LanguageMode language_mode;
   KeyedStoreICNexus nexus(isolate);
@@ -2995,8 +2890,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_Miss) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());
   typedef BinaryOpDescriptor Descriptor;
-  Handle<Object> left = args.at<Object>(Descriptor::kLeft);
-  Handle<Object> right = args.at<Object>(Descriptor::kRight);
+  Handle<Object> left = args.at(Descriptor::kLeft);
+  Handle<Object> right = args.at(Descriptor::kRight);
   BinaryOpIC ic(isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate, ic.Transition(Handle<AllocationSite>::null(), left, right));
@@ -3009,8 +2904,8 @@ RUNTIME_FUNCTION(Runtime_BinaryOpIC_MissWithAllocationSite) {
   typedef BinaryOpWithAllocationSiteDescriptor Descriptor;
   Handle<AllocationSite> allocation_site =
       args.at<AllocationSite>(Descriptor::kAllocationSite);
-  Handle<Object> left = args.at<Object>(Descriptor::kLeft);
-  Handle<Object> right = args.at<Object>(Descriptor::kRight);
+  Handle<Object> left = args.at(Descriptor::kLeft);
+  Handle<Object> right = args.at(Descriptor::kRight);
   BinaryOpIC ic(isolate);
   RETURN_RESULT_OR_FAILURE(isolate,
                            ic.Transition(allocation_site, left, right));
@@ -3093,7 +2988,7 @@ RUNTIME_FUNCTION(Runtime_CompareIC_Miss) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 3);
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
-  return ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
+  return ic.UpdateCaches(args.at(0), args.at(1));
 }
 
 
@@ -3116,7 +3011,7 @@ Handle<Object> ToBooleanIC::ToBoolean(Handle<Object> object) {
 RUNTIME_FUNCTION(Runtime_ToBooleanIC_Miss) {
   DCHECK(args.length() == 1);
   HandleScope scope(isolate);
-  Handle<Object> object = args.at<Object>(0);
+  Handle<Object> object = args.at(0);
   ToBooleanIC ic(isolate);
   return *ic.ToBoolean(object);
 }
@@ -3127,7 +3022,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<JSObject> holder = args.at<JSObject>(1);
   Handle<HeapObject> callback_or_cell = args.at<HeapObject>(2);
   Handle<Name> name = args.at<Name>(3);
-  Handle<Object> value = args.at<Object>(4);
+  Handle<Object> value = args.at(4);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 5);
   HandleScope scope(isolate);
 
@@ -3171,7 +3066,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<Object> receiver =
-      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+      args.at(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
   HandleScope scope(isolate);
@@ -3207,7 +3102,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<Object> receiver =
-      args.at<Object>(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
+      args.at(NamedLoadHandlerCompiler::kInterceptorArgsThisIndex);
   Handle<JSObject> holder =
       args.at<JSObject>(NamedLoadHandlerCompiler::kInterceptorArgsHolderIndex);
 
@@ -3263,7 +3158,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<Name> name = args.at<Name>(1);
-  Handle<Object> value = args.at<Object>(2);
+  Handle<Object> value = args.at(2);
 
   DCHECK(receiver->HasNamedInterceptor());
   InterceptorInfo* interceptor = receiver->GetNamedInterceptor();

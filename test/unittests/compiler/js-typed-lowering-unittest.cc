@@ -717,7 +717,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* key = Parameter(
           Type::Range(kMinInt / element_size, kMaxInt / element_size, zone()));
       Node* base = HeapConstant(array);
-      Node* value = Parameter(Type::Any());
+      Node* value = Parameter(Type::PlainPrimitive());
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
@@ -737,10 +737,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
               : IsNumberShiftLeft(
                     key, IsNumberConstant(WhichPowerOf2(element_size)));
 
-      Matcher<Node*> value_matcher =
-          IsToNumber(value, context, checkpoint, control);
-      Matcher<Node*> effect_matcher = value_matcher;
-      Matcher<Node*> control_matcher = IsIfSuccess(value_matcher);
+      Matcher<Node*> value_matcher = IsPlainPrimitiveToNumber(value);
 
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(
@@ -749,7 +746,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
               BufferAccess(type),
               IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
               offset_matcher, IsNumberConstant(array->byte_length()->Number()),
-              value_matcher, effect_matcher, control_matcher));
+              value_matcher, checkpoint, control));
     }
   }
 }

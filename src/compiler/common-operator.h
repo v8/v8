@@ -205,6 +205,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason);
   const Operator* DeoptimizeIf(DeoptimizeReason reason);
   const Operator* DeoptimizeUnless(DeoptimizeReason reason);
+  const Operator* TrapIf(int32_t trap_id);
+  const Operator* TrapUnless(int32_t trap_id);
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 

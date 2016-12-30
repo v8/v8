@@ -21,6 +21,7 @@ class PlatformInterfaceDescriptor;
   V(ContextOnly)                          \
   V(Load)                                 \
   V(LoadWithVector)                       \
+  V(LoadField)                            \
   V(LoadICProtoArray)                     \
   V(LoadGlobal)                           \
   V(LoadGlobalWithVector)                 \
@@ -73,6 +74,8 @@ class PlatformInterfaceDescriptor;
   V(BinaryOpWithVector)                   \
   V(CountOp)                              \
   V(StringAdd)                            \
+  V(StringCharAt)                         \
+  V(StringCharCodeAt)                     \
   V(StringCompare)                        \
   V(SubString)                            \
   V(Keyed)                                \
@@ -93,7 +96,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterPushArgsAndConstruct)      \
   V(InterpreterPushArgsAndConstructArray) \
   V(InterpreterCEntry)                    \
-  V(ResumeGenerator)
+  V(ResumeGenerator)                      \
+  V(PromiseHandleReject)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
@@ -305,6 +309,18 @@ class LoadDescriptor : public CallInterfaceDescriptor {
   static const Register SlotRegister();
 };
 
+// LoadFieldDescriptor is used by the shared handler that loads a field from an
+// object based on the smi-encoded field description.
+class LoadFieldDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kSmiHandler)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(LoadFieldDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const Register ReceiverRegister();
+  static const Register SmiHandlerRegister();
+};
+
 class LoadGlobalDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kName, kSlot)
@@ -432,7 +448,10 @@ class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {
 
 class FastNewObjectDescriptor : public CallInterfaceDescriptor {
  public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget)
   DECLARE_DESCRIPTOR(FastNewObjectDescriptor, CallInterfaceDescriptor)
+  static const Register TargetRegister();
+  static const Register NewTargetRegister();
 };
 
 class FastNewRestParameterDescriptor : public CallInterfaceDescriptor {
@@ -615,6 +634,7 @@ SIMD128_TYPES(SIMD128_ALLOC_DESC)
 
 class BuiltinDescriptor : public CallInterfaceDescriptor {
  public:
+  // TODO(ishell): Where is kFunction??
   DEFINE_PARAMETERS(kNewTarget, kArgumentsCount)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(BuiltinDescriptor,
                                                CallInterfaceDescriptor)
@@ -687,6 +707,19 @@ class StringAddDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(StringAddDescriptor, CallInterfaceDescriptor)
 };
 
+class StringCharAtDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kPosition)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharAtDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
+class StringCharCodeAtDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kPosition)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharCodeAtDescriptor,
+                                               CallInterfaceDescriptor)
+};
 
 class StringCompareDescriptor : public CallInterfaceDescriptor {
  public:
@@ -833,6 +866,13 @@ class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
+};
+
+class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kPromise, kOnReject, kException)
+  DECLARE_DEFAULT_DESCRIPTOR(PromiseHandleRejectDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
 };
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE

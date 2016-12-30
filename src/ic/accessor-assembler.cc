@@ -80,15 +80,14 @@ void AccessorAssemblerImpl::HandlePolymorphicCase(
   BuildFastLoop(
       MachineType::PointerRepresentation(), init, length,
       [this, receiver_map, feedback, if_handler, var_handler](Node* index) {
-        Node* cached_map = LoadWeakCellValue(
-            LoadFixedArrayElement(feedback, index, 0, INTPTR_PARAMETERS));
+        Node* cached_map =
+            LoadWeakCellValue(LoadFixedArrayElement(feedback, index));
 
         Label next_entry(this);
         GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
 
         // Found, now call handler.
-        Node* handler = LoadFixedArrayElement(feedback, index, kPointerSize,
-                                              INTPTR_PARAMETERS);
+        Node* handler = LoadFixedArrayElement(feedback, index, kPointerSize);
         var_handler->Bind(handler);
         Goto(if_handler);
 
@@ -113,16 +112,16 @@ void AccessorAssemblerImpl::HandleKeyedStorePolymorphicCase(
   BuildFastLoop(MachineType::PointerRepresentation(), init, length,
                 [this, receiver_map, feedback, if_handler, var_handler,
                  if_transition_handler, var_transition_map_cell](Node* index) {
-                  Node* cached_map = LoadWeakCellValue(LoadFixedArrayElement(
-                      feedback, index, 0, INTPTR_PARAMETERS));
+                  Node* cached_map =
+                      LoadWeakCellValue(LoadFixedArrayElement(feedback, index));
                   Label next_entry(this);
                   GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
 
-                  Node* maybe_transition_map_cell = LoadFixedArrayElement(
-                      feedback, index, kPointerSize, INTPTR_PARAMETERS);
+                  Node* maybe_transition_map_cell =
+                      LoadFixedArrayElement(feedback, index, kPointerSize);
 
-                  var_handler->Bind(LoadFixedArrayElement(
-                      feedback, index, 2 * kPointerSize, INTPTR_PARAMETERS));
+                  var_handler->Bind(
+                      LoadFixedArrayElement(feedback, index, 2 * kPointerSize));
                   GotoIf(WordEqual(maybe_transition_map_cell,
                                    LoadRoot(Heap::kUndefinedValueRootIndex)),
                          if_handler);
@@ -169,11 +168,8 @@ void AccessorAssemblerImpl::HandleLoadICHandlerCase(
   Bind(&call_handler);
   {
     typedef LoadWithVectorDescriptor Descriptor;
-    TailCallStub(Descriptor(isolate()), handler, p->context,
-                 Arg(Descriptor::kReceiver, p->receiver),
-                 Arg(Descriptor::kName, p->name),
-                 Arg(Descriptor::kSlot, p->slot),
-                 Arg(Descriptor::kVector, p->vector));
+    TailCallStub(Descriptor(isolate()), handler, p->context, p->receiver,
+                 p->name, p->slot, p->vector);
   }
 }
 
@@ -286,8 +282,7 @@ void AccessorAssemblerImpl::HandleLoadICSmiHandlerCase(
     CSA_ASSERT(this,
                UintPtrLessThan(descriptor,
                                LoadAndUntagFixedArrayBaseLength(descriptors)));
-    Node* value =
-        LoadFixedArrayElement(descriptors, descriptor, 0, INTPTR_PARAMETERS);
+    Node* value = LoadFixedArrayElement(descriptors, descriptor);
 
     Label if_accessor_info(this);
     GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
@@ -376,12 +371,8 @@ void AccessorAssemblerImpl::HandleLoadICProtoHandlerCase(
     typedef LoadICProtoArrayDescriptor Descriptor;
     LoadICProtoArrayStub stub(isolate(), throw_reference_error_if_nonexistent);
     Node* target = HeapConstant(stub.GetCode());
-    TailCallStub(Descriptor(isolate()), target, p->context,
-                 Arg(Descriptor::kReceiver, p->receiver),
-                 Arg(Descriptor::kName, p->name),
-                 Arg(Descriptor::kSlot, p->slot),
-                 Arg(Descriptor::kVector, p->vector),
-                 Arg(Descriptor::kHandler, handler));
+    TailCallStub(Descriptor(isolate()), target, p->context, p->receiver,
+                 p->name, p->slot, p->vector, handler);
   }
 }
 
@@ -422,8 +413,7 @@ Node* AccessorAssemblerImpl::EmitLoadICProtoArrayCheck(
   BuildFastLoop(
       MachineType::PointerRepresentation(), start_index.value(), handler_length,
       [this, p, handler, miss](Node* current) {
-        Node* prototype_cell =
-            LoadFixedArrayElement(handler, current, 0, INTPTR_PARAMETERS);
+        Node* prototype_cell = LoadFixedArrayElement(handler, current);
         CheckPrototype(prototype_cell, p->name, miss);
       },
       1, IndexAdvanceMode::kPost);
@@ -577,8 +567,8 @@ void AccessorAssemblerImpl::HandleStoreICProtoHandler(
     BuildFastLoop(MachineType::PointerRepresentation(),
                   IntPtrConstant(StoreHandler::kFirstPrototypeIndex), length,
                   [this, p, handler, miss](Node* current) {
-                    Node* prototype_cell = LoadFixedArrayElement(
-                        handler, current, 0, INTPTR_PARAMETERS);
+                    Node* prototype_cell =
+                        LoadFixedArrayElement(handler, current);
                     CheckPrototype(prototype_cell, p->name, miss);
                   },
                   1, IndexAdvanceMode::kPost);
@@ -613,8 +603,8 @@ void AccessorAssemblerImpl::HandleStoreICProtoHandler(
       Node* value_index_in_descriptor =
           DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
       Node* descriptors = LoadMapDescriptors(transition);
-      Node* constant = LoadFixedArrayElement(
-          descriptors, value_index_in_descriptor, 0, INTPTR_PARAMETERS);
+      Node* constant =
+          LoadFixedArrayElement(descriptors, value_index_in_descriptor);
       GotoIf(WordNotEqual(p->value, constant), miss);
 
       StoreMap(p->receiver, transition);
@@ -687,8 +677,8 @@ void AccessorAssemblerImpl::HandleStoreICSmiHandlerCase(Node* handler_word,
         DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
     Node* descriptors =
         LoadMapDescriptors(transition ? transition : LoadMap(holder));
-    Node* maybe_field_type = LoadFixedArrayElement(
-        descriptors, value_index_in_descriptor, 0, INTPTR_PARAMETERS);
+    Node* maybe_field_type =
+        LoadFixedArrayElement(descriptors, value_index_in_descriptor);
     Label do_store(this);
     GotoIf(TaggedIsSmi(maybe_field_type), &do_store);
     // Check that value type matches the field type.
@@ -809,14 +799,13 @@ void AccessorAssemblerImpl::EmitElementLoad(
   Bind(&if_fast_packed);
   {
     Comment("fast packed elements");
-    Return(LoadFixedArrayElement(elements, intptr_index, 0, INTPTR_PARAMETERS));
+    Return(LoadFixedArrayElement(elements, intptr_index));
   }
 
   Bind(&if_fast_holey);
   {
     Comment("fast holey elements");
-    Node* element =
-        LoadFixedArrayElement(elements, intptr_index, 0, INTPTR_PARAMETERS);
+    Node* element = LoadFixedArrayElement(elements, intptr_index);
     GotoIf(WordEqual(element, TheHoleConstant()), if_hole);
     Return(element);
   }
@@ -824,8 +813,8 @@ void AccessorAssemblerImpl::EmitElementLoad(
   Bind(&if_fast_double);
   {
     Comment("packed double elements");
-    var_double_value->Bind(LoadFixedDoubleArrayElement(
-        elements, intptr_index, MachineType::Float64(), 0, INTPTR_PARAMETERS));
+    var_double_value->Bind(LoadFixedDoubleArrayElement(elements, intptr_index,
+                                                       MachineType::Float64()));
     Goto(rebox_double);
   }
 
@@ -863,15 +852,14 @@ void AccessorAssemblerImpl::EmitElementLoad(
     // Check that the value is a data property.
     Node* details_index = EntryToIndex<SeededNumberDictionary>(
         var_entry.value(), SeededNumberDictionary::kEntryDetailsIndex);
-    Node* details = SmiToWord32(
-        LoadFixedArrayElement(elements, details_index, 0, INTPTR_PARAMETERS));
+    Node* details = SmiToWord32(LoadFixedArrayElement(elements, details_index));
     Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
     // TODO(jkummerow): Support accessors without missing?
     GotoUnless(Word32Equal(kind, Int32Constant(kData)), miss);
     // Finally, load the value.
     Node* value_index = EntryToIndex<SeededNumberDictionary>(
         var_entry.value(), SeededNumberDictionary::kEntryValueIndex);
-    Return(LoadFixedArrayElement(elements, value_index, 0, INTPTR_PARAMETERS));
+    Return(LoadFixedArrayElement(elements, value_index));
   }
 
   Bind(&if_typed_array);
@@ -879,9 +867,7 @@ void AccessorAssemblerImpl::EmitElementLoad(
     Comment("typed elements");
     // Check if buffer has been neutered.
     Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-    Node* bitfield = LoadObjectField(buffer, JSArrayBuffer::kBitFieldOffset,
-                                     MachineType::Uint32());
-    GotoIf(IsSetWord32<JSArrayBuffer::WasNeutered>(bitfield), miss);
+    GotoIf(IsDetachedBuffer(buffer), miss);
 
     // Bounds check.
     Node* length =
@@ -893,9 +879,9 @@ void AccessorAssemblerImpl::EmitElementLoad(
         LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
                         MachineType::Pointer());
     Node* base_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset,
-                        MachineType::Pointer());
-    Node* backing_store = IntPtrAdd(external_pointer, base_pointer);
+        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
+    Node* backing_store =
+        IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer));
 
     Label uint8_elements(this), int8_elements(this), uint16_elements(this),
         int16_elements(this), uint32_elements(this), int32_elements(this),
@@ -1628,7 +1614,7 @@ void AccessorAssemblerImpl::KeyedStoreIC(const StoreICParameters* p,
 //////////////////// Public methods.
 
 void AccessorAssemblerImpl::GenerateLoadIC() {
-  typedef LoadICStub::Descriptor Descriptor;
+  typedef LoadWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1641,7 +1627,7 @@ void AccessorAssemblerImpl::GenerateLoadIC() {
 }
 
 void AccessorAssemblerImpl::GenerateLoadICTrampoline() {
-  typedef LoadICTrampolineStub::Descriptor Descriptor;
+  typedef LoadDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1668,8 +1654,22 @@ void AccessorAssemblerImpl::GenerateLoadICProtoArray(
   LoadICProtoArray(&p, handler, throw_reference_error_if_nonexistent);
 }
 
+void AccessorAssemblerImpl::GenerateLoadField() {
+  typedef LoadFieldStub::Descriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = nullptr;
+  Node* slot = nullptr;
+  Node* vector = nullptr;
+  Node* context = Parameter(Descriptor::kContext);
+  LoadICParameters p(context, receiver, name, slot, vector);
+
+  HandleLoadICSmiHandlerCase(&p, receiver, Parameter(Descriptor::kSmiHandler),
+                             nullptr, kOnlyProperties);
+}
+
 void AccessorAssemblerImpl::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
-  typedef LoadGlobalICStub::Descriptor Descriptor;
+  typedef LoadGlobalWithVectorDescriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -1682,7 +1682,7 @@ void AccessorAssemblerImpl::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
 
 void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline(
     TypeofMode typeof_mode) {
-  typedef LoadGlobalICTrampolineStub::Descriptor Descriptor;
+  typedef LoadGlobalDescriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -1694,7 +1694,7 @@ void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline(
 }
 
 void AccessorAssemblerImpl::GenerateKeyedLoadICTF() {
-  typedef KeyedLoadICTFStub::Descriptor Descriptor;
+  typedef LoadWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1707,7 +1707,7 @@ void AccessorAssemblerImpl::GenerateKeyedLoadICTF() {
 }
 
 void AccessorAssemblerImpl::GenerateKeyedLoadICTrampolineTF() {
-  typedef KeyedLoadICTrampolineTFStub::Descriptor Descriptor;
+  typedef LoadDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1733,7 +1733,7 @@ void AccessorAssemblerImpl::GenerateKeyedLoadICMegamorphic() {
 }
 
 void AccessorAssemblerImpl::GenerateStoreIC() {
-  typedef StoreICStub::Descriptor Descriptor;
+  typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1747,7 +1747,7 @@ void AccessorAssemblerImpl::GenerateStoreIC() {
 }
 
 void AccessorAssemblerImpl::GenerateStoreICTrampoline() {
-  typedef StoreICTrampolineStub::Descriptor Descriptor;
+  typedef StoreDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1761,7 +1761,7 @@ void AccessorAssemblerImpl::GenerateStoreICTrampoline() {
 }
 
 void AccessorAssemblerImpl::GenerateKeyedStoreICTF(LanguageMode language_mode) {
-  typedef KeyedStoreICTFStub::Descriptor Descriptor;
+  typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -1776,7 +1776,7 @@ void AccessorAssemblerImpl::GenerateKeyedStoreICTF(LanguageMode language_mode) {
 
 void AccessorAssemblerImpl::GenerateKeyedStoreICTrampolineTF(
     LanguageMode language_mode) {
-  typedef KeyedStoreICTrampolineTFStub::Descriptor Descriptor;
+  typedef StoreDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);

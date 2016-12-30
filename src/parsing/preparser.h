@@ -156,10 +156,9 @@ class PreParserExpression {
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment(ZoneList<VariableProxy*>* variables) {
+  static PreParserExpression Assignment() {
     return PreParserExpression(TypeField::encode(kExpression) |
-                                   ExpressionTypeField::encode(kAssignment),
-                               variables);
+                               ExpressionTypeField::encode(kAssignment));
   }
 
   static PreParserExpression ObjectLiteral(
@@ -332,8 +331,6 @@ class PreParserExpression {
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
-
-  void set_is_class_field_initializer(bool is_class_field_initializer) {}
 
  private:
   enum Type {
@@ -804,8 +801,7 @@ class PreParserFactory {
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
-    // For tracking variables for parameters with a default value.
-    return PreParserExpression::Assignment(left.variables_);
+    return PreParserExpression::Assignment();
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression, int pos,
@@ -1281,11 +1277,6 @@ class PreParser : public ParserBase<PreParser> {
                                               PreParserExpressionList args,
                                               int pos);
 
-  V8_INLINE PreParserExpression
-  RewriteSuperCall(PreParserExpression call_expression) {
-    return call_expression;
-  }
-
   V8_INLINE void RewriteDestructuringAssignments() {}
 
   V8_INLINE PreParserExpression RewriteExponentiation(PreParserExpression left,
@@ -1390,23 +1381,13 @@ class PreParser : public ParserBase<PreParser> {
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       ClassInfo* class_info, bool* ok) {
-    if (kind == ClassLiteralProperty::FIELD && !is_static && !is_constructor) {
-      class_info->instance_field_initializers->Add(
-          PreParserExpression::Default(), zone());
-    }
   }
   V8_INLINE PreParserExpression RewriteClassLiteral(PreParserIdentifier name,
                                                     ClassInfo* class_info,
                                                     int pos, bool* ok) {
     bool has_default_constructor = !class_info->has_seen_constructor;
-    bool has_instance_fields =
-        class_info->instance_field_initializers->length() > 0;
     // Account for the default constructor.
     if (has_default_constructor) GetNextFunctionLiteralId();
-    if (allow_harmony_class_fields() && has_instance_fields) {
-      // Account for initializer function.
-      GetNextFunctionLiteralId();
-    }
     return PreParserExpression::Default();
   }
 

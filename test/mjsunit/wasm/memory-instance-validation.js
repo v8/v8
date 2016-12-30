@@ -13,7 +13,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   print("ValidateSharedInstanceMemory");
   let memory = new WebAssembly.Memory({initial: 5, maximum: 100});
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("imported_mem");
+  builder.addImportedMemory("mod", "imported_mem");
   builder.addFunction("mem_size", kSig_i_v)
     .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();
@@ -22,7 +22,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
     .exportFunc();
   var instances = [];
   for (var i = 0; i < 5; i++) {
-    instances.push(builder.instantiate({imported_mem: memory}));
+    instances.push(builder.instantiate({mod: {imported_mem: memory}}));
   }
   function grow_instance_0(pages) { return instances[0].exports.grow(pages); }
   function grow_instance_1(pages) { return instances[1].exports.grow(pages); }
@@ -82,7 +82,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(28, instances[3].exports.mem_size());
 
   // Instantiate a new instance and verify that it can be grown correctly.
-  instances.push(builder.instantiate({imported_mem: memory}));
+  instances.push(builder.instantiate({mod: {imported_mem: memory}}));
   function grow_instance_5(pages) { return instances[5].exports.grow(pages); }
 
   // i[2] - i[3] - i[5]

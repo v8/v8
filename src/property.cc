@@ -21,11 +21,12 @@ std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
-DataDescriptor::DataDescriptor(Handle<Name> key, int field_index,
-                               PropertyAttributes attributes,
-                               Representation representation)
-    : Descriptor(key, FieldType::Any(key->GetIsolate()), attributes, DATA,
-                 representation, field_index) {}
+Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
+                                 PropertyAttributes attributes,
+                                 Representation representation) {
+  return Descriptor(key, FieldType::Any(key->GetIsolate()), attributes, DATA,
+                    representation, field_index);
+}
 
 struct FastPropertyDetails {
   explicit FastPropertyDetails(const PropertyDetails& v) : details(v) {}

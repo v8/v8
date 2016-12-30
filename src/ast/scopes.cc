@@ -378,11 +378,7 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       }
       DCHECK(!scope_info->HasOuterScopeInfo());
       break;
-    } else if (scope_info->scope_type() == FUNCTION_SCOPE ||
-               scope_info->scope_type() == EVAL_SCOPE) {
-      // TODO(neis): For an eval scope, we currently create an ordinary function
-      // context.  This is wrong and needs to be fixed.
-      // https://bugs.chromium.org/p/v8/issues/detail?id=5295
+    } else if (scope_info->scope_type() == FUNCTION_SCOPE) {
       outer_scope =
           new (zone) DeclarationScope(zone, FUNCTION_SCOPE, handle(scope_info));
       if (scope_info->IsAsmFunction())
@@ -390,6 +386,9 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
       if (scope_info->IsAsmModule())
         outer_scope->AsDeclarationScope()->set_asm_module();
       if (scope_info->IsTyped()) outer_scope->AsDeclarationScope()->SetTyped();
+    } else if (scope_info->scope_type() == EVAL_SCOPE) {
+      outer_scope =
+          new (zone) DeclarationScope(zone, EVAL_SCOPE, handle(scope_info));
     } else if (scope_info->scope_type() == BLOCK_SCOPE) {
       if (scope_info->is_declaration_scope()) {
         outer_scope =
@@ -1191,10 +1190,7 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
   // the parse, since context allocation of those variables is already
   // guaranteed to be correct.
   for (const Scope* s = this; s != outer; s = s->outer_scope_) {
-    // Eval forces context allocation on all outer scopes, so we don't need to
-    // look at those scopes. Sloppy eval makes all top-level variables dynamic,
-    // whereas strict-mode requires context allocation.
-    if (s->is_eval_scope()) return !is_strict(s->language_mode());
+    if (s->is_eval_scope()) return false;
     // Catch scopes force context allocation of all variables.
     if (s->is_catch_scope()) continue;
     // With scopes do not introduce variables that need allocation.
@@ -1554,6 +1550,19 @@ void Scope::Print(int n) {
     PrintVar(n1, function);
   }
 
+  // Print temporaries.
+  {
+    bool printed_header = false;
+    for (Variable* local : locals_) {
+      if (local->mode() != TEMPORARY) continue;
+      if (!printed_header) {
+        printed_header = true;
+        Indent(n1, "// temporary vars:\n");
+      }
+      PrintVar(n1, local);
+    }
+  }
+
   if (variables_.occupancy() > 0) {
     PrintMap(n1, "// local vars:\n", &variables_, true, function);
     PrintMap(n1, "// dynamic vars:\n", &variables_, false, function);
@@ -1705,6 +1714,15 @@ void Scope::ResolveVariable(ParseInfo* info, VariableProxy* proxy) {
 namespace {
 
 bool AccessNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
+  if (var->mode() == DYNAMIC_LOCAL) {
+    // Dynamically introduced variables never need a hole check (since they're
+    // VAR bindings, either from var or function declarations), but the variable
+    // they shadow might need a hole check, which we want to do if we decide
+    // that no shadowing variable was dynamically introoduced.
+    DCHECK(!var->binding_needs_init());
+    return AccessNeedsHoleCheck(var->local_if_not_shadowed(), proxy, scope);
+  }
+
   if (!var->binding_needs_init()) {
     return false;
   }
@@ -1942,6 +1960,7 @@ void DeclarationScope::AllocateParameterLocals() {
     DCHECK_EQ(this, var->scope());
     if (uses_sloppy_arguments) {
       var->set_is_used();
+      var->set_maybe_assigned();
       var->ForceContextAllocation();
     }
     AllocateParameter(var, i);

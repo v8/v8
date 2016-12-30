@@ -5,6 +5,7 @@
 #include "src/compiler/js-generic-lowering.h"
 
 #include "src/ast/ast.h"
+#include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compiler/common-operator.h"
@@ -273,6 +274,12 @@ void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
                                    : Runtime::kDeleteProperty_Sloppy);
 }
 
+void JSGenericLowering::LowerJSGetSuperConstructor(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::GetSuperConstructor(isolate());
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSInstanceOf(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::InstanceOf(isolate());
@@ -338,7 +345,8 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   Handle<SharedFunctionInfo> const shared_info = p.shared_info();
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
 
-  // Use the FastNewClosureStub only for functions allocated in new space.
+  // Use the FastNewClosurebuiltin only for functions allocated in new
+  // space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
     ReplaceWithStubCall(node, callable, flags);
@@ -351,14 +359,20 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
 
 
 void JSGenericLowering::LowerJSCreateFunctionContext(Node* node) {
-  int const slot_count = OpParameter<int>(node->op());
+  const CreateFunctionContextParameters& parameters =
+      CreateFunctionContextParametersOf(node->op());
+  int slot_count = parameters.slot_count();
+  ScopeType scope_type = parameters.scope_type();
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
 
-  if (slot_count <= FastNewFunctionContextStub::kMaximumSlots) {
-    Callable callable = CodeFactory::FastNewFunctionContext(isolate());
+  if (slot_count <=
+      ConstructorBuiltinsAssembler::MaximumFunctionContextSlots()) {
+    Callable callable =
+        CodeFactory::FastNewFunctionContext(isolate(), scope_type);
     node->InsertInput(zone(), 1, jsgraph()->Int32Constant(slot_count));
     ReplaceWithStubCall(node, callable, flags);
   } else {
+    node->InsertInput(zone(), 1, jsgraph()->SmiConstant(scope_type));
     ReplaceWithRuntimeCall(node, Runtime::kNewFunctionContext);
   }
 }
@@ -378,11 +392,13 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
-  // Use the FastCloneShallowArrayStub only for shallow boilerplates up to the
-  // initial length limit for arrays with "fast" elements kind.
+  // Use the FastCloneShallowArray builtin only for shallow boilerplates without
+  // properties up to the number of elements that the stubs can handle.
   if ((p.flags() & ArrayLiteral::kShallowElements) != 0 &&
-      p.length() < JSArray::kInitialMaxFastElementArray) {
-    Callable callable = CodeFactory::FastCloneShallowArray(isolate());
+      p.length() <
+          ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements) {
+    Callable callable = CodeFactory::FastCloneShallowArray(
+        isolate(), DONT_TRACK_ALLOCATION_SITE);
     ReplaceWithStubCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
@@ -398,10 +414,11 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
-  // Use the FastCloneShallowObjectStub only for shallow boilerplates without
-  // elements up to the number of properties that the stubs can handle.
+  // Use the FastCloneShallowObject builtin only for shallow boilerplates
+  // without elements up to the number of properties that the stubs can handle.
   if ((p.flags() & ObjectLiteral::kShallowProperties) != 0 &&
-      p.length() <= FastCloneShallowObjectStub::kMaximumClonedProperties) {
+      p.length() <=
+          ConstructorBuiltinsAssembler::kMaximumClonedShallowObjectProperties) {
     Callable callable =
         CodeFactory::FastCloneShallowObject(isolate(), p.length());
     ReplaceWithStubCall(node, callable, flags);

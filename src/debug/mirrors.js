@@ -2011,14 +2011,11 @@ FrameMirror.prototype.allScopes = function(opt_ignore_nested_scopes) {
 };
 
 
-FrameMirror.prototype.evaluate = function(source, disable_break,
-                                          opt_context_object) {
+FrameMirror.prototype.evaluate = function(source) {
   return MakeMirror(%DebugEvaluate(this.break_id_,
                                    this.details_.frameId(),
                                    this.details_.inlinedFrameIndex(),
-                                   source,
-                                   TO_BOOLEAN(disable_break),
-                                   opt_context_object));
+                                   source));
 };
 
 

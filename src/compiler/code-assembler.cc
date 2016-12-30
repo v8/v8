@@ -22,6 +22,15 @@
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
+#define REPEAT_1_TO_2(V, T) V(T) V(T, T)
+#define REPEAT_1_TO_3(V, T) REPEAT_1_TO_2(V, T) V(T, T, T)
+#define REPEAT_1_TO_4(V, T) REPEAT_1_TO_3(V, T) V(T, T, T, T)
+#define REPEAT_1_TO_5(V, T) REPEAT_1_TO_4(V, T) V(T, T, T, T, T)
+#define REPEAT_1_TO_6(V, T) REPEAT_1_TO_5(V, T) V(T, T, T, T, T, T)
+#define REPEAT_1_TO_7(V, T) REPEAT_1_TO_6(V, T) V(T, T, T, T, T, T, T)
+#define REPEAT_1_TO_8(V, T) REPEAT_1_TO_7(V, T) V(T, T, T, T, T, T, T, T)
+#define REPEAT_1_TO_9(V, T) REPEAT_1_TO_8(V, T) V(T, T, T, T, T, T, T, T, T)
+
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -65,9 +74,54 @@ CodeAssemblerState::~CodeAssemblerState() {}
 
 CodeAssembler::~CodeAssembler() {}
 
-void CodeAssembler::CallPrologue() {}
+class BreakOnNodeDecorator final : public GraphDecorator {
+ public:
+  explicit BreakOnNodeDecorator(NodeId node_id) : node_id_(node_id) {}
 
-void CodeAssembler::CallEpilogue() {}
+  void Decorate(Node* node) final {
+    if (node->id() == node_id_) {
+      base::OS::DebugBreak();
+    }
+  }
+
+ private:
+  NodeId node_id_;
+};
+
+void CodeAssembler::BreakOnNode(int node_id) {
+  Graph* graph = raw_assembler()->graph();
+  Zone* zone = graph->zone();
+  GraphDecorator* decorator =
+      new (zone) BreakOnNodeDecorator(static_cast<NodeId>(node_id));
+  graph->AddDecorator(decorator);
+}
+
+void CodeAssembler::RegisterCallGenerationCallbacks(
+    const CodeAssemblerCallback& call_prologue,
+    const CodeAssemblerCallback& call_epilogue) {
+  // The callback can be registered only once.
+  DCHECK(!state_->call_prologue_);
+  DCHECK(!state_->call_epilogue_);
+  state_->call_prologue_ = call_prologue;
+  state_->call_epilogue_ = call_epilogue;
+}
+
+void CodeAssembler::UnregisterCallGenerationCallbacks() {
+  state_->call_prologue_ = nullptr;
+  state_->call_epilogue_ = nullptr;
+}
+
+void CodeAssembler::CallPrologue() {
+  if (state_->call_prologue_) {
+    state_->call_prologue_();
+  }
+}
+
+void CodeAssembler::CallEpilogue() {
+  if (state_->call_epilogue_) {
+    state_->call_epilogue_();
+  }
+}
 
 // static
 Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
@@ -178,6 +232,10 @@ bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
 }
 
 bool CodeAssembler::ToIntPtrConstant(Node* node, intptr_t& out_value) {
+  if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned ||
+      node->opcode() == IrOpcode::kBitcastWordToTagged) {
+    node = node->InputAt(0);
+  }
   IntPtrMatcher m(node);
   if (m.HasValue()) out_value = m.Value();
   return m.HasValue();
@@ -237,6 +295,43 @@ Node* CodeAssembler::LoadStackPointer() {
   }
 CODE_ASSEMBLER_BINARY_OP_LIST(DEFINE_CODE_ASSEMBLER_BINARY_OP)
 #undef DEFINE_CODE_ASSEMBLER_BINARY_OP
+
+Node* CodeAssembler::IntPtrAdd(Node* left, Node* right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant + right_constant);
+    }
+    if (left_constant == 0) {
+      return right;
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return raw_assembler()->IntPtrAdd(left, right);
+}
+
+Node* CodeAssembler::IntPtrSub(Node* left, Node* right) {
+  intptr_t left_constant;
+  bool is_left_constant = ToIntPtrConstant(left, left_constant);
+  intptr_t right_constant;
+  bool is_right_constant = ToIntPtrConstant(right, right_constant);
+  if (is_left_constant) {
+    if (is_right_constant) {
+      return IntPtrConstant(left_constant - right_constant);
+    }
+  } else if (is_right_constant) {
+    if (right_constant == 0) {
+      return left;
+    }
+  }
+  return raw_assembler()->IntPtrSub(left, right);
+}
 
 Node* CodeAssembler::WordShl(Node* value, int shift) {
   return (shift != 0) ? raw_assembler()->WordShl(value, IntPtrConstant(shift))
@@ -374,616 +469,134 @@ void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
   Bind(&success);
 }
 
-Node* CodeAssembler::CallN(CallDescriptor* descriptor, Node* code_target,
-                           Node** args) {
+template <class... TArgs>
+Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
+                                 TArgs... args) {
+  int argc = static_cast<int>(sizeof...(args));
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, argc, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* arity = Int32Constant(argc);
+
+  Node* nodes[] = {centry, args..., ref, arity, context};
+
   CallPrologue();
-  Node* return_value = raw_assembler()->CallN(descriptor, code_target, args);
+  Node* return_value = raw_assembler()->CallN(desc, arraysize(nodes), nodes);
   CallEpilogue();
   return return_value;
 }
 
-Node* CodeAssembler::TailCallN(CallDescriptor* descriptor, Node* code_target,
-                               Node** args) {
-  return raw_assembler()->TailCallN(descriptor, code_target, args);
+// Instantiate CallRuntime() with up to 5 arguments.
+#define INSTANTIATE(...)                                       \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::CallRuntime( \
+      Runtime::FunctionId, __VA_ARGS__);
+REPEAT_1_TO_6(INSTANTIATE, Node*)
+#undef INSTANTIATE
+
+template <class... TArgs>
+Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function,
+                                     Node* context, TArgs... args) {
+  int argc = static_cast<int>(sizeof...(args));
+  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+      zone(), function, argc, Operator::kNoProperties,
+      CallDescriptor::kSupportsTailCalls);
+  int return_count = static_cast<int>(desc->ReturnCount());
+
+  Node* centry =
+      HeapConstant(CodeFactory::RuntimeCEntry(isolate(), return_count));
+  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
+  Node* arity = Int32Constant(argc);
+
+  Node* nodes[] = {centry, args..., ref, arity, context};
+
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id,
-                                 Node* context) {
-  CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime0(function_id, context);
-  CallEpilogue();
-  return return_value;
+// Instantiate TailCallRuntime() with up to 6 arguments.
+#define INSTANTIATE(...)                                           \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallRuntime( \
+      Runtime::FunctionId, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, Node*)
+#undef INSTANTIATE
+
+template <class... TArgs>
+Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,
+                               size_t result_size, Node* target, Node* context,
+                               TArgs... args) {
+  Node* nodes[] = {target, args..., context};
+  return CallStubN(descriptor, result_size, arraysize(nodes), nodes);
 }
 
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1) {
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime1(function_id, arg1, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2) {
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime2(function_id, arg1, arg2, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2, Node* arg3) {
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallRuntime3(function_id, arg1, arg2, arg3, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2, Node* arg3,
-                                 Node* arg4) {
-  CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime4(function_id, arg1, arg2,
-                                                     arg3, arg4, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::CallRuntime(Runtime::FunctionId function_id, Node* context,
-                                 Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                                 Node* arg5) {
-  CallPrologue();
-  Node* return_value = raw_assembler()->CallRuntime5(function_id, arg1, arg2,
-                                                     arg3, arg4, arg5, context);
-  CallEpilogue();
-  return return_value;
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context) {
-  return raw_assembler()->TailCallRuntime0(function_id, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1) {
-  return raw_assembler()->TailCallRuntime1(function_id, arg1, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2) {
-  return raw_assembler()->TailCallRuntime2(function_id, arg1, arg2, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3) {
-  return raw_assembler()->TailCallRuntime3(function_id, arg1, arg2, arg3,
-                                           context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3, Node* arg4) {
-  return raw_assembler()->TailCallRuntime4(function_id, arg1, arg2, arg3, arg4,
-                                           context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3, Node* arg4, Node* arg5) {
-  return raw_assembler()->TailCallRuntime5(function_id, arg1, arg2, arg3, arg4,
-                                           arg5, context);
-}
-
-Node* CodeAssembler::TailCallRuntime(Runtime::FunctionId function_id,
-                                     Node* context, Node* arg1, Node* arg2,
-                                     Node* arg3, Node* arg4, Node* arg5,
-                                     Node* arg6) {
-  return raw_assembler()->TailCallRuntime6(function_id, arg1, arg2, arg3, arg4,
-                                           arg5, arg6, context);
-}
-
-Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
-                              Node* arg1, size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), target, context, arg1, result_size);
-}
-
-Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
-                              Node* arg1, Node* arg2, size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), target, context, arg1, arg2,
-                  result_size);
-}
-
-Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
-                              Node* arg1, Node* arg2, Node* arg3,
-                              size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
-                  result_size);
-}
-
-Node* CodeAssembler::CallStub(Callable const& callable, Node* context,
-                              Node* arg1, Node* arg2, Node* arg3, Node* arg4,
-                              size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
-                  arg4, result_size);
-}
-
-Node* CodeAssembler::CallStubN(Callable const& callable, Node** args,
-                               size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return CallStubN(callable.descriptor(), target, args, result_size);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(1);
-  args[0] = context;
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, Node* arg1,
-                              size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(2);
-  args[0] = arg1;
-  args[1] = context;
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, Node* arg1,
-                              Node* arg2, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(3);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = context;
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, Node* arg1,
-                              Node* arg2, Node* arg3, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(4);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = context;
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, Node* arg1,
-                              Node* arg2, Node* arg3, Node* arg4,
-                              size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(5);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = arg4;
-  args[4] = context;
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, Node* arg1,
-                              Node* arg2, Node* arg3, Node* arg4, Node* arg5,
-                              size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(6);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = arg4;
-  args[4] = arg5;
-  args[5] = context;
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, const Arg& arg1,
-                              const Arg& arg2, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  const int kArgsCount = 3;
-  Node** args = zone()->NewArray<Node*>(kArgsCount);
-  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
-  args[arg1.index] = arg1.value;
-  args[arg2.index] = arg2.value;
-  args[kArgsCount - 1] = context;
-  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, const Arg& arg1,
-                              const Arg& arg2, const Arg& arg3,
-                              size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  const int kArgsCount = 4;
-  Node** args = zone()->NewArray<Node*>(kArgsCount);
-  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
-  args[arg1.index] = arg1.value;
-  args[arg2.index] = arg2.value;
-  args[arg3.index] = arg3.value;
-  args[kArgsCount - 1] = context;
-  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, const Arg& arg1,
-                              const Arg& arg2, const Arg& arg3, const Arg& arg4,
-                              size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  const int kArgsCount = 5;
-  Node** args = zone()->NewArray<Node*>(kArgsCount);
-  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
-  args[arg1.index] = arg1.value;
-  args[arg2.index] = arg2.value;
-  args[arg3.index] = arg3.value;
-  args[arg4.index] = arg4.value;
-  args[kArgsCount - 1] = context;
-  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
-
-  return CallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::CallStub(const CallInterfaceDescriptor& descriptor,
-                              Node* target, Node* context, const Arg& arg1,
-                              const Arg& arg2, const Arg& arg3, const Arg& arg4,
-                              const Arg& arg5, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kNoFlags, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  const int kArgsCount = 6;
-  Node** args = zone()->NewArray<Node*>(kArgsCount);
-  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
-  args[arg1.index] = arg1.value;
-  args[arg2.index] = arg2.value;
-  args[arg3.index] = arg3.value;
-  args[arg4.index] = arg4.value;
-  args[arg5.index] = arg5.value;
-  args[kArgsCount - 1] = context;
-  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
-
-  return CallN(call_descriptor, target, args);
-}
+// Instantiate CallStubR() with up to 6 arguments.
+#define INSTANTIATE(...)                                     \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::CallStubR( \
+      const CallInterfaceDescriptor& descriptor, size_t, Node*, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, Node*)
+#undef INSTANTIATE
 
 Node* CodeAssembler::CallStubN(const CallInterfaceDescriptor& descriptor,
-                               int js_parameter_count, Node* target,
-                               Node** args, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor,
-      descriptor.GetStackParameterCount() + js_parameter_count,
+                               size_t result_size, int input_count,
+                               Node* const* inputs) {
+  // 2 is for target and context.
+  DCHECK_LE(2, input_count);
+  int argc = input_count - 2;
+  DCHECK_LE(descriptor.GetParameterCount(), argc);
+  // Extra arguments not mentioned in the descriptor are passed on the stack.
+  int stack_parameter_count = argc - descriptor.GetRegisterParameterCount();
+  DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), descriptor, stack_parameter_count,
       CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
-  return CallN(call_descriptor, target, args);
+  CallPrologue();
+  Node* return_value = raw_assembler()->CallN(desc, input_count, inputs);
+  CallEpilogue();
+  return return_value;
 }
 
-Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
-                                  Node* arg1, size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return TailCallStub(callable.descriptor(), target, context, arg1,
-                      result_size);
-}
-
-Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
-                                  Node* arg1, Node* arg2, size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return TailCallStub(callable.descriptor(), target, context, arg1, arg2,
-                      result_size);
-}
-
-Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
-                                  Node* arg1, Node* arg2, Node* arg3,
-                                  size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return TailCallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
-                      result_size);
-}
-
-Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
-                                  Node* arg1, Node* arg2, Node* arg3,
-                                  Node* arg4, size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return TailCallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
-                      arg4, result_size);
-}
-
-Node* CodeAssembler::TailCallStub(Callable const& callable, Node* context,
-                                  Node* arg1, Node* arg2, Node* arg3,
-                                  Node* arg4, Node* arg5, size_t result_size) {
-  Node* target = HeapConstant(callable.code());
-  return TailCallStub(callable.descriptor(), target, context, arg1, arg2, arg3,
-                      arg4, arg5, result_size);
-}
-
+template <class... TArgs>
 Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, Node* arg1,
-                                  size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+                                  Node* target, Node* context, TArgs... args) {
+  DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
+  size_t result_size = 1;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
       CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
-  Node** args = zone()->NewArray<Node*>(2);
-  args[0] = arg1;
-  args[1] = context;
+  Node* nodes[] = {target, args..., context};
 
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, Node* arg1,
-                                  Node* arg2, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
+// Instantiate TailCallStub() with up to 6 arguments.
+#define INSTANTIATE(...)                                        \
+  template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallStub( \
+      const CallInterfaceDescriptor& descriptor, Node*, __VA_ARGS__);
+REPEAT_1_TO_7(INSTANTIATE, Node*)
+#undef INSTANTIATE
 
-  Node** args = zone()->NewArray<Node*>(3);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = context;
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, Node* arg1,
-                                  Node* arg2, Node* arg3, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(4);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = context;
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, Node* arg1,
-                                  Node* arg2, Node* arg3, Node* arg4,
-                                  size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(5);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = arg4;
-  args[4] = context;
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, Node* arg1,
-                                  Node* arg2, Node* arg3, Node* arg4,
-                                  Node* arg5, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(6);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = arg4;
-  args[4] = arg5;
-  args[5] = context;
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, Node* arg1,
-                                  Node* arg2, Node* arg3, Node* arg4,
-                                  Node* arg5, Node* arg6, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  Node** args = zone()->NewArray<Node*>(7);
-  args[0] = arg1;
-  args[1] = arg2;
-  args[2] = arg3;
-  args[3] = arg4;
-  args[4] = arg5;
-  args[5] = arg6;
-  args[6] = context;
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, const Arg& arg1,
-                                  const Arg& arg2, const Arg& arg3,
-                                  const Arg& arg4, size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  const int kArgsCount = 5;
-  Node** args = zone()->NewArray<Node*>(kArgsCount);
-  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
-  args[arg1.index] = arg1.value;
-  args[arg2.index] = arg2.value;
-  args[arg3.index] = arg3.value;
-  args[arg4.index] = arg4.value;
-  args[kArgsCount - 1] = context;
-  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
-Node* CodeAssembler::TailCallStub(const CallInterfaceDescriptor& descriptor,
-                                  Node* target, Node* context, const Arg& arg1,
-                                  const Arg& arg2, const Arg& arg3,
-                                  const Arg& arg4, const Arg& arg5,
-                                  size_t result_size) {
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
-      MachineType::AnyTagged(), result_size);
-
-  const int kArgsCount = 6;
-  Node** args = zone()->NewArray<Node*>(kArgsCount);
-  DCHECK((std::fill(&args[0], &args[kArgsCount], nullptr), true));
-  args[arg1.index] = arg1.value;
-  args[arg2.index] = arg2.value;
-  args[arg3.index] = arg3.value;
-  args[arg4.index] = arg4.value;
-  args[arg5.index] = arg5.value;
-  args[kArgsCount - 1] = context;
-  DCHECK_EQ(0, std::count(&args[0], &args[kArgsCount], nullptr));
-
-  return raw_assembler()->TailCallN(call_descriptor, target, args);
-}
-
+template <class... TArgs>
 Node* CodeAssembler::TailCallBytecodeDispatch(
-    const CallInterfaceDescriptor& interface_descriptor,
-    Node* code_target_address, Node** args) {
-  CallDescriptor* descriptor = Linkage::GetBytecodeDispatchCallDescriptor(
-      isolate(), zone(), interface_descriptor,
-      interface_descriptor.GetStackParameterCount());
-  return raw_assembler()->TailCallN(descriptor, code_target_address, args);
+    const CallInterfaceDescriptor& descriptor, Node* target, TArgs... args) {
+  DCHECK_EQ(descriptor.GetParameterCount(), sizeof...(args));
+  CallDescriptor* desc = Linkage::GetBytecodeDispatchCallDescriptor(
+      isolate(), zone(), descriptor, descriptor.GetStackParameterCount());
+
+  Node* nodes[] = {target, args...};
+  return raw_assembler()->TailCallN(desc, arraysize(nodes), nodes);
 }
 
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver,
-                            size_t result_size) {
-  const int argc = 0;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver, Node* arg1,
-                            size_t result_size) {
-  const int argc = 1;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = arg1;
-  args[4] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver, Node* arg1,
-                            Node* arg2, size_t result_size) {
-  const int argc = 2;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = arg1;
-  args[4] = arg2;
-  args[5] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
-
-Node* CodeAssembler::CallJS(Callable const& callable, Node* context,
-                            Node* function, Node* receiver, Node* arg1,
-                            Node* arg2, Node* arg3, size_t result_size) {
-  const int argc = 3;
-  Node* target = HeapConstant(callable.code());
-
-  Node** args = zone()->NewArray<Node*>(argc + 4);
-  args[0] = function;
-  args[1] = Int32Constant(argc);
-  args[2] = receiver;
-  args[3] = arg1;
-  args[4] = arg2;
-  args[5] = arg3;
-  args[6] = context;
-
-  return CallStubN(callable.descriptor(), argc + 1, target, args, result_size);
-}
+// Instantiate TailCallBytecodeDispatch() with 4 arguments.
+template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
+    const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
+    Node*, Node*);
 
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
@@ -991,6 +604,15 @@ Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     Node* arg0, Node* arg1) {
   return raw_assembler()->CallCFunction2(return_type, arg0_type, arg1_type,
                                          function, arg0, arg1);
+}
+
+Node* CodeAssembler::CallCFunction3(MachineType return_type,
+                                    MachineType arg0_type,
+                                    MachineType arg1_type,
+                                    MachineType arg2_type, Node* function,
+                                    Node* arg0, Node* arg1, Node* arg2) {
+  return raw_assembler()->CallCFunction3(return_type, arg0_type, arg1_type,
+                                         arg2_type, function, arg0, arg1, arg2);
 }
 
 void CodeAssembler::Goto(Label* label) {
@@ -1165,12 +787,13 @@ void CodeAssemblerLabel::Bind() {
   for (auto var : variable_phis_) {
     CodeAssemblerVariable::Impl* var_impl = var.first;
     auto i = variable_merges_.find(var_impl);
-    // If the following assert fires, then a variable that has been marked as
+    // If the following asserts fire, then a variable that has been marked as
     // being merged at the label--either by explicitly marking it so in the
     // label constructor or by having seen different bound values at branches
     // into the label--doesn't have a bound value along all of the paths that
     // have been merged into the label up to this point.
-    DCHECK(i != variable_merges_.end() && i->second.size() == merge_count_);
+    DCHECK(i != variable_merges_.end());
+    DCHECK_EQ(i->second.size(), merge_count_);
     Node* phi = state_->raw_assembler_->Phi(
         var.first->rep_, static_cast<int>(merge_count_), &(i->second[0]));
     variable_phis_[var_impl] = phi;

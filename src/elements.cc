@@ -3699,9 +3699,9 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
     JSArray::Initialize(array, JSArray::kPreallocatedArrayElements);
     return array;
 
-  } else if (args->length() == 1 && args->at<Object>(0)->IsNumber()) {
+  } else if (args->length() == 1 && args->at(0)->IsNumber()) {
     uint32_t length;
-    if (!args->at<Object>(0)->ToArrayLength(&length)) {
+    if (!args->at(0)->ToArrayLength(&length)) {
       return ThrowArrayLengthRangeError(array->GetIsolate());
     }
 

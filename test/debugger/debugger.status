@@ -4,6 +4,9 @@
 
 [
 [ALWAYS, {
+  # All tests in the bug directory are expected to fail.
+  'bugs/*': [FAIL],
+
   # Issue 3660: Replacing activated TurboFan frames by unoptimized code does
   # not work, but we expect it to not crash.
   'debug/debug-step-turbofan': [PASS, FAIL],
@@ -21,6 +24,12 @@
   # Issue 5651: Context mismatch in ScopeIterator::Type() for eval default
   # parameter value
   'debug/es6/debug-scope-default-param-with-eval': [FAIL],
+
+  # Slow test
+  'debug/debug-scopes': [PASS, SLOW],
+
+  # Too slow in debug mode and on slow platforms.
+  'regress/regress-2318': [PASS, ['mode == debug or (arch != ia32 and arch != x64) or asan == True or msan == True', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
@@ -42,6 +51,17 @@
   'debug/debug-stepout-scope-part6': [SKIP],
   'debug/debug-stepout-scope-part7': [SKIP],
   'debug/debug-stepout-scope-part8': [SKIP],
+
+  # BUG(chromium:664490)
+  'debug/debug-scopes': [SKIP],
+
+  # Async function tests taking too long
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
+  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
+  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
+  'debug/harmony/async-function-debug-scopes': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -68,16 +88,6 @@
   # TODO(5587): fails to liveedit evaled code.
   'debug/debug-liveedit-double-call': [FAIL],
 }],  # variant == ignition_turbofan
-
-##############################################################################
-['gc_stress == True', {
-  # Async function tests taking too long
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5411
-  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
-}],  # 'gc_stress == True'
 
 ##############################################################################
 ['variant == asm_wasm', {
