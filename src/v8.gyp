@@ -494,6 +494,7 @@
         'builtins/builtins-generator.cc',
         'builtins/builtins-global.cc',
         'builtins/builtins-handler.cc',
+        'builtins/builtins-ic.cc',
         'builtins/builtins-internal.cc',
         'builtins/builtins-interpreter.cc',
         'builtins/builtins-json.cc',

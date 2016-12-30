@@ -22168,22 +22168,6 @@ void RecompileICStubs(i::Isolate* isolate) {
                                         LoadGlobalICState(NOT_INSIDE_TYPEOF));
   Recompile<LoadGlobalICTrampolineStub>(isolate,
                                         LoadGlobalICState(INSIDE_TYPEOF));
-
-  Recompile<LoadICStub>(isolate);
-  Recompile<LoadICTrampolineStub>(isolate);
-
-  Recompile<KeyedLoadICTFStub>(isolate);
-  Recompile<KeyedLoadICTrampolineTFStub>(isolate);
-
-  Recompile<StoreICStub>(isolate, StoreICState(SLOPPY));
-  Recompile<StoreICTrampolineStub>(isolate, StoreICState(SLOPPY));
-  Recompile<StoreICStub>(isolate, StoreICState(STRICT));
-  Recompile<StoreICTrampolineStub>(isolate, StoreICState(STRICT));
-
-  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(SLOPPY));
-  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(SLOPPY));
-  Recompile<KeyedStoreICTFStub>(isolate, StoreICState(STRICT));
-  Recompile<KeyedStoreICTrampolineTFStub>(isolate, StoreICState(STRICT));
 }
 
 }  // namespace

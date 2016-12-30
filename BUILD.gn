@@ -955,6 +955,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-generator.cc",
     "src/builtins/builtins-global.cc",
     "src/builtins/builtins-handler.cc",
+    "src/builtins/builtins-ic.cc",
     "src/builtins/builtins-internal.cc",
     "src/builtins/builtins-interpreter.cc",
     "src/builtins/builtins-json.cc",

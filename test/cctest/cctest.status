@@ -84,6 +84,13 @@
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],
 
+  # Bug(5784). StubCache tests need to be redesigned, as a) they don't work
+  # in the new (ignition + turbofan) pipeline environment, and b) they are
+  # stymied by a move of code stubs into builtins.
+  'test-api/PrimaryStubCache': [SKIP],
+  'test-api/SecondaryStubCache': [SKIP],
+  'test-api/AccessCheckInIC': [SKIP],
+
   # BUG(3742).
   'test-mark-compact/MarkCompactCollector': [PASS, ['arch==arm', NO_VARIANTS]],
 

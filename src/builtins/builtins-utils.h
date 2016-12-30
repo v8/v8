@@ -121,13 +121,13 @@ class BuiltinArguments : public Arguments {
    public:                                                              \
     explicit Name##Assembler(compiler::CodeAssemblerState* state)       \
         : AssemblerBase(state) {}                                       \
-    void Generate##Name();                                              \
+    void Generate##NameImpl();                                          \
   };                                                                    \
   void Builtins::Generate_##Name(compiler::CodeAssemblerState* state) { \
     Name##Assembler assembler(state);                                   \
-    assembler.Generate##Name();                                         \
+    assembler.Generate##NameImpl();                                     \
   }                                                                     \
-  void Name##Assembler::Generate##Name()
+  void Name##Assembler::Generate##NameImpl()
 
 // ----------------------------------------------------------------------------
 

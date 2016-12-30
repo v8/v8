@@ -440,20 +440,6 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   return compiler::CodeAssembler::GenerateCode(&state);
 }
 
-#define ACCESSOR_ASSEMBLER(Name)                                       \
-  void Name##Stub::GenerateAssembly(CodeAssemblerState* state) const { \
-    AccessorAssembler::Generate##Name(state);                          \
-  }
-
-ACCESSOR_ASSEMBLER(LoadIC)
-ACCESSOR_ASSEMBLER(LoadICTrampoline)
-ACCESSOR_ASSEMBLER(KeyedLoadICTF)
-ACCESSOR_ASSEMBLER(KeyedLoadICTrampolineTF)
-ACCESSOR_ASSEMBLER(StoreIC)
-ACCESSOR_ASSEMBLER(StoreICTrampoline)
-
-#undef ACCESSOR_ASSEMBLER
-
 void LoadICProtoArrayStub::GenerateAssembly(CodeAssemblerState* state) const {
   AccessorAssembler::GenerateLoadICProtoArray(
       state, throw_reference_error_if_nonexistent());
@@ -466,16 +452,6 @@ void LoadGlobalICStub::GenerateAssembly(CodeAssemblerState* state) const {
 void LoadGlobalICTrampolineStub::GenerateAssembly(
     CodeAssemblerState* state) const {
   AccessorAssembler::GenerateLoadGlobalICTrampoline(state, typeof_mode());
-}
-
-void KeyedStoreICTrampolineTFStub::GenerateAssembly(
-    CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state, language_mode());
-}
-
-void KeyedStoreICTFStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateKeyedStoreICTF(state, language_mode());
 }
 
 void ElementsTransitionAndStoreStub::GenerateAssembly(

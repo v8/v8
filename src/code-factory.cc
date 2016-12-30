@@ -29,8 +29,8 @@ Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
 
 // static
 Callable CodeFactory::LoadIC(Isolate* isolate) {
-  LoadICTrampolineStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->LoadICTrampoline(),
+                  LoadDescriptor(isolate));
 }
 
 // static
@@ -41,8 +41,8 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 
 // static
 Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
-  LoadICStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->LoadIC(),
+                  LoadWithVectorDescriptor(isolate));
 }
 
 // static
@@ -60,14 +60,14 @@ Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
 
 // static
 Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
-  KeyedLoadICTrampolineTFStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->KeyedLoadICTrampoline(),
+                  LoadDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
-  KeyedLoadICTFStub stub(isolate);
-  return make_callable(stub);
+  return Callable(isolate->builtins()->KeyedLoadIC(),
+                  LoadWithVectorDescriptor(isolate));
 }
 
 // static
@@ -93,29 +93,36 @@ Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate,
 
 // static
 Callable CodeFactory::StoreIC(Isolate* isolate, LanguageMode language_mode) {
-  StoreICTrampolineStub stub(isolate, StoreICState(language_mode));
-  return make_callable(stub);
+  return Callable(language_mode == STRICT
+                      ? isolate->builtins()->StoreICStrictTrampoline()
+                      : isolate->builtins()->StoreICTrampoline(),
+                  StoreDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::StoreICInOptimizedCode(Isolate* isolate,
                                              LanguageMode language_mode) {
-  StoreICStub stub(isolate, StoreICState(language_mode));
-  return make_callable(stub);
+  return Callable(language_mode == STRICT ? isolate->builtins()->StoreICStrict()
+                                          : isolate->builtins()->StoreIC(),
+                  StoreWithVectorDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::KeyedStoreIC(Isolate* isolate,
                                    LanguageMode language_mode) {
-  KeyedStoreICTrampolineTFStub stub(isolate, StoreICState(language_mode));
-  return make_callable(stub);
+  return Callable(language_mode == STRICT
+                      ? isolate->builtins()->KeyedStoreICStrictTrampoline()
+                      : isolate->builtins()->KeyedStoreICTrampoline(),
+                  StoreDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
                                                   LanguageMode language_mode) {
-  KeyedStoreICTFStub stub(isolate, StoreICState(language_mode));
-  return make_callable(stub);
+  return Callable(language_mode == STRICT
+                      ? isolate->builtins()->KeyedStoreICStrict()
+                      : isolate->builtins()->KeyedStoreIC(),
+                  StoreWithVectorDescriptor(isolate));
 }
 
 // static

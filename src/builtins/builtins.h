@@ -437,6 +437,24 @@ namespace internal {
   CPP(JsonParse)                                                               \
   CPP(JsonStringify)                                                           \
                                                                                \
+  /* ICs */                                                                    \
+  TFS(LoadIC, LOAD_IC, kNoExtraICState, LoadWithVector)                        \
+  TFS(LoadICTrampoline, LOAD_IC, kNoExtraICState, Load)                        \
+  TFS(KeyedLoadIC, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector)             \
+  TFS(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load)             \
+  TFS(StoreIC, STORE_IC, kNoExtraICState, StoreWithVector)                     \
+  TFS(StoreICTrampoline, STORE_IC, kNoExtraICState, Store)                     \
+  TFS(StoreICStrict, STORE_IC, StoreICState::kStrictModeState,                 \
+      StoreWithVector)                                                         \
+  TFS(StoreICStrictTrampoline, STORE_IC, StoreICState::kStrictModeState,       \
+      Store)                                                                   \
+  TFS(KeyedStoreIC, KEYED_STORE_IC, kNoExtraICState, StoreWithVector)          \
+  TFS(KeyedStoreICTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)          \
+  TFS(KeyedStoreICStrict, KEYED_STORE_IC, StoreICState::kStrictModeState,      \
+      StoreWithVector)                                                         \
+  TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC,                            \
+      StoreICState::kStrictModeState, Store)                                   \
+                                                                               \
   /* Math */                                                                   \
   /* ES6 section 20.2.2.1 Math.abs ( x ) */                                    \
   TFJ(MathAbs, 1)                                                              \

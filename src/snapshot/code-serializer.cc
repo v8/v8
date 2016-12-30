@@ -88,7 +88,12 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 #define IC_KIND_CASE(KIND) case Code::KIND:
         IC_KIND_LIST(IC_KIND_CASE)
 #undef IC_KIND_CASE
-        SerializeCodeStub(code_object, how_to_code, where_to_point);
+        if (code_object->builtin_index() == -1) {
+          SerializeCodeStub(code_object, how_to_code, where_to_point);
+        } else {
+          SerializeBuiltin(code_object->builtin_index(), how_to_code,
+                           where_to_point);
+        }
         return;
       case Code::FUNCTION:
         DCHECK(code_object->has_reloc_info_for_serialization());
