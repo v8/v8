@@ -20,7 +20,7 @@ VectorSlotPair::VectorSlotPair() {}
 
 
 int VectorSlotPair::index() const {
-  return vector_.is_null() ? -1 : vector_->GetIndex(slot_);
+  return vector_.is_null() ? -1 : TypeFeedbackVector::GetIndex(slot_);
 }
 
 

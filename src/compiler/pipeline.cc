@@ -979,6 +979,17 @@ struct LoopExitEliminationPhase {
   }
 };
 
+struct GenericLoweringPrepPhase {
+  static const char* phase_name() { return "generic lowering prep"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    // Make sure we cache these code stubs.
+    data->jsgraph()->CEntryStubConstant(1);
+    data->jsgraph()->CEntryStubConstant(2);
+    data->jsgraph()->CEntryStubConstant(3);
+  }
+};
+
 struct GenericLoweringPhase {
   static const char* phase_name() { return "generic lowering"; }
 
@@ -1565,9 +1576,8 @@ bool PipelineImpl::CreateGraph() {
   RunPrintAndVerify("Untyped", true);
 #endif
 
-  // Run generic lowering pass.
-  Run<GenericLoweringPhase>();
-  RunPrintAndVerify("Generic lowering", true);
+  // Do some hacky things to prepare generic lowering.
+  Run<GenericLoweringPrepPhase>();
 
   data->EndPhaseKind();
 
@@ -1576,6 +1586,10 @@ bool PipelineImpl::CreateGraph() {
 
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
+
+  // Run generic lowering pass.
+  Run<GenericLoweringPhase>();
+  RunPrintAndVerify("Generic lowering", true);
 
   data->BeginPhaseKind("block building");
 
