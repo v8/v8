@@ -47,15 +47,20 @@ Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
 
 // static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
-  LoadGlobalICTrampolineStub stub(isolate, LoadGlobalICState(typeof_mode));
-  return make_callable(stub);
+  return Callable(
+      typeof_mode == NOT_INSIDE_TYPEOF
+          ? isolate->builtins()->LoadGlobalICTrampoline()
+          : isolate->builtins()->LoadGlobalICInsideTypeofTrampoline(),
+      LoadGlobalDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::LoadGlobalICInOptimizedCode(Isolate* isolate,
                                                   TypeofMode typeof_mode) {
-  LoadGlobalICStub stub(isolate, LoadGlobalICState(typeof_mode));
-  return make_callable(stub);
+  return Callable(typeof_mode == NOT_INSIDE_TYPEOF
+                      ? isolate->builtins()->LoadGlobalIC()
+                      : isolate->builtins()->LoadGlobalICInsideTypeof(),
+                  LoadGlobalWithVectorDescriptor(isolate));
 }
 
 // static

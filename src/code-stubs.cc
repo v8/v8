@@ -445,15 +445,6 @@ void LoadICProtoArrayStub::GenerateAssembly(CodeAssemblerState* state) const {
       state, throw_reference_error_if_nonexistent());
 }
 
-void LoadGlobalICStub::GenerateAssembly(CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateLoadGlobalIC(state, typeof_mode());
-}
-
-void LoadGlobalICTrampolineStub::GenerateAssembly(
-    CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateLoadGlobalICTrampoline(state, typeof_mode());
-}
-
 void ElementsTransitionAndStoreStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;

@@ -58,5 +58,21 @@ TF_BUILTIN(KeyedStoreICStrictTrampoline, CodeStubAssembler) {
   AccessorAssembler::GenerateKeyedStoreICTrampolineTF(state(), STRICT);
 }
 
+TF_BUILTIN(LoadGlobalIC, CodeStubAssembler) {
+  AccessorAssembler::GenerateLoadGlobalIC(state(), NOT_INSIDE_TYPEOF);
+}
+
+TF_BUILTIN(LoadGlobalICInsideTypeof, CodeStubAssembler) {
+  AccessorAssembler::GenerateLoadGlobalIC(state(), INSIDE_TYPEOF);
+}
+
+TF_BUILTIN(LoadGlobalICTrampoline, CodeStubAssembler) {
+  AccessorAssembler::GenerateLoadGlobalICTrampoline(state(), NOT_INSIDE_TYPEOF);
+}
+
+TF_BUILTIN(LoadGlobalICInsideTypeofTrampoline, CodeStubAssembler) {
+  AccessorAssembler::GenerateLoadGlobalICTrampoline(state(), INSIDE_TYPEOF);
+}
+
 }  // namespace internal
 }  // namespace v8

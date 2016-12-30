@@ -22161,13 +22161,9 @@ void Recompile(Args... args) {
 }
 
 void RecompileICStubs(i::Isolate* isolate) {
-  using namespace i;
-  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
-  Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(INSIDE_TYPEOF));
-  Recompile<LoadGlobalICTrampolineStub>(isolate,
-                                        LoadGlobalICState(NOT_INSIDE_TYPEOF));
-  Recompile<LoadGlobalICTrampolineStub>(isolate,
-                                        LoadGlobalICState(INSIDE_TYPEOF));
+  // BUG(5784): We had a list of IC stubs here to recompile. These are now
+  // builtins and we can't compile them again (easily). Bug 5784 tracks
+  // our progress in finding another way to do this.
 }
 
 }  // namespace

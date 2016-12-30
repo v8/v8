@@ -454,6 +454,14 @@ namespace internal {
       StoreWithVector)                                                         \
   TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC,                            \
       StoreICState::kStrictModeState, Store)                                   \
+  TFS(LoadGlobalIC, LOAD_GLOBAL_IC, LoadGlobalICState::kNotInsideTypeOfState,  \
+      LoadGlobalWithVector)                                                    \
+  TFS(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC,                                \
+      LoadGlobalICState::kInsideTypeOfState, LoadGlobalWithVector)             \
+  TFS(LoadGlobalICTrampoline, LOAD_GLOBAL_IC,                                  \
+      LoadGlobalICState::kNotInsideTypeOfState, LoadGlobal)                    \
+  TFS(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC,                      \
+      LoadGlobalICState::kInsideTypeOfState, LoadGlobal)                       \
                                                                                \
   /* Math */                                                                   \
   /* ES6 section 20.2.2.1 Math.abs ( x ) */                                    \

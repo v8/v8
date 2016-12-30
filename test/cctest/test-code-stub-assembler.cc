@@ -1760,32 +1760,6 @@ void Recompile(Args... args) {
 
 }  // namespace
 
-TEST(CodeStubAssemblerGraphsCorrectness) {
-  // The test does not work with interpreter because bytecode handlers taken
-  // from the snapshot already refer to precompiled stubs from the snapshot
-  // and there is no way to trigger bytecode handlers recompilation.
-  if (FLAG_ignition || FLAG_turbo) return;
-
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
-  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
-
-  {
-    v8::Isolate::Scope isolate_scope(v8_isolate);
-    LocalContext env(v8_isolate);
-    v8::HandleScope scope(v8_isolate);
-
-    FLAG_csa_verify = true;
-
-    // Recompile some stubs here.
-    Recompile<LoadGlobalICStub>(isolate, LoadGlobalICState(NOT_INSIDE_TYPEOF));
-    Recompile<LoadGlobalICTrampolineStub>(isolate,
-                                          LoadGlobalICState(NOT_INSIDE_TYPEOF));
-  }
-  v8_isolate->Dispose();
-}
-
 void CustomPromiseHook(v8::PromiseHookType type, v8::Local<v8::Promise> promise,
                        v8::Local<v8::Value> parentPromise) {}
 

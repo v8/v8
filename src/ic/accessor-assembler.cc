@@ -1669,7 +1669,7 @@ void AccessorAssemblerImpl::GenerateLoadField() {
 }
 
 void AccessorAssemblerImpl::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
-  typedef LoadGlobalICStub::Descriptor Descriptor;
+  typedef LoadGlobalWithVectorDescriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
@@ -1682,7 +1682,7 @@ void AccessorAssemblerImpl::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
 
 void AccessorAssemblerImpl::GenerateLoadGlobalICTrampoline(
     TypeofMode typeof_mode) {
-  typedef LoadGlobalICTrampolineStub::Descriptor Descriptor;
+  typedef LoadGlobalDescriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
