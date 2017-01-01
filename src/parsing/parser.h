@@ -538,6 +538,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
+  // In typed mode, it can return kLazyParsingSignature if just a function
+  // signature (without body) is parsed.
   LazyParsingResult SkipFunction(
       FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
