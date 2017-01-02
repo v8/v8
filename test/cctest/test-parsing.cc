@@ -3453,6 +3453,8 @@ TEST(MaybeAssignedParameters) {
       {false,
        "function f(arg, arguments=[]) {g(arg); arguments[0] = 42; g(arg)}"},
       {false, "function f(...arg) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false,
+       "function f(arg) {g(arg); g(function() {arguments[0] = 42}); g(arg)}"},
 
       // strict arguments object
       {false, "function f(arg, x=1) {g(arg); arguments[0] = 42; g(arg)}"},
@@ -3471,9 +3473,11 @@ TEST(MaybeAssignedParameters) {
       {true, "function f(arg=1) {g(arg); arg = 42; g(arg)}"},
       {true, "function f(arg) {'use strict'; g(arg); arg = 42; g(arg)}"},
       {true, "function f(arg, {a=(g(arg), arg=42)}) {g(arg)}"},
+      {true, "function f(arg) {g(arg); g(function() {arg = 42}); g(arg)}"},
+      {true,
+       "function f(arg) {g(arg); g(function() {eval('arg = 42')}); g(arg)}"},
       {true, "function f(arg) {g(arg); g(() => arg = 42); g(arg)}"},
       {true, "function f(arg) {g(arg); g(() => eval('arg = 42')); g(arg)}"},
-      {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
       {true, "function f(...arg) {g(arg); eval('arg = 42'); g(arg)}"},
 
       // sloppy arguments object
@@ -3483,6 +3487,7 @@ TEST(MaybeAssignedParameters) {
        "function f(arg) {((args) => {arguments[0] = 42})(arguments); "
        "g(arg)}"},
       {true, "function f(arg) {g(arg); eval('arguments[0] = 42'); g(arg)}"},
+      {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
   };
 
   const char* suffix = "; f";
