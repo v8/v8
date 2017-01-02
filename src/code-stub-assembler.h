@@ -28,6 +28,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
   V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(EmptyLiteralsArray, EmptyLiteralsArray)           \
   V(FalseValue, False)                                \
   V(FixedArrayMap, FixedArrayMap)                     \
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
@@ -1232,8 +1233,23 @@ class CodeStubArguments {
 #ifdef DEBUG
 #define CSA_ASSERT(csa, x) \
   (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)               \
+  (csa)->Assert(                                                   \
+      [&] {                                                        \
+        const CodeAssemblerState* state = (csa)->state();          \
+        /* See Linkage::GetJSCallDescriptor(). */                  \
+        int argc_index = state->parameter_count() - 2;             \
+        compiler::Node* const argc = (csa)->Parameter(argc_index); \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));    \
+      },                                                           \
+      "argc " #op " " #expected, __FILE__, __LINE__)
+
+#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
+  CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
+
 #else
 #define CSA_ASSERT(csa, x) ((void)0)
+#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
 #endif
 
 #ifdef ENABLE_SLOW_DCHECKS

@@ -1843,6 +1843,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     to_primitive->shared()->set_length(1);
   }
 
+  {
+    Handle<Code> code = isolate->builtins()->PromiseGetCapabilitiesExecutor();
+    Handle<SharedFunctionInfo> info =
+        factory->NewSharedFunctionInfo(factory->empty_string(), code, true);
+    info->SetConstructStub(*isolate->builtins()->JSBuiltinsConstructStub());
+    info->set_instance_class_name(isolate->heap()->Object_string());
+    info->set_internal_formal_parameter_count(2);
+    info->set_length(2);
+    native_context()->set_promise_get_capabilities_executor_shared_fun(*info);
+
+    // %new_promise_capability(C, debugEvent)
+    Handle<JSFunction> new_promise_capability =
+        SimpleCreateFunction(isolate, factory->empty_string(),
+                             Builtins::kNewPromiseCapability, 2, false);
+    InstallWithIntrinsicDefaultProto(isolate, new_promise_capability,
+                                     Context::NEW_PROMISE_CAPABILITY_INDEX);
+  }
+
   {  // -- P r o m i s e
     // Set catch prediction
     Handle<Code> promise_code = isolate->builtins()->PromiseConstructor();
@@ -1972,12 +1990,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       info->set_length(1);
       native_context()->set_promise_reject_shared_fun(*info);
     }
-
-    Handle<JSFunction> create_resolving_functions =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kCreateResolvingFunctions, 2, false);
-    native_context()->set_create_resolving_functions(
-        *create_resolving_functions);
   }
 
   {  // -- R e g E x p

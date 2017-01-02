@@ -79,36 +79,6 @@ function DoRejectPromise(promise, reason) {
   %PromiseReject(promise, reason, true);
 }
 
-// ES#sec-newpromisecapability
-// NewPromiseCapability ( C )
-function NewPromiseCapability(C, debugEvent) {
-  if (C === GlobalPromise) {
-    // Optimized case, avoid extra closure.
-    var promise = %promise_internal_constructor(UNDEFINED);
-    // TODO(gsathya): Remove container for callbacks when this is
-    // moved to CPP/TF.
-    var callbacks = %create_resolving_functions(promise, debugEvent);
-    return {
-      promise: promise,
-      resolve: callbacks[kResolveCallback],
-      reject: callbacks[kRejectCallback]
-    };
-  }
-
-  var result = {promise: UNDEFINED, resolve: UNDEFINED, reject: UNDEFINED };
-  result.promise = new C((resolve, reject) => {
-    if (!IS_UNDEFINED(result.resolve) || !IS_UNDEFINED(result.reject))
-        throw %make_type_error(kPromiseExecutorAlreadyInvoked);
-    result.resolve = resolve;
-    result.reject = reject;
-  });
-
-  if (!IS_CALLABLE(result.resolve) || !IS_CALLABLE(result.reject))
-      throw %make_type_error(kPromiseNonCallable);
-
-  return result;
-}
-
 // ES#sec-promise.reject
 // Promise.reject ( x )
 function PromiseReject(r) {
@@ -123,7 +93,7 @@ function PromiseReject(r) {
     %PromiseRejectEventFromStack(promise, r);
     return promise;
   } else {
-    var promiseCapability = NewPromiseCapability(this, true);
+    var promiseCapability = %new_promise_capability(this, true);
     %_Call(promiseCapability.reject, UNDEFINED, r);
     return promiseCapability.promise;
   }
@@ -147,7 +117,7 @@ function PromiseResolve(x) {
   }
 
   // debugEvent is not so meaningful here as it will be resolved
-  var promiseCapability = NewPromiseCapability(this, true);
+  var promiseCapability = %new_promise_capability(this, true);
   %_Call(promiseCapability.resolve, UNDEFINED, x);
   return promiseCapability.promise;
 }
@@ -161,7 +131,7 @@ function PromiseAll(iterable) {
 
   // false debugEvent so that forwarding the rejection through all does not
   // trigger redundant ExceptionEvents
-  var deferred = NewPromiseCapability(this, false);
+  var deferred = %new_promise_capability(this, false);
   var resolutions = new InternalArray();
   var count;
 
@@ -225,7 +195,7 @@ function PromiseRace(iterable) {
 
   // false debugEvent so that forwarding the rejection through race does not
   // trigger redundant ExceptionEvents
-  var deferred = NewPromiseCapability(this, false);
+  var deferred = %new_promise_capability(this, false);
 
   // For catch prediction, don't treat the .then calls as handling it;
   // instead, recurse outwards.
@@ -270,7 +240,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   // TODO(gsathya): Remove this once we update the promise builtin.
   "promise_internal_reject", RejectPromise,
   "promise_debug_get_info", PromiseDebugGetInfo,
-  "new_promise_capability", NewPromiseCapability,
   "promise_id_resolve_handler", PromiseIdResolveHandler,
   "promise_id_reject_handler", PromiseIdRejectHandler
 ]);
@@ -286,7 +255,6 @@ utils.InstallFunctions(extrasUtils, 0, [
 
 utils.Export(function(to) {
   to.PromiseCreate = PromiseCreate;
-
   to.RejectPromise = RejectPromise;
 });
 

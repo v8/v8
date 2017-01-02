@@ -153,6 +153,7 @@ TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSMapIterator, JS_MAP_ITERATOR_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 TYPE_CHECKER(JSModuleNamespace, JS_MODULE_NAMESPACE_TYPE)
+TYPE_CHECKER(JSPromiseCapability, JS_PROMISE_CAPABILITY_TYPE)
 TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
@@ -640,6 +641,7 @@ CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSRegExp)
+CAST_ACCESSOR(JSPromiseCapability)
 CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
@@ -2173,6 +2175,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
       return JSWeakSet::kSize;
+    case JS_PROMISE_CAPABILITY_TYPE:
+      return JSPromiseCapability::kSize;
     case JS_PROMISE_TYPE:
       return JSPromise::kSize;
     case JS_REGEXP_TYPE:
@@ -7093,6 +7097,10 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
 #ifdef VERIFY_HEAP
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
 #endif
+
+ACCESSORS(JSPromiseCapability, promise, Object, kPromiseOffset)
+ACCESSORS(JSPromiseCapability, resolve, Object, kResolveOffset)
+ACCESSORS(JSPromiseCapability, reject, Object, kRejectOffset)
 
 SMI_ACCESSORS(JSPromise, status, kStatusOffset)
 ACCESSORS(JSPromise, result, Object, kResultOffset)

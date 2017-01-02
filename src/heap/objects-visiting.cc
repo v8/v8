@@ -158,6 +158,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
     case JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE:
 
+    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
       return GetVisitorIdForSize(kVisitJSObject, kVisitJSObjectGeneric,

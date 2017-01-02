@@ -258,6 +258,7 @@ AstType::bitset AstBitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
+    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
       DCHECK(!map->is_undetectable());

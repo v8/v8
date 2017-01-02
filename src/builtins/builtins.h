@@ -618,10 +618,11 @@ namespace internal {
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                      \
                                                                                \
   /* Promise */                                                                \
+  TFJ(PromiseGetCapabilitiesExecutor, 2)                                       \
+  TFJ(NewPromiseCapability, 2)                                                 \
   TFJ(PromiseConstructor, 1)                                                   \
   TFJ(PromiseInternalConstructor, 1)                                           \
   TFJ(IsPromise, 1)                                                            \
-  TFJ(CreateResolvingFunctions, 2)                                             \
   TFJ(PromiseResolveClosure, 1)                                                \
   CPP(PromiseRejectClosure)                                                    \
   TFJ(PromiseThen, 2)                                                          \

@@ -201,6 +201,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_WEAK_SET_TYPE:
       JSWeakSet::cast(this)->JSWeakSetVerify();
       break;
+    case JS_PROMISE_CAPABILITY_TYPE:
+      JSPromiseCapability::cast(this)->JSPromiseCapabilityVerify();
+      break;
     case JS_PROMISE_TYPE:
       JSPromise::cast(this)->JSPromiseVerify();
       break;
@@ -881,6 +884,14 @@ void JSWeakSet::JSWeakSetVerify() {
   JSObjectVerify();
   VerifyHeapPointer(table());
   CHECK(table()->IsHashTable() || table()->IsUndefined(GetIsolate()));
+}
+
+void JSPromiseCapability::JSPromiseCapabilityVerify() {
+  CHECK(IsJSPromiseCapability());
+  JSObjectVerify();
+  VerifyPointer(promise());
+  VerifyPointer(resolve());
+  VerifyPointer(reject());
 }
 
 void JSPromise::JSPromiseVerify() {

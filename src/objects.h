@@ -422,6 +422,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MAP_ITERATOR_TYPE)                                       \
   V(JS_WEAK_MAP_TYPE)                                           \
   V(JS_WEAK_SET_TYPE)                                           \
+  V(JS_PROMISE_CAPABILITY_TYPE)                                 \
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
   V(JS_ERROR_TYPE)                                              \
@@ -767,6 +768,7 @@ enum InstanceType {
   JS_MAP_ITERATOR_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
+  JS_PROMISE_CAPABILITY_TYPE,
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
   JS_ERROR_TYPE,
@@ -1089,6 +1091,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSDataView)                  \
   V(JSProxy)                     \
   V(JSError)                     \
+  V(JSPromiseCapability)         \
   V(JSPromise)                   \
   V(JSStringIterator)            \
   V(JSSet)                       \
@@ -8636,6 +8639,36 @@ class JSMessageObject: public JSObject {
   typedef FixedBodyDescriptor<HeapObject::kMapOffset,
                               kStackFramesOffset + kPointerSize,
                               kSize> BodyDescriptor;
+};
+
+class JSPromise;
+
+// TODO(caitp): Make this a Struct once properties are no longer accessed from
+// JS
+class JSPromiseCapability : public JSObject {
+ public:
+  DECLARE_CAST(JSPromiseCapability)
+
+  DECLARE_VERIFIER(JSPromiseCapability)
+
+  DECL_ACCESSORS(promise, Object)
+  DECL_ACCESSORS(resolve, Object)
+  DECL_ACCESSORS(reject, Object)
+
+  static const int kPromiseOffset = JSObject::kHeaderSize;
+  static const int kResolveOffset = kPromiseOffset + kPointerSize;
+  static const int kRejectOffset = kResolveOffset + kPointerSize;
+  static const int kSize = kRejectOffset + kPointerSize;
+
+  enum InObjectPropertyIndex {
+    kPromiseIndex,
+    kResolveIndex,
+    kRejectIndex,
+    kInObjectPropertyCount  // Dummy.
+  };
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSPromiseCapability);
 };
 
 class JSPromise : public JSObject {

@@ -45,11 +45,18 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
                         Label* if_ismodified);
 
+  Node* CreatePromiseContext(Node* native_context, int slots);
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
                                                Node* native_context);
 
   std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
       Node* promise, Node* native_context, Node* promise_context);
+
+  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
+                                                    Node* promise_capability);
+
+  Node* NewPromiseCapability(Node* context, Node* constructor,
+                             Node* debug_event = nullptr);
 };
 
 }  // namespace internal

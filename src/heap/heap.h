@@ -227,7 +227,10 @@ using v8::MemoryPressureLevel;
   V(Map, exception_map, ExceptionMap)                                          \
   V(Map, termination_exception_map, TerminationExceptionMap)                   \
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
-  V(Map, stale_register_map, StaleRegisterMap)
+  V(Map, stale_register_map, StaleRegisterMap)                                 \
+  /* per-Isolate map for JSPromiseCapability. */                               \
+  /* TODO(caitp): Make this a Struct */                                        \
+  V(Map, js_promise_capability_map, JSPromiseCapabilityMap)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \

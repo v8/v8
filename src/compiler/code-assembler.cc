@@ -72,6 +72,10 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
 
 CodeAssemblerState::~CodeAssemblerState() {}
 
+int CodeAssemblerState::parameter_count() const {
+  return static_cast<int>(raw_assembler_->call_descriptor()->ParameterCount());
+}
+
 CodeAssembler::~CodeAssembler() {}
 
 class BreakOnNodeDecorator final : public GraphDecorator {
