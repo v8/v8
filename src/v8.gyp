@@ -597,6 +597,8 @@
         'compiler/frame-states.h',
         'compiler/gap-resolver.cc',
         'compiler/gap-resolver.h',
+        'compiler/graph-assembler.cc',
+        'compiler/graph-assembler.h',
         'compiler/graph-reducer.cc',
         'compiler/graph-reducer.h',
         'compiler/graph-replay.cc',
