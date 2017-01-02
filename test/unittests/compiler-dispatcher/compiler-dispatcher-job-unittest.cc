@@ -43,7 +43,6 @@ class IgnitionCompilerDispatcherJobTest : public CompilerDispatcherJobTest {
   static void SetUpTestCase() {
     old_flag_ = i::FLAG_ignition;
     i::FLAG_ignition = true;
-    i::FLAG_never_compact = true;
     TestWithContext::SetUpTestCase();
   }
 
