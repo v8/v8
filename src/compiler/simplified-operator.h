@@ -325,6 +325,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckMaps(int map_input_count);
 
   const Operator* CheckHeapObject();
+  const Operator* CheckInternalizedString();
   const Operator* CheckNumber();
   const Operator* CheckSmi();
   const Operator* CheckString();

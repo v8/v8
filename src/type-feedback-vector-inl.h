@@ -128,6 +128,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kNumber;
     case CompareOperationFeedback::kNumberOrOddball:
       return CompareOperationHint::kNumberOrOddball;
+    case CompareOperationFeedback::kInternalizedString:
+      return CompareOperationHint::kInternalizedString;
     case CompareOperationFeedback::kString:
       return CompareOperationHint::kString;
     default:

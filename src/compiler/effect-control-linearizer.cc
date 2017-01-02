@@ -649,6 +649,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckString:
       state = LowerCheckString(node, frame_state, *effect, *control);
       break;
+    case IrOpcode::kCheckInternalizedString:
+      state =
+          LowerCheckInternalizedString(node, frame_state, *effect, *control);
+      break;
     case IrOpcode::kCheckIf:
       state = LowerCheckIf(node, frame_state, *effect, *control);
       break;
@@ -1282,6 +1286,37 @@ EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state,
   Node* check1 =
       graph()->NewNode(machine()->Uint32LessThan(), value_instance_type,
                        jsgraph()->Uint32Constant(FIRST_NONSTRING_TYPE));
+  control = effect = graph()->NewNode(
+      common()->DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType), check1,
+      frame_state, effect, control);
+
+  return ValueEffectControl(value, effect, control);
+}
+
+EffectControlLinearizer::ValueEffectControl
+EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
+                                                      Node* frame_state,
+                                                      Node* effect,
+                                                      Node* control) {
+  Node* value = node->InputAt(0);
+
+  Node* check0 = ObjectIsSmi(value);
+  control = effect =
+      graph()->NewNode(common()->DeoptimizeIf(DeoptimizeReason::kSmi), check0,
+                       frame_state, effect, control);
+
+  Node* value_map = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
+  Node* value_instance_type = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), value_map,
+      effect, control);
+
+  Node* check1 = graph()->NewNode(
+      machine()->Word32Equal(),
+      graph()->NewNode(
+          machine()->Word32And(), value_instance_type,
+          jsgraph()->Int32Constant(kIsNotStringMask | kIsNotInternalizedMask)),
+      jsgraph()->Int32Constant(kInternalizedTag));
   control = effect = graph()->NewNode(
       common()->DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType), check1,
       frame_state, effect, control);

@@ -585,6 +585,8 @@ struct JSOperatorGlobalCache final {
   Name##Operator<CompareOperationHint::kNumberOrOddball>                  \
       k##Name##NumberOrOddballOperator;                                   \
   Name##Operator<CompareOperationHint::kString> k##Name##StringOperator;  \
+  Name##Operator<CompareOperationHint::kInternalizedString>               \
+      k##Name##InternalizedStringOperator;                                \
   Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
   COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
@@ -636,6 +638,8 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##NumberOperator;                        \
       case CompareOperationHint::kNumberOrOddball:                     \
         return &cache_.k##Name##NumberOrOddballOperator;               \
+      case CompareOperationHint::kInternalizedString:                  \
+        return &cache_.k##Name##InternalizedStringOperator;            \
       case CompareOperationHint::kString:                              \
         return &cache_.k##Name##StringOperator;                        \
       case CompareOperationHint::kAny:                                 \

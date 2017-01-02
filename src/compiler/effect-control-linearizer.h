@@ -76,6 +76,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                       Node* effect, Node* control);
   ValueEffectControl LowerCheckString(Node* node, Node* frame_state,
                                       Node* effect, Node* control);
+  ValueEffectControl LowerCheckInternalizedString(Node* node, Node* frame_state,
+                                                  Node* effect, Node* control);
   ValueEffectControl LowerCheckIf(Node* node, Node* frame_state, Node* effect,
                                   Node* control);
   ValueEffectControl LowerCheckedInt32Add(Node* node, Node* frame_state,

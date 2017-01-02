@@ -307,6 +307,7 @@
   V(CheckIf)                        \
   V(CheckMaps)                      \
   V(CheckNumber)                    \
+  V(CheckInternalizedString)        \
   V(CheckString)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \

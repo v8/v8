@@ -1087,6 +1087,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Boolean());
       CheckNotTyped(node);
       break;
+    case IrOpcode::kCheckInternalizedString:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::InternalizedString());
+      break;
     case IrOpcode::kCheckMaps:
       // (Any, Internal, ..., Internal) -> Any
       CheckValueInputIs(node, 0, Type::Any());

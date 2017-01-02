@@ -1038,9 +1038,27 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           __ Bind(&lhs_is_not_oddball);
         }
 
-        var_type_feedback.Bind(__ SelectInt32Constant(
-            __ IsStringInstanceType(lhs_instance_type),
-            CompareOperationFeedback::kString, CompareOperationFeedback::kAny));
+        Label lhs_is_not_string(assembler);
+        __ GotoUnless(__ IsStringInstanceType(lhs_instance_type),
+                      &lhs_is_not_string);
+
+        if (Token::IsOrderedRelationalCompareOp(compare_op)) {
+          var_type_feedback.Bind(
+              __ Int32Constant(CompareOperationFeedback::kString));
+        } else {
+          var_type_feedback.Bind(__ SelectInt32Constant(
+              __ Word32Equal(
+                  __ Word32And(lhs_instance_type,
+                               __ Int32Constant(kIsNotInternalizedMask)),
+                  __ Int32Constant(kInternalizedTag)),
+              CompareOperationFeedback::kInternalizedString,
+              CompareOperationFeedback::kString));
+        }
+        __ Goto(&gather_rhs_type);
+
+        __ Bind(&lhs_is_not_string);
+        var_type_feedback.Bind(
+            __ Int32Constant(CompareOperationFeedback::kAny));
         __ Goto(&gather_rhs_type);
       }
     }
@@ -1083,11 +1101,30 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
             __ Bind(&rhs_is_not_oddball);
           }
 
-          var_type_feedback.Bind(__ Word32Or(
-              var_type_feedback.value(),
-              __ SelectInt32Constant(__ IsStringInstanceType(rhs_instance_type),
-                                     CompareOperationFeedback::kString,
-                                     CompareOperationFeedback::kAny)));
+          Label rhs_is_not_string(assembler);
+          __ GotoUnless(__ IsStringInstanceType(rhs_instance_type),
+                        &rhs_is_not_string);
+
+          if (Token::IsOrderedRelationalCompareOp(compare_op)) {
+            var_type_feedback.Bind(__ Word32Or(
+                var_type_feedback.value(),
+                __ Int32Constant(CompareOperationFeedback::kString)));
+          } else {
+            var_type_feedback.Bind(__ Word32Or(
+                var_type_feedback.value(),
+                __ SelectInt32Constant(
+                    __ Word32Equal(
+                        __ Word32And(rhs_instance_type,
+                                     __ Int32Constant(kIsNotInternalizedMask)),
+                        __ Int32Constant(kInternalizedTag)),
+                    CompareOperationFeedback::kInternalizedString,
+                    CompareOperationFeedback::kString)));
+          }
+          __ Goto(&update_feedback);
+
+          __ Bind(&rhs_is_not_string);
+          var_type_feedback.Bind(
+              __ Int32Constant(CompareOperationFeedback::kAny));
           __ Goto(&update_feedback);
         }
       }

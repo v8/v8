@@ -1798,9 +1798,9 @@ TEST(InterpreterStringComparisons) {
 
         BytecodeArrayBuilder builder(isolate, handles.main_zone(), 0, 0, 1);
         Register r0(0);
-        builder.LoadLiteral(factory->NewStringFromAsciiChecked(lhs))
+        builder.LoadLiteral(factory->InternalizeUtf8String(lhs))
             .StoreAccumulatorInRegister(r0)
-            .LoadLiteral(factory->NewStringFromAsciiChecked(rhs))
+            .LoadLiteral(factory->InternalizeUtf8String(rhs))
             .CompareOperation(comparison, r0, vector->GetIndex(slot))
             .Return();
 
@@ -1813,8 +1813,11 @@ TEST(InterpreterStringComparisons) {
                  CompareC(comparison, inputs[i], inputs[j]));
         Object* feedback = vector->Get(slot);
         CHECK(feedback->IsSmi());
-        CHECK_EQ(CompareOperationFeedback::kString,
-                 static_cast<Smi*>(feedback)->value());
+        int const expected_feedback =
+            Token::IsOrderedRelationalCompareOp(comparison)
+                ? CompareOperationFeedback::kString
+                : CompareOperationFeedback::kInternalizedString;
+        CHECK_EQ(expected_feedback, static_cast<Smi*>(feedback)->value());
       }
     }
   }

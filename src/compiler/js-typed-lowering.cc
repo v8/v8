@@ -70,8 +70,19 @@ class JSBinopReduction final {
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
         case CompareOperationHint::kString:
+        case CompareOperationHint::kInternalizedString:
           break;
       }
+    }
+    return false;
+  }
+
+  bool IsInternalizedStringCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kInternalizedString) &&
+             BothInputsMaybe(Type::InternalizedString());
     }
     return false;
   }
@@ -102,6 +113,25 @@ class JSBinopReduction final {
       }
     }
     return false;
+  }
+
+  // Checks that both inputs are InternalizedString, and if we don't know
+  // statically that one side is already an InternalizedString, insert a
+  // CheckInternalizedString node.
+  void CheckInputsToInternalizedString() {
+    if (!left_type()->Is(Type::UniqueName())) {
+      Node* left_input = graph()->NewNode(
+          simplified()->CheckInternalizedString(), left(), effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type()->Is(Type::UniqueName())) {
+      Node* right_input =
+          graph()->NewNode(simplified()->CheckInternalizedString(), right(),
+                           effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
   }
 
   void ConvertInputsToNumber() {
@@ -316,6 +346,10 @@ class JSBinopReduction final {
   bool OneInputIs(Type* t) { return LeftInputIs(t) || RightInputIs(t); }
 
   bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
+
+  bool BothInputsMaybe(Type* t) {
+    return left_type()->Maybe(t) && right_type()->Maybe(t);
+  }
 
   bool OneInputCannotBe(Type* t) {
     return !left_type()->Maybe(t) || !right_type()->Maybe(t);
@@ -851,6 +885,13 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
 
   JSBinopReduction r(this, node);
 
+  if (r.BothInputsAre(Type::UniqueName())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
+  if (r.IsInternalizedStringCompareOperation()) {
+    r.CheckInputsToInternalizedString();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
@@ -932,6 +973,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.BothInputsAre(Type::Unique())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
+  if (r.IsInternalizedStringCompareOperation()) {
+    r.CheckInputsToInternalizedString();
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.BothInputsAre(Type::String())) {

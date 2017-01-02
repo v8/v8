@@ -1716,6 +1716,11 @@ Type* Typer::Visitor::TypeCheckIf(Node* node) {
   return nullptr;
 }
 
+Type* Typer::Visitor::TypeCheckInternalizedString(Node* node) {
+  Type* arg = Operand(node, 0);
+  return Type::Intersect(arg, Type::InternalizedString(), zone());
+}
+
 Type* Typer::Visitor::TypeCheckMaps(Node* node) {
   UNREACHABLE();
   return nullptr;

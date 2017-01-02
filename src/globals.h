@@ -1246,8 +1246,8 @@ class BinaryOperationFeedback {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kNumber  -> kAny
-//                 kString  -> kAny
+// kSignedSmall        -> kNumber -> kAny
+// kInternalizedString -> kString -> kAny
 // TODO(epertoso): consider unifying this with BinaryOperationFeedback.
 class CompareOperationFeedback {
  public:
@@ -1256,8 +1256,9 @@ class CompareOperationFeedback {
     kSignedSmall = 0x01,
     kNumber = 0x3,
     kNumberOrOddball = 0x7,
-    kString = 0x8,
-    kAny = 0x1F
+    kInternalizedString = 0x8,
+    kString = 0x18,
+    kAny = 0x3F
   };
 };
 

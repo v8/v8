@@ -2253,6 +2253,17 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kNone);
         return;
       }
+      case IrOpcode::kCheckInternalizedString: {
+        if (InputIs(node, Type::InternalizedString())) {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
       case IrOpcode::kCheckNumber: {
         if (InputIs(node, Type::Number())) {
           if (truncation.IsUsedAsWord32()) {
