@@ -1095,6 +1095,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         kTaggedBase,
         field_index.offset(),
         name,
+        MaybeHandle<Map>(),
         field_type,
         MachineType::TypeForRepresentation(field_representation),
         kFullWriteBarrier};
@@ -1105,6 +1106,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           FieldAccess const storage_access = {kTaggedBase,
                                               field_index.offset(),
                                               name,
+                                              MaybeHandle<Map>(),
                                               Type::OtherInternal(),
                                               MachineType::TaggedPointer(),
                                               kPointerWriteBarrier};
@@ -1114,9 +1116,18 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           field_access.offset = HeapNumber::kValueOffset;
           field_access.name = MaybeHandle<Name>();
         }
+      } else if (field_representation ==
+                 MachineRepresentation::kTaggedPointer) {
+        // Remember the map of the field value, if its map is stable. This is
+        // used by the LoadElimination to eliminate map checks on the result.
+        Handle<Map> field_map;
+        if (access_info.field_map().ToHandle(&field_map)) {
+          if (field_map->is_stable()) {
+            dependencies()->AssumeMapStable(field_map);
+            field_access.map = field_map;
+          }
+        }
       }
-      // TODO(turbofan): Track the field_map (if any) on the {field_access} and
-      // use it in LoadElimination to eliminate map checks.
       value = effect = graph()->NewNode(simplified()->LoadField(field_access),
                                         storage, effect, control);
     } else {
@@ -1153,6 +1164,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
               FieldAccess const storage_access = {kTaggedBase,
                                                   field_index.offset(),
                                                   name,
+                                                  MaybeHandle<Map>(),
                                                   Type::OtherInternal(),
                                                   MachineType::TaggedPointer(),
                                                   kPointerWriteBarrier};

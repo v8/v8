@@ -744,6 +744,10 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
       state = state->AddField(object, field_index, node, zone());
     }
   }
+  Handle<Map> field_map;
+  if (access.map.ToHandle(&field_map)) {
+    state = state->AddMaps(node, ZoneHandleSet<Map>(field_map), zone());
+  }
   return UpdateState(node, state);
 }
 

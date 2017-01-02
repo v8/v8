@@ -1186,9 +1186,10 @@ Node* JSCreateLowering::AllocateFastLiteral(
     Handle<Name> property_name(
         boilerplate_map->instance_descriptors()->GetKey(i), isolate());
     FieldIndex index = FieldIndex::ForDescriptor(*boilerplate_map, i);
-    FieldAccess access = {
-        kTaggedBase, index.offset(),           property_name,
-        Type::Any(), MachineType::AnyTagged(), kFullWriteBarrier};
+    FieldAccess access = {kTaggedBase,      index.offset(),
+                          property_name,    MaybeHandle<Map>(),
+                          Type::Any(),      MachineType::AnyTagged(),
+                          kFullWriteBarrier};
     Node* value;
     if (boilerplate->IsUnboxedDoubleField(index)) {
       access.machine_type = MachineType::Float64();

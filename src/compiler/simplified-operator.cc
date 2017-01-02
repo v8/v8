@@ -92,6 +92,7 @@ bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
   // really only relevant for eliminating loads and they don't care about the
   // write barrier mode.
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
+         lhs.map.address() == rhs.map.address() &&
          lhs.machine_type == rhs.machine_type;
 }
 
@@ -117,6 +118,10 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
   if (access.name.ToHandle(&name)) {
     name->Print(os);
     os << ", ";
+  }
+  Handle<Map> map;
+  if (access.map.ToHandle(&map)) {
+    os << Brief(*map) << ", ";
   }
 #endif
   access.type->PrintTo(os);

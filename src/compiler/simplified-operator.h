@@ -65,6 +65,7 @@ struct FieldAccess {
   BaseTaggedness base_is_tagged;  // specifies if the base pointer is tagged.
   int offset;                     // offset of the field, without tag.
   MaybeHandle<Name> name;         // debugging only.
+  MaybeHandle<Map> map;           // map of the field value (if known).
   Type* type;                     // type of the field.
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.

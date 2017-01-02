@@ -125,11 +125,9 @@ TEST_F(LoadEliminationTest, LoadFieldAndLoadField) {
   Node* object = Parameter(Type::Any(), 0);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,
-                              kPointerSize,
-                              MaybeHandle<Name>(),
-                              Type::Any(),
-                              MachineType::AnyTagged(),
+  FieldAccess const access = {kTaggedBase,         kPointerSize,
+                              MaybeHandle<Name>(), MaybeHandle<Map>(),
+                              Type::Any(),         MachineType::AnyTagged(),
                               kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -154,11 +152,9 @@ TEST_F(LoadEliminationTest, StoreFieldAndLoadField) {
   Node* value = Parameter(Type::Any(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess access = {kTaggedBase,
-                        kPointerSize,
-                        MaybeHandle<Name>(),
-                        Type::Any(),
-                        MachineType::AnyTagged(),
+  FieldAccess access = {kTaggedBase,         kPointerSize,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::Any(),         MachineType::AnyTagged(),
                         kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -184,11 +180,9 @@ TEST_F(LoadEliminationTest, StoreFieldAndStoreElementAndLoadField) {
   Node* index = Parameter(Type::UnsignedSmall(), 2);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess access = {kTaggedBase,
-                        kPointerSize,
-                        MaybeHandle<Name>(),
-                        Type::Any(),
-                        MachineType::AnyTagged(),
+  FieldAccess access = {kTaggedBase,         kPointerSize,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::Any(),         MachineType::AnyTagged(),
                         kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -288,11 +282,9 @@ TEST_F(LoadEliminationTest, LoadFieldOnFalseBranchOfDiamond) {
   Node* check = Parameter(Type::Boolean(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,
-                              kPointerSize,
-                              MaybeHandle<Name>(),
-                              Type::Any(),
-                              MachineType::AnyTagged(),
+  FieldAccess const access = {kTaggedBase,         kPointerSize,
+                              MaybeHandle<Name>(), MaybeHandle<Map>(),
+                              Type::Any(),         MachineType::AnyTagged(),
                               kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -326,11 +318,9 @@ TEST_F(LoadEliminationTest, LoadFieldOnTrueBranchOfDiamond) {
   Node* check = Parameter(Type::Boolean(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,
-                              kPointerSize,
-                              MaybeHandle<Name>(),
-                              Type::Any(),
-                              MachineType::AnyTagged(),
+  FieldAccess const access = {kTaggedBase,         kPointerSize,
+                              MaybeHandle<Name>(), MaybeHandle<Map>(),
+                              Type::Any(),         MachineType::AnyTagged(),
                               kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -364,11 +354,9 @@ TEST_F(LoadEliminationTest, LoadFieldWithTypeMismatch) {
   Node* value = Parameter(Type::Signed32(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,
-                              kPointerSize,
-                              MaybeHandle<Name>(),
-                              Type::Unsigned31(),
-                              MachineType::AnyTagged(),
+  FieldAccess const access = {kTaggedBase,         kPointerSize,
+                              MaybeHandle<Name>(), MaybeHandle<Map>(),
+                              Type::Unsigned31(),  MachineType::AnyTagged(),
                               kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;
@@ -422,11 +410,9 @@ TEST_F(LoadEliminationTest, AliasAnalysisForFinishRegion) {
   Node* value1 = Parameter(Type::Signed32(), 1);
   Node* effect = graph()->start();
   Node* control = graph()->start();
-  FieldAccess const access = {kTaggedBase,
-                              kPointerSize,
-                              MaybeHandle<Name>(),
-                              Type::Signed32(),
-                              MachineType::AnyTagged(),
+  FieldAccess const access = {kTaggedBase,         kPointerSize,
+                              MaybeHandle<Name>(), MaybeHandle<Map>(),
+                              Type::Signed32(),    MachineType::AnyTagged(),
                               kNoWriteBarrier};
 
   StrictMock<MockAdvancedReducerEditor> editor;

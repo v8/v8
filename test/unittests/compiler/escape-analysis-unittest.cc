@@ -148,11 +148,9 @@ class EscapeAnalysisTest : public TypedGraphTest {
   }
 
   FieldAccess FieldAccessAtIndex(int offset) {
-    FieldAccess access = {kTaggedBase,
-                          offset,
-                          MaybeHandle<Name>(),
-                          Type::Any(),
-                          MachineType::AnyTagged(),
+    FieldAccess access = {kTaggedBase,         offset,
+                          MaybeHandle<Name>(), MaybeHandle<Map>(),
+                          Type::Any(),         MachineType::AnyTagged(),
                           kFullWriteBarrier};
     return access;
   }
