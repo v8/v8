@@ -945,8 +945,8 @@ struct EscapeAnalysisPhase {
   }
 };
 
-struct RepresentationSelectionPhase {
-  static const char* phase_name() { return "representation selection"; }
+struct SimplifiedLoweringPhase {
+  static const char* phase_name() { return "simplified lowering"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     SimplifiedLowering lowering(data->jsgraph(), temp_zone,
@@ -1553,11 +1553,22 @@ bool PipelineImpl::CreateGraph() {
     }
   }
 
-  // Select representations. This has to run w/o the Typer decorator, because
-  // we cannot compute meaningful types anyways, and the computed types might
-  // even conflict with the representation/truncation logic.
-  Run<RepresentationSelectionPhase>();
-  RunPrintAndVerify("Representations selected", true);
+  // Do some hacky things to prepare generic lowering.
+  Run<GenericLoweringPrepPhase>();
+
+  data->EndPhaseKind();
+
+  return true;
+}
+
+bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
+  PipelineData* data = this->data_;
+
+  // Perform simplified lowering. This has to run w/o the Typer decorator,
+  // because we cannot compute meaningful types anyways, and the computed types
+  // might even conflict with the representation/truncation logic.
+  Run<SimplifiedLoweringPhase>();
+  RunPrintAndVerify("Simplified lowering", true);
 
 #ifdef DEBUG
   // From now on it is invalid to look at types on the nodes, because:
@@ -1575,17 +1586,6 @@ bool PipelineImpl::CreateGraph() {
   Run<UntyperPhase>();
   RunPrintAndVerify("Untyped", true);
 #endif
-
-  // Do some hacky things to prepare generic lowering.
-  Run<GenericLoweringPrepPhase>();
-
-  data->EndPhaseKind();
-
-  return true;
-}
-
-bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
-  PipelineData* data = this->data_;
 
   // Run generic lowering pass.
   Run<GenericLoweringPhase>();

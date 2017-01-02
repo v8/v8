@@ -1109,17 +1109,14 @@ class RepresentationSelector {
         return kNoWriteBarrier;
       }
       if (value_type->IsHeapConstant()) {
-        Handle<HeapObject> value_object = value_type->AsHeapConstant()->Value();
-        RootIndexMap root_index_map(jsgraph_->isolate());
-        int root_index = root_index_map.Lookup(*value_object);
-        if (root_index != RootIndexMap::kInvalidRootIndex &&
-            jsgraph_->isolate()->heap()->RootIsImmortalImmovable(root_index)) {
-          // Write barriers are unnecessary for immortal immovable roots.
-          return kNoWriteBarrier;
-        }
-        if (value_object->IsMap()) {
-          // Write barriers for storing maps are cheaper.
-          return kMapWriteBarrier;
+        Heap::RootListIndex root_index;
+        Heap* heap = jsgraph_->isolate()->heap();
+        if (heap->IsRootHandle(value_type->AsHeapConstant()->Value(),
+                               &root_index)) {
+          if (heap->RootIsImmortalImmovable(root_index)) {
+            // Write barriers are unnecessary for immortal immovable roots.
+            return kNoWriteBarrier;
+          }
         }
       }
       if (field_representation == MachineRepresentation::kTaggedPointer ||

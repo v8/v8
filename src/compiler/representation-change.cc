@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 
 namespace v8 {
 namespace internal {
@@ -694,8 +695,12 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
-      return jsgraph()->Int32Constant(value->BooleanValue() ? 1 : 0);
+      HeapObjectMatcher m(node);
+      if (m.Is(factory()->false_value())) {
+        return jsgraph()->Int32Constant(0);
+      } else if (m.Is(factory()->true_value())) {
+        return jsgraph()->Int32Constant(1);
+      }
     }
     default:
       break;
