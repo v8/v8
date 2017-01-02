@@ -175,7 +175,7 @@ SourcePositionTableIterator::SourcePositionTableIterator(ByteArray* byte_array)
 void SourcePositionTableIterator::Advance() {
   DCHECK(!done());
   DCHECK(index_ >= 0 && index_ <= table_->length());
-  if (index_ == table_->length()) {
+  if (index_ >= table_->length()) {
     index_ = kDone;
   } else {
     PositionTableEntry tmp;
