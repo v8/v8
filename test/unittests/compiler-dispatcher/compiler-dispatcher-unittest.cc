@@ -16,7 +16,29 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithContext CompilerDispatcherTest;
+class CompilerDispatcherTest : public TestWithContext {
+ public:
+  CompilerDispatcherTest() = default;
+  ~CompilerDispatcherTest() override = default;
+
+  static void SetUpTestCase() {
+    old_flag_ = i::FLAG_ignition;
+    i::FLAG_compiler_dispatcher = true;
+    TestWithContext::SetUpTestCase();
+  }
+
+  static void TearDownTestCase() {
+    TestWithContext::TearDownTestCase();
+    i::FLAG_compiler_dispatcher = old_flag_;
+  }
+
+ private:
+  static bool old_flag_;
+
+  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTest);
+};
+
+bool CompilerDispatcherTest::old_flag_;
 
 namespace {
 
