@@ -7399,7 +7399,7 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
   } else {
     // We need to take into account the KEYED_LOAD_IC feedback to guard the
     // HBoundsCheck instructions below.
-    if (!expr->IsMonomorphic()) return false;
+    if (!expr->IsMonomorphic() && !expr->IsUninitialized()) return false;
     if (IsAnyParameterContextAllocated()) return false;
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->obj(), ARGUMENTS_ALLOWED), true);
     CHECK_ALIVE_OR_RETURN(VisitForValue(expr->key()), true);
