@@ -1610,8 +1610,6 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
-  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_->Flip();
@@ -1718,6 +1716,10 @@ void Heap::Scavenge() {
   DCHECK_GE(PromotedSpaceSizeOfObjects(), survived_watermark);
   IncrementYoungSurvivorsCounter(PromotedSpaceSizeOfObjects() +
                                  new_space_->Size() - survived_watermark);
+
+  // Scavenger may find new wrappers by iterating objects promoted onto a black
+  // page.
+  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
