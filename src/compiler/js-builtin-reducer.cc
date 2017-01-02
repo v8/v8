@@ -128,11 +128,10 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
         IsSame(dominator->InputAt(0), receiver)) {
-      if (dominator->op()->ValueInputCount() == 2) {
-        HeapObjectMatcher m(dominator->InputAt(1));
-        if (m.HasValue()) return Handle<Map>::cast(m.Value());
-      }
-      return MaybeHandle<Map>();
+      ZoneHandleSet<Map> const& maps =
+          CheckMapsParametersOf(dominator->op()).maps();
+      return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
+                                : MaybeHandle<Map>();
     }
     if (dominator->op()->EffectInputCount() != 1) {
       // Didn't find any appropriate CheckMaps node.
@@ -413,12 +412,17 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
       } else {
         // For value/entry iteration, first step is a mapcheck to ensure
         // inlining is still valid.
+        Node* array_map = etrue1 =
+            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                             array, etrue1, if_true1);
         Node* orig_map = etrue1 =
             graph()->NewNode(simplified()->LoadField(
                                  AccessBuilder::ForJSArrayIteratorObjectMap()),
                              iterator, etrue1, if_true1);
-        etrue1 = graph()->NewNode(simplified()->CheckMaps(1), array, orig_map,
-                                  etrue1, if_true1);
+        Node* check_map = graph()->NewNode(simplified()->ReferenceEqual(),
+                                           array_map, orig_map);
+        etrue1 = graph()->NewNode(simplified()->CheckIf(), check_map, etrue1,
+                                  if_true1);
       }
 
       if (kind != IterationKind::kKeys) {
@@ -910,14 +914,11 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
         IsSame(dominator->InputAt(0), receiver)) {
+      ZoneHandleSet<Map> const& maps =
+          CheckMapsParametersOf(dominator->op()).maps();
       // Check if all maps have the given {instance_type}.
-      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
-        Node* const map = NodeProperties::GetValueInput(dominator, i);
-        Type* const map_type = NodeProperties::GetType(map);
-        if (!map_type->IsHeapConstant()) return false;
-        Handle<Map> const map_value =
-            Handle<Map>::cast(map_type->AsHeapConstant()->Value());
-        if (map_value->instance_type() != instance_type) return false;
+      for (size_t i = 0; i < maps.size(); ++i) {
+        if (maps[i]->instance_type() != instance_type) return false;
       }
       return true;
     }

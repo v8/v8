@@ -1327,6 +1327,7 @@
         'zone/zone-segment.h',
         'zone/zone-allocator.h',
         'zone/zone-containers.h',
+        'zone/zone-handle-set.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {

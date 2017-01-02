@@ -1202,18 +1202,20 @@ EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state,
 EffectControlLinearizer::ValueEffectControl
 EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state,
                                         Node* effect, Node* control) {
+  CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
   Node* value = node->InputAt(0);
 
   // Load the current map of the {value}.
   Node* value_map = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForMap()), value, effect, control);
 
-  int const map_count = node->op()->ValueInputCount() - 1;
+  ZoneHandleSet<Map> const& maps = p.maps();
+  int const map_count = static_cast<int>(maps.size());
   Node** controls = temp_zone()->NewArray<Node*>(map_count);
   Node** effects = temp_zone()->NewArray<Node*>(map_count + 1);
 
   for (int i = 0; i < map_count; ++i) {
-    Node* map = node->InputAt(1 + i);
+    Node* map = jsgraph()->HeapConstant(maps[i]);
 
     Node* check = graph()->NewNode(machine()->WordEqual(), value_map, map);
     if (i == map_count - 1) {
@@ -3002,8 +3004,8 @@ EffectControlLinearizer::LowerTransitionElementsKind(Node* node, Node* effect,
                                                      Node* control) {
   ElementsTransition const transition = ElementsTransitionOf(node->op());
   Node* object = node->InputAt(0);
-  Node* source_map = node->InputAt(1);
-  Node* target_map = node->InputAt(2);
+  Node* source_map = jsgraph()->HeapConstant(transition.source());
+  Node* target_map = jsgraph()->HeapConstant(transition.target());
 
   // Load the current map of {object}.
   Node* object_map = effect =
@@ -3020,7 +3022,7 @@ EffectControlLinearizer::LowerTransitionElementsKind(Node* node, Node* effect,
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
   Node* etrue = effect;
   {
-    switch (transition) {
+    switch (transition.mode()) {
       case ElementsTransition::kFastTransition: {
         // In-place migration of {object}, just store the {target_map}.
         etrue =

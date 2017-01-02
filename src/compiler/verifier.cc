@@ -956,8 +956,6 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kTransitionElementsKind:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, Type::Internal());
-      CheckValueInputIs(node, 2, Type::Internal());
       CheckNotTyped(node);
       break;
 

@@ -307,11 +307,10 @@ bool NeedsConvertReceiver(Node* receiver, Node* effect) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
         IsSame(dominator->InputAt(0), receiver)) {
       // Check if all maps have the given {instance_type}.
-      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
-        HeapObjectMatcher m(NodeProperties::GetValueInput(dominator, i));
-        if (!m.HasValue()) return true;
-        Handle<Map> const map = Handle<Map>::cast(m.Value());
-        if (!map->IsJSReceiverMap()) return true;
+      ZoneHandleSet<Map> const& maps =
+          CheckMapsParametersOf(dominator->op()).maps();
+      for (size_t i = 0; i < maps.size(); ++i) {
+        if (!maps[i]->IsJSReceiverMap()) return true;
       }
       return false;
     }

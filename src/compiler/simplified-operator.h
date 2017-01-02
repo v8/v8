@@ -14,6 +14,7 @@
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -143,6 +144,27 @@ std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
 
+// A descriptor for map checks.
+class CheckMapsParameters final {
+ public:
+  explicit CheckMapsParameters(ZoneHandleSet<Map> const& maps) : maps_(maps) {}
+
+  ZoneHandleSet<Map> const& maps() const { return maps_; }
+
+ private:
+  ZoneHandleSet<Map> const maps_;
+};
+
+bool operator==(CheckMapsParameters const&, CheckMapsParameters const&);
+bool operator!=(CheckMapsParameters const&, CheckMapsParameters const&);
+
+size_t hash_value(CheckMapsParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
+
+CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
+    WARN_UNUSED_RESULT;
+
 // A descriptor for growing elements backing stores.
 enum class GrowFastElementsFlag : uint8_t {
   kNone = 0u,
@@ -160,16 +182,35 @@ GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator*)
     WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
-enum class ElementsTransition : uint8_t {
-  kFastTransition,  // simple transition, just updating the map.
-  kSlowTransition   // full transition, round-trip to the runtime.
+class ElementsTransition final {
+ public:
+  enum Mode : uint8_t {
+    kFastTransition,  // simple transition, just updating the map.
+    kSlowTransition   // full transition, round-trip to the runtime.
+  };
+
+  ElementsTransition(Mode mode, Handle<Map> source, Handle<Map> target)
+      : mode_(mode), source_(source), target_(target) {}
+
+  Mode mode() const { return mode_; }
+  Handle<Map> source() const { return source_; }
+  Handle<Map> target() const { return target_; }
+
+ private:
+  Mode const mode_;
+  Handle<Map> const source_;
+  Handle<Map> const target_;
 };
+
+bool operator==(ElementsTransition const&, ElementsTransition const&);
+bool operator!=(ElementsTransition const&, ElementsTransition const&);
 
 size_t hash_value(ElementsTransition);
 
 std::ostream& operator<<(std::ostream&, ElementsTransition);
 
-ElementsTransition ElementsTransitionOf(const Operator* op) WARN_UNUSED_RESULT;
+ElementsTransition const& ElementsTransitionOf(const Operator* op)
+    WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -322,7 +363,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckIf();
   const Operator* CheckBounds();
-  const Operator* CheckMaps(int map_input_count);
+  const Operator* CheckMaps(ZoneHandleSet<Map>);
 
   const Operator* CheckHeapObject();
   const Operator* CheckInternalizedString();

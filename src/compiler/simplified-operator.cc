@@ -229,6 +229,32 @@ std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
   return os;
 }
 
+bool operator==(CheckMapsParameters const& lhs,
+                CheckMapsParameters const& rhs) {
+  return lhs.maps() == rhs.maps();
+}
+
+bool operator!=(CheckMapsParameters const& lhs,
+                CheckMapsParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CheckMapsParameters const& p) { return hash_value(p.maps()); }
+
+std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
+  ZoneHandleSet<Map> const& maps = p.maps();
+  for (size_t i = 0; i < maps.size(); ++i) {
+    if (i != 0) os << ", ";
+    os << Brief(*maps[i]);
+  }
+  return os;
+}
+
+CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kCheckMaps, op->opcode());
+  return OpParameter<CheckMapsParameters>(op);
+}
+
 size_t hash_value(CheckTaggedInputMode mode) {
   return static_cast<size_t>(mode);
 }
@@ -274,22 +300,36 @@ GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator* op) {
   return OpParameter<GrowFastElementsFlags>(op);
 }
 
+bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
+  return lhs.mode() == rhs.mode() &&
+         lhs.source().address() == rhs.source().address() &&
+         lhs.target().address() == rhs.target().address();
+}
+
+bool operator!=(ElementsTransition const& lhs, ElementsTransition const& rhs) {
+  return !(lhs == rhs);
+}
+
 size_t hash_value(ElementsTransition transition) {
-  return static_cast<uint8_t>(transition);
+  return base::hash_combine(static_cast<uint8_t>(transition.mode()),
+                            transition.source().address(),
+                            transition.target().address());
 }
 
 std::ostream& operator<<(std::ostream& os, ElementsTransition transition) {
-  switch (transition) {
+  switch (transition.mode()) {
     case ElementsTransition::kFastTransition:
-      return os << "fast-transition";
+      return os << "fast-transition from " << Brief(*transition.source())
+                << " to " << Brief(*transition.target());
     case ElementsTransition::kSlowTransition:
-      return os << "slow-transition";
+      return os << "slow-transition from " << Brief(*transition.source())
+                << " to " << Brief(*transition.target());
   }
   UNREACHABLE();
   return os;
 }
 
-ElementsTransition ElementsTransitionOf(const Operator* op) {
+ElementsTransition const& ElementsTransitionOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kTransitionElementsKind, op->opcode());
   return OpParameter<ElementsTransition>(op);
 }
@@ -697,16 +737,14 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
   return nullptr;
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckMaps(int map_input_count) {
-  // TODO(bmeurer): Cache the most important versions of this operator.
-  DCHECK_LT(0, map_input_count);
-  int const value_input_count = 1 + map_input_count;
-  return new (zone()) Operator1<int>(           // --
-      IrOpcode::kCheckMaps,                     // opcode
-      Operator::kNoThrow | Operator::kNoWrite,  // flags
-      "CheckMaps",                              // name
-      value_input_count, 1, 1, 0, 1, 0,         // counts
-      map_input_count);                         // parameter
+const Operator* SimplifiedOperatorBuilder::CheckMaps(ZoneHandleSet<Map> maps) {
+  CheckMapsParameters const parameters(maps);
+  return new (zone()) Operator1<CheckMapsParameters>(  // --
+      IrOpcode::kCheckMaps,                            // opcode
+      Operator::kNoThrow | Operator::kNoWrite,         // flags
+      "CheckMaps",                                     // name
+      1, 1, 1, 0, 1, 0,                                // counts
+      parameters);                                     // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
@@ -741,7 +779,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       IrOpcode::kTransitionElementsKind,              // opcode
       Operator::kNoDeopt | Operator::kNoThrow,        // flags
       "TransitionElementsKind",                       // name
-      3, 1, 1, 0, 1, 0,                               // counts
+      1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
 }
 
