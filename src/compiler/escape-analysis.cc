@@ -431,7 +431,6 @@ bool IsEquivalentPhi(Node* phi, ZoneVector<Node*>& inputs) {
   }
   return true;
 }
-
 }  // namespace
 
 bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
@@ -440,12 +439,21 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
   int value_input_count = static_cast<int>(cache->fields().size());
   Node* rep = GetField(i);
   if (!rep || !IsCreatedPhi(i)) {
+    Type* phi_type = Type::None();
+    for (Node* input : cache->fields()) {
+      CHECK_NOT_NULL(input);
+      CHECK(!input->IsDead());
+      Type* input_type = NodeProperties::GetType(input);
+      phi_type = Type::Union(phi_type, input_type, graph->zone());
+    }
     Node* control = NodeProperties::GetControlInput(at);
     cache->fields().push_back(control);
     Node* phi = graph->NewNode(
         common->Phi(MachineRepresentation::kTagged, value_input_count),
         value_input_count + 1, &cache->fields().front());
+    NodeProperties::SetType(phi, phi_type);
     SetField(i, phi, true);
+
 #ifdef DEBUG
     if (FLAG_trace_turbo_escape) {
       PrintF("    Creating Phi #%d as merge of", phi->id());
@@ -865,7 +873,11 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       virtual_states_(zone),
       replacements_(zone),
       cycle_detection_(zone),
-      cache_(nullptr) {}
+      cache_(nullptr) {
+  // Type slot_not_analyzed_ manually.
+  double v = OpParameter<double>(slot_not_analyzed_);
+  NodeProperties::SetType(slot_not_analyzed_, Type::Range(v, v, zone));
+}
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
@@ -1398,10 +1410,16 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* load,
       Node* rep = replacement(load);
       if (!rep || !IsEquivalentPhi(rep, cache_->fields())) {
         int value_input_count = static_cast<int>(cache_->fields().size());
+        Type* phi_type = Type::None();
+        for (Node* input : cache_->fields()) {
+          Type* input_type = NodeProperties::GetType(input);
+          phi_type = Type::Union(phi_type, input_type, graph()->zone());
+        }
         cache_->fields().push_back(NodeProperties::GetControlInput(from));
         Node* phi = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, value_input_count),
             value_input_count + 1, &cache_->fields().front());
+        NodeProperties::SetType(phi, phi_type);
         status_analysis_->ResizeStatusVector();
         SetReplacement(load, phi);
         TRACE(" got phi created.\n");
@@ -1595,6 +1613,7 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         Node* new_object_state =
             graph()->NewNode(common()->ObjectState(input_count), input_count,
                              &cache_->fields().front());
+        NodeProperties::SetType(new_object_state, Type::OtherInternal());
         vobj->SetObjectState(new_object_state);
         TRACE(
             "Creating object state #%d for vobj %p (from node #%d) at effect "

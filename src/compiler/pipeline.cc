@@ -111,6 +111,7 @@ class PipelineData {
     javascript_ = new (graph_zone_) JSOperatorBuilder(graph_zone_);
     jsgraph_ = new (graph_zone_)
         JSGraph(isolate_, graph_, common_, javascript_, simplified_, machine_);
+    is_asm_ = info->shared_info()->asm_function();
   }
 
   // For WASM compile entry point.
@@ -133,7 +134,10 @@ class PipelineData {
         instruction_zone_(instruction_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        protected_instructions_(protected_instructions) {}
+        protected_instructions_(protected_instructions) {
+    is_asm_ =
+        info->has_shared_info() ? info->shared_info()->asm_function() : false;
+  }
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Graph* graph,
@@ -149,8 +153,9 @@ class PipelineData {
         instruction_zone_scope_(zone_stats_, ZONE_NAME),
         instruction_zone_(instruction_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
-
+        register_allocation_zone_(register_allocation_zone_scope_.zone()) {
+    is_asm_ = false;
+  }
   // For register allocation testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info,
                InstructionSequence* sequence)
@@ -163,7 +168,10 @@ class PipelineData {
         instruction_zone_(sequence->zone()),
         sequence_(sequence),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
-        register_allocation_zone_(register_allocation_zone_scope_.zone()) {}
+        register_allocation_zone_(register_allocation_zone_scope_.zone()) {
+    is_asm_ =
+        info->has_shared_info() ? info->shared_info()->asm_function() : false;
+  }
 
   ~PipelineData() {
     DeleteRegisterAllocationZone();
@@ -178,6 +186,7 @@ class PipelineData {
   bool compilation_failed() const { return compilation_failed_; }
   void set_compilation_failed() { compilation_failed_ = true; }
 
+  bool is_asm() const { return is_asm_; }
   bool verify_graph() const { return verify_graph_; }
   void set_verify_graph(bool value) { verify_graph_ = value; }
 
@@ -328,6 +337,7 @@ class PipelineData {
   PipelineStatistics* pipeline_statistics_ = nullptr;
   bool compilation_failed_ = false;
   bool verify_graph_ = false;
+  bool is_asm_ = false;
   Handle<Code> code_ = Handle<Code>::null();
 
   // All objects in the following group of fields are allocated in graph_zone_.
@@ -979,14 +989,20 @@ struct LoopExitEliminationPhase {
   }
 };
 
-struct GenericLoweringPrepPhase {
-  static const char* phase_name() { return "generic lowering prep"; }
+struct ConcurrentOptimizationPrepPhase {
+  static const char* phase_name() {
+    return "concurrent optimization preparation";
+  }
 
   void Run(PipelineData* data, Zone* temp_zone) {
     // Make sure we cache these code stubs.
     data->jsgraph()->CEntryStubConstant(1);
     data->jsgraph()->CEntryStubConstant(2);
     data->jsgraph()->CEntryStubConstant(3);
+
+    // This is needed for escape analysis.
+    NodeProperties::SetType(data->jsgraph()->FalseConstant(), Type::Boolean());
+    NodeProperties::SetType(data->jsgraph()->TrueConstant(), Type::Boolean());
   }
 };
 
@@ -1540,21 +1556,12 @@ bool PipelineImpl::CreateGraph() {
         Run<LoadEliminationPhase>();
         RunPrintAndVerify("Load eliminated");
       }
-
-      if (FLAG_turbo_escape) {
-        Run<EscapeAnalysisPhase>();
-        if (data->compilation_failed()) {
-          info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
-          data->EndPhaseKind();
-          return false;
-        }
-        RunPrintAndVerify("Escape Analysed");
-      }
     }
   }
 
-  // Do some hacky things to prepare generic lowering.
-  Run<GenericLoweringPrepPhase>();
+  // Do some hacky things to prepare for the optimization phase.
+  // (caching handles, etc.).
+  Run<ConcurrentOptimizationPrepPhase>();
 
   data->EndPhaseKind();
 
@@ -1563,6 +1570,18 @@ bool PipelineImpl::CreateGraph() {
 
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
+
+  if (!data->is_asm()) {
+    if (FLAG_turbo_escape) {
+      Run<EscapeAnalysisPhase>();
+      if (data->compilation_failed()) {
+        info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
+        data->EndPhaseKind();
+        return false;
+      }
+      RunPrintAndVerify("Escape Analysed");
+    }
+  }
 
   // Perform simplified lowering. This has to run w/o the Typer decorator,
   // because we cannot compute meaningful types anyways, and the computed types

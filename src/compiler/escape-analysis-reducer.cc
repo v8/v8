@@ -106,7 +106,8 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
 
 namespace {
 
-Node* MaybeGuard(JSGraph* jsgraph, Node* original, Node* replacement) {
+Node* MaybeGuard(JSGraph* jsgraph, Zone* zone, Node* original,
+                 Node* replacement) {
   // We might need to guard the replacement if the type of the {replacement}
   // node is not in a sub-type relation to the type of the the {original} node.
   Type* const replacement_type = NodeProperties::GetType(replacement);
@@ -115,6 +116,7 @@ Node* MaybeGuard(JSGraph* jsgraph, Node* original, Node* replacement) {
     Node* const control = NodeProperties::GetControlInput(original);
     replacement = jsgraph->graph()->NewNode(
         jsgraph->common()->TypeGuard(original_type), replacement, control);
+    NodeProperties::SetType(replacement, original_type);
   }
   return replacement;
 }
@@ -132,7 +134,7 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
       isolate()->counters()->turbo_escape_loads_replaced()->Increment();
       TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
             node->op()->mnemonic(), rep->id(), rep->op()->mnemonic());
-      rep = MaybeGuard(jsgraph(), node, rep);
+      rep = MaybeGuard(jsgraph(), zone(), node, rep);
       ReplaceWithValue(node, rep);
       return Replace(rep);
     }
