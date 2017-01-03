@@ -6560,8 +6560,10 @@ class PromiseResolveThenableJobInfo : public Struct {
   DECL_ACCESSORS(then, JSReceiver)
   DECL_ACCESSORS(resolve, JSFunction)
   DECL_ACCESSORS(reject, JSFunction)
-  DECL_ACCESSORS(debug_id, Object)
-  DECL_ACCESSORS(debug_name, Object)
+
+  DECL_INT_ACCESSORS(debug_id)
+  DECL_INT_ACCESSORS(debug_name)
+
   DECL_ACCESSORS(context, Context)
 
   static const int kThenableOffset = Struct::kHeaderSize;
@@ -6595,8 +6597,10 @@ class PromiseReactionJobInfo : public Struct {
   DECL_ACCESSORS(deferred_promise, Object)
   DECL_ACCESSORS(deferred_on_resolve, Object)
   DECL_ACCESSORS(deferred_on_reject, Object)
-  DECL_ACCESSORS(debug_id, Object)
-  DECL_ACCESSORS(debug_name, Object)
+
+  DECL_INT_ACCESSORS(debug_id)
+  DECL_INT_ACCESSORS(debug_name)
+
   DECL_ACCESSORS(context, Context)
 
   static const int kPromiseOffset = Struct::kHeaderSize;

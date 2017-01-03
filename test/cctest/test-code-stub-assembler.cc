@@ -1896,8 +1896,8 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
   CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
   CHECK(promise_info->context()->IsContext());
-  CHECK(promise_info->debug_id()->IsUndefined(isolate));
-  CHECK(promise_info->debug_name()->IsUndefined(isolate));
+  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
+  CHECK_EQ(kDebugNotActive, promise_info->debug_name());
 }
 
 TEST(IsSymbol) {

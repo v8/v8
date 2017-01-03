@@ -5728,8 +5728,8 @@ ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, debug_id, Object, kDebugIdOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, debug_name, Object, kDebugNameOffset)
+SMI_ACCESSORS(PromiseResolveThenableJobInfo, debug_id, kDebugIdOffset)
+SMI_ACCESSORS(PromiseResolveThenableJobInfo, debug_name, kDebugNameOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
 
 ACCESSORS(PromiseReactionJobInfo, promise, JSPromise, kPromiseOffset);
@@ -5741,8 +5741,8 @@ ACCESSORS(PromiseReactionJobInfo, deferred_on_resolve, Object,
           kDeferredOnResolveOffset);
 ACCESSORS(PromiseReactionJobInfo, deferred_on_reject, Object,
           kDeferredOnRejectOffset);
-ACCESSORS(PromiseReactionJobInfo, debug_id, Object, kDebugIdOffset);
-ACCESSORS(PromiseReactionJobInfo, debug_name, Object, kDebugNameOffset);
+SMI_ACCESSORS(PromiseReactionJobInfo, debug_id, kDebugIdOffset);
+SMI_ACCESSORS(PromiseReactionJobInfo, debug_name, kDebugNameOffset);
 ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
 
 Map* PrototypeInfo::ObjectCreateMap() {

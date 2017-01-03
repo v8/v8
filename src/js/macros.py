@@ -201,9 +201,22 @@ define kRegExpPrototypeOldFlagGetter = 31;
 # [[PromiseState]] values:
 # These values must be kept in sync with v8::Promise::PromiseState in
 # include/v8.h
-define kPending = 0;
-define kFulfilled = 1;
 define kRejected = 2;
 
 define kResolveCallback = 0;
 define kRejectCallback = 1;
+
+# These values must be kept in sync with PromiseDebugActionName in
+# src/debug/debug.h
+define kAsyncFunction = 1;
+define kPromiseResolve = 2;
+define kPromiseReject = 3;
+define kPromiseResolveThenableJob = 4;
+
+# These values must be kept in sync with PromiseDebugActionType in
+# src/debug/debug.h
+define kEnqueue = 0;
+define kEnqueueRecurring = 1;
+define kCancel = 2;
+define kWillHandle = 3;
+define kDidHandle = 4;

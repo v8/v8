@@ -71,6 +71,25 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
+const int kDebugPromiseNoID = 0;
+const int kDebugPromiseFirstID = 1;
+
+enum PromiseDebugActionName {
+  kDebugNotActive,
+  kDebugAsyncFunction,
+  kDebugPromiseResolve,
+  kDebugPromiseReject,
+  kDebugPromiseResolveThenableJob,
+};
+
+enum PromiseDebugActionType {
+  kDebugEnqueue,
+  kDebugEnqueueRecurring,
+  kDebugCancel,
+  kDebugWillHandle,
+  kDebugDidHandle,
+};
+
 class BreakLocation {
  public:
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
@@ -407,8 +426,8 @@ class Debug {
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
-                        Handle<String> name);
+  void OnAsyncTaskEvent(PromiseDebugActionType type, int id,
+                        PromiseDebugActionName name);
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
@@ -584,9 +603,9 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<String> type,
-                                                         Handle<Object> id,
-                                                         Handle<String> name);
+  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<Smi> type,
+                                                         Handle<Smi> id,
+                                                         Handle<Smi> name);
 
   // Mirror cache handling.
   void ClearMirrorCache();

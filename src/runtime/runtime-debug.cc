@@ -1899,10 +1899,12 @@ RUNTIME_FUNCTION(Runtime_DebugNextMicrotaskId) {
 RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
   DCHECK(args.length() == 3);
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(String, type, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, id, 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 2);
-  isolate->debug()->OnAsyncTaskEvent(type, id, name);
+  CONVERT_SMI_ARG_CHECKED(type, 0);
+  CONVERT_SMI_ARG_CHECKED(id, 1);
+  CONVERT_SMI_ARG_CHECKED(name, 2);
+  isolate->debug()->OnAsyncTaskEvent(static_cast<PromiseDebugActionType>(type),
+                                     id,
+                                     static_cast<PromiseDebugActionName>(name));
   return isolate->heap()->undefined_value();
 }
 

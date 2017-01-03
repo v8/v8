@@ -8358,10 +8358,11 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
   StoreObjectFieldNoWriteBarrier(
       result, PromiseReactionJobInfo::kDeferredOnRejectOffset,
       deferred_on_reject);
-  StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugIdOffset,
-                       Heap::kUndefinedValueRootIndex);
-  StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugNameOffset,
-                       Heap::kUndefinedValueRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kDebugIdOffset,
+                                 SmiConstant(kDebugPromiseNoID));
+  StoreObjectFieldNoWriteBarrier(result,
+                                 PromiseReactionJobInfo::kDebugNameOffset,
+                                 SmiConstant(kDebugNotActive));
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kContextOffset,
                                  context);
   return result;

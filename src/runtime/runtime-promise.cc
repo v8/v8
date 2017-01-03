@@ -60,33 +60,81 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 }
 
 namespace {
+
+// In an async function, reuse the existing stack related to the outer
+// Promise. Otherwise, e.g. in a direct call to then, save a new stack.
+// Promises with multiple reactions with one or more of them being async
+// functions will not get a good stack trace, as async functions require
+// different stacks from direct Promise use, but we save and restore a
+// stack once for all reactions.
+//
+// If this isn't a case of async function, we return false, otherwise
+// we set the correct id and return true.
+//
+// TODO(littledan): Improve this case.
+bool GetDebugIdForAsyncFunction(Isolate* isolate,
+                                Handle<PromiseReactionJobInfo> info,
+                                int* debug_id) {
+  // deferred_promise can be Undefined, FixedArray or userland promise object.
+  if (!info->deferred_promise()->IsJSPromise()) {
+    return false;
+  }
+
+  Handle<JSPromise> deferred_promise(JSPromise::cast(info->deferred_promise()),
+                                     isolate);
+  Handle<Symbol> handled_by_symbol =
+      isolate->factory()->promise_handled_by_symbol();
+  Handle<Object> handled_by_promise =
+      JSObject::GetDataProperty(deferred_promise, handled_by_symbol);
+
+  if (!handled_by_promise->IsJSPromise()) {
+    return false;
+  }
+
+  Handle<JSPromise> handled_by_promise_js =
+      Handle<JSPromise>::cast(handled_by_promise);
+  Handle<Symbol> async_stack_id_symbol =
+      isolate->factory()->promise_async_stack_id_symbol();
+  Handle<Object> id =
+      JSObject::GetDataProperty(handled_by_promise_js, async_stack_id_symbol);
+
+  // id can be Undefined or Smi.
+  if (!id->IsSmi()) {
+    return false;
+  }
+
+  *debug_id = Handle<Smi>::cast(id)->value();
+  return true;
+}
+
+void SetDebugInfo(Isolate* isolate, Handle<PromiseReactionJobInfo> info,
+                  int status) {
+  int id;
+  PromiseDebugActionName name;
+
+  if (GetDebugIdForAsyncFunction(isolate, info, &id)) {
+    name = kDebugAsyncFunction;
+  } else {
+    id = isolate->GetNextDebugMicrotaskId();
+
+    DCHECK(status != v8::Promise::kPending);
+    name = status == v8::Promise::kFulfilled ? kDebugPromiseResolve
+                                             : kDebugPromiseReject;
+
+    isolate->debug()->OnAsyncTaskEvent(kDebugEnqueue, id, name);
+  }
+
+  info->set_debug_id(id);
+  info->set_debug_name(name);
+}
+
 void EnqueuePromiseReactionJob(Isolate* isolate,
                                Handle<PromiseReactionJobInfo> info,
-                               Handle<Object> status) {
+                               int status) {
   if (isolate->debug()->is_active()) {
-    MaybeHandle<Object> maybe_result;
-    Handle<Object> deferred_obj(info->deferred_promise(), isolate);
-
-    if (info->deferred_promise()->IsFixedArray()) {
-      deferred_obj = isolate->factory()->undefined_value();
-    }
-
-    Handle<Object> argv[] = {deferred_obj, status};
-    maybe_result = Execution::TryCall(
-        isolate, isolate->promise_debug_get_info(),
-        isolate->factory()->undefined_value(), arraysize(argv), argv);
-
-    Handle<Object> result;
-    if ((maybe_result).ToHandle(&result)) {
-      CHECK(result->IsJSArray());
-      Handle<JSArray> array = Handle<JSArray>::cast(result);
-      ElementsAccessor* accessor = array->GetElementsAccessor();
-      DCHECK(accessor->HasElement(array, 0));
-      DCHECK(accessor->HasElement(array, 1));
-      info->set_debug_id(*accessor->Get(array, 0));
-      info->set_debug_name(*accessor->Get(array, 1));
-    }
+    SetDebugInfo(isolate, info, status);
   }
+
   isolate->EnqueueMicrotask(info);
 }
 
@@ -101,11 +149,11 @@ void PromiseSet(Isolate* isolate, Handle<JSPromise> promise, int status,
   promise->set_reject_reactions(isolate->heap()->undefined_value());
 }
 
-void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
-                    Handle<Smi> status, Handle<Object> value) {
+void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise, int status,
+                    Handle<Object> value) {
   // Check if there are any callbacks.
   if (!promise->deferred_promise()->IsUndefined(isolate)) {
-    Handle<Object> tasks((status->value() == v8::Promise::kFulfilled)
+    Handle<Object> tasks((status == v8::Promise::kFulfilled)
                              ? promise->fulfill_reactions()
                              : promise->reject_reactions(),
                          isolate);
@@ -118,7 +166,7 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise,
     EnqueuePromiseReactionJob(isolate, info, status);
   }
 
-  PromiseSet(isolate, promise, status->value(), value);
+  PromiseSet(isolate, promise, status, value);
 }
 
 }  // namespace
@@ -131,9 +179,8 @@ RUNTIME_FUNCTION(Runtime_PromiseReject) {
   CONVERT_BOOLEAN_ARG_CHECKED(debug_event, 2);
 
   PromiseRejectEvent(isolate, promise, promise, reason, debug_event);
+  PromiseFulfill(isolate, promise, v8::Promise::kRejected, reason);
 
-  Handle<Smi> status(Smi::FromInt(v8::Promise::kRejected), isolate);
-  PromiseFulfill(isolate, promise, status, reason);
   return isolate->heap()->undefined_value();
 }
 
@@ -141,7 +188,7 @@ RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
   DCHECK(args.length() == 3);
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, status, 1);
+  CONVERT_SMI_ARG_CHECKED(status, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   PromiseFulfill(isolate, promise, status, value);
   return isolate->heap()->undefined_value();
@@ -151,7 +198,7 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);
   CONVERT_ARG_HANDLE_CHECKED(PromiseReactionJobInfo, info, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, status, 1);
+  CONVERT_SMI_ARG_CHECKED(status, 1);
   EnqueuePromiseReactionJob(isolate, info, status);
   return isolate->heap()->undefined_value();
 }
@@ -170,17 +217,12 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   PromiseUtils::CreateResolvingFunctions(
       isolate, promise, isolate->factory()->false_value(), &resolve, &reject);
 
-  Handle<Object> debug_id, debug_name;
+  int debug_id = kDebugPromiseFirstID;
+  PromiseDebugActionName debug_name = kDebugNotActive;
   if (isolate->debug()->is_active()) {
-    debug_id =
-        handle(Smi::FromInt(isolate->GetNextDebugMicrotaskId()), isolate);
-    debug_name = isolate->factory()->PromiseResolveThenableJob_string();
-    isolate->debug()->OnAsyncTaskEvent(isolate->factory()->enqueue_string(),
-                                       debug_id,
-                                       Handle<String>::cast(debug_name));
-  } else {
-    debug_id = isolate->factory()->undefined_value();
-    debug_name = isolate->factory()->undefined_value();
+    debug_id = isolate->GetNextDebugMicrotaskId();
+    debug_name = kDebugPromiseResolveThenableJob;
+    isolate->debug()->OnAsyncTaskEvent(kDebugEnqueue, debug_id, debug_name);
   }
 
   Handle<PromiseResolveThenableJobInfo> info =

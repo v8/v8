@@ -3258,31 +3258,27 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
 namespace {
 class PromiseDebugEventScope {
  public:
-  PromiseDebugEventScope(Isolate* isolate, Object* id, Object* name)
+  PromiseDebugEventScope(Isolate* isolate, int id, int name)
       : isolate_(isolate),
-        id_(id, isolate_),
-        name_(name, isolate_),
-        is_debug_active_(isolate_->debug()->is_active() && id_->IsNumber() &&
-                         name_->IsString()) {
+        id_(id),
+        name_(static_cast<PromiseDebugActionName>(name)),
+        is_debug_active_(isolate_->debug()->is_active() &&
+                         id != kDebugPromiseNoID && name_ != kDebugNotActive) {
     if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(
-          isolate_->factory()->will_handle_string(), id_,
-          Handle<String>::cast(name_));
+      isolate_->debug()->OnAsyncTaskEvent(kDebugWillHandle, id_, name_);
     }
   }
 
   ~PromiseDebugEventScope() {
     if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(
-          isolate_->factory()->did_handle_string(), id_,
-          Handle<String>::cast(name_));
+      isolate_->debug()->OnAsyncTaskEvent(kDebugDidHandle, id_, name_);
     }
   }
 
  private:
   Isolate* isolate_;
-  Handle<Object> id_;
-  Handle<Object> name_;
+  int id_;
+  PromiseDebugActionName name_;
   bool is_debug_active_;
 };
 }  // namespace

@@ -407,7 +407,7 @@ typedef List<HeapObject*> DebugObjectCache;
   V(v8::DeserializeInternalFieldsCallback,                                    \
     deserialize_internal_fields_callback, nullptr)                            \
   V(int, pending_microtask_count, 0)                                          \
-  V(int, debug_microtask_count, 0)                                            \
+  V(int, debug_microtask_count, kDebugPromiseFirstID)                         \
   V(HStatistics*, hstatistics, nullptr)                                       \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(HTracer*, htracer, nullptr)                                               \

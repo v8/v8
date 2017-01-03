@@ -1656,9 +1656,8 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   return CallFunction("MakeCompileEvent", arraysize(argv), argv);
 }
 
-MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<String> type,
-                                              Handle<Object> id,
-                                              Handle<String> name) {
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<Smi> type, Handle<Smi> id,
+                                              Handle<Smi> name) {
   DCHECK(id->IsNumber());
   // Create the async task event object.
   Handle<Object> argv[] = {type, id, name};
@@ -1779,9 +1778,8 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
 }
 
-void Debug::OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
-                             Handle<String> name) {
-  DCHECK(id->IsNumber());
+void Debug::OnAsyncTaskEvent(PromiseDebugActionType type, int id,
+                             PromiseDebugActionName name) {
   if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
@@ -1791,7 +1789,11 @@ void Debug::OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
   // Create the script collected state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeAsyncTaskEvent(type, id, name).ToHandle(&event_data)) return;
+  if (!MakeAsyncTaskEvent(handle(Smi::FromInt(type), isolate_),
+                          handle(Smi::FromInt(id), isolate_),
+                          handle(Smi::FromInt(name), isolate_))
+           .ToHandle(&event_data))
+    return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data),

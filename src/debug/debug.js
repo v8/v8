@@ -1088,8 +1088,28 @@ function MakeScriptObject_(script, include_source) {
 }
 
 
+function PromiseDebugActionNameToString(name) {
+  switch (name) {
+    case kAsyncFunction: return "async function";
+    case kPromiseResolve: return "Promise.resolve";
+    case kPromiseReject: return "Promise.reject";
+    case kPromiseResolveThenableJob: return "PromiseResolveThenableJob";
+  }
+}
+
+function PromiseDebugActionTypeToString(type) {
+  switch (type) {
+    case kEnqueue: return "enqueue";
+    case kEnqueueRecurring: return "enqueueRecurring";
+    case kCancel: return "cancel";
+    case kWillHandle: return "willHandle";
+    case kDidHandle: return "didHandle";
+  }
+}
+
 function MakeAsyncTaskEvent(type, id, name) {
-  return new AsyncTaskEvent(type, id, name);
+  return new AsyncTaskEvent(PromiseDebugActionTypeToString(type),
+                            id, PromiseDebugActionNameToString(name));
 }
 
 

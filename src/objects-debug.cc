@@ -1033,8 +1033,8 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
   CHECK(then()->IsJSReceiver());
   CHECK(resolve()->IsJSFunction());
   CHECK(reject()->IsJSFunction());
-  CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
-  CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
+  VerifySmiField(kDebugIdOffset);
+  VerifySmiField(kDebugNameOffset);
   CHECK(context()->IsContext());
 }
 
@@ -1053,8 +1053,8 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   CHECK(deferred_on_reject()->IsUndefined(isolate) ||
         deferred_on_reject()->IsCallable() ||
         deferred_on_reject()->IsFixedArray());
-  CHECK(debug_id()->IsNumber() || debug_id()->IsUndefined(isolate));
-  CHECK(debug_name()->IsString() || debug_name()->IsUndefined(isolate));
+  VerifySmiField(kDebugIdOffset);
+  VerifySmiField(kDebugNameOffset);
   CHECK(context()->IsContext());
 }
 

@@ -12,48 +12,15 @@
 // Imports
 
 var InternalArray = utils.InternalArray;
-var promiseAsyncStackIDSymbol =
-    utils.ImportNow("promise_async_stack_id_symbol");
 var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
     utils.ImportNow("promise_forwarding_handler_symbol");
-var ObjectHasOwnProperty; // Used by HAS_PRIVATE.
 var GlobalPromise = global.Promise;
-
-utils.Import(function(from) {
-  ObjectHasOwnProperty = from.ObjectHasOwnProperty;
-});
 
 // -------------------------------------------------------------------
 
 // Core functionality.
-
-function PromiseDebugGetInfo(deferred_promise, status) {
-  var id, name, instrumenting = DEBUG_IS_ACTIVE;
-
-  if (instrumenting) {
-    // In an async function, reuse the existing stack related to the outer
-    // Promise. Otherwise, e.g. in a direct call to then, save a new stack.
-    // Promises with multiple reactions with one or more of them being async
-    // functions will not get a good stack trace, as async functions require
-    // different stacks from direct Promise use, but we save and restore a
-    // stack once for all reactions. TODO(littledan): Improve this case.
-    if (!IS_UNDEFINED(deferred_promise) &&
-        HAS_PRIVATE(deferred_promise, promiseHandledBySymbol) &&
-        HAS_PRIVATE(GET_PRIVATE(deferred_promise, promiseHandledBySymbol),
-                    promiseAsyncStackIDSymbol)) {
-      id = GET_PRIVATE(GET_PRIVATE(deferred_promise, promiseHandledBySymbol),
-                       promiseAsyncStackIDSymbol);
-      name = "async function";
-    } else {
-      id = %DebugNextMicrotaskId();
-      name = status === kFulfilled ? "Promise.resolve" : "Promise.reject";
-      %DebugAsyncTaskEvent("enqueue", id, name);
-    }
-  }
-  return [id, name];
-}
 
 function PromiseIdResolveHandler(x) { return x; }
 function PromiseIdRejectHandler(r) { %_ReThrow(r); }
@@ -239,7 +206,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "promise_reject", DoRejectPromise,
   // TODO(gsathya): Remove this once we update the promise builtin.
   "promise_internal_reject", RejectPromise,
-  "promise_debug_get_info", PromiseDebugGetInfo,
   "promise_id_resolve_handler", PromiseIdResolveHandler,
   "promise_id_reject_handler", PromiseIdRejectHandler
 ]);
