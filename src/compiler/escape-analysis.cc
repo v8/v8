@@ -201,7 +201,7 @@ class VirtualObject : public ZoneObject {
   }
   bool UpdateFrom(const VirtualObject& other);
   bool MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                 CommonOperatorBuilder* common);
+                 CommonOperatorBuilder* common, bool initialMerge);
   void SetObjectState(Node* node) { object_state_ = node; }
   Node* GetObjectState() const { return object_state_; }
   bool IsCopyRequired() const { return status_ & kCopyRequired; }
@@ -479,11 +479,13 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
 }
 
 bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                              CommonOperatorBuilder* common) {
+                              CommonOperatorBuilder* common,
+                              bool initialMerge) {
   DCHECK(at->opcode() == IrOpcode::kEffectPhi ||
          at->opcode() == IrOpcode::kPhi);
   bool changed = false;
   for (size_t i = 0; i < field_count(); ++i) {
+    if (!initialMerge && GetField(i) == nullptr) continue;
     Node* field = cache->GetFields(i);
     if (field && !IsCreatedPhi(i)) {
       changed = changed || GetField(i) != field;
@@ -526,7 +528,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
       }
     }
     if (cache->objects().size() == cache->states().size()) {
+      bool initialMerge = false;
       if (!mergeObject) {
+        initialMerge = true;
         VirtualObject* obj = new (zone)
             VirtualObject(cache->objects().front()->id(), this, zone, fields,
                           cache->objects().front()->IsInitialized());
@@ -551,7 +555,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         PrintF("\n");
       }
 #endif  // DEBUG
-      changed = mergeObject->MergeFrom(cache, at, graph, common) || changed;
+      changed =
+          mergeObject->MergeFrom(cache, at, graph, common, initialMerge) ||
+          changed;
     } else {
       if (mergeObject) {
         TRACE("  Alias %d, virtual object removed\n", alias);
