@@ -163,11 +163,7 @@ class CompilationJob {
 
   CompilationJob(Isolate* isolate, CompilationInfo* info,
                  const char* compiler_name,
-                 State initial_state = State::kReadyToPrepare)
-      : info_(info),
-        compiler_name_(compiler_name),
-        state_(initial_state),
-        stack_limit_(isolate->stack_guard()->real_climit()) {}
+                 State initial_state = State::kReadyToPrepare);
   virtual ~CompilationJob() {}
 
   // Prepare the compile job. Must be called on the main thread.
@@ -196,6 +192,11 @@ class CompilationJob {
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
   uintptr_t stack_limit() const { return stack_limit_; }
 
+  bool executed_on_background_thread() const {
+    DCHECK_IMPLIES(!can_execute_on_background_thread(),
+                   !executed_on_background_thread_);
+    return executed_on_background_thread_;
+  }
   State state() const { return state_; }
   CompilationInfo* info() const { return info_; }
   Isolate* isolate() const;
@@ -212,12 +213,14 @@ class CompilationJob {
 
  private:
   CompilationInfo* info_;
+  ThreadId isolate_thread_id_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
   State state_;
   uintptr_t stack_limit_;
+  bool executed_on_background_thread_;
 
   MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {

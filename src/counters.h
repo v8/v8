@@ -691,7 +691,12 @@ class RuntimeCallTimer final {
   V(CompileDeserialize)                             \
   V(CompileEval)                                    \
   V(CompileFullCode)                                \
+  V(CompileGetFromOptimizedCodeMap)                 \
+  V(CompileGetUnoptimizedCode)                      \
+  V(CompileAnalyse)                                 \
   V(CompileIgnition)                                \
+  V(CompileBackgroundIgnition)                      \
+  V(CompileIgnitionFinalization)                    \
   V(CompilerDispatcher)                             \
   V(CompileSerialize)                               \
   V(DeoptimizeCode)                                 \
