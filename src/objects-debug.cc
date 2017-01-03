@@ -1027,7 +1027,6 @@ void Box::BoxVerify() {
 }
 
 void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
-  Isolate* isolate = GetIsolate();
   CHECK(IsPromiseResolveThenableJobInfo());
   CHECK(thenable()->IsJSReceiver());
   CHECK(then()->IsJSReceiver());
