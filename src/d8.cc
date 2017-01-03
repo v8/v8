@@ -27,6 +27,7 @@
 #include "src/base/debug/stack_trace.h"
 #include "src/base/logging.h"
 #include "src/base/platform/platform.h"
+#include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
 #include "src/interpreter/interpreter.h"
@@ -2595,6 +2596,8 @@ void Shell::CollectGarbage(Isolate* isolate) {
 void Shell::EmptyMessageQueues(Isolate* isolate) {
   if (!i::FLAG_verify_predictable) {
     while (v8::platform::PumpMessageLoop(g_platform, isolate)) continue;
+    v8::platform::RunIdleTasks(g_platform, isolate,
+                               50.0 / base::Time::kMillisecondsPerSecond);
   }
 }
 
