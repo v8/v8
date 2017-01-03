@@ -24,3 +24,11 @@ assertEquals(2, my_global);
 
 eval("let foo = 1; function lazy() { foo = 2; } lazy(); my_global = foo;");
 assertEquals(my_global, 2);
+
+// Lexical variable inside a subscope in eval.
+eval(`{ let foo = 5;
+        function not_lazy() { foo = 6; }
+        not_lazy();
+        my_global = foo;
+      }`);
+assertEquals(my_global, 6);
