@@ -950,6 +950,14 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
 
 }  // namespace
 
+// ES6 section 20.3.3.1 Date.now ( )
+Reduction JSBuiltinReducer::ReduceDateNow(Node* node) {
+  NodeProperties::RemoveValueInputs(node);
+  NodeProperties::ChangeOp(
+      node, javascript()->CallRuntime(Runtime::kDateCurrentTime));
+  return Changed(node);
+}
+
 // ES6 section 20.3.4.10 Date.prototype.getTime ( )
 Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -1858,6 +1866,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceArrayPop(node);
     case kArrayPush:
       return ReduceArrayPush(node);
+    case kDateNow:
+      return ReduceDateNow(node);
     case kDateGetTime:
       return ReduceDateGetTime(node);
     case kGlobalIsFinite:
