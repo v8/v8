@@ -1542,14 +1542,6 @@ bool PipelineImpl::CreateGraph() {
     // Lower JSOperators where we can determine types.
     Run<TypedLoweringPhase>();
     RunPrintAndVerify("Lowered typed");
-
-    if (data->info()->is_loop_peeling_enabled()) {
-      Run<LoopPeelingPhase>();
-      RunPrintAndVerify("Loops peeled", true);
-    } else {
-      Run<LoopExitEliminationPhase>();
-      RunPrintAndVerify("Loop exits eliminated", true);
-    }
   }
 
   // Do some hacky things to prepare for the optimization phase.
@@ -1563,6 +1555,14 @@ bool PipelineImpl::CreateGraph() {
 
 bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
+
+  if (data->info()->is_loop_peeling_enabled()) {
+    Run<LoopPeelingPhase>();
+    RunPrintAndVerify("Loops peeled", true);
+  } else {
+    Run<LoopExitEliminationPhase>();
+    RunPrintAndVerify("Loop exits eliminated", true);
+  }
 
   if (!data->is_asm()) {
     if (FLAG_turbo_load_elimination) {
