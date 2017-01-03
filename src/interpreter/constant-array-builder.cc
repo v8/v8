@@ -56,14 +56,20 @@ void ConstantArrayBuilder::ConstantArraySlice::InsertAt(size_t index,
   constants_[index - start_index()] = object;
 }
 
-bool ConstantArrayBuilder::ConstantArraySlice::AllElementsAreUnique() const {
+#if DEBUG
+void ConstantArrayBuilder::ConstantArraySlice::CheckAllElementsAreUnique()
+    const {
   std::set<Object*> elements;
   for (auto constant : constants_) {
-    if (elements.find(*constant) != elements.end()) return false;
+    if (elements.find(*constant) != elements.end()) {
+      std::ostringstream os;
+      os << "Duplicate constant found: " << Brief(*constant);
+      FATAL(os.str().c_str());
+    }
     elements.insert(*constant);
   }
-  return true;
 }
+#endif
 
 STATIC_CONST_MEMBER_DEFINITION const size_t ConstantArrayBuilder::k8BitCapacity;
 STATIC_CONST_MEMBER_DEFINITION const size_t
@@ -135,10 +141,12 @@ Handle<FixedArray> ConstantArrayBuilder::ToFixedArray(Isolate* isolate) {
     }
     DCHECK(array_index == 0 ||
            base::bits::IsPowerOfTwo32(static_cast<uint32_t>(array_index)));
+#if DEBUG
     // Different slices might contain the same element due to reservations, but
     // all elements within a slice should be unique. If this DCHECK fails, then
     // the AST nodes are not being internalized within a CanonicalHandleScope.
-    DCHECK(slice->AllElementsAreUnique());
+    slice->CheckAllElementsAreUnique();
+#endif
     // Copy objects from slice into array.
     for (size_t i = 0; i < slice->size(); ++i) {
       fixed_array->set(array_index++, *slice->At(slice->start_index() + i));
