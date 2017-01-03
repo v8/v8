@@ -600,11 +600,11 @@ void DeclarationScope::DeclareThis(AstValueFactory* ast_value_factory) {
   DCHECK(is_declaration_scope());
   DCHECK(has_this_declaration());
 
-  bool subclass_constructor = IsSubclassConstructor(function_kind_);
-  Variable* var = Declare(
-      zone(), ast_value_factory->this_string(),
-      subclass_constructor ? CONST : VAR, THIS_VARIABLE,
-      subclass_constructor ? kNeedsInitialization : kCreatedInitialized);
+  bool derived_constructor = IsDerivedConstructor(function_kind_);
+  Variable* var =
+      Declare(zone(), ast_value_factory->this_string(),
+              derived_constructor ? CONST : VAR, THIS_VARIABLE,
+              derived_constructor ? kNeedsInitialization : kCreatedInitialized);
   receiver_ = var;
 }
 
@@ -1742,8 +1742,7 @@ bool AccessNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   }
 
   if (var->is_this()) {
-    DCHECK(
-        IsSubclassConstructor(scope->GetDeclarationScope()->function_kind()));
+    DCHECK(IsDerivedConstructor(scope->GetDeclarationScope()->function_kind()));
     // TODO(littledan): implement 'this' hole check elimination.
     return true;
   }

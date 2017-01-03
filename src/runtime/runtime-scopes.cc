@@ -410,7 +410,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 template <typename T>
 Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
                                     T parameters, int argument_count) {
-  CHECK(!IsSubclassConstructor(callee->shared()->kind()));
+  CHECK(!IsDerivedConstructor(callee->shared()->kind()));
   DCHECK(callee->shared()->has_simple_parameters());
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);

@@ -2222,7 +2222,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       if (!*is_static && impl()->IsConstructor(name)) {
         *has_seen_constructor = true;
-        kind = has_extends ? FunctionKind::kSubclassConstructor
+        kind = has_extends ? FunctionKind::kDerivedConstructor
                            : FunctionKind::kBaseConstructor;
       }
 
@@ -3338,7 +3338,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
-    if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
+    if (!is_new && peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       return impl()->NewSuperCallReference(pos);
@@ -4912,13 +4912,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   ExpressionT return_value = impl()->EmptyExpression();
   if (scanner()->HasAnyLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
       tok == Token::RBRACE || tok == Token::EOS) {
-    if (IsSubclassConstructor(function_state_->kind())) {
+    if (IsDerivedConstructor(function_state_->kind())) {
       return_value = impl()->ThisExpression(loc.beg_pos);
     } else {
       return_value = impl()->GetLiteralUndefined(position());
     }
   } else {
-    if (IsSubclassConstructor(function_state_->kind())) {
+    if (IsDerivedConstructor(function_state_->kind())) {
       // Because of the return code rewriting that happens in case of a subclass
       // constructor we don't want to accept tail calls, therefore we don't set
       // ReturnExprScope to kInsideValidReturnStatement here.

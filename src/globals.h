@@ -1085,7 +1085,7 @@ enum FunctionKind : uint16_t {
   kConciseMethod = 1 << 2,
   kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kDefaultConstructor = 1 << 3,
-  kSubclassConstructor = 1 << 4,
+  kDerivedConstructor = 1 << 4,
   kBaseConstructor = 1 << 5,
   kGetterFunction = 1 << 6,
   kSetterFunction = 1 << 7,
@@ -1093,9 +1093,9 @@ enum FunctionKind : uint16_t {
   kModule = 1 << 9,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
-  kDefaultSubclassConstructor = kDefaultConstructor | kSubclassConstructor,
+  kDefaultDerivedConstructor = kDefaultConstructor | kDerivedConstructor,
   kClassConstructor =
-      kBaseConstructor | kSubclassConstructor | kDefaultConstructor,
+      kBaseConstructor | kDerivedConstructor | kDefaultConstructor,
   kAsyncArrowFunction = kArrowFunction | kAsyncFunction,
   kAsyncConciseMethod = kAsyncFunction | kConciseMethod
 };
@@ -1111,9 +1111,9 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kSetterFunction ||
          kind == FunctionKind::kAccessorFunction ||
          kind == FunctionKind::kDefaultBaseConstructor ||
-         kind == FunctionKind::kDefaultSubclassConstructor ||
+         kind == FunctionKind::kDefaultDerivedConstructor ||
          kind == FunctionKind::kBaseConstructor ||
-         kind == FunctionKind::kSubclassConstructor ||
+         kind == FunctionKind::kDerivedConstructor ||
          kind == FunctionKind::kAsyncFunction ||
          kind == FunctionKind::kAsyncArrowFunction ||
          kind == FunctionKind::kAsyncConciseMethod;
@@ -1177,10 +1177,9 @@ inline bool IsBaseConstructor(FunctionKind kind) {
   return kind & FunctionKind::kBaseConstructor;
 }
 
-
-inline bool IsSubclassConstructor(FunctionKind kind) {
+inline bool IsDerivedConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
-  return kind & FunctionKind::kSubclassConstructor;
+  return kind & FunctionKind::kDerivedConstructor;
 }
 
 

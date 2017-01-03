@@ -13208,7 +13208,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
     // Link initial map and constructor function if the new.target is actually a
     // subclass constructor.
-    if (IsSubclassConstructor(function->shared()->kind())) {
+    if (IsDerivedConstructor(function->shared()->kind())) {
       Handle<Object> prototype(function->instance_prototype(), isolate);
       InstanceType instance_type = constructor_initial_map->instance_type();
       DCHECK(CanSubclassHaveInobjectProperties(instance_type));
@@ -13892,7 +13892,7 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
     JSFunction* func = JSFunction::cast(current);
     SharedFunctionInfo* shared = func->shared();
     expected_nof_properties += shared->expected_nof_properties();
-    if (!IsSubclassConstructor(shared->kind())) {
+    if (!IsDerivedConstructor(shared->kind())) {
       break;
     }
   }

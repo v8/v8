@@ -3946,7 +3946,7 @@ void HOptimizedGraphBuilder::VisitExpressions(ZoneList<Expression*>* exprs,
 
 
 bool HOptimizedGraphBuilder::BuildGraph() {
-  if (IsSubclassConstructor(current_info()->literal()->kind())) {
+  if (IsDerivedConstructor(current_info()->literal()->kind())) {
     Bailout(kSuperReference);
     return false;
   }
@@ -9671,7 +9671,7 @@ bool HOptimizedGraphBuilder::TryInlineArrayCall(Expression* expression,
 // Checks whether allocation using the given constructor can be inlined.
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
-         !IsSubclassConstructor(constructor->shared()->kind()) &&
+         !IsDerivedConstructor(constructor->shared()->kind()) &&
          constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
          constructor->initial_map()->instance_size() <
              HAllocate::kMaxInlineSize;

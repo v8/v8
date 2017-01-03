@@ -172,7 +172,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   const int parameter_count = 0;
   if (name == nullptr) name = ast_value_factory()->empty_string();
 
-  FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
+  FunctionKind kind = call_super ? FunctionKind::kDefaultDerivedConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
   DeclarationScope* function_scope = NewFunctionScope(kind);
   SetLanguageMode(function_scope, STRICT);
@@ -935,8 +935,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       }
     } else if (IsDefaultConstructor(kind)) {
       DCHECK_EQ(scope(), outer);
-      bool is_subclass_constructor = IsSubclassConstructor(kind);
-      result = DefaultConstructor(raw_name, is_subclass_constructor,
+      result = DefaultConstructor(raw_name, IsDerivedConstructor(kind),
                                   info->start_position(), info->end_position());
     } else {
       result = ParseFunctionLiteral(
@@ -1578,7 +1577,7 @@ bool Parser::ContainsLabel(ZoneList<const AstRawString*>* labels,
 }
 
 Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
-  if (IsSubclassConstructor(function_state_->kind())) {
+  if (IsDerivedConstructor(function_state_->kind())) {
     // For subclass constructors we need to return this in case of undefined
     // return a Smi (transformed into an exception in the ConstructStub)
     // for a non object.
@@ -3195,7 +3194,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
       ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
 
-    if (IsSubclassConstructor(kind)) {
+    if (IsDerivedConstructor(kind)) {
       body->Add(factory()->NewReturnStatement(ThisExpression(kNoSourcePosition),
                                               kNoSourcePosition),
                 zone());
