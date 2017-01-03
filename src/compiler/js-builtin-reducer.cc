@@ -557,7 +557,7 @@ Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
       dependencies()->AssumePropertyCell(
           factory()->array_buffer_neutering_protector());
     } else {
-      // Deoptimize if the array byuffer was neutered.
+      // Deoptimize if the array buffer was neutered.
       Node* check1 = efalse0 = graph()->NewNode(
           simplified()->ArrayBufferWasNeutered(), buffer, efalse0, if_false0);
       check1 = graph()->NewNode(simplified()->BooleanNot(), check1);

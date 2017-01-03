@@ -2277,6 +2277,9 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
   typedef CodeStubAssembler::Variable Variable;
   CodeStubAssembler assembler(state);
 
+  Handle<String> operation = assembler.factory()->NewStringFromAsciiChecked(
+      "Array Iterator.prototype.next", TENURED);
+
   Node* iterator = assembler.Parameter(0);
   Node* context = assembler.Parameter(3);
 
@@ -2318,7 +2321,8 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
       iterator, JSArrayIterator::kIteratedObjectMapOffset);
   Node* array_map = assembler.LoadMap(array);
 
-  Label if_isfastarray(&assembler), if_isnotfastarray(&assembler);
+  Label if_isfastarray(&assembler), if_isnotfastarray(&assembler),
+      if_isdetached(&assembler, Label::kDeferred);
 
   assembler.Branch(assembler.WordEqual(orig_map, array_map), &if_isfastarray,
                    &if_isnotfastarray);
@@ -2529,35 +2533,13 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
 
     assembler.Bind(&if_istypedarray);
     {
-      Node* length = nullptr;
-      {
-        Variable var_length(&assembler, MachineRepresentation::kTagged);
-        Label if_isdetached(&assembler, Label::kDeferred),
-            if_isnotdetached(&assembler), done(&assembler);
+      Node* buffer =
+          assembler.LoadObjectField(array, JSTypedArray::kBufferOffset);
+      assembler.GotoIf(assembler.IsDetachedBuffer(buffer), &if_isdetached);
 
-        Node* buffer =
-            assembler.LoadObjectField(array, JSTypedArray::kBufferOffset);
-        assembler.Branch(assembler.IsDetachedBuffer(buffer), &if_isdetached,
-                         &if_isnotdetached);
+      Node* length =
+          assembler.LoadObjectField(array, JSTypedArray::kLengthOffset);
 
-        assembler.Bind(&if_isnotdetached);
-        {
-          var_length.Bind(
-              assembler.LoadObjectField(array, JSTypedArray::kLengthOffset));
-          assembler.Goto(&done);
-        }
-
-        assembler.Bind(&if_isdetached);
-        {
-          // TODO(caitp): If IsDetached(buffer) is true, throw a TypeError, per
-          // https://github.com/tc39/ecma262/issues/713
-          var_length.Bind(assembler.SmiConstant(Smi::kZero));
-          assembler.Goto(&done);
-        }
-
-        assembler.Bind(&done);
-        length = var_length.value();
-      }
       CSA_ASSERT(&assembler, assembler.TaggedIsSmi(length));
       CSA_ASSERT(&assembler, assembler.TaggedIsSmi(index));
 
@@ -2755,9 +2737,16 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
     // The {receiver} is not a valid JSArrayIterator.
     Node* result = assembler.CallRuntime(
         Runtime::kThrowIncompatibleMethodReceiver, context,
-        assembler.HeapConstant(assembler.factory()->NewStringFromAsciiChecked(
-            "Array Iterator.prototype.next", TENURED)),
-        iterator);
+        assembler.HeapConstant(operation), iterator);
+    assembler.Return(result);
+  }
+
+  assembler.Bind(&if_isdetached);
+  {
+    Node* message = assembler.SmiConstant(MessageTemplate::kDetachedOperation);
+    Node* result =
+        assembler.CallRuntime(Runtime::kThrowTypeError, context, message,
+                              assembler.HeapConstant(operation));
     assembler.Return(result);
   }
 }
