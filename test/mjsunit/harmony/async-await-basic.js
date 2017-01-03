@@ -144,18 +144,32 @@ assertEquals(1, AsyncFunction.length);
 
 // Let F be ! FunctionAllocate(functionPrototype, Strict, "non-constructor")
 async function asyncNonConstructorDecl() {}
-assertThrows(
-    () => new asyncNonConstructorDecl(), TypeError);
-assertThrows(
-    () => new (async function() {}), TypeError);
+assertThrows(() => new asyncNonConstructorDecl(), TypeError);
+assertThrows(() => asyncNonConstructorDecl.caller, TypeError);
+assertThrows(() => asyncNonConstructorDecl.arguments, TypeError);
+
+assertThrows(() => new (async function() {}), TypeError);
+assertThrows(() => (async function() {}).caller, TypeError);
+assertThrows(() => (async function() {}).arguments, TypeError);
+
 assertThrows(
     () => new ({ async nonConstructor() {} }).nonConstructor(), TypeError);
 assertThrows(
-    () => new (() => "not a constructor!"), TypeError);
+    () => ({ async nonConstructor() {} }).nonConstructor.caller, TypeError);
 assertThrows(
-    () => new (AsyncFunction()), TypeError);
-assertThrows(
-    () => new (new AsyncFunction()), TypeError);
+    () => ({ async nonConstructor() {} }).nonConstructor.arguments, TypeError);
+
+assertThrows(() => new (() => "not a constructor!"), TypeError);
+assertThrows(() => (() => 1).caller, TypeError);
+assertThrows(() => (() => 1).arguments, TypeError);
+
+assertThrows(() => new (AsyncFunction()), TypeError);
+assertThrows(() => AsyncFunction().caller, TypeError);
+assertThrows(() => AsyncFunction().arguments, TypeError);
+
+assertThrows(() => new (new AsyncFunction()), TypeError);
+assertThrows(() => (new AsyncFunction()).caller, TypeError);
+assertThrows(() => (new AsyncFunction()).arguments, TypeError);
 
 // Normal completion
 async function asyncDecl() { return "test"; }

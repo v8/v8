@@ -754,21 +754,11 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
   // 04-14-15, section 25.2.4.3).
   Handle<Map> strict_function_map(strict_function_map_writable_prototype_);
   // Generator functions do not have "caller" or "arguments" accessors.
-  Handle<Map> sloppy_generator_function_map =
-      Map::Copy(strict_function_map, "SloppyGeneratorFunction");
-  sloppy_generator_function_map->set_is_constructor(false);
-  Map::SetPrototype(sloppy_generator_function_map,
-                    generator_function_prototype);
-  native_context()->set_sloppy_generator_function_map(
-      *sloppy_generator_function_map);
-
-  Handle<Map> strict_generator_function_map =
-      Map::Copy(strict_function_map, "StrictGeneratorFunction");
-  strict_generator_function_map->set_is_constructor(false);
-  Map::SetPrototype(strict_generator_function_map,
-                    generator_function_prototype);
-  native_context()->set_strict_generator_function_map(
-      *strict_generator_function_map);
+  Handle<Map> generator_function_map =
+      Map::Copy(strict_function_map, "GeneratorFunction");
+  generator_function_map->set_is_constructor(false);
+  Map::SetPrototype(generator_function_map, generator_function_prototype);
+  native_context()->set_generator_function_map(*generator_function_map);
 
   Handle<JSFunction> object_function(native_context()->object_function());
   Handle<Map> generator_object_prototype_map = Map::Create(isolate(), 0);
@@ -790,17 +780,11 @@ void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
 
   Handle<Map> strict_function_map(
       native_context()->strict_function_without_prototype_map());
-  Handle<Map> sloppy_async_function_map =
-      Map::Copy(strict_function_map, "SloppyAsyncFunction");
-  sloppy_async_function_map->set_is_constructor(false);
-  Map::SetPrototype(sloppy_async_function_map, async_function_prototype);
-  native_context()->set_sloppy_async_function_map(*sloppy_async_function_map);
-
-  Handle<Map> strict_async_function_map =
-      Map::Copy(strict_function_map, "StrictAsyncFunction");
-  strict_async_function_map->set_is_constructor(false);
-  Map::SetPrototype(strict_async_function_map, async_function_prototype);
-  native_context()->set_strict_async_function_map(*strict_async_function_map);
+  Handle<Map> async_function_map =
+      Map::Copy(strict_function_map, "AsyncFunction");
+  async_function_map->set_is_constructor(false);
+  Map::SetPrototype(async_function_map, async_function_prototype);
+  native_context()->set_async_function_map(*async_function_map);
 }
 
 void Genesis::CreateJSProxyMaps() {
@@ -3137,7 +3121,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                         iterator_prototype, NONE);
 
   {
-    PrototypeIterator iter(native_context->sloppy_generator_function_map());
+    PrototypeIterator iter(native_context->generator_function_map());
     Handle<JSObject> generator_function_prototype(iter.GetCurrent<JSObject>());
 
     JSObject::AddProperty(
@@ -3150,7 +3134,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         generator_function_prototype, Builtins::kGeneratorFunctionConstructor,
         kUseStrictFunctionMap);
     generator_function_function->set_prototype_or_initial_map(
-        native_context->sloppy_generator_function_map());
+        native_context->generator_function_map());
     generator_function_function->shared()->DontAdaptArguments();
     generator_function_function->shared()->SetConstructStub(
         *isolate->builtins()->GeneratorFunctionConstructor());
@@ -3166,9 +3150,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         generator_function_function,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    native_context->sloppy_generator_function_map()->SetConstructor(
-        *generator_function_function);
-    native_context->strict_generator_function_map()->SetConstructor(
+    native_context->generator_function_map()->SetConstructor(
         *generator_function_function);
   }
 
@@ -3322,7 +3304,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     }
 
     {
-      PrototypeIterator iter(native_context->sloppy_async_function_map());
+      PrototypeIterator iter(native_context->async_function_map());
       Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
 
       static const bool kUseStrictFunctionMap = true;

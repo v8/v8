@@ -9111,12 +9111,13 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   Isolate* isolate = map->GetIsolate();
   // Strict function maps have Function as a constructor but the
   // Function's initial map is a sloppy function map. Same holds for
-  // GeneratorFunction and its initial map.
+  // GeneratorFunction / AsyncFunction and its initial map.
   Object* constructor = map->GetConstructor();
   DCHECK(constructor->IsJSFunction());
   DCHECK(*map == JSFunction::cast(constructor)->initial_map() ||
          *map == *isolate->strict_function_map() ||
-         *map == *isolate->strict_generator_function_map());
+         *map == *isolate->generator_function_map() ||
+         *map == *isolate->async_function_map());
 #endif
   // Initial maps must always own their descriptors and it's descriptor array
   // does not contain descriptors that do not belong to the map.

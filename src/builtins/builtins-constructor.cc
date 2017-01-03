@@ -84,17 +84,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   Bind(&if_generator);
   {
-    map_index.Bind(SelectIntPtrConstant(
-        is_strict, Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX,
-        Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX));
+    map_index.Bind(IntPtrConstant(Context::GENERATOR_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 
   Bind(&if_async);
   {
-    map_index.Bind(SelectIntPtrConstant(
-        is_strict, Context::STRICT_ASYNC_FUNCTION_MAP_INDEX,
-        Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX));
+    map_index.Bind(IntPtrConstant(Context::ASYNC_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 

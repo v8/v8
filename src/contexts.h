@@ -306,24 +306,22 @@ enum ContextLookupFlags {
   V(SET_ITERATOR_MAP_INDEX, Map, set_iterator_map)                             \
   V(SHARED_ARRAY_BUFFER_FUN_INDEX, JSFunction, shared_array_buffer_fun)        \
   V(SLOPPY_ARGUMENTS_MAP_INDEX, Map, sloppy_arguments_map)                     \
-  V(SLOPPY_ASYNC_FUNCTION_MAP_INDEX, Map, sloppy_async_function_map)           \
   V(SLOPPY_FUNCTION_MAP_INDEX, Map, sloppy_function_map)                       \
   V(SLOPPY_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     sloppy_function_without_prototype_map)                                     \
   V(SLOPPY_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX, Map,                    \
     sloppy_function_with_readonly_prototype_map)                               \
-  V(SLOPPY_GENERATOR_FUNCTION_MAP_INDEX, Map, sloppy_generator_function_map)   \
   V(SLOW_ALIASED_ARGUMENTS_MAP_INDEX, Map, slow_aliased_arguments_map)         \
   V(SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP, Map,                                  \
     slow_object_with_null_prototype_map)                                       \
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, UnseededNumberDictionary,        \
     slow_template_instantiations_cache)                                        \
   V(STRICT_ARGUMENTS_MAP_INDEX, Map, strict_arguments_map)                     \
-  V(STRICT_ASYNC_FUNCTION_MAP_INDEX, Map, strict_async_function_map)           \
+  V(ASYNC_FUNCTION_MAP_INDEX, Map, async_function_map)                         \
   V(STRICT_FUNCTION_MAP_INDEX, Map, strict_function_map)                       \
   V(STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map,                          \
     strict_function_without_prototype_map)                                     \
-  V(STRICT_GENERATOR_FUNCTION_MAP_INDEX, Map, strict_generator_function_map)   \
+  V(GENERATOR_FUNCTION_MAP_INDEX, Map, generator_function_map)                 \
   V(CLASS_FUNCTION_MAP_INDEX, Map, class_function_map)                         \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function)                        \
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
@@ -639,13 +637,11 @@ class Context: public FixedArray {
   static int FunctionMapIndex(LanguageMode language_mode, FunctionKind kind) {
     // Note: Must be kept in sync with the FastNewClosure builtin.
     if (IsGeneratorFunction(kind)) {
-      return is_strict(language_mode) ? STRICT_GENERATOR_FUNCTION_MAP_INDEX
-                                      : SLOPPY_GENERATOR_FUNCTION_MAP_INDEX;
+      return GENERATOR_FUNCTION_MAP_INDEX;
     }
 
     if (IsAsyncFunction(kind)) {
-      return is_strict(language_mode) ? STRICT_ASYNC_FUNCTION_MAP_INDEX
-                                      : SLOPPY_ASYNC_FUNCTION_MAP_INDEX;
+      return ASYNC_FUNCTION_MAP_INDEX;
     }
 
     if (IsClassConstructor(kind)) {
