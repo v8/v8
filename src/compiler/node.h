@@ -410,12 +410,26 @@ class Node::InputEdges::iterator final {
     return *this;
   }
   iterator operator++(int);
+  iterator& operator+=(difference_type offset) {
+    input_ptr_ += offset;
+    use_ -= offset;
+    return *this;
+  }
+  iterator operator+(difference_type offset) const {
+    return iterator(use_ - offset, input_ptr_ + offset);
+  }
+  difference_type operator-(const iterator& other) const {
+    return static_cast<difference_type>(input_ptr_ - other.input_ptr_);
+  }
 
  private:
   friend class Node;
 
   explicit iterator(Node* from, int index = 0)
       : use_(from->GetUsePtr(index)), input_ptr_(from->GetInputPtr(index)) {}
+
+  explicit iterator(Use* use, Node** input_ptr)
+      : use_(use), input_ptr_(input_ptr) {}
 
   Use* use_;
   Node** input_ptr_;
@@ -455,11 +469,23 @@ class Node::Inputs::const_iterator final {
     return *this;
   }
   const_iterator operator++(int);
+  const_iterator& operator+=(difference_type offset) {
+    iter_ += offset;
+    return *this;
+  }
+  const_iterator operator+(difference_type offset) const {
+    return const_iterator(iter_ + offset);
+  }
+  difference_type operator-(const const_iterator& other) const {
+    return iter_ - other.iter_;
+  }
 
  private:
   friend class Node::Inputs;
 
   const_iterator(Node* node, int index) : iter_(node, index) {}
+
+  explicit const_iterator(Node::InputEdges::iterator iter) : iter_(iter) {}
 
   Node::InputEdges::iterator iter_;
 };

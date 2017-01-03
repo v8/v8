@@ -143,8 +143,8 @@ Reduction BranchElimination::ReduceLoop(Node* node) {
 Reduction BranchElimination::ReduceMerge(Node* node) {
   // Shortcut for the case when we do not know anything about some
   // input.
-  for (int i = 0; i < node->InputCount(); i++) {
-    if (node_conditions_.Get(node->InputAt(i)) == nullptr) {
+  for (Node* input : node->inputs()) {
+    if (node_conditions_.Get(input) == nullptr) {
       return UpdateConditions(node, nullptr);
     }
   }

@@ -61,8 +61,7 @@ Reduction EscapeAnalysisReducer::ReduceNode(Node* node) {
         break;
       }
       bool depends_on_object_state = false;
-      for (int i = 0; i < node->InputCount(); i++) {
-        Node* input = node->InputAt(i);
+      for (Node* input : node->inputs()) {
         switch (input->opcode()) {
           case IrOpcode::kAllocate:
           case IrOpcode::kFinishRegion:
