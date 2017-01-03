@@ -41,41 +41,9 @@ class InterpreterCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
-  class TimerScope final {
-   public:
-    TimerScope(RuntimeCallStats* stats, RuntimeCallStats::CounterId counter_id)
-        : stats_(stats) {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
-        RuntimeCallStats::Enter(stats_, &timer_, counter_id);
-      }
-    }
-
-    explicit TimerScope(RuntimeCallCounter* counter) : stats_(nullptr) {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
-        timer_.Start(counter, nullptr);
-      }
-    }
-
-    ~TimerScope() {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
-        if (stats_) {
-          RuntimeCallStats::Leave(stats_, &timer_);
-        } else {
-          timer_.Stop();
-        }
-      }
-    }
-
-   private:
-    RuntimeCallStats* stats_;
-    RuntimeCallTimer timer_;
-  };
-
   BytecodeGenerator* generator() { return &generator_; }
 
   BytecodeGenerator generator_;
-  RuntimeCallStats* runtime_call_stats_;
-  RuntimeCallCounter background_execute_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
@@ -194,9 +162,7 @@ int Interpreter::InterruptBudget() {
 InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info,
                                                      LazyCompilationMode mode)
     : CompilationJob(info->isolate(), info, "Ignition"),
-      generator_(info, mode),
-      runtime_call_stats_(info->isolate()->counters()->runtime_call_stats()),
-      background_execute_counter_("CompileBackgroundIgnition") {}
+      generator_(info, mode) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
   CodeGenerator::MakeCodePrologue(info(), "interpreter");
@@ -212,11 +178,11 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  TimerScope runtimeTimer =
-      executed_on_background_thread()
-          ? TimerScope(&background_execute_counter_)
-          : TimerScope(runtime_call_stats_, &RuntimeCallStats::CompileIgnition);
-  // TODO(lpy): add support for background compilation RCS trace.
+  // TODO(5203): These timers aren't thread safe, move to using the CompilerJob
+  // timers.
+  RuntimeCallTimerScope runtimeTimer(info()->isolate(),
+                                     &RuntimeCallStats::CompileIgnition);
+  TimerEventScope<TimerEventCompileIgnition> timer(info()->isolate());
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   generator()->GenerateBytecode(stack_limit());
@@ -228,15 +194,6 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
-  // Add background runtime call stats.
-  if (V8_UNLIKELY(FLAG_runtime_stats && executed_on_background_thread())) {
-    runtime_call_stats_->CompileBackgroundIgnition.Add(
-        &background_execute_counter_);
-  }
-
-  RuntimeCallTimerScope runtimeTimer(
-      runtime_call_stats_, &RuntimeCallStats::CompileIgnitionFinalization);
-
   Handle<BytecodeArray> bytecodes = generator()->FinalizeBytecode(isolate());
   if (generator()->HasStackOverflow()) {
     return FAILED;

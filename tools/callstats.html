@@ -1443,7 +1443,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           this.total,
           Group.groups.get('ic').entry(),
           Group.groups.get('optimize').entry(),
-          Group.groups.get('compile-background').entry(),
           Group.groups.get('compile').entry(),
           Group.groups.get('parse-background').entry(),
           Group.groups.get('parse').entry(),
@@ -1652,8 +1651,6 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     Group.add('ic', new Group('IC', /.*IC_.*/, "#3366CC"));
     Group.add('optimize', new Group('Optimize',
         /StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*/, "#DC3912"));
-    Group.add('compile-background', new Group('Compile-Background',
-        /(.*CompileBackground.*)/, "#b9a720"));
     Group.add('compile', new Group('Compile',
         /(^Compile.*)|(.*_Compile.*)/, "#FFAA00"));
     Group.add('parse-background',

@@ -98,8 +98,6 @@ CompilationJob::Status CompilationJob::ExecuteJob() {
     no_handles.reset(new DisallowHandleAllocation());
     no_deref.reset(new DisallowHandleDereference());
     no_dependency_change.reset(new DisallowCodeDependencyChange());
-    executed_on_background_thread_ =
-        !ThreadId::Current().Equals(info()->isolate()->thread_id());
   } else {
     DCHECK(ThreadId::Current().Equals(info()->isolate()->thread_id()));
   }
@@ -479,8 +477,6 @@ void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info) {
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
-  RuntimeCallTimerScope runtimeTimer(
-      info->isolate(), &RuntimeCallStats::CompileGetUnoptimizedCode);
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
@@ -503,9 +499,6 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
 
 MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
     Handle<JSFunction> function, BailoutId osr_ast_id) {
-  RuntimeCallTimerScope runtimeTimer(
-      function->GetIsolate(),
-      &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
   CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
@@ -889,6 +882,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::CompileCodeLazy);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
@@ -1050,8 +1045,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
 bool Compiler::Analyze(ParseInfo* info) {
   DCHECK_NOT_NULL(info->literal());
-  RuntimeCallTimerScope runtimeTimer(info->isolate(),
-                                     &RuntimeCallStats::CompileAnalyse);
   if (!Rewriter::Rewrite(info)) return false;
   DeclarationScope::Analyze(info, AnalyzeMode::kRegular);
   if (!Renumber(info)) return false;
