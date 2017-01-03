@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/base/hashmap.h"
+#include "src/counters.h"
 #include "src/globals.h"
 #include "src/messages.h"
 #include "src/parsing/expression-classifier.h"

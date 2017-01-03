@@ -30,6 +30,7 @@
 
 #include "src/api.h"
 #include "src/base/hashmap.h"
+#include "src/conversions.h"
 #include "src/globals.h"
 #include "src/utils.h"
 

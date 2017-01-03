@@ -4,6 +4,7 @@
 
 #include "src/api.h"
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/spaces.h"
 #include "src/isolate.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-utils.h"

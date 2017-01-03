@@ -5,6 +5,7 @@
 #ifndef V8_AST_AST_H_
 #define V8_AST_AST_H_
 
+#include "src/assembler.h"
 #include "src/ast/ast-types.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"

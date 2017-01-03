@@ -10,6 +10,7 @@
 #include "src/ast/scopes.h"
 #include "src/ast/variables.h"
 #include "src/bootstrapper.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

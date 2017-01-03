@@ -48,6 +48,7 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
+#include "src/unicode-cache.h"
 #include "src/utils.h"
 
 #include "test/cctest/cctest.h"

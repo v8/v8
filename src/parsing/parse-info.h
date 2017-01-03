@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 

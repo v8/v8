@@ -5,6 +5,7 @@
 #include "src/global-handles.h"
 
 #include "src/api.h"
+#include "src/cancelable-task.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"
 
