@@ -177,6 +177,12 @@ RUNTIME_FUNCTION(Runtime_BaselineFunctionOnNextCall) {
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
 
+  // If function isn't compiled, compile it now.
+  if (!function->shared()->is_compiled() &&
+      !Compiler::Compile(function, Compiler::CLEAR_EXCEPTION)) {
+    return isolate->heap()->undefined_value();
+  }
+
   // Do not tier down if we are already on optimized code. Replacing optimized
   // code without actual deoptimization can lead to funny bugs.
   if (function->code()->kind() != Code::OPTIMIZED_FUNCTION &&

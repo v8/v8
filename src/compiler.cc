@@ -822,6 +822,8 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 
+  DCHECK(function->shared()->is_compiled());
+
   // Function no longer needs to be tiered up
   function->shared()->set_marked_for_tier_up(false);
 
