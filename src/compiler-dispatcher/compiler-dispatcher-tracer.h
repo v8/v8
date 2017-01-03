@@ -52,7 +52,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
     ScopeID scope_id_;
     size_t num_;
     double start_time_;
-    RuntimeCallTimer timer_;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };

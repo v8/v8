@@ -24,11 +24,6 @@ CompilerDispatcherTracer::Scope::Scope(CompilerDispatcherTracer* tracer,
                                        ScopeID scope_id, size_t num)
     : tracer_(tracer), scope_id_(scope_id), num_(num) {
   start_time_ = MonotonicallyIncreasingTimeInMs();
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Enter(tracer_->runtime_call_stats_, &timer_,
-                            &RuntimeCallStats::CompilerDispatcher);
-  }
 }
 
 CompilerDispatcherTracer::Scope::~Scope() {
@@ -52,10 +47,6 @@ CompilerDispatcherTracer::Scope::~Scope() {
     case ScopeID::kFinalizeCompiling:
       tracer_->RecordFinalizeCompiling(elapsed);
       break;
-  }
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Leave(tracer_->runtime_call_stats_, &timer_);
   }
 }
 
