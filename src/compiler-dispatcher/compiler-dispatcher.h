@@ -7,9 +7,12 @@
 
 #include <map>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 
 #include "src/base/macros.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/mutex.h"
 #include "src/globals.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -19,6 +22,7 @@ class Platform;
 
 namespace internal {
 
+class CancelableTaskManager;
 class CompilerDispatcherJob;
 class CompilerDispatcherTracer;
 class Isolate;
@@ -29,6 +33,30 @@ class Handle;
 
 // The CompilerDispatcher uses a combination of idle tasks and background tasks
 // to parse and compile lazily parsed functions.
+//
+// As both parsing and compilation currently requires a preparation and
+// finalization step that happens on the main thread, every task has to be
+// advanced during idle time first. Depending on the properties of the task, it
+// can then be parsed or compiled on either background threads, or during idle
+// time. Last, it has to be finalized during idle time again.
+//
+// CompilerDispatcher::jobs_ maintains the list of all CompilerDispatcherJobs
+// the CompilerDispatcher knows about.
+//
+// CompilerDispatcher::pending_background_jobs_ contains the set of
+// CompilerDispatcherJobs that can be processed on a background thread.
+//
+// CompilerDispatcher::running_background_jobs_ contains the set of
+// CompilerDispatcherJobs that are currently being processed on a background
+// thread.
+//
+// CompilerDispatcher::DoIdleWork tries to advance as many jobs out of jobs_ as
+// possible during idle time. If a job can't be advanced, but is suitable for
+// background processing, it fires off background threads.
+//
+// CompilerDispatcher::DoBackgroundWork advances one of the pending jobs, and
+// then spins of another idle task to potentially do the final step on the main
+// thread.
 class V8_EXPORT_PRIVATE CompilerDispatcher {
  public:
   enum class BlockingBehavior { kBlock, kDontBlock };
@@ -55,15 +83,23 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
  private:
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
+  FRIEND_TEST(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread);
+  FRIEND_TEST(IgnitionCompilerDispatcherTest, FinishNowWithBackgroundTask);
 
   typedef std::multimap<std::pair<int, int>,
                         std::unique_ptr<CompilerDispatcherJob>>
       JobMap;
+  class BackgroundTask;
   class IdleTask;
 
+  void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
   bool IsEnabled() const;
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
+  void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
+  void ScheduleMoreBackgroundTasksIfNeeded();
+  void ScheduleIdleTaskFromAnyThread();
   void ScheduleIdleTaskIfNeeded();
+  void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
 
   Isolate* isolate_;
@@ -71,11 +107,32 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   size_t max_stack_size_;
   std::unique_ptr<CompilerDispatcherTracer> tracer_;
 
-  bool idle_task_scheduled_;
+  std::unique_ptr<CancelableTaskManager> task_manager_;
 
   // Mapping from (script id, function literal id) to job. We use a multimap,
   // as script id is not necessarily unique.
   JobMap jobs_;
+
+  // The following members can be accessed from any thread. Methods need to hold
+  // the mutex |mutex_| while accessing them.
+  base::Mutex mutex_;
+
+  bool idle_task_scheduled_;
+
+  // Number of currently scheduled BackgroundTask objects.
+  size_t num_scheduled_background_tasks_;
+
+  // The set of CompilerDispatcherJobs that can be advanced on any thread.
+  std::unordered_set<CompilerDispatcherJob*> pending_background_jobs_;
+
+  // The set of CompilerDispatcherJobs currently processed on background
+  // threads.
+  std::unordered_set<CompilerDispatcherJob*> running_background_jobs_;
+
+  // If not nullptr, then the main thread waits for the task processing
+  // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
+  CompilerDispatcherJob* main_thread_blocking_on_job_;
+  base::ConditionVariable main_thread_blocking_signal_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcher);
 };

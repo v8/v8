@@ -126,6 +126,7 @@ class V8_EXPORT_PRIVATE Cancelable {
 class CancelableTask : public Cancelable, public Task {
  public:
   explicit CancelableTask(Isolate* isolate);
+  CancelableTask(Isolate* isolate, CancelableTaskManager* manager);
 
   // Task overrides.
   void Run() final {
@@ -148,6 +149,7 @@ class CancelableTask : public Cancelable, public Task {
 class CancelableIdleTask : public Cancelable, public IdleTask {
  public:
   explicit CancelableIdleTask(Isolate* isolate);
+  CancelableIdleTask(Isolate* isolate, CancelableTaskManager* manager);
 
   // IdleTask overrides.
   void Run(double deadline_in_seconds) final {
