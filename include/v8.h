@@ -1710,6 +1710,19 @@ class V8_EXPORT ValueSerializer {
     virtual Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object);
 
     /*
+     * Called when the ValueSerializer is going to serialize a
+     * SharedArrayBuffer object. The embedder must return an ID for the
+     * object, using the same ID if this SharedArrayBuffer has already been
+     * serialized in this buffer. When deserializing, this ID will be passed to
+     * ValueDeserializer::TransferSharedArrayBuffer as |transfer_id|.
+     *
+     * If the object cannot be serialized, an
+     * exception should be thrown and Nothing<uint32_t>() returned.
+     */
+    virtual Maybe<uint32_t> GetSharedArrayBufferId(
+        Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer);
+
+    /*
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
      * buffer has been allocated yet, nullptr will be provided.
@@ -1763,8 +1776,10 @@ class V8_EXPORT ValueSerializer {
   /*
    * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
    */
-  void TransferSharedArrayBuffer(uint32_t transfer_id,
-                                 Local<SharedArrayBuffer> shared_array_buffer);
+  V8_DEPRECATE_SOON("Use Delegate::GetSharedArrayBufferId",
+                    void TransferSharedArrayBuffer(
+                        uint32_t transfer_id,
+                        Local<SharedArrayBuffer> shared_array_buffer));
 
   /*
    * Write raw data in various common formats to the buffer.
@@ -1831,9 +1846,10 @@ class V8_EXPORT ValueDeserializer {
 
   /*
    * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
-   * transfer_id exists in the same namespace as unshared ArrayBuffer objects.
+   * The id is not necessarily in the same namespace as unshared ArrayBuffer
+   * objects.
    */
-  void TransferSharedArrayBuffer(uint32_t transfer_id,
+  void TransferSharedArrayBuffer(uint32_t id,
                                  Local<SharedArrayBuffer> shared_array_buffer);
 
   /*
