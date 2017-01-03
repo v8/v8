@@ -168,7 +168,7 @@ class VirtualObject : public ZoneObject {
 
   void SetField(size_t offset, Node* node, bool created_phi = false) {
     fields_[offset] = node;
-    phi_[offset] = phi_[offset] || created_phi;
+    phi_[offset] = created_phi;
   }
   bool IsTracked() const { return status_ & kTracked; }
   bool IsInitialized() const { return status_ & kInitialized; }
@@ -485,8 +485,7 @@ bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
       size_t arity = at->opcode() == IrOpcode::kEffectPhi
                          ? at->op()->EffectInputCount()
                          : at->op()->ValueInputCount();
-      if (cache->fields().size() == arity &&
-          (GetField(i) || !IsCreatedPhi(i))) {
+      if (cache->fields().size() == arity) {
         changed = MergeFields(i, at, cache, graph, common) || changed;
       } else {
         if (GetField(i) != nullptr) {
