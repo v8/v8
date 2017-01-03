@@ -1442,14 +1442,14 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
                               SharedFunctionInfo::kMarkedForTierUpByteOffset));
   __ tst(r5, Operand(1 << SharedFunctionInfo::kMarkedForTierUpBitWithinByte));
   __ b(ne, &gotta_call_runtime_no_stack);
-  // Is the full code valid?
+
+  // If SFI points to anything other than CompileLazy, install that.
   __ ldr(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
-  __ ldr(r5, FieldMemOperand(entry, Code::kFlagsOffset));
-  __ and_(r5, r5, Operand(Code::KindField::kMask));
-  __ mov(r5, Operand(r5, LSR, Code::KindField::kShift));
-  __ cmp(r5, Operand(Code::BUILTIN));
+  __ Move(r5, masm->CodeObject());
+  __ cmp(entry, r5);
   __ b(eq, &gotta_call_runtime_no_stack);
-  // Yes, install the full code.
+
+  // Install the SFI's code entry.
   __ add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ str(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset));
   __ RecordWriteCodeEntryField(closure, entry, r5);
