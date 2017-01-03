@@ -93,18 +93,13 @@ void CancelableTaskManager::CancelAndWait() {
   }
 }
 
-CancelableTask::CancelableTask(Isolate* isolate)
-    : CancelableTask(isolate, isolate->cancelable_task_manager()) {}
 
-CancelableTask::CancelableTask(Isolate* isolate, CancelableTaskManager* manager)
-    : Cancelable(manager), isolate_(isolate) {}
+CancelableTask::CancelableTask(Isolate* isolate)
+    : Cancelable(isolate->cancelable_task_manager()), isolate_(isolate) {}
+
 
 CancelableIdleTask::CancelableIdleTask(Isolate* isolate)
-    : CancelableIdleTask(isolate, isolate->cancelable_task_manager()) {}
-
-CancelableIdleTask::CancelableIdleTask(Isolate* isolate,
-                                       CancelableTaskManager* manager)
-    : Cancelable(manager), isolate_(isolate) {}
+    : Cancelable(isolate->cancelable_task_manager()), isolate_(isolate) {}
 
 }  // namespace internal
 }  // namespace v8
