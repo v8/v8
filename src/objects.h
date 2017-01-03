@@ -8517,10 +8517,6 @@ class JSDate: public JSObject {
 
   void SetValue(Object* value, bool is_value_nan);
 
-  // ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ]
-  static MUST_USE_RESULT MaybeHandle<Object> ToPrimitive(
-      Handle<JSReceiver> receiver, Handle<Object> hint);
-
   // Dispatched behavior.
   DECLARE_PRINTER(JSDate)
   DECLARE_VERIFIER(JSDate)

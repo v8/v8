@@ -195,6 +195,14 @@ RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
       NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowInvalidHint) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, hint, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kInvalidHint, hint));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());

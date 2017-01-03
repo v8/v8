@@ -19335,27 +19335,6 @@ void JSDate::SetValue(Object* value, bool is_value_nan) {
 }
 
 
-// static
-MaybeHandle<Object> JSDate::ToPrimitive(Handle<JSReceiver> receiver,
-                                        Handle<Object> hint) {
-  Isolate* const isolate = receiver->GetIsolate();
-  if (hint->IsString()) {
-    Handle<String> hint_string = Handle<String>::cast(hint);
-    if (hint_string->Equals(isolate->heap()->number_string())) {
-      return JSReceiver::OrdinaryToPrimitive(receiver,
-                                             OrdinaryToPrimitiveHint::kNumber);
-    }
-    if (hint_string->Equals(isolate->heap()->default_string()) ||
-        hint_string->Equals(isolate->heap()->string_string())) {
-      return JSReceiver::OrdinaryToPrimitive(receiver,
-                                             OrdinaryToPrimitiveHint::kString);
-    }
-  }
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidHint, hint),
-                  Object);
-}
-
-
 void JSDate::SetCachedFields(int64_t local_time_ms, DateCache* date_cache) {
   int days = DateCache::DaysFromTime(local_time_ms);
   int time_in_day_ms = DateCache::TimeInDay(local_time_ms, days);

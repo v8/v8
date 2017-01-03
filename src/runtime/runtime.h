@@ -333,6 +333,7 @@ namespace internal {
   F(ThrowGeneratorRunning, 0, 1)                    \
   F(ThrowIllegalInvocation, 0, 1)                   \
   F(ThrowIncompatibleMethodReceiver, 2, 1)          \
+  F(ThrowInvalidHint, 1, 1)                         \
   F(ThrowInvalidStringLength, 0, 1)                 \
   F(ThrowIteratorResultNotAnObject, 1, 1)           \
   F(ThrowSymbolIteratorInvalid, 0, 1)               \

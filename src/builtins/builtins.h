@@ -360,6 +360,10 @@ namespace internal {
   TFJ(DatePrototypeGetUTCMonth, 0)                                             \
   /* ES6 section 20.3.4.19 Date.prototype.getUTCSeconds ( ) */                 \
   TFJ(DatePrototypeGetUTCSeconds, 0)                                           \
+  /* ES6 section 20.3.4.44 Date.prototype.valueOf ( ) */                       \
+  TFJ(DatePrototypeValueOf, 0)                                                 \
+  /* ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint ) */        \
+  TFJ(DatePrototypeToPrimitive, 1)                                             \
   CPP(DatePrototypeGetYear)                                                    \
   CPP(DatePrototypeSetYear)                                                    \
   CPP(DateNow)                                                                 \
@@ -381,11 +385,9 @@ namespace internal {
   CPP(DatePrototypeSetUTCSeconds)                                              \
   CPP(DatePrototypeToDateString)                                               \
   CPP(DatePrototypeToISOString)                                                \
-  CPP(DatePrototypeToPrimitive)                                                \
   CPP(DatePrototypeToUTCString)                                                \
   CPP(DatePrototypeToString)                                                   \
   CPP(DatePrototypeToTimeString)                                               \
-  CPP(DatePrototypeValueOf)                                                    \
   CPP(DatePrototypeToJson)                                                     \
   CPP(DateUTC)                                                                 \
                                                                                \

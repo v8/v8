@@ -1813,7 +1813,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "setUTCSeconds",
                           Builtins::kDatePrototypeSetUTCSeconds, 2, false);
     SimpleInstallFunction(prototype, "valueOf", Builtins::kDatePrototypeValueOf,
-                          0, false);
+                          0, true);
     SimpleInstallFunction(prototype, "getYear", Builtins::kDatePrototypeGetYear,
                           0, true);
     SimpleInstallFunction(prototype, "setYear", Builtins::kDatePrototypeSetYear,
