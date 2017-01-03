@@ -25,15 +25,17 @@ enum class GraphReducer::State : uint8_t {
 
 void Reducer::Finalize() {}
 
-
 GraphReducer::GraphReducer(Zone* zone, Graph* graph, Node* dead)
     : graph_(graph),
       dead_(dead),
       state_(graph, 4),
       reducers_(zone),
       revisit_(zone),
-      stack_(zone) {}
-
+      stack_(zone) {
+  if (dead != nullptr) {
+    NodeProperties::SetType(dead_, Type::None());
+  }
+}
 
 GraphReducer::~GraphReducer() {}
 

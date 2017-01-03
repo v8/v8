@@ -721,6 +721,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
     ZoneHandleSet<Map> object_maps;
     if (state->LookupMaps(object, &object_maps) && object_maps.size() == 1) {
       Node* value = jsgraph()->HeapConstant(object_maps[0]);
+      NodeProperties::SetType(value, Type::OtherInternal());
       ReplaceWithValue(node, value, effect);
       return Replace(value);
     }
@@ -736,6 +737,7 @@ Reduction LoadElimination::ReduceLoadField(Node* node) {
           if (!NodeProperties::GetType(replacement)->Is(node_type)) {
             replacement = graph()->NewNode(common()->TypeGuard(node_type),
                                            replacement, control);
+            NodeProperties::SetType(replacement, node_type);
           }
           ReplaceWithValue(node, replacement, effect);
           return Replace(replacement);
@@ -805,6 +807,7 @@ Reduction LoadElimination::ReduceLoadElement(Node* node) {
       if (!NodeProperties::GetType(replacement)->Is(node_type)) {
         replacement = graph()->NewNode(common()->TypeGuard(node_type),
                                        replacement, control);
+        NodeProperties::SetType(replacement, node_type);
       }
       ReplaceWithValue(node, replacement, effect);
       return Replace(replacement);

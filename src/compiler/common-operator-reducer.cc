@@ -36,7 +36,6 @@ Decision DecideCondition(Node* const cond) {
 
 }  // namespace
 
-
 CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
                                              CommonOperatorBuilder* common,
                                              MachineOperatorBuilder* machine)
@@ -44,8 +43,9 @@ CommonOperatorReducer::CommonOperatorReducer(Editor* editor, Graph* graph,
       graph_(graph),
       common_(common),
       machine_(machine),
-      dead_(graph->NewNode(common->Dead())) {}
-
+      dead_(graph->NewNode(common->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 Reduction CommonOperatorReducer::Reduce(Node* node) {
   switch (node->opcode()) {

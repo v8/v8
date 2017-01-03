@@ -18,8 +18,9 @@ DeadCodeElimination::DeadCodeElimination(Editor* editor, Graph* graph,
     : AdvancedReducer(editor),
       graph_(graph),
       common_(common),
-      dead_(graph->NewNode(common->Dead())) {}
-
+      dead_(graph->NewNode(common->Dead())) {
+  NodeProperties::SetType(dead_, Type::None());
+}
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
   switch (node->opcode()) {

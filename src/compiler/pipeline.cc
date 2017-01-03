@@ -1550,13 +1550,6 @@ bool PipelineImpl::CreateGraph() {
       Run<LoopExitEliminationPhase>();
       RunPrintAndVerify("Loop exits eliminated", true);
     }
-
-    if (!info()->shared_info()->asm_function()) {
-      if (FLAG_turbo_load_elimination) {
-        Run<LoadEliminationPhase>();
-        RunPrintAndVerify("Load eliminated");
-      }
-    }
   }
 
   // Do some hacky things to prepare for the optimization phase.
@@ -1572,6 +1565,11 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   PipelineData* data = this->data_;
 
   if (!data->is_asm()) {
+    if (FLAG_turbo_load_elimination) {
+      Run<LoadEliminationPhase>();
+      RunPrintAndVerify("Load eliminated");
+    }
+
     if (FLAG_turbo_escape) {
       Run<EscapeAnalysisPhase>();
       if (data->compilation_failed()) {
