@@ -28,7 +28,8 @@ namespace compiler {
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractHighWord32)            \
-  V(Float64Abs)
+  V(Float64Abs)                          \
+  V(BitcastWordToTagged)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(WordShl)                              \
@@ -38,6 +39,9 @@ namespace compiler {
   V(Word32And)                            \
   V(Word32Shr)                            \
   V(Word32Shl)                            \
+  V(IntAdd)                               \
+  V(IntSub)                               \
+  V(UintLessThan)                         \
   V(Int32Add)                             \
   V(Int32Sub)                             \
   V(Int32Mul)                             \
@@ -62,6 +66,19 @@ namespace compiler {
   V(Int32Div)                                \
   V(Uint32Mod)                               \
   V(Uint32Div)
+
+#define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
+  V(TrueConstant)                          \
+  V(FalseConstant)                         \
+  V(HeapNumberMapConstant)                 \
+  V(NoContextConstant)                     \
+  V(EmptyStringConstant)                   \
+  V(UndefinedConstant)                     \
+  V(TheHoleConstant)                       \
+  V(FixedArrayMapConstant)                 \
+  V(ToNumberBuiltinConstant)               \
+  V(AllocateInNewSpaceStubConstant)        \
+  V(AllocateInOldSpaceStubConstant)
 
 class GraphAssembler;
 
@@ -216,23 +233,20 @@ class GraphAssembler {
   }
 
   // Value creation.
-  Node* TrueConstant();
-  Node* FalseConstant();
-  Node* HeapNumberMapConstant();
   Node* IntPtrConstant(intptr_t value);
   Node* Uint32Constant(int32_t value);
   Node* Int32Constant(int32_t value);
+  Node* UniqueInt32Constant(int32_t value);
   Node* SmiConstant(int32_t value);
   Node* Float64Constant(double value);
   Node* Projection(int index, Node* value);
   Node* HeapConstant(Handle<HeapObject> object);
-  Node* NoContextConstant();
   Node* CEntryStubConstant(int result_size);
   Node* ExternalConstant(ExternalReference ref);
-  Node* EmptyStringConstant();
-  Node* UndefinedConstant();
-  Node* TheHoleConstant();
-  Node* FixedArrayMapConstant();
+
+#define SINGLETON_CONST_DECL(Name) Node* Name();
+  JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DECL)
+#undef SINGLETON_CONST_DECL
 
 #define PURE_UNOP_DECL(Name) Node* Name(Node* input);
   PURE_ASSEMBLER_MACH_UNOP_LIST(PURE_UNOP_DECL)
@@ -254,6 +268,7 @@ class GraphAssembler {
                      Node* value);
 
   Node* Store(StoreRepresentation rep, Node* object, Node* offset, Node* value);
+  Node* Load(MachineType rep, Node* object, Node* offset);
 
   Node* Retain(Node* buffer);
   Node* UnsafePointerAdd(Node* base, Node* external);
@@ -264,6 +279,8 @@ class GraphAssembler {
                          Node* frame_state);
   template <typename... Args>
   Node* Call(const CallDescriptor* desc, Args... args);
+  template <typename... Args>
+  Node* Call(const Operator* op, Args... args);
 
   // Basic control operations.
   template <class LabelType>
@@ -410,6 +427,12 @@ void GraphAssembler::GotoUnless(Node* condition, LabelType* label,
 template <typename... Args>
 Node* GraphAssembler::Call(const CallDescriptor* desc, Args... args) {
   const Operator* op = common()->Call(desc);
+  return Call(op, args...);
+}
+
+template <typename... Args>
+Node* GraphAssembler::Call(const Operator* op, Args... args) {
+  DCHECK_EQ(IrOpcode::kCall, op->opcode());
   Node* args_array[] = {args..., current_effect_, current_control_};
   int size = static_cast<int>(sizeof...(args)) + op->EffectInputCount() +
              op->ControlInputCount();

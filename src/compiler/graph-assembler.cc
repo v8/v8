@@ -18,20 +18,16 @@ GraphAssembler::GraphAssembler(JSGraph* jsgraph, Node* effect, Node* control,
       current_effect_(effect),
       current_control_(control) {}
 
-Node* GraphAssembler::TrueConstant() { return jsgraph()->TrueConstant(); }
-
-Node* GraphAssembler::FalseConstant() { return jsgraph()->FalseConstant(); }
-
-Node* GraphAssembler::HeapNumberMapConstant() {
-  return jsgraph()->HeapNumberMapConstant();
-}
-
 Node* GraphAssembler::IntPtrConstant(intptr_t value) {
   return jsgraph()->IntPtrConstant(value);
 }
 
 Node* GraphAssembler::Int32Constant(int32_t value) {
   return jsgraph()->Int32Constant(value);
+}
+
+Node* GraphAssembler::UniqueInt32Constant(int32_t value) {
+  return graph()->NewNode(common()->Int32Constant(value));
 }
 
 Node* GraphAssembler::SmiConstant(int32_t value) {
@@ -50,9 +46,6 @@ Node* GraphAssembler::HeapConstant(Handle<HeapObject> object) {
   return jsgraph()->HeapConstant(object);
 }
 
-Node* GraphAssembler::NoContextConstant() {
-  return jsgraph()->NoContextConstant();
-}
 
 Node* GraphAssembler::ExternalConstant(ExternalReference ref) {
   return jsgraph()->ExternalConstant(ref);
@@ -62,19 +55,10 @@ Node* GraphAssembler::CEntryStubConstant(int result_size) {
   return jsgraph()->CEntryStubConstant(result_size);
 }
 
-Node* GraphAssembler::EmptyStringConstant() {
-  return jsgraph()->EmptyStringConstant();
-}
-
-Node* GraphAssembler::UndefinedConstant() {
-  return jsgraph()->UndefinedConstant();
-}
-
-Node* GraphAssembler::TheHoleConstant() { return jsgraph()->TheHoleConstant(); }
-
-Node* GraphAssembler::FixedArrayMapConstant() {
-  return jsgraph()->FixedArrayMapConstant();
-}
+#define SINGLETON_CONST_DEF(Name) \
+  Node* GraphAssembler::Name() { return jsgraph()->Name(); }
+JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)
+#undef SINGLETON_CONST_DEF
 
 #define PURE_UNOP_DEF(Name)                            \
   Node* GraphAssembler::Name(Node* input) {            \
@@ -148,6 +132,12 @@ Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                               current_effect_, current_control_);
 }
 
+Node* GraphAssembler::Load(MachineType rep, Node* object, Node* offset) {
+  return current_effect_ =
+             graph()->NewNode(machine()->Load(rep), object, offset,
+                              current_effect_, current_control_);
+}
+
 Node* GraphAssembler::Retain(Node* buffer) {
   return current_effect_ =
              graph()->NewNode(common()->Retain(), buffer, current_effect_);
@@ -160,9 +150,9 @@ Node* GraphAssembler::UnsafePointerAdd(Node* base, Node* external) {
 }
 
 Node* GraphAssembler::ToNumber(Node* value) {
-  return current_effect_ = graph()->NewNode(
-             ToNumberOperator(), jsgraph()->ToNumberBuiltinConstant(), value,
-             jsgraph()->NoContextConstant(), current_effect_);
+  return current_effect_ =
+             graph()->NewNode(ToNumberOperator(), ToNumberBuiltinConstant(),
+                              value, NoContextConstant(), current_effect_);
 }
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason, Node* condition,
