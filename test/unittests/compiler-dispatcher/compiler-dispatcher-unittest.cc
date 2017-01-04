@@ -306,16 +306,13 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  // Idle tasks shouldn't leave exceptions behind.
-  v8::TryCatch try_catch(isolate());
-
   // Since time doesn't progress on the MockPlatform, this is enough idle time
   // to finish compiling the function.
   platform.RunIdleTask(1000.0, 0.0);
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_FALSE(try_catch.HasCaught());
+  ASSERT_FALSE(i_isolate()->has_pending_exception());
 }
 
 TEST_F(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread) {
@@ -402,6 +399,64 @@ TEST_F(IgnitionCompilerDispatcherTest, FinishNowWithBackgroundTask) {
   ASSERT_TRUE(shared->is_compiled());
   if (platform.IdleTaskPending()) platform.ClearIdleTask();
   ASSERT_FALSE(platform.BackgroundTasksPending());
+}
+
+TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script1[] =
+      "function g() { var y = 1; function f8(x) { return x * y }; return f8; } "
+      "g();";
+  Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
+  Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
+
+  const char script2[] =
+      "function g() { var y = 1; function f9(x) { return x * y }; return f9; } "
+      "g();";
+  Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
+  Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(dispatcher.Enqueue(shared1));
+  ASSERT_TRUE(dispatcher.Enqueue(shared2));
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  // Since time doesn't progress on the MockPlatform, this is enough idle time
+  // to finish compiling the function.
+  platform.RunIdleTask(1000.0, 0.0);
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared1));
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared2));
+  ASSERT_TRUE(shared1->is_compiled());
+  ASSERT_TRUE(shared2->is_compiled());
+}
+
+TEST_F(CompilerDispatcherTest, FinishNowException) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, 50);
+
+  std::string script("function g() { function f10(x) { var a = ");
+  for (int i = 0; i < 1000; i++) {
+    script += "'x' + ";
+  }
+  script += " 'x'; }; return f10; } g();";
+  Handle<JSFunction> f =
+      Handle<JSFunction>::cast(RunJS(isolate(), script.c_str()));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(dispatcher.Enqueue(shared));
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  ASSERT_FALSE(dispatcher.FinishNow(shared));
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_TRUE(i_isolate()->has_pending_exception());
+
+  i_isolate()->clear_pending_exception();
+  platform.ClearIdleTask();
 }
 
 }  // namespace internal

@@ -22,7 +22,6 @@ enum class ExceptionHandling { kSwallow, kThrow };
 bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
                             ExceptionHandling exception_handling) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
-  v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
   switch (job->status()) {
     case CompileJobStatus::kInitial:
       job->PrepareToParseOnMainThread();
@@ -53,10 +52,13 @@ bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
       break;
   }
 
-  if (exception_handling == ExceptionHandling::kThrow &&
-      try_catch.HasCaught()) {
-    DCHECK(job->status() == CompileJobStatus::kFailed);
-    try_catch.ReThrow();
+  if (job->status() == CompileJobStatus::kFailed) {
+    DCHECK(isolate->has_pending_exception());
+    if (exception_handling == ExceptionHandling::kSwallow) {
+      isolate->clear_pending_exception();
+    }
+  } else {
+    DCHECK(!isolate->has_pending_exception());
   }
   return job->status() != CompileJobStatus::kFailed;
 }
