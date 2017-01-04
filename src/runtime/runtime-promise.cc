@@ -280,44 +280,6 @@ RUNTIME_FUNCTION(Runtime_PromiseResult) {
   return promise->result();
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseDeferred) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-
-  Handle<Object> deferred(promise->deferred_promise(), isolate);
-  if (deferred->IsUndefined(isolate)) {
-    return isolate->heap()->undefined_value();
-  }
-
-  if (deferred->IsJSObject()) {
-    return *deferred;
-  }
-
-  DCHECK(deferred->IsFixedArray());
-  return *isolate->factory()->NewJSArrayWithElements(
-      Handle<FixedArray>::cast(deferred));
-}
-
-RUNTIME_FUNCTION(Runtime_PromiseRejectReactions) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-
-  Handle<Object> reject_reactions(promise->reject_reactions(), isolate);
-  if (reject_reactions->IsUndefined(isolate)) {
-    return isolate->heap()->undefined_value();
-  }
-
-  if (reject_reactions->IsJSObject()) {
-    return *reject_reactions;
-  }
-
-  DCHECK(reject_reactions->IsFixedArray());
-  return *isolate->factory()->NewJSArrayWithElements(
-      Handle<FixedArray>::cast(reject_reactions));
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 1);
