@@ -1491,7 +1491,7 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   Node* growth = IntPtrSub(args.GetLength(), first);
   Node* new_length =
       IntPtrOrSmiAdd(WordToParameter(growth, mode), var_length.value(), mode);
-  GotoUnless(IntPtrOrSmiGreaterThanOrEqual(new_length, capacity, mode), &fits);
+  GotoUnless(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
   Node* new_capacity = CalculateNewElementsCapacity(
       IntPtrOrSmiAdd(new_length, IntPtrOrSmiConstant(1, mode), mode), mode);
   var_elements.Bind(GrowElementsCapacity(array, var_elements.value(), kind,
@@ -8211,6 +8211,11 @@ Node* CodeStubArguments::GetReceiver() const {
 Node* CodeStubArguments::AtIndex(Node* index,
                                  CodeStubAssembler::ParameterMode mode) const {
   typedef compiler::Node Node;
+  CSA_ASSERT(assembler_, assembler_->UintPtrLessThan(
+                             mode == CodeStubAssembler::INTPTR_PARAMETERS
+                                 ? index
+                                 : assembler_->SmiUntag(index),
+                             GetLength()));
   Node* negated_index =
       assembler_->IntPtrSub(assembler_->IntPtrOrSmiConstant(0, mode), index);
   Node* offset =
