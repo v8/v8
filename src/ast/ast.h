@@ -2795,7 +2795,7 @@ class ClassLiteral final : public Expression {
            class_variable_proxy()->var()->IsUnallocated();
   }
 
-  FeedbackVectorSlot PrototypeSlot() const { return prototype_slot_; }
+  FeedbackVectorSlot HomeObjectSlot() const { return home_object_slot_; }
   FeedbackVectorSlot ProxySlot() const { return proxy_slot_; }
 
  private:
@@ -2816,7 +2816,7 @@ class ClassLiteral final : public Expression {
   }
 
   int end_position_;
-  FeedbackVectorSlot prototype_slot_;
+  FeedbackVectorSlot home_object_slot_;
   FeedbackVectorSlot proxy_slot_;
   VariableProxy* class_variable_proxy_;
   Expression* extends_;

@@ -603,7 +603,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 175
+bytecode array length: 172
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -660,17 +660,16 @@ bytecodes: [
   /*   26 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
-  /*   16 S> */ B(LdaTheHole),
+  /*   16 S> */ B(CreateClosure), U8(1), U8(0),
                 B(Star), R(2),
-                B(CreateClosure), U8(1), U8(0),
+                B(LdaTheHole),
                 B(Star), R(3),
                 B(LdaSmi), U8(16),
-                B(Star), R(4),
-                B(LdaSmi), U8(24),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
-                B(Star), R(2),
-                B(LdaNamedProperty), R(2), U8(2), U8(2),
+                B(LdaSmi), U8(24),
+                B(Star), R(6),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
                 B(Star), R(3),
                 B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(2), U8(1),
                 B(CallRuntime), U16(Runtime::kToFastProperties), R(2), U8(1),
@@ -683,7 +682,6 @@ bytecodes: [
 constant pool: [
   FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["prototype"],
 ]
 handlers: [
 ]

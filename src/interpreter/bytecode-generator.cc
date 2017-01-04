@@ -1411,20 +1411,33 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
-  VisitClassLiteralForRuntimeDefinition(expr);
-
-  // Load the "prototype" from the constructor.
-  Register literal = register_allocator()->NewRegister();
+  Register constructor = VisitForRegisterValue(expr->constructor());
+  {
+    RegisterAllocationScope register_scope(this);
+    RegisterList args = register_allocator()->NewRegisterList(4);
+    VisitForAccumulatorValueOrTheHole(expr->extends());
+    builder()
+        ->StoreAccumulatorInRegister(args[0])
+        .MoveRegister(constructor, args[1])
+        .LoadLiteral(Smi::FromInt(expr->start_position()))
+        .StoreAccumulatorInRegister(args[2])
+        .LoadLiteral(Smi::FromInt(expr->end_position()))
+        .StoreAccumulatorInRegister(args[3])
+        .CallRuntime(Runtime::kDefineClass, args);
+  }
   Register prototype = register_allocator()->NewRegister();
-  FeedbackVectorSlot slot = expr->PrototypeSlot();
-  builder()
-      ->StoreAccumulatorInRegister(literal)
-      .LoadNamedProperty(literal, prototype_string(), feedback_index(slot))
-      .StoreAccumulatorInRegister(prototype);
+  builder()->StoreAccumulatorInRegister(prototype);
 
-  VisitClassLiteralProperties(expr, literal, prototype);
-  BuildClassLiteralNameProperty(expr, literal);
-  builder()->CallRuntime(Runtime::kToFastProperties, literal);
+  if (FunctionLiteral::NeedsHomeObject(expr->constructor())) {
+    // Prototype is already in the accumulator.
+    builder()->StoreNamedProperty(constructor, home_object_symbol(),
+                                  feedback_index(expr->HomeObjectSlot()),
+                                  language_mode());
+  }
+
+  VisitClassLiteralProperties(expr, constructor, prototype);
+  BuildClassLiteralNameProperty(expr, constructor);
+  builder()->CallRuntime(Runtime::kToFastProperties, constructor);
   // Assign to class variable.
   if (expr->class_variable_proxy() != nullptr) {
     VariableProxy* proxy = expr->class_variable_proxy();
@@ -1436,23 +1449,8 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
   }
 }
 
-void BytecodeGenerator::VisitClassLiteralForRuntimeDefinition(
-    ClassLiteral* expr) {
-  RegisterAllocationScope register_scope(this);
-  RegisterList args = register_allocator()->NewRegisterList(4);
-  VisitForAccumulatorValueOrTheHole(expr->extends());
-  builder()->StoreAccumulatorInRegister(args[0]);
-  VisitForRegisterValue(expr->constructor(), args[1]);
-  builder()
-      ->LoadLiteral(Smi::FromInt(expr->start_position()))
-      .StoreAccumulatorInRegister(args[2])
-      .LoadLiteral(Smi::FromInt(expr->end_position()))
-      .StoreAccumulatorInRegister(args[3])
-      .CallRuntime(Runtime::kDefineClass, args);
-}
-
 void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
-                                                    Register literal,
+                                                    Register constructor,
                                                     Register prototype) {
   RegisterAllocationScope register_scope(this);
   RegisterList args = register_allocator()->NewRegisterList(4);
@@ -1466,7 +1464,7 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
     ClassLiteral::Property* property = expr->properties()->at(i);
 
     // Set-up receiver.
-    Register new_receiver = property->is_static() ? literal : prototype;
+    Register new_receiver = property->is_static() ? constructor : prototype;
     if (new_receiver != old_receiver) {
       builder()->MoveRegister(new_receiver, receiver);
       old_receiver = new_receiver;

@@ -167,13 +167,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
                           prototype, attribs),
                       Object);
 
-  // TODO(arv): Only do this conditionally.
-  Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
-  RETURN_ON_EXCEPTION(
-      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   constructor, home_object_symbol, prototype, DONT_ENUM),
-      Object);
-
   if (!constructor_parent.is_null()) {
     MAYBE_RETURN_NULL(JSObject::SetPrototype(constructor, constructor_parent,
                                              false, Object::THROW_ON_ERROR));
@@ -195,7 +188,8 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
                    handle(Smi::FromInt(end_position), isolate), STRICT),
       Object);
 
-  return constructor;
+  // Caller already has access to constructor, so return the prototype.
+  return prototype;
 }
 
 

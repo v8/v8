@@ -367,8 +367,11 @@ void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
                                              FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
   // This logic that computes the number of slots needed for vector store
-  // ICs must mirror FullCodeGenerator::VisitClassLiteral.
-  prototype_slot_ = spec->AddLoadICSlot();
+  // ICs must mirror BytecodeGenerator::VisitClassLiteral.
+  if (FunctionLiteral::NeedsHomeObject(constructor())) {
+    home_object_slot_ = spec->AddStoreICSlot();
+  }
+
   if (NeedsProxySlot()) {
     proxy_slot_ = spec->AddStoreICSlot();
   }
