@@ -513,6 +513,15 @@ void InstallConstant(Isolate* isolate, Handle<JSObject> holder,
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
 }
 
+void InstallSpeciesGetter(Handle<JSFunction> constructor) {
+  Factory* factory = constructor->GetIsolate()->factory();
+  // TODO(adamk): We should be able to share a SharedFunctionInfo
+  // between all these JSFunctins.
+  SimpleInstallGetter(constructor, factory->symbol_species_string(),
+                      factory->species_symbol(), Builtins::kReturnReceiver,
+                      true);
+}
+
 }  // namespace
 
 Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
@@ -1310,6 +1319,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     InstallWithIntrinsicDefaultProto(isolate, array_function,
                                      Context::ARRAY_FUNCTION_INDEX);
+    InstallSpeciesGetter(array_function);
 
     // Cache the array maps, needed by ArrayConstructorStub
     CacheInitialJSArrayMaps(native_context(), initial_map);
@@ -1884,9 +1894,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, promise_catch,
                                      Context::PROMISE_CATCH_INDEX);
 
-    SimpleInstallGetter(promise_fun, factory->symbol_species_string(),
-                        factory->species_symbol(), Builtins::kReturnReceiver,
-                        true);
+    InstallSpeciesGetter(promise_fun);
 
     SimpleInstallFunction(promise_fun, "resolve", Builtins::kPromiseResolve, 1,
                           true, DONT_ENUM);
@@ -2072,9 +2080,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {
       // RegExp getters and setters.
 
-      SimpleInstallGetter(regexp_fun, factory->symbol_species_string(),
-                          factory->species_symbol(), Builtins::kReturnReceiver,
-                          true);
+      InstallSpeciesGetter(regexp_fun);
 
       // Static properties set by a successful match.
 
@@ -2399,6 +2405,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         BuiltinFunctionId::kArrayBufferByteLength);
     InstallWithIntrinsicDefaultProto(isolate, array_buffer_fun,
                                      Context::ARRAY_BUFFER_FUN_INDEX);
+    InstallSpeciesGetter(array_buffer_fun);
   }
 
   {  // -- T y p e d A r r a y
@@ -2410,6 +2417,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         CreateFunction(isolate, factory->InternalizeUtf8String("TypedArray"),
                        JS_TYPED_ARRAY_TYPE, JSTypedArray::kSize, prototype,
                        Builtins::kIllegal);
+    InstallSpeciesGetter(typed_array_fun);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(prototype, factory->constructor_string(),
@@ -2537,6 +2545,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_map_fun,
                                      Context::JS_MAP_FUN_INDEX);
+    InstallSpeciesGetter(js_map_fun);
   }
 
   {  // -- S e t
@@ -2545,6 +2554,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kIllegal);
     InstallWithIntrinsicDefaultProto(isolate, js_set_fun,
                                      Context::JS_SET_FUN_INDEX);
+    InstallSpeciesGetter(js_set_fun);
   }
 
   {  // -- J S M o d u l e N a m e s p a c e
