@@ -46,10 +46,10 @@ assertSame(foo, foo.foo_again);
 assertTrue(Reflect.has(foo, Symbol.toStringTag));
 assertEquals("string", typeof Reflect.get(foo, Symbol.toStringTag));
 assertEquals(
-    {value: "Module", configurable: true, writable: false, enumerable: false},
+    {value: "Module", configurable: false, writable: false, enumerable: false},
     Reflect.getOwnPropertyDescriptor(foo, Symbol.toStringTag));
-
-// TODO(neis): Clarify spec w.r.t. other symbols.
+// TODO(neis): Spec currently says the next one should return true.
+assertFalse(Reflect.deleteProperty(foo, Symbol.toStringTag));
 
 // Nonexistant properties.
 let nonexistant = ["gaga", 123, Symbol('')];

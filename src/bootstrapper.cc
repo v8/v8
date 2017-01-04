@@ -2553,7 +2553,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {  // Install @@toStringTag.
       PropertyAttributes attribs =
-          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+          static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
       Descriptor d = Descriptor::DataConstant(
           factory->to_string_tag_symbol(),
           factory->NewStringFromAsciiChecked("Module"), attribs);

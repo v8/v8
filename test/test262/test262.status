@@ -419,6 +419,13 @@
   'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
   'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
 
+  # Symbol.toString on namespace objects was made non-configurable, tests need
+  # to be updated.
+  'language/module-code/namespace/Symbol.toStringTag': [SKIP],
+
+  # Possible spec bug, see comment in https://github.com/tc39/ecma262/pull/747.
+  'language/module-code/namespace/internals/delete-non-exported': [SKIP],
+
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
