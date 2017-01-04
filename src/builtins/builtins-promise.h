@@ -67,6 +67,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
                                                     Node* promise_capability);
 
+  void PromiseFulfill(Node* context, Node* promise, Node* result,
+                      v8::Promise::PromiseState status);
+
   Node* NewPromiseCapability(Node* context, Node* constructor,
                              Node* debug_event = nullptr);
 

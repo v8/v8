@@ -685,8 +685,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 
       Bind(&if_fulfilled);
       {
-        CallRuntime(Runtime::kPromiseFulfill, context, promise,
-                    SmiConstant(v8::Promise::kFulfilled), thenable_value);
+        PromiseFulfill(context, promise, thenable_value,
+                       v8::Promise::kFulfilled);
         PromiseSetHasHandler(promise);
         Goto(&out);
       }
@@ -757,8 +757,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   // 7.b Return FulfillPromise(promise, resolution).
   Bind(&fulfill);
   {
-    CallRuntime(Runtime::kPromiseFulfill, context, promise,
-                SmiConstant(v8::Promise::kFulfilled), result);
+    PromiseFulfill(context, promise, result, v8::Promise::kFulfilled);
     Goto(&out);
   }
 
@@ -783,6 +782,50 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   }
 
   Bind(&out);
+}
+
+void PromiseBuiltinsAssembler::PromiseFulfill(
+    Node* context, Node* promise, Node* result,
+    v8::Promise::PromiseState status) {
+  Label do_promisereset(this);
+
+  Node* const status_smi = SmiConstant(static_cast<int>(status));
+  Node* const deferred_promise =
+      LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
+
+  GotoIf(IsUndefined(deferred_promise), &do_promisereset);
+
+  Node* const tasks =
+      status == v8::Promise::kFulfilled
+          ? LoadObjectField(promise, JSPromise::kFulfillReactionsOffset)
+          : LoadObjectField(promise, JSPromise::kRejectReactionsOffset);
+
+  Node* const deferred_on_resolve =
+      LoadObjectField(promise, JSPromise::kDeferredOnResolveOffset);
+  Node* const deferred_on_reject =
+      LoadObjectField(promise, JSPromise::kDeferredOnRejectOffset);
+
+  Node* const info = AllocatePromiseReactionJobInfo(
+      promise, result, tasks, deferred_promise, deferred_on_resolve,
+      deferred_on_reject, context);
+  CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info, status_smi);
+  Goto(&do_promisereset);
+
+  Bind(&do_promisereset);
+  {
+    StoreObjectField(promise, JSPromise::kStatusOffset, status_smi);
+    StoreObjectField(promise, JSPromise::kResultOffset, result);
+    StoreObjectFieldRoot(promise, JSPromise::kDeferredPromiseOffset,
+                         Heap::kUndefinedValueRootIndex);
+    StoreObjectFieldRoot(promise, JSPromise::kDeferredOnResolveOffset,
+                         Heap::kUndefinedValueRootIndex);
+    StoreObjectFieldRoot(promise, JSPromise::kDeferredOnRejectOffset,
+                         Heap::kUndefinedValueRootIndex);
+    StoreObjectFieldRoot(promise, JSPromise::kFulfillReactionsOffset,
+                         Heap::kUndefinedValueRootIndex);
+    StoreObjectFieldRoot(promise, JSPromise::kRejectReactionsOffset,
+                         Heap::kUndefinedValueRootIndex);
+  }
 }
 
 // ES#sec-promise-reject-functions

@@ -184,16 +184,6 @@ RUNTIME_FUNCTION(Runtime_PromiseReject) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseFulfill) {
-  DCHECK(args.length() == 3);
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  CONVERT_SMI_ARG_CHECKED(status, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
-  PromiseFulfill(isolate, promise, status, value);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
   DCHECK(args.length() == 2);

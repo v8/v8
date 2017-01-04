@@ -306,7 +306,6 @@ namespace internal {
   F(NewTypeError, 2, 1)                             \
   F(OrdinaryHasInstance, 2, 1)                      \
   F(PromiseReject, 3, 1)                            \
-  F(PromiseFulfill, 3, 1)                           \
   F(PromiseHookInit, 2, 1)                          \
   F(PromiseHookResolve, 1, 1)                       \
   F(PromiseHookBefore, 1, 1)                        \
