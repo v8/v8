@@ -162,6 +162,10 @@
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
+
+  # TODO(vogelheim): big-object-literal exceeds the stack in debug builds,
+  #                  which makes the test useless.
+  'big-object-literal': [PASS, ['mode == debug', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
