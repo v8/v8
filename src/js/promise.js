@@ -68,27 +68,6 @@ function PromiseReject(r) {
 
 // Combinators.
 
-// ES#sec-promise.resolve
-// Promise.resolve ( x )
-function PromiseResolve(x) {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kCalledOnNonObject, PromiseResolve);
-  }
-  if (%is_promise(x) && x.constructor === this) return x;
-
-  // Avoid creating resolving functions.
-  if (this === GlobalPromise) {
-    var promise = %promise_internal_constructor(UNDEFINED);
-    %promise_resolve(promise, x);
-    return promise;
-  }
-
-  // debugEvent is not so meaningful here as it will be resolved
-  var promiseCapability = %new_promise_capability(this, true);
-  %_Call(promiseCapability.resolve, UNDEFINED, x);
-  return promiseCapability.promise;
-}
-
 // ES#sec-promise.all
 // Promise.all ( iterable )
 function PromiseAll(iterable) {
@@ -198,7 +177,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
   "reject", PromiseReject,
   "all", PromiseAll,
   "race", PromiseRace,
-  "resolve", PromiseResolve
 ]);
 
 %InstallToContext([

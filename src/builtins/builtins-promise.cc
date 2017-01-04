@@ -232,7 +232,8 @@ Node* PromiseBuiltinsAssembler::CreatePromiseGetCapabilitiesExecutorContext(
 }
 
 Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
-    Node* context, Node* value, MessageTemplate::Template msg_template) {
+    Node* context, Node* value, MessageTemplate::Template msg_template,
+    const char* method_name) {
   Label out(this), throw_exception(this, Label::kDeferred);
   Variable var_value_map(this, MachineRepresentation::kTagged);
 
@@ -247,8 +248,13 @@ Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
   // The {value} is not a compatible receiver for this method.
   Bind(&throw_exception);
   {
+    Node* const method =
+        method_name == nullptr
+            ? UndefinedConstant()
+            : HeapConstant(
+                  isolate()->factory()->NewStringFromAsciiChecked(method_name));
     Node* const message_id = SmiConstant(msg_template);
-    CallRuntime(Runtime::kThrowTypeError, context, message_id);
+    CallRuntime(Runtime::kThrowTypeError, context, message_id, method);
     var_value_map.Bind(UndefinedConstant());
     Goto(&out);  // Never reached.
   }
@@ -607,11 +613,25 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
 void PromiseBuiltinsAssembler::BranchIfFastPath(Node* context, Node* promise,
                                                 Label* if_isunmodified,
                                                 Label* if_ismodified) {
-  // TODO(gsathya): Assert if promise is receiver
-  Node* const map = LoadMap(promise);
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  BranchIfFastPath(native_context, promise_fun, promise, if_isunmodified,
+                   if_ismodified);
+}
+
+void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
+                                                Node* promise_fun,
+                                                Node* promise,
+                                                Label* if_isunmodified,
+                                                Label* if_ismodified) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  CSA_ASSERT(this,
+             WordEqual(promise_fun,
+                       LoadContextElement(native_context,
+                                          Context::PROMISE_FUNCTION_INDEX)));
+
+  Node* const map = LoadMap(promise);
   Node* const initial_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
   Node* const has_initialmap = WordEqual(map, initial_map);
@@ -652,7 +672,11 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   GotoUnless(IsJSReceiver(result), &fulfill);
 
   Label if_nativepromise(this), if_notnativepromise(this, Label::kDeferred);
-  BranchIfFastPath(context, result, &if_nativepromise, &if_notnativepromise);
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  BranchIfFastPath(native_context, promise_fun, result, &if_nativepromise,
+                   &if_notnativepromise);
 
   // Resolution is a native promise and if it's already resolved or
   // rejected, shortcircuit the resolution procedure by directly
@@ -671,7 +695,6 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     // TODO(gsathya): Use a marker here instead of the actual then
     // callback, and check for the marker in PromiseResolveThenableJob
     // and perform PromiseThen.
-    Node* const native_context = LoadNativeContext(context);
     Node* const then =
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
     var_then.Bind(then);
@@ -1204,6 +1227,95 @@ TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
     Node* const result =
         CallJS(call_callable, context, then, promise, on_resolve, on_reject);
     Return(result);
+  }
+}
+
+TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
+  //  1. Let C be the this value.
+  Node* receiver = Parameter(0);
+  Node* value = Parameter(1);
+  Node* context = Parameter(4);
+  Isolate* isolate = this->isolate();
+
+  // 2. If Type(C) is not Object, throw a TypeError exception.
+  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
+                       "PromiseResolve");
+
+  Label if_valueisnativepromise(this), if_valueisnotnativepromise(this),
+      if_valueisnotpromise(this);
+
+  // 3.If IsPromise(x) is true, then
+  GotoIf(TaggedIsSmi(value), &if_valueisnotpromise);
+
+  // This shortcircuits the constructor lookups.
+  GotoUnless(HasInstanceType(value, JS_PROMISE_TYPE), &if_valueisnotpromise);
+
+  // This adds a fast path as non-subclassed native promises don't have
+  // an observable constructor lookup.
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  BranchIfFastPath(native_context, promise_fun, value, &if_valueisnativepromise,
+                   &if_valueisnotnativepromise);
+
+  Bind(&if_valueisnativepromise);
+  {
+    GotoUnless(WordEqual(promise_fun, receiver), &if_valueisnotnativepromise);
+    Return(value);
+  }
+
+  // At this point, value or/and receiver are not native promises, but
+  // they could be of the same subclass.
+  Bind(&if_valueisnotnativepromise);
+  {
+    // 3.a Let xConstructor be ? Get(x, "constructor").
+    // The constructor lookup is observable.
+    Node* const constructor_str =
+        HeapConstant(isolate->factory()->constructor_string());
+    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+    Node* const constructor =
+        CallStub(getproperty_callable, context, value, constructor_str);
+
+    // 3.b If SameValue(xConstructor, C) is true, return x.
+    GotoUnless(SameValue(constructor, receiver, context),
+               &if_valueisnotpromise);
+
+    Return(value);
+  }
+
+  Bind(&if_valueisnotpromise);
+  {
+    Label if_nativepromise(this), if_notnativepromise(this);
+    BranchIfFastPath(context, receiver, &if_nativepromise,
+                     &if_notnativepromise);
+
+    // This adds a fast path for native promises that don't need to
+    // create NewPromiseCapability.
+    Bind(&if_nativepromise);
+    {
+      Label do_resolve(this);
+
+      Node* const result = AllocateAndInitJSPromise(context);
+      InternalResolvePromise(context, result, value);
+      Return(result);
+    }
+
+    Bind(&if_notnativepromise);
+    {
+      // 4. Let promiseCapability be ? NewPromiseCapability(C).
+      Node* const capability = NewPromiseCapability(context, receiver);
+
+      // 5. Perform ? Call(promiseCapability.[[Resolve]], undefined, « x »).
+      Callable call_callable = CodeFactory::Call(isolate);
+      Node* const resolve =
+          LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+      CallJS(call_callable, context, resolve, UndefinedConstant(), value);
+
+      // 6. Return promiseCapability.[[Promise]].
+      Node* const result =
+          LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+      Return(result);
+    }
   }
 }
 

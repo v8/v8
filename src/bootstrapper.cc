@@ -1888,6 +1888,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         factory->species_symbol(), Builtins::kReturnReceiver,
                         true);
 
+    SimpleInstallFunction(promise_fun, "resolve", Builtins::kPromiseResolve, 1,
+                          true, DONT_ENUM);
+
     Handle<Map> prototype_map(prototype->map());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
 

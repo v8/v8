@@ -31,7 +31,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateAndSetJSPromise(Node* context, Node* status, Node* result);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
-                             MessageTemplate::Template msg_template);
+                             MessageTemplate::Template msg_template,
+                             const char* method_name = nullptr);
 
   Node* SpeciesConstructor(Node* context, Node* object,
                            Node* default_constructor);
@@ -56,6 +57,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
                         Label* if_ismodified);
+
+  void BranchIfFastPath(Node* native_context, Node* promise_fun, Node* promise,
+                        Label* if_isunmodified, Label* if_ismodified);
 
   Node* CreatePromiseContext(Node* native_context, int slots);
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,

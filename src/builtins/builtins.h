@@ -634,6 +634,7 @@ namespace internal {
   TFJ(ResolvePromise, 2)                                                       \
   TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject)      \
   TFJ(PromiseHandle, 6)                                                        \
+  TFJ(PromiseResolve, 1)                                                       \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \
