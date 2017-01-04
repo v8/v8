@@ -2085,8 +2085,19 @@ TEST_F(MachineOperatorReducerTest, Float64LessThanOrEqualWithFloat32Constant) {
 
 
 // -----------------------------------------------------------------------------
-// Store
+// Float64RoundDown
 
+TEST_F(MachineOperatorReducerTest, Float64RoundDownWithConstant) {
+  TRACED_FOREACH(double, x, kFloat64Values) {
+    Reduction r = Reduce(graph()->NewNode(
+        machine()->Float64RoundDown().placeholder(), Float64Constant(x)));
+    ASSERT_TRUE(r.Changed());
+    EXPECT_THAT(r.replacement(), IsFloat64Constant(Floor(x)));
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Store
 
 TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32And) {
   const StoreRepresentation rep(MachineRepresentation::kWord8, kNoWriteBarrier);

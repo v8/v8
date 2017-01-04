@@ -96,6 +96,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceFloat64InsertLowWord32(Node* node);
   Reduction ReduceFloat64InsertHighWord32(Node* node);
   Reduction ReduceFloat64Compare(Node* node);
+  Reduction ReduceFloat64RoundDown(Node* node);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
