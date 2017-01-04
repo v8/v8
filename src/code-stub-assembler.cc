@@ -5733,6 +5733,8 @@ void CodeStubAssembler::HandleLoadICProtoHandler(
       IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(handler_flags),
       &check_prototypes);
   {
+    CSA_ASSERT(this, Word32BinaryNot(
+                         HasInstanceType(p->receiver, JS_GLOBAL_OBJECT_TYPE)));
     // We have a dictionary receiver, do a negative lookup check.
     NameDictionaryNegativeLookup(p->receiver, p->name, miss);
     Goto(&check_prototypes);

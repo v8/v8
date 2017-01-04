@@ -858,10 +858,6 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                         Handle<FixedArray> array, int first_index) {
   DCHECK(holder.is_null() || holder->HasFastProperties());
 
-  // The following kinds of receiver maps require custom handler compilation.
-  if (receiver_map->IsJSGlobalObjectMap()) {
-    return -1;
-  }
   // We don't encode the requirement to check access rights because we already
   // passed the access check for current native context and the access
   // can't be revoked.
@@ -880,6 +876,17 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
       Handle<Context> native_context = isolate->native_context();
       array->set(LoadHandler::kFirstPrototypeIndex + checks_count,
                  native_context->self_weak_cell());
+    }
+    checks_count++;
+
+  } else if (receiver_map->IsJSGlobalObjectMap()) {
+    if (fill_array) {
+      Handle<JSGlobalObject> global = isolate->global_object();
+      Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
+          global, name, PropertyCellType::kInvalidated);
+      DCHECK(cell->value()->IsTheHole(isolate));
+      Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
+      array->set(LoadHandler::kFirstPrototypeIndex + checks_count, *weak_cell);
     }
     checks_count++;
   }
@@ -942,14 +949,14 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
   int checks_count =
       GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
-  DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
   if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
     DCHECK(!receiver_map->is_dictionary_map());
     DCHECK_LE(1, checks_count);  // For native context.
     smi_handler =
         LoadHandler::EnableAccessCheckOnReceiver(isolate(), smi_handler);
-  } else if (receiver_map->is_dictionary_map()) {
+  } else if (receiver_map->is_dictionary_map() &&
+             !receiver_map->IsJSGlobalObjectMap()) {
     smi_handler =
         LoadHandler::EnableNegativeLookupOnReceiver(isolate(), smi_handler);
   }
@@ -981,10 +988,11 @@ Handle<Object> LoadIC::LoadNonExistent(Handle<Map> receiver_map,
   int checks_count =
       GetPrototypeCheckCount(isolate(), receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
-  DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
-  Handle<Object> smi_handler = LoadHandler::LoadNonExistent(
-      isolate(), receiver_map->is_dictionary_map());
+  bool do_negative_lookup_on_receiver =
+      receiver_map->is_dictionary_map() && !receiver_map->IsJSGlobalObjectMap();
+  Handle<Object> smi_handler =
+      LoadHandler::LoadNonExistent(isolate(), do_negative_lookup_on_receiver);
 
   if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
     DCHECK(!receiver_map->is_dictionary_map());
