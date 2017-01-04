@@ -45,6 +45,17 @@ class V8_EXPORT_PRIVATE CancelableTaskManager {
   // already running. This disallows subsequent Register calls.
   void CancelAndWait();
 
+  // Tries to cancel all remaining registered tasks. The return value indicates
+  // whether
+  //
+  // 1) No tasks were registered (kTaskRemoved), or
+  //
+  // 2) There is at least one remaining task that couldn't be cancelled
+  // (kTaskRunning), or
+  //
+  // 3) All registered tasks were cancelled (kTaskAborted).
+  TryAbortResult TryAbortAll();
+
  private:
   // Only called by {Cancelable} destructor. The task is done with executing,
   // but needs to be removed.

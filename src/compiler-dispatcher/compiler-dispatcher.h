@@ -10,9 +10,11 @@
 #include <unordered_set>
 #include <utility>
 
+#include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/platform/semaphore.h"
 #include "src/globals.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
@@ -85,20 +87,28 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
   FRIEND_TEST(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread);
   FRIEND_TEST(IgnitionCompilerDispatcherTest, FinishNowWithBackgroundTask);
+  FRIEND_TEST(IgnitionCompilerDispatcherTest,
+              AsyncAbortAllPendingBackgroundTask);
+  FRIEND_TEST(IgnitionCompilerDispatcherTest,
+              AsyncAbortAllRunningBackgroundTask);
+  FRIEND_TEST(IgnitionCompilerDispatcherTest, FinishNowDuringAbortAll);
 
   typedef std::multimap<std::pair<int, int>,
                         std::unique_ptr<CompilerDispatcherJob>>
       JobMap;
+  class AbortTask;
   class BackgroundTask;
   class IdleTask;
 
   void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
   bool IsEnabled() const;
+  void AbortInactiveJobs();
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
   void ScheduleMoreBackgroundTasksIfNeeded();
   void ScheduleIdleTaskFromAnyThread();
   void ScheduleIdleTaskIfNeeded();
+  void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
 
@@ -117,6 +127,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // the mutex |mutex_| while accessing them.
   base::Mutex mutex_;
 
+  // True if the dispatcher is in the process of aborting running tasks.
+  bool abort_;
+
   bool idle_task_scheduled_;
 
   // Number of currently scheduled BackgroundTask objects.
@@ -133,6 +146,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // this job, and blocks on the ConditionVariable main_thread_blocking_signal_.
   CompilerDispatcherJob* main_thread_blocking_on_job_;
   base::ConditionVariable main_thread_blocking_signal_;
+
+  // Test support.
+  base::AtomicValue<bool> block_for_testing_;
+  base::Semaphore semaphore_for_testing_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcher);
 };

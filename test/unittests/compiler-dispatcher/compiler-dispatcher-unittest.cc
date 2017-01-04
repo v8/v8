@@ -70,9 +70,11 @@ namespace {
 
 class MockPlatform : public v8::Platform {
  public:
-  MockPlatform() : idle_task_(nullptr), time_(0.0), time_step_(0.0), sem_(0) {}
+  MockPlatform() : time_(0.0), time_step_(0.0), idle_task_(nullptr), sem_(0) {}
   ~MockPlatform() override {
-    EXPECT_TRUE(tasks_.empty());
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    EXPECT_TRUE(foreground_tasks_.empty());
+    EXPECT_TRUE(background_tasks_.empty());
     EXPECT_TRUE(idle_task_ == nullptr);
   }
 
@@ -80,11 +82,13 @@ class MockPlatform : public v8::Platform {
 
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override {
-    tasks_.push_back(task);
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    background_tasks_.push_back(task);
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
-    UNREACHABLE();
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    foreground_tasks_.push_back(task);
   }
 
   void CallDelayedOnForegroundThread(v8::Isolate* isolate, Task* task,
@@ -94,6 +98,7 @@ class MockPlatform : public v8::Platform {
 
   void CallIdleOnForegroundThread(v8::Isolate* isolate,
                                   IdleTask* task) override {
+    base::LockGuard<base::Mutex> lock(&mutex_);
     ASSERT_TRUE(idle_task_ == nullptr);
     idle_task_ = task;
   }
@@ -106,21 +111,39 @@ class MockPlatform : public v8::Platform {
   }
 
   void RunIdleTask(double deadline_in_seconds, double time_step) {
-    ASSERT_TRUE(idle_task_ != nullptr);
     time_step_ = time_step;
-    IdleTask* task = idle_task_;
-    idle_task_ = nullptr;
+    IdleTask* task;
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      task = idle_task_;
+      ASSERT_TRUE(idle_task_ != nullptr);
+      idle_task_ = nullptr;
+    }
     task->Run(deadline_in_seconds);
     delete task;
   }
 
-  bool IdleTaskPending() const { return idle_task_; }
+  bool IdleTaskPending() {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    return idle_task_;
+  }
 
-  bool BackgroundTasksPending() const { return !tasks_.empty(); }
+  bool BackgroundTasksPending() {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    return !background_tasks_.empty();
+  }
+
+  bool ForegroundTasksPending() {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    return !foreground_tasks_.empty();
+  }
 
   void RunBackgroundTasksAndBlock(Platform* platform) {
     std::vector<Task*> tasks;
-    tasks.swap(tasks_);
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      tasks.swap(background_tasks_);
+    }
     platform->CallOnBackgroundThread(new TaskWrapper(this, tasks, true),
                                      kShortRunningTask);
     sem_.Wait();
@@ -128,20 +151,50 @@ class MockPlatform : public v8::Platform {
 
   void RunBackgroundTasks(Platform* platform) {
     std::vector<Task*> tasks;
-    tasks.swap(tasks_);
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      tasks.swap(background_tasks_);
+    }
     platform->CallOnBackgroundThread(new TaskWrapper(this, tasks, false),
                                      kShortRunningTask);
   }
 
+  void RunForegroundTasks() {
+    std::vector<Task*> tasks;
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      tasks.swap(foreground_tasks_);
+    }
+    for (auto& task : tasks) {
+      task->Run();
+      delete task;
+    }
+  }
+
   void ClearBackgroundTasks() {
     std::vector<Task*> tasks;
-    tasks.swap(tasks_);
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      tasks.swap(background_tasks_);
+    }
+    for (auto& task : tasks) {
+      delete task;
+    }
+  }
+
+  void ClearForegroundTasks() {
+    std::vector<Task*> tasks;
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      tasks.swap(foreground_tasks_);
+    }
     for (auto& task : tasks) {
       delete task;
     }
   }
 
   void ClearIdleTask() {
+    base::LockGuard<base::Mutex> lock(&mutex_);
     ASSERT_TRUE(idle_task_ != nullptr);
     delete idle_task_;
     idle_task_ = nullptr;
@@ -171,11 +224,16 @@ class MockPlatform : public v8::Platform {
     DISALLOW_COPY_AND_ASSIGN(TaskWrapper);
   };
 
-  IdleTask* idle_task_;
   double time_;
   double time_step_;
 
-  std::vector<Task*> tasks_;
+  // Protects all *_tasks_.
+  base::Mutex mutex_;
+
+  IdleTask* idle_task_;
+  std::vector<Task*> background_tasks_;
+  std::vector<Task*> foreground_tasks_;
+
   base::Semaphore sem_;
 
   DISALLOW_COPY_AND_ASSIGN(MockPlatform);
@@ -456,6 +514,203 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
   i_isolate()->clear_pending_exception();
+  platform.ClearIdleTask();
+}
+
+TEST_F(IgnitionCompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f11(x) { return x * y }; return f11; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(dispatcher.Enqueue(shared));
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kInitial);
+
+  // Make compiling super expensive, and advance job as much as possible on the
+  // foreground thread.
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
+  platform.RunIdleTask(10.0, 0.0);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+
+  // The background task hasn't yet started, so we can just cancel it.
+  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  ASSERT_FALSE(platform.ForegroundTasksPending());
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_FALSE(shared->is_compiled());
+
+  platform.RunBackgroundTasksAndBlock(V8::GetCurrentPlatform());
+
+  if (platform.IdleTaskPending()) platform.ClearIdleTask();
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.ForegroundTasksPending());
+}
+
+TEST_F(IgnitionCompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script1[] =
+      "function g() { var y = 1; function f11(x) { return x * y }; return f11; "
+      "} g();";
+  Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
+  Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
+
+  const char script2[] =
+      "function g() { var y = 1; function f12(x) { return x * y }; return f12; "
+      "} g();";
+  Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
+  Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(dispatcher.Enqueue(shared1));
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kInitial);
+
+  // Make compiling super expensive, and advance job as much as possible on the
+  // foreground thread.
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
+  platform.RunIdleTask(10.0, 0.0);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
+  ASSERT_FALSE(shared1->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+
+  // Kick off background tasks and freeze them.
+  dispatcher.block_for_testing_.SetValue(true);
+  platform.RunBackgroundTasks(V8::GetCurrentPlatform());
+
+  // Busy loop until the background task started running.
+  while (dispatcher.block_for_testing_.Value()) {
+  }
+  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  ASSERT_TRUE(platform.ForegroundTasksPending());
+
+  // We can't schedule new tasks while we're aborting.
+  ASSERT_FALSE(dispatcher.Enqueue(shared2));
+
+  // Run the first AbortTask. Since the background job is still pending, it
+  // can't do anything.
+  platform.RunForegroundTasks();
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    ASSERT_TRUE(dispatcher.abort_);
+  }
+
+  // Release background task.
+  dispatcher.semaphore_for_testing_.Signal();
+
+  // Busy loop until the background task scheduled another AbortTask task.
+  while (!platform.ForegroundTasksPending()) {
+  }
+
+  platform.RunForegroundTasks();
+  ASSERT_TRUE(dispatcher.jobs_.empty());
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    ASSERT_FALSE(dispatcher.abort_);
+  }
+
+  ASSERT_TRUE(platform.IdleTaskPending());
+  platform.RunIdleTask(5.0, 1.0);
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.ForegroundTasksPending());
+
+  // Now it's possible to enqueue new functions again.
+  ASSERT_TRUE(dispatcher.Enqueue(shared2));
+  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_FALSE(platform.ForegroundTasksPending());
+  platform.ClearIdleTask();
+}
+
+TEST_F(IgnitionCompilerDispatcherTest, FinishNowDuringAbortAll) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f13(x) { return x * y }; return f13; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(dispatcher.Enqueue(shared));
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kInitial);
+
+  // Make compiling super expensive, and advance job as much as possible on the
+  // foreground thread.
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
+  platform.RunIdleTask(10.0, 0.0);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+
+  // Kick off background tasks and freeze them.
+  dispatcher.block_for_testing_.SetValue(true);
+  platform.RunBackgroundTasks(V8::GetCurrentPlatform());
+
+  // Busy loop until the background task started running.
+  while (dispatcher.block_for_testing_.Value()) {
+  }
+  dispatcher.AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+  ASSERT_TRUE(platform.ForegroundTasksPending());
+
+  // Run the first AbortTask. Since the background job is still pending, it
+  // can't do anything.
+  platform.RunForegroundTasks();
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    ASSERT_TRUE(dispatcher.abort_);
+  }
+
+  // While the background thread holds on to a job, it is still enqueud.
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+
+  // Release background task.
+  dispatcher.semaphore_for_testing_.Signal();
+
+  // Force the compilation to finish, even while aborting.
+  ASSERT_TRUE(dispatcher.FinishNow(shared));
+  ASSERT_TRUE(dispatcher.jobs_.empty());
+  {
+    base::LockGuard<base::Mutex> lock(&dispatcher.mutex_);
+    ASSERT_FALSE(dispatcher.abort_);
+  }
+
+  ASSERT_TRUE(platform.ForegroundTasksPending());
+  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+  platform.ClearForegroundTasks();
   platform.ClearIdleTask();
 }
 

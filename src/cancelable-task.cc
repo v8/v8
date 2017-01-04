@@ -93,6 +93,24 @@ void CancelableTaskManager::CancelAndWait() {
   }
 }
 
+CancelableTaskManager::TryAbortResult CancelableTaskManager::TryAbortAll() {
+  // Clean up all cancelable fore- and background tasks. Tasks are canceled on
+  // the way if possible, i.e., if they have not started yet.
+  base::LockGuard<base::Mutex> guard(&mutex_);
+
+  if (cancelable_tasks_.empty()) return kTaskRemoved;
+
+  for (auto it = cancelable_tasks_.begin(); it != cancelable_tasks_.end();) {
+    if (it->second->Cancel()) {
+      it = cancelable_tasks_.erase(it);
+    } else {
+      ++it;
+    }
+  }
+
+  return cancelable_tasks_.empty() ? kTaskAborted : kTaskRunning;
+}
+
 CancelableTask::CancelableTask(Isolate* isolate)
     : CancelableTask(isolate, isolate->cancelable_task_manager()) {}
 

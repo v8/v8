@@ -52,13 +52,11 @@ bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
       break;
   }
 
-  if (job->status() == CompileJobStatus::kFailed) {
-    DCHECK(isolate->has_pending_exception());
-    if (exception_handling == ExceptionHandling::kSwallow) {
-      isolate->clear_pending_exception();
-    }
-  } else {
-    DCHECK(!isolate->has_pending_exception());
+  DCHECK_EQ(job->status() == CompileJobStatus::kFailed,
+            isolate->has_pending_exception());
+  if (job->status() == CompileJobStatus::kFailed &&
+      exception_handling == ExceptionHandling::kSwallow) {
+    isolate->clear_pending_exception();
   }
   return job->status() != CompileJobStatus::kFailed;
 }
@@ -96,6 +94,32 @@ void DoNextStepOnBackgroundThread(CompilerDispatcherJob* job) {
 const double kMaxIdleTimeToExpectInMs = 40;
 
 }  // namespace
+
+class CompilerDispatcher::AbortTask : public CancelableTask {
+ public:
+  AbortTask(Isolate* isolate, CancelableTaskManager* task_manager,
+            CompilerDispatcher* dispatcher);
+  ~AbortTask() override;
+
+  // CancelableTask implementation.
+  void RunInternal() override;
+
+ private:
+  CompilerDispatcher* dispatcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(AbortTask);
+};
+
+CompilerDispatcher::AbortTask::AbortTask(Isolate* isolate,
+                                         CancelableTaskManager* task_manager,
+                                         CompilerDispatcher* dispatcher)
+    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+
+CompilerDispatcher::AbortTask::~AbortTask() {}
+
+void CompilerDispatcher::AbortTask::RunInternal() {
+  dispatcher_->AbortInactiveJobs();
+}
 
 class CompilerDispatcher::BackgroundTask : public CancelableTask {
  public:
@@ -156,9 +180,12 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       max_stack_size_(max_stack_size),
       tracer_(new CompilerDispatcherTracer(isolate_)),
       task_manager_(new CancelableTaskManager()),
+      abort_(false),
       idle_task_scheduled_(false),
       num_scheduled_background_tasks_(0),
-      main_thread_blocking_on_job_(nullptr) {}
+      main_thread_blocking_on_job_(nullptr),
+      block_for_testing_(false),
+      semaphore_for_testing_(0) {}
 
 CompilerDispatcher::~CompilerDispatcher() {
   // To avoid crashing in unit tests due to unfished jobs.
@@ -168,6 +195,11 @@ CompilerDispatcher::~CompilerDispatcher() {
 
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   if (!IsEnabled()) return false;
+
+  {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    if (abort_) return false;
+  }
 
   // We only handle functions (no eval / top-level code / wasm) that are
   // attached to a script.
@@ -223,17 +255,68 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   bool result = job->second->status() != CompileJobStatus::kFailed;
   job->second->ResetOnMainThread();
   jobs_.erase(job);
+  if (jobs_.empty()) {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    abort_ = false;
+  }
   return result;
 }
 
 void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {
-  // TODO(jochen): Implement support for non-blocking abort.
-  DCHECK(blocking == BlockingBehavior::kBlock);
-  for (auto& kv : jobs_) {
-    WaitForJobIfRunningOnBackground(kv.second.get());
-    kv.second->ResetOnMainThread();
+  bool background_tasks_running =
+      task_manager_->TryAbortAll() == CancelableTaskManager::kTaskRunning;
+  if (!background_tasks_running || blocking == BlockingBehavior::kBlock) {
+    for (auto& it : jobs_) {
+      WaitForJobIfRunningOnBackground(it.second.get());
+      it.second->ResetOnMainThread();
+    }
+    jobs_.clear();
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      DCHECK(pending_background_jobs_.empty());
+      DCHECK(running_background_jobs_.empty());
+      abort_ = false;
+    }
+    return;
   }
-  jobs_.clear();
+
+  {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    abort_ = true;
+    pending_background_jobs_.clear();
+  }
+  AbortInactiveJobs();
+
+  // All running background jobs might already have scheduled idle tasks instead
+  // of abort tasks. Schedule a single abort task here to make sure they get
+  // processed as soon as possible (and not first when we have idle time).
+  ScheduleAbortTask();
+}
+
+void CompilerDispatcher::AbortInactiveJobs() {
+  {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    // Since we schedule two abort tasks per async abort, we might end up
+    // here with nothing left to do.
+    if (!abort_) return;
+  }
+  for (auto it = jobs_.begin(); it != jobs_.end();) {
+    auto job = it;
+    ++it;
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      if (running_background_jobs_.find(job->second.get()) !=
+          running_background_jobs_.end()) {
+        continue;
+      }
+    }
+    job->second->ResetOnMainThread();
+    jobs_.erase(job);
+  }
+  if (jobs_.empty()) {
+    base::LockGuard<base::Mutex> lock(&mutex_);
+    abort_ = false;
+  }
 }
 
 CompilerDispatcher::JobMap::const_iterator CompilerDispatcher::GetJobFor(
@@ -263,6 +346,12 @@ void CompilerDispatcher::ScheduleIdleTaskFromAnyThread() {
 void CompilerDispatcher::ScheduleIdleTaskIfNeeded() {
   if (jobs_.empty()) return;
   ScheduleIdleTaskFromAnyThread();
+}
+
+void CompilerDispatcher::ScheduleAbortTask() {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  platform_->CallOnForegroundThread(
+      v8_isolate, new AbortTask(isolate_, task_manager_.get(), this));
 }
 
 void CompilerDispatcher::ConsiderJobForBackgroundProcessing(
@@ -304,6 +393,12 @@ void CompilerDispatcher::DoBackgroundWork() {
     }
   }
   if (job == nullptr) return;
+
+  if (V8_UNLIKELY(block_for_testing_.Value())) {
+    block_for_testing_.SetValue(false);
+    semaphore_for_testing_.Wait();
+  }
+
   DoNextStepOnBackgroundThread(job);
 
   ScheduleMoreBackgroundTasksIfNeeded();
@@ -315,6 +410,13 @@ void CompilerDispatcher::DoBackgroundWork() {
     base::LockGuard<base::Mutex> lock(&mutex_);
     running_background_jobs_.erase(job);
 
+    if (running_background_jobs_.empty() && abort_) {
+      // This is the last background job that finished. The abort task
+      // scheduled by AbortAll might already have ran, so schedule another
+      // one to be on the safe side.
+      ScheduleAbortTask();
+    }
+
     if (main_thread_blocking_on_job_ == job) {
       main_thread_blocking_on_job_ = nullptr;
       main_thread_blocking_signal_.NotifyOne();
@@ -325,9 +427,16 @@ void CompilerDispatcher::DoBackgroundWork() {
 }
 
 void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
+  bool aborted = false;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     idle_task_scheduled_ = false;
+    aborted = abort_;
+  }
+
+  if (aborted) {
+    AbortInactiveJobs();
+    return;
   }
 
   // Number of jobs that are unlikely to make progress during any idle callback
