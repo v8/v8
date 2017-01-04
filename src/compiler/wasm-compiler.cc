@@ -341,10 +341,12 @@ class WasmTrapHelper : public ZoneObject {
 };
 
 WasmGraphBuilder::WasmGraphBuilder(
-    Zone* zone, JSGraph* jsgraph, wasm::FunctionSig* sig,
+    wasm::ModuleEnv* module_env, Zone* zone, JSGraph* jsgraph,
+    wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table)
     : zone_(zone),
       jsgraph_(jsgraph),
+      module_(module_env),
       function_tables_(zone),
       function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
@@ -3342,10 +3344,9 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
   Node* effect = nullptr;
 
   wasm::ModuleEnv module_env(module, nullptr);
-  WasmGraphBuilder builder(&zone, &jsgraph, func->sig);
+  WasmGraphBuilder builder(&module_env, &zone, &jsgraph, func->sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.set_module(&module_env);
   builder.BuildJSToWasmWrapper(wasm_code, func->sig);
 
   //----------------------------------------------------------------------------
@@ -3422,7 +3423,8 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
       origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
                                    : nullptr;
 
-  WasmGraphBuilder builder(&zone, &jsgraph, sig, source_position_table);
+  WasmGraphBuilder builder(nullptr, &zone, &jsgraph, sig,
+                           source_position_table);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmToJSWrapper(target, sig);
@@ -3500,10 +3502,10 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   MachineOperatorBuilder* machine = jsgraph_->machine();
   SourcePositionTable* source_position_table =
       new (jsgraph_->zone()) SourcePositionTable(graph);
-  WasmGraphBuilder builder(jsgraph_->zone(), jsgraph_, function_->sig,
-                           source_position_table);
+  WasmGraphBuilder builder(module_env_, jsgraph_->zone(), jsgraph_,
+                           function_->sig, source_position_table);
   const byte* module_start = module_env_->module_bytes.start();
-  wasm::FunctionBody body = {module_env_, function_->sig, module_start,
+  wasm::FunctionBody body = {function_->sig, module_start,
                              module_start + function_->code_start_offset,
                              module_start + function_->code_end_offset};
   graph_construction_result_ =
@@ -3531,7 +3533,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     OFStream os(stdout);
-    PrintWasmCode(isolate_->allocator(), body, os, nullptr);
+    PrintWasmCode(isolate_->allocator(), body, module_env_->module, os,
+                  nullptr);
   }
   if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
     OFStream os(stdout);

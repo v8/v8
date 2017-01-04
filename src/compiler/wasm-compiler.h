@@ -109,7 +109,7 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      Zone* z, JSGraph* g, wasm::FunctionSig* sig,
+      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -206,8 +206,6 @@ class WasmGraphBuilder {
   Node* Control() { return *control_; }
   Node* Effect() { return *effect_; }
 
-  void set_module(wasm::ModuleEnv* module) { this->module_ = module; }
-
   void set_control_ptr(Node** control) { this->control_ = control; }
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
@@ -228,6 +226,8 @@ class WasmGraphBuilder {
                    const NodeVector& inputs);
 
   bool has_simd() const { return has_simd_; }
+
+  wasm::ModuleEnv* module_env() const { return module_; }
 
  private:
   static const int kDefaultBufferSize = 16;

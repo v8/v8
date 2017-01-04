@@ -110,8 +110,9 @@ class FunctionBodyDecoderTest : public TestWithZone {
               const byte* end) {
     local_decls.Prepend(zone(), &start, &end);
     // Verify the code.
-    DecodeResult result =
-        VerifyWasmCode(zone()->allocator(), module, sig, start, end);
+    DecodeResult result = VerifyWasmCode(
+        zone()->allocator(), module == nullptr ? nullptr : module->module, sig,
+        start, end);
 
     if (result.error_code != expected) {
       ptrdiff_t pc = result.error_pc - result.start;

@@ -335,15 +335,15 @@ inline void TestBuildingGraph(Zone* zone, JSGraph* jsgraph, ModuleEnv* module,
                               FunctionSig* sig,
                               SourcePositionTable* source_position_table,
                               const byte* start, const byte* end) {
-  compiler::WasmGraphBuilder builder(zone, jsgraph, sig, source_position_table);
+  compiler::WasmGraphBuilder builder(module, zone, jsgraph, sig,
+                                     source_position_table);
   DecodeResult result =
-      BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
+      BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result =
-          BuildTFGraph(zone->allocator(), &builder, module, sig, start, end);
+      result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
     }
 
     ptrdiff_t pc = result.error_pc - result.start;

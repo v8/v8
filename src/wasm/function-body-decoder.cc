@@ -31,13 +31,13 @@ namespace wasm {
 #define TRACE(...)
 #endif
 
-#define CHECK_PROTOTYPE_OPCODE(flag)                        \
-  if (module_ && module_->module->origin == kAsmJsOrigin) { \
-    error("Opcode not supported for asmjs modules");        \
-  }                                                         \
-  if (!FLAG_##flag) {                                       \
-    error("Invalid opcode (enable with --" #flag ")");      \
-    break;                                                  \
+#define CHECK_PROTOTYPE_OPCODE(flag)                           \
+  if (module_ != nullptr && module_->origin == kAsmJsOrigin) { \
+    error("Opcode not supported for asmjs modules");           \
+  }                                                            \
+  if (!FLAG_##flag) {                                          \
+    error("Invalid opcode (enable with --" #flag ")");         \
+    break;                                                     \
   }
 // TODO(titzer): this is only for intermediate migration.
 #define IMPLICIT_FUNCTION_END 1
@@ -164,14 +164,14 @@ struct LaneOperand {
 // lengths, etc.
 class WasmDecoder : public Decoder {
  public:
-  WasmDecoder(ModuleEnv* module, FunctionSig* sig, const byte* start,
+  WasmDecoder(const WasmModule* module, FunctionSig* sig, const byte* start,
               const byte* end)
       : Decoder(start, end),
         module_(module),
         sig_(sig),
         total_locals_(0),
         local_types_(nullptr) {}
-  ModuleEnv* module_;
+  const WasmModule* module_;
   FunctionSig* sig_;
   size_t total_locals_;
   ZoneVector<ValueType>* local_types_;
@@ -190,9 +190,8 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, GlobalIndexOperand& operand) {
-    ModuleEnv* m = module_;
-    if (m && m->module && operand.index < m->module->globals.size()) {
-      operand.global = &m->module->globals[operand.index];
+    if (module_ != nullptr && operand.index < module_->globals.size()) {
+      operand.global = &module_->globals[operand.index];
       operand.type = operand.global->type;
       return true;
     }
@@ -201,9 +200,8 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, CallFunctionOperand& operand) {
-    ModuleEnv* m = module_;
-    if (m && m->module && operand.index < m->module->functions.size()) {
-      operand.sig = m->module->functions[operand.index].sig;
+    if (module_ != nullptr && operand.index < module_->functions.size()) {
+      operand.sig = module_->functions[operand.index].sig;
       return true;
     }
     return false;
@@ -218,17 +216,15 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Complete(const byte* pc, CallIndirectOperand& operand) {
-    ModuleEnv* m = module_;
-    if (m && m->module && operand.index < m->module->signatures.size()) {
-      operand.sig = m->module->signatures[operand.index];
+    if (module_ != nullptr && operand.index < module_->signatures.size()) {
+      operand.sig = module_->signatures[operand.index];
       return true;
     }
     return false;
   }
 
   inline bool Validate(const byte* pc, CallIndirectOperand& operand) {
-    uint32_t table_index = 0;
-    if (!module_->IsValidTable(table_index)) {
+    if (module_ == nullptr || module_->function_tables.empty()) {
       error("function table has to exist to execute call_indirect");
       return false;
     }
@@ -363,22 +359,22 @@ class WasmDecoder : public Decoder {
 
 static const int32_t kNullCatch = -1;
 
-// The full WASM decoder for bytecode. Both verifies bytecode and generates
-// a TurboFan IR graph.
+// The full WASM decoder for bytecode. Verifies bytecode and, optionally,
+// generates a TurboFan IR graph.
 class WasmFullDecoder : public WasmDecoder {
  public:
+  WasmFullDecoder(Zone* zone, const FunctionBody& body)
+      : WasmFullDecoder(zone, nullptr, nullptr, body) {}
+
+  WasmFullDecoder(Zone* zone, const wasm::WasmModule* module,
+                  const FunctionBody& body)
+      : WasmFullDecoder(zone, module, nullptr, body) {}
+
   WasmFullDecoder(Zone* zone, TFBuilder* builder, const FunctionBody& body)
-      : WasmDecoder(body.module, body.sig, body.start, body.end),
-        zone_(zone),
-        builder_(builder),
-        base_(body.base),
-        local_type_vec_(zone),
-        stack_(zone),
-        control_(zone),
-        last_end_found_(false),
-        current_catch_(kNullCatch) {
-    local_types_ = &local_type_vec_;
-  }
+      : WasmFullDecoder(zone, builder->module_env() == nullptr
+                                  ? nullptr
+                                  : builder->module_env()->module,
+                        builder, body) {}
 
   bool Decode() {
     if (FLAG_wasm_code_fuzzer_gen_test) {
@@ -492,6 +488,20 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
  private:
+  WasmFullDecoder(Zone* zone, const wasm::WasmModule* module,
+                  TFBuilder* builder, const FunctionBody& body)
+      : WasmDecoder(module, body.sig, body.start, body.end),
+        zone_(zone),
+        builder_(builder),
+        base_(body.base),
+        local_type_vec_(zone),
+        stack_(zone),
+        control_(zone),
+        last_end_found_(false),
+        current_catch_(kNullCatch) {
+    local_types_ = &local_type_vec_;
+  }
+
   static const size_t kErrorMsgSize = 128;
 
   Zone* zone_;
@@ -536,7 +546,6 @@ class WasmFullDecoder : public WasmDecoder {
           ssa_env->locals[index++] = node;
         }
       }
-      builder_->set_module(module_);
     }
     ssa_env->control = start;
     ssa_env->effect = start;
@@ -1118,7 +1127,8 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           case kExprGrowMemory: {
             MemoryIndexOperand operand(this, pc_);
-            if (module_->module->origin != kAsmJsOrigin) {
+            DCHECK_NOT_NULL(module_);
+            if (module_->origin != kAsmJsOrigin) {
               Value val = Pop(0, kWasmI32);
               Push(kWasmI32, BUILD(GrowMemory, val.node));
             } else {
@@ -1168,7 +1178,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kAtomicPrefix: {
-            if (!module_ || module_->module->origin != kAsmJsOrigin) {
+            if (module_ == nullptr || module_->origin != kAsmJsOrigin) {
               error("Atomics are allowed only in AsmJs modules");
               break;
             }
@@ -1187,7 +1197,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           default: {
             // Deal with special asmjs opcodes.
-            if (module_ && module_->module->origin == kAsmJsOrigin) {
+            if (module_ != nullptr && module_->origin == kAsmJsOrigin) {
               sig = WasmOpcodes::AsmjsSignature(opcode);
               if (sig) {
                 BuildSimpleOperator(opcode, sig);
@@ -1893,8 +1903,8 @@ bool DecodeLocalDecls(BodyLocalDecls& decls, const byte* start,
                       const byte* end) {
   AccountingAllocator allocator;
   Zone tmp(&allocator, ZONE_NAME);
-  FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  WasmFullDecoder decoder(&tmp, nullptr, body);
+  FunctionBody body = {nullptr, nullptr, start, end};
+  WasmFullDecoder decoder(&tmp, body);
   return decoder.DecodeLocalDecls(decls);
 }
 
@@ -1910,9 +1920,10 @@ BytecodeIterator::BytecodeIterator(const byte* start, const byte* end,
 }
 
 DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
+                            const wasm::WasmModule* module,
                             FunctionBody& body) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder decoder(&zone, nullptr, body);
+  WasmFullDecoder decoder(&zone, module, body);
   decoder.Decode();
   return decoder.toResult<DecodeStruct*>(nullptr);
 }
@@ -1933,14 +1944,15 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
 void PrintWasmCodeForDebugging(const byte* start, const byte* end) {
   AccountingAllocator allocator;
   OFStream os(stdout);
-  PrintWasmCode(&allocator, FunctionBodyForTesting(start, end), os, nullptr);
+  PrintWasmCode(&allocator, FunctionBodyForTesting(start, end), nullptr, os,
+                nullptr);
 }
 
 bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                   std::ostream& os,
+                   const wasm::WasmModule* module, std::ostream& os,
                    std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder decoder(&zone, nullptr, body);
+  WasmFullDecoder decoder(&zone, module, body);
   int line_nr = 0;
 
   // Print the function signature.
@@ -2058,8 +2070,8 @@ bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
-  FunctionBody body = {nullptr, nullptr, nullptr, start, end};
-  WasmFullDecoder decoder(zone, nullptr, body);
+  FunctionBody body = {nullptr, nullptr, start, end};
+  WasmFullDecoder decoder(zone, body);
   return decoder.AnalyzeLoopAssignmentForTesting(start, num_locals);
 }
 

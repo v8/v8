@@ -763,10 +763,12 @@ class ModuleDecoder : public Decoder {
       os << "Verifying WASM function " << WasmFunctionName(function, menv)
          << std::endl;
     }
-    FunctionBody body = {menv, function->sig, start_,
+    FunctionBody body = {function->sig, start_,
                          start_ + function->code_start_offset,
                          start_ + function->code_end_offset};
-    DecodeResult result = VerifyWasmCode(module_zone->allocator(), body);
+    DecodeResult result =
+        VerifyWasmCode(module_zone->allocator(),
+                       menv == nullptr ? nullptr : menv->module, body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
