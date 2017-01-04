@@ -1037,11 +1037,10 @@ void Scope::DeclareVariableName(const AstRawString* name, VariableMode mode) {
   DCHECK(!is_eval_scope());
   DCHECK(is_declaration_scope() ||
          (IsLexicalVariableMode(mode) && is_block_scope()));
+  DCHECK(scope_info_.is_null());
 
   // Declare the variable in the declaration scope.
-  if (LookupLocal(name) == nullptr) {
-    variables_.DeclareName(zone(), name);
-  }
+  variables_.DeclareName(zone(), name);
 }
 
 VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,

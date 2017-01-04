@@ -34,8 +34,8 @@ class VariableMap: public ZoneHashMap {
                     MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
                     bool* added = nullptr);
 
-  // Records that "name" exists but doesn't create a Variable. Useful for
-  // preparsing.
+  // Records that "name" exists (if not recorded yet) but doesn't create a
+  // Variable. Useful for preparsing.
   void DeclareName(Zone* zone, const AstRawString* name);
 
   Variable* Lookup(const AstRawString* name);
