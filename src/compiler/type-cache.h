@@ -64,6 +64,8 @@ class TypeCache final {
   Type* const kPositiveInteger = CreateRange(0.0, V8_INFINITY);
   Type* const kPositiveIntegerOrMinusZero =
       Type::Union(kPositiveInteger, Type::MinusZero(), zone());
+  Type* const kPositiveIntegerOrNaN =
+      Type::Union(kPositiveInteger, Type::NaN(), zone());
   Type* const kPositiveIntegerOrMinusZeroOrNaN =
       Type::Union(kPositiveIntegerOrMinusZero, Type::NaN(), zone());
 

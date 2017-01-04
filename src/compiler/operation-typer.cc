@@ -366,8 +366,9 @@ Type* OperationTyper::NumberExpm1(Type* type) {
 Type* OperationTyper::NumberFloor(Type* type) {
   DCHECK(type->Is(Type::Number()));
   if (type->Is(cache_.kIntegerOrMinusZeroOrNaN)) return type;
-  // TODO(bmeurer): We could infer a more precise type here.
-  return cache_.kIntegerOrMinusZeroOrNaN;
+  type = Type::Intersect(type, Type::MinusZeroOrNaN(), zone());
+  type = Type::Union(type, cache_.kInteger, zone());
+  return type;
 }
 
 Type* OperationTyper::NumberFround(Type* type) {
@@ -624,12 +625,19 @@ Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
   }
 
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return Type::NaN();
-  // Division is tricky, so all we do is try ruling out nan.
+  // Division is tricky, so all we do is try ruling out -0 and NaN.
+  bool maybe_minuszero = !lhs->Is(cache_.kPositiveIntegerOrNaN) ||
+                         !rhs->Is(cache_.kPositiveIntegerOrNaN);
   bool maybe_nan =
       lhs->Maybe(Type::NaN()) || rhs->Maybe(cache_.kZeroish) ||
       ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
        (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
-  return maybe_nan ? Type::Number() : Type::OrderedNumber();
+
+  // Take into account the -0 and NaN information computed earlier.
+  Type* type = Type::PlainNumber();
+  if (maybe_minuszero) type = Type::Union(type, Type::MinusZero(), zone());
+  if (maybe_nan) type = Type::Union(type, Type::NaN(), zone());
+  return type;
 }
 
 Type* OperationTyper::NumberModulus(Type* lhs, Type* rhs) {
