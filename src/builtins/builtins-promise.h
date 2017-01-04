@@ -16,7 +16,19 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* AllocateAndInitPromise(Node* context, Node* parent);
+  // These allocate and initialize a promise with pending state and
+  // undefined fields.
+  //
+  // This uses undefined as the parent promise for the promise init
+  // hook.
+  Node* AllocateAndInitJSPromise(Node* context);
+  // This uses the given parent as the parent promise for the promise
+  // init hook.
+  Node* AllocateAndInitJSPromise(Node* context, Node* parent);
+
+  // This allocates and initializes a promise with the given state and
+  // fields.
+  Node* AllocateAndSetJSPromise(Node* context, Node* status, Node* result);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate::Template msg_template);
@@ -57,6 +69,12 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   Node* NewPromiseCapability(Node* context, Node* constructor,
                              Node* debug_event = nullptr);
+
+ protected:
+  void PromiseInit(Node* promise);
+
+ private:
+  Node* AllocateJSPromise(Node* context);
 };
 
 }  // namespace internal

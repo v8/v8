@@ -1128,13 +1128,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Promise helpers
   Node* IsPromiseHookEnabled();
 
-  Node* AllocateJSPromise(Node* context);
-  void PromiseInit(Node* promise);
-
-  // Other promise fields may also be need to set/reset. This only
-  // provides a helper for certain init patterns.
-  void PromiseSet(Node* promise, Node* status, Node* result);
-
   Node* AllocatePromiseReactionJobInfo(Node* promise, Node* value, Node* tasks,
                                        Node* deferred_promise,
                                        Node* deferred_on_resolve,

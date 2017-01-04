@@ -17,14 +17,56 @@ typedef compiler::Node Node;
 typedef CodeStubAssembler::ParameterMode ParameterMode;
 typedef compiler::CodeAssemblerState CodeAssemblerState;
 
-Node* PromiseBuiltinsAssembler::AllocateAndInitPromise(Node* context,
-                                                       Node* parent) {
+Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Node* const initial_map =
+      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  Node* const instance = AllocateJSObjectFromMap(initial_map);
+  return instance;
+}
+
+void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
+  StoreObjectField(promise, JSPromise::kStatusOffset,
+                   SmiConstant(v8::Promise::kPending));
+  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
+}
+
+Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context) {
+  return AllocateAndInitJSPromise(context, UndefinedConstant());
+}
+
+Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context,
+                                                         Node* parent) {
   Node* const instance = AllocateJSPromise(context);
   PromiseInit(instance);
 
   Label out(this);
   GotoUnless(IsPromiseHookEnabled(), &out);
   CallRuntime(Runtime::kPromiseHookInit, context, instance, parent);
+  Goto(&out);
+
+  Bind(&out);
+  return instance;
+}
+
+Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(Node* context,
+                                                        Node* status,
+                                                        Node* result) {
+  CSA_ASSERT(this, TaggedIsSmi(status));
+
+  Node* const instance = AllocateJSPromise(context);
+
+  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kStatusOffset, status);
+  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kResultOffset, result);
+  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
+                                 SmiConstant(0));
+
+  Label out(this);
+  GotoUnless(IsPromiseHookEnabled(), &out);
+  CallRuntime(Runtime::kPromiseHookInit, context, instance,
+              UndefinedConstant());
   Goto(&out);
 
   Bind(&out);
@@ -337,7 +379,7 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
 
   Bind(&fast_promise_capability);
   {
-    Node* const deferred_promise = AllocateAndInitPromise(context, promise);
+    Node* const deferred_promise = AllocateAndInitJSPromise(context, promise);
     var_deferred_promise.Bind(deferred_promise);
     var_deferred_on_resolve.Bind(UndefinedConstant());
     var_deferred_on_reject.Bind(UndefinedConstant());
@@ -791,7 +833,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   Node* const is_debug_active = IsDebugActive();
   Label if_targetisnotmodified(this),
       if_targetismodified(this, Label::kDeferred), run_executor(this),
-      debug_push(this), init(this);
+      debug_push(this);
 
   Branch(WordEqual(promise_fun, new_target), &if_targetisnotmodified,
          &if_targetismodified);
@@ -802,9 +844,9 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 
   Bind(&if_targetisnotmodified);
   {
-    Node* const instance = AllocateJSPromise(context);
+    Node* const instance = AllocateAndInitJSPromise(context);
     var_result.Bind(instance);
-    Goto(&init);
+    Goto(&debug_push);
   }
 
   Bind(&if_targetismodified);
@@ -812,16 +854,11 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
     ConstructorBuiltinsAssembler constructor_assembler(this->state());
     Node* const instance = constructor_assembler.EmitFastNewObject(
         context, promise_fun, new_target);
-
+    PromiseInit(instance);
     var_result.Bind(instance);
-    Goto(&init);
-  }
 
-  Bind(&init);
-  {
-    PromiseInit(var_result.value());
     GotoUnless(IsPromiseHookEnabled(), &debug_push);
-    CallRuntime(Runtime::kPromiseHookInit, context, var_result.value(),
+    CallRuntime(Runtime::kPromiseHookInit, context, instance,
                 UndefinedConstant());
     Goto(&debug_push);
   }
@@ -886,7 +923,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
   Node* const parent = Parameter(1);
   Node* const context = Parameter(4);
-  Return(AllocateAndInitPromise(context, parent));
+  Return(AllocateAndInitJSPromise(context, parent));
 }
 
 TF_BUILTIN(PromiseCreateAndSet, PromiseBuiltinsAssembler) {
@@ -894,15 +931,7 @@ TF_BUILTIN(PromiseCreateAndSet, PromiseBuiltinsAssembler) {
   Node* const result = Parameter(2);
   Node* const context = Parameter(5);
 
-  Node* const instance = AllocateJSPromise(context);
-  PromiseSet(instance, status, result);
-
-  Label out(this);
-  GotoUnless(IsPromiseHookEnabled(), &out);
-  CallRuntime(Runtime::kPromiseHookInit, context, instance,
-              UndefinedConstant());
-  Goto(&out);
-  Bind(&out);
+  Node* const instance = AllocateAndSetJSPromise(context, status, result);
   Return(instance);
 }
 

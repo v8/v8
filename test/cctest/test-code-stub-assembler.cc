@@ -1789,16 +1789,15 @@ TEST(IsPromiseHookEnabled) {
   CHECK_EQ(isolate->heap()->false_value(), *result);
 }
 
-TEST(AllocateJSPromise) {
+TEST(AllocateAndInitJSPromise) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
   CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  PromiseBuiltinsAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
+  Node* const promise = m.AllocateAndInitJSPromise(context);
   m.Return(promise);
 
   Handle<Code> code = data.GenerateCode();
@@ -1810,41 +1809,16 @@ TEST(AllocateJSPromise) {
   CHECK(result->IsJSPromise());
 }
 
-TEST(PromiseInit) {
+TEST(AllocateAndSetJSPromise) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
   CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  PromiseBuiltinsAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
-  m.Return(promise);
-
-  Handle<Code> code = data.GenerateCode();
-  CHECK(!code.is_null());
-
-  FunctionTester ft(code, kNumParams);
-  Handle<Object> result =
-      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result->IsJSPromise());
-  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
-  CHECK_EQ(v8::Promise::kPending, js_promise->status());
-  CHECK_EQ(isolate->heap()->undefined_value(), js_promise->result());
-  CHECK(!js_promise->has_handler());
-}
-
-TEST(PromiseSet) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
-
-  Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise = m.AllocateAndSetJSPromise(
+      context, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
   m.Return(promise);
 
   Handle<Code> code = data.GenerateCode();
@@ -1866,10 +1840,10 @@ TEST(AllocatePromiseReactionJobInfo) {
   const int kNumParams = 1;
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
+  PromiseBuiltinsAssembler p(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
+  Node* const promise = p.AllocateAndInitJSPromise(context);
   Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred_promise =
@@ -1955,8 +1929,8 @@ TEST(PromiseHasHandler) {
   PromiseBuiltinsAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
   Handle<Code> code = data.GenerateCode();
@@ -1977,8 +1951,8 @@ TEST(CreatePromiseResolvingFunctionsContext) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
@@ -2009,8 +1983,8 @@ TEST(CreatePromiseResolvingFunctions) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node *resolve, *reject;
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
@@ -2041,8 +2015,8 @@ TEST(AllocateFunctionWithMapAndContext) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   Node* resolve_info =

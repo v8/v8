@@ -8320,30 +8320,6 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
   return fun;
 }
 
-Node* CodeStubAssembler::AllocateJSPromise(Node* context) {
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const initial_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const instance = AllocateJSObjectFromMap(initial_map);
-
-  return instance;
-}
-
-void CodeStubAssembler::PromiseInit(Node* promise) {
-  StoreObjectField(promise, JSPromise::kStatusOffset,
-                   SmiConstant(v8::Promise::kPending));
-  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
-}
-
-void CodeStubAssembler::PromiseSet(Node* promise, Node* status, Node* result) {
-  CSA_ASSERT(this, TaggedIsSmi(status));
-  StoreObjectField(promise, JSPromise::kStatusOffset, status);
-  StoreObjectField(promise, JSPromise::kResultOffset, result);
-  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
-}
-
 Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
     Node* promise, Node* value, Node* tasks, Node* deferred_promise,
     Node* deferred_on_resolve, Node* deferred_on_reject, Node* context) {
