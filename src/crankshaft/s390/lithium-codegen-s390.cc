@@ -3521,9 +3521,13 @@ void LCodeGen::DoMathFround(LMathFround* instr) {
 }
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  __ sqdbr(result, input);
+  LOperand* input = instr->value();
+  if (input->IsDoubleRegister()) {
+    __ Sqrt(result, ToDoubleRegister(instr->value()));
+  } else {
+    __ Sqrt(result, ToMemOperand(input));
+  }
 }
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {

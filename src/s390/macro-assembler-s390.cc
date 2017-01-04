@@ -3342,6 +3342,17 @@ void MacroAssembler::MulP(Register dst, const MemOperand& opnd) {
 #endif
 }
 
+void MacroAssembler::Sqrt(DoubleRegister result, DoubleRegister input) {
+  sqdbr(result, input);
+}
+void MacroAssembler::Sqrt(DoubleRegister result, const MemOperand& input) {
+  if (is_uint12(input.offset())) {
+    sqdb(result, input);
+  } else {
+    ldy(result, input);
+    sqdbr(result, result);
+  }
+}
 //----------------------------------------------------------------------------
 //  Add Instructions
 //----------------------------------------------------------------------------

@@ -323,6 +323,10 @@ class MacroAssembler : public Assembler {
   // Divide
   void DivP(Register dividend, Register divider);
 
+  // Square root
+  void Sqrt(DoubleRegister result, DoubleRegister input);
+  void Sqrt(DoubleRegister result, const MemOperand& input);
+
   // Compare
   void Cmp32(Register src1, Register src2);
   void CmpP(Register src1, Register src2);
