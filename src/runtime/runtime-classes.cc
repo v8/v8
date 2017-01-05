@@ -20,13 +20,6 @@ namespace v8 {
 namespace internal {
 
 
-RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError(MessageTemplate::kNonMethod));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -44,13 +37,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
       isolate, NewTypeError(MessageTemplate::kConstructorNonCallable, name));
 }
 
-
-RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kArrayNotSubclassable));
-}
 
 RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
   HandleScope scope(isolate);

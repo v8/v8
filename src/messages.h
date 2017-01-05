@@ -268,7 +268,6 @@ class ErrorUtils : public AllStatic {
     "ArrayBuffer subclass returned this from species constructor")             \
   T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
-  T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
@@ -486,7 +485,6 @@ class ErrorUtils : public AllStatic {
   T(VarRedeclaration, "Identifier '%' has already been declared")              \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* ReferenceError */                                                         \
-  T(NonMethod, "'super' is referenced from non-method")                        \
   T(NotDefined, "% is not defined")                                            \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \

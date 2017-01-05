@@ -75,10 +75,8 @@ namespace internal {
   F(AtomicsNumWaitersForTesting, 2, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)        \
-  F(ThrowNonMethodError, 0, 1)               \
   F(ThrowUnsupportedSuperError, 0, 1)        \
   F(ThrowConstructorNonCallableError, 1, 1)  \
-  F(ThrowArrayNotSubclassableError, 0, 1)    \
   F(ThrowStaticPrototypeError, 0, 1)         \
   F(ThrowNotSuperConstructor, 2, 1)          \
   F(HomeObjectSymbol, 0, 1)                  \
