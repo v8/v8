@@ -32,7 +32,7 @@ void PromiseRejectEvent(Isolate* isolate, Handle<JSPromise> promise,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
@@ -49,7 +49,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   // At this point, no revocation has been issued before
@@ -172,7 +172,7 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise, int status,
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_PromiseReject) {
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
@@ -186,7 +186,7 @@ RUNTIME_FUNCTION(Runtime_PromiseReject) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(PromiseReactionJobInfo, info, 0);
   CONVERT_SMI_ARG_CHECKED(status, 1);
   EnqueuePromiseReactionJob(isolate, info, status);
@@ -195,7 +195,7 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 1);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 2);
@@ -226,7 +226,7 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
 
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, microtask, 0);
   isolate->EnqueueMicrotask(microtask);
   return isolate->heap()->undefined_value();
@@ -234,7 +234,7 @@ RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
 
 RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   isolate->RunMicrotasks();
   return isolate->heap()->undefined_value();
 }
@@ -242,7 +242,7 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
 RUNTIME_FUNCTION(Runtime_CreateResolvingFunctions) {
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   Handle<JSFunction> resolve, reject;
 
   PromiseUtils::CreateResolvingFunctions(
@@ -257,7 +257,7 @@ RUNTIME_FUNCTION(Runtime_CreateResolvingFunctions) {
 
 RUNTIME_FUNCTION(Runtime_PromiseStatus) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
 
   return Smi::FromInt(promise->status());
@@ -265,14 +265,14 @@ RUNTIME_FUNCTION(Runtime_PromiseStatus) {
 
 RUNTIME_FUNCTION(Runtime_PromiseResult) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
   return promise->result();
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSPromise, promise, 0);
 
   promise->set_has_handler(true);
@@ -281,7 +281,7 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
 
 RUNTIME_FUNCTION(Runtime_PromiseMarkHandledHint) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSPromise, promise, 0);
 
   promise->set_handled_hint(true);

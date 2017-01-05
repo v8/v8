@@ -24,7 +24,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   isolate->debug()->set_return_value(value);
 
@@ -38,7 +38,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
 
 RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   isolate->debug()->set_return_value(value);
 
@@ -65,7 +65,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
 
 RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   if (isolate->debug()->break_points_active()) {
     isolate->debug()->HandleDebugBreak();
   }
@@ -79,7 +79,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
 // args[1]: object supplied during callback
 RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CHECK(args[0]->IsJSFunction() || args[0]->IsUndefined(isolate) ||
         args[0]->IsNull(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
@@ -92,7 +92,7 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
 
 RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   isolate->stack_guard()->RequestDebugBreak();
   return isolate->heap()->undefined_value();
 }
@@ -290,7 +290,7 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_DebugGetInternalProperties) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   RETURN_RESULT_OR_FAILURE(isolate,
                            Runtime::GetInternalProperties(isolate, obj));
@@ -382,7 +382,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPropertyDetails) {
 RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
@@ -396,7 +396,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
 // args[0]: smi with property details.
 RUNTIME_FUNCTION(Runtime_DebugPropertyTypeFromDetails) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
   return Smi::FromInt(static_cast<int>(details.type()));
 }
@@ -406,7 +406,7 @@ RUNTIME_FUNCTION(Runtime_DebugPropertyTypeFromDetails) {
 // args[0]: smi with property details.
 RUNTIME_FUNCTION(Runtime_DebugPropertyAttributesFromDetails) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
   return Smi::FromInt(static_cast<int>(details.attributes()));
 }
@@ -414,7 +414,7 @@ RUNTIME_FUNCTION(Runtime_DebugPropertyAttributesFromDetails) {
 
 RUNTIME_FUNCTION(Runtime_CheckExecutionState) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
   return isolate->heap()->true_value();
@@ -423,7 +423,7 @@ RUNTIME_FUNCTION(Runtime_CheckExecutionState) {
 
 RUNTIME_FUNCTION(Runtime_GetFrameCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -483,7 +483,7 @@ static const int kFrameDetailsFirstDynamicIndex = 10;
 // Return value if any
 RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -764,7 +764,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
 RUNTIME_FUNCTION(Runtime_GetScopeCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -797,7 +797,7 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
 // 1: Scope object
 RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -893,7 +893,7 @@ RUNTIME_FUNCTION(Runtime_GetFunctionScopeCount) {
 
 RUNTIME_FUNCTION(Runtime_GetFunctionScopeDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   // Check arguments.
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
@@ -932,7 +932,7 @@ RUNTIME_FUNCTION(Runtime_GetGeneratorScopeCount) {
 
 RUNTIME_FUNCTION(Runtime_GetGeneratorScopeDetails) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   if (!args[0]->IsJSGeneratorObject()) {
     return isolate->heap()->undefined_value();
@@ -979,7 +979,7 @@ static bool SetScopeVariableValue(ScopeIterator* it, int index,
 // Return true if success and false otherwise
 RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 6);
+  DCHECK_EQ(6, args.length());
 
   // Check arguments.
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
@@ -1018,7 +1018,7 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
 RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
 #ifdef DEBUG
   // Print the scopes for the top frame.
@@ -1038,7 +1038,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
 // args[0]: disable break state
 RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_BOOLEAN_ARG_CHECKED(active, 0);
   isolate->debug()->set_break_points_active(active);
   return isolate->heap()->undefined_value();
@@ -1052,7 +1052,7 @@ static bool IsPositionAlignmentCodeCorrect(int alignment) {
 
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_NUMBER_CHECKED(int32_t, statement_aligned_code, Int32, args[1]);
@@ -1082,7 +1082,7 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
 // args[2]: number: break point object
 RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
@@ -1107,7 +1107,7 @@ RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
 // args[3]: number: break point object
 RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
@@ -1139,7 +1139,7 @@ RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
 // args[0]: number: break point object
 RUNTIME_FUNCTION(Runtime_ClearBreakPoint) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 0);
 
@@ -1155,7 +1155,7 @@ RUNTIME_FUNCTION(Runtime_ClearBreakPoint) {
 // args[1]: Boolean indicating on/off.
 RUNTIME_FUNCTION(Runtime_ChangeBreakOnException) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 1);
 
@@ -1172,7 +1172,7 @@ RUNTIME_FUNCTION(Runtime_ChangeBreakOnException) {
 // args[0]: boolean indicating uncaught exceptions
 RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_NUMBER_CHECKED(uint32_t, type_arg, Uint32, args[0]);
 
   ExceptionBreakType type = static_cast<ExceptionBreakType>(type_arg);
@@ -1188,7 +1188,7 @@ RUNTIME_FUNCTION(Runtime_IsBreakOnException) {
 //          of frames to step down.
 RUNTIME_FUNCTION(Runtime_PrepareStep) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -1227,7 +1227,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStepFrame) {
 // Clear all stepping set by PrepareStep.
 RUNTIME_FUNCTION(Runtime_ClearStepping) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   CHECK(isolate->debug()->is_active());
   isolate->debug()->ClearStepping();
   return isolate->heap()->undefined_value();
@@ -1239,7 +1239,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -1260,7 +1260,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
@@ -1272,7 +1272,7 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 
 RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   // This runtime function is used by the debugger to determine whether the
   // debugger is active or not. Hence we fail gracefully here and don't crash.
@@ -1323,7 +1323,7 @@ static bool HasInPrototypeChainIgnoringProxies(Isolate* isolate,
 // args[2]: the the maximum number of objects to return
 RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
   CHECK(filter->IsUndefined(isolate) || filter->IsJSObject());
@@ -1380,7 +1380,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
 // args[1]: the the maximum number of objects to return
 RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
   CHECK(max_references >= 0);
@@ -1413,7 +1413,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
 // args[0]: the object to find the prototype for.
 RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
   HandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, obj, 0);
   // TODO(1543): Come up with a solution for clients to handle potential errors
   // thrown by an intermediate proxy.
@@ -1425,7 +1425,7 @@ RUNTIME_FUNCTION(Runtime_DebugGetPrototype) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_DebugSetScriptSource) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSValue, script_wrapper, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
@@ -1478,7 +1478,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 // to have a stack with C++ frame in the middle.
 RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
   DebugScope debug_scope(isolate->debug());
@@ -1495,7 +1495,7 @@ RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
 
 RUNTIME_FUNCTION(Runtime_GetDebugContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   Handle<Context> context;
   {
     DebugScope debug_scope(isolate->debug());
@@ -1515,7 +1515,7 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
 // Presently, it only does a full GC.
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
                                      GarbageCollectionReason::kRuntime);
   return isolate->heap()->undefined_value();
@@ -1525,7 +1525,7 @@ RUNTIME_FUNCTION(Runtime_CollectGarbage) {
 // Gets the current heap usage.
 RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   int usage = static_cast<int>(isolate->heap()->SizeOfObjects());
   if (!Smi::IsValid(usage)) {
     return *isolate->factory()->NewNumberFromInt(usage);
@@ -1542,7 +1542,7 @@ RUNTIME_FUNCTION(Runtime_GetHeapUsage) {
 // some kind of user interaction the performance is not crucial.
 RUNTIME_FUNCTION(Runtime_GetScript) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, script_name, 0);
 
   Handle<Script> found;
@@ -1566,7 +1566,7 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineCount) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
 
   CHECK(script->value()->IsScript());
@@ -1610,7 +1610,7 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
 
@@ -1623,7 +1623,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
 
@@ -1748,7 +1748,7 @@ bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, script, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
@@ -1764,7 +1764,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine) {
 // TODO(5530): Rename once conflicting function has been deleted.
 RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_line, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, opt_column, 2);
@@ -1779,7 +1779,7 @@ RUNTIME_FUNCTION(Runtime_ScriptLocationFromLine2) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
   CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
@@ -1795,7 +1795,7 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo) {
 // TODO(5530): Rename once conflicting function has been deleted.
 RUNTIME_FUNCTION(Runtime_ScriptPositionInfo2) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_NUMBER_CHECKED(int32_t, scriptid, Int32, args[0]);
   CONVERT_NUMBER_CHECKED(int32_t, position, Int32, args[1]);
   CONVERT_BOOLEAN_ARG_CHECKED(with_offset, 2);
@@ -1813,7 +1813,7 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo2) {
 // TODO(5530): Remove once uses in debug.js are gone.
 RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
 
@@ -1875,7 +1875,7 @@ RUNTIME_FUNCTION(Runtime_DebugRecordGenerator) {
 }
 
 RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
   isolate->PushPromise(promise);
@@ -1884,7 +1884,7 @@ RUNTIME_FUNCTION(Runtime_DebugPushPromise) {
 
 
 RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   SealHandleScope shs(isolate);
   isolate->PopPromise();
   return isolate->heap()->undefined_value();
@@ -1892,12 +1892,12 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
 
 RUNTIME_FUNCTION(Runtime_DebugNextMicrotaskId) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return Smi::FromInt(isolate->GetNextDebugMicrotaskId());
 }
 
 RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);
   CONVERT_SMI_ARG_CHECKED(type, 0);
   CONVERT_SMI_ARG_CHECKED(id, 1);

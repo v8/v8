@@ -72,7 +72,7 @@ RUNTIME_FUNCTION(Runtime_CanonicalizeLanguageTag) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, locale_id_str, 0);
 
   v8::String::Utf8Value locale_id(v8::Utils::ToLocal(locale_id_str));
@@ -109,7 +109,7 @@ RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
 
   const icu::Locale* available_locales = NULL;
@@ -154,7 +154,7 @@ RUNTIME_FUNCTION(Runtime_GetDefaultICULocale) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
 
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   icu::Locale default_locale;
 
@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSArray, input, 0);
 
@@ -259,7 +259,7 @@ RUNTIME_FUNCTION(Runtime_GetLanguageTagVariants) {
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
 
@@ -275,7 +275,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObject) {
 RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(Object, input, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, expected_type, 1);
@@ -293,7 +293,7 @@ RUNTIME_FUNCTION(Runtime_IsInitializedIntlObjectOfType) {
 RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
@@ -312,7 +312,7 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
 RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, input, 0);
 
@@ -337,7 +337,7 @@ RUNTIME_FUNCTION(Runtime_GetImplFromInitializedIntlObject) {
 RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
@@ -376,7 +376,7 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
 RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
@@ -477,7 +477,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, date_format_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSDate, date, 1);
@@ -533,7 +533,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
 RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
@@ -572,7 +572,7 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
 RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, number_format_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, number, 1);
@@ -597,7 +597,7 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
 RUNTIME_FUNCTION(Runtime_CreateCollator) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
@@ -634,7 +634,7 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
 RUNTIME_FUNCTION(Runtime_InternalCompare) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, collator_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, string1, 1);
@@ -679,7 +679,7 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
       {"nfkc", UNORM2_DECOMPOSE},
   };
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(int, form_id, Int32, args[1]);
@@ -728,7 +728,7 @@ RUNTIME_FUNCTION(Runtime_StringNormalize) {
 RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, locale, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, options, 1);
@@ -771,7 +771,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
 RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, text, 1);
@@ -802,7 +802,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
 RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
@@ -817,7 +817,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
 RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
@@ -832,7 +832,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
 RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 
@@ -847,7 +847,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
 RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
   HandleScope scope(isolate);
 
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSObject, break_iterator_holder, 0);
 

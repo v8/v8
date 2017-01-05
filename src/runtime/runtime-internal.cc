@@ -23,7 +23,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   CHECK(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
 }
@@ -31,7 +31,7 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
@@ -44,7 +44,7 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
 
 RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
@@ -57,7 +57,7 @@ RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
 
 RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   CHECK(array->HasFastElements());
   CHECK(isolate->bootstrapper()->IsActive());
@@ -82,14 +82,14 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
 
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->Throw(args[0]);
 }
 
 
 RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
 }
 
@@ -119,21 +119,21 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->UnwindAndFindHandler();
 }
 
 
 RUNTIME_FUNCTION(Runtime_PromoteScheduledException) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->PromoteScheduledException();
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
@@ -142,7 +142,7 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
 
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -164,7 +164,7 @@ RUNTIME_FUNCTION(Runtime_NewReferenceError) {
 
 RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -180,7 +180,7 @@ RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
 
 RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
 }
@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
@@ -219,7 +219,7 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
 
 RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
@@ -251,7 +251,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -265,14 +265,14 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
 
 RUNTIME_FUNCTION(Runtime_Interrupt) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->stack_guard()->HandleInterrupts();
 }
 
 
 RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
@@ -283,7 +283,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
 
 RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));

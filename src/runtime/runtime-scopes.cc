@@ -520,7 +520,7 @@ class ParameterArguments BASE_EMBEDDED {
 
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
@@ -585,7 +585,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
 
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(argument_count, 2);
@@ -672,7 +672,7 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
 
 RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
@@ -705,7 +705,7 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
 
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_SMI_ARG_CHECKED(scope_type, 1);
