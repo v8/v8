@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 
 #include "src/isolate.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -141,6 +142,17 @@ double CompilerDispatcherTracer::EstimateCompileInMs(
 double CompilerDispatcherTracer::EstimateFinalizeCompilingInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Average(finalize_compiling_events_);
+}
+
+void CompilerDispatcherTracer::DumpStatistics() const {
+  PrintF(
+      "CompilerDispatcherTracer: "
+      "prepare_parsing=%.2lfms parsing=%.2lfms/kb finalize_parsing=%.2lfms "
+      "prepare_compiling=%.2lfms compiling=%.2lfms/kb "
+      "finalize_compilig=%.2lfms\n",
+      EstimatePrepareToParseInMs(), EstimateParseInMs(1 * KB),
+      EstimateFinalizeParsingInMs(), EstimatePrepareToCompileInMs(),
+      EstimateCompileInMs(1 * KB), EstimateFinalizeCompilingInMs());
 }
 
 double CompilerDispatcherTracer::Average(

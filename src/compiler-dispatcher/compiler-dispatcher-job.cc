@@ -8,6 +8,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/compiler.h"
+#include "src/flags.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
@@ -15,6 +16,7 @@
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/unicode-cache.h"
+#include "src/utils.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -29,13 +31,19 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
-      can_compile_on_background_thread_(false) {
+      can_compile_on_background_thread_(false),
+      trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   HandleScope scope(isolate_);
   DCHECK(!shared_->outer_scope_info()->IsTheHole(isolate_));
   Handle<Script> script(Script::cast(shared_->script()), isolate_);
   Handle<String> source(String::cast(script->source()), isolate_);
   can_parse_on_background_thread_ =
       source->IsExternalTwoByteString() || source->IsExternalOneByteString();
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p] created for ", static_cast<void*>(this));
+    shared_->ShortPrint();
+    PrintF("\n");
+  }
 }
 
 CompilerDispatcherJob::~CompilerDispatcherJob() {
@@ -54,6 +62,10 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kInitial);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToParse);
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Preparing to parse\n",
+           static_cast<void*>(this));
+  }
   HandleScope scope(isolate_);
   unicode_cache_.reset(new UnicodeCache());
   zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
@@ -105,6 +117,9 @@ void CompilerDispatcherJob::Parse() {
   COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
       tracer_, kParse,
       parse_info_->end_position() - parse_info_->start_position());
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Parsing\n", static_cast<void*>(this));
+  }
 
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
@@ -133,6 +148,10 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kParsed);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeParsing);
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Finalizing parsing\n",
+           static_cast<void*>(this));
+  }
 
   if (!source_.is_null()) {
     i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
@@ -177,6 +196,10 @@ bool CompilerDispatcherJob::PrepareToCompileOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kReadyToAnalyse);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Preparing to compile\n",
+           static_cast<void*>(this));
+  }
 
   compile_info_.reset(
       new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null()));
@@ -206,6 +229,9 @@ void CompilerDispatcherJob::Compile() {
          ThreadId::Current().Equals(isolate_->thread_id()));
   COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
       tracer_, kCompile, parse_info_->literal()->ast_node_count());
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Compiling\n", static_cast<void*>(this));
+  }
 
   // Disallowing of handle dereference and heap access dealt with in
   // CompilationJob::ExecuteJob.
@@ -225,6 +251,10 @@ bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
   DCHECK(status() == CompileJobStatus::kCompiled);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeCompiling);
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Finalizing compiling\n",
+           static_cast<void*>(this));
+  }
 
   if (compile_job_->state() == CompilationJob::State::kFailed ||
       !Compiler::FinalizeCompilationJob(compile_job_.release())) {
@@ -245,6 +275,10 @@ bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
 
 void CompilerDispatcherJob::ResetOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("CompilerDispatcherJob[%p]: Resetting\n", static_cast<void*>(this));
+  }
 
   parser_.reset();
   unicode_cache_.reset();
@@ -292,6 +326,11 @@ double CompilerDispatcherJob::EstimateRuntimeOfNextStepInMs() const {
 
   UNREACHABLE();
   return 0.0;
+}
+
+void CompilerDispatcherJob::ShortPrint() {
+  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
+  shared_->ShortPrint();
 }
 
 }  // namespace internal

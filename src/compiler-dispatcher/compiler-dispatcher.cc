@@ -10,6 +10,7 @@
 #include "src/cancelable-task.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
+#include "src/flags.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -204,6 +205,7 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
     : isolate_(isolate),
       platform_(platform),
       max_stack_size_(max_stack_size),
+      trace_compiler_dispatcher_(FLAG_trace_compiler_dispatcher),
       tracer_(new CompilerDispatcherTracer(isolate_)),
       task_manager_(new CancelableTaskManager()),
       memory_pressure_level_(MemoryPressureLevel::kNone),
@@ -212,7 +214,11 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       num_scheduled_background_tasks_(0),
       main_thread_blocking_on_job_(nullptr),
       block_for_testing_(false),
-      semaphore_for_testing_(0) {}
+      semaphore_for_testing_(0) {
+  if (trace_compiler_dispatcher_ && !IsEnabled()) {
+    PrintF("CompilerDispatcher: dispatcher is disabled\n");
+  }
+}
 
 CompilerDispatcher::~CompilerDispatcher() {
   // To avoid crashing in unit tests due to unfished jobs.
@@ -240,6 +246,13 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   }
 
   if (IsEnqueued(function)) return true;
+
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: enqueuing ");
+    function->ShortPrint();
+    PrintF("\n");
+  }
+
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       isolate_, tracer_.get(), function, max_stack_size_));
   std::pair<int, int> key(Script::cast(function->script())->id(),
@@ -278,12 +291,26 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   JobMap::const_iterator job = GetJobFor(function);
   CHECK(job != jobs_.end());
 
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: finishing ");
+    function->ShortPrint();
+    PrintF(" now\n");
+  }
+
   WaitForJobIfRunningOnBackground(job->second.get());
   while (!IsFinished(job->second.get())) {
     DoNextStepOnMainThread(isolate_, job->second.get(),
                            ExceptionHandling::kThrow);
   }
   bool result = job->second->status() != CompileJobStatus::kFailed;
+
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: finished working on ");
+    function->ShortPrint();
+    PrintF(": %s\n", result ? "success" : "failure");
+    tracer_->DumpStatistics();
+  }
+
   job->second->ResetOnMainThread();
   jobs_.erase(job);
   if (jobs_.empty()) {
@@ -299,6 +326,11 @@ void CompilerDispatcher::AbortAll(BlockingBehavior blocking) {
   if (!background_tasks_running || blocking == BlockingBehavior::kBlock) {
     for (auto& it : jobs_) {
       WaitForJobIfRunningOnBackground(it.second.get());
+      if (trace_compiler_dispatcher_) {
+        PrintF("CompilerDispatcher: aborted ");
+        it.second->ShortPrint();
+        PrintF("\n");
+      }
       it.second->ResetOnMainThread();
     }
     jobs_.clear();
@@ -341,6 +373,11 @@ void CompilerDispatcher::AbortInactiveJobs() {
         continue;
       }
     }
+    if (trace_compiler_dispatcher_) {
+      PrintF("CompilerDispatcher: aborted ");
+      job->second->ShortPrint();
+      PrintF("\n");
+    }
     job->second->ResetOnMainThread();
     jobs_.erase(job);
   }
@@ -359,6 +396,9 @@ void CompilerDispatcher::MemoryPressureNotification(
   if (previous != MemoryPressureLevel::kNone ||
       level == MemoryPressureLevel::kNone) {
     return;
+  }
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: received memory pressure notification\n");
   }
   if (is_isolate_locked) {
     AbortAll(BlockingBehavior::kDontBlock);
@@ -458,6 +498,10 @@ void CompilerDispatcher::DoBackgroundWork() {
     semaphore_for_testing_.Wait();
   }
 
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: doing background work\n");
+  }
+
   DoNextStepOnBackgroundThread(job);
 
   ScheduleMoreBackgroundTasksIfNeeded();
@@ -507,6 +551,12 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
   // finished), or 3) make progress on it.
   double idle_time_in_seconds =
       deadline_in_seconds - platform_->MonotonicallyIncreasingTime();
+
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: received %0.1lfms of idle time\n",
+           idle_time_in_seconds *
+               static_cast<double>(base::Time::kMillisecondsPerSecond));
+  }
   for (auto job = jobs_.begin();
        job != jobs_.end() && idle_time_in_seconds > 0.0;
        idle_time_in_seconds =
@@ -537,6 +587,14 @@ void CompilerDispatcher::DoIdleWork(double deadline_in_seconds) {
       ++job;
     } else if (IsFinished(job->second.get())) {
       DCHECK(it == pending_background_jobs_.end());
+      if (trace_compiler_dispatcher_) {
+        PrintF("CompilerDispatcher: finished working on ");
+        job->second->ShortPrint();
+        PrintF(": %s\n", job->second->status() == CompileJobStatus::kDone
+                             ? "success"
+                             : "failure");
+        tracer_->DumpStatistics();
+      }
       job->second->ResetOnMainThread();
       job = jobs_.erase(job);
       continue;

@@ -86,6 +86,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // Estimate how long the next step will take using the tracer.
   double EstimateRuntimeOfNextStepInMs() const;
 
+  // Even though the name does not imply this, ShortPrint() must only be invoked
+  // on the main thread.
+  void ShortPrint();
+
  private:
   FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
 
@@ -110,6 +114,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   bool can_parse_on_background_thread_;
   bool can_compile_on_background_thread_;
+
+  bool trace_compiler_dispatcher_jobs_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJob);
 };

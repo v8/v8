@@ -120,6 +120,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   Isolate* isolate_;
   Platform* platform_;
   size_t max_stack_size_;
+
+  // Copy of FLAG_trace_compiler_dispatcher to allow for access from any thread.
+  bool trace_compiler_dispatcher_;
+
   std::unique_ptr<CompilerDispatcherTracer> tracer_;
 
   std::unique_ptr<CancelableTaskManager> task_manager_;
