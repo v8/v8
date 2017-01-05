@@ -247,7 +247,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // TODO(turbofan): Add support for inlining into try blocks.
   bool is_exceptional = NodeProperties::IsExceptionalCall(node);
-  for (auto access_info : access_infos) {
+  for (const auto& access_info : access_infos) {
     if (access_info.IsAccessorConstant()) {
       // Accessor in try-blocks are not supported yet.
       if (is_exceptional || !(flags() & kAccessorInliningEnabled)) {

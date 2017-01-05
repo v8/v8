@@ -1253,7 +1253,7 @@ Node* JSCreateLowering::AllocateFastLiteral(
         AccessBuilder::ForJSArrayLength(boilerplate_array->GetElementsKind()),
         handle(boilerplate_array->length(), isolate()));
   }
-  for (auto const inobject_field : inobject_fields) {
+  for (auto const& inobject_field : inobject_fields) {
     builder.Store(inobject_field.first, inobject_field.second);
   }
   return builder.Finish();

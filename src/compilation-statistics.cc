@@ -134,10 +134,10 @@ std::ostream& operator<<(std::ostream& os, const AsPrintableStatistics& ps) {
   }
 
   if (!ps.machine_output) WriteHeader(os);
-  for (auto phase_kind_it : sorted_phase_kinds) {
+  for (const auto& phase_kind_it : sorted_phase_kinds) {
     const auto& phase_kind_name = phase_kind_it->first;
     if (!ps.machine_output) {
-      for (auto phase_it : sorted_phases) {
+      for (const auto& phase_it : sorted_phases) {
         const auto& phase_stats = phase_it->second;
         if (phase_stats.phase_kind_name_ != phase_kind_name) continue;
         const auto& phase_name = phase_it->first;
