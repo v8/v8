@@ -250,10 +250,10 @@ void CompilerDispatcherJob::ResetOnMainThread() {
   unicode_cache_.reset();
   character_stream_.reset();
   parse_info_.reset();
-  zone_.reset();
   handles_from_parsing_.reset();
   compile_info_.reset();
   compile_job_.reset();
+  zone_.reset();
 
   if (!source_.is_null()) {
     i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
