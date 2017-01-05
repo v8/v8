@@ -1470,8 +1470,12 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
       old_receiver = new_receiver;
     }
 
-    VisitForAccumulatorValue(property->key());
-    builder()->ConvertAccumulatorToName(key);
+    if (property->key()->IsStringLiteral()) {
+      VisitForRegisterValue(property->key(), key);
+    } else {
+      VisitForAccumulatorValue(property->key());
+      builder()->ConvertAccumulatorToName(key);
+    }
 
     if (property->is_static() && property->is_computed_name()) {
       // The static prototype property is read only. We handle the non computed
