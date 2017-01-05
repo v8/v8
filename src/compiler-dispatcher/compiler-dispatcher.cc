@@ -93,6 +93,32 @@ void DoNextStepOnBackgroundThread(CompilerDispatcherJob* job) {
 // we'll get all of it so try to be a conservative.
 const double kMaxIdleTimeToExpectInMs = 40;
 
+class MemoryPressureTask : public CancelableTask {
+ public:
+  MemoryPressureTask(Isolate* isolate, CancelableTaskManager* task_manager,
+                     CompilerDispatcher* dispatcher);
+  ~MemoryPressureTask() override;
+
+  // CancelableTask implementation.
+  void RunInternal() override;
+
+ private:
+  CompilerDispatcher* dispatcher_;
+
+  DISALLOW_COPY_AND_ASSIGN(MemoryPressureTask);
+};
+
+MemoryPressureTask::MemoryPressureTask(Isolate* isolate,
+                                       CancelableTaskManager* task_manager,
+                                       CompilerDispatcher* dispatcher)
+    : CancelableTask(isolate, task_manager), dispatcher_(dispatcher) {}
+
+MemoryPressureTask::~MemoryPressureTask() {}
+
+void MemoryPressureTask::RunInternal() {
+  dispatcher_->AbortAll(CompilerDispatcher::BlockingBehavior::kDontBlock);
+}
+
 }  // namespace
 
 class CompilerDispatcher::AbortTask : public CancelableTask {
@@ -180,6 +206,7 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       max_stack_size_(max_stack_size),
       tracer_(new CompilerDispatcherTracer(isolate_)),
       task_manager_(new CancelableTaskManager()),
+      memory_pressure_level_(MemoryPressureLevel::kNone),
       abort_(false),
       idle_task_scheduled_(false),
       num_scheduled_background_tasks_(0),
@@ -195,6 +222,10 @@ CompilerDispatcher::~CompilerDispatcher() {
 
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   if (!IsEnabled()) return false;
+
+  if (memory_pressure_level_.Value() != MemoryPressureLevel::kNone) {
+    return false;
+  }
 
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
@@ -316,6 +347,34 @@ void CompilerDispatcher::AbortInactiveJobs() {
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
     abort_ = false;
+  }
+}
+
+void CompilerDispatcher::MemoryPressureNotification(
+    v8::MemoryPressureLevel level, bool is_isolate_locked) {
+  MemoryPressureLevel previous = memory_pressure_level_.Value();
+  memory_pressure_level_.SetValue(level);
+  // If we're already under pressure, we haven't accepted new tasks meanwhile
+  // and can just return. If we're no longer under pressure, we're also done.
+  if (previous != MemoryPressureLevel::kNone ||
+      level == MemoryPressureLevel::kNone) {
+    return;
+  }
+  if (is_isolate_locked) {
+    AbortAll(BlockingBehavior::kDontBlock);
+  } else {
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      if (abort_) return;
+      // By going into abort mode here, and clearing the
+      // pending_background_jobs_, we at keep existing background jobs from
+      // picking up more work before the MemoryPressureTask gets executed.
+      abort_ = true;
+      pending_background_jobs_.clear();
+    }
+    platform_->CallOnForegroundThread(
+        reinterpret_cast<v8::Isolate*>(isolate_),
+        new MemoryPressureTask(isolate_, task_manager_.get(), this));
   }
 }
 

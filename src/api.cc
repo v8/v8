@@ -29,6 +29,7 @@
 #include "src/bootstrapper.h"
 #include "src/char-predicates-inl.h"
 #include "src/code-stubs.h"
+#include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler.h"
 #include "src/context-measure.h"
 #include "src/contexts.h"
@@ -8469,6 +8470,8 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->MemoryPressureNotification(level, Locker::IsLocked(this));
   isolate->allocator()->MemoryPressureNotification(level);
+  isolate->compiler_dispatcher()->MemoryPressureNotification(
+      level, Locker::IsLocked(this));
 }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {

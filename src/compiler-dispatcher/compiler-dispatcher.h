@@ -21,6 +21,7 @@
 namespace v8 {
 
 class Platform;
+enum class MemoryPressureLevel;
 
 namespace internal {
 
@@ -83,6 +84,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Aborts all jobs. Blocks if requested.
   void AbortAll(BlockingBehavior blocking);
 
+  // Memory pressure notifications from the embedder.
+  void MemoryPressureNotification(v8::MemoryPressureLevel level,
+                                  bool is_isolate_locked);
+
  private:
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
   FRIEND_TEST(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread);
@@ -122,6 +127,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Mapping from (script id, function literal id) to job. We use a multimap,
   // as script id is not necessarily unique.
   JobMap jobs_;
+
+  base::AtomicValue<v8::MemoryPressureLevel> memory_pressure_level_;
 
   // The following members can be accessed from any thread. Methods need to hold
   // the mutex |mutex_| while accessing them.

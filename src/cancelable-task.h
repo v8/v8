@@ -134,7 +134,8 @@ class V8_EXPORT_PRIVATE Cancelable {
 
 
 // Multiple inheritance can be used because Task is a pure interface.
-class CancelableTask : public Cancelable, public Task {
+class V8_EXPORT_PRIVATE CancelableTask : public Cancelable,
+                                         NON_EXPORTED_BASE(public Task) {
  public:
   explicit CancelableTask(Isolate* isolate);
   CancelableTask(Isolate* isolate, CancelableTaskManager* manager);

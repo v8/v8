@@ -714,5 +714,88 @@ TEST_F(IgnitionCompilerDispatcherTest, FinishNowDuringAbortAll) {
   platform.ClearIdleTask();
 }
 
+TEST_F(CompilerDispatcherTest, MemoryPressure) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f14(x) { return x * y }; return f14; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  // Can't enqueue tasks under memory pressure.
+  dispatcher.MemoryPressureNotification(v8::MemoryPressureLevel::kCritical,
+                                        true);
+  ASSERT_FALSE(dispatcher.Enqueue(shared));
+
+  dispatcher.MemoryPressureNotification(v8::MemoryPressureLevel::kNone, true);
+  ASSERT_TRUE(dispatcher.Enqueue(shared));
+
+  // Memory pressure cancels current jobs.
+  dispatcher.MemoryPressureNotification(v8::MemoryPressureLevel::kCritical,
+                                        true);
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  platform.ClearIdleTask();
+}
+
+namespace {
+
+class PressureNotificationTask : public CancelableTask {
+ public:
+  PressureNotificationTask(Isolate* isolate, CompilerDispatcher* dispatcher,
+                           base::Semaphore* sem)
+      : CancelableTask(isolate), dispatcher_(dispatcher), sem_(sem) {}
+  ~PressureNotificationTask() override {}
+
+  void RunInternal() override {
+    dispatcher_->MemoryPressureNotification(v8::MemoryPressureLevel::kCritical,
+                                            false);
+    sem_->Signal();
+  }
+
+ private:
+  CompilerDispatcher* dispatcher_;
+  base::Semaphore* sem_;
+
+  DISALLOW_COPY_AND_ASSIGN(PressureNotificationTask);
+};
+
+}  // namespace
+
+TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f15(x) { return x * y }; return f15; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  ASSERT_TRUE(dispatcher.Enqueue(shared));
+  base::Semaphore sem(0);
+  V8::GetCurrentPlatform()->CallOnBackgroundThread(
+      new PressureNotificationTask(i_isolate(), &dispatcher, &sem),
+      v8::Platform::kShortRunningTask);
+
+  sem.Wait();
+
+  // A memory pressure task is pending, and running it will cancel the job.
+  ASSERT_TRUE(platform.ForegroundTasksPending());
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+  platform.RunForegroundTasks();
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_FALSE(shared->is_compiled());
+
+  // Since the AbortAll() call is made from a task, AbortAll thinks that there
+  // is at least one task running, and fires of an AbortTask to be safe.
+  ASSERT_TRUE(platform.ForegroundTasksPending());
+  platform.RunForegroundTasks();
+  ASSERT_FALSE(platform.ForegroundTasksPending());
+
+  platform.ClearIdleTask();
+}
+
 }  // namespace internal
 }  // namespace v8
