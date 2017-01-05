@@ -3911,13 +3911,14 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   Representation representation = instr->hydrogen()->length()->representation();
   DCHECK(representation.Equals(instr->hydrogen()->index()->representation()));
   DCHECK(representation.IsSmiOrInteger32());
+  Register temp = scratch0();
 
   Condition cc = instr->hydrogen()->allow_equality() ? lt : le;
   if (instr->length()->IsConstantOperand()) {
     int32_t length = ToInteger32(LConstantOperand::cast(instr->length()));
     Register index = ToRegister(instr->index());
     if (representation.IsSmi()) {
-      __ CmpLogicalP(index, Operand(Smi::FromInt(length)));
+      __ CmpLogicalSmiLiteral(index, Smi::FromInt(length), temp);
     } else {
       __ CmpLogical32(index, Operand(length));
     }
@@ -3926,7 +3927,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     int32_t index = ToInteger32(LConstantOperand::cast(instr->index()));
     Register length = ToRegister(instr->length());
     if (representation.IsSmi()) {
-      __ CmpLogicalP(length, Operand(Smi::FromInt(index)));
+      __ CmpLogicalSmiLiteral(length, Smi::FromInt(index), temp);
     } else {
       __ CmpLogical32(length, Operand(index));
     }
