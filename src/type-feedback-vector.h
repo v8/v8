@@ -30,6 +30,7 @@ enum class FeedbackVectorSlotKind {
   KEYED_STORE_IC,
   INTERPRETER_BINARYOP_IC,
   INTERPRETER_COMPARE_IC,
+  STORE_DATA_PROPERTY_IN_LITERAL_IC,
 
   // This is a general purpose slot that occupies one feedback vector element.
   GENERAL,
@@ -79,6 +80,10 @@ class FeedbackVectorSpecBase {
 
   FeedbackVectorSlot AddGeneralSlot() {
     return AddSlot(FeedbackVectorSlotKind::GENERAL);
+  }
+
+  FeedbackVectorSlot AddStoreDataPropertyInLiteralICSlot() {
+    return AddSlot(FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC);
   }
 
 #ifdef OBJECT_PRINT
@@ -665,6 +670,28 @@ class CompareICNexus final : public FeedbackNexus {
                     int length = -1) const final {
     return length == 0;
   }
+};
+
+class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
+ public:
+  StoreDataPropertyInLiteralICNexus(Handle<TypeFeedbackVector> vector,
+                                    FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC,
+              vector->GetKind(slot));
+  }
+  StoreDataPropertyInLiteralICNexus(TypeFeedbackVector* vector,
+                                    FeedbackVectorSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC,
+              vector->GetKind(slot));
+  }
+
+  void Clear(Code* host) { ConfigureUninitialized(); }
+
+  void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map);
+
+  InlineCacheState StateFromFeedback() const override;
 };
 
 inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);

@@ -779,11 +779,12 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* name =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  Node* value =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(2));
-  int flags = bytecode_iterator().GetFlagOperand(3);
+  Node* value = environment()->LookupAccumulator();
+  int flags = bytecode_iterator().GetFlagOperand(2);
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(3));
 
-  const Operator* op = javascript()->StoreDataPropertyInLiteral();
+  const Operator* op = javascript()->StoreDataPropertyInLiteral(feedback);
   Node* node = NewNode(op, object, name, value, jsgraph()->Constant(flags));
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }

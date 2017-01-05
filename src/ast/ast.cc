@@ -349,6 +349,16 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
   }
 }
 
+FeedbackVectorSlot LiteralProperty::GetStoreDataPropertySlot() const {
+  int offset = FunctionLiteral::NeedsHomeObject(value_) ? 1 : 0;
+  return GetSlot(offset);
+}
+
+void LiteralProperty::SetStoreDataPropertySlot(FeedbackVectorSlot slot) {
+  int offset = FunctionLiteral::NeedsHomeObject(value_) ? 1 : 0;
+  return SetSlot(slot, offset);
+}
+
 bool LiteralProperty::NeedsSetFunctionName() const {
   return is_computed_name_ &&
          (value_->IsAnonymousFunctionDefinition() ||
@@ -382,6 +392,8 @@ void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
     if (FunctionLiteral::NeedsHomeObject(value)) {
       property->SetSlot(spec->AddStoreICSlot());
     }
+    property->SetStoreDataPropertySlot(
+        spec->AddStoreDataPropertyInLiteralICSlot());
   }
 }
 
@@ -456,6 +468,8 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
         property->SetSlot(spec->AddStoreICSlot());
       }
     }
+    property->SetStoreDataPropertySlot(
+        spec->AddStoreDataPropertyInLiteralICSlot());
   }
 }
 

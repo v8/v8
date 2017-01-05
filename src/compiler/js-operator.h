@@ -268,6 +268,29 @@ std::ostream& operator<<(std::ostream& os,
 CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
     Operator const*);
 
+// Defines the feedback, i.e., vector and index, for storing a data property in
+// an object literal. This is
+// used as a parameter by the JSStoreDataPropertyInLiteral operator.
+class DataPropertyParameters final {
+ public:
+  explicit DataPropertyParameters(VectorSlotPair const& feedback)
+      : feedback_(feedback) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  VectorSlotPair const feedback_;
+};
+
+bool operator==(DataPropertyParameters const&, DataPropertyParameters const&);
+bool operator!=(DataPropertyParameters const&, DataPropertyParameters const&);
+
+size_t hash_value(DataPropertyParameters const&);
+
+std::ostream& operator<<(std::ostream&, DataPropertyParameters const&);
+
+const DataPropertyParameters& DataPropertyParametersOf(const Operator* op);
+
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
 class NamedAccess final {
@@ -542,7 +565,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
                              VectorSlotPair const& feedback);
 
-  const Operator* StoreDataPropertyInLiteral();
+  const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
 

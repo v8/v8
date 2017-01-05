@@ -98,8 +98,8 @@ namespace interpreter {
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kReg, OperandType::kIdx)                                      \
-  V(StaDataPropertyInLiteral, AccumulatorUse::kNone, OperandType::kReg,        \
-    OperandType::kReg, OperandType::kReg, OperandType::kFlag8)                 \
+  V(StaDataPropertyInLiteral, AccumulatorUse::kRead, OperandType::kReg,        \
+    OperandType::kReg, OperandType::kFlag8, OperandType::kIdx)                 \
                                                                                \
   /* Binary Operators */                                                       \
   V(Add, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \

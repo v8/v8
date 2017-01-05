@@ -648,11 +648,27 @@ RUNTIME_FUNCTION(Runtime_DefineAccessorPropertyUnchecked) {
 
 RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(6, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(flag, 3);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 4);
+  CONVERT_SMI_ARG_CHECKED(index, 5);
+
+  StoreDataPropertyInLiteralICNexus nexus(vector, vector->ToSlot(index));
+  if (nexus.ic_state() == UNINITIALIZED) {
+    if (name->IsUniqueName()) {
+      nexus.ConfigureMonomorphic(name, handle(object->map()));
+    } else {
+      nexus.ConfigureMegamorphic();
+    }
+  } else if (nexus.ic_state() == MONOMORPHIC) {
+    if (nexus.FindFirstMap() != object->map() ||
+        nexus.GetFeedbackExtra() != *name) {
+      nexus.ConfigureMegamorphic();
+    }
+  }
 
   DataPropertyInLiteralFlags flags =
       static_cast<DataPropertyInLiteralFlag>(flag);

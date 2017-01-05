@@ -1328,10 +1328,14 @@ class LiteralProperty : public ZoneObject {
     return slots_[offset];
   }
 
+  FeedbackVectorSlot GetStoreDataPropertySlot() const;
+
   void SetSlot(FeedbackVectorSlot slot, int offset = 0) {
     DCHECK_LT(offset, static_cast<int>(arraysize(slots_)));
     slots_[offset] = slot;
   }
+
+  void SetStoreDataPropertySlot(FeedbackVectorSlot slot);
 
   bool NeedsSetFunctionName() const;
 

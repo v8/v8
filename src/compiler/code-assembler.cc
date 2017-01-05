@@ -495,11 +495,11 @@ Node* CodeAssembler::CallRuntime(Runtime::FunctionId function, Node* context,
   return return_value;
 }
 
-// Instantiate CallRuntime() with up to 5 arguments.
+// Instantiate CallRuntime() with up to 6 arguments.
 #define INSTANTIATE(...)                                       \
   template V8_EXPORT_PRIVATE Node* CodeAssembler::CallRuntime( \
       Runtime::FunctionId, __VA_ARGS__);
-REPEAT_1_TO_6(INSTANTIATE, Node*)
+REPEAT_1_TO_7(INSTANTIATE, Node*)
 #undef INSTANTIATE
 
 template <class... TArgs>

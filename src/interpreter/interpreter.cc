@@ -861,27 +861,26 @@ void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   DoKeyedStoreIC(ic, assembler);
 }
 
-// StaDataPropertyInLiteral <object> <name> <value> <flags>
+// StaDataPropertyInLiteral <object> <name> <flags>
 //
-// Define a property <name> with value <value> in <object>. Property attributes
-// and whether set_function_name are stored in DataPropertyInLiteralFlags
-// <flags>.
+// Define a property <name> with value from the accumulator in <object>.
+// Property attributes and whether set_function_name are stored in
+// DataPropertyInLiteralFlags <flags>.
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
 void Interpreter::DoStaDataPropertyInLiteral(InterpreterAssembler* assembler) {
-  Node* object_reg_index = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(object_reg_index);
-  Node* name_reg_index = __ BytecodeOperandReg(1);
-  Node* name = __ LoadRegister(name_reg_index);
-  Node* value_reg_index = __ BytecodeOperandReg(2);
-  Node* value = __ LoadRegister(value_reg_index);
-  Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(3));
+  Node* object = __ LoadRegister(__ BytecodeOperandReg(0));
+  Node* name = __ LoadRegister(__ BytecodeOperandReg(1));
+  Node* value = __ GetAccumulator();
+  Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(2));
+  Node* vector_index = __ SmiTag(__ BytecodeOperandIdx(3));
 
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
 
   __ CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
-                 value, flags);
+                 value, flags, type_feedback_vector, vector_index);
   __ Dispatch();
 }
 

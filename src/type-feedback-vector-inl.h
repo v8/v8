@@ -82,7 +82,7 @@ int TypeFeedbackVector::invocation_count() const {
 // Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackVectorSlot TypeFeedbackVector::ToSlot(int index) {
-  DCHECK(index >= kReservedIndexCount);
+  DCHECK_GE(index, kReservedIndexCount);
   return FeedbackVectorSlot(index - kReservedIndexCount);
 }
 
@@ -159,7 +159,8 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
       case FeedbackVectorSlotKind::KEYED_LOAD_IC:
       case FeedbackVectorSlotKind::STORE_IC:
-      case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+      case FeedbackVectorSlotKind::KEYED_STORE_IC:
+      case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
         if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
           with++;
         } else if (obj == megamorphic_sentinel) {

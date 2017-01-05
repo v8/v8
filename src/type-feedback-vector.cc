@@ -161,6 +161,8 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "INTERPRETER_BINARYOP_IC";
     case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
       return "INTERPRETER_COMPARE_IC";
+    case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+      return "STORE_DATA_PROPERTY_IN_LITERAL_IC";
     case FeedbackVectorSlotKind::GENERAL:
       return "STUB";
     case FeedbackVectorSlotKind::KINDS_NUMBER:
@@ -314,6 +316,11 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
               Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
             }
           }
+          break;
+        }
+        case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+          StoreDataPropertyInLiteralICNexus nexus(this, slot);
+          nexus.Clear(shared->code());
           break;
         }
         case FeedbackVectorSlotKind::INVALID:
@@ -985,6 +992,28 @@ BinaryOperationHint BinaryOpICNexus::GetBinaryOperationFeedback() const {
 CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
   int feedback = Smi::cast(GetFeedback())->value();
   return CompareOperationHintFromFeedback(feedback);
+}
+
+InlineCacheState StoreDataPropertyInLiteralICNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+
+  if (feedback == *TypeFeedbackVector::UninitializedSentinel(isolate)) {
+    return UNINITIALIZED;
+  } else if (feedback->IsWeakCell()) {
+    // Don't check if the map is cleared.
+    return MONOMORPHIC;
+  }
+
+  return MEGAMORPHIC;
+}
+
+void StoreDataPropertyInLiteralICNexus::ConfigureMonomorphic(
+    Handle<Name> name, Handle<Map> receiver_map) {
+  Handle<WeakCell> cell = Map::WeakCellForMap(receiver_map);
+
+  SetFeedback(*cell);
+  SetFeedbackExtra(*name);
 }
 
 }  // namespace internal

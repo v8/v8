@@ -1503,7 +1503,14 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
         if (property->NeedsSetFunctionName()) {
           flags |= DataPropertyInLiteralFlag::kSetFunctionName;
         }
-        builder()->StoreDataPropertyInLiteral(receiver, key, value, flags);
+
+        FeedbackVectorSlot slot = property->GetStoreDataPropertySlot();
+        DCHECK(!slot.IsInvalid());
+
+        builder()
+            ->LoadAccumulatorWithRegister(value)
+            .StoreDataPropertyInLiteral(receiver, key, flags,
+                                        feedback_index(slot));
         break;
       }
       case ClassLiteral::Property::GETTER: {
@@ -1745,8 +1752,13 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           data_property_flags |= DataPropertyInLiteralFlag::kSetFunctionName;
         }
 
-        builder()->StoreDataPropertyInLiteral(literal, key, value,
-                                              data_property_flags);
+        FeedbackVectorSlot slot = property->GetStoreDataPropertySlot();
+        DCHECK(!slot.IsInvalid());
+
+        builder()
+            ->LoadAccumulatorWithRegister(value)
+            .StoreDataPropertyInLiteral(literal, key, data_property_flags,
+                                        feedback_index(slot));
         break;
       }
       case ObjectLiteral::Property::GETTER:

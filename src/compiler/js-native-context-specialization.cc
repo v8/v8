@@ -83,6 +83,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSStoreDataPropertyInLiteral:
+      return ReduceJSStoreDataPropertyInLiteral(node);
     default:
       break;
   }
@@ -1250,6 +1252,12 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   }
 
   return ValueEffectControl(value, effect, control);
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
+    Node* node) {
+  // TODO(franzih): Use feedback
+  return NoChange();
 }
 
 namespace {

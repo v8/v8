@@ -554,9 +554,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadKeyedProperty(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
-    Register object, Register name, Register value,
-    DataPropertyInLiteralFlags flags) {
-  OutputStaDataPropertyInLiteral(object, name, value, flags);
+    Register object, Register name, DataPropertyInLiteralFlags flags,
+    int feedback_slot) {
+  OutputStaDataPropertyInLiteral(object, name, flags, feedback_slot);
   return *this;
 }
 

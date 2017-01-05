@@ -324,8 +324,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
-  builder.StoreDataPropertyInLiteral(reg, reg, reg,
-                                     DataPropertyInLiteralFlag::kNoFlags);
+  builder.StoreDataPropertyInLiteral(reg, reg,
+                                     DataPropertyInLiteralFlag::kNoFlags, 0);
 
   // Emit wide context operations.
   builder.LoadContextSlot(reg, 1024, 0).StoreContextSlot(reg, 1024, 0);

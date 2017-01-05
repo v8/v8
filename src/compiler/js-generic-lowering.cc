@@ -264,6 +264,10 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
 }
 
 void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
+  DataPropertyParameters const& p = DataPropertyParametersOf(node->op());
+  node->InsertInputs(zone(), 4, 2);
+  node->ReplaceInput(4, jsgraph()->HeapConstant(p.feedback().vector()));
+  node->ReplaceInput(5, jsgraph()->SmiConstant(p.feedback().index()));
   ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
 }
 
