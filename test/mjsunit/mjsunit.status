@@ -552,6 +552,9 @@
   # Skip tests that are known to be non-deterministic.
   'd8-worker-sharedarraybuffer': [SKIP],
   'd8-os': [SKIP],
+
+  # crbug.com/v8/5803
+  'wasm/gc-frame': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
