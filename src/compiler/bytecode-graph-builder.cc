@@ -81,8 +81,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
 
   bool StateValuesRequireUpdate(Node** state_values, Node** values, int count);
   void UpdateStateValues(Node** state_values, Node** values, int count);
-  void UpdateStateValuesWithCache(Node** state_values, Node** values,
-                                  int count);
+  void UpdateStateValuesWithCache(Node** state_values, Node** values, int count,
+                                  const BitVector* liveness);
 
   int RegisterToValuesIndex(interpreter::Register the_register) const;
 
@@ -107,10 +107,6 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   Node* accumulator_state_values_;
   int register_base_;
   int accumulator_base_;
-
-  // A working area for writing maybe-dead values to when updating the state
-  // values for registers.
-  NodeVector state_value_working_area_;
 };
 
 
@@ -131,8 +127,7 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
       values_(builder->local_zone()),
       parameters_state_values_(nullptr),
       registers_state_values_(nullptr),
-      accumulator_state_values_(nullptr),
-      state_value_working_area_(builder->local_zone()) {
+      accumulator_state_values_(nullptr) {
   // The layout of values_ is:
   //
   // [receiver] [parameters] [registers] [accumulator]
@@ -157,8 +152,6 @@ BytecodeGraphBuilder::Environment::Environment(BytecodeGraphBuilder* builder,
   // Accumulator
   accumulator_base_ = static_cast<int>(values()->size());
   values()->push_back(undefined_constant);
-
-  state_value_working_area_.resize(register_count_);
 }
 
 BytecodeGraphBuilder::Environment::Environment(
@@ -174,9 +167,7 @@ BytecodeGraphBuilder::Environment::Environment(
       registers_state_values_(nullptr),
       accumulator_state_values_(nullptr),
       register_base_(other->register_base_),
-      accumulator_base_(other->accumulator_base_),
-      // Environments can share their working area.
-      state_value_working_area_(other->state_value_working_area_) {
+      accumulator_base_(other->accumulator_base_) {
   values_ = other->values_;
 }
 
@@ -412,15 +403,15 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
                                                           Node** values,
                                                           int count) {
   if (StateValuesRequireUpdate(state_values, values, count)) {
-    const Operator* op = common()->StateValues(count);
+    const Operator* op = common()->StateValues(count, SparseInputMask::Dense());
     (*state_values) = graph()->NewNode(op, count, values);
   }
 }
 
 void BytecodeGraphBuilder::Environment::UpdateStateValuesWithCache(
-    Node** state_values, Node** values, int count) {
+    Node** state_values, Node** values, int count, const BitVector* liveness) {
   *state_values = builder_->state_values_cache_.GetNodeForValues(
-      values, static_cast<size_t>(count));
+      values, static_cast<size_t>(count), liveness);
 }
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
@@ -429,31 +420,17 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
   UpdateStateValues(&parameters_state_values_, &values()->at(0),
                     parameter_count());
 
-  if (liveness) {
-    Node* optimized_out = builder()->jsgraph()->OptimizedOutConstant();
+  // TODO(leszeks): We should pass a view of the liveness bitvector here, with
+  // offset and count, rather than passing the entire bitvector and assuming
+  // that register liveness starts at offset 0.
+  UpdateStateValuesWithCache(&registers_state_values_,
+                             &values()->at(register_base()), register_count(),
+                             liveness ? &liveness->bit_vector() : nullptr);
 
-    for (int i = 0; i < register_count(); ++i) {
-      state_value_working_area_[i] = liveness->RegisterIsLive(i)
-                                         ? values()->at(register_base() + i)
-                                         : optimized_out;
-    }
-
-    Node* accumulator_value = liveness->AccumulatorIsLive()
-                                  ? values()->at(accumulator_base())
-                                  : optimized_out;
-
-    UpdateStateValuesWithCache(&registers_state_values_,
-                               state_value_working_area_.data(),
-                               register_count());
-
-    UpdateStateValues(&accumulator_state_values_, &accumulator_value, 1);
-  } else {
-    UpdateStateValuesWithCache(&registers_state_values_,
-                               &values()->at(register_base()),
-                               register_count());
-    UpdateStateValues(&accumulator_state_values_,
-                      &values()->at(accumulator_base()), 1);
-  }
+  Node* accumulator_value = liveness == nullptr || liveness->AccumulatorIsLive()
+                                ? values()->at(accumulator_base())
+                                : builder()->jsgraph()->OptimizedOutConstant();
+  UpdateStateValues(&accumulator_state_values_, &accumulator_value, 1);
 
   const Operator* op = common()->FrameState(
       bailout_id, combine, builder()->frame_state_function_info());

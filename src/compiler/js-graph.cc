@@ -279,7 +279,8 @@ Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
 }
 
 Node* JSGraph::EmptyStateValues() {
-  return CACHED(kEmptyStateValues, graph()->NewNode(common()->StateValues(0)));
+  return CACHED(kEmptyStateValues, graph()->NewNode(common()->StateValues(
+                                       0, SparseInputMask::Dense())));
 }
 
 Node* JSGraph::Dead() {

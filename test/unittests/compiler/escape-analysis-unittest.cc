@@ -437,9 +437,12 @@ TEST_F(EscapeAnalysisTest, DeoptReplacement) {
   Node* effect1 = Store(FieldAccessAtIndex(0), allocation, object1, finish);
   Branch();
   Node* ifFalse = IfFalse();
-  Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
-  Node* state_values2 = graph()->NewNode(common()->StateValues(0));
-  Node* state_values3 = graph()->NewNode(common()->StateValues(0));
+  Node* state_values1 = graph()->NewNode(
+      common()->StateValues(1, SparseInputMask::Dense()), finish);
+  Node* state_values2 =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
+  Node* state_values3 =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   Node* frame_state = graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                            nullptr),
@@ -477,9 +480,12 @@ TEST_F(EscapeAnalysisTest, DISABLED_DeoptReplacementIdentity) {
   Node* effect1 = Store(FieldAccessAtIndex(0), allocation, object1, finish);
   Branch();
   Node* ifFalse = IfFalse();
-  Node* state_values1 = graph()->NewNode(common()->StateValues(1), finish);
-  Node* state_values2 = graph()->NewNode(common()->StateValues(1), finish);
-  Node* state_values3 = graph()->NewNode(common()->StateValues(0));
+  Node* state_values1 = graph()->NewNode(
+      common()->StateValues(1, SparseInputMask::Dense()), finish);
+  Node* state_values2 = graph()->NewNode(
+      common()->StateValues(1, SparseInputMask::Dense()), finish);
+  Node* state_values3 =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   Node* frame_state = graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                            nullptr),

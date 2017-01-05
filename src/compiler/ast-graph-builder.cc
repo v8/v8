@@ -670,7 +670,7 @@ void AstGraphBuilder::Environment::UpdateStateValues(Node** state_values,
     }
   }
   if (should_update) {
-    const Operator* op = common()->StateValues(count);
+    const Operator* op = common()->StateValues(count, SparseInputMask::Dense());
     (*state_values) = graph()->NewNode(op, count, env_values);
   }
 }

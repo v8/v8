@@ -1010,8 +1010,9 @@ class RepresentationSelector {
                machine_type.semantic() == MachineSemantic::kUint32);
         (*types)[i] = machine_type;
       }
-      NodeProperties::ChangeOp(node,
-                               jsgraph_->common()->TypedStateValues(types));
+      SparseInputMask mask = SparseInputMaskOf(node->op());
+      NodeProperties::ChangeOp(
+          node, jsgraph_->common()->TypedStateValues(types, mask));
     }
     SetOutput(node, MachineRepresentation::kTagged);
   }

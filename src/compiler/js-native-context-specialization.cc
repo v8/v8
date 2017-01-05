@@ -1001,7 +1001,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
             common()->FrameState(BailoutId::None(),
                                  OutputFrameStateCombine::Ignore(),
                                  frame_info0),
-            graph()->NewNode(common()->StateValues(1), receiver),
+            graph()->NewNode(common()->StateValues(1, SparseInputMask::Dense()),
+                             receiver),
             jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
             context, target, frame_state);
 
@@ -1037,7 +1038,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
             common()->FrameState(BailoutId::None(),
                                  OutputFrameStateCombine::Ignore(),
                                  frame_info0),
-            graph()->NewNode(common()->StateValues(2), receiver, value),
+            graph()->NewNode(common()->StateValues(2, SparseInputMask::Dense()),
+                             receiver, value),
             jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(),
             context, target, frame_state);
 

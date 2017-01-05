@@ -7,6 +7,7 @@
 #include "src/assembler.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
+#include "src/compiler/node.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/handles-inl.h"
@@ -171,6 +172,106 @@ std::ostream& operator<<(std::ostream& os,
   return os << p.value() << "|" << p.rmode() << "|" << p.type();
 }
 
+SparseInputMask::InputIterator::InputIterator(
+    SparseInputMask::BitMaskType bit_mask, Node* parent)
+    : bit_mask_(bit_mask), parent_(parent), real_index_(0) {
+#if DEBUG
+  if (bit_mask_ != SparseInputMask::kDenseBitMask) {
+    DCHECK_EQ(base::bits::CountPopulation(bit_mask_) -
+                  base::bits::CountPopulation(kEndMarker),
+              parent->InputCount());
+  }
+#endif
+}
+
+void SparseInputMask::InputIterator::Advance() {
+  DCHECK(!IsEnd());
+
+  if (IsReal()) {
+    ++real_index_;
+  }
+  bit_mask_ >>= 1;
+}
+
+Node* SparseInputMask::InputIterator::GetReal() const {
+  DCHECK(IsReal());
+  return parent_->InputAt(real_index_);
+}
+
+bool SparseInputMask::InputIterator::IsReal() const {
+  return bit_mask_ == SparseInputMask::kDenseBitMask ||
+         (bit_mask_ & kEntryMask);
+}
+
+bool SparseInputMask::InputIterator::IsEnd() const {
+  return (bit_mask_ == kEndMarker) ||
+         (bit_mask_ == SparseInputMask::kDenseBitMask &&
+          real_index_ >= parent_->InputCount());
+}
+
+int SparseInputMask::CountReal() const {
+  DCHECK(!IsDense());
+  return base::bits::CountPopulation(bit_mask_) -
+         base::bits::CountPopulation(kEndMarker);
+}
+
+SparseInputMask::InputIterator SparseInputMask::IterateOverInputs(Node* node) {
+  DCHECK(IsDense() || CountReal() == node->InputCount());
+  return InputIterator(bit_mask_, node);
+}
+
+bool operator==(SparseInputMask const& lhs, SparseInputMask const& rhs) {
+  return lhs.mask() == rhs.mask();
+}
+
+bool operator!=(SparseInputMask const& lhs, SparseInputMask const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(SparseInputMask const& p) {
+  return base::hash_value(p.mask());
+}
+
+std::ostream& operator<<(std::ostream& os, SparseInputMask const& p) {
+  if (p.IsDense()) {
+    return os << "dense";
+  } else {
+    SparseInputMask::BitMaskType mask = p.mask();
+    DCHECK_NE(mask, SparseInputMask::kDenseBitMask);
+
+    os << "sparse:";
+
+    while (mask != SparseInputMask::kEndMarker) {
+      if (mask & SparseInputMask::kEntryMask) {
+        os << "^";
+      } else {
+        os << ".";
+      }
+      mask >>= 1;
+    }
+    return os;
+  }
+}
+
+bool operator==(TypedStateValueInfo const& lhs,
+                TypedStateValueInfo const& rhs) {
+  return lhs.machine_types() == rhs.machine_types() &&
+         lhs.sparse_input_mask() == rhs.sparse_input_mask();
+}
+
+bool operator!=(TypedStateValueInfo const& lhs,
+                TypedStateValueInfo const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(TypedStateValueInfo const& p) {
+  return base::hash_combine(p.machine_types(), p.sparse_input_mask());
+}
+
+std::ostream& operator<<(std::ostream& os, TypedStateValueInfo const& p) {
+  return os << p.machine_types() << "|" << p.sparse_input_mask();
+}
+
 size_t hash_value(RegionObservability observability) {
   return static_cast<size_t>(observability);
 }
@@ -235,9 +336,23 @@ OsrGuardType OsrGuardTypeOf(Operator const* op) {
   return OpParameter<OsrGuardType>(op);
 }
 
+SparseInputMask SparseInputMaskOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kStateValues ||
+         op->opcode() == IrOpcode::kTypedStateValues);
+
+  if (op->opcode() == IrOpcode::kTypedStateValues) {
+    return OpParameter<TypedStateValueInfo>(op).sparse_input_mask();
+  }
+  return OpParameter<SparseInputMask>(op);
+}
+
 ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kTypedObjectState ||
          op->opcode() == IrOpcode::kTypedStateValues);
+
+  if (op->opcode() == IrOpcode::kTypedStateValues) {
+    return OpParameter<TypedStateValueInfo>(op).machine_types();
+  }
   return OpParameter<const ZoneVector<MachineType>*>(op);
 }
 
@@ -635,13 +750,14 @@ struct CommonOperatorGlobalCache final {
 #undef CACHED_PROJECTION
 
   template <int kInputCount>
-  struct StateValuesOperator final : public Operator {
+  struct StateValuesOperator final : public Operator1<SparseInputMask> {
     StateValuesOperator()
-        : Operator(                           // --
-              IrOpcode::kStateValues,         // opcode
-              Operator::kPure,                // flags
-              "StateValues",                  // name
-              kInputCount, 0, 0, 1, 0, 0) {}  // counts
+        : Operator1<SparseInputMask>(       // --
+              IrOpcode::kStateValues,       // opcode
+              Operator::kPure,              // flags
+              "StateValues",                // name
+              kInputCount, 0, 0, 1, 0, 0,   // counts
+              SparseInputMask::Dense()) {}  // parameter
   };
 #define CACHED_STATE_VALUES(input_count) \
   StateValuesOperator<input_count> kStateValues##input_count##Operator;
@@ -1084,30 +1200,44 @@ const Operator* CommonOperatorBuilder::BeginRegion(
   return nullptr;
 }
 
-const Operator* CommonOperatorBuilder::StateValues(int arguments) {
-  switch (arguments) {
+const Operator* CommonOperatorBuilder::StateValues(int arguments,
+                                                   SparseInputMask bitmask) {
+  if (bitmask.IsDense()) {
+    switch (arguments) {
 #define CACHED_STATE_VALUES(arguments) \
   case arguments:                      \
     return &cache_.kStateValues##arguments##Operator;
-    CACHED_STATE_VALUES_LIST(CACHED_STATE_VALUES)
+      CACHED_STATE_VALUES_LIST(CACHED_STATE_VALUES)
 #undef CACHED_STATE_VALUES
-    default:
-      break;
+      default:
+        break;
+    }
   }
+
+#if DEBUG
+  DCHECK(bitmask.IsDense() || bitmask.CountReal() == arguments);
+#endif
+
   // Uncached.
-  return new (zone()) Operator(                 // --
-      IrOpcode::kStateValues, Operator::kPure,  // opcode
-      "StateValues",                            // name
-      arguments, 0, 0, 1, 0, 0);                // counts
+  return new (zone()) Operator1<SparseInputMask>(  // --
+      IrOpcode::kStateValues, Operator::kPure,     // opcode
+      "StateValues",                               // name
+      arguments, 0, 0, 1, 0, 0,                    // counts
+      bitmask);                                    // parameter
 }
 
 const Operator* CommonOperatorBuilder::TypedStateValues(
-    const ZoneVector<MachineType>* types) {
-  return new (zone()) Operator1<const ZoneVector<MachineType>*>(  // --
-      IrOpcode::kTypedStateValues, Operator::kPure,               // opcode
-      "TypedStateValues",                                         // name
-      static_cast<int>(types->size()), 0, 0, 1, 0, 0,             // counts
-      types);                                                     // parameter
+    const ZoneVector<MachineType>* types, SparseInputMask bitmask) {
+#if DEBUG
+  DCHECK(bitmask.IsDense() ||
+         bitmask.CountReal() == static_cast<int>(types->size()));
+#endif
+
+  return new (zone()) Operator1<TypedStateValueInfo>(  // --
+      IrOpcode::kTypedStateValues, Operator::kPure,    // opcode
+      "TypedStateValues",                              // name
+      static_cast<int>(types->size()), 0, 0, 1, 0, 0,  // counts
+      TypedStateValueInfo(types, bitmask));            // parameters
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {

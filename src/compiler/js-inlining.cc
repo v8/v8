@@ -231,14 +231,14 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 
   const Operator* op = common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
-  const Operator* op0 = common()->StateValues(0);
+  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   NodeVector params(local_zone_);
   for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
     params.push_back(node->InputAt(1 + parameter));
   }
-  const Operator* op_param =
-      common()->StateValues(static_cast<int>(params.size()));
+  const Operator* op_param = common()->StateValues(
+      static_cast<int>(params.size()), SparseInputMask::Dense());
   Node* params_node = graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
   return graph()->NewNode(op, params_node, node0, node0,
@@ -269,7 +269,7 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
   const Operator* op = common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
-  const Operator* op0 = common()->StateValues(0);
+  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   return graph()->NewNode(op, node0, node0, node0,
                           jsgraph()->UndefinedConstant(), function,
