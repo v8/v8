@@ -152,13 +152,29 @@ class PreParserExpression {
 
   static PreParserExpression BinaryOperation(PreParserExpression left,
                                              Token::Value op,
-                                             PreParserExpression right) {
+                                             PreParserExpression right,
+                                             Zone* zone) {
+    if (op == Token::COMMA) {
+      // Possibly an arrow function parameter list.
+      if (left.variables_ == nullptr) {
+        return PreParserExpression(TypeField::encode(kExpression),
+                                   right.variables_);
+      }
+      if (right.variables_ != nullptr) {
+        for (auto variable : *right.variables_) {
+          left.variables_->Add(variable, zone);
+        }
+      }
+      return PreParserExpression(TypeField::encode(kExpression),
+                                 left.variables_);
+    }
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment() {
+  static PreParserExpression Assignment(ZoneList<VariableProxy*>* variables) {
     return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kAssignment));
+                                   ExpressionTypeField::encode(kAssignment),
+                               variables);
   }
 
   static PreParserExpression ObjectLiteral(
@@ -601,7 +617,7 @@ class PreParserFactory {
   PreParserExpression NewBinaryOperation(Token::Value op,
                                          PreParserExpression left,
                                          PreParserExpression right, int pos) {
-    return PreParserExpression::BinaryOperation(left, op, right);
+    return PreParserExpression::BinaryOperation(left, op, right, zone_);
   }
   PreParserExpression NewCompareOperation(Token::Value op,
                                           PreParserExpression left,
@@ -615,7 +631,9 @@ class PreParserFactory {
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
-    return PreParserExpression::Assignment();
+    // Identifiers need to be tracked since this might be a parameter with a
+    // default value inside an arrow function parameter list.
+    return PreParserExpression::Assignment(left.variables_);
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression, int pos,
@@ -1485,8 +1503,14 @@ class PreParser : public ParserBase<PreParser> {
       bool* ok) {
     // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
     // parameter lists that are too long.
-    // FIXME(marja): Add code to declare arrow function parameters to allocate
-    // less pessimistically.
+    if (track_unresolved_variables_) {
+      DCHECK(FLAG_lazy_inner_functions);
+      if (params.variables_ != nullptr) {
+        for (auto variable : *params.variables_) {
+          parameters->scope->DeclareVariableName(variable->raw_name(), VAR);
+        }
+      }
+    }
   }
 
   V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}
