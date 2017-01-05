@@ -2416,14 +2416,6 @@ v8_source_set("fuzzer_support") {
   }
 }
 
-v8_source_set("simple_fuzzer") {
-  sources = [
-    "test/fuzzer/fuzzer.cc",
-  ]
-
-  configs = [ ":internal_config_base" ]
-}
-
 ###############################################################################
 # Executables
 #
@@ -2703,8 +2695,12 @@ template("v8_fuzzer") {
   v8_executable("v8_simple_" + name) {
     deps = [
       ":" + name,
-      ":simple_fuzzer",
+      "//build/config/sanitizers:deps",
       "//build/win:default_exe_manifest",
+    ]
+
+    sources = [
+      "test/fuzzer/fuzzer.cc",
     ]
 
     configs = [ ":external_config" ]
