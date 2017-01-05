@@ -7451,12 +7451,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that code for this function cannot be flushed.
   DECL_BOOLEAN_ACCESSORS(dont_flush)
 
-  // Indicates that this is a constructor for a base class with instance fields.
-  DECL_BOOLEAN_ACCESSORS(requires_class_field_init)
-  // Indicates that this is a synthesized function to set up class instance
-  // fields.
-  DECL_BOOLEAN_ACCESSORS(is_class_field_initializer)
-
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
 
@@ -7738,13 +7732,12 @@ class SharedFunctionInfo: public HeapObject {
     kAllowLazyCompilation,
     kMarkedForTierUp,
     kOptimizationDisabled,
-    kIsClassFieldInitializer,
+    kHasDuplicateParameters,
     kNative,
     kStrictModeFunction,
     kUsesArguments,
     kNeedsHomeObject,
     // byte 1
-    kHasDuplicateParameters,
     kForceInline,
     kIsAsmFunction,
     kIsAnonymousExpression,
@@ -7752,14 +7745,13 @@ class SharedFunctionInfo: public HeapObject {
     kIsFunction,
     kMustUseIgnitionTurbo,
     kDontFlush,
+    kIsDeclaration,
     // byte 2
     kFunctionKind,
     // rest of byte 2 and first two bits of byte 3 are used by FunctionKind
     // byte 3
     kDeserialized = kFunctionKind + 10,
-    kIsDeclaration,
     kIsAsmWasmBroken,
-    kRequiresClassFieldInit,
     kCompilerHintsCount,  // Pseudo entry
   };
   // kFunctionKind has to be byte-aligned

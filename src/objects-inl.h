@@ -6223,10 +6223,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                kIsAsmWasmBroken)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, requires_class_field_init,
-               kRequiresClassFieldInit)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_class_field_initializer,
-               kIsClassFieldInitializer)
 
 bool Script::HasValidSource() {
   Object* src = this->source();

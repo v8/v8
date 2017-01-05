@@ -593,7 +593,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                          int pos);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
                             int pos);
-  Expression* CallClassFieldInitializer(Scope* scope, Expression* this_expr);
   Expression* RewriteSuperCall(Expression* call_expression);
 
   void SetLanguageMode(Scope* scope, LanguageMode mode);
