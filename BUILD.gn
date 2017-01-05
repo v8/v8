@@ -23,6 +23,9 @@ declare_args() {
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = false
 
+  # Sets -DVERIFY_PREDICTABLE
+  v8_enable_verify_predictable = false
+
   # Enable compiler warnings when using V8_DEPRECATED apis.
   v8_deprecation_warnings = false
 
@@ -182,6 +185,9 @@ config("features") {
   }
   if (v8_enable_verify_heap) {
     defines += [ "VERIFY_HEAP" ]
+  }
+  if (v8_enable_verify_predictable) {
+    defines += [ "VERIFY_PREDICTABLE" ]
   }
   if (v8_interpreted_regexp) {
     defines += [ "V8_INTERPRETED_REGEXP" ]
