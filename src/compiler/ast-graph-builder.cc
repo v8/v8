@@ -1380,6 +1380,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
     Literal* key = property->key()->AsLiteral();
     switch (property->kind()) {
+      case ObjectLiteral::Property::SPREAD:
       case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:

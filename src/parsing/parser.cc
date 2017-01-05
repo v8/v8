@@ -552,6 +552,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
+  set_allow_harmony_object_spread(FLAG_harmony_object_spread);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -2751,6 +2752,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     SET_ALLOW(harmony_async_await);
     SET_ALLOW(harmony_trailing_commas);
     SET_ALLOW(harmony_class_fields);
+    SET_ALLOW(harmony_object_spread);
 #undef SET_ALLOW
   }
   // Aborting inner function preparsing would leave scopes in an inconsistent

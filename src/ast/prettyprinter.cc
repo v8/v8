@@ -1025,6 +1025,9 @@ void AstPrinter::PrintObjectProperties(
       case ObjectLiteral::Property::SETTER:
         prop_kind = "SETTER";
         break;
+      case ObjectLiteral::Property::SPREAD:
+        prop_kind = "SPREAD";
+        break;
     }
     EmbeddedVector<char, 128> buf;
     SNPrintF(buf, "PROPERTY - %s", prop_kind);

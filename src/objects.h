@@ -2002,6 +2002,12 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static Maybe<bool> HasInPrototypeChain(
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> proto);
 
+  // Reads all enumerable own properties of source and adds them to target,
+  // using either Set or CreateDataProperty depending on the use_set argument.
+  MUST_USE_RESULT static Maybe<bool> SetOrCopyDataProperties(
+      Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
+      bool use_set);
+
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.
   MUST_USE_RESULT static Maybe<bool> HasProperty(LookupIterator* it);
   MUST_USE_RESULT static inline Maybe<bool> HasProperty(

@@ -424,6 +424,7 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
     Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
     switch (property->kind()) {
+      case ObjectLiteral::Property::SPREAD:
       case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:

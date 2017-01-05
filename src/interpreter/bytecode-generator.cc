@@ -1635,6 +1635,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     RegisterAllocationScope inner_register_scope(this);
     Literal* key = property->key()->AsLiteral();
     switch (property->kind()) {
+      case ObjectLiteral::Property::SPREAD:
       case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
@@ -1781,6 +1782,13 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                 ? Runtime::kDefineGetterPropertyUnchecked
                 : Runtime::kDefineSetterPropertyUnchecked;
         builder()->CallRuntime(function_id, args);
+        break;
+      }
+      case ObjectLiteral::Property::SPREAD: {
+        RegisterList args = register_allocator()->NewRegisterList(2);
+        builder()->MoveRegister(literal, args[0]);
+        VisitForRegisterValue(property->value(), args[1]);
+        builder()->CallRuntime(Runtime::kCopyDataProperties, args);
         break;
       }
       case ObjectLiteral::Property::PROTOTYPE:

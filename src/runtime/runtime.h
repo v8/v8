@@ -416,6 +416,7 @@ namespace internal {
   F(ValueOf, 1, 1)                                   \
   F(IsJSReceiver, 1, 1)                              \
   F(ClassOf, 1, 1)                                   \
+  F(CopyDataProperties, 2, 1)                        \
   F(DefineGetterPropertyUnchecked, 4, 1)             \
   F(DefineSetterPropertyUnchecked, 4, 1)             \
   F(ToObject, 1, 1)                                  \

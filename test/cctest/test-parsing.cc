@@ -1269,7 +1269,6 @@ const char* ReadString(unsigned* start) {
   return result;
 }
 
-
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
@@ -1278,6 +1277,7 @@ enum ParserFlag {
   kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyTrailingCommas,
   kAllowHarmonyClassFields,
+  kAllowHarmonyObjectSpread,
 };
 
 enum ParserSyncTestResult {
@@ -1294,6 +1294,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyRestrictiveGenerators);
   i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
   i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
+  i::FLAG_harmony_object_spread = flags.Contains(kAllowHarmonyObjectSpread);
 }
 
 void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
@@ -1308,6 +1309,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyTrailingCommas));
   parser->set_allow_harmony_class_fields(
       flags.Contains(kAllowHarmonyClassFields));
+  parser->set_allow_harmony_object_spread(
+      flags.Contains(kAllowHarmonyObjectSpread));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -6570,6 +6573,95 @@ TEST(ArrowFunctionASIErrors) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ObjectSpreadPositiveTests) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"x = ", ""},
+    {"'use strict'; x = ", ""},
+    {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "{ ...y }",
+    "{ a: 1, ...y }",
+    "{ b: 1, ...y }",
+    "{ y, ...y}",
+    "{ ...z = y}",
+    "{ ...y, y }",
+    "{ ...y, ...y}",
+    "{ a: 1, ...y, b: 1}",
+    "{ ...y, b: 1}",
+    "{ ...1}",
+    "{ ...null}",
+    "{ ...undefined}",
+    "{ ...1 in {}}",
+    "{ ...[]}",
+    "{ ...async function() { }}",
+    "{ ...async () => { }}",
+    "{ ...new Foo()}",
+    NULL};
+
+  static const ParserFlag flags[] = {kAllowHarmonyObjectSpread,
+                                     kAllowHarmonyAsyncAwait};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                    arraysize(flags));
+}
+
+TEST(ObjectSpreadNegativeTests) {
+  {
+    const char* context_data[][2] = {{"x = ", ""},
+                                     {"'use strict'; x = ", ""},
+                                     {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "{ ...var z = y}",
+      "{ ...var}",
+      "{ ...foo bar}",
+      NULL};
+
+    static const ParserFlag flags[] = {kAllowHarmonyObjectSpread};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                      arraysize(flags));
+  }
+
+  // Destructuring tests
+  {
+    const char* context_data[][2] = {
+      {"var ", " = {};"},
+      {"( ", " = {});"},
+      {"'use strict'; const ", " = {};"},
+      {"function f(", ") {}"},
+      {"function f(argument1, ", ") {}"},
+      {"var f = (", ") => {};"},
+      {"var f = (argument1,", ") => {};"},
+      {"try {} catch(", ") {}"},
+      {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "{ ...y }",
+      "{ a: 1, ...y }",
+      "{ b: 1, ...y }",
+      "{ y, ...y}",
+      "{ ...z = y}",
+      "{ ...y, y }",
+      "{ ...y, ...y}",
+      "{ a: 1, ...y, b: 1}",
+      "{ ...y, b: 1}",
+      "{ ...1}",
+      "{ ...null}",
+      "{ ...undefined}",
+      "{ ...unknown}",
+      "{ ...var z = y}",
+      "({ ...z = {})",
+      NULL};
+
+    static const ParserFlag flags[] = {kAllowHarmonyObjectSpread};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                      arraysize(flags));
+  }
+}
 
 TEST(DestructuringPositiveTests) {
   const char* context_data[][2] = {{"'use strict'; let ", " = {};"},

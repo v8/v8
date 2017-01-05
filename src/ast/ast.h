@@ -1359,8 +1359,9 @@ class ObjectLiteralProperty final : public LiteralProperty {
     COMPUTED,              // Property with computed value (execution time).
     MATERIALIZED_LITERAL,  // Property value is a materialized literal.
     GETTER,
-    SETTER,    // Property is an accessor function.
-    PROTOTYPE  // Property is __proto__.
+    SETTER,     // Property is an accessor function.
+    PROTOTYPE,  // Property is __proto__.
+    SPREAD
   };
 
   Kind kind() const { return kind_; }

@@ -66,87 +66,6 @@ void Builtins::Generate_ObjectHasOwnProperty(
                                          context, object, key));
 }
 
-namespace {
-
-MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> to,
-                                       Handle<Object> next_source) {
-  // Non-empty strings are the only non-JSReceivers that need to be handled
-  // explicitly by Object.assign.
-  if (!next_source->IsJSReceiver()) {
-    return Just(!next_source->IsString() ||
-                String::cast(*next_source)->length() == 0);
-  }
-
-  // If the target is deprecated, the object will be updated on first store. If
-  // the source for that store equals the target, this will invalidate the
-  // cached representation of the source. Preventively upgrade the target.
-  // Do this on each iteration since any property load could cause deprecation.
-  if (to->map()->is_deprecated()) {
-    JSObject::MigrateInstance(Handle<JSObject>::cast(to));
-  }
-
-  Isolate* isolate = to->GetIsolate();
-  Handle<Map> map(JSReceiver::cast(*next_source)->map(), isolate);
-
-  if (!map->IsJSObjectMap()) return Just(false);
-  if (!map->OnlyHasSimpleProperties()) return Just(false);
-
-  Handle<JSObject> from = Handle<JSObject>::cast(next_source);
-  if (from->elements() != isolate->heap()->empty_fixed_array()) {
-    return Just(false);
-  }
-
-  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
-  int length = map->NumberOfOwnDescriptors();
-
-  bool stable = true;
-
-  for (int i = 0; i < length; i++) {
-    Handle<Name> next_key(descriptors->GetKey(i), isolate);
-    Handle<Object> prop_value;
-    // Directly decode from the descriptor array if |from| did not change shape.
-    if (stable) {
-      PropertyDetails details = descriptors->GetDetails(i);
-      if (!details.IsEnumerable()) continue;
-      if (details.kind() == kData) {
-        if (details.location() == kDescriptor) {
-          prop_value = handle(descriptors->GetValue(i), isolate);
-        } else {
-          Representation representation = details.representation();
-          FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-          prop_value = JSObject::FastPropertyAt(from, representation, index);
-        }
-      } else {
-        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, prop_value, JSReceiver::GetProperty(from, next_key),
-            Nothing<bool>());
-        stable = from->map() == *map;
-      }
-    } else {
-      // If the map did change, do a slower lookup. We are still guaranteed that
-      // the object has a simple shape, and that the key is a name.
-      LookupIterator it(from, next_key, from,
-                        LookupIterator::OWN_SKIP_INTERCEPTOR);
-      if (!it.IsFound()) continue;
-      DCHECK(it.state() == LookupIterator::DATA ||
-             it.state() == LookupIterator::ACCESSOR);
-      if (!it.IsEnumerable()) continue;
-      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
-    }
-    LookupIterator it(to, next_key, to);
-    bool call_to_js = it.IsFound() && it.state() != LookupIterator::DATA;
-    Maybe<bool> result = Object::SetProperty(
-        &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
-    if (result.IsNothing()) return result;
-    if (stable && call_to_js) stable = from->map() == *map;
-  }
-
-  return Just(true);
-}
-
-}  // namespace
-
 // ES6 19.1.2.1 Object.assign
 BUILTIN(ObjectAssign) {
   HandleScope scope(isolate);
@@ -163,43 +82,9 @@ BUILTIN(ObjectAssign) {
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
     Handle<Object> next_source = args.at(i);
-    Maybe<bool> fast_assign = FastAssign(to, next_source);
-    if (fast_assign.IsNothing()) return isolate->heap()->exception();
-    if (fast_assign.FromJust()) continue;
-    // 4a. If nextSource is undefined or null, let keys be an empty List.
-    // 4b. Else,
-    // 4b i. Let from be ToObject(nextSource).
-    // Only non-empty strings and JSReceivers have enumerable properties.
-    Handle<JSReceiver> from =
-        Object::ToObject(isolate, next_source).ToHandleChecked();
-    // 4b ii. Let keys be ? from.[[OwnPropertyKeys]]().
-    Handle<FixedArray> keys;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, keys, KeyAccumulator::GetKeys(
-                           from, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
-                           GetKeysConversion::kKeepNumbers));
-    // 4c. Repeat for each element nextKey of keys in List order,
-    for (int j = 0; j < keys->length(); ++j) {
-      Handle<Object> next_key(keys->get(j), isolate);
-      // 4c i. Let desc be ? from.[[GetOwnProperty]](nextKey).
-      PropertyDescriptor desc;
-      Maybe<bool> found =
-          JSReceiver::GetOwnPropertyDescriptor(isolate, from, next_key, &desc);
-      if (found.IsNothing()) return isolate->heap()->exception();
-      // 4c ii. If desc is not undefined and desc.[[Enumerable]] is true, then
-      if (found.FromJust() && desc.enumerable()) {
-        // 4c ii 1. Let propValue be ? Get(from, nextKey).
-        Handle<Object> prop_value;
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, prop_value,
-            Runtime::GetObjectProperty(isolate, from, next_key));
-        // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
-        Handle<Object> status;
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-            isolate, status, Runtime::SetObjectProperty(isolate, to, next_key,
-                                                        prop_value, STRICT));
-      }
-    }
+    MAYBE_RETURN(
+        JSReceiver::SetOrCopyDataProperties(isolate, to, next_source, true),
+        isolate->heap()->exception());
   }
   // 5. Return to.
   return *to;

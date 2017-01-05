@@ -218,7 +218,8 @@ class ParserBase {
         allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false),
         allow_harmony_trailing_commas_(false),
-        allow_harmony_class_fields_(false) {}
+        allow_harmony_class_fields_(false),
+        allow_harmony_object_spread_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -232,6 +233,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_trailing_commas);
   ALLOW_ACCESSORS(harmony_class_fields);
+  ALLOW_ACCESSORS(harmony_object_spread);
 
 #undef ALLOW_ACCESSORS
 
@@ -1150,6 +1152,7 @@ class ParserBase {
     kShorthandProperty,
     kMethodProperty,
     kClassField,
+    kSpreadProperty,
     kNotSet
   };
 
@@ -1456,6 +1459,7 @@ class ParserBase {
   bool allow_harmony_restrictive_generators_;
   bool allow_harmony_trailing_commas_;
   bool allow_harmony_class_fields_;
+  bool allow_harmony_object_spread_;
 
   friend class DiscardableZoneScope;
 };
@@ -2109,6 +2113,22 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       break;
     }
 
+    case Token::ELLIPSIS:
+      if (allow_harmony_object_spread()) {
+        // TODO(gsathya): Implement destructuring/rest
+        classifier()->RecordPatternError(scanner()->location(),
+                                         MessageTemplate::kUnexpectedToken);
+
+        *name = impl()->EmptyIdentifier();
+        Consume(Token::ELLIPSIS);
+        ExpressionClassifier spread_classifier(this);
+        expression = ParseAssignmentExpression(true, CHECK_OK);
+        impl()->RewriteNonPattern(CHECK_OK);
+        impl()->AccumulateFormalParameterContainmentErrors();
+        *kind = PropertyKind::kSpreadProperty;
+        return expression;
+      }
+
     default:
       *name = ParseIdentifierName(CHECK_OK);
       break;
@@ -2269,6 +2289,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                                 *property_kind, *is_static,
                                                 *is_computed_name);
     }
+    case PropertyKind::kSpreadProperty:
+      UNREACHABLE();
   }
   UNREACHABLE();
   return impl()->EmptyClassLiteralProperty();
@@ -2330,6 +2352,18 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       is_computed_name, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   switch (kind) {
+    case PropertyKind::kSpreadProperty:
+      DCHECK(allow_harmony_object_spread());
+      DCHECK(!is_get && !is_set && !is_generator && !is_async &&
+             !*is_computed_name);
+      DCHECK(name_token == Token::ELLIPSIS);
+
+      *is_computed_name = true;
+
+      return factory()->NewObjectLiteralProperty(
+          impl()->GetLiteralTheHole(kNoSourcePosition), name_expression,
+          ObjectLiteralProperty::SPREAD, true);
+
     case PropertyKind::kValueProperty: {
       DCHECK(!is_get && !is_set && !is_generator && !is_async);
 
