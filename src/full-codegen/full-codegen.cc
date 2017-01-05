@@ -1060,14 +1060,6 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   RestoreContext();
 }
 
-void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
-                                        BailoutId bailout_id) {
-  VisitForStackValue(property->key());
-  CallRuntimeWithOperands(Runtime::kToName);
-  PrepareForBailoutForId(bailout_id, BailoutState::TOS_REGISTER);
-  PushOperand(result_register());
-}
-
 void FullCodeGenerator::EmitLoadSlot(Register destination,
                                      FeedbackVectorSlot slot) {
   DCHECK(!slot.IsInvalid());

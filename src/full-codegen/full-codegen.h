@@ -456,9 +456,6 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // The receiver and the key is left on the stack by the IC.
   void EmitKeyedPropertyLoad(Property* expr);
 
-  // Pushes the property key as a Name on the stack.
-  void EmitPropertyKey(LiteralProperty* property, BailoutId bailout_id);
-
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
   void EmitBinaryOp(BinaryOperation* expr, Token::Value op);
