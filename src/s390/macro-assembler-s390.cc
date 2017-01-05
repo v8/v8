@@ -3132,12 +3132,10 @@ void MacroAssembler::LoadRepresentation(Register dst, const MemOperand& mem,
   DCHECK(!r.IsDouble());
   if (r.IsInteger8()) {
     LoadB(dst, mem);
-    lgbr(dst, dst);
   } else if (r.IsUInteger8()) {
     LoadlB(dst, mem);
   } else if (r.IsInteger16()) {
     LoadHalfWordP(dst, mem, scratch);
-    lghr(dst, dst);
   } else if (r.IsUInteger16()) {
     LoadHalfWordP(dst, mem, scratch);
 #if V8_TARGET_ARCH_S390X
