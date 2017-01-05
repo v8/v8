@@ -11286,23 +11286,35 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
         // The caller expects a branch instruction, so make it happy.
         return New<HBranch>(graph()->GetConstantTrue());
       }
-      // Can we get away with map check and not instance type check?
-      HValue* operand_to_check =
-          left->block()->block_id() < right->block()->block_id() ? left : right;
-      if (combined_type->IsClass()) {
-        Handle<Map> map = combined_type->AsClass()->Map();
-        AddCheckMap(operand_to_check, map);
-        HCompareObjectEqAndBranch* result =
-            New<HCompareObjectEqAndBranch>(left, right);
-        return result;
+      if (op == Token::EQ) {
+        // For abstract equality we need to check both sides are receivers.
+        if (combined_type->IsClass()) {
+          Handle<Map> map = combined_type->AsClass()->Map();
+          AddCheckMap(left, map);
+          AddCheckMap(right, map);
+        } else {
+          BuildCheckHeapObject(left);
+          Add<HCheckInstanceType>(left, HCheckInstanceType::IS_JS_RECEIVER);
+          BuildCheckHeapObject(right);
+          Add<HCheckInstanceType>(right, HCheckInstanceType::IS_JS_RECEIVER);
+        }
       } else {
-        BuildCheckHeapObject(operand_to_check);
-        Add<HCheckInstanceType>(operand_to_check,
-                                HCheckInstanceType::IS_JS_RECEIVER);
-        HCompareObjectEqAndBranch* result =
-            New<HCompareObjectEqAndBranch>(left, right);
-        return result;
+        // For strict equality we only need to check one side.
+        HValue* operand_to_check =
+            left->block()->block_id() < right->block()->block_id() ? left
+                                                                   : right;
+        if (combined_type->IsClass()) {
+          Handle<Map> map = combined_type->AsClass()->Map();
+          AddCheckMap(operand_to_check, map);
+        } else {
+          BuildCheckHeapObject(operand_to_check);
+          Add<HCheckInstanceType>(operand_to_check,
+                                  HCheckInstanceType::IS_JS_RECEIVER);
+        }
       }
+      HCompareObjectEqAndBranch* result =
+          New<HCompareObjectEqAndBranch>(left, right);
+      return result;
     } else {
       if (combined_type->IsClass()) {
         // TODO(bmeurer): This is an optimized version of an x < y, x > y,
