@@ -597,7 +597,7 @@ class WasmFullDecoder : public WasmDecoder {
     // Decode local declarations, if any.
     uint32_t entries = consume_u32v("local decls count");
     TRACE("local decls count: %u\n", entries);
-    while (entries-- > 0 && pc_ < limit_) {
+    while (entries-- > 0 && pc_ < end_) {
       uint32_t count = consume_u32v("local count");
       if ((count + local_type_vec_.size()) > kMaxNumWasmLocals) {
         error(pc_ - 1, "local count too large");
@@ -634,8 +634,8 @@ class WasmFullDecoder : public WasmDecoder {
   void DecodeFunctionBody() {
     TRACE("wasm-decode %p...%p (module+%d, %d bytes) %s\n",
           reinterpret_cast<const void*>(start_),
-          reinterpret_cast<const void*>(limit_), baserel(pc_),
-          static_cast<int>(limit_ - start_), builder_ ? "graph building" : "");
+          reinterpret_cast<const void*>(end_), baserel(pc_),
+          static_cast<int>(end_ - start_), builder_ ? "graph building" : "");
 
     {
       // Set up initial function block.
@@ -655,7 +655,7 @@ class WasmFullDecoder : public WasmDecoder {
       }
     }
 
-    if (pc_ >= limit_) return;  // Nothing to do.
+    if (pc_ >= end_) return;  // Nothing to do.
 
     while (true) {  // decoding loop.
       unsigned len = 1;
@@ -1246,9 +1246,9 @@ class WasmFullDecoder : public WasmDecoder {
       }
 #endif
       pc_ += len;
-      if (pc_ >= limit_) {
+      if (pc_ >= end_) {
         // End of code reached or exceeded.
-        if (pc_ > limit_ && ok()) error("Beyond end of code");
+        if (pc_ > end_ && ok()) error("Beyond end of code");
         return;
       }
     }  // end decode loop
@@ -1823,19 +1823,19 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   virtual void onFirstError() {
-    limit_ = start_;     // Terminate decoding loop.
+    end_ = start_;       // Terminate decoding loop.
     builder_ = nullptr;  // Don't build any more nodes.
     TRACE(" !%s\n", error_msg_.get());
   }
   BitVector* AnalyzeLoopAssignment(const byte* pc) {
-    if (pc >= limit_) return nullptr;
+    if (pc >= end_) return nullptr;
     if (*pc != kExprLoop) return nullptr;
 
     BitVector* assigned =
         new (zone_) BitVector(static_cast<int>(local_type_vec_.size()), zone_);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
-    while (pc < limit_ && ok()) {
+    while (pc < end_ && ok()) {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
       unsigned length = 1;
       switch (opcode) {
