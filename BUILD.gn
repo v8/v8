@@ -425,6 +425,7 @@ action("js2c") {
     "src/js/spread.js",
     "src/js/proxy.js",
     "src/js/async-await.js",
+    "src/js/harmony-string-padding.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",
@@ -469,7 +470,6 @@ action("js2c_experimental") {
     "src/messages.h",
     "src/js/harmony-atomics.js",
     "src/js/harmony-simd.js",
-    "src/js/harmony-string-padding.js",
   ]
 
   outputs = [
