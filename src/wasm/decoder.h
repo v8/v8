@@ -284,6 +284,7 @@ class Decoder {
   const byte* start() const { return start_; }
   const byte* pc() const { return pc_; }
   uint32_t pc_offset() const { return static_cast<uint32_t>(pc_ - start_); }
+  const byte* end() const { return end_; }
 
  protected:
   const byte* start_;

@@ -359,20 +359,15 @@ inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
 
 struct BodyLocalDecls {
   // The size of the encoded declarations.
-  uint32_t decls_encoded_size;  // size of encoded declarations
+  uint32_t encoded_size;  // size of encoded declarations
 
-  // Total number of locals.
-  uint32_t total_local_count;
-
-  // List of {local type, count} pairs.
-  ZoneVector<std::pair<ValueType, uint32_t>> local_types;
+  ZoneVector<ValueType> type_list;
 
   // Constructor initializes the vector.
-  explicit BodyLocalDecls(Zone* zone)
-      : decls_encoded_size(0), total_local_count(0), local_types(zone) {}
+  explicit BodyLocalDecls(Zone* zone) : encoded_size(0), type_list(zone) {}
 };
 
-V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls& decls,
+V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls* decls,
                                         const byte* start, const byte* end);
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
                                                              size_t num_locals,

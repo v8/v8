@@ -2546,41 +2546,33 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
 }
 
-typedef ZoneVector<ValueType> ValueTypeMap;
+typedef ZoneVector<ValueType> TypesOfLocals;
 
 class LocalDeclDecoderTest : public TestWithZone {
  public:
   v8::internal::AccountingAllocator allocator;
 
-  size_t ExpectRun(ValueTypeMap map, size_t pos, ValueType expected,
+  size_t ExpectRun(TypesOfLocals map, size_t pos, ValueType expected,
                    size_t count) {
     for (size_t i = 0; i < count; i++) {
       EXPECT_EQ(expected, map[pos++]);
     }
     return pos;
   }
-
-  ValueTypeMap Expand(BodyLocalDecls& decls) {
-    ZoneVector<ValueType> map(zone());
-    for (auto p : decls.local_types) {
-      map.insert(map.end(), p.second, p.first);
-    }
-    return map;
-  }
 };
 
 TEST_F(LocalDeclDecoderTest, EmptyLocals) {
   BodyLocalDecls decls(zone());
-  bool result = DecodeLocalDecls(decls, nullptr, nullptr);
+  bool result = DecodeLocalDecls(&decls, nullptr, nullptr);
   EXPECT_FALSE(result);
 }
 
 TEST_F(LocalDeclDecoderTest, NoLocals) {
   static const byte data[] = {0};
   BodyLocalDecls decls(zone());
-  bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+  bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
   EXPECT_TRUE(result);
-  EXPECT_EQ(0u, decls.total_local_count);
+  EXPECT_TRUE(decls.type_list.empty());
 }
 
 TEST_F(LocalDeclDecoderTest, OneLocal) {
@@ -2589,12 +2581,11 @@ TEST_F(LocalDeclDecoderTest, OneLocal) {
     const byte data[] = {
         1, 1, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(type))};
     BodyLocalDecls decls(zone());
-    bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+    bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
-    EXPECT_EQ(1u, decls.total_local_count);
+    EXPECT_EQ(1u, decls.type_list.size());
 
-    ValueTypeMap map = Expand(decls);
-    EXPECT_EQ(1u, map.size());
+    TypesOfLocals map = decls.type_list;
     EXPECT_EQ(type, map[0]);
   }
 }
@@ -2605,12 +2596,12 @@ TEST_F(LocalDeclDecoderTest, FiveLocals) {
     const byte data[] = {
         1, 5, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(type))};
     BodyLocalDecls decls(zone());
-    bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+    bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
     EXPECT_TRUE(result);
-    EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
-    EXPECT_EQ(5u, decls.total_local_count);
+    EXPECT_EQ(sizeof(data), decls.encoded_size);
+    EXPECT_EQ(5u, decls.type_list.size());
 
-    ValueTypeMap map = Expand(decls);
+    TypesOfLocals map = decls.type_list;
     EXPECT_EQ(5u, map.size());
     ExpectRun(map, 0, type, 5);
   }
@@ -2624,14 +2615,13 @@ TEST_F(LocalDeclDecoderTest, MixedLocals) {
           const byte data[] = {4, a,         kLocalI32, b,        kLocalI64,
                                c, kLocalF32, d,         kLocalF64};
           BodyLocalDecls decls(zone());
-          bool result = DecodeLocalDecls(decls, data, data + sizeof(data));
+          bool result = DecodeLocalDecls(&decls, data, data + sizeof(data));
           EXPECT_TRUE(result);
-          EXPECT_EQ(sizeof(data), decls.decls_encoded_size);
+          EXPECT_EQ(sizeof(data), decls.encoded_size);
           EXPECT_EQ(static_cast<uint32_t>(a + b + c + d),
-                    decls.total_local_count);
+                    decls.type_list.size());
 
-          ValueTypeMap map = Expand(decls);
-          EXPECT_EQ(static_cast<uint32_t>(a + b + c + d), map.size());
+          TypesOfLocals map = decls.type_list;
 
           size_t pos = 0;
           pos = ExpectRun(map, pos, kWasmI32, a);
@@ -2655,11 +2645,11 @@ TEST_F(LocalDeclDecoderTest, UseEncoder) {
   local_decls.Prepend(zone(), &data, &end);
 
   BodyLocalDecls decls(zone());
-  bool result = DecodeLocalDecls(decls, data, end);
+  bool result = DecodeLocalDecls(&decls, data, end);
   EXPECT_TRUE(result);
-  EXPECT_EQ(5u + 1337u + 212u, decls.total_local_count);
+  EXPECT_EQ(5u + 1337u + 212u, decls.type_list.size());
 
-  ValueTypeMap map = Expand(decls);
+  TypesOfLocals map = decls.type_list;
   size_t pos = 0;
   pos = ExpectRun(map, pos, kWasmF32, 5);
   pos = ExpectRun(map, pos, kWasmI32, 1337);
@@ -2729,7 +2719,7 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   BodyLocalDecls decls(zone());
   BytecodeIterator iter(code, code + sizeof(code), &decls);
 
-  EXPECT_EQ(3u, decls.decls_encoded_size);
+  EXPECT_EQ(3u, decls.encoded_size);
   EXPECT_EQ(3u, iter.pc_offset());
   EXPECT_TRUE(iter.has_next());
   EXPECT_EQ(kExprI8Const, iter.current());

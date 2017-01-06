@@ -173,11 +173,10 @@ void wasm::PrintWasmText(const WasmModule *module,
       fun->code_start_offset, fun->code_end_offset);
   BytecodeIterator i(func_bytes.begin(), func_bytes.end(), &decls);
   DCHECK_LT(func_bytes.begin(), i.pc());
-  if (!decls.local_types.empty()) {
+  if (!decls.type_list.empty()) {
     os << "(local";
-    for (auto p : decls.local_types) {
-      for (unsigned i = 0; i < p.second; ++i)
-        os << ' ' << WasmOpcodes::TypeName(p.first);
+    for (const ValueType &v : decls.type_list) {
+      os << ' ' << WasmOpcodes::TypeName(v);
     }
     os << ")\n";
     ++line_nr;
