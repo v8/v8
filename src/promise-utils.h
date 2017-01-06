@@ -33,12 +33,6 @@ class PromiseUtils : public AllStatic {
   static Object* GetDebugEvent(Handle<Context> context);
   static bool HasAlreadyVisited(Handle<Context> context);
   static void SetAlreadyVisited(Handle<Context> context);
-
-  static void CreateResolvingFunctions(Isolate* isolate,
-                                       Handle<JSObject> promise,
-                                       Handle<Object> debug_event,
-                                       Handle<JSFunction>* resolve,
-                                       Handle<JSFunction>* reject);
 };
 
 class GetPromiseCapabilityExecutor : public AllStatic {

@@ -75,12 +75,6 @@ class V8_EXPORT_PRIVATE Factory final {
       Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
       Handle<Object> deferred_on_reject, Handle<Context> context);
 
-  // Create a new PromiseResolveThenableJobInfo struct.
-  Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(
-      Handle<JSReceiver> thenable, Handle<JSReceiver> then,
-      Handle<JSFunction> resolve, Handle<JSFunction> reject, int debug_id,
-      int debug_name, Handle<Context> context);
-
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
 

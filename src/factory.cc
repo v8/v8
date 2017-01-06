@@ -1011,23 +1011,6 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
       Struct);
 }
 
-Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
-    Handle<JSReceiver> thenable, Handle<JSReceiver> then,
-    Handle<JSFunction> resolve, Handle<JSFunction> reject, int debug_id,
-    int debug_name, Handle<Context> context) {
-  Handle<PromiseResolveThenableJobInfo> result =
-      Handle<PromiseResolveThenableJobInfo>::cast(
-          NewStruct(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE));
-  result->set_thenable(*thenable);
-  result->set_then(*then);
-  result->set_resolve(*resolve);
-  result->set_reject(*reject);
-  result->set_debug_id(debug_id);
-  result->set_debug_name(debug_name);
-  result->set_context(*context);
-  return result;
-}
-
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
     Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
     Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,

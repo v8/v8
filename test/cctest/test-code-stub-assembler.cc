@@ -1874,6 +1874,47 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK_EQ(kDebugNotActive, promise_info->debug_name());
 }
 
+TEST(AllocatePromiseResolveThenableJobInfo) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler p(data.state());
+
+  Node* const context = p.Parameter(kNumParams + 2);
+  Node* const native_context = p.LoadNativeContext(context);
+  Node* const thenable = p.AllocateAndInitJSPromise(context);
+  Node* const then_str = p.HeapConstant(isolate->factory()->then_string());
+  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+  Node* const then =
+      p.CallStub(getproperty_callable, context, thenable, then_str);
+  Node* resolve = nullptr;
+  Node* reject = nullptr;
+  std::tie(resolve, reject) = p.CreatePromiseResolvingFunctions(
+      thenable, p.FalseConstant(), native_context);
+
+  Node* const info = p.AllocatePromiseResolveThenableJobInfo(
+      thenable, then, resolve, reject, context);
+  p.Return(info);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsPromiseResolveThenableJobInfo());
+  Handle<PromiseResolveThenableJobInfo> promise_info =
+      Handle<PromiseResolveThenableJobInfo>::cast(result);
+  CHECK(promise_info->thenable()->IsJSPromise());
+  CHECK(promise_info->then()->IsJSFunction());
+  CHECK(promise_info->resolve()->IsJSFunction());
+  CHECK(promise_info->reject()->IsJSFunction());
+  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
+  CHECK_EQ(kDebugNotActive, promise_info->debug_name());
+  CHECK(promise_info->context()->IsContext());
+}
+
 TEST(IsSymbol) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 

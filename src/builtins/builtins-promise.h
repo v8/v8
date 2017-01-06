@@ -30,6 +30,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   // fields.
   Node* AllocateAndSetJSPromise(Node* context, Node* status, Node* result);
 
+  Node* AllocatePromiseResolveThenableJobInfo(Node* result, Node* then,
+                                              Node* resolve, Node* reject,
+                                              Node* context);
+
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate::Template msg_template,
                              const char* method_name = nullptr);

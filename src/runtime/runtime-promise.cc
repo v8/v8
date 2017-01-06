@@ -195,32 +195,9 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, resolution, 1);
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, then, 2);
-
-  // TODO(gsathya): Add fast path for native promises with unmodified
-  // PromiseThen (which don't need these resolving functions, but
-  // instead can just call resolve/reject directly).
-  Handle<JSFunction> resolve, reject;
-  PromiseUtils::CreateResolvingFunctions(
-      isolate, promise, isolate->factory()->false_value(), &resolve, &reject);
-
-  int debug_id = kDebugPromiseFirstID;
-  PromiseDebugActionName debug_name = kDebugNotActive;
-  if (isolate->debug()->is_active()) {
-    debug_id = isolate->GetNextDebugMicrotaskId();
-    debug_name = kDebugPromiseResolveThenableJob;
-    isolate->debug()->OnAsyncTaskEvent(kDebugEnqueue, debug_id, debug_name);
-  }
-
-  Handle<PromiseResolveThenableJobInfo> info =
-      isolate->factory()->NewPromiseResolveThenableJobInfo(
-          resolution, then, resolve, reject, debug_id, debug_name,
-          isolate->native_context());
+  DCHECK(args.length() == 1);
+  CONVERT_ARG_HANDLE_CHECKED(PromiseResolveThenableJobInfo, info, 0);
   isolate->EnqueueMicrotask(info);
-
   return isolate->heap()->undefined_value();
 }
 
@@ -237,22 +214,6 @@ RUNTIME_FUNCTION(Runtime_RunMicrotasks) {
   DCHECK_EQ(0, args.length());
   isolate->RunMicrotasks();
   return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_CreateResolvingFunctions) {
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  DCHECK_EQ(1, args.length());
-  Handle<JSFunction> resolve, reject;
-
-  PromiseUtils::CreateResolvingFunctions(
-      isolate, promise, isolate->factory()->true_value(), &resolve, &reject);
-
-  Handle<FixedArray> result = isolate->factory()->NewFixedArray(2);
-  result->set(0, *resolve);
-  result->set(1, *reject);
-
-  return *result;
 }
 
 RUNTIME_FUNCTION(Runtime_PromiseStatus) {

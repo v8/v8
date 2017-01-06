@@ -647,6 +647,30 @@ void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
   Branch(proto_has_initialmap, if_isunmodified, if_ismodified);
 }
 
+Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobInfo(
+    Node* thenable, Node* then, Node* resolve, Node* reject, Node* context) {
+  Node* const info = Allocate(PromiseResolveThenableJobInfo::kSize);
+  StoreMapNoWriteBarrier(info,
+                         Heap::kPromiseResolveThenableJobInfoMapRootIndex);
+  StoreObjectFieldNoWriteBarrier(
+      info, PromiseResolveThenableJobInfo::kThenableOffset, thenable);
+  StoreObjectFieldNoWriteBarrier(
+      info, PromiseResolveThenableJobInfo::kThenOffset, then);
+  StoreObjectFieldNoWriteBarrier(
+      info, PromiseResolveThenableJobInfo::kResolveOffset, resolve);
+  StoreObjectFieldNoWriteBarrier(
+      info, PromiseResolveThenableJobInfo::kRejectOffset, reject);
+  StoreObjectFieldNoWriteBarrier(info,
+                                 PromiseResolveThenableJobInfo::kDebugIdOffset,
+                                 SmiConstant(kDebugPromiseNoID));
+  StoreObjectFieldNoWriteBarrier(
+      info, PromiseResolveThenableJobInfo::kDebugNameOffset,
+      SmiConstant(kDebugNotActive));
+  StoreObjectFieldNoWriteBarrier(
+      info, PromiseResolveThenableJobInfo::kContextOffset, context);
+  return info;
+}
+
 void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
                                                       Node* promise,
                                                       Node* result) {
@@ -756,10 +780,33 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 
   Bind(&do_enqueue);
   {
+    // TODO(gsathya): Add fast path for native promises with unmodified
+    // PromiseThen (which don't need these resolving functions, but
+    // instead can just call resolve/reject directly).
+    Node* resolve = nullptr;
+    Node* reject = nullptr;
+    std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
+        promise, FalseConstant(), native_context);
+
+    Node* const info = AllocatePromiseResolveThenableJobInfo(
+        result, var_then.value(), resolve, reject, context);
+
     Label enqueue(this);
     GotoUnless(IsDebugActive(), &enqueue);
+
+    Node* const debug_id = CallRuntime(Runtime::kDebugNextMicrotaskId, context);
+    Node* const debug_name = SmiConstant(kDebugPromiseResolveThenableJob);
+    CallRuntime(Runtime::kDebugAsyncTaskEvent, context,
+                SmiConstant(kDebugEnqueue), debug_id, debug_name);
+
+    StoreObjectField(info, PromiseResolveThenableJobInfo::kDebugIdOffset,
+                     debug_id);
+    StoreObjectField(info, PromiseResolveThenableJobInfo::kDebugNameOffset,
+                     debug_name);
+
     GotoIf(TaggedIsSmi(result), &enqueue);
     GotoUnless(HasInstanceType(result, JS_PROMISE_TYPE), &enqueue);
+
     // Mark the dependency of the new promise on the resolution
     Node* const key =
         HeapConstant(isolate->factory()->promise_handled_by_symbol());
@@ -768,12 +815,10 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     Goto(&enqueue);
 
     // 12. Perform EnqueueJob("PromiseJobs",
-    // PromiseResolveThenableJob, « promise, resolution, thenAction
-    // »).
+    // PromiseResolveThenableJob, « promise, resolution, thenAction»).
     Bind(&enqueue);
     // TODO(gsathya): Move this to TF
-    CallRuntime(Runtime::kEnqueuePromiseResolveThenableJob, context, promise,
-                result, var_then.value());
+    CallRuntime(Runtime::kEnqueuePromiseResolveThenableJob, context, info);
     Goto(&out);
   }
 
