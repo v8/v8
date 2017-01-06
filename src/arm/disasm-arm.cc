@@ -1876,7 +1876,6 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
                      size, Vd, Vn, Vm);
       } else if (instr->Bits(11, 8) == 0xd && instr->Bit(4) == 0) {
         const char* op = (instr->Bits(21, 20) == 0) ? "vadd" : "vsub";
-        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
