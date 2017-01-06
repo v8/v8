@@ -4022,7 +4022,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     int32_t length = ToInteger32(LConstantOperand::cast(instr->length()));
     Register index = ToRegister(instr->index());
     if (representation.IsSmi()) {
-      __ Cmpli(index, Operand(Smi::FromInt(length)), r0);
+      __ CmplSmiLiteral(index, Smi::FromInt(length), r0);
     } else {
       __ Cmplwi(index, Operand(length), r0);
     }
@@ -4031,7 +4031,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     int32_t index = ToInteger32(LConstantOperand::cast(instr->index()));
     Register length = ToRegister(instr->length());
     if (representation.IsSmi()) {
-      __ Cmpli(length, Operand(Smi::FromInt(index)), r0);
+      __ CmplSmiLiteral(length, Smi::FromInt(index), r0);
     } else {
       __ Cmplwi(length, Operand(index), r0);
     }
