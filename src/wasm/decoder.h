@@ -281,9 +281,9 @@ class Decoder {
   bool failed() const { return !ok(); }
   bool more() const { return pc_ < end_; }
 
-  const byte* start() { return start_; }
-  const byte* pc() { return pc_; }
-  uint32_t pc_offset() { return static_cast<uint32_t>(pc_ - start_); }
+  const byte* start() const { return start_; }
+  const byte* pc() const { return pc_; }
+  uint32_t pc_offset() const { return static_cast<uint32_t>(pc_ - start_); }
 
  protected:
   const byte* start_;
