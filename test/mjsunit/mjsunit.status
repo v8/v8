@@ -198,7 +198,6 @@
   'regress/regress-4121': [SKIP],
   'compare-known-objects-slow': [SKIP],
   # Tests taking too long
-  'mirror-object': [SKIP],
   'packed-elements': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-331444': [SKIP],
@@ -301,7 +300,6 @@
   'json2': [PASS, SLOW],
   'math-floor-of-div-nosudiv': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
-  'mirror-object': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-1122': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
@@ -395,7 +393,6 @@
   # Slow tests.
   'array-sort': [PASS, SLOW],
   'compiler/osr-with-args': [PASS, SLOW],
-  'mirror-object': [PASS, SLOW],
   'packed-elements': [PASS, SLOW],
   'regress/regress-2185-2': [PASS, SLOW],
   'regress/regress-2790': [PASS, SLOW],
@@ -416,7 +413,6 @@
   'array-splice': [PASS, TIMEOUT],
 
   # Long running test.
-  'mirror-object': [PASS, TIMEOUT],
   'string-indexof-2': [PASS, TIMEOUT],
 
   # Long running tests. Skipping because having them timeout takes too long on
@@ -436,12 +432,6 @@
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
-['arch == mips', {
-  # Flaky with TF.
-  'mirror-script': [PASS, NO_VARIANTS],
-}],  # 'arch == mips'
-
-##############################################################################
 ['arch == mips64el or arch == mips64', {
 
   # Slow tests which times out in debug mode.
@@ -453,7 +443,6 @@
   'array-splice': [PASS, TIMEOUT],
 
   # Long running test.
-  'mirror-object': [PASS, TIMEOUT],
   'string-indexof-2': [PASS, TIMEOUT],
 
   # BUG(3251035): Timeouts in long looping crankshaft optimization
