@@ -107,7 +107,7 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 79
+bytecode array length: 75
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
@@ -122,10 +122,8 @@ bytecodes: [
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
-                B(Jump), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-  /*  118 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
+                B(Jump), U8(7),
+  /*  118 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
                 B(Mov), R(2), R(this),
   /*  128 S> */ B(Ldar), R(this),
                 B(JumpIfNotHole), U8(11),
@@ -162,9 +160,9 @@ snippet: "
     test = new B().constructor;
   })();
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 75
+bytecode array length: 71
 bytecodes: [
                 B(Mov), R(closure), R(1),
                 B(Mov), R(new_target), R(0),
@@ -177,10 +175,8 @@ bytecodes: [
                 B(Star), R(2),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
-                B(Jump), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(3),
-  /*  117 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(3), U8(1),
+                B(Jump), U8(7),
+  /*  117 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
                 B(Mov), R(2), R(this),
   /*  126 S> */ B(Ldar), R(this),
                 B(JumpIfNotHole), U8(11),

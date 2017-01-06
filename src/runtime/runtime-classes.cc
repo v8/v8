@@ -45,6 +45,13 @@ RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
       isolate, NewTypeError(MessageTemplate::kStaticPrototype));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError(MessageTemplate::kSuperAlreadyCalled));
+}
+
 namespace {
 
 Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,

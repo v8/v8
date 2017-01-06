@@ -1983,25 +1983,19 @@ void BytecodeGenerator::BuildThrowIfHole(Handle<String> name) {
   builder()->Bind(&no_reference_error);
 }
 
-void BytecodeGenerator::BuildThrowIfNotHole(Handle<String> name) {
-  // TODO(interpreter): Can the parser reduce the number of checks
-  // performed? Or should there be a ThrowIfNotHole bytecode.
-  BytecodeLabel no_reference_error, reference_error;
-  builder()
-      ->JumpIfNotHole(&reference_error)
-      .Jump(&no_reference_error)
-      .Bind(&reference_error);
-  BuildThrowReferenceError(name);
-  builder()->Bind(&no_reference_error);
-}
-
 void BytecodeGenerator::BuildHoleCheckForVariableAssignment(Variable* variable,
                                                             Token::Value op) {
   if (variable->is_this() && variable->mode() == CONST && op == Token::INIT) {
     // Perform an initialization check for 'this'. 'this' variable is the
     // only variable able to trigger bind operations outside the TDZ
     // via 'super' calls.
-    BuildThrowIfNotHole(variable->name());
+    BytecodeLabel no_reference_error, reference_error;
+    builder()
+        ->JumpIfNotHole(&reference_error)
+        .Jump(&no_reference_error)
+        .Bind(&reference_error)
+        .CallRuntime(Runtime::kThrowSuperAlreadyCalledError)
+        .Bind(&no_reference_error);
   } else {
     // Perform an initialization check for let/const declared variables.
     // E.g. let x = (x = 20); is not allowed.

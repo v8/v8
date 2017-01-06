@@ -110,7 +110,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
-  void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 

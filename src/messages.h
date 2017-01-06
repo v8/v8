@@ -486,6 +486,7 @@ class ErrorUtils : public AllStatic {
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* ReferenceError */                                                         \
   T(NotDefined, "% is not defined")                                            \
+  T(SuperAlreadyCalled, "Super constructor may only be called once")           \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(DateRange, "Provided date is not in valid range.")                         \
