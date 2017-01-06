@@ -700,9 +700,9 @@ void FullCodeGenerator::VisitVariableDeclaration(
     VariableDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
+  DCHECK(!variable->binding_needs_init());
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
-      DCHECK(!variable->binding_needs_init());
       globals_->Add(variable->name(), zone());
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
@@ -712,22 +712,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
-      if (variable->binding_needs_init()) {
-        Comment cmnt(masm_, "[ VariableDeclaration");
-        __ mov(StackOperand(variable),
-               Immediate(isolate()->factory()->the_hole_value()));
-      }
-      break;
-
     case VariableLocation::CONTEXT:
-      if (variable->binding_needs_init()) {
-        Comment cmnt(masm_, "[ VariableDeclaration");
-        EmitDebugCheckDeclarationContext(variable);
-        __ mov(ContextOperand(esi, variable->index()),
-               Immediate(isolate()->factory()->the_hole_value()));
-        // No write barrier since the hole value is in old space.
-        PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
-      }
       break;
 
     case VariableLocation::LOOKUP:
@@ -1066,6 +1051,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
   SetExpressionPosition(proxy);
   PrepareForBailoutForId(proxy->BeforeId(), BailoutState::NO_REGISTERS);
   Variable* var = proxy->var();
+  DCHECK(!var->binding_needs_init());
 
   // Two cases: global variables and all other types of variables.
   switch (var->location()) {
@@ -1082,20 +1068,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_mode);
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context variable"
                                                : "[ Stack variable");
-
-      if (proxy->hole_check_mode() == HoleCheckMode::kRequired) {
-        // Throw a reference error when using an uninitialized let/const
-        // binding in harmony mode.
-        Label done;
-        GetVar(eax, var);
-        __ cmp(eax, isolate()->factory()->the_hole_value());
-        __ j(not_equal, &done, Label::kNear);
-        __ push(Immediate(var->name()));
-        __ CallRuntime(Runtime::kThrowReferenceError);
-        __ bind(&done);
-        context()->Plug(eax);
-        break;
-      }
       context()->Plug(var);
       break;
     }
@@ -1411,8 +1383,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE: {
       VariableProxy* proxy = expr->target()->AsVariableProxy();
-      EmitVariableAssignment(proxy->var(), expr->op(), expr->AssignmentSlot(),
-                             proxy->hole_check_mode());
+      EmitVariableAssignment(proxy->var(), expr->op(), expr->AssignmentSlot());
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       context()->Plug(eax);
       break;
@@ -1593,8 +1564,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
     case VARIABLE: {
       VariableProxy* proxy = expr->AsVariableProxy();
       EffectContext context(this);
-      EmitVariableAssignment(proxy->var(), Token::ASSIGN, slot,
-                             proxy->hole_check_mode());
+      EmitVariableAssignment(proxy->var(), Token::ASSIGN, slot);
       break;
     }
     case NAMED_PROPERTY: {
@@ -1635,8 +1605,8 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 }
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
-                                               FeedbackVectorSlot slot,
-                                               HoleCheckMode hole_check_mode) {
+                                               FeedbackVectorSlot slot) {
+  DCHECK(!var->binding_needs_init());
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ mov(StoreDescriptor::ReceiverRegister(), NativeContextOperand());
@@ -1645,51 +1615,15 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
                           Context::EXTENSION_INDEX));
     CallStoreIC(slot, var->name());
 
-  } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
-    DCHECK(!var->IsLookupSlot());
-    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
-    MemOperand location = VarOperand(var, ecx);
-    // Perform an initialization check for lexically declared variables.
-    if (hole_check_mode == HoleCheckMode::kRequired) {
-      Label assign;
-      __ mov(edx, location);
-      __ cmp(edx, isolate()->factory()->the_hole_value());
-      __ j(not_equal, &assign, Label::kNear);
-      __ push(Immediate(var->name()));
-      __ CallRuntime(Runtime::kThrowReferenceError);
-      __ bind(&assign);
-    }
-    if (var->mode() != CONST) {
-      EmitStoreToStackLocalOrContextSlot(var, location);
-    } else if (var->throw_on_const_assignment(language_mode())) {
+  } else if (var->mode() == CONST && op != Token::INIT) {
+    if (var->throw_on_const_assignment(language_mode())) {
       __ CallRuntime(Runtime::kThrowConstAssignError);
     }
-  } else if (var->is_this() && var->mode() == CONST && op == Token::INIT) {
-    // Initializing assignment to const {this} needs a write barrier.
-    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
-    Label uninitialized_this;
-    MemOperand location = VarOperand(var, ecx);
-    __ mov(edx, location);
-    __ cmp(edx, isolate()->factory()->the_hole_value());
-    __ j(equal, &uninitialized_this);
-    __ push(Immediate(var->name()));
-    __ CallRuntime(Runtime::kThrowReferenceError);
-    __ bind(&uninitialized_this);
-    EmitStoreToStackLocalOrContextSlot(var, location);
-
   } else {
-    DCHECK(var->mode() != CONST || op == Token::INIT);
+    DCHECK(!var->is_this());
     DCHECK(var->IsStackAllocated() || var->IsContextSlot());
     DCHECK(!var->IsLookupSlot());
-    // Assignment to var or initializing assignment to let/const in harmony
-    // mode.
     MemOperand location = VarOperand(var, ecx);
-    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
-      // Check for an uninitialized let binding.
-      __ mov(edx, location);
-      __ cmp(edx, isolate()->factory()->the_hole_value());
-      __ Check(equal, kLetBindingReInitialization);
-    }
     EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }
@@ -2431,8 +2365,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       if (expr->is_postfix()) {
         // Perform the assignment as if via '='.
         { EffectContext context(this);
-          EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
-                                 proxy->hole_check_mode());
+          EmitVariableAssignment(proxy->var(), Token::ASSIGN,
+                                 expr->CountSlot());
           PrepareForBailoutForId(expr->AssignmentId(),
                                  BailoutState::TOS_REGISTER);
           context.Plug(eax);
@@ -2444,8 +2378,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         }
       } else {
         // Perform the assignment as if via '='.
-        EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
-                               proxy->hole_check_mode());
+        EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot());
         PrepareForBailoutForId(expr->AssignmentId(),
                                BailoutState::TOS_REGISTER);
         context()->Plug(eax);
