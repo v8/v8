@@ -898,27 +898,36 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
 
 // ES#sec-promise-reject-functions
 // Promise Reject Functions
-BUILTIN(PromiseRejectClosure) {
-  HandleScope scope(isolate);
+TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
+  Node* const value = Parameter(1);
+  Node* const context = Parameter(4);
 
-  Handle<Context> context(isolate->context(), isolate);
+  Label out(this);
 
-  if (PromiseUtils::HasAlreadyVisited(context)) {
-    return isolate->heap()->undefined_value();
-  }
+  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
+  int has_already_visited_slot = PromiseUtils::kAlreadyVisitedSlot;
 
-  PromiseUtils::SetAlreadyVisited(context);
-  Handle<Object> value = args.atOrUndefined(isolate, 1);
-  Handle<JSObject> promise = handle(PromiseUtils::GetPromise(context), isolate);
-  Handle<Object> debug_event =
-      handle(PromiseUtils::GetDebugEvent(context), isolate);
-  MaybeHandle<Object> maybe_result;
-  Handle<Object> argv[] = {promise, value, debug_event};
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, Execution::Call(isolate, isolate->promise_internal_reject(),
-                               isolate->factory()->undefined_value(),
-                               arraysize(argv), argv));
-  return isolate->heap()->undefined_value();
+  Node* const has_already_visited =
+      LoadContextElement(context, has_already_visited_slot);
+
+  // 4. If alreadyResolved.[[Value]] is true, return undefined.
+  GotoIf(SmiEqual(has_already_visited, SmiConstant(1)), &out);
+
+  // 5.Set alreadyResolved.[[Value]] to true.
+  StoreContextElementNoWriteBarrier(context, has_already_visited_slot,
+                                    SmiConstant(1));
+
+  // 2. Let promise be F.[[Promise]].
+  Node* const promise =
+      LoadContextElement(context, IntPtrConstant(PromiseUtils::kPromiseSlot));
+  Node* const debug_event = LoadContextElement(
+      context, IntPtrConstant(PromiseUtils::kDebugEventSlot));
+
+  CallRuntime(Runtime::kPromiseReject, context, promise, value, debug_event);
+  Return(UndefinedConstant());
+
+  Bind(&out);
+  Return(UndefinedConstant());
 }
 
 TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
@@ -1037,15 +1046,6 @@ TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
   Return(AllocateAndInitJSPromise(context, parent));
 }
 
-TF_BUILTIN(PromiseCreateAndSet, PromiseBuiltinsAssembler) {
-  Node* const status = Parameter(1);
-  Node* const result = Parameter(2);
-  Node* const context = Parameter(5);
-
-  Node* const instance = AllocateAndSetJSPromise(context, status, result);
-  Return(instance);
-}
-
 TF_BUILTIN(IsPromise, PromiseBuiltinsAssembler) {
   Node* const maybe_promise = Parameter(1);
   Label if_notpromise(this, Label::kDeferred);
@@ -1100,21 +1100,21 @@ TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
   Label out(this);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  Node* const has_already_visited_slot =
-      IntPtrConstant(PromiseUtils::kAlreadyVisitedSlot);
+  int has_already_visited_slot = PromiseUtils::kAlreadyVisitedSlot;
 
   Node* const has_already_visited =
-      LoadFixedArrayElement(context, has_already_visited_slot);
+      LoadContextElement(context, has_already_visited_slot);
 
   // 4. If alreadyResolved.[[Value]] is true, return undefined.
   GotoIf(SmiEqual(has_already_visited, SmiConstant(1)), &out);
 
   // 5.Set alreadyResolved.[[Value]] to true.
-  StoreFixedArrayElement(context, has_already_visited_slot, SmiConstant(1));
+  StoreContextElementNoWriteBarrier(context, has_already_visited_slot,
+                                    SmiConstant(1));
 
   // 2. Let promise be F.[[Promise]].
-  Node* const promise = LoadFixedArrayElement(
-      context, IntPtrConstant(PromiseUtils::kPromiseSlot));
+  Node* const promise =
+      LoadContextElement(context, IntPtrConstant(PromiseUtils::kPromiseSlot));
 
   InternalResolvePromise(context, promise, value);
   Return(UndefinedConstant());
@@ -1400,6 +1400,50 @@ TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 2);
 
   Return(NewPromiseCapability(context, constructor, debug_event));
+}
+
+TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
+  // 1. Let C be the this value.
+  Node* const receiver = Parameter(0);
+  Node* const reason = Parameter(1);
+  Node* const context = Parameter(4);
+
+  // 2. If Type(C) is not Object, throw a TypeError exception.
+  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
+                       "PromiseReject");
+
+  Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Branch(WordEqual(promise_fun, receiver), &if_nativepromise,
+         &if_custompromise);
+
+  Bind(&if_nativepromise);
+  {
+    Node* const promise = AllocateAndSetJSPromise(
+        context, SmiConstant(v8::Promise::kRejected), reason);
+    CallRuntime(Runtime::kPromiseRejectEventFromStack, context, promise,
+                reason);
+    Return(promise);
+  }
+
+  Bind(&if_custompromise);
+  {
+    // 3. Let promiseCapability be ? NewPromiseCapability(C).
+    Node* const capability = NewPromiseCapability(context, receiver);
+
+    // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
+    Node* const reject =
+        LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+    Callable call_callable = CodeFactory::Call(isolate());
+    CallJS(call_callable, context, reject, UndefinedConstant(), reason);
+
+    // 5. Return promiseCapability.[[Promise]].
+    Node* const promise =
+        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+    Return(promise);
+  }
 }
 
 }  // namespace internal

@@ -626,15 +626,15 @@ namespace internal {
   TFJ(PromiseInternalConstructor, 1)                                           \
   TFJ(IsPromise, 1)                                                            \
   TFJ(PromiseResolveClosure, 1)                                                \
-  CPP(PromiseRejectClosure)                                                    \
+  TFJ(PromiseRejectClosure, 1)                                                 \
   TFJ(PromiseThen, 2)                                                          \
   TFJ(PromiseCatch, 1)                                                         \
-  TFJ(PromiseCreateAndSet, 2)                                                  \
   TFJ(PerformPromiseThen, 4)                                                   \
   TFJ(ResolvePromise, 2)                                                       \
   TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject)      \
   TFJ(PromiseHandle, 6)                                                        \
   TFJ(PromiseResolve, 1)                                                       \
+  TFJ(PromiseReject, 1)                                                        \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \

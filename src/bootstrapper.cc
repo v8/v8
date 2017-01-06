@@ -1899,6 +1899,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(promise_fun, "resolve", Builtins::kPromiseResolve, 1,
                           true, DONT_ENUM);
 
+    SimpleInstallFunction(promise_fun, "reject", Builtins::kPromiseReject, 1,
+                          true, DONT_ENUM);
+
     Handle<Map> prototype_map(prototype->map());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
 
@@ -1912,14 +1915,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                Builtins::kPromiseInternalConstructor, 1, false);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::PROMISE_INTERNAL_CONSTRUCTOR_INDEX);
-    }
-
-    {  // Internal: PromiseCreateAndSet
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPromiseCreateAndSet, 2, false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PROMISE_CREATE_AND_SET_INDEX);
     }
 
     {  // Internal: IsPromise
@@ -1981,7 +1976,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                  isolate);
       info =
           factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(2);
+      info->set_internal_formal_parameter_count(1);
       info->set_length(1);
       native_context()->set_promise_reject_shared_fun(*info);
     }

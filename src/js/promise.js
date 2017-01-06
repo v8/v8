@@ -46,26 +46,6 @@ function DoRejectPromise(promise, reason) {
   %PromiseReject(promise, reason, true);
 }
 
-// ES#sec-promise.reject
-// Promise.reject ( x )
-function PromiseReject(r) {
-  if (!IS_RECEIVER(this)) {
-    throw %make_type_error(kCalledOnNonObject, PromiseReject);
-  }
-  if (this === GlobalPromise) {
-    // Optimized case, avoid extra closure.
-    var promise = %promise_create_and_set(kRejected, r);
-    // Trigger debug events if the debugger is on, as Promise.reject is
-    // equivalent to throwing an exception directly.
-    %PromiseRejectEventFromStack(promise, r);
-    return promise;
-  } else {
-    var promiseCapability = %new_promise_capability(this, true);
-    %_Call(promiseCapability.reject, UNDEFINED, r);
-    return promiseCapability.promise;
-  }
-}
-
 // Combinators.
 
 // ES#sec-promise.all
@@ -174,7 +154,6 @@ function MarkPromiseAsHandled(promise) {
 // Install exported functions.
 
 utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
-  "reject", PromiseReject,
   "all", PromiseAll,
   "race", PromiseRace,
 ]);
@@ -182,8 +161,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 %InstallToContext([
   "promise_create", PromiseCreate,
   "promise_reject", DoRejectPromise,
-  // TODO(gsathya): Remove this once we update the promise builtin.
-  "promise_internal_reject", RejectPromise,
   "promise_id_resolve_handler", PromiseIdResolveHandler,
   "promise_id_reject_handler", PromiseIdRejectHandler
 ]);
