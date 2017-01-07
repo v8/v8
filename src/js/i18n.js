@@ -1747,11 +1747,6 @@ function FormatDateToParts(dateValue) {
   if (!IS_OBJECT(this)) {
     throw %make_type_error(kCalledOnNonObject, this);
   }
-  if (!%IsInitializedIntlObjectOfType(this, 'dateformat')) {
-    throw %make_type_error(kIncompatibleMethodReceiver,
-                          'Intl.DateTimeFormat.prototype.formatToParts',
-                          this);
-  }
   var dateMs;
   if (IS_UNDEFINED(dateValue)) {
     dateMs = %DateCurrentTime();

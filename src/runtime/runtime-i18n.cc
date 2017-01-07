@@ -359,6 +359,11 @@ RUNTIME_FUNCTION(Runtime_CreateDateTimeFormat) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(date_format));
 
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticChars("dateFormat");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
+
   // Make object handle weak so we can delete the data format once GC kicks in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
@@ -381,7 +386,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormat) {
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
-  CHECK_NOT_NULL(date_format);
+  if (!date_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString result;
   date_format->format(value->Number(), result);
@@ -482,7 +487,7 @@ RUNTIME_FUNCTION(Runtime_InternalDateFormatToParts) {
 
   icu::SimpleDateFormat* date_format =
       DateFormat::UnpackDateFormat(isolate, date_format_holder);
-  CHECK_NOT_NULL(date_format);
+  if (!date_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString formatted;
   icu::FieldPositionIterator fp_iter;
@@ -551,6 +556,11 @@ RUNTIME_FUNCTION(Runtime_CreateNumberFormat) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(number_format));
 
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticChars("numberFormat");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
+
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
                           NumberFormat::DeleteNumberFormat,
@@ -572,7 +582,7 @@ RUNTIME_FUNCTION(Runtime_InternalNumberFormat) {
 
   icu::DecimalFormat* number_format =
       NumberFormat::UnpackNumberFormat(isolate, number_format_holder);
-  CHECK_NOT_NULL(number_format);
+  if (!number_format) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString result;
   number_format->format(value->Number(), result);
@@ -608,6 +618,11 @@ RUNTIME_FUNCTION(Runtime_CreateCollator) {
 
   local_object->SetInternalField(0, reinterpret_cast<Smi*>(collator));
 
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticChars("collator");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
+
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
   GlobalHandles::MakeWeak(wrapper.location(), wrapper.location(),
                           Collator::DeleteCollator,
@@ -626,7 +641,7 @@ RUNTIME_FUNCTION(Runtime_InternalCompare) {
   CONVERT_ARG_HANDLE_CHECKED(String, string2, 2);
 
   icu::Collator* collator = Collator::UnpackCollator(isolate, collator_holder);
-  CHECK_NOT_NULL(collator);
+  if (!collator) return isolate->ThrowIllegalOperation();
 
   string1 = String::Flatten(string1);
   string2 = String::Flatten(string2);
@@ -738,6 +753,11 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   // Make sure that the pointer to adopted text is NULL.
   local_object->SetInternalField(1, static_cast<Smi*>(nullptr));
 
+  Factory* factory = isolate->factory();
+  Handle<String> key = factory->NewStringFromStaticChars("breakIterator");
+  Handle<String> value = factory->NewStringFromStaticChars("valid");
+  JSObject::AddProperty(local_object, key, value, NONE);
+
   // Make object handle weak so we can delete the break iterator once GC kicks
   // in.
   Handle<Object> wrapper = isolate->global_handles()->Create(*local_object);
@@ -758,7 +778,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorAdoptText) {
 
   icu::BreakIterator* break_iterator =
       BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   icu::UnicodeString* u_text = reinterpret_cast<icu::UnicodeString*>(
       break_iterator_holder->GetInternalField(1));
@@ -788,7 +808,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorFirst) {
 
   icu::BreakIterator* break_iterator =
       BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->first());
 }
@@ -803,7 +823,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorNext) {
 
   icu::BreakIterator* break_iterator =
       BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->next());
 }
@@ -818,7 +838,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorCurrent) {
 
   icu::BreakIterator* break_iterator =
       BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   return *isolate->factory()->NewNumberFromInt(break_iterator->current());
 }
@@ -833,7 +853,7 @@ RUNTIME_FUNCTION(Runtime_BreakIteratorBreakType) {
 
   icu::BreakIterator* break_iterator =
       BreakIterator::UnpackBreakIterator(isolate, break_iterator_holder);
-  CHECK_NOT_NULL(break_iterator);
+  if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   // TODO(cira): Remove cast once ICU fixes base BreakIterator class.
   icu::RuleBasedBreakIterator* rule_based_iterator =
