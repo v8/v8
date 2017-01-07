@@ -100,10 +100,6 @@
 
   ###### END REGEXP SUBCLASSING SECTION ######
 
-  # https://code.google.com/p/v8/issues/detail?id=4360
-  'intl402/DateTimeFormat/12.1.1_1': [FAIL],
-  'intl402/NumberFormat/11.1.1_1': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer-realm': [FAIL],
