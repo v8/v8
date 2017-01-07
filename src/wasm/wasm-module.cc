@@ -848,9 +848,9 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   // Initialize the indirect tables with placeholders.
   int function_table_count = static_cast<int>(function_tables.size());
   Handle<FixedArray> function_tables =
-      factory->NewFixedArray(function_table_count);
+      factory->NewFixedArray(function_table_count, TENURED);
   for (int i = 0; i < function_table_count; ++i) {
-    temp_instance.function_tables[i] = factory->NewFixedArray(0);
+    temp_instance.function_tables[i] = factory->NewFixedArray(0, TENURED);
     function_tables->set(i, *temp_instance.function_tables[i]);
   }
 
