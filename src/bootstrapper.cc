@@ -140,7 +140,9 @@ class Genesis BASE_EMBEDDED {
  public:
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template,
-          size_t context_snapshot_index, GlobalContextType context_type);
+          size_t context_snapshot_index,
+          v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+          GlobalContextType context_type);
   Genesis(Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
           v8::Local<v8::ObjectTemplate> global_proxy_template);
   ~Genesis() { }
@@ -309,10 +311,12 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template,
     v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
     GlobalContextType context_type) {
   HandleScope scope(isolate_);
   Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                  context_snapshot_index, context_type);
+                  context_snapshot_index, internal_fields_deserializer,
+                  context_type);
   Handle<Context> env = genesis.result();
   if (env.is_null() || !InstallExtensions(env, extensions)) {
     return Handle<Context>();
@@ -4512,10 +4516,12 @@ class NoTrackDoubleFieldsForSerializerScope {
   bool enabled_;
 };
 
-Genesis::Genesis(Isolate* isolate,
-                 MaybeHandle<JSGlobalProxy> maybe_global_proxy,
-                 v8::Local<v8::ObjectTemplate> global_proxy_template,
-                 size_t context_snapshot_index, GlobalContextType context_type)
+Genesis::Genesis(
+    Isolate* isolate, MaybeHandle<JSGlobalProxy> maybe_global_proxy,
+    v8::Local<v8::ObjectTemplate> global_proxy_template,
+    size_t context_snapshot_index,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
+    GlobalContextType context_type)
     : isolate_(isolate), active_(isolate->bootstrapper()) {
   NoTrackDoubleFieldsForSerializerScope disable_scope(isolate);
   result_ = Handle<Context>::null();
@@ -4562,7 +4568,8 @@ Genesis::Genesis(Isolate* isolate,
   // Also create a context from scratch to expose natives, if required by flag.
   if (!isolate->initialized_from_snapshot() ||
       !Snapshot::NewContextFromSnapshot(isolate, global_proxy,
-                                        context_snapshot_index)
+                                        context_snapshot_index,
+                                        internal_fields_deserializer)
            .ToHandle(&native_context_)) {
     native_context_ = Handle<Context>();
   }

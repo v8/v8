@@ -6307,8 +6307,7 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          external_references(nullptr),
-          deserialize_internal_fields_callback(nullptr) {}
+          external_references(nullptr) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6364,12 +6363,6 @@ class V8_EXPORT Isolate {
      * entire lifetime of the isolate.
      */
     intptr_t* external_references;
-
-    /**
-     * Specifies an optional callback to deserialize internal fields. It
-     * should match the SerializeInternalFieldCallback used to serialize.
-     */
-    DeserializeInternalFieldsCallback deserialize_internal_fields_callback;
   };
 
 
@@ -7676,9 +7669,12 @@ class V8_EXPORT SnapshotCreator {
    * Add additional context to be included in the snapshot blob.
    * The snapshot will include the global proxy.
    *
+   * \param callback optional callback to serialize internal fields.
+   *
    * \returns the index of the context in the snapshot blob.
    */
-  size_t AddContext(Local<Context> context);
+  size_t AddContext(Local<Context> context,
+                    SerializeInternalFieldsCallback callback = nullptr);
 
   /**
    * Add a template to be included in the snapshot blob.
@@ -7691,12 +7687,10 @@ class V8_EXPORT SnapshotCreator {
    * This must not be called from within a handle scope.
    * \param function_code_handling whether to include compiled function code
    *        in the snapshot.
-   * \param callback to serialize embedder-set internal fields.
    * \returns { nullptr, 0 } on failure, and a startup snapshot on success. The
    *        caller acquires ownership of the data array in the return value.
    */
-  StartupData CreateBlob(FunctionCodeHandling function_code_handling,
-                         SerializeInternalFieldsCallback callback = nullptr);
+  StartupData CreateBlob(FunctionCodeHandling function_code_handling);
 
   // Disallow copying and assigning.
   SnapshotCreator(const SnapshotCreator&) = delete;
@@ -8009,6 +8003,10 @@ class V8_EXPORT Context {
    * \param context_snapshot_index The index of the context snapshot to
    * deserialize from. Use v8::Context::New for the default snapshot.
    *
+   * \param internal_fields_deserializer Optional callback to deserialize
+   * internal fields. It should match the SerializeInternalFieldCallback used
+   * to serialize.
+   *
    * \param extensions See v8::Context::New.
    *
    * \param global_object See v8::Context::New.
@@ -8016,6 +8014,7 @@ class V8_EXPORT Context {
 
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
+      DeserializeInternalFieldsCallback internal_fields_deserializer = nullptr,
       ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<Value> global_object = MaybeLocal<Value>());
 

@@ -102,7 +102,10 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   if (obj->IsJSObject()) {
     JSObject* jsobj = JSObject::cast(obj);
-    if (jsobj->GetInternalFieldCount() > 0) internal_field_holders_.Add(jsobj);
+    if (jsobj->GetInternalFieldCount() > 0) {
+      DCHECK_NOT_NULL(serialize_internal_fields_);
+      internal_field_holders_.Add(jsobj);
+    }
   }
 
   // Object has not yet been serialized.  Serialize it here.
