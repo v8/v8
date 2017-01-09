@@ -80,8 +80,7 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
 RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  CHECK(args[0]->IsJSFunction() || args[0]->IsUndefined(isolate) ||
-        args[0]->IsNull(isolate));
+  CHECK(args[0]->IsJSFunction() || args[0]->IsNullOrUndefined(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
   isolate->debug()->SetEventListener(callback, data);
@@ -1702,13 +1701,13 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
   // additionally subtracting corresponding offsets.
 
   int32_t line = 0;
-  if (!opt_line->IsNull(isolate) && !opt_line->IsUndefined(isolate)) {
+  if (!opt_line->IsNullOrUndefined(isolate)) {
     CHECK(opt_line->IsNumber());
     line = NumberToInt32(*opt_line) - script->line_offset();
   }
 
   int32_t column = 0;
-  if (!opt_column->IsNull(isolate) && !opt_column->IsUndefined(isolate)) {
+  if (!opt_column->IsNullOrUndefined(isolate)) {
     CHECK(opt_column->IsNumber());
     column = NumberToInt32(*opt_column);
     if (line == 0) column -= script->column_offset();

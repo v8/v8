@@ -33,7 +33,7 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
       *out = static_cast<int>(value);
     }
     return true;
-  } else if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
+  } else if (object->IsNullOrUndefined(isolate)) {
     *out = 0;
     return true;
   } else if (object->IsBoolean()) {
@@ -1343,7 +1343,7 @@ BUILTIN(ArrayConcat) {
 
   Handle<Object> receiver = args.receiver();
   // TODO(bmeurer): Do we really care about the exact exception message here?
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+  if (receiver->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(

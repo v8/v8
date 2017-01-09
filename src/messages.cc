@@ -371,7 +371,7 @@ Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
 }
 
 Handle<Object> JSStackFrame::GetMethodName() {
-  if (receiver_->IsNull(isolate_) || receiver_->IsUndefined(isolate_)) {
+  if (receiver_->IsNullOrUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
 
@@ -428,7 +428,7 @@ Handle<Object> JSStackFrame::GetTypeName() {
   // TODO(jgruber): Check for strict/constructor here as in
   // CallSitePrototypeGetThis.
 
-  if (receiver_->IsNull(isolate_) || receiver_->IsUndefined(isolate_))
+  if (receiver_->IsNullOrUndefined(isolate_))
     return isolate_->factory()->null_value();
 
   if (receiver_->IsJSProxy()) return isolate_->factory()->Proxy_string();
@@ -457,8 +457,7 @@ bool JSStackFrame::IsNative() {
 }
 
 bool JSStackFrame::IsToplevel() {
-  return receiver_->IsJSGlobalProxy() || receiver_->IsNull(isolate_) ||
-         receiver_->IsUndefined(isolate_);
+  return receiver_->IsJSGlobalProxy() || receiver_->IsNullOrUndefined(isolate_);
 }
 
 bool JSStackFrame::IsConstructor() {

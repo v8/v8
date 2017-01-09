@@ -1298,7 +1298,7 @@ MUST_USE_RESULT MaybeHandle<Object> SpeciesConstructor(
       JSObject::GetProperty(ctor, isolate->factory()->species_symbol()),
       Object);
 
-  if (species->IsNull(isolate) || species->IsUndefined(isolate)) {
+  if (species->IsNullOrUndefined(isolate)) {
     return default_ctor;
   }
 

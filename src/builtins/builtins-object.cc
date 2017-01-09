@@ -636,7 +636,7 @@ BUILTIN(ObjectSetPrototypeOf) {
 
   // 1. Let O be ? RequireObjectCoercible(O).
   Handle<Object> object = args.atOrUndefined(isolate, 1);
-  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+  if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -682,7 +682,7 @@ BUILTIN(ObjectPrototypeSetProto) {
   HandleScope scope(isolate);
   // 1. Let O be ? RequireObjectCoercible(this value).
   Handle<Object> object = args.receiver();
-  if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+  if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(

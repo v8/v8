@@ -19,7 +19,7 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
                                                Handle<Object> object,
                                                Handle<Object> key,
                                                bool* is_found_out) {
-  if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
+  if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyLoad, key, object),
@@ -199,7 +199,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
         key_is_array_index
             ? index < static_cast<uint32_t>(String::cast(*object)->length())
             : key->Equals(isolate->heap()->length_string()));
-  } else if (object->IsNull(isolate) || object->IsUndefined(isolate)) {
+  } else if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
   }
@@ -276,7 +276,7 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
                                                Handle<Object> key,
                                                Handle<Object> value,
                                                LanguageMode language_mode) {
-  if (object->IsUndefined(isolate) || object->IsNull(isolate)) {
+  if (object->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR(
         isolate,
         NewTypeError(MessageTemplate::kNonObjectPropertyStore, key, object),
@@ -618,7 +618,7 @@ RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
 }
 
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
-  return obj->IsUndefined(isolate) || obj->IsCallable() || obj->IsNull(isolate);
+  return obj->IsNullOrUndefined(isolate) || obj->IsCallable();
 }
 
 
@@ -707,7 +707,7 @@ RUNTIME_FUNCTION(Runtime_GetConstructorName) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
 
-  CHECK(!object->IsUndefined(isolate) && !object->IsNull(isolate));
+  CHECK(!object->IsNullOrUndefined(isolate));
   Handle<JSReceiver> recv = Object::ToObject(isolate, object).ToHandleChecked();
   return *JSReceiver::GetConstructorName(recv);
 }

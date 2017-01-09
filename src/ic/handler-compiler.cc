@@ -161,7 +161,7 @@ void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
     last_map = map();
     // If |type| has null as its prototype, |holder()| is
     // Handle<JSObject>::null().
-    DCHECK(last_map->prototype() == isolate()->heap()->null_value());
+    DCHECK(last_map->prototype()->IsNull(isolate()));
   } else {
     last_map = handle(holder()->map());
     // This condition matches the branches below.

@@ -335,14 +335,15 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
 }
 
 void Bootstrapper::DetachGlobal(Handle<Context> env) {
-  env->GetIsolate()->counters()->errors_thrown_per_context()->AddSample(
-    env->GetErrorsThrown());
+  Isolate* isolate = env->GetIsolate();
+  isolate->counters()->errors_thrown_per_context()->AddSample(
+      env->GetErrorsThrown());
 
-  Factory* factory = env->GetIsolate()->factory();
+  Heap* heap = isolate->heap();
   Handle<JSGlobalProxy> global_proxy(JSGlobalProxy::cast(env->global_proxy()));
-  global_proxy->set_native_context(*factory->null_value());
-  JSObject::ForceSetPrototype(global_proxy, factory->null_value());
-  global_proxy->map()->SetConstructor(*factory->null_value());
+  global_proxy->set_native_context(heap->null_value());
+  JSObject::ForceSetPrototype(global_proxy, isolate->factory()->null_value());
+  global_proxy->map()->SetConstructor(heap->null_value());
   if (FLAG_track_detached_contexts) {
     env->GetIsolate()->AddDetachedContext(env);
   }

@@ -444,7 +444,7 @@ bool Object::BooleanValue() {
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (IsBoolean()) return IsTrue(isolate);
-  if (IsUndefined(isolate) || IsNull(isolate)) return false;
+  if (IsNullOrUndefined(isolate)) return false;
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
   if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
@@ -887,7 +887,7 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
   Isolate* isolate = receiver->GetIsolate();
   ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
                              JSReceiver::GetProperty(receiver, name), Object);
-  if (func->IsNull(isolate) || func->IsUndefined(isolate)) {
+  if (func->IsNullOrUndefined(isolate)) {
     return isolate->factory()->undefined_value();
   }
   if (!func->IsCallable()) {
@@ -11890,7 +11890,7 @@ ComparisonResult String::Compare(Handle<String> x, Handle<String> y) {
 
 Object* String::IndexOf(Isolate* isolate, Handle<Object> receiver,
                         Handle<Object> search, Handle<Object> position) {
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+  if (receiver->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -12091,7 +12091,7 @@ int StringMatchBackwards(Vector<const schar> subject,
 
 Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                             Handle<Object> search, Handle<Object> position) {
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+  if (receiver->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(

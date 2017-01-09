@@ -538,7 +538,7 @@ RUNTIME_FUNCTION(Runtime_ArrayIndexOf) {
 
   // Let O be ? ToObject(this value).
   Handle<Object> receiver_obj = args.at(0);
-  if (receiver_obj->IsNull(isolate) || receiver_obj->IsUndefined(isolate)) {
+  if (receiver_obj->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(

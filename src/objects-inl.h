@@ -218,6 +218,16 @@ HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DEF)
 ODDBALL_LIST(IS_TYPE_FUNCTION_DEF)
 #undef IS_TYPE_FUNCTION_DEF
 
+bool Object::IsNullOrUndefined(Isolate* isolate) const {
+  Heap* heap = isolate->heap();
+  return this == heap->null_value() || this == heap->undefined_value();
+}
+
+bool HeapObject::IsNullOrUndefined(Isolate* isolate) const {
+  Heap* heap = isolate->heap();
+  return this == heap->null_value() || this == heap->undefined_value();
+}
+
 bool HeapObject::IsString() const {
   return map()->instance_type() < FIRST_NONSTRING_TYPE;
 }
