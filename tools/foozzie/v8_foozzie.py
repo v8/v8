@@ -79,6 +79,7 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 ### End of configuration %(second_config_label)s
 """
 
+FUZZ_TEST_RE = re.compile(r'.*fuzz(-\d+\.js)')
 
 def parse_args():
   parser = argparse.ArgumentParser()
@@ -117,9 +118,11 @@ def parse_args():
           os.path.isfile(options.testcase)), (
       'Test case %s doesn\'t exist' % options.testcase)
 
+  # Deduce metadata file name from test case. This also removes
+  # the prefix the test case might get during minimization.
+  suffix = FUZZ_TEST_RE.match(os.path.basename(options.testcase)).group(1)
   options.meta_data_path = os.path.join(
-      os.path.dirname(options.testcase),
-      'meta' + os.path.basename(options.testcase)[len('fuzz'):])
+      os.path.dirname(options.testcase), 'meta' + suffix)
   assert os.path.exists(options.meta_data_path), (
       'Metadata %s doesn\'t exist' % options.meta_data_path)
 
