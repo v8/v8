@@ -1857,7 +1857,7 @@ TEST_F(FunctionBodyDecoderTest, BreakNesting_6_levels) {
 
       int depth = 6;
       int m = mask;
-      for (size_t pos = 0; pos < sizeof(code); pos++) {
+      for (size_t pos = 0; pos < sizeof(code) - 1; pos++) {
         if (code[pos] != kExprBlock) continue;
         if (m & 1) {
           code[pos] = kExprLoop;
