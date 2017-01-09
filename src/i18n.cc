@@ -760,16 +760,7 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
 icu::SimpleDateFormat* DateFormat::UnpackDateFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
-  Handle<String> key =
-      isolate->factory()->NewStringFromStaticChars("dateFormat");
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.IsJust());
-  if (maybe.FromJust()) {
-    return reinterpret_cast<icu::SimpleDateFormat*>(
-        obj->GetInternalField(0));
-  }
-
-  return NULL;
+  return reinterpret_cast<icu::SimpleDateFormat*>(obj->GetInternalField(0));
 }
 
 void DateFormat::DeleteDateFormat(const v8::WeakCallbackInfo<void>& data) {
@@ -824,15 +815,7 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
 icu::DecimalFormat* NumberFormat::UnpackNumberFormat(
     Isolate* isolate,
     Handle<JSObject> obj) {
-  Handle<String> key =
-      isolate->factory()->NewStringFromStaticChars("numberFormat");
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.IsJust());
-  if (maybe.FromJust()) {
-    return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
-  }
-
-  return NULL;
+  return reinterpret_cast<icu::DecimalFormat*>(obj->GetInternalField(0));
 }
 
 void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
@@ -884,14 +867,7 @@ icu::Collator* Collator::InitializeCollator(
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  Handle<String> key = isolate->factory()->NewStringFromStaticChars("collator");
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.IsJust());
-  if (maybe.FromJust()) {
-    return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
-  }
-
-  return NULL;
+  return reinterpret_cast<icu::Collator*>(obj->GetInternalField(0));
 }
 
 void Collator::DeleteCollator(const v8::WeakCallbackInfo<void>& data) {
@@ -946,15 +922,7 @@ icu::BreakIterator* BreakIterator::InitializeBreakIterator(
 
 icu::BreakIterator* BreakIterator::UnpackBreakIterator(Isolate* isolate,
                                                        Handle<JSObject> obj) {
-  Handle<String> key =
-      isolate->factory()->NewStringFromStaticChars("breakIterator");
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(obj, key);
-  CHECK(maybe.IsJust());
-  if (maybe.FromJust()) {
-    return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
-  }
-
-  return NULL;
+  return reinterpret_cast<icu::BreakIterator*>(obj->GetInternalField(0));
 }
 
 void BreakIterator::DeleteBreakIterator(
