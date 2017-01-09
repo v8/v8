@@ -469,9 +469,6 @@ class Block final : public BreakableStatement {
 
   class IgnoreCompletionField
       : public BitField<bool, BreakableStatement::kNextBitFieldIndex, 1> {};
-
- protected:
-  static const uint8_t kNextBitFieldIndex = IgnoreCompletionField::kNext;
 };
 
 
@@ -486,9 +483,6 @@ class DoExpression final : public Expression {
     represented_function_ = f;
   }
   bool IsAnonymousFunctionDefinition() const;
-
- protected:
-  static const uint8_t kNextBitFieldIndex = Expression::kNextBitFieldIndex;
 
  private:
   friend class AstNodeFactory;
@@ -520,8 +514,6 @@ class Declaration : public AstNode {
  protected:
   Declaration(VariableProxy* proxy, Scope* scope, int pos, NodeType type)
       : AstNode(pos, type), proxy_(proxy), scope_(scope), next_(nullptr) {}
-
-  static const uint8_t kNextBitFieldIndex = AstNode::kNextBitFieldIndex;
 
  private:
   VariableProxy* proxy_;
@@ -781,9 +773,6 @@ class ForInStatement final : public ForEachStatement {
 
   class ForInTypeField
       : public BitField<ForInType, ForEachStatement::kNextBitFieldIndex, 1> {};
-
- protected:
-  static const uint8_t kNextBitFieldIndex = ForInTypeField::kNext;
 };
 
 
@@ -1482,7 +1471,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   uint32_t boilerplate_properties_;
-  FeedbackVectorSlot slot_;
   Handle<FixedArray> constant_properties_;
   ZoneList<Property*>* properties_;
 
@@ -1492,9 +1480,6 @@ class ObjectLiteral final : public MaterializedLiteral {
   };
   class MayStoreDoublesField
       : public BitField<bool, HasElementsField::kNext, 1> {};
-
- protected:
-  static const uint8_t kNextBitFieldIndex = MayStoreDoublesField::kNext;
 };
 
 
