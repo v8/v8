@@ -685,20 +685,24 @@ class RuntimeCallTimer final {
   V(AccessorNameGetterCallback_FunctionPrototype)   \
   V(AccessorNameGetterCallback_StringLength)        \
   V(AccessorNameSetterCallback)                     \
-  V(Compile)                                        \
-  V(CompileCode)                                    \
   V(CompileCodeLazy)                                \
   V(CompileDeserialize)                             \
   V(CompileEval)                                    \
   V(CompileFullCode)                                \
+  V(CompileAnalyse)                                 \
+  V(CompileBackgroundIgnition)                      \
+  V(CompileFunction)                                \
   V(CompileGetFromOptimizedCodeMap)                 \
   V(CompileGetUnoptimizedCode)                      \
-  V(CompileAnalyse)                                 \
   V(CompileIgnition)                                \
-  V(CompileBackgroundIgnition)                      \
   V(CompileIgnitionFinalization)                    \
-  V(CompilerDispatcher)                             \
+  V(CompileInnerFunction)                           \
+  V(CompileRenumber)                                \
+  V(CompileRewriteReturnResult)                     \
+  V(CompileScopeAnalysis)                           \
+  V(CompileScript)                                  \
   V(CompileSerialize)                               \
+  V(CompilerDispatcher)                             \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \

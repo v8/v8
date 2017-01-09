@@ -541,6 +541,8 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 }
 
 void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
+  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+                                     &RuntimeCallStats::CompileScopeAnalysis);
   DCHECK(info->literal() != NULL);
   DeclarationScope* scope = info->literal()->scope();
 

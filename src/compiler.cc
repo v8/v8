@@ -553,6 +553,8 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
 }
 
 bool Renumber(ParseInfo* parse_info) {
+  RuntimeCallTimerScope runtimeTimer(parse_info->isolate(),
+                                     &RuntimeCallStats::CompileRenumber);
   if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
                               parse_info->literal())) {
     return false;
@@ -900,6 +902,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!function->is_compiled());
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::CompileFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
@@ -987,11 +991,15 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
+
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
+                                     : &RuntimeCallStats::CompileScript);
+
   Handle<Script> script = parse_info->script();
 
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
@@ -1013,9 +1021,6 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
     // parsing statistics.
-    RuntimeCallTimerScope runtimeTimer(
-        isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
-                                       : &RuntimeCallStats::Compile);
     HistogramTimer* rate = parse_info->is_eval()
                                ? info->isolate()->counters()->compile_eval()
                                : info->isolate()->counters()->compile();
@@ -1649,8 +1654,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     } else {
       // Generate code
       TimerEventScope<TimerEventCompileCode> timer(isolate);
-      RuntimeCallTimerScope runtimeTimer(isolate,
-                                         &RuntimeCallStats::CompileCode);
+      RuntimeCallTimerScope runtimeTimer(
+          isolate, &RuntimeCallStats::CompileInnerFunction);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
       if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
         // Code generation will ensure that the feedback vector is present and
