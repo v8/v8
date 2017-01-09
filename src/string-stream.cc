@@ -7,6 +7,8 @@
 #include <memory>
 
 #include "src/handles-inl.h"
+#include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {

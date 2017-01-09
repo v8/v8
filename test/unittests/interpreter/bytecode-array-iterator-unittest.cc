@@ -6,6 +6,7 @@
 
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

@@ -10,6 +10,7 @@
 #include "src/api.h"
 #include "src/factory.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "unicode/brkiter.h"
 #include "unicode/calendar.h"
 #include "unicode/coll.h"

@@ -4,6 +4,8 @@
 
 #include "src/compiler/control-builders.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace compiler {

@@ -14,6 +14,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
 #include "src/compiler.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/v8.h"

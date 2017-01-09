@@ -40,6 +40,7 @@
 #include "src/execution.h"
 #include "src/flags.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"

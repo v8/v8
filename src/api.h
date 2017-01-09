@@ -11,7 +11,6 @@
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/list.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 

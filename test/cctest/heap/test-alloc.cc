@@ -30,6 +30,7 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/objects-inl.h"
 #include "src/property.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"

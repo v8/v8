@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecode-generator.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/interpreter/source-position-matcher.h"
 

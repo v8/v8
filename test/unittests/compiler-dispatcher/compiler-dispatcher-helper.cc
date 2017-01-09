@@ -8,6 +8,7 @@
 
 #include "include/v8.h"
 #include "src/api.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

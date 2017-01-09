@@ -9,6 +9,7 @@
 #include "src/frames.h"
 #include "src/handles-inl.h"
 #include "src/heap/heap.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

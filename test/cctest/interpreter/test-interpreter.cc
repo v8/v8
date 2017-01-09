@@ -12,6 +12,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects-inl.h"
 #include "src/unicode-cache.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/interpreter/interpreter-tester.h"

@@ -10,6 +10,7 @@
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/control-flow-builders.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {

@@ -10,6 +10,8 @@
 #include "src/ast/ast.h"
 #include "src/bootstrapper.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
+#include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {

@@ -13,6 +13,7 @@
 #include "src/api.h"
 #include "src/handles-inl.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 
 #include "test/cctest/cctest.h"

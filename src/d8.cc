@@ -32,6 +32,7 @@
 #include "src/basic-block-profiler.h"
 #include "src/interpreter/interpreter.h"
 #include "src/msan.h"
+#include "src/objects-inl.h"
 #include "src/snapshot/natives.h"
 #include "src/utils.h"
 #include "src/v8.h"

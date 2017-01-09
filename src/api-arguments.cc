@@ -4,6 +4,7 @@
 
 #include "src/api-arguments.h"
 
+#include "src/objects-inl.h"
 #include "src/tracing/trace-event.h"
 #include "src/vm-state-inl.h"
 

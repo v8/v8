@@ -6,6 +6,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/logging.h"
 #include "src/globals.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/preparse-data-format.h"
 
