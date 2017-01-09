@@ -2688,6 +2688,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                        &expected_property_count, is_lazy_inner_function,
                        type_flags, is_lazy_top_level_function, CHECK_OK);
 
+      // In the case of a function signature (i.e., literal without body),
+      // return a nullptr instead of a function literal.
+      if (result == kLazyParsingSignature) {
+        scope->DiscardScope();
+        return nullptr;
+      }
+
       if (result == kLazyParsingAborted) {
         DCHECK(is_lazy_top_level_function);
         bookmark.Apply();
@@ -2852,6 +2859,8 @@ Parser::LazyParsingResult Parser::SkipFunction(
       kind, function_scope, parsing_module_, is_inner_function, type_flags,
       may_abort, use_counts_);
 
+  // Return immediately if pre-parser found a function signature in typed mode.
+  if (result == PreParser::kPreParseSignature) return kLazyParsingSignature;
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;
   if (result == PreParser::kPreParseStackOverflow) {

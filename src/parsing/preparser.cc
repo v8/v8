@@ -142,12 +142,13 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     USE(result_type);  // TODO(nikolaos): really use it!
 
     // Allow or even enforce a function signature (i.e., literal without body),
-    // In that case, abort preparsing.
     if ((type_flags & typesystem::kDisallowBody) ||
         (peek() != Token::LBRACE && typed() &&
          (type_flags & typesystem::kAllowSignature))) {
       ExpectSemicolon(CHECK_OK_VALUE(kPreParseSuccess));
-      return kPreParseAbort;
+      use_counts_ = nullptr;
+      track_unresolved_variables_ = false;
+      return kPreParseSignature;
     }
 
     if (track_unresolved_variables_) {
@@ -161,6 +162,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
   LazyParsingResult result = ParseStatementListAndLogFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
+  DCHECK_NE(result, kLazyParsingSignature);
 
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;

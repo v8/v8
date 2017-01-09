@@ -302,7 +302,13 @@ class ParserBase {
     kDontAllowRestrictedIdentifiers
   };
 
-  enum LazyParsingResult { kLazyParsingComplete, kLazyParsingAborted };
+  enum LazyParsingResult {
+    kLazyParsingComplete,
+    kLazyParsingAborted,
+    // The following is only returned by Parser::SkipFunction when a
+    // function signature (without body) is found, in typed mode.
+    kLazyParsingSignature
+  };
 
   enum VariableDeclarationContext {
     kStatementListItem,
@@ -4360,6 +4366,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
             &dummy_function_length, &dummy_has_duplicate_parameters,
             &materialized_literal_count, &expected_property_count, false,
             typesystem::kNormalTypes, true, CHECK_OK);
+        DCHECK_NE(result, kLazyParsingSignature);
         formal_parameters.scope->ResetAfterPreparsing(
             ast_value_factory_, result == kLazyParsingAborted);
 

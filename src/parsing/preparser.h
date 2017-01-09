@@ -1142,7 +1142,10 @@ class PreParser : public ParserBase<PreParser> {
   enum PreParseResult {
     kPreParseStackOverflow,
     kPreParseAbort,
-    kPreParseSuccess
+    kPreParseSuccess,
+    // The following is returned by PreParseFunction when a function
+    // signature (without body) is found, in typed mode.
+    kPreParseSignature
   };
 
   PreParser(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
@@ -1202,6 +1205,8 @@ class PreParser : public ParserBase<PreParser> {
   // keyword and parameters, and have consumed the initial '{'.
   // At return, unless an error occurred, the scanner is positioned before the
   // the final '}'.
+  // In typed mode, it can return kPreParseSignature if just a function
+  // signature (without body) is parsed.
   PreParseResult PreParseFunction(FunctionKind kind,
                                   DeclarationScope* function_scope,
                                   bool parsing_module,
