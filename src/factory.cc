@@ -2678,7 +2678,7 @@ void Factory::SetFunctionInstanceDescriptor(Handle<Map> map,
 
   STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
   Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), ro_attribs);
+      Accessors::FunctionNameInfo(isolate(), roc_attribs);
   {  // Add name.
     Descriptor d = Descriptor::AccessorConstant(
         Handle<Name>(Name::cast(name->name())), name, roc_attribs);
