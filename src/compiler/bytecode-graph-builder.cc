@@ -1686,7 +1686,6 @@ void BytecodeGraphBuilder::VisitTestUndefined() {
 }
 
 void BytecodeGraphBuilder::BuildCastOperator(const Operator* js_op) {
-  PrepareEagerCheckpoint();
   Node* value = NewNode(js_op, environment()->LookupAccumulator());
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), value,
                               Environment::kAttachFrameState);
