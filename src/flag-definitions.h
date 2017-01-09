@@ -284,6 +284,9 @@ DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(mark_shared_functions_for_tier_up, false,
             "mark shared functions for tier up")
 
+// Flags for strongly rooting literal arrays in the feedback vector.
+DEFINE_BOOL(trace_strong_rooted_literals, false, "trace literal rooting")
+
 // Flags for optimization types.
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "

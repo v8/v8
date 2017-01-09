@@ -2728,21 +2728,25 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   }
 }
 
-// CreateClosure <index> <tenured>
+// CreateClosure <index> <slot> <tenured>
 //
 // Creates a new closure for SharedFunctionInfo at position |index| in the
 // constant pool and with the PretenureFlag <tenured>.
 void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   Node* index = __ BytecodeOperandIdx(0);
   Node* shared = __ LoadConstantPoolEntry(index);
-  Node* flags = __ BytecodeOperandFlag(1);
+  Node* flags = __ BytecodeOperandFlag(2);
   Node* context = __ GetContext();
 
   Label call_runtime(assembler, Label::kDeferred);
   __ GotoUnless(__ IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags),
                 &call_runtime);
   ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
-  __ SetAccumulator(constructor_assembler.EmitFastNewClosure(shared, context));
+  Node* vector_index = __ BytecodeOperandIdx(1);
+  vector_index = __ SmiTag(vector_index);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  __ SetAccumulator(constructor_assembler.EmitFastNewClosure(
+      shared, type_feedback_vector, vector_index, context));
   __ Dispatch();
 
   __ Bind(&call_runtime);
@@ -2750,8 +2754,12 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
     Node* tenured_raw =
         __ DecodeWordFromWord32<CreateClosureFlags::PretenuredBit>(flags);
     Node* tenured = __ SmiTag(tenured_raw);
-    Node* result = __ CallRuntime(Runtime::kInterpreterNewClosure, context,
-                                  shared, tenured);
+    type_feedback_vector = __ LoadTypeFeedbackVector();
+    vector_index = __ BytecodeOperandIdx(1);
+    vector_index = __ SmiTag(vector_index);
+    Node* result =
+        __ CallRuntime(Runtime::kInterpreterNewClosure, context, shared,
+                       type_feedback_vector, vector_index, tenured);
     __ SetAccumulator(result);
     __ Dispatch();
   }

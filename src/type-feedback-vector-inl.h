@@ -55,11 +55,37 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   DCHECK_NE(FeedbackVectorSlotKind::KINDS_NUMBER, kind);
   if (kind == FeedbackVectorSlotKind::GENERAL ||
       kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC ||
-      kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
+      kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
+      kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
     return 1;
   }
 
   return 2;
+}
+
+bool TypeFeedbackMetadata::SlotRequiresParameter(FeedbackVectorSlotKind kind) {
+  switch (kind) {
+    case FeedbackVectorSlotKind::CREATE_CLOSURE:
+      return true;
+
+    case FeedbackVectorSlotKind::CALL_IC:
+    case FeedbackVectorSlotKind::LOAD_IC:
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+    case FeedbackVectorSlotKind::STORE_IC:
+    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
+    case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+    case FeedbackVectorSlotKind::GENERAL:
+    case FeedbackVectorSlotKind::INVALID:
+      return false;
+
+    case FeedbackVectorSlotKind::KINDS_NUMBER:
+      break;
+  }
+  UNREACHABLE();
+  return false;
 }
 
 bool TypeFeedbackVector::is_empty() const {
@@ -199,6 +225,7 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         }
         break;
       }
+      case FeedbackVectorSlotKind::CREATE_CLOSURE:
       case FeedbackVectorSlotKind::GENERAL:
         break;
       case FeedbackVectorSlotKind::INVALID:

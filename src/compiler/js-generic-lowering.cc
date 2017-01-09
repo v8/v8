@@ -353,8 +353,14 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   // space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
+    node->InsertInput(zone(), 1,
+                      jsgraph()->HeapConstant(p.feedback().vector()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
     ReplaceWithStubCall(node, callable, flags);
   } else {
+    node->InsertInput(zone(), 1,
+                      jsgraph()->HeapConstant(p.feedback().vector()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
     ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
                                      ? Runtime::kNewClosure_Tenured
                                      : Runtime::kNewClosure);

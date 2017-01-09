@@ -753,14 +753,15 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> shared = p.shared_info();
-
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
+
   int const function_map_index =
       Context::FunctionMapIndex(shared->language_mode(), shared->kind());
   Node* function_map = jsgraph()->HeapConstant(
       handle(Map::cast(native_context()->get(function_map_index)), isolate()));
+
   // Note that it is only safe to embed the raw entry point of the compile
   // lazy stub into the code, because that stub is immortal and immovable.
   Node* compile_entry = jsgraph()->PointerConstant(

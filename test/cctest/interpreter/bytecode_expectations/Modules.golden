@@ -528,7 +528,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 135
+bytecode array length: 136
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -585,7 +585,7 @@ bytecodes: [
   /*   32 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
-                B(CreateClosure), U8(1), U8(0),
+                B(CreateClosure), U8(1), U8(2), U8(0),
                 B(StaModuleVariable), U8(1), U8(0),
                 B(LdaUndefined),
   /*   32 S> */ B(Return),
@@ -603,7 +603,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 172
+bytecode array length: 173
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -660,7 +660,7 @@ bytecodes: [
   /*   26 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
-  /*   16 S> */ B(CreateClosure), U8(1), U8(0),
+  /*   16 S> */ B(CreateClosure), U8(1), U8(2), U8(0),
                 B(Star), R(2),
                 B(LdaTheHole),
                 B(Star), R(3),

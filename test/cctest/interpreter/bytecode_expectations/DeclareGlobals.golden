@@ -117,7 +117,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaGlobal), U8(1), U8(2),
                 B(Star), R(1),
-  /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(4),
+  /*   16 E> */ B(Call), R(1), R(2), U8(1), U8(5),
                 B(Star), R(0),
   /*   20 S> */ B(Return),
 ]

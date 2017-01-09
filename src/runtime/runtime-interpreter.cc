@@ -21,9 +21,9 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_SMI_ARG_CHECKED(pretenured_flag, 1);
+  CONVERT_SMI_ARG_CHECKED(pretenured_flag, 3);
   Handle<Context> context(isolate->context(), isolate);
   return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, context, static_cast<PretenureFlag>(pretenured_flag));

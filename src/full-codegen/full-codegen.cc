@@ -1023,7 +1023,11 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
 }
 
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
+                                       FeedbackVectorSlot slot,
                                        bool pretenure) {
+  // If slot is invalid, then it's a native function literal and we
+  // can pass the empty array or empty literal array, something like that...
+
   // If we're running with the --always-opt or the --prepare-always-opt
   // flag, we need to use the runtime function so that the new function
   // we are creating here gets a chance to have its code optimized and
@@ -1032,9 +1036,15 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       scope()->is_function_scope()) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
     __ Move(callable.descriptor().GetRegisterParameter(0), info);
+    __ EmitLoadTypeFeedbackVector(
+        callable.descriptor().GetRegisterParameter(1));
+    __ Move(callable.descriptor().GetRegisterParameter(2), SmiFromSlot(slot));
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
   } else {
     __ Push(info);
+    __ EmitLoadTypeFeedbackVector(result_register());
+    __ Push(result_register());
+    __ Push(SmiFromSlot(slot));
     __ CallRuntime(pretenure ? Runtime::kNewClosure_Tenured
                              : Runtime::kNewClosure);
   }
@@ -1288,7 +1298,7 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
     SetStackOverflow();
     return;
   }
-  EmitNewClosure(function_info, expr->pretenure());
+  EmitNewClosure(function_info, expr->LiteralFeedbackSlot(), expr->pretenure());
 }
 
 
@@ -1321,7 +1331,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   Comment cmnt(masm_, "[ NativeFunctionLiteral");
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForNative(expr->extension(), expr->name());
-  EmitNewClosure(shared, false);
+  EmitNewClosure(shared, expr->LiteralFeedbackSlot(), false);
 }
 
 

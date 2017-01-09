@@ -1283,7 +1283,9 @@ void AstGraphBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Create node to instantiate a new closure.
   PretenureFlag pretenure = expr->pretenure() ? TENURED : NOT_TENURED;
-  const Operator* op = javascript()->CreateClosure(shared_info, pretenure);
+  VectorSlotPair pair = CreateVectorSlotPair(expr->LiteralFeedbackSlot());
+  const Operator* op =
+      javascript()->CreateClosure(shared_info, pair, pretenure);
   Node* value = NewNode(op);
   ast_context()->ProduceValue(expr, value);
 }

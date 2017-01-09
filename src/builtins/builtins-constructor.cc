@@ -16,6 +16,8 @@ namespace internal {
 typedef compiler::Node Node;
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
+                                                       Node* feedback_vector,
+                                                       Node* slot,
                                                        Node* context) {
   typedef compiler::CodeAssembler::Label Label;
   typedef compiler::CodeAssembler::Variable Variable;
@@ -148,7 +150,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared = Parameter(FastNewClosureDescriptor::kSharedFunctionInfo);
   Node* context = Parameter(FastNewClosureDescriptor::kContext);
-  Return(EmitFastNewClosure(shared, context));
+  Node* vector = Parameter(FastNewClosureDescriptor::kVector);
+  Node* slot = Parameter(FastNewClosureDescriptor::kSlot);
+  Return(EmitFastNewClosure(shared, vector, slot, context));
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {
