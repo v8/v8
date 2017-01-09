@@ -17,23 +17,23 @@ function genModule(memory) {
     .addBody([
       // main body: while(i) { if(mem[i]) return -1; i -= 4; } return 0;
       // TODO(titzer): this manual bytecode has a copy of test-run-wasm.cc
-      /**/ kExprLoop, kWasmStmt,            // --
+      /**/ kExprLoop, kWasmStmt,           // --
       /*  */ kExprGetLocal, 0,             // --
-      /*  */ kExprIf, kWasmStmt,            // --
+      /*  */ kExprIf, kWasmStmt,           // --
       /*    */ kExprGetLocal, 0,           // --
       /*    */ kExprI32LoadMem, 0, 0,      // --
-      /*    */ kExprIf, kWasmStmt,          // --
-      /*      */ kExprI8Const, 255,        // --
+      /*    */ kExprIf, kWasmStmt,         // --
+      /*      */ kExprI32Const, 127,       // --
       /*      */ kExprReturn,              // --
       /*      */ kExprEnd,                 // --
       /*    */ kExprGetLocal, 0,           // --
-      /*    */ kExprI8Const, 4,            // --
+      /*    */ kExprI32Const, 4,           // --
       /*    */ kExprI32Sub,                // --
       /*    */ kExprSetLocal, 0,           // --
       /*    */ kExprBr, 1,                 // --
       /*    */ kExprEnd,                   // --
       /*  */ kExprEnd,                     // --
-      /**/ kExprI8Const, 0                 // --
+      /**/ kExprI32Const, 0                // --
     ])
     .exportFunc();
   var module = builder.instantiate(null, memory);

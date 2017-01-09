@@ -1188,15 +1188,15 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
     byte* memory = r.module().AddMemoryElems<byte>(16);
 
     byte code[] = {
-        kExprI8Const,     8,  // --
-        kExprI8Const,     0,  // --
+        kExprI32Const,    8,  // --
+        kExprI32Const,    0,  // --
         loads[m],             // --
         ZERO_ALIGNMENT,       // --
         ZERO_OFFSET,          // --
         kExprI64StoreMem,     // --
         ZERO_ALIGNMENT,       // --
         ZERO_OFFSET,          // --
-        kExprI8Const,     0,  // --
+        kExprI32Const,    0,  // --
         loads[m],             // --
         ZERO_ALIGNMENT,       // --
         ZERO_OFFSET,          // --
@@ -1316,7 +1316,7 @@ WASM_EXEC_TEST(LoadMemI64) {
   int64_t* memory = r.module().AddMemoryElems<int64_t>(8);
   r.module().RandomizeMemory(1111);
 
-  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_I8(0)));
+  BUILD(r, WASM_LOAD_MEM(MachineType::Int64(), WASM_ZERO));
 
   r.module().WriteMemory<int64_t>(&memory[0], 0x1abbccdd00112233LL);
   CHECK_EQ(0x1abbccdd00112233LL, r.Call());
@@ -1336,7 +1336,7 @@ WASM_EXEC_TEST(LoadMemI64_alignment) {
     r.module().RandomizeMemory(1111);
 
     BUILD(r,
-          WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_I8(0), alignment));
+          WASM_LOAD_MEM_ALIGNMENT(MachineType::Int64(), WASM_ZERO, alignment));
 
     r.module().WriteMemory<int64_t>(&memory[0], 0x1abbccdd00112233LL);
     CHECK_EQ(0x1abbccdd00112233LL, r.Call());
@@ -1359,17 +1359,16 @@ WASM_EXEC_TEST(MemI64_Sum) {
   uint64_t* memory = r.module().AddMemoryElems<uint64_t>(kNumElems);
   const byte kSum = r.AllocateLocal(kWasmI64);
 
-  BUILD(
-      r,
-      WASM_WHILE(
-          WASM_GET_LOCAL(0),
-          WASM_BLOCK(
-              WASM_SET_LOCAL(kSum,
-                             WASM_I64_ADD(WASM_GET_LOCAL(kSum),
+  BUILD(r, WASM_WHILE(
+               WASM_GET_LOCAL(0),
+               WASM_BLOCK(
+                   WASM_SET_LOCAL(
+                       kSum, WASM_I64_ADD(WASM_GET_LOCAL(kSum),
                                           WASM_LOAD_MEM(MachineType::Int64(),
                                                         WASM_GET_LOCAL(0)))),
-              WASM_SET_LOCAL(0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I8(8))))),
-      WASM_GET_LOCAL(1));
+                   WASM_SET_LOCAL(
+                       0, WASM_I32_SUB(WASM_GET_LOCAL(0), WASM_I32V_1(8))))),
+        WASM_GET_LOCAL(1));
 
   // Run 4 trials.
   for (int i = 0; i < 3; i++) {
@@ -1510,7 +1509,7 @@ static void CompileCallIndirectMany(ValueType param) {
     for (byte p = 0; p < num_params; p++) {
       ADD_CODE(code, kExprGetLocal, p);
     }
-    ADD_CODE(code, kExprI8Const, 0);
+    ADD_CODE(code, kExprI32Const, 0);
     ADD_CODE(code, kExprCallIndirect, 1, TABLE_ZERO);
 
     t.Build(&code[0], &code[0] + code.size());
@@ -1562,7 +1561,7 @@ static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
     // Load the arguments.
     for (int i = 0; i < num_params; i++) {
       int offset = (i + 1) * kElemSize;
-      ADD_CODE(code, WASM_LOAD_MEM(memtypes[i], WASM_I8(offset)));
+      ADD_CODE(code, WASM_LOAD_MEM(memtypes[i], WASM_I32V_2(offset)));
     }
 
     // Call the selector function.

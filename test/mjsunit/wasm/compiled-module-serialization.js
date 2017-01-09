@@ -66,7 +66,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function RelationBetweenModuleAndClone() {
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_v)
-    .addBody([kExprI8Const, 42])
+    .addBody([kExprI32Const, 42])
     .exportFunc();
 
   var wire_bytes = builder.toBuffer();
@@ -83,7 +83,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 (function SerializeAfterInstantiation() {
   let builder = new WasmModuleBuilder();
   builder.addFunction("main", kSig_i_v)
-    .addBody([kExprI8Const, 42])
+    .addBody([kExprI32Const, 42])
     .exportFunc();
 
   var wire_bytes = builder.toBuffer()

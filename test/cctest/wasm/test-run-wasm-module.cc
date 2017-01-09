@@ -75,7 +75,7 @@ TEST(Run_WasmModule_Return114) {
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_I8(kReturnValue)};
+    byte code[] = {WASM_I32V_2(kReturnValue)};
     f->EmitCode(code, sizeof(code));
     TestModule(&zone, builder, kReturnValue);
   }
@@ -101,7 +101,7 @@ TEST(Run_WasmModule_CallAdd) {
 
     ExportAsMain(f2);
     byte code2[] = {
-        WASM_CALL_FUNCTION(f1->func_index(), WASM_I8(77), WASM_I8(22))};
+        WASM_CALL_FUNCTION(f1->func_index(), WASM_I32V_2(77), WASM_I32V_1(22))};
     f2->EmitCode(code2, sizeof(code2));
     TestModule(&zone, builder, 99);
   }
@@ -120,7 +120,7 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
 
     ExportAsMain(f);
     byte code[] = {
-        WASM_LOAD_MEM(MachineType::Int32(), WASM_I8(kDataSegmentDest0))};
+        WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(kDataSegmentDest0))};
     f->EmitCode(code, sizeof(code));
     byte data[] = {0xaa, 0xbb, 0xcc, 0xdd};
     builder->AddDataSegment(data, sizeof(data), kDataSegmentDest0);
@@ -146,8 +146,9 @@ TEST(Run_WasmModule_CheckMemoryIsZero) {
             WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I32V_3(kCheckSize)),
             WASM_IF_ELSE(
                 WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(localIndex)),
-                WASM_BRV(3, WASM_I8(-1)), WASM_INC_LOCAL_BY(localIndex, 4))),
-        WASM_I8(11))};
+                WASM_BRV(3, WASM_I32V_1(-1)),
+                WASM_INC_LOCAL_BY(localIndex, 4))),
+        WASM_I32V_1(11))};
     f->EmitCode(code, sizeof(code));
     TestModule(&zone, builder, 11);
   }
@@ -168,11 +169,11 @@ TEST(Run_WasmModule_CallMain_recursive) {
     byte code[] = {
         WASM_SET_LOCAL(localIndex,
                        WASM_LOAD_MEM(MachineType::Int32(), WASM_ZERO)),
-        WASM_IF_ELSE_I(WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I8(5)),
+        WASM_IF_ELSE_I(WASM_I32_LTS(WASM_GET_LOCAL(localIndex), WASM_I32V_1(5)),
                        WASM_SEQ(WASM_STORE_MEM(MachineType::Int32(), WASM_ZERO,
                                                WASM_INC_LOCAL(localIndex)),
                                 WASM_CALL_FUNCTION0(0)),
-                       WASM_I8(55))};
+                       WASM_I32V_1(55))};
     f->EmitCode(code, sizeof(code));
     TestModule(&zone, builder, 55);
   }
@@ -441,7 +442,8 @@ TEST(Run_WasmModule_MemSize_GrowMem) {
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I8(10)), WASM_DROP, WASM_MEMORY_SIZE};
+    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(10)), WASM_DROP,
+                   WASM_MEMORY_SIZE};
     f->EmitCode(code, sizeof(code));
     TestModule(&zone, builder, kExpectedValue);
   }
@@ -589,7 +591,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I8(1)),
+    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(1)),
                    WASM_STORE_MEM(MachineType::Int32(), WASM_I32V(index),
                                   WASM_I32V(value))};
     f->EmitCode(code, sizeof(code));
@@ -659,7 +661,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
     WasmModuleBuilder* builder = new (&zone) WasmModuleBuilder(&zone);
     WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
     ExportAsMain(f);
-    byte code[] = {WASM_GROW_MEMORY(WASM_I8(1)), WASM_DROP,
+    byte code[] = {WASM_GROW_MEMORY(WASM_I32V_1(1)), WASM_DROP,
                    WASM_STORE_MEM(MachineType::Int32(), WASM_GET_LOCAL(0),
                                   WASM_I32V(value)),
                    WASM_LOAD_MEM(MachineType::Int32(), WASM_GET_LOCAL(0))};

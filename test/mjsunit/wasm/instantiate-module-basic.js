@@ -7,13 +7,13 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-let kReturnValue = 117;
+let kReturnValue = 17;
 
 let buffer = (() => {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, true);
   builder.addFunction("main", kSig_i_v)
-    .addBody([kExprI8Const, kReturnValue])
+    .addBody([kExprI32Const, kReturnValue])
     .exportFunc();
 
   return builder.toBuffer();

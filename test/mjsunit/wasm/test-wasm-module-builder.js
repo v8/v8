@@ -17,7 +17,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 2, false);
     builder.addFunction("foo", kSig_i_v)
-        .addBody([kExprI8Const, 11])
+        .addBody([kExprI32Const, 11])
         .exportAs("blarg");
 
     var buffer = builder.toBuffer(debug);
@@ -29,7 +29,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
   var index = builder.addImport("", "print", makeSig_v_x(kWasmI32));
     builder.addFunction("foo", kSig_v_v)
-        .addBody([kExprI8Const, 13, kExprCallFunction, index])
+        .addBody([kExprI32Const, 13, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = builder.toBuffer(debug);
@@ -121,7 +121,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
     builder.addMemory(1, 2, false);
     builder.addFunction("foo", kSig_i_v)
-        .addBody([kExprI8Const, 17])
+        .addBody([kExprI32Const, 17])
         .exportAs("blarg");
 
     var buffer = builder.toBuffer(debug);
@@ -147,7 +147,7 @@ function instantiate(buffer, ffi) {
     let builder = new WasmModuleBuilder();
     var index = builder.addImport("mod", "print", makeSig_v_x(kWasmI32));
     builder.addFunction("foo", kSig_v_v)
-        .addBody([kExprI8Const, 19, kExprCallFunction, index])
+        .addBody([kExprI32Const, 19, kExprCallFunction, index])
         .exportAs("main");
 
     var buffer = builder.toBuffer(debug);

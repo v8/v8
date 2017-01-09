@@ -122,10 +122,10 @@ void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
 }
 
 void WasmFunctionBuilder::EmitI32Const(int32_t value) {
-  // TODO(titzer): variable-length signed and unsigned i32 constants.
-  if (-128 <= value && value <= 127) {
-    EmitWithU8(kExprI8Const, static_cast<byte>(value));
+  if (-64 <= value && value <= 63) {
+    EmitWithU8(kExprI32Const, static_cast<byte>(value & 0x7F));
   } else {
+    // TODO(titzer): variable-length signed and unsigned i32 constants.
     byte code[] = {WASM_I32V_5(value)};
     EmitCode(code, sizeof(code));
   }

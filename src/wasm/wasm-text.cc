@@ -263,7 +263,6 @@ void wasm::PrintWasmText(const WasmModule *module,
     os << #str ".const " << static_cast<cast_type>(operand.value); \
     break;                                                         \
   }
-        CASE_CONST(I8, i8, int32_t)
         CASE_CONST(I32, i32, int32_t)
         CASE_CONST(I64, i64, int64_t)
         CASE_CONST(F32, f32, float)

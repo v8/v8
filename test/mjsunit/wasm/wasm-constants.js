@@ -167,7 +167,6 @@ let kExprI32Const = 0x41;
 let kExprI64Const = 0x42;
 let kExprF32Const = 0x43;
 let kExprF64Const = 0x44;
-let kExprI8Const = 0xcb;
 let kExprI32LoadMem = 0x28;
 let kExprI64LoadMem = 0x29;
 let kExprF32LoadMem = 0x2a;

@@ -1067,7 +1067,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitPropertyAndEmitIndex(Property* expr, AsmType** atype) {
     Expression* obj = expr->obj();
     *atype = typer_->TypeOf(obj);
-    int size = (*atype)->ElementSizeInBytes();
+    int32_t size = (*atype)->ElementSizeInBytes();
     if (size == 1) {
       // Allow more general expression in byte arrays than the spec
       // strictly permits.
@@ -1095,9 +1095,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                 1 << static_cast<int>(
                     binop->right()->AsLiteral()->raw_value()->AsNumber()));
       // Mask bottom bits to match asm.js behavior.
-      byte mask = static_cast<byte>(~(size - 1));
       RECURSE(Visit(binop->left()));
-      current_function_builder_->EmitWithU8(kExprI8Const, mask);
+      current_function_builder_->EmitI32Const(~(size - 1));
       current_function_builder_->Emit(kExprI32And);
       return;
     }
@@ -1236,7 +1235,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           // if set_local(tmp, x) < 0
           Visit(call->arguments()->at(0));
           current_function_builder_->EmitTeeLocal(tmp.index());
-          byte code[] = {WASM_I8(0)};
+          byte code[] = {WASM_ZERO};
           current_function_builder_->EmitCode(code, sizeof(code));
           current_function_builder_->Emit(kExprI32LtS);
           current_function_builder_->EmitWithU8(kExprIf, kLocalI32);

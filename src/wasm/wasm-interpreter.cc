@@ -1355,12 +1355,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
           blocks_.pop_back();
           break;
         }
-        case kExprI8Const: {
-          ImmI8Operand operand(&decoder, code->at(pc));
-          Push(pc, WasmVal(operand.value));
-          len = 1 + operand.length;
-          break;
-        }
         case kExprI32Const: {
           ImmI32Operand operand(&decoder, code->at(pc));
           Push(pc, WasmVal(operand.value));

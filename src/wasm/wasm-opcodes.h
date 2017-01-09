@@ -78,8 +78,7 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32Const, 0x41, _)         \
   V(I64Const, 0x42, _)         \
   V(F32Const, 0x43, _)         \
-  V(F64Const, 0x44, _)         \
-  V(I8Const, 0xcb, _ /* TODO(titzer): V8 specific, remove */)
+  V(F64Const, 0x44, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
