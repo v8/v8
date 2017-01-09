@@ -191,6 +191,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   }
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
+  array->set_map_no_write_barrier(isolate->heap()->type_feedback_vector_map());
   array->set(kMetadataIndex, *metadata);
   array->set(kInvocationCountIndex, Smi::kZero);
 

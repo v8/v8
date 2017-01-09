@@ -94,6 +94,7 @@ using v8::MemoryPressureLevel;
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, module_info_map, ModuleInfoMap)                                       \
+  V(Map, type_feedback_vector_map, TypeFeedbackVectorMap)                      \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \

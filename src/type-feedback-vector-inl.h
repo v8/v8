@@ -27,7 +27,7 @@ FeedbackVectorSlot FeedbackVectorSpecBase<Derived>::AddSlot(
 
 // static
 TypeFeedbackMetadata* TypeFeedbackMetadata::cast(Object* obj) {
-  DCHECK(obj->IsTypeFeedbackVector());
+  DCHECK(obj->IsTypeFeedbackMetadata());
   return reinterpret_cast<TypeFeedbackMetadata*>(obj);
 }
 

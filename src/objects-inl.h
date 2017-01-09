@@ -349,7 +349,9 @@ bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
 }
 
-bool HeapObject::IsTypeFeedbackVector() const { return IsFixedArray(); }
+bool HeapObject::IsTypeFeedbackVector() const {
+  return map() == GetHeap()->type_feedback_vector_map();
+}
 
 bool HeapObject::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
 

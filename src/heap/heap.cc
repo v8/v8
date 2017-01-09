@@ -2247,6 +2247,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, type_feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
@@ -2775,6 +2776,7 @@ void Heap::CreateInitialObjects() {
                                     empty_fixed_array());
     empty_type_feedback_vector->set(TypeFeedbackVector::kInvocationCountIndex,
                                     Smi::kZero);
+    empty_type_feedback_vector->set_map(type_feedback_vector_map());
     set_empty_type_feedback_vector(*empty_type_feedback_vector);
 
     // We use a canonical empty LiteralsArray for all functions that neither
