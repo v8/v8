@@ -11352,8 +11352,11 @@ HControlInstruction* HOptimizedGraphBuilder::BuildCompareInstruction(
           // We depend on the prototype chain to stay the same, because we
           // also need to deoptimize when someone installs @@toPrimitive
           // or @@toStringTag somewhere in the prototype chain.
-          BuildCheckPrototypeMaps(handle(JSObject::cast(map->prototype())),
-                                  Handle<JSObject>::null());
+          Handle<Object> prototype(map->prototype(), isolate());
+          if (prototype->IsJSObject()) {
+            BuildCheckPrototypeMaps(Handle<JSObject>::cast(prototype),
+                                    Handle<JSObject>::null());
+          }
           AddCheckMap(left, map);
           AddCheckMap(right, map);
           // The caller expects a branch instruction, so make it happy.
