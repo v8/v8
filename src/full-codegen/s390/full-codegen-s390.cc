@@ -1917,27 +1917,6 @@ void FullCodeGenerator::EmitIsTypedArray(CallRuntime* expr) {
   context()->Plug(if_true, if_false);
 }
 
-void FullCodeGenerator::EmitIsRegExp(CallRuntime* expr) {
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 1);
-
-  VisitForAccumulatorValue(args->at(0));
-
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false, &if_true,
-                         &if_false, &fall_through);
-
-  __ JumpIfSmi(r2, if_false);
-  __ CompareObjectType(r2, r3, r3, JS_REGEXP_TYPE);
-  PrepareForBailoutBeforeSplit(expr, true, if_true, if_false);
-  Split(eq, if_true, if_false, fall_through);
-
-  context()->Plug(if_true, if_false);
-}
-
 void FullCodeGenerator::EmitIsJSProxy(CallRuntime* expr) {
   ZoneList<Expression*>* args = expr->arguments();
   DCHECK(args->length() == 1);

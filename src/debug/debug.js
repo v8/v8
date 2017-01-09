@@ -435,7 +435,7 @@ Debug.setListener = function(listener, opt_data) {
 Debug.findScript = function(func_or_script_name) {
   if (IS_FUNCTION(func_or_script_name)) {
     return %FunctionGetScript(func_or_script_name);
-  } else if (IS_REGEXP(func_or_script_name)) {
+  } else if (%IsRegExp(func_or_script_name)) {
     var scripts = this.scripts();
     var last_result = null;
     var result_count = 0;
