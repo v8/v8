@@ -619,7 +619,9 @@ class WasmFullDecoder : public WasmDecoder {
     ssa_env->effect = start;
     SetEnv("initial", ssa_env);
     if (builder_) {
-      builder_->StackCheck(position());
+      // The function-prologue stack check is associated with position 0, which
+      // is never a position of any instruction in the function.
+      builder_->StackCheck(0);
     }
   }
 

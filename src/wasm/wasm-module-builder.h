@@ -135,6 +135,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   void ExportAs(Vector<const char> name);
   void SetName(Vector<const char> name);
   void AddAsmWasmOffset(int call_position, int to_number_position);
+  void SetAsmFunctionStartPosition(int position);
 
   void WriteSignature(ZoneBuffer& buffer) const;
   void WriteExports(ZoneBuffer& buffer) const;
@@ -171,6 +172,7 @@ class V8_EXPORT_PRIVATE WasmFunctionBuilder : public ZoneObject {
   ZoneBuffer asm_offsets_;
   uint32_t last_asm_byte_offset_ = 0;
   uint32_t last_asm_source_position_ = 0;
+  uint32_t asm_func_start_source_position_ = 0;
 };
 
 class WasmTemporary {

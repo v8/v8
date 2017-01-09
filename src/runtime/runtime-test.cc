@@ -699,6 +699,13 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
   return isolate->heap()->true_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IsWasmCode) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(JSFunction, function, 0);
+  bool is_js_to_wasm = function->code()->kind() == Code::JS_TO_WASM_FUNCTION;
+  return isolate->heap()->ToBoolean(is_js_to_wasm);
+}
 
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \

@@ -1202,11 +1202,15 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
       decoder.error("illegal asm function offset table size");
     }
     const byte* table_end = decoder.pc() + size;
-    uint32_t locals_size = decoder.consume_u32("locals size");
+    uint32_t locals_size = decoder.consume_u32v("locals size");
+    int function_start_position = decoder.consume_u32v("function start pos");
     int last_byte_offset = locals_size;
-    int last_asm_position = 0;
+    int last_asm_position = function_start_position;
     std::vector<AsmJsOffsetEntry> func_asm_offsets;
     func_asm_offsets.reserve(size / 4);  // conservative estimation
+    // Add an entry for the stack check, associated with position 0.
+    func_asm_offsets.push_back(
+        {0, function_start_position, function_start_position});
     while (decoder.ok() && decoder.pc() < table_end) {
       last_byte_offset += decoder.consume_u32v("byte offset delta");
       int call_position =

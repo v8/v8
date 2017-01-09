@@ -176,6 +176,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
     current_function_builder_ = LookupOrInsertFunction(decl->proxy()->var());
     scope_ = kFuncScope;
+
+    // Record start of the function, used as position for the stack check.
+    current_function_builder_->SetAsmFunctionStartPosition(
+        decl->fun()->start_position());
+
     RECURSE(Visit(decl->fun()));
     decl->set_fun(old_func);
     if (new_func_scope != nullptr) {

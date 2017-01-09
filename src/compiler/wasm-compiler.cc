@@ -488,17 +488,14 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
     stack_check.Chain(*control);
     Node* effect_true = *effect;
 
-    Node* effect_false;
     // Generate a call to the runtime if there is a stack check failure.
-    {
-      Node* node = BuildCallToRuntime(Runtime::kStackGuard, jsgraph(),
-                                      module_->instance->context, nullptr, 0,
-                                      effect, stack_check.if_false);
-      effect_false = node;
-    }
+    Node* call = BuildCallToRuntime(Runtime::kStackGuard, jsgraph(),
+                                    module_->instance->context, nullptr, 0,
+                                    effect, stack_check.if_false);
+    SetSourcePosition(call, position);
 
     Node* ephi = graph()->NewNode(jsgraph()->common()->EffectPhi(2),
-                                  effect_true, effect_false, stack_check.merge);
+                                  effect_true, call, stack_check.merge);
 
     *control = stack_check.merge;
     *effect = ephi;
