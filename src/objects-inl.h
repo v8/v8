@@ -64,16 +64,19 @@ int PropertyDetails::field_width_in_words() const {
   int holder::name() const { return READ_INT_FIELD(this, offset); }           \
   void holder::set_##name(int value) { WRITE_INT_FIELD(this, offset, value); }
 
-#define ACCESSORS_CHECKED(holder, name, type, offset, condition)     \
-  type* holder::name() const {                                       \
-    DCHECK(condition);                                               \
-    return type::cast(READ_FIELD(this, offset));                     \
-  }                                                                  \
-  void holder::set_##name(type* value, WriteBarrierMode mode) {      \
-    DCHECK(condition);                                               \
-    WRITE_FIELD(this, offset, value);                                \
-    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode); \
+#define ACCESSORS_CHECKED2(holder, name, type, offset, get_condition, \
+                           set_condition)                             \
+  type* holder::name() const {                                        \
+    DCHECK(get_condition);                                            \
+    return type::cast(READ_FIELD(this, offset));                      \
+  }                                                                   \
+  void holder::set_##name(type* value, WriteBarrierMode mode) {       \
+    DCHECK(set_condition);                                            \
+    WRITE_FIELD(this, offset, value);                                 \
+    CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);  \
   }
+#define ACCESSORS_CHECKED(holder, name, type, offset, condition) \
+  ACCESSORS_CHECKED2(holder, name, type, offset, condition, condition)
 
 #define ACCESSORS(holder, name, type, offset) \
   ACCESSORS_CHECKED(holder, name, type, offset, true)
@@ -6826,13 +6829,17 @@ SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, prologue_offset, kPrologueOffset)
 INT_ACCESSORS(Code, constant_pool_offset, kConstantPoolOffset)
-ACCESSORS(Code, relocation_info, ByteArray, kRelocationInfoOffset)
-ACCESSORS(Code, handler_table, FixedArray, kHandlerTableOffset)
-ACCESSORS(Code, deoptimization_data, FixedArray, kDeoptimizationDataOffset)
-ACCESSORS(Code, source_position_table, ByteArray, kSourcePositionTableOffset)
-ACCESSORS(Code, protected_instructions, FixedArray, kProtectedInstructionOffset)
-ACCESSORS(Code, raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
-ACCESSORS(Code, next_code_link, Object, kNextCodeLinkOffset)
+#define CODE_ACCESSORS(name, type, offset)           \
+  ACCESSORS_CHECKED2(Code, name, type, offset, true, \
+                     !GetHeap()->InNewSpace(value))
+CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
+CODE_ACCESSORS(handler_table, FixedArray, kHandlerTableOffset)
+CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
+CODE_ACCESSORS(source_position_table, ByteArray, kSourcePositionTableOffset)
+CODE_ACCESSORS(protected_instructions, FixedArray, kProtectedInstructionOffset)
+CODE_ACCESSORS(raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
+CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
+#undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
   WRITE_FIELD(this, kRelocationInfoOffset, NULL);
@@ -8424,6 +8431,8 @@ SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
 #undef INT_ACCESSORS
 #undef ACCESSORS
+#undef ACCESSORS_CHECKED
+#undef ACCESSORS_CHECKED2
 #undef SMI_ACCESSORS
 #undef SYNCHRONIZED_SMI_ACCESSORS
 #undef NOBARRIER_SMI_ACCESSORS
