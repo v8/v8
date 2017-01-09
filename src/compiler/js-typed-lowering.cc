@@ -494,8 +494,6 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      the_hole_type_(
-          Type::HeapConstant(factory()->the_hole_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -954,25 +952,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
   if (reduction.Changed()) return reduction;
 
-  if (r.OneInputIs(the_hole_type_)) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Undefined())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Null())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Boolean())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Object())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Receiver())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
   if (r.BothInputsAre(Type::Unique())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
+  if (r.OneInputIs(Type::NonStringUniqueOrHole())) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.IsInternalizedStringCompareOperation()) {
