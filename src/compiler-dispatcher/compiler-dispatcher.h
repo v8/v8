@@ -71,6 +71,11 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Returns true if a job was enqueued.
   bool Enqueue(Handle<SharedFunctionInfo> function);
 
+  // Like Enqueue, but also advances the job so that it can potentially
+  // continue running on a background thread (if at all possible). Returns
+  // true if the job was enqueued.
+  bool EnqueueAndStep(Handle<SharedFunctionInfo> function);
+
   // Returns true if there is a pending job for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;
 
@@ -89,6 +94,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
                                   bool is_isolate_locked);
 
  private:
+  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
   FRIEND_TEST(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread);
   FRIEND_TEST(IgnitionCompilerDispatcherTest, FinishNowWithBackgroundTask);

@@ -797,5 +797,27 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
   platform.ClearIdleTask();
 }
 
+TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f16(x) { return x * y }; return f16; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToParse);
+
+  ASSERT_TRUE(platform.IdleTaskPending());
+  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+}
+
 }  // namespace internal
 }  // namespace v8

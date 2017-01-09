@@ -262,6 +262,21 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   return true;
 }
 
+bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
+  if (!Enqueue(function)) return false;
+
+  if (trace_compiler_dispatcher_) {
+    PrintF("CompilerDispatcher: stepping ");
+    function->ShortPrint();
+    PrintF("\n");
+  }
+  JobMap::const_iterator job = GetJobFor(function);
+  DoNextStepOnMainThread(isolate_, job->second.get(),
+                         ExceptionHandling::kSwallow);
+  ConsiderJobForBackgroundProcessing(job->second.get());
+  return true;
+}
+
 bool CompilerDispatcher::IsEnabled() const {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   return FLAG_compiler_dispatcher && platform_->IdleTasksEnabled(v8_isolate);
