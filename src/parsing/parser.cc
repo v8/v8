@@ -1892,6 +1892,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
                                               Block** body_block,
                                               Expression** each_variable,
                                               bool* ok) {
+  DCHECK(for_info->parsing_result.declarations.length() == 1);
   DeclarationParsingResult::Declaration& decl =
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());

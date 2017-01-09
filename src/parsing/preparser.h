@@ -1049,7 +1049,22 @@ class PreParser : public ParserBase<PreParser> {
       PreParserStatementList cases, Scope* scope) {
     return PreParserStatement::Default();
   }
-  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {}
+
+  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {
+    if (track_unresolved_variables_) {
+      if (catch_info->name.string_ != nullptr) {
+        // Unlike in the parser, we need to declare the catch variable as LET
+        // variable, so that it won't get hoisted out of the scope.
+        catch_info->scope->DeclareVariableName(catch_info->name.string_, LET);
+      }
+      if (catch_info->pattern.variables_ != nullptr) {
+        for (auto variable : *catch_info->pattern.variables_) {
+          scope()->DeclareVariableName(variable->raw_name(), LET);
+        }
+      }
+    }
+  }
+
   V8_INLINE void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {}
   V8_INLINE PreParserStatement RewriteTryStatement(
       PreParserStatement try_block, PreParserStatement catch_block,
@@ -1084,6 +1099,12 @@ class PreParser : public ParserBase<PreParser> {
   DeclareClass(PreParserIdentifier variable_name, PreParserExpression value,
                ZoneList<const AstRawString*>* names, int class_token_pos,
                int end_pos, bool* ok) {
+    // Preparser shouldn't be used in contexts where we need to track the names.
+    DCHECK_NULL(names);
+    if (variable_name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(variable_name.string_, LET);
+    }
     return PreParserStatement::Default();
   }
   V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
@@ -1264,9 +1285,18 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement RewriteForVarInLegacy(const ForInfo& for_info) {
     return PreParserStatement::Null();
   }
+
   V8_INLINE void DesugarBindingInForEachStatement(
       ForInfo* for_info, PreParserStatement* body_block,
-      PreParserExpression* each_variable, bool* ok) {}
+      PreParserExpression* each_variable, bool* ok) {
+    if (track_unresolved_variables_) {
+      DCHECK(for_info->parsing_result.declarations.length() == 1);
+      DeclareAndInitializeVariables(
+          PreParserStatement::Default(), &for_info->parsing_result.descriptor,
+          &for_info->parsing_result.declarations[0], nullptr, ok);
+    }
+  }
+
   V8_INLINE PreParserStatement CreateForEachStatementTDZ(
       PreParserStatement init_block, const ForInfo& for_info, bool* ok) {
     return init_block;
