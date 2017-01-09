@@ -895,28 +895,16 @@ void Simulator::set_d_register(int dreg, const uint32_t* value) {
   memcpy(vfp_registers_ + dreg * 2, value, sizeof(*value) * 2);
 }
 
-
-void Simulator::get_q_register(int qreg, uint64_t* value) {
+template <typename T>
+void Simulator::get_q_register(int qreg, T* value) {
   DCHECK((qreg >= 0) && (qreg < num_q_registers));
-  memcpy(value, vfp_registers_ + qreg * 4, sizeof(*value) * 2);
+  memcpy(value, vfp_registers_ + qreg * 4, kSimd128Size);
 }
 
-
-void Simulator::set_q_register(int qreg, const uint64_t* value) {
+template <typename T>
+void Simulator::set_q_register(int qreg, const T* value) {
   DCHECK((qreg >= 0) && (qreg < num_q_registers));
-  memcpy(vfp_registers_ + qreg * 4, value, sizeof(*value) * 2);
-}
-
-
-void Simulator::get_q_register(int qreg, uint32_t* value) {
-  DCHECK((qreg >= 0) && (qreg < num_q_registers));
-  memcpy(value, vfp_registers_ + qreg * 4, sizeof(*value) * 4);
-}
-
-
-void Simulator::set_q_register(int qreg, const uint32_t* value) {
-  DCHECK((qreg >= 0) && (qreg < num_q_registers));
-  memcpy(vfp_registers_ + qreg * 4, value, sizeof(*value) * 4);
+  memcpy(vfp_registers_ + qreg * 4, value, kSimd128Size);
 }
 
 
@@ -3856,34 +3844,37 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
-        get_q_register(Vn, src1);
-        get_q_register(Vm, src2);
         if (instr->Bit(4) == 0) {
           // vadd.i<size> Qd, Qm, Qn.
           switch (size) {
             case Neon8: {
-              uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-              uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
+              uint8_t src1[16], src2[16];
+              get_q_register(Vn, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 16; i++) {
-                s1[i] += s2[i];
+                src1[i] += src2[i];
               }
+              set_q_register(Vd, src1);
               break;
             }
             case Neon16: {
-              uint16_t s1[8], s2[8];
-              memcpy(s1, src1, sizeof(s1));
-              memcpy(s2, src2, sizeof(s2));
+              uint16_t src1[8], src2[8];
+              get_q_register(Vn, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 8; i++) {
-                s1[i] += s2[i];
+                src1[i] += src2[i];
               }
-              memcpy(src1, s1, sizeof(src1));
+              set_q_register(Vd, src1);
               break;
             }
             case Neon32: {
+              uint32_t src1[4], src2[4];
+              get_q_register(Vn, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 4; i++) {
                 src1[i] += src2[i];
               }
+              set_q_register(Vd, src1);
               break;
             }
             default:
@@ -3894,27 +3885,33 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           // vtst.i<size> Qd, Qm, Qn.
           switch (size) {
             case Neon8: {
-              uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-              uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
+              uint8_t src1[16], src2[16];
+              get_q_register(Vn, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 16; i++) {
-                s1[i] = (s1[i] & s2[i]) != 0 ? 0xFFu : 0;
+                src1[i] = (src1[i] & src2[i]) != 0 ? 0xFFu : 0;
               }
+              set_q_register(Vd, src1);
               break;
             }
             case Neon16: {
-              uint16_t s1[8], s2[8];
-              memcpy(s1, src1, sizeof(s1));
-              memcpy(s2, src2, sizeof(s2));
+              uint16_t src1[8], src2[8];
+              get_q_register(Vn, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 8; i++) {
-                s1[i] = (s1[i] & s2[i]) != 0 ? 0xFFFFu : 0;
+                src1[i] = (src1[i] & src2[i]) != 0 ? 0xFFFFu : 0;
               }
-              memcpy(src1, s1, sizeof(src1));
+              set_q_register(Vd, src1);
               break;
             }
             case Neon32: {
+              uint32_t src1[4], src2[4];
+              get_q_register(Vn, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 4; i++) {
                 src1[i] = (src1[i] & src2[i]) != 0 ? 0xFFFFFFFFu : 0;
               }
+              set_q_register(Vd, src1);
               break;
             }
             default:
@@ -3922,24 +3919,21 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               break;
           }
         }
-        set_q_register(Vd, src1);
       } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xd &&
                  instr->Bit(4) == 0) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
+        float src1[4], src2[4];
         get_q_register(Vn, src1);
         get_q_register(Vm, src2);
         for (int i = 0; i < 4; i++) {
           if (instr->Bit(21) == 0) {
             // vadd.f32 Qd, Qm, Qn.
-            src1[i] = bit_cast<uint32_t>(bit_cast<float>(src1[i]) +
-                                         bit_cast<float>(src2[i]));
+            src1[i] = src1[i] + src2[i];
           } else {
             // vsub.f32 Qd, Qm, Qn.
-            src1[i] = bit_cast<uint32_t>(bit_cast<float>(src1[i]) -
-                                         bit_cast<float>(src2[i]));
+            src1[i] = src1[i] - src2[i];
           }
         }
         set_q_register(Vd, src1);
@@ -3950,53 +3944,55 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
-        get_q_register(Vn, src1);
-        get_q_register(Vm, src2);
         switch (size) {
           case Neon8: {
-            uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-            uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
+            uint8_t src1[16], src2[16];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 16; i++) {
-              s1[i] *= s2[i];
+              src1[i] *= src2[i];
             }
+            set_q_register(Vd, src1);
             break;
           }
           case Neon16: {
-            uint16_t s1[8], s2[8];
-            memcpy(s1, src1, sizeof(s1));
-            memcpy(s2, src2, sizeof(s2));
+            uint16_t src1[8], src2[8];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 8; i++) {
-              s1[i] *= s2[i];
+              src1[i] *= src2[i];
             }
-            memcpy(src1, s1, sizeof(src1));
+            set_q_register(Vd, src1);
             break;
           }
           case Neon32: {
+            uint32_t src1[4], src2[4];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 4; i++) {
               src1[i] *= src2[i];
             }
+            set_q_register(Vd, src1);
             break;
           }
           default:
             UNIMPLEMENTED();
             break;
         }
-        set_q_register(Vd, src1);
       } else if (instr->Bits(21, 20) == 0 && instr->Bits(11, 8) == 0xe &&
                  instr->Bit(4) == 0) {
+        // vceq.f32.
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
+        float src1[4], src2[4];
         get_q_register(Vn, src1);
         get_q_register(Vm, src2);
+        uint32_t dst[4];
         for (int i = 0; i < 4; i++) {
-          src1[i] = bit_cast<float>(src1[i]) == bit_cast<float>(src2[i])
-                        ? 0xFFFFFFFF
-                        : 0;
+          dst[i] = (src1[i] == src2[i]) ? 0xFFFFFFFF : 0;
         }
-        set_q_register(Vd, src1);
+        set_q_register(Vd, dst);
 
       } else {
         UNIMPLEMENTED();
@@ -4028,19 +4024,16 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4], dst[4];
+        uint8_t src1[16], src2[16], dst[16];
         get_q_register(Vn, src1);
         get_q_register(Vm, src2);
-        uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-        uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
-        uint8_t* d = reinterpret_cast<uint8_t*>(dst);
-        int boundary = 16 - imm4;
+        int boundary = kSimd128Size - imm4;
         int i = 0;
         for (; i < boundary; i++) {
-          d[i] = s1[i + imm4];
+          dst[i] = src1[i + imm4];
         }
         for (; i < 16; i++) {
-          d[i] = s2[i - boundary];
+          dst[i] = src2[i - boundary];
         }
         set_q_register(Vd, dst);
       } else {
@@ -4054,78 +4047,82 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
-        get_q_register(Vn, src1);
-        get_q_register(Vm, src2);
         switch (size) {
           case Neon8: {
-            uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-            uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
+            uint8_t src1[16], src2[16];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 16; i++) {
-              s1[i] -= s2[i];
+              src1[i] -= src2[i];
             }
+            set_q_register(Vd, src1);
             break;
           }
           case Neon16: {
-            uint16_t s1[8], s2[8];
-            memcpy(s1, src1, sizeof(s1));
-            memcpy(s2, src2, sizeof(s2));
+            uint16_t src1[8], src2[8];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 8; i++) {
-              s1[i] -= s2[i];
+              src1[i] -= src2[i];
             }
-            memcpy(src1, s1, sizeof(src1));
+            set_q_register(Vd, src1);
             break;
           }
           case Neon32: {
+            uint32_t src1[4], src2[4];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 4; i++) {
               src1[i] -= src2[i];
             }
+            set_q_register(Vd, src1);
             break;
           }
           default:
             UNREACHABLE();
             break;
         }
-        set_q_register(Vd, src1);
       } else if (instr->Bits(11, 8) == 8 && instr->Bit(4) == 1) {
         // vceq.size Qd, Qm, Qn.
         int size = static_cast<NeonSize>(instr->Bits(21, 20));
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
-        get_q_register(Vn, src1);
-        get_q_register(Vm, src2);
         switch (size) {
           case Neon8: {
-            uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-            uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
+            uint8_t src1[16], src2[16];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 16; i++) {
-              s1[i] = s1[i] == s2[i] ? 0xFF : 0;
+              src1[i] = (src1[i] == src2[i]) ? 0xFFu : 0;
             }
+            set_q_register(Vd, src1);
             break;
           }
           case Neon16: {
-            uint16_t s1[8], s2[8];
-            memcpy(s1, src1, sizeof(s1));
-            memcpy(s2, src2, sizeof(s2));
+            uint16_t src1[8], src2[8];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 8; i++) {
-              s1[i] = s1[i] == s2[i] ? 0xffffu : 0;
+              src1[i] = (src1[i] == src2[i]) ? 0xFFFFu : 0;
             }
-            memcpy(src1, s1, sizeof(src1));
+            set_q_register(Vd, src1);
             break;
           }
           case Neon32: {
+            uint32_t src1[4], src2[4];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
             for (int i = 0; i < 4; i++) {
-              src1[i] = src1[i] == src2[i] ? 0xFFFFFFFF : 0;
+              src1[i] = (src1[i] == src2[i]) ? 0xFFFFFFFFu : 0;
             }
+            set_q_register(Vd, src1);
             break;
           }
           default:
             UNREACHABLE();
             break;
         }
-        set_q_register(Vd, src1);
       } else if (instr->Bits(21, 20) == 1 && instr->Bits(11, 8) == 1 &&
                  instr->Bit(4) == 1) {
         // vbsl.size Qd, Qm, Qn.
@@ -4170,12 +4167,11 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        uint32_t src1[4], src2[4];
+        float src1[4], src2[4];
         get_q_register(Vn, src1);
         get_q_register(Vm, src2);
         for (int i = 0; i < 4; i++) {
-          src1[i] = bit_cast<uint32_t>(bit_cast<float>(src1[i]) *
-                                       bit_cast<float>(src2[i]));
+          src1[i] = src1[i] * src2[i];
         }
         set_q_register(Vd, src1);
       } else {
@@ -4302,52 +4298,53 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int size = static_cast<NeonSize>(instr->Bits(19, 18));
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
-          uint32_t src1[4], src2[4], dst1[4], dst2[4];
-          get_q_register(Vd, src1);
-          get_q_register(Vm, src2);
           switch (size) {
             case Neon8: {
-              uint8_t* s1 = reinterpret_cast<uint8_t*>(src1);
-              uint8_t* s2 = reinterpret_cast<uint8_t*>(src2);
-              uint8_t* d1 = reinterpret_cast<uint8_t*>(dst1);
-              uint8_t* d2 = reinterpret_cast<uint8_t*>(dst2);
+              uint8_t src1[16], src2[16], dst1[16], dst2[16];
+              get_q_register(Vd, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 8; i++) {
-                d1[i * 2] = s1[i];
-                d1[i * 2 + 1] = s2[i];
-                d2[i * 2] = s1[i + 8];
-                d2[i * 2 + 1] = s2[i + 8];
+                dst1[i * 2] = src1[i];
+                dst1[i * 2 + 1] = src2[i];
+                dst2[i * 2] = src1[i + 8];
+                dst2[i * 2 + 1] = src2[i + 8];
               }
+              set_q_register(Vd, dst1);
+              set_q_register(Vm, dst2);
               break;
             }
             case Neon16: {
-              uint16_t s1[8], s2[8], d1[8], d2[8];
-              memcpy(s1, src1, sizeof(s1));
-              memcpy(s2, src2, sizeof(s2));
+              uint16_t src1[8], src2[8], dst1[8], dst2[8];
+              get_q_register(Vd, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 8; i += 2) {
-                d1[i] = s1[i / 2];
-                d1[i + 1] = s2[i / 2];
-                d2[i] = s1[i / 2 + 4];
-                d2[i + 1] = s2[i / 2 + 4];
+                dst1[i] = src1[i / 2];
+                dst1[i + 1] = src2[i / 2];
+                dst2[i] = src1[i / 2 + 4];
+                dst2[i + 1] = src2[i / 2 + 4];
               }
-              memcpy(dst1, d1, sizeof(dst1));
-              memcpy(dst2, d2, sizeof(dst2));
+              set_q_register(Vd, dst1);
+              set_q_register(Vm, dst2);
               break;
             }
             case Neon32: {
+              uint32_t src1[4], src2[4], dst1[4], dst2[4];
+              get_q_register(Vd, src1);
+              get_q_register(Vm, src2);
               for (int i = 0; i < 2; i++) {
                 dst1[i * 2] = src1[i];
                 dst1[i * 2 + 1] = src2[i];
                 dst2[i * 2] = src1[i + 2];
                 dst2[i * 2 + 1] = src2[i + 2];
               }
+              set_q_register(Vd, dst1);
+              set_q_register(Vm, dst2);
               break;
             }
             default:
               UNREACHABLE();
               break;
           }
-          set_q_register(Vd, dst1);
-          set_q_register(Vm, dst2);
         } else if (instr->Bits(17, 16) == 0 && instr->Bits(11, 9) == 0) {
           // vrev<op>.size Qd, Qm
           int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -4355,30 +4352,36 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int size = static_cast<NeonSize>(instr->Bits(19, 18));
           NeonSize op = static_cast<NeonSize>(static_cast<int>(Neon64) -
                                               instr->Bits(8, 7));
-          uint32_t src[4];
-          get_q_register(Vm, src);
           switch (op) {
             case Neon16: {
               DCHECK_EQ(Neon8, size);
-              uint8_t* s = reinterpret_cast<uint8_t*>(src);
+              uint8_t src[16];
+              get_q_register(Vm, src);
               for (int i = 0; i < 16; i += 2) {
-                std::swap(s[i], s[i + 1]);
+                std::swap(src[i], src[i + 1]);
               }
+              set_q_register(Vd, src);
               break;
             }
             case Neon32: {
               switch (size) {
-                case Neon16:
-                  for (int i = 0; i < 4; i++) {
-                    src[i] = (src[i] >> 16) | (src[i] << 16);
+                case Neon16: {
+                  uint16_t src[8];
+                  get_q_register(Vm, src);
+                  for (int i = 0; i < 8; i += 2) {
+                    std::swap(src[i], src[i + 1]);
                   }
+                  set_q_register(Vd, src);
                   break;
+                }
                 case Neon8: {
-                  uint8_t* s = reinterpret_cast<uint8_t*>(src);
+                  uint8_t src[16];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 4; i++) {
-                    std::swap(s[i * 4], s[i * 4 + 3]);
-                    std::swap(s[i * 4 + 1], s[i * 4 + 2]);
+                    std::swap(src[i * 4], src[i * 4 + 3]);
+                    std::swap(src[i * 4 + 1], src[i * 4 + 2]);
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 default:
@@ -4390,25 +4393,31 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             case Neon64: {
               switch (size) {
                 case Neon32: {
+                  uint32_t src[4];
+                  get_q_register(Vm, src);
                   std::swap(src[0], src[1]);
                   std::swap(src[2], src[3]);
+                  set_q_register(Vd, src);
                   break;
                 }
                 case Neon16: {
-                  for (int i = 0; i <= 2; i += 2) {
-                    uint32_t w1 = src[i];
-                    uint32_t w2 = src[i + 1];
-                    src[i] = (w2 >> 16) | (w2 << 16);
-                    src[i + 1] = (w1 >> 16) | (w1 << 16);
+                  uint16_t src[8];
+                  get_q_register(Vm, src);
+                  for (int i = 0; i < 4; i++) {
+                    std::swap(src[i * 4], src[i * 4 + 3]);
+                    std::swap(src[i * 4 + 1], src[i * 4 + 2]);
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 case Neon8: {
-                  uint8_t* s = reinterpret_cast<uint8_t*>(src);
+                  uint8_t src[16];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 4; i++) {
-                    std::swap(s[i], s[7 - i]);
-                    std::swap(s[i + 8], s[15 - i]);
+                    std::swap(src[i], src[7 - i]);
+                    std::swap(src[i + 8], src[15 - i]);
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 default:
@@ -4421,44 +4430,48 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
               UNREACHABLE();
               break;
           }
-          set_q_register(Vd, src);
         } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           int size = static_cast<NeonSize>(instr->Bits(19, 18));
-          uint32_t src[4];
-          get_q_register(Vm, src);
           if (instr->Bits(9, 6) == 0xd) {
             // vabs<type>.<size> Qd, Qm
             if (instr->Bit(10) != 0) {
               // floating point (clear sign bits)
+              uint32_t src[4];
+              get_q_register(Vm, src);
               for (int i = 0; i < 4; i++) {
                 src[i] &= ~0x80000000;
               }
+              set_q_register(Vd, src);
             } else {
               // signed integer
               switch (size) {
                 case Neon8: {
-                  int8_t* s = reinterpret_cast<int8_t*>(src);
+                  int8_t src[16];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 16; i++) {
-                    s[i] = std::abs(s[i]);
+                    src[i] = std::abs(src[i]);
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 case Neon16: {
-                  int16_t s[8];
-                  memcpy(s, src, sizeof(s));
+                  int16_t src[8];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 8; i++) {
-                    s[i] = std::abs(s[i]);
+                    src[i] = std::abs(src[i]);
                   }
-                  memcpy(src, s, sizeof(src));
+                  set_q_register(Vd, src);
                   break;
                 }
                 case Neon32: {
-                  int32_t* as_signed = reinterpret_cast<int32_t*>(src);
+                  int32_t src[4];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 4; i++) {
-                    as_signed[i] = std::abs(as_signed[i]);
+                    src[i] = std::abs(src[i]);
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 default:
@@ -4470,32 +4483,39 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
             // vneg<type>.<size> Qd, Qm (signed integer)
             if (instr->Bit(10) != 0) {
               // floating point (toggle sign bits)
+              uint32_t src[4];
+              get_q_register(Vm, src);
               for (int i = 0; i < 4; i++) {
                 src[i] ^= 0x80000000;
               }
+              set_q_register(Vd, src);
             } else {
               // signed integer
               switch (size) {
                 case Neon8: {
-                  int8_t* s = reinterpret_cast<int8_t*>(src);
+                  int8_t src[16];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 16; i++) {
-                    s[i] = -s[i];
+                    src[i] = -src[i];
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 case Neon16:
-                  int16_t s[8];
-                  memcpy(s, src, sizeof(s));
+                  int16_t src[8];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 8; i++) {
-                    s[i] = -s[i];
+                    src[i] = -src[i];
                   }
-                  memcpy(src, s, sizeof(src));
+                  set_q_register(Vd, src);
                   break;
                 case Neon32: {
-                  int32_t* as_signed = reinterpret_cast<int32_t*>(src);
+                  int32_t src[4];
+                  get_q_register(Vm, src);
                   for (int i = 0; i < 4; i++) {
-                    as_signed[i] = -as_signed[i];
+                    src[i] = -src[i];
                   }
+                  set_q_register(Vd, src);
                   break;
                 }
                 default:
@@ -4506,7 +4526,6 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           } else {
             UNIMPLEMENTED();
           }
-          set_q_register(Vd, src);
         } else {
           UNIMPLEMENTED();
         }
