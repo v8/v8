@@ -373,8 +373,9 @@ void RegisterAllocatorVerifier::ValidatePendingAssessment(
   // for the original operand (the one where the assessment was created for
   // first) are also pending. To avoid recursion, we use a work list. To
   // deal with cycles, we keep a set of seen nodes.
-  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(zone());
-  ZoneSet<RpoNumber> seen(zone());
+  Zone local_zone(zone()->allocator(), ZONE_NAME);
+  ZoneQueue<std::pair<const PendingAssessment*, int>> worklist(&local_zone);
+  ZoneSet<RpoNumber> seen(&local_zone);
   worklist.push(std::make_pair(assessment, virtual_register));
   seen.insert(block_id);
 
