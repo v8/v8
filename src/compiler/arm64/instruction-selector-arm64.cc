@@ -1069,6 +1069,7 @@ bool TryEmitBitfieldExtract32(InstructionSelector* selector, Node* node) {
     // OP is >>> or >> and (K & 0x1f) != 0.
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue() && m.right().HasValue() &&
+        (mleft.right().Value() & 0x1f) != 0 &&
         (mleft.right().Value() & 0x1f) == (m.right().Value() & 0x1f)) {
       DCHECK(m.IsWord32Shr() || m.IsWord32Sar());
       ArchOpcode opcode = m.IsWord32Sar() ? kArm64Sbfx32 : kArm64Ubfx32;
