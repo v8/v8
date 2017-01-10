@@ -4923,21 +4923,10 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                     value, it->GetReceiver(), language_mode);
 
       case LookupIterator::INTERCEPTOR: {
-        Handle<Map> store_target_map;
-        if (it->GetReceiver()->IsJSObject()) {
-          store_target_map = handle(it->GetStoreTarget()->map(), it->isolate());
-        }
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
-          // Interceptor modified the store target but failed to set the
-          // property.
-          Utils::ApiCheck(store_target_map.is_null() ||
-                              *store_target_map == it->GetStoreTarget()->map(),
-                          it->IsElement() ? "v8::IndexedPropertySetterCallback"
-                                          : "v8::NamedPropertySetterCallback",
-                          "Interceptor silently changed store target.");
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -4945,13 +4934,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, should_throw);
           }
-          // Interceptor modified the store target but failed to set the
-          // property.
-          Utils::ApiCheck(store_target_map.is_null() ||
-                              *store_target_map == it->GetStoreTarget()->map(),
-                          it->IsElement() ? "v8::IndexedPropertySetterCallback"
-                                          : "v8::NamedPropertySetterCallback",
-                          "Interceptor silently changed store target.");
           if (maybe_attributes.FromJust() == ABSENT) break;
           *found = false;
           return Nothing<bool>();
@@ -6841,29 +6823,12 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
 
   // Handle interceptor
   if (it.state() == LookupIterator::INTERCEPTOR) {
-    Handle<Map> store_target_map;
-    if (it.GetReceiver()->IsJSObject()) {
-      store_target_map = handle(it.GetStoreTarget()->map(), it.isolate());
-    }
     if (it.HolderIsReceiverOrHiddenPrototype()) {
       Maybe<bool> result = DefinePropertyWithInterceptorInternal(
           &it, it.GetInterceptor(), should_throw, *desc);
       if (result.IsNothing() || result.FromJust()) {
         return result;
       }
-      // Interceptor modified the store target but failed to set the
-      // property.
-      if (!store_target_map.is_null() &&
-          *store_target_map != it.GetStoreTarget()->map()) {
-        it.isolate()->PushStackTraceAndDie(
-            0xabababaa, v8::ToCData<void*>(it.GetInterceptor()->definer()),
-            nullptr, 0xabababab);
-      }
-      Utils::ApiCheck(store_target_map.is_null() ||
-                          *store_target_map == it.GetStoreTarget()->map(),
-                      it.IsElement() ? "v8::IndexedPropertyDefinerCallback"
-                                     : "v8::NamedPropertyDefinerCallback",
-                      "Interceptor silently changed store target.");
     }
   }
 
