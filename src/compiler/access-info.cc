@@ -361,6 +361,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             if (optimization.api_call_info()->fast_handler()->IsCode()) {
               return false;
             }
+            if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
           }
           *access_info = PropertyAccessInfo::AccessorConstant(
               MapList{receiver_map}, accessor, holder);

@@ -149,7 +149,6 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // program location.
   MaybeHandle<Map> InferReceiverRootMap(Node* receiver);
 
-  bool CanInlineApiCall(PropertyAccessInfo const& access_info);
   ValueEffectControl InlineApiCall(
       Node* receiver, Node* context, Node* target, Node* frame_state,
       Node* parameter, Node* effect, Node* control,

@@ -1007,7 +1007,14 @@ JSNativeContextSpecialization::BuildPropertyAccess(
             context, target, frame_state);
 
         // Introduce the call to the getter function.
-        if (CanInlineApiCall(access_info)) {
+        if (access_info.constant()->IsJSFunction()) {
+          value = effect = graph()->NewNode(
+              javascript()->CallFunction(
+                  2, 0.0f, VectorSlotPair(),
+                  ConvertReceiverMode::kNotNullOrUndefined),
+              target, receiver, context, frame_state0, effect, control);
+          control = graph()->NewNode(common()->IfSuccess(), value);
+        } else {
           DCHECK(access_info.constant()->IsFunctionTemplateInfo());
           Handle<FunctionTemplateInfo> function_template_info(
               Handle<FunctionTemplateInfo>::cast(access_info.constant()));
@@ -1018,13 +1025,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           value = value_effect_control.value();
           effect = value_effect_control.effect();
           control = value_effect_control.control();
-        } else {
-          value = effect = graph()->NewNode(
-              javascript()->CallFunction(
-                  2, 0.0f, VectorSlotPair(),
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              target, receiver, context, frame_state0, effect, control);
-          control = graph()->NewNode(common()->IfSuccess(), value);
         }
         break;
       }
@@ -1044,7 +1044,14 @@ JSNativeContextSpecialization::BuildPropertyAccess(
             context, target, frame_state);
 
         // Introduce the call to the setter function.
-        if (CanInlineApiCall(access_info)) {
+        if (access_info.constant()->IsJSFunction()) {
+          effect = graph()->NewNode(
+              javascript()->CallFunction(
+                  3, 0.0f, VectorSlotPair(),
+                  ConvertReceiverMode::kNotNullOrUndefined),
+              target, receiver, value, context, frame_state0, effect, control);
+          control = graph()->NewNode(common()->IfSuccess(), effect);
+        } else {
           DCHECK(access_info.constant()->IsFunctionTemplateInfo());
           Handle<FunctionTemplateInfo> function_template_info(
               Handle<FunctionTemplateInfo>::cast(access_info.constant()));
@@ -1055,13 +1062,6 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           value = value_effect_control.value();
           effect = value_effect_control.effect();
           control = value_effect_control.control();
-        } else {
-          effect = graph()->NewNode(
-              javascript()->CallFunction(
-                  3, 0.0f, VectorSlotPair(),
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              target, receiver, value, context, frame_state0, effect, control);
-          control = graph()->NewNode(common()->IfSuccess(), effect);
         }
         break;
       }
@@ -1571,13 +1571,6 @@ JSNativeContextSpecialization::BuildElementAccess(
   }
 
   return ValueEffectControl(value, effect, control);
-}
-
-bool JSNativeContextSpecialization::CanInlineApiCall(
-    PropertyAccessInfo const& access_info) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
-  return access_info.IsAccessorConstant() &&
-         access_info.constant()->IsFunctionTemplateInfo();
 }
 
 JSNativeContextSpecialization::ValueEffectControl
