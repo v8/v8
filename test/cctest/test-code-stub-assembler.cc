@@ -2047,6 +2047,71 @@ TEST(CreatePromiseResolvingFunctions) {
   CHECK(result_arr->get(1)->IsJSFunction());
 }
 
+TEST(NewElementsCapacity) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester data(isolate, 1);
+  CodeStubAssembler m(data.state());
+  m.Return(m.SmiTag(m.CalculateNewElementsCapacity(
+      m.SmiUntag(m.Parameter(0)), CodeStubAssembler::INTPTR_PARAMETERS)));
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, 1);
+  Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
+  Handle<Smi> result_obj =
+      Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(2), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+}
+
+TEST(NewElementsCapacitySmi) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester data(isolate, 1);
+  CodeStubAssembler m(data.state());
+  m.Return(m.CalculateNewElementsCapacity(m.Parameter(0),
+                                          CodeStubAssembler::SMI_PARAMETERS));
+  Handle<Code> code = data.GenerateCode();
+  code->Print();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, 1);
+  Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
+  Handle<Smi> result_obj =
+      Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(2), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+}
+
 TEST(AllocateFunctionWithMapAndContext) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 

@@ -1492,8 +1492,7 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   Node* new_length =
       IntPtrOrSmiAdd(WordToParameter(growth, mode), var_length.value(), mode);
   GotoUnless(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
-  Node* new_capacity = CalculateNewElementsCapacity(
-      IntPtrOrSmiAdd(new_length, IntPtrOrSmiConstant(1, mode), mode), mode);
+  Node* new_capacity = CalculateNewElementsCapacity(new_length, mode);
   var_elements.Bind(GrowElementsCapacity(array, var_elements.value(), kind,
                                          kind, capacity, new_capacity, mode,
                                          &pre_bailout));
@@ -2346,18 +2345,10 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
 
 Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
                                                       ParameterMode mode) {
-  if (mode == SMI_PARAMETERS) {
-    old_capacity = BitcastTaggedToWord(old_capacity);
-  }
-  Node* half_old_capacity = WordShr(old_capacity, IntPtrConstant(1));
-  Node* new_capacity = IntPtrAdd(half_old_capacity, old_capacity);
-  Node* unconditioned_result = IntPtrAdd(new_capacity, IntPtrConstant(16));
-  if (mode == SMI_PARAMETERS) {
-    return SmiAnd(BitcastWordToTaggedSigned(unconditioned_result),
-                  SmiConstant(-1));
-  } else {
-    return unconditioned_result;
-  }
+  Node* half_old_capacity = WordOrSmiShr(old_capacity, 1, mode);
+  Node* new_capacity = IntPtrOrSmiAdd(half_old_capacity, old_capacity, mode);
+  Node* padding = IntPtrOrSmiConstant(16, mode);
+  return IntPtrOrSmiAdd(new_capacity, padding, mode);
 }
 
 Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,

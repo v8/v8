@@ -172,18 +172,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   SMI_ARITHMETIC_BINOP(SmiSub, IntPtrSub)
   SMI_ARITHMETIC_BINOP(SmiAnd, WordAnd)
   SMI_ARITHMETIC_BINOP(SmiOr, WordOr)
-
-#define SMI_SHIFT_OP(SmiOpName, IntPtrOpName)         \
-  Node* SmiOpName(Node* a, int shift) {               \
-    return BitcastWordToTaggedSigned(                 \
-        IntPtrOpName(BitcastTaggedToWord(a), shift)); \
-  }                                                   \
-  SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)
-
-  SMI_SHIFT_OP(SmiShl, WordShl)
-  SMI_SHIFT_OP(SmiShr, WordShr)
-#undef SMI_SHIFT_OP
 #undef SMI_ARITHMETIC_BINOP
+
+  Node* SmiShl(Node* a, int shift) {
+    return BitcastWordToTaggedSigned(WordShl(BitcastTaggedToWord(a), shift));
+  }
+
+  Node* SmiShr(Node* a, int shift) {
+    return BitcastWordToTaggedSigned(
+        WordAnd(WordShr(BitcastTaggedToWord(a), shift),
+                BitcastTaggedToWord(SmiConstant(-1))));
+  }
+
+  Node* WordOrSmiShl(Node* a, int shift, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) {
+      return SmiShl(a, shift);
+    } else {
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);
+      return WordShl(a, shift);
+    }
+  }
+
+  Node* WordOrSmiShr(Node* a, int shift, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) {
+      return SmiShr(a, shift);
+    } else {
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);
+      return WordShr(a, shift);
+    }
+  }
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName)                       \
   Node* SmiOpName(Node* a, Node* b) {                                    \
