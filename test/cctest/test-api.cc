@@ -1584,7 +1584,6 @@ THREADED_TEST(IsGeneratorFunctionOrObject) {
 }
 
 THREADED_TEST(IsAsyncFunction) {
-  i::FLAG_harmony_async_await = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);

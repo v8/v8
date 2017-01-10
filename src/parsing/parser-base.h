@@ -215,7 +215,6 @@ class ParserBase {
         allow_tailcalls_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
-        allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false),
         allow_harmony_trailing_commas_(false),
         allow_harmony_class_fields_(false),
@@ -229,7 +228,6 @@ class ParserBase {
   ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
-  ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_trailing_commas);
   ALLOW_ACCESSORS(harmony_class_fields);
@@ -1455,7 +1453,6 @@ class ParserBase {
   bool allow_tailcalls_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
-  bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
   bool allow_harmony_trailing_commas_;
   bool allow_harmony_class_fields_;
@@ -1742,8 +1739,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       return impl()->ExpressionFromLiteral(Next(), beg_pos);
 
     case Token::ASYNC:
-      if (allow_harmony_async_await() &&
-          !scanner()->HasAnyLineTerminatorAfterNext() &&
+      if (!scanner()->HasAnyLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
         Consume(Token::ASYNC);
         return ParseAsyncFunctionLiteral(CHECK_OK);
@@ -2047,7 +2043,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
   Token::Value token = peek();
   int pos = peek_position();
 
-  if (allow_harmony_async_await() && !*is_generator && token == Token::ASYNC &&
+  if (!*is_generator && token == Token::ASYNC &&
       !scanner()->HasAnyLineTerminatorAfterNext()) {
     Consume(Token::ASYNC);
     token = peek();
@@ -2671,7 +2667,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   Scope::Snapshot scope_snapshot(scope());
 
-  bool is_async = allow_harmony_async_await() && peek() == Token::ASYNC &&
+  bool is_async = peek() == Token::ASYNC &&
                   !scanner()->HasAnyLineTerminatorAfterNext() &&
                   IsValidArrowFormalParametersStart(PeekAhead());
 
@@ -4553,7 +4549,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
       }
       break;
     case Token::ASYNC:
-      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+      if (PeekAhead() == Token::FUNCTION &&
           !scanner()->HasAnyLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         return ParseAsyncFunctionDeclaration(nullptr, false, ok);

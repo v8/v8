@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo
-
 var Debug = debug.Debug;
 var step_count = 0;
 
@@ -26,8 +24,14 @@ Debug.setListener(listener);
 async function f() {
   var a = 1;
   debugger;          // B0 StepNext
-  print(1);          // B1 StepNext
-  return a;          // B2 StepNext
-}                    // B3 Continue
+  a +=               // B1 StepNext
+       await         // B3 StepNext
+             5;      // B2 StepNext
+  return a;          // B4 StepNext
+}                    // B5 Continue
 
 f();
+
+%RunMicrotasks();
+
+assertEquals(6, step_count);

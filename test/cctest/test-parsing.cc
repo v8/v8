@@ -1274,7 +1274,6 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyFunctionSent,
-  kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyTrailingCommas,
   kAllowHarmonyClassFields,
@@ -1290,7 +1289,6 @@ enum ParserSyncTestResult {
 void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
-  i::FLAG_harmony_async_await = flags.Contains(kAllowHarmonyAsyncAwait);
   i::FLAG_harmony_restrictive_generators =
       flags.Contains(kAllowHarmonyRestrictiveGenerators);
   i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
@@ -1302,8 +1300,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
-  parser->set_allow_harmony_async_await(
-      flags.Contains(kAllowHarmonyAsyncAwait));
   parser->set_allow_harmony_restrictive_generators(
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
   parser->set_allow_harmony_trailing_commas(
@@ -2727,16 +2723,6 @@ TEST(ErrorsObjectLiteralChecking) {
     "x = 0",
     "* *x(){}",
     "x*(){}",
-    // This should fail without --harmony-async-await
-    "async x(){}",
-    NULL
-  };
-  // clang-format on
-
-  RunParserSyncTest(context_data, statement_data, kError);
-
-  // clang-format off
-  const char* async_data[] = {
     "static async x(){}",
     "static async x : 0",
     "static async get x : 0",
@@ -2754,9 +2740,7 @@ TEST(ErrorsObjectLiteralChecking) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
@@ -2830,14 +2814,6 @@ TEST(NoErrorsObjectLiteralChecking) {
     "super: 6",
     "eval: 7",
     "arguments: 8",
-    NULL
-  };
-  // clang-format on
-
-  RunParserSyncTest(context_data, statement_data, kSuccess);
-
-  // clang-format off
-  const char* async_data[] = {
     "async x(){}",
     "async 0(){}",
     "async get(){}",
@@ -2851,9 +2827,7 @@ TEST(NoErrorsObjectLiteralChecking) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -4511,13 +4485,7 @@ TEST(ClassBodyNoErrors) {
     "static set st\\u0061tic(v) {}",
     "*st\\u0061tic() {}",
     "static *st\\u0061tic() {}",
-    NULL};
-  // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kSuccess);
-
-  // clang-format off
-  const char* async_data[] = {
     "static async x(){}",
     "static async(){}",
     "static *async(){}",
@@ -4529,13 +4497,10 @@ TEST(ClassBodyNoErrors) {
     "async async(){}",
     "async(){}",
     "*async(){}",
-    NULL
-  };
+    NULL};
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 
@@ -4663,16 +4628,6 @@ TEST(ClassFieldsNoErrors) {
     "yield",
     "yield = 0",
     "yield\n a",
-    NULL
-  };
-  // clang-format on
-
-  static const ParserFlag without_async[] = {kAllowHarmonyClassFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
-                    without_async, arraysize(without_async));
-
-  // clang-format off
-  const char* async_data[] = {
     "async;",
     "async = 0;",
     "static async;"
@@ -4688,10 +4643,9 @@ TEST(ClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag with_async[] = {kAllowHarmonyClassFields,
-                                          kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, with_async,
-                    arraysize(with_async));
+  static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 TEST(ClassFieldsErrors) {
@@ -4715,6 +4669,8 @@ TEST(ClassFieldsErrors) {
     "*a;",
     "get a;",
     "yield a;",
+    "async a = 0",
+    "async a",
 
     // ASI requires a linebreak
     "a b",
@@ -4728,22 +4684,9 @@ TEST(ClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag without_async[] = {kAllowHarmonyClassFields};
+  static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
   RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
-                    without_async, arraysize(without_async));
-
-  // clang-format off
-  const char* async_data[] = {
-    "async a = 0",
-    "async a",
-    NULL
-  };
-  // clang-format on
-
-  static const ParserFlag with_async[] = {kAllowHarmonyClassFields,
-                                          kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kError, NULL, 0, with_async,
-                    arraysize(with_async));
+                    always_flags, arraysize(always_flags));
 }
 
 TEST(ClassExpressionErrors) {
@@ -4832,13 +4775,7 @@ TEST(ClassAsyncErrors) {
   };
   // clang-format on
 
-  // All of these are illegal whether or not async functions are permitted,
-  // although for different reasons.
   RunParserSyncTest(context_data, async_data, kError);
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
 }
 
 TEST(ClassNameErrors) {
@@ -6602,8 +6539,7 @@ TEST(ObjectSpreadPositiveTests) {
     "{ ...new Foo()}",
     NULL};
 
-  static const ParserFlag flags[] = {kAllowHarmonyObjectSpread,
-                                     kAllowHarmonyAsyncAwait};
+  static const ParserFlag flags[] = {kAllowHarmonyObjectSpread};
   RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
                     arraysize(flags));
 }
@@ -8103,9 +8039,7 @@ TEST(AsyncAwait) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 
   // clang-format off
   const char* async_body_context_data[][2] = {
@@ -8159,10 +8093,8 @@ TEST(AsyncAwait) {
   };
   // clang-format on
 
-  RunParserSyncTest(async_body_context_data, body_data, kSuccess, NULL, 0,
-                    always_flags, arraysize(always_flags));
-  RunParserSyncTest(body_context_data, body_data, kSuccess, NULL, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(async_body_context_data, body_data, kSuccess);
+  RunParserSyncTest(body_context_data, body_data, kSuccess);
 }
 
 TEST(AsyncAwaitErrors) {
@@ -8299,14 +8231,9 @@ TEST(AsyncAwaitErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags));
-
-  RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, error_data, kError);
+  RunParserSyncTest(strict_context_data, strict_error_data, kError);
+  RunParserSyncTest(context_data, formal_parameters_data, kError);
 
   // clang-format off
   const char* async_body_context_data[][2] = {
@@ -8347,8 +8274,7 @@ TEST(AsyncAwaitErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(async_body_context_data, async_body_error_data, kError,
-                    NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(async_body_context_data, async_body_error_data, kError);
 }
 
 TEST(AsyncAwaitModule) {
@@ -8366,9 +8292,8 @@ TEST(AsyncAwaitModule) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                          arraysize(always_flags), NULL, 0, false);
+  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0, NULL,
+                          0, false);
 }
 
 TEST(AsyncAwaitModuleErrors) {
@@ -8388,10 +8313,8 @@ TEST(AsyncAwaitModuleErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags), NULL, 0,
-                          false);
+  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0,
+                          NULL, 0, false);
 }
 
 TEST(RestrictiveForInErrors) {
@@ -8468,14 +8391,11 @@ TEST(NoDuplicateAsyncFunctionInBlock) {
                               "async function x() {} function* x() {}",
                               "function* x() {} async function x() {}",
                               NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
   // The preparser doesn't enforce the restriction, so turn it off.
   bool test_preparser = false;
-  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags), NULL, 0, false,
-                    test_preparser);
-  RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0, NULL, 0,
+                    NULL, 0, false, test_preparser);
+  RunParserSyncTest(top_level_context_data, error_data, kSuccess);
 }
 
 TEST(TrailingCommasInParameters) {

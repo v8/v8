@@ -222,7 +222,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V) V(harmony_async_await, "harmony async-await")
+#define HARMONY_SHIPPING_BASE(V)
 
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_SHIPPING(V) \

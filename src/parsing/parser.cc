@@ -549,7 +549,6 @@ Parser::Parser(ParseInfo* info)
                       info->isolate()->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
-  set_allow_harmony_async_await(FLAG_harmony_async_await);
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
@@ -854,7 +853,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
     bool ok = true;
 
     if (IsArrowFunction(kind)) {
-      if (allow_harmony_async_await() && IsAsyncFunction(kind)) {
+      if (IsAsyncFunction(kind)) {
         DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
           CHECK(stack_overflow());
@@ -1233,7 +1232,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       break;
 
     case Token::ASYNC:
-      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+      if (PeekAhead() == Token::FUNCTION &&
           !scanner()->HasAnyLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         result = ParseAsyncFunctionDeclaration(&local_names, true, CHECK_OK);
@@ -1366,14 +1365,11 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       break;
 
     case Token::ASYNC:
-      if (allow_harmony_async_await()) {
-        // TODO(neis): Why don't we have the same check here as in
-        // ParseStatementListItem?
-        Consume(Token::ASYNC);
-        result = ParseAsyncFunctionDeclaration(&names, false, CHECK_OK);
-        break;
-      }
-    /* falls through */
+      // TODO(neis): Why don't we have the same check here as in
+      // ParseStatementListItem?
+      Consume(Token::ASYNC);
+      result = ParseAsyncFunctionDeclaration(&names, false, CHECK_OK);
+      break;
 
     default:
       *ok = false;
@@ -2751,7 +2747,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_sent);
-    SET_ALLOW(harmony_async_await);
     SET_ALLOW(harmony_trailing_commas);
     SET_ALLOW(harmony_class_fields);
     SET_ALLOW(harmony_object_spread);

@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --turbo
-
 var Debug = debug.Debug;
 var step_count = 0;
 
@@ -23,11 +21,29 @@ function listener(event, execState, eventData, data) {
 
 Debug.setListener(listener);
 
+var late_resolve;
+
+function g() {
+  return new Promise(
+    function(res, rej) {
+      late_resolve = res;
+    }
+  );
+}
+
 async function f() {
   var a = 1;
-  debugger;          // B0 StepNext
-  print(1);          // B1 StepNext
-  return a;          // B2 StepNext
-}                    // B3 Continue
+  debugger;        // B0 StepNext
+  a +=             // B1 StepNext
+       await       // B3 StepNext
+             g();  // B2 StepNext
+  return a;        // B4 StepNext
+}                  // B5 Continue
 
 f();
+
+late_resolve(3);
+
+%RunMicrotasks();
+
+assertEquals(6, step_count);
