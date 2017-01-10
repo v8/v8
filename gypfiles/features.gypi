@@ -64,9 +64,6 @@
     # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
     'v8_imminent_deprecation_warnings%': 0,
 
-    # Allow the embedder to add a custom suffix to the version string.
-    'v8_embedder_string%': '',
-
     # Set to 1 to enable DCHECKs in release builds.
     'dcheck_always_on%': 0,
 
@@ -107,9 +104,6 @@
       }],
       ['v8_use_snapshot=="true" and v8_use_external_startup_data==1', {
         'defines': ['V8_USE_EXTERNAL_STARTUP_DATA',],
-      }],
-      ['v8_embedder_string!=""', {
-        'defines': ['V8_EMBEDDER_STRING="<(v8_embedder_string)"',],
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DEBUG',],
