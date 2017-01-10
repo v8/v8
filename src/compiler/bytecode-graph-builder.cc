@@ -348,9 +348,10 @@ bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
   if (*state_values == nullptr) {
     return true;
   }
-  DCHECK_EQ((*state_values)->InputCount(), count);
+  Node::Inputs inputs = (*state_values)->inputs();
+  DCHECK_EQ(inputs.count(), count);
   for (int i = 0; i < count; i++) {
-    if ((*state_values)->InputAt(i) != values[i]) {
+    if (inputs[i] != values[i]) {
       return true;
     }
   }

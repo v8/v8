@@ -145,20 +145,27 @@ Reduction BranchElimination::ReduceLoop(Node* node) {
 Reduction BranchElimination::ReduceMerge(Node* node) {
   // Shortcut for the case when we do not know anything about some
   // input.
-  for (Node* input : node->inputs()) {
+  Node::Inputs inputs = node->inputs();
+  for (Node* input : inputs) {
     if (node_conditions_.Get(input) == nullptr) {
       return UpdateConditions(node, nullptr);
     }
   }
 
-  const ControlPathConditions* first = node_conditions_.Get(node->InputAt(0));
+  auto input_it = inputs.begin();
+
+  DCHECK_GT(inputs.count(), 0);
+
+  const ControlPathConditions* first = node_conditions_.Get(*input_it);
+  ++input_it;
   // Make a copy of the first input's conditions and merge with the conditions
   // from other inputs.
   ControlPathConditions* conditions =
       new (zone_->New(sizeof(ControlPathConditions)))
           ControlPathConditions(*first);
-  for (int i = 1; i < node->InputCount(); i++) {
-    conditions->Merge(*(node_conditions_.Get(node->InputAt(i))));
+  auto input_end = inputs.end();
+  for (; input_it != input_end; ++input_it) {
+    conditions->Merge(*(node_conditions_.Get(*input_it)));
   }
 
   return UpdateConditions(node, conditions);

@@ -115,25 +115,21 @@ void GraphReducer::ReduceTop() {
 
   if (node->IsDead()) return Pop();  // Node was killed while on stack.
 
-  // Recurse on an input if necessary.
-  int start = entry.input_index < node->InputCount() ? entry.input_index : 0;
-
   Node::Inputs node_inputs = node->inputs();
-  auto node_inputs_begin = node_inputs.begin();
-  auto node_inputs_end = node_inputs.end();
-  DCHECK(node_inputs_end == node_inputs_begin + node->InputCount());
 
-  for (auto it = node_inputs_begin + start; it != node_inputs_end; ++it) {
-    Node* input = *it;
+  // Recurse on an input if necessary.
+  int start = entry.input_index < node_inputs.count() ? entry.input_index : 0;
+  for (int i = start; i < node_inputs.count(); ++i) {
+    Node* input = node_inputs[i];
     if (input != node && Recurse(input)) {
-      entry.input_index = (it - node_inputs_begin) + 1;
+      entry.input_index = i + 1;
       return;
     }
   }
-  for (auto it = node_inputs_begin; it != node_inputs_begin + start; ++it) {
-    Node* input = *it;
+  for (int i = 0; i < start; ++i) {
+    Node* input = node_inputs[i];
     if (input != node && Recurse(input)) {
-      entry.input_index = (it - node_inputs_begin) + 1;
+      entry.input_index = i + 1;
       return;
     }
   }
@@ -152,12 +148,10 @@ void GraphReducer::ReduceTop() {
   if (replacement == node) {
     // In-place update of {node}, may need to recurse on an input.
     Node::Inputs node_inputs = node->inputs();
-    auto node_inputs_begin = node_inputs.begin();
-    auto node_inputs_end = node_inputs.end();
-    for (auto it = node_inputs_begin; it != node_inputs_end; ++it) {
-      Node* input = *it;
+    for (int i = 0; i < node_inputs.count(); ++i) {
+      Node* input = node_inputs[i];
       if (input != node && Recurse(input)) {
-        entry.input_index = (it - node_inputs_begin) + 1;
+        entry.input_index = i + 1;
         return;
       }
     }
