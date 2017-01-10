@@ -697,6 +697,11 @@ class RepresentationSelector {
            GetUpperBound(node->InputAt(1))->Is(type);
   }
 
+  bool IsNodeRepresentationTagged(Node* node) {
+    MachineRepresentation representation = GetInfo(node)->representation();
+    return IsAnyTagged(representation);
+  }
+
   bool OneInputCannotBe(Node* node, Type* type) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     return !GetUpperBound(node->InputAt(0))->Maybe(type) ||
@@ -1583,15 +1588,35 @@ class RepresentationSelector {
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         switch (hint) {
           case NumberOperationHint::kSignedSmall:
-          case NumberOperationHint::kSigned32:
-            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                       MachineRepresentation::kBit);
-            if (lower()) ChangeToPureOp(node, Int32Op(node));
+          case NumberOperationHint::kSigned32: {
+            if (propagate()) {
+              VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                         MachineRepresentation::kBit);
+            } else if (retype()) {
+              SetOutput(node, MachineRepresentation::kBit, Type::Any());
+            } else {
+              DCHECK(lower());
+              Node* lhs = node->InputAt(0);
+              Node* rhs = node->InputAt(1);
+              if (IsNodeRepresentationTagged(lhs) &&
+                  IsNodeRepresentationTagged(rhs)) {
+                VisitBinop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(
+                    node, changer_->TaggedSignedOperatorFor(node->opcode()));
+
+              } else {
+                VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(node, Int32Op(node));
+              }
+            }
             return;
+          }
           case NumberOperationHint::kNumberOrOddball:
             // Abstract and strict equality don't perform ToNumber conversions
-            // on Oddballs, so make sure we don't accidentially sneak in a hint
-            // with Oddball feedback here.
+            // on Oddballs, so make sure we don't accidentially sneak in a
+            // hint with Oddball feedback here.
             DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
           // Fallthrough
           case NumberOperationHint::kNumber:

@@ -817,6 +817,24 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
   }
 }
 
+const Operator* RepresentationChanger::TaggedSignedOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeNumberLessThan:
+      return machine()->Is32() ? machine()->Int32LessThan()
+                               : machine()->Int64LessThan();
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+      return machine()->Is32() ? machine()->Int32LessThanOrEqual()
+                               : machine()->Int64LessThanOrEqual();
+    case IrOpcode::kSpeculativeNumberEqual:
+      return machine()->Is32() ? machine()->Word32Equal()
+                               : machine()->Word64Equal();
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
+
 const Operator* RepresentationChanger::Uint32OperatorFor(
     IrOpcode::Value opcode) {
   switch (opcode) {
