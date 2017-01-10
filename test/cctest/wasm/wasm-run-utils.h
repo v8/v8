@@ -720,8 +720,6 @@ class WasmRunner : public WasmRunnerBase {
     if (interpret()) return CallInterpreter(p...);
 
     // Use setjmp/longjmp to deal with traps in WebAssembly code.
-    // Make the return value volatile, to give defined semantics if accessed
-    // after setjmp.
     ReturnType return_value = static_cast<ReturnType>(0xdeadbeefdeadbeef);
     static int setjmp_ret;
     setjmp_ret = setjmp(WasmRunnerBase::jump_buffer);
