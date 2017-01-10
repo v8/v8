@@ -4241,6 +4241,60 @@ void Assembler::vmul(NeonSize size, QwNeonRegister dst,
        n * B7 | B6 | m * B5 | B4 | vm);
 }
 
+void Assembler::vrecpe(const QwNeonRegister dst, const QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vadd(Qn, Qm) SIMD reciprocal estimate.
+  // Instruction details available in ARM DDI 0406C.b, A8-1024.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(0x1E7U * B23 | d * B22 | 0x3B * B16 | vd * B12 | 0x5 * B8 | B6 | m * B5 |
+       vm);
+}
+
+void Assembler::vrsqrte(const QwNeonRegister dst, const QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vadd(Qn, Qm) SIMD reciprocal square root estimate.
+  // Instruction details available in ARM DDI 0406C.b, A8-1038.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vm, m;
+  src.split_code(&vm, &m);
+  emit(0x1E7U * B23 | d * B22 | 0x3B * B16 | vd * B12 | 0x5 * B8 | 0x3 * B6 |
+       m * B5 | vm);
+}
+
+void Assembler::vrecps(const QwNeonRegister dst, const QwNeonRegister src1,
+                       const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vadd(Qn, Qm) SIMD reciprocal refinement step.
+  // Instruction details available in ARM DDI 0406C.b, A8-1026.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(0x1E4U * B23 | d * B22 | vn * B16 | vd * B12 | 0xF * B8 | n * B7 | B6 |
+       m * B5 | B4 | vm);
+}
+
+void Assembler::vrsqrts(const QwNeonRegister dst, const QwNeonRegister src1,
+                        const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vadd(Qn, Qm) SIMD reciprocal square root refinement step.
+  // Instruction details available in ARM DDI 0406C.b, A8-1040.
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  emit(0x1E4U * B23 | d * B22 | B21 | vn * B16 | vd * B12 | 0xF * B8 | n * B7 |
+       B6 | m * B5 | B4 | vm);
+}
+
 void Assembler::vtst(NeonSize size, QwNeonRegister dst,
                      const QwNeonRegister src1, const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));

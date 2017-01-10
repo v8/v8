@@ -1289,6 +1289,7 @@ TEST(15) {
     uint32_t vadd8[4], vadd16[4], vadd32[4];
     uint32_t vsub8[4], vsub16[4], vsub32[4];
     uint32_t vmul8[4], vmul16[4], vmul32[4];
+    float vrecpe[4], vrecps[4], vrsqrte[4], vrsqrts[4];
     uint32_t vtst[4], vceq[4], vceqf[4], vbsl[4];
     uint32_t vext[4];
     uint32_t vzip8a[4], vzip8b[4], vzip16a[4], vzip16b[4], vzip32a[4],
@@ -1481,6 +1482,34 @@ TEST(15) {
     __ vdup(q1, s4);
     __ vmul(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmulf))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrecpe.
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vrecpe(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrecpe))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrecps.
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 1.5);
+    __ vdup(q1, s4);
+    __ vrecps(q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrecps))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrsqrte.
+    __ vmov(s4, 4.0);
+    __ vdup(q0, s4);
+    __ vrsqrte(q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrsqrte))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vrsqrts.
+    __ vmov(s4, 2.0);
+    __ vdup(q0, s4);
+    __ vmov(s4, 2.5);
+    __ vdup(q1, s4);
+    __ vrsqrts(q1, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vrsqrts))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
     // vceq (float).
     __ vmov(s4, 1.0);
@@ -1750,6 +1779,10 @@ TEST(15) {
     CHECK_EQ_SPLAT(vaddf, 2.0);
     CHECK_EQ_SPLAT(vsubf, -1.0);
     CHECK_EQ_SPLAT(vmulf, 4.0);
+    CHECK_EQ_SPLAT(vrecpe, 0.5f);    // 1 / 2
+    CHECK_EQ_SPLAT(vrecps, -1.0f);   // 2 - (2 * 1.5)
+    CHECK_EQ_SPLAT(vrsqrte, 0.5f);   // 1 / sqrt(4)
+    CHECK_EQ_SPLAT(vrsqrts, -1.0f);  // (3 - (2 * 2.5)) / 2
     CHECK_EQ_SPLAT(vceqf, 0xffffffffu);
     CHECK_EQ_SPLAT(vadd8, 0x03030303u);
     CHECK_EQ_SPLAT(vadd16, 0x00030003u);

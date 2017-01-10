@@ -1899,6 +1899,15 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         // vceq.f32 Qd, Qm, Qn.
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xf &&
+                 instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = instr->Bit(21) == 0 ? "vrecps" : "vrsqrts";
+        // vrecps/vrsqrts.f32 Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
       } else {
         Unknown(instr);
       }
@@ -2081,6 +2090,13 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
           } else {
             Unknown(instr);
           }
+        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5) {
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          const char* op = instr->Bit(7) == 0 ? "vrecpe" : "vrsqrte";
+          // vrecpe/vrsqrte.f32 Qd, Qm.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "%s.f32 q%d, q%d", op, Vd, Vm);
         } else {
           Unknown(instr);
         }

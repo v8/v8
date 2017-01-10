@@ -1049,6 +1049,14 @@ TEST(Neon) {
               "f2142970       vmul.i16 q1, q2, q8");
       COMPARE(vmul(Neon32, q15, q0, q8),
               "f260e970       vmul.i32 q15, q0, q8");
+      COMPARE(vrecpe(q15, q0),
+              "f3fbe540       vrecpe.f32 q15, q0");
+      COMPARE(vrecps(q15, q0, q8),
+              "f240ef70       vrecps.f32 q15, q0, q8");
+      COMPARE(vrsqrte(q15, q0),
+              "f3fbe5c0       vrsqrte.f32 q15, q0");
+      COMPARE(vrsqrts(q15, q0, q8),
+              "f260ef70       vrsqrts.f32 q15, q0, q8");
       COMPARE(vtst(Neon8, q0, q1, q2),
               "f2020854       vtst.i8 q0, q1, q2");
       COMPARE(vtst(Neon16, q1, q2, q8),

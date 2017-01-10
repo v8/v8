@@ -3993,7 +3993,26 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           dst[i] = (src1[i] == src2[i]) ? 0xFFFFFFFF : 0;
         }
         set_q_register(Vd, dst);
-
+      } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xf &&
+                 instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        float src1[4], src2[4];
+        get_q_register(Vn, src1);
+        get_q_register(Vm, src2);
+        if (instr->Bit(21) == 0) {
+          // vrecps.f32 Qd, Qm, Qn.
+          for (int i = 0; i < 4; i++) {
+            src1[i] = 2.0f - src1[i] * src2[i];
+          }
+        } else {
+          // vrsqrts.f32 Qd, Qm, Qn.
+          for (int i = 0; i < 4; i++) {
+            src1[i] = (3.0f - src1[i] * src2[i]) * 0.5f;
+          }
+        }
+        set_q_register(Vd, src1);
       } else {
         UNIMPLEMENTED();
       }
@@ -4526,6 +4545,30 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           } else {
             UNIMPLEMENTED();
           }
+        } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5) {
+          // vrecpe/vrsqrte.f32 Qd, Qm.
+          int Vd = instr->VFPDRegValue(kSimd128Precision);
+          int Vm = instr->VFPMRegValue(kSimd128Precision);
+          uint32_t src[4];
+          get_q_register(Vm, src);
+          if (instr->Bit(7) == 0) {
+            for (int i = 0; i < 4; i++) {
+              float denom = bit_cast<float>(src[i]);
+              div_zero_vfp_flag_ = (denom == 0);
+              float result = 1.0f / denom;
+              result = canonicalizeNaN(result);
+              src[i] = bit_cast<uint32_t>(result);
+            }
+          } else {
+            lazily_initialize_fast_sqrt(isolate_);
+            for (int i = 0; i < 4; i++) {
+              float radicand = bit_cast<float>(src[i]);
+              float result = 1.0f / fast_sqrt(radicand, isolate_);
+              result = canonicalizeNaN(result);
+              src[i] = bit_cast<uint32_t>(result);
+            }
+          }
+          set_q_register(Vd, src);
         } else {
           UNIMPLEMENTED();
         }
