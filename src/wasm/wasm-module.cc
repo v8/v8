@@ -1764,7 +1764,7 @@ class WasmInstanceBuilder {
     }
 
     Handle<JSObject> exports_object = instance;
-    if (module_->export_table.size() > 0 && module_->origin == kWasmOrigin) {
+    if (module_->origin == kWasmOrigin) {
       // Create the "exports" object.
       Handle<JSFunction> object_function = Handle<JSFunction>(
           isolate_->native_context()->object_function(), isolate_);
