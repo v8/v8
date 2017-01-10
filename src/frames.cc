@@ -1529,15 +1529,10 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   Script* script = this->script();
   accumulator->PrintName(script->name());
   int pc = static_cast<int>(this->pc() - LookupCode()->instruction_start());
-  Vector<const uint8_t> raw_func_name;
-  Object* instance_or_undef = this->wasm_instance();
-  if (instance_or_undef->IsUndefined(this->isolate())) {
-    raw_func_name = STATIC_CHAR_VECTOR("<undefined>");
-  } else {
-    raw_func_name = WasmInstanceObject::cast(instance_or_undef)
-                        ->compiled_module()
-                        ->GetRawFunctionName(this->function_index());
-  }
+  Object* instance = this->wasm_instance();
+  Vector<const uint8_t> raw_func_name =
+      WasmInstanceObject::cast(instance)->compiled_module()->GetRawFunctionName(
+          this->function_index());
   const int kMaxPrintedFunctionName = 64;
   char func_name[kMaxPrintedFunctionName + 1];
   int func_name_len = std::min(kMaxPrintedFunctionName, raw_func_name.length());
