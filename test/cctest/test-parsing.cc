@@ -8692,12 +8692,17 @@ TEST(NoPessimisticContextAllocation) {
       {"function inner() { for (let {y, x: my_var} of []) { } my_var; }", true},
       {"function inner() { for (let {a, my_var} in {}) { } my_var; }", true},
       {"function inner() { for (let {a, my_var} of []) { } my_var; }", true},
+      {"function inner() { for (let my_var = 0; my_var < 1; ++my_var) { } "
+       "my_var }",
+       true},
       // No pessimistic context allocation:
       {"function inner() { var my_var; my_var; }", false},
       {"function inner() { var my_var; }", false},
+      {"function inner() { var my_var = 0; }", false},
       {"function inner() { if (true) { var my_var; } my_var; }", false},
       {"function inner() { let my_var; my_var; }", false},
       {"function inner() { let my_var; }", false},
+      {"function inner() { let my_var = 0; }", false},
       {"function inner() { const my_var = 0; my_var; }", false},
       {"function inner() { const my_var = 0; }", false},
       {"function inner() { var [a, my_var] = [1, 2]; my_var; }", false},
@@ -8870,6 +8875,9 @@ TEST(NoPessimisticContextAllocation) {
        false},
       {"function inner() { for (var my_var = 0; my_var < 1; ++my_var) { my_var "
        "} }",
+       false},
+      {"function inner() { for (var my_var = 0; my_var < 1; ++my_var) { } "
+       "my_var }",
        false},
       {"function inner() { for (let a = 0, my_var = 0; my_var < 1; ++my_var) { "
        "my_var } }",
