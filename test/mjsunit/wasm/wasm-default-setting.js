@@ -2,5 +2,4 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(titzer): remove this test when WASM ships.
-assertThrows(function() { var g = Wasm; });
+assertEquals("function", typeof WebAssembly.Module);
