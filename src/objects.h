@@ -6059,17 +6059,19 @@ class Map: public HeapObject {
   MUST_USE_RESULT static Handle<FieldType> GeneralizeFieldType(
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);
-  static void GeneralizeFieldType(Handle<Map> map, int modify_index,
-                                  Representation new_representation,
-                                  Handle<FieldType> new_field_type);
+  static void GeneralizeField(Handle<Map> map, int modify_index,
+                              Representation new_representation,
+                              Handle<FieldType> new_field_type);
 
-  static inline Handle<Map> ReconfigureProperty(
-      Handle<Map> map, int modify_index, PropertyKind new_kind,
-      PropertyAttributes new_attributes, Representation new_representation,
-      Handle<FieldType> new_field_type, StoreMode store_mode);
+  static Handle<Map> ReconfigureProperty(Handle<Map> map, int modify_index,
+                                         PropertyKind new_kind,
+                                         PropertyAttributes new_attributes,
+                                         Representation new_representation,
+                                         Handle<FieldType> new_field_type,
+                                         StoreMode store_mode);
 
-  static inline Handle<Map> ReconfigureElementsKind(
-      Handle<Map> map, ElementsKind new_elements_kind);
+  static Handle<Map> ReconfigureElementsKind(Handle<Map> map,
+                                             ElementsKind new_elements_kind);
 
   static Handle<Map> PrepareForDataProperty(Handle<Map> old_map,
                                             int descriptor_number,
@@ -6191,6 +6193,8 @@ class Map: public HeapObject {
   static Handle<Map> CopyInsertDescriptor(Handle<Map> map,
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
+
+  static Handle<Object> WrapType(Handle<FieldType> type);
 
   MUST_USE_RESULT static MaybeHandle<Map> CopyWithField(
       Handle<Map> map, Handle<Name> name, Handle<FieldType> type,
@@ -6504,14 +6508,7 @@ class Map: public HeapObject {
   static Handle<Map> CopyNormalized(Handle<Map> map,
                                     PropertyNormalizationMode mode);
 
-  static Handle<Map> Reconfigure(Handle<Map> map,
-                                 ElementsKind new_elements_kind,
-                                 int modify_index, PropertyKind new_kind,
-                                 PropertyAttributes new_attributes,
-                                 Representation new_representation,
-                                 Handle<FieldType> new_field_type,
-                                 StoreMode store_mode);
-
+  // TODO(ishell): Move to MapUpdater.
   static Handle<Map> CopyGeneralizeAllRepresentations(
       Handle<Map> map, ElementsKind elements_kind, int modify_index,
       StoreMode store_mode, PropertyKind kind, PropertyAttributes attributes,
@@ -6528,8 +6525,6 @@ class Map: public HeapObject {
                           LayoutDescriptor* new_layout_descriptor);
 
 
-  Map* FindLastMatchMap(int verbatim, int length, DescriptorArray* descriptors);
-
   // Update field type of the given descriptor to new representation and new
   // type. The type must be prepared for storing in descriptor array:
   // it must be either a simple type or a map wrapped in a weak cell.
@@ -6537,8 +6532,10 @@ class Map: public HeapObject {
                        Representation new_representation,
                        Handle<Object> new_wrapped_type);
 
+  // TODO(ishell): Move to MapUpdater.
   void PrintReconfiguration(FILE* file, int modify_index, PropertyKind kind,
                             PropertyAttributes attributes);
+  // TODO(ishell): Move to MapUpdater.
   void PrintGeneralization(FILE* file, const char* reason, int modify_index,
                            int split, int descriptors, bool constant_to_field,
                            Representation old_representation,
@@ -6547,9 +6544,10 @@ class Map: public HeapObject {
                            MaybeHandle<Object> old_value,
                            MaybeHandle<FieldType> new_field_type,
                            MaybeHandle<Object> new_value);
-
   static const int kFastPropertiesSoftLimit = 12;
   static const int kMaxFastProperties = 128;
+
+  friend class MapUpdater;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };

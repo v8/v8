@@ -1060,6 +1060,8 @@
         'lookup-cache.h',
         'lookup.cc',
         'lookup.h',
+        'map-updater.cc',
+        'map-updater.h',
         'macro-assembler.h',
         'machine-type.cc',
         'machine-type.h',

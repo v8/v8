@@ -254,7 +254,7 @@ class PropertyDetails BASE_EMBEDDED {
         | FieldIndexField::encode(field_index);
   }
 
-  PropertyDetails(PropertyAttributes attributes, PropertyKind kind,
+  PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyLocation location, Representation representation,
                   int field_index = 0) {
     value_ = KindField::encode(kind) | LocationField::encode(location) |

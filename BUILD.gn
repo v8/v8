@@ -1539,6 +1539,8 @@ v8_source_set("v8_base") {
     "src/machine-type.cc",
     "src/machine-type.h",
     "src/macro-assembler.h",
+    "src/map-updater.cc",
+    "src/map-updater.h",
     "src/messages.cc",
     "src/messages.h",
     "src/msan.h",

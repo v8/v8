@@ -49,6 +49,7 @@
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
+#include "src/map-updater.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/property-descriptor.h"
@@ -3326,7 +3327,7 @@ Context* JSReceiver::GetCreationContext() {
   return function->context()->native_context();
 }
 
-static Handle<Object> WrapType(Handle<FieldType> type) {
+Handle<Object> Map::WrapType(Handle<FieldType> type) {
   if (type->IsClass()) return Map::WeakCellForMap(type->AsClass());
   return type;
 }
@@ -3969,13 +3970,6 @@ void Map::DeprecateTransitionTree() {
 }
 
 
-static inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
-  if (obj1 == obj2) return true;  // Valid for both kData and kAccessor kinds.
-  // TODO(ishell): compare AccessorPairs.
-  return false;
-}
-
-
 // Installs |new_descriptors| over the current instance_descriptors to ensure
 // proper sharing of descriptor arrays.
 void Map::ReplaceDescriptors(DescriptorArray* new_descriptors,
@@ -4015,47 +4009,6 @@ Map* Map::FindRootMap() {
     }
     result = Map::cast(back);
   }
-}
-
-
-Map* Map::FindLastMatchMap(int verbatim,
-                           int length,
-                           DescriptorArray* descriptors) {
-  DisallowHeapAllocation no_allocation;
-
-  // This can only be called on roots of transition trees.
-  DCHECK_EQ(verbatim, NumberOfOwnDescriptors());
-
-  Map* current = this;
-
-  for (int i = verbatim; i < length; i++) {
-    Name* name = descriptors->GetKey(i);
-    PropertyDetails details = descriptors->GetDetails(i);
-    Map* next = TransitionArray::SearchTransition(current, details.kind(), name,
-                                                  details.attributes());
-    if (next == NULL) break;
-    DescriptorArray* next_descriptors = next->instance_descriptors();
-
-    PropertyDetails next_details = next_descriptors->GetDetails(i);
-    DCHECK_EQ(details.kind(), next_details.kind());
-    DCHECK_EQ(details.attributes(), next_details.attributes());
-    if (details.location() != next_details.location()) break;
-    if (!details.representation().Equals(next_details.representation())) break;
-
-    if (next_details.location() == kField) {
-      FieldType* next_field_type = next_descriptors->GetFieldType(i);
-      if (!descriptors->GetFieldType(i)->NowIs(next_field_type)) {
-        break;
-      }
-    } else {
-      if (!EqualImmutableValues(descriptors->GetValue(i),
-                                next_descriptors->GetValue(i))) {
-        break;
-      }
-    }
-    current = next;
-  }
-  return current;
 }
 
 
@@ -4139,9 +4092,9 @@ Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
 
 
 // static
-void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
-                              Representation new_representation,
-                              Handle<FieldType> new_field_type) {
+void Map::GeneralizeField(Handle<Map> map, int modify_index,
+                          Representation new_representation,
+                          Handle<FieldType> new_field_type) {
   Isolate* isolate = map->GetIsolate();
 
   // Check if we actually need to generalize the field type at all.
@@ -4156,8 +4109,8 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
       // Checking old_field_type for being cleared is not necessary because
       // the NowIs check below would fail anyway in that case.
       new_field_type->NowIs(old_field_type)) {
-    DCHECK(Map::GeneralizeFieldType(old_representation, old_field_type,
-                                    new_representation, new_field_type, isolate)
+    DCHECK(GeneralizeFieldType(old_representation, old_field_type,
+                               new_representation, new_field_type, isolate)
                ->NowIs(old_field_type));
     return;
   }
@@ -4190,579 +4143,41 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
   }
 }
 
-static inline Handle<FieldType> GetFieldType(
-    Isolate* isolate, Handle<DescriptorArray> descriptors, int descriptor,
-    PropertyLocation location, Representation representation) {
-#ifdef DEBUG
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-  DCHECK_EQ(kData, details.kind());
-  DCHECK_EQ(details.location(), location);
-#endif
-  if (location == kField) {
-    return handle(descriptors->GetFieldType(descriptor), isolate);
-  } else {
-    return descriptors->GetValue(descriptor)
-        ->OptimalType(isolate, representation);
-  }
+// TODO(ishell): remove.
+// static
+Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
+                                     PropertyKind new_kind,
+                                     PropertyAttributes new_attributes,
+                                     Representation new_representation,
+                                     Handle<FieldType> new_field_type,
+                                     StoreMode store_mode) {
+  DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
+  MapUpdater mu(map->GetIsolate(), map);
+  return mu.ReconfigureToDataField(modify_index, new_attributes,
+                                   new_representation, new_field_type);
 }
 
-// Reconfigures elements kind to |new_elements_kind| and/or property at
-// |modify_index| with |new_kind|, |new_attributes|, |store_mode| and/or
-// |new_representation|/|new_field_type|.
-// If |modify_index| is negative then no properties are reconfigured but the
-// map is migrated to the up-to-date non-deprecated state.
-//
-// This method rewrites or completes the transition tree to reflect the new
-// change. To avoid high degrees over polymorphism, and to stabilize quickly,
-// on every rewrite the new type is deduced by merging the current type with
-// any potential new (partial) version of the type in the transition tree.
-// To do this, on each rewrite:
-// - Search the root of the transition tree using FindRootMap.
-// - Find/create a |root_map| with requested |new_elements_kind|.
-// - Find |target_map|, the newest matching version of this map using the
-//   virtually "enhanced" |old_map|'s descriptor array (i.e. whose entry at
-//   |modify_index| is considered to be of |new_kind| and having
-//   |new_attributes|) to walk the transition tree.
-// - Merge/generalize the "enhanced" descriptor array of the |old_map| and
-//   descriptor array of the |target_map|.
-// - Generalize the |modify_index| descriptor using |new_representation| and
-//   |new_field_type|.
-// - Walk the tree again starting from the root towards |target_map|. Stop at
-//   |split_map|, the first map who's descriptor array does not match the merged
-//   descriptor array.
-// - If |target_map| == |split_map|, |target_map| is in the expected state.
-//   Return it.
-// - Otherwise, invalidate the outdated transition target from |target_map|, and
-//   replace its transition tree with a new branch for the updated descriptors.
-Handle<Map> Map::Reconfigure(Handle<Map> old_map,
-                             ElementsKind new_elements_kind, int modify_index,
-                             PropertyKind new_kind,
-                             PropertyAttributes new_attributes,
-                             Representation new_representation,
-                             Handle<FieldType> new_field_type,
-                             StoreMode store_mode) {
-  DCHECK_NE(kAccessor, new_kind);  // TODO(ishell): not supported yet.
-  DCHECK(store_mode != FORCE_FIELD || modify_index >= 0);
-  Isolate* isolate = old_map->GetIsolate();
-
-  Handle<DescriptorArray> old_descriptors(
-      old_map->instance_descriptors(), isolate);
-  int old_nof = old_map->NumberOfOwnDescriptors();
-
-  // If it's just a representation generalization case (i.e. property kind and
-  // attributes stays unchanged) it's fine to transition from None to anything
-  // but double without any modification to the object, because the default
-  // uninitialized value for representation None can be overwritten by both
-  // smi and tagged values. Doubles, however, would require a box allocation.
-  if (modify_index >= 0 && !new_representation.IsNone() &&
-      !new_representation.IsDouble() &&
-      old_map->elements_kind() == new_elements_kind) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    Representation old_representation = old_details.representation();
-
-    if (old_representation.IsNone()) {
-      DCHECK_EQ(new_kind, old_details.kind());
-      DCHECK_EQ(new_attributes, old_details.attributes());
-      DCHECK_EQ(DATA, old_details.type());
-      if (FLAG_trace_generalization) {
-        old_map->PrintGeneralization(
-            stdout, "uninitialized field", modify_index,
-            old_map->NumberOfOwnDescriptors(),
-            old_map->NumberOfOwnDescriptors(), false, old_representation,
-            new_representation,
-            handle(old_descriptors->GetFieldType(modify_index), isolate),
-            MaybeHandle<Object>(), new_field_type, MaybeHandle<Object>());
-      }
-      Handle<Map> field_owner(old_map->FindFieldOwner(modify_index), isolate);
-
-      GeneralizeFieldType(field_owner, modify_index, new_representation,
-                          new_field_type);
-      DCHECK(old_descriptors->GetDetails(modify_index)
-                 .representation()
-                 .Equals(new_representation));
-      DCHECK(
-          old_descriptors->GetFieldType(modify_index)->NowIs(new_field_type));
-      return old_map;
-    }
-  }
-
-  // Check the state of the root map.
-  Handle<Map> root_map(old_map->FindRootMap(), isolate);
-  if (!old_map->EquivalentToForTransition(*root_map)) {
-    return CopyGeneralizeAllRepresentations(
-        old_map, new_elements_kind, modify_index, store_mode, new_kind,
-        new_attributes, "GenAll_NotEquivalent");
-  }
-
-  ElementsKind from_kind = root_map->elements_kind();
-  ElementsKind to_kind = new_elements_kind;
-  // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
-  if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
-      to_kind != SLOW_STRING_WRAPPER_ELEMENTS &&
-      to_kind != SLOW_SLOPPY_ARGUMENTS_ELEMENTS &&
-      !(IsTransitionableFastElementsKind(from_kind) &&
-        IsMoreGeneralElementsKindTransition(from_kind, to_kind))) {
-    return CopyGeneralizeAllRepresentations(
-        old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-        "GenAll_InvalidElementsTransition");
-  }
-  int root_nof = root_map->NumberOfOwnDescriptors();
-  if (modify_index >= 0 && modify_index < root_nof) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    if (old_details.kind() != new_kind ||
-        old_details.attributes() != new_attributes) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_RootModification1");
-    }
-    if ((old_details.type() != DATA && store_mode == FORCE_FIELD) ||
-        (old_details.type() == DATA &&
-         (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
-          !new_representation.fits_into(old_details.representation())))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_RootModification2");
-    }
-  }
-
-  // From here on, use the map with correct elements kind as root map.
-  if (from_kind != to_kind) {
-    root_map = Map::AsElementsKind(root_map, to_kind);
-  }
-
-  Handle<Map> target_map = root_map;
-  for (int i = root_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyKind next_kind;
-    PropertyLocation next_location;
-    PropertyAttributes next_attributes;
-    Representation next_representation;
-    bool property_kind_reconfiguration = false;
-
-    if (modify_index == i) {
-      DCHECK_EQ(FORCE_FIELD, store_mode);
-      property_kind_reconfiguration = old_details.kind() != new_kind;
-
-      next_kind = new_kind;
-      next_location = kField;
-      next_attributes = new_attributes;
-      // If property kind is not reconfigured merge the result with
-      // representation/field type from the old descriptor.
-      next_representation = new_representation;
-      if (!property_kind_reconfiguration) {
-        next_representation =
-            next_representation.generalize(old_details.representation());
-      }
-
-    } else {
-      next_kind = old_details.kind();
-      next_location = old_details.location();
-      next_attributes = old_details.attributes();
-      next_representation = old_details.representation();
-    }
-    Map* transition = TransitionArray::SearchTransition(
-        *target_map, next_kind, old_descriptors->GetKey(i), next_attributes);
-    if (transition == NULL) break;
-    Handle<Map> tmp_map(transition, isolate);
-
-    Handle<DescriptorArray> tmp_descriptors = handle(
-        tmp_map->instance_descriptors(), isolate);
-
-    // Check if target map is incompatible.
-    PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    DCHECK_EQ(next_kind, tmp_details.kind());
-    DCHECK_EQ(next_attributes, tmp_details.attributes());
-    if (next_kind == kAccessor &&
-        !EqualImmutableValues(old_descriptors->GetValue(i),
-                              tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_Incompatible");
-    }
-    if (next_location == kField && tmp_details.location() == kDescriptor) break;
-
-    Representation tmp_representation = tmp_details.representation();
-    if (!next_representation.fits_into(tmp_representation)) break;
-
-    PropertyLocation old_location = old_details.location();
-    PropertyLocation tmp_location = tmp_details.location();
-    if (tmp_location == kField) {
-      if (next_kind == kData) {
-        Handle<FieldType> next_field_type;
-        if (modify_index == i) {
-          next_field_type = new_field_type;
-          if (!property_kind_reconfiguration) {
-            Handle<FieldType> old_field_type =
-                GetFieldType(isolate, old_descriptors, i,
-                             old_details.location(), tmp_representation);
-            Representation old_representation = old_details.representation();
-            next_field_type = GeneralizeFieldType(
-                old_representation, old_field_type, new_representation,
-                next_field_type, isolate);
-          }
-        } else {
-          Handle<FieldType> old_field_type =
-              GetFieldType(isolate, old_descriptors, i, old_details.location(),
-                           tmp_representation);
-          next_field_type = old_field_type;
-        }
-        GeneralizeFieldType(tmp_map, i, tmp_representation, next_field_type);
-      }
-    } else if (old_location == kField ||
-               !EqualImmutableValues(old_descriptors->GetValue(i),
-                                     tmp_descriptors->GetValue(i))) {
-      break;
-    }
-    DCHECK(!tmp_map->is_deprecated());
-    target_map = tmp_map;
-  }
-
-  // Directly change the map if the target map is more general.
-  Handle<DescriptorArray> target_descriptors(
-      target_map->instance_descriptors(), isolate);
-  int target_nof = target_map->NumberOfOwnDescriptors();
-  if (target_nof == old_nof &&
-      (store_mode != FORCE_FIELD ||
-       (modify_index >= 0 &&
-        target_descriptors->GetDetails(modify_index).location() == kField))) {
-#ifdef DEBUG
-    if (modify_index >= 0) {
-      PropertyDetails details = target_descriptors->GetDetails(modify_index);
-      DCHECK_EQ(new_kind, details.kind());
-      DCHECK_EQ(new_attributes, details.attributes());
-      DCHECK(new_representation.fits_into(details.representation()));
-      DCHECK(details.location() != kField ||
-             new_field_type->NowIs(
-                 target_descriptors->GetFieldType(modify_index)));
-    }
-#endif
-    if (*target_map != *old_map) {
-      old_map->NotifyLeafMapLayoutChange();
-    }
-    return target_map;
-  }
-
-  // Find the last compatible target map in the transition tree.
-  for (int i = target_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyKind next_kind;
-    PropertyAttributes next_attributes;
-    if (modify_index == i) {
-      next_kind = new_kind;
-      next_attributes = new_attributes;
-    } else {
-      next_kind = old_details.kind();
-      next_attributes = old_details.attributes();
-    }
-    Map* transition = TransitionArray::SearchTransition(
-        *target_map, next_kind, old_descriptors->GetKey(i), next_attributes);
-    if (transition == NULL) break;
-    Handle<Map> tmp_map(transition, isolate);
-    Handle<DescriptorArray> tmp_descriptors(
-        tmp_map->instance_descriptors(), isolate);
-
-    // Check if target map is compatible.
-#ifdef DEBUG
-    PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    DCHECK_EQ(next_kind, tmp_details.kind());
-    DCHECK_EQ(next_attributes, tmp_details.attributes());
-#endif
-    if (next_kind == kAccessor &&
-        !EqualImmutableValues(old_descriptors->GetValue(i),
-                              tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_Incompatible");
-    }
-    DCHECK(!tmp_map->is_deprecated());
-    target_map = tmp_map;
-  }
-  target_nof = target_map->NumberOfOwnDescriptors();
-  target_descriptors = handle(target_map->instance_descriptors(), isolate);
-
-  // Allocate a new descriptor array large enough to hold the required
-  // descriptors, with minimally the exact same size as the old descriptor
-  // array.
-  int new_slack = Max(
-      old_nof, old_descriptors->number_of_descriptors()) - old_nof;
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::Allocate(
-      isolate, old_nof, new_slack);
-  DCHECK(new_descriptors->length() > target_descriptors->length() ||
-         new_descriptors->NumberOfSlackDescriptors() > 0 ||
-         new_descriptors->number_of_descriptors() ==
-         old_descriptors->number_of_descriptors());
-  DCHECK(new_descriptors->number_of_descriptors() == old_nof);
-
-  // 0 -> |root_nof|
-  int current_offset = 0;
-  for (int i = 0; i < root_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    if (old_details.location() == kField) {
-      current_offset += old_details.field_width_in_words();
-    }
-    Descriptor d(handle(old_descriptors->GetKey(i), isolate),
-                 handle(old_descriptors->GetValue(i), isolate),
-                 old_details);
-    new_descriptors->Set(i, &d);
-  }
-
-  // |root_nof| -> |target_nof|
-  for (int i = root_nof; i < target_nof; ++i) {
-    Handle<Name> target_key(target_descriptors->GetKey(i), isolate);
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyDetails target_details = target_descriptors->GetDetails(i);
-
-    PropertyKind next_kind;
-    PropertyAttributes next_attributes;
-    PropertyLocation next_location;
-    Representation next_representation;
-    bool property_kind_reconfiguration = false;
-
-    if (modify_index == i) {
-      DCHECK_EQ(FORCE_FIELD, store_mode);
-      property_kind_reconfiguration = old_details.kind() != new_kind;
-
-      next_kind = new_kind;
-      next_attributes = new_attributes;
-      next_location = kField;
-
-      // Merge new representation/field type with ones from the target
-      // descriptor. If property kind is not reconfigured merge the result with
-      // representation/field type from the old descriptor.
-      next_representation =
-          new_representation.generalize(target_details.representation());
-      if (!property_kind_reconfiguration) {
-        next_representation =
-            next_representation.generalize(old_details.representation());
-      }
-    } else {
-      // Merge old_descriptor and target_descriptor entries.
-      DCHECK_EQ(target_details.kind(), old_details.kind());
-      next_kind = target_details.kind();
-      next_attributes = target_details.attributes();
-      next_location =
-          old_details.location() == kField ||
-                  target_details.location() == kField ||
-                  !EqualImmutableValues(target_descriptors->GetValue(i),
-                                        old_descriptors->GetValue(i))
-              ? kField
-              : kDescriptor;
-
-      next_representation = old_details.representation().generalize(
-          target_details.representation());
-    }
-    DCHECK_EQ(next_kind, target_details.kind());
-    DCHECK_EQ(next_attributes, target_details.attributes());
-
-    if (next_location == kField) {
-      if (next_kind == kData) {
-        Handle<FieldType> target_field_type =
-            GetFieldType(isolate, target_descriptors, i,
-                         target_details.location(), next_representation);
-
-        Handle<FieldType> next_field_type;
-        if (modify_index == i) {
-          next_field_type = GeneralizeFieldType(
-              target_details.representation(), target_field_type,
-              new_representation, new_field_type, isolate);
-          if (!property_kind_reconfiguration) {
-            Handle<FieldType> old_field_type =
-                GetFieldType(isolate, old_descriptors, i,
-                             old_details.location(), next_representation);
-            next_field_type = GeneralizeFieldType(
-                old_details.representation(), old_field_type,
-                next_representation, next_field_type, isolate);
-          }
-        } else {
-          Handle<FieldType> old_field_type =
-              GetFieldType(isolate, old_descriptors, i, old_details.location(),
-                           next_representation);
-          next_field_type = GeneralizeFieldType(
-              old_details.representation(), old_field_type, next_representation,
-              target_field_type, isolate);
-        }
-        Handle<Object> wrapped_type(WrapType(next_field_type));
-        Descriptor d =
-            Descriptor::DataField(target_key, current_offset, wrapped_type,
-                                  next_attributes, next_representation);
-        current_offset += d.GetDetails().field_width_in_words();
-        new_descriptors->Set(i, &d);
-      } else {
-        UNIMPLEMENTED();  // TODO(ishell): implement.
-      }
-    } else {
-      PropertyDetails details(next_attributes, next_kind, next_location,
-                              next_representation);
-      Descriptor d(target_key, handle(target_descriptors->GetValue(i), isolate),
-                   details);
-      new_descriptors->Set(i, &d);
-    }
-  }
-
-  // |target_nof| -> |old_nof|
-  for (int i = target_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    Handle<Name> old_key(old_descriptors->GetKey(i), isolate);
-
-    // Merge old_descriptor entry and modified details together.
-    PropertyKind next_kind;
-    PropertyAttributes next_attributes;
-    PropertyLocation next_location;
-    Representation next_representation;
-    bool property_kind_reconfiguration = false;
-
-    if (modify_index == i) {
-      DCHECK_EQ(FORCE_FIELD, store_mode);
-      // In case of property kind reconfiguration it is not necessary to
-      // take into account representation/field type of the old descriptor.
-      property_kind_reconfiguration = old_details.kind() != new_kind;
-
-      next_kind = new_kind;
-      next_attributes = new_attributes;
-      next_location = kField;
-      next_representation = new_representation;
-      if (!property_kind_reconfiguration) {
-        next_representation =
-            next_representation.generalize(old_details.representation());
-      }
-    } else {
-      next_kind = old_details.kind();
-      next_attributes = old_details.attributes();
-      next_location = old_details.location();
-      next_representation = old_details.representation();
-    }
-
-    if (next_location == kField) {
-      if (next_kind == kData) {
-        Handle<FieldType> next_field_type;
-        if (modify_index == i) {
-          next_field_type = new_field_type;
-          if (!property_kind_reconfiguration) {
-            Handle<FieldType> old_field_type =
-                GetFieldType(isolate, old_descriptors, i,
-                             old_details.location(), next_representation);
-            next_field_type = GeneralizeFieldType(
-                old_details.representation(), old_field_type,
-                next_representation, next_field_type, isolate);
-          }
-        } else {
-          Handle<FieldType> old_field_type =
-              GetFieldType(isolate, old_descriptors, i, old_details.location(),
-                           next_representation);
-          next_field_type = old_field_type;
-        }
-
-        Handle<Object> wrapped_type(WrapType(next_field_type));
-
-        Descriptor d =
-            Descriptor::DataField(old_key, current_offset, wrapped_type,
-                                  next_attributes, next_representation);
-        current_offset += d.GetDetails().field_width_in_words();
-        new_descriptors->Set(i, &d);
-      } else {
-        UNIMPLEMENTED();  // TODO(ishell): implement.
-      }
-    } else {
-      PropertyDetails details(next_attributes, next_kind, next_location,
-                              next_representation);
-      Descriptor d(old_key, handle(old_descriptors->GetValue(i), isolate),
-                   details);
-      new_descriptors->Set(i, &d);
-    }
-  }
-
-  new_descriptors->Sort();
-
-  DCHECK(store_mode != FORCE_FIELD ||
-         new_descriptors->GetDetails(modify_index).location() == kField);
-
-  Handle<Map> split_map(root_map->FindLastMatchMap(
-          root_nof, old_nof, *new_descriptors), isolate);
-  int split_nof = split_map->NumberOfOwnDescriptors();
-  DCHECK_NE(old_nof, split_nof);
-
-  PropertyKind split_kind;
-  PropertyAttributes split_attributes;
-  if (modify_index == split_nof) {
-    split_kind = new_kind;
-    split_attributes = new_attributes;
-  } else {
-    PropertyDetails split_prop_details = old_descriptors->GetDetails(split_nof);
-    split_kind = split_prop_details.kind();
-    split_attributes = split_prop_details.attributes();
-  }
-
-  // Invalidate a transition target at |key|.
-  Map* maybe_transition = TransitionArray::SearchTransition(
-      *split_map, split_kind, old_descriptors->GetKey(split_nof),
-      split_attributes);
-  if (maybe_transition != NULL) {
-    maybe_transition->DeprecateTransitionTree();
-  }
-
-  // If |maybe_transition| is not NULL then the transition array already
-  // contains entry for given descriptor. This means that the transition
-  // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition == NULL &&
-      !TransitionArray::CanHaveMoreTransitions(split_map)) {
-    return CopyGeneralizeAllRepresentations(
-        old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-        "GenAll_CantHaveMoreTransitions");
-  }
-
-  old_map->NotifyLeafMapLayoutChange();
-
-  if (FLAG_trace_generalization && modify_index >= 0) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    PropertyDetails new_details = new_descriptors->GetDetails(modify_index);
-    MaybeHandle<FieldType> old_field_type;
-    MaybeHandle<FieldType> new_field_type;
-    MaybeHandle<Object> old_value;
-    MaybeHandle<Object> new_value;
-    if (old_details.type() == DATA) {
-      old_field_type =
-          handle(old_descriptors->GetFieldType(modify_index), isolate);
-    } else {
-      old_value = handle(old_descriptors->GetValue(modify_index), isolate);
-    }
-    if (new_details.type() == DATA) {
-      new_field_type =
-          handle(new_descriptors->GetFieldType(modify_index), isolate);
-    } else {
-      new_value = handle(new_descriptors->GetValue(modify_index), isolate);
-    }
-
-    old_map->PrintGeneralization(
-        stdout, "", modify_index, split_nof, old_nof,
-        old_details.location() == kDescriptor && store_mode == FORCE_FIELD,
-        old_details.representation(), new_details.representation(),
-        old_field_type, old_value, new_field_type, new_value);
-  }
-
-  Handle<LayoutDescriptor> new_layout_descriptor =
-      LayoutDescriptor::New(split_map, new_descriptors, old_nof);
-
-  Handle<Map> new_map =
-      AddMissingTransitions(split_map, new_descriptors, new_layout_descriptor);
-
-  // Deprecated part of the transition tree is no longer reachable, so replace
-  // current instance descriptors in the "survived" part of the tree with
-  // the new descriptors to maintain descriptors sharing invariant.
-  split_map->ReplaceDescriptors(*new_descriptors, *new_layout_descriptor);
-  return new_map;
+// TODO(ishell): remove.
+// static
+Handle<Map> Map::ReconfigureElementsKind(Handle<Map> map,
+                                         ElementsKind new_elements_kind) {
+  MapUpdater mu(map->GetIsolate(), map);
+  return mu.ReconfigureElementsKind(new_elements_kind);
 }
-
 
 // Generalize the representation of all DATA descriptors.
 Handle<Map> Map::GeneralizeAllFieldRepresentations(
     Handle<Map> map) {
+  Isolate* isolate = map->GetIsolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
   for (int i = 0; i < map->NumberOfOwnDescriptors(); ++i) {
     PropertyDetails details = descriptors->GetDetails(i);
     if (details.type() == DATA) {
-      map = ReconfigureProperty(map, i, kData, details.attributes(),
-                                Representation::Tagged(),
-                                FieldType::Any(map->GetIsolate()), FORCE_FIELD);
+      MapUpdater mu(isolate, map);
+      map = mu.ReconfigureToDataField(i, details.attributes(),
+                                      Representation::Tagged(), any_type);
     }
   }
   return map;
@@ -4869,9 +4284,8 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
 // static
 Handle<Map> Map::Update(Handle<Map> map) {
   if (!map->is_deprecated()) return map;
-  return ReconfigureProperty(map, -1, kData, NONE, Representation::None(),
-                             FieldType::None(map->GetIsolate()),
-                             ALLOW_IN_DESCRIPTOR);
+  MapUpdater mu(map->GetIsolate(), map);
+  return mu.Update();
 }
 
 Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
@@ -9718,8 +9132,9 @@ Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
   Representation representation = value->OptimalRepresentation();
   Handle<FieldType> type = value->OptimalType(isolate, representation);
 
-  return Map::ReconfigureProperty(map, descriptor, kData, attributes,
-                                  representation, type, FORCE_FIELD);
+  MapUpdater mu(isolate, map);
+  return mu.ReconfigureToDataField(descriptor, attributes, representation,
+                                   type);
 }
 
 }  // namespace
@@ -9812,9 +9227,11 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   }
 
   Isolate* isolate = map->GetIsolate();
-  Handle<Map> new_map = ReconfigureProperty(
-      map, descriptor, kind, attributes, Representation::None(),
-      FieldType::None(isolate), FORCE_FIELD);
+
+  MapUpdater mu(isolate, map);
+  DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
+  Handle<Map> new_map = mu.ReconfigureToDataField(
+      descriptor, attributes, Representation::None(), FieldType::None(isolate));
   return new_map;
 }
 
