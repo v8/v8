@@ -36,11 +36,6 @@ function PromiseCreate(parent) {
   return %promise_internal_constructor(parent);
 }
 
-// Only used by async-await.js
-function RejectPromise(promise, reason, debugEvent) {
-  %PromiseReject(promise, reason, debugEvent);
-}
-
 // Export to bindings
 function DoRejectPromise(promise, reason) {
   %PromiseReject(promise, reason, true);
@@ -173,10 +168,5 @@ utils.InstallFunctions(extrasUtils, 0, [
   "rejectPromise", DoRejectPromise,
   "markPromiseAsHandled", MarkPromiseAsHandled
 ]);
-
-utils.Export(function(to) {
-  to.PromiseCreate = PromiseCreate;
-  to.RejectPromise = RejectPromise;
-});
 
 })
