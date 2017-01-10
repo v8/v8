@@ -43,6 +43,9 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     // undefined, which will be interpreted by PromiseRejectEvent
     // as being a caught exception event.
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
+    isolate->debug()->OnAsyncTaskEvent(
+        debug::kDebugEnqueueRecurring,
+        isolate->debug()->NextAsyncTaskId(promise), kDebugPromiseReject);
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();
@@ -115,13 +118,10 @@ void SetDebugInfo(Isolate* isolate, Handle<PromiseReactionJobInfo> info,
   if (GetDebugIdForAsyncFunction(isolate, info, &id)) {
     name = kDebugAsyncFunction;
   } else {
-    id = isolate->GetNextDebugMicrotaskId();
-
+    id = isolate->debug()->NextAsyncTaskId(handle(info->promise(), isolate));
     DCHECK(status != v8::Promise::kPending);
     name = status == v8::Promise::kFulfilled ? kDebugPromiseResolve
                                              : kDebugPromiseReject;
-
-    isolate->debug()->OnAsyncTaskEvent(kDebugEnqueue, id, name);
   }
 
   info->set_debug_id(id);
@@ -151,6 +151,13 @@ void PromiseSet(Isolate* isolate, Handle<JSPromise> promise, int status,
 
 void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise, int status,
                     Handle<Object> value) {
+  if (isolate->debug()->is_active()) {
+    isolate->debug()->OnAsyncTaskEvent(
+        debug::kDebugEnqueueRecurring,
+        isolate->debug()->NextAsyncTaskId(promise),
+        status == v8::Promise::kFulfilled ? kDebugPromiseResolve
+                                          : kDebugPromiseReject);
+  }
   // Check if there are any callbacks.
   if (!promise->deferred_promise()->IsUndefined(isolate)) {
     Handle<Object> tasks((status == v8::Promise::kFulfilled)

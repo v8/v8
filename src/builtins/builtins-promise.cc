@@ -794,10 +794,9 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     Label enqueue(this);
     GotoUnless(IsDebugActive(), &enqueue);
 
-    Node* const debug_id = CallRuntime(Runtime::kDebugNextMicrotaskId, context);
+    Node* const debug_id =
+        CallRuntime(Runtime::kDebugNextAsyncTaskId, context, promise);
     Node* const debug_name = SmiConstant(kDebugPromiseResolveThenableJob);
-    CallRuntime(Runtime::kDebugAsyncTaskEvent, context,
-                SmiConstant(kDebugEnqueue), debug_id, debug_name);
 
     StoreObjectField(info, PromiseResolveThenableJobInfo::kDebugIdOffset,
                      debug_id);
@@ -855,13 +854,13 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 void PromiseBuiltinsAssembler::PromiseFulfill(
     Node* context, Node* promise, Node* result,
     v8::Promise::PromiseState status) {
-  Label do_promisereset(this);
+  Label do_promisereset(this), debug_async_event_enqueue_recurring(this);
 
   Node* const status_smi = SmiConstant(static_cast<int>(status));
   Node* const deferred_promise =
       LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
 
-  GotoIf(IsUndefined(deferred_promise), &do_promisereset);
+  GotoIf(IsUndefined(deferred_promise), &debug_async_event_enqueue_recurring);
 
   Node* const tasks =
       status == v8::Promise::kFulfilled
@@ -876,8 +875,17 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
   Node* const info = AllocatePromiseReactionJobInfo(
       promise, result, tasks, deferred_promise, deferred_on_resolve,
       deferred_on_reject, context);
+
   CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info, status_smi);
-  Goto(&do_promisereset);
+  Goto(&debug_async_event_enqueue_recurring);
+
+  Bind(&debug_async_event_enqueue_recurring);
+  {
+    GotoUnless(IsDebugActive(), &do_promisereset);
+    CallRuntime(Runtime::kDebugAsyncEventEnqueueRecurring, context, promise,
+                status_smi);
+    Goto(&do_promisereset);
+  }
 
   Bind(&do_promisereset);
   {

@@ -211,11 +211,4 @@ define kAsyncFunction = 1;
 define kPromiseResolve = 2;
 define kPromiseReject = 3;
 define kPromiseResolveThenableJob = 4;
-
-# These values must be kept in sync with PromiseDebugActionType in
-# src/debug/debug.h
-define kEnqueue = 0;
-define kEnqueueRecurring = 1;
-define kCancel = 2;
-define kWillHandle = 3;
-define kDidHandle = 4;
+define kDebugPromiseCollected = 5;

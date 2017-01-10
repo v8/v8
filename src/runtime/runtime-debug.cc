@@ -1889,24 +1889,43 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugNextMicrotaskId) {
+RUNTIME_FUNCTION(Runtime_DebugNextAsyncTaskId) {
   HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  return Smi::FromInt(isolate->GetNextDebugMicrotaskId());
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  return Smi::FromInt(isolate->debug()->NextAsyncTaskId(promise));
 }
 
-RUNTIME_FUNCTION(Runtime_DebugAsyncTaskEvent) {
-  DCHECK_EQ(3, args.length());
+RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
+  DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
-  CONVERT_SMI_ARG_CHECKED(type, 0);
-  CONVERT_SMI_ARG_CHECKED(id, 1);
-  CONVERT_SMI_ARG_CHECKED(name, 2);
-  isolate->debug()->OnAsyncTaskEvent(static_cast<PromiseDebugActionType>(type),
-                                     id,
-                                     static_cast<PromiseDebugActionName>(name));
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  isolate->PushPromise(promise);
+  int id = isolate->debug()->NextAsyncTaskId(promise);
+  Handle<Symbol> async_stack_id_symbol =
+      isolate->factory()->promise_async_stack_id_symbol();
+  JSObject::SetProperty(promise, async_stack_id_symbol,
+                        handle(Smi::FromInt(id), isolate), STRICT)
+      .Assert();
+  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueRecurring, id,
+                                     kDebugAsyncFunction);
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_SMI_ARG_CHECKED(status, 1);
+  if (isolate->debug()->is_active()) {
+    isolate->debug()->OnAsyncTaskEvent(
+        debug::kDebugEnqueueRecurring,
+        isolate->debug()->NextAsyncTaskId(promise),
+        status == v8::Promise::kFulfilled ? kDebugPromiseResolve
+                                          : kDebugPromiseReject);
+  }
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);

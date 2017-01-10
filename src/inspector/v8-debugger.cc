@@ -20,11 +20,6 @@
 namespace v8_inspector {
 
 namespace {
-static const char v8AsyncTaskEventEnqueue[] = "enqueue";
-static const char v8AsyncTaskEventEnqueueRecurring[] = "enqueueRecurring";
-static const char v8AsyncTaskEventWillHandle[] = "willHandle";
-static const char v8AsyncTaskEventDidHandle[] = "didHandle";
-static const char v8AsyncTaskEventCancel[] = "cancel";
 
 // Based on DevTools frontend measurement, with asyncCallStackDepth = 4,
 // average async call stack tail requires ~1 Kb. Let's reserve ~ 128 Mb
@@ -535,27 +530,25 @@ v8::Local<v8::Value> V8Debugger::callInternalGetterFunction(
 void V8Debugger::handleV8DebugEvent(
     const v8::debug::EventDetails& eventDetails) {
   if (!enabled()) return;
+  v8::HandleScope scope(m_isolate);
+
   v8::DebugEvent event = eventDetails.GetEvent();
   if (event != v8::AsyncTaskEvent && event != v8::Break &&
       event != v8::Exception && event != v8::AfterCompile &&
       event != v8::CompileError)
     return;
 
-  v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
-  DCHECK(!eventContext.IsEmpty());
-
   if (event == v8::AsyncTaskEvent) {
-    v8::HandleScope scope(m_isolate);
-    handleV8AsyncTaskEvent(eventContext, eventDetails.GetExecutionState(),
-                           eventDetails.GetEventData());
+    handleV8AsyncTaskEvent(eventDetails.GetEventData());
     return;
   }
 
+  v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
+  DCHECK(!eventContext.IsEmpty());
   V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
       m_inspector->contextGroupId(eventContext));
   if (!agent) return;
 
-  v8::HandleScope scope(m_isolate);
   if (event == v8::AfterCompile || event == v8::CompileError) {
     v8::Context::Scope contextScope(debuggerContext());
     // Determine if the script is a wasm script.
@@ -603,35 +596,50 @@ void V8Debugger::handleV8DebugEvent(
   }
 }
 
-void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Context> context,
-                                        v8::Local<v8::Object> executionState,
-                                        v8::Local<v8::Object> eventData) {
+void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Object> eventData) {
   if (!m_maxAsyncCallStackDepth) return;
 
-  String16 type = toProtocolStringWithTypeCheck(
-      callInternalGetterFunction(eventData, "type"));
+  // TODO(kozyatinskiy): remove usage of current context as soon as async event
+  // is migrated to pure C++ API.
+  v8::debug::PromiseDebugActionType type =
+      static_cast<v8::debug::PromiseDebugActionType>(
+          eventData
+              ->Get(m_isolate->GetCurrentContext(),
+                    toV8StringInternalized(m_isolate, "type_"))
+              .ToLocalChecked()
+              ->ToInteger(m_isolate->GetCurrentContext())
+              .ToLocalChecked()
+              ->Value());
   String16 name = toProtocolStringWithTypeCheck(
-      callInternalGetterFunction(eventData, "name"));
-  int id = static_cast<int>(callInternalGetterFunction(eventData, "id")
-                                ->ToInteger(context)
+      eventData
+          ->Get(m_isolate->GetCurrentContext(),
+                toV8StringInternalized(m_isolate, "name_"))
+          .ToLocalChecked());
+  int id = static_cast<int>(eventData
+                                ->Get(m_isolate->GetCurrentContext(),
+                                      toV8StringInternalized(m_isolate, "id_"))
+                                .ToLocalChecked()
+                                ->ToInteger(m_isolate->GetCurrentContext())
                                 .ToLocalChecked()
                                 ->Value());
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
-  if (type == v8AsyncTaskEventEnqueue)
-    asyncTaskScheduled(name, ptr, false);
-  else if (type == v8AsyncTaskEventEnqueueRecurring)
-    asyncTaskScheduled(name, ptr, true);
-  else if (type == v8AsyncTaskEventWillHandle)
-    asyncTaskStarted(ptr);
-  else if (type == v8AsyncTaskEventDidHandle)
-    asyncTaskFinished(ptr);
-  else if (type == v8AsyncTaskEventCancel)
-    asyncTaskCanceled(ptr);
-  else
-    UNREACHABLE();
+  switch (type) {
+    case v8::debug::kDebugEnqueueRecurring:
+      asyncTaskScheduled(name, ptr, true);
+      break;
+    case v8::debug::kDebugCancel:
+      asyncTaskCanceled(ptr);
+      break;
+    case v8::debug::kDebugWillHandle:
+      asyncTaskStarted(ptr);
+      break;
+    case v8::debug::kDebugDidHandle:
+      asyncTaskFinished(ptr);
+      break;
+  }
 }
 
 V8StackTraceImpl* V8Debugger::currentAsyncCallChain() {

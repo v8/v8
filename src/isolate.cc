@@ -3265,13 +3265,13 @@ class PromiseDebugEventScope {
         is_debug_active_(isolate_->debug()->is_active() &&
                          id != kDebugPromiseNoID && name_ != kDebugNotActive) {
     if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(kDebugWillHandle, id_, name_);
+      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_, name_);
     }
   }
 
   ~PromiseDebugEventScope() {
     if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(kDebugDidHandle, id_, name_);
+      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_, name_);
     }
   }
 

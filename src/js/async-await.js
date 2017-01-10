@@ -19,8 +19,6 @@ utils.Import(function(from) {
   AsyncFunctionThrow = from.AsyncFunctionThrow;
 });
 
-var promiseAsyncStackIDSymbol =
-    utils.ImportNow("promise_async_stack_id_symbol");
 var promiseHandledBySymbol =
     utils.ImportNow("promise_handled_by_symbol");
 var promiseForwardingHandlerSymbol =
@@ -119,26 +117,15 @@ function AsyncFunctionPromiseCreate() {
     // Push the Promise under construction in an async function on
     // the catch prediction stack to handle exceptions thrown before
     // the first await.
-    %DebugPushPromise(promise);
     // Assign ID and create a recurring task to save stack for future
     // resumptions from await.
-    var id = %DebugNextMicrotaskId();
-    SET_PRIVATE(promise, promiseAsyncStackIDSymbol, id);
-    %DebugAsyncTaskEvent(kEnqueueRecurring, id, kAsyncFunction);
+    %DebugAsyncFunctionPromiseCreated(promise);
   }
   return promise;
 }
 
 function AsyncFunctionPromiseRelease(promise) {
   if (DEBUG_IS_ACTIVE) {
-    // Cancel
-    var id = GET_PRIVATE(promise, promiseAsyncStackIDSymbol);
-
-    // Don't send invalid events when catch prediction is turned on in
-    // the middle of some async operation.
-    if (!IS_UNDEFINED(id)) {
-      %DebugAsyncTaskEvent(kCancel, id, kAsyncFunction);
-    }
     // Pop the Promise under construction in an async function on
     // from catch prediction stack.
     %DebugPopPromise();

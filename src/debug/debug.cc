@@ -401,6 +401,7 @@ void Debug::ThreadInit() {
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
   thread_local_.return_value_ = Handle<Object>();
+  thread_local_.async_task_count_ = 0;
   clear_suspended_generator();
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
@@ -1778,7 +1779,63 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
 }
 
-void Debug::OnAsyncTaskEvent(PromiseDebugActionType type, int id,
+namespace {
+struct CollectedCallbackData {
+  Object** location;
+  int id;
+  Debug* debug;
+  Isolate* isolate;
+
+  CollectedCallbackData(Object** location, int id, Debug* debug,
+                        Isolate* isolate)
+      : location(location), id(id), debug(debug), isolate(isolate) {}
+};
+
+void SendAsyncTaskEventCancel(const v8::WeakCallbackInfo<void>& info) {
+  std::unique_ptr<CollectedCallbackData> data(
+      reinterpret_cast<CollectedCallbackData*>(info.GetParameter()));
+  if (!data->debug->is_active()) return;
+  HandleScope scope(data->isolate);
+  data->debug->OnAsyncTaskEvent(debug::kDebugCancel, data->id,
+                                kDebugPromiseCollected);
+}
+
+void ResetPromiseHandle(const v8::WeakCallbackInfo<void>& info) {
+  CollectedCallbackData* data =
+      reinterpret_cast<CollectedCallbackData*>(info.GetParameter());
+  GlobalHandles::Destroy(data->location);
+  info.SetSecondPassCallback(&SendAsyncTaskEventCancel);
+}
+}  //  namespace
+
+int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
+  LookupIterator it(promise, isolate_->factory()->promise_async_id_symbol());
+  Maybe<bool> maybe = JSReceiver::HasProperty(&it);
+  if (maybe.ToChecked()) {
+    MaybeHandle<Object> result = Object::GetProperty(&it);
+    return Handle<Smi>::cast(result.ToHandleChecked())->value();
+  }
+  Handle<Smi> async_id =
+      handle(Smi::FromInt(++thread_local_.async_task_count_), isolate_);
+  Object::SetProperty(&it, async_id, SLOPPY, Object::MAY_BE_STORE_FROM_KEYED)
+      .ToChecked();
+  Handle<Object> global_handle = isolate_->global_handles()->Create(*promise);
+  // We send EnqueueRecurring async task event when promise is fulfilled or
+  // rejected, WillHandle and DidHandle for every scheduled microtask for this
+  // promise.
+  // We need to send a cancel event when no other microtasks can be
+  // started for this promise and all current microtasks are finished.
+  // Since we holding promise when at least one microtask is scheduled (inside
+  // PromiseReactionJobInfo), we can send cancel event in weak callback.
+  GlobalHandles::MakeWeak(
+      global_handle.location(),
+      new CollectedCallbackData(global_handle.location(), async_id->value(),
+                                this, isolate_),
+      &ResetPromiseHandle, v8::WeakCallbackType::kParameter);
+  return async_id->value();
+}
+
+void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
                              PromiseDebugActionName name) {
   if (in_debug_scope() || ignore_events()) return;
 

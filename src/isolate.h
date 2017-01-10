@@ -405,7 +405,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
   V(int, pending_microtask_count, 0)                                          \
-  V(int, debug_microtask_count, kDebugPromiseFirstID)                         \
   V(HStatistics*, hstatistics, nullptr)                                       \
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(HTracer*, htracer, nullptr)                                               \
@@ -1106,7 +1105,6 @@ class Isolate {
   void EnqueueMicrotask(Handle<Object> microtask);
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
-  int GetNextDebugMicrotaskId() { return debug_microtask_count_++; }
 
   Handle<Symbol> SymbolFor(Heap::RootListIndex dictionary_index,
                            Handle<String> name, bool private_symbol);

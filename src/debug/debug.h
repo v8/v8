@@ -12,6 +12,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
 #include "src/debug/debug-interface.h"
+#include "src/debug/interface-types.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/flags.h"
@@ -80,14 +81,7 @@ enum PromiseDebugActionName {
   kDebugPromiseResolve,
   kDebugPromiseReject,
   kDebugPromiseResolveThenableJob,
-};
-
-enum PromiseDebugActionType {
-  kDebugEnqueue,
-  kDebugEnqueueRecurring,
-  kDebugCancel,
-  kDebugWillHandle,
-  kDebugDidHandle,
+  kDebugPromiseCollected,
 };
 
 class BreakLocation {
@@ -426,7 +420,7 @@ class Debug {
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(PromiseDebugActionType type, int id,
+  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
                         PromiseDebugActionName name);
 
   // API facing.
@@ -473,6 +467,8 @@ class Debug {
                               int end_position, std::set<int>* positions);
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
+
+  int NextAsyncTaskId(Handle<JSObject> promise);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -721,6 +717,8 @@ class Debug {
     Handle<Object> return_value_;
 
     Object* suspended_generator_;
+
+    int async_task_count_;
   };
 
   // Storage location for registers when handling debug break calls
