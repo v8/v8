@@ -2490,7 +2490,6 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
-  Register scratch = scratch0();
   MemOperand target = ContextMemOperand(context, instr->slot_index());
 
   __ sw(value, target);
