@@ -234,6 +234,8 @@ struct WasmInstance {
   // -- Heap allocated --------------------------------------------------------
   Handle<Context> context;               // JavaScript native context.
   std::vector<Handle<FixedArray>> function_tables;  // indirect function tables.
+  std::vector<Handle<FixedArray>>
+      signature_tables;                    // indirect signature tables.
   std::vector<Handle<Code>> function_code;  // code objects for each function.
   // -- raw memory ------------------------------------------------------------
   byte* mem_start = nullptr;  // start of linear memory.
@@ -244,6 +246,7 @@ struct WasmInstance {
   explicit WasmInstance(const WasmModule* m)
       : module(m),
         function_tables(m->function_tables.size()),
+        signature_tables(m->function_tables.size()),
         function_code(m->functions.size()) {}
 };
 

@@ -209,17 +209,16 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
     Constant constant = ToConstant(operand);
     switch (constant.type()) {
       case Constant::kInt32:
-        if (constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+        if (RelocInfo::IsWasmSizeReference(constant.rmode())) {
           return Operand(constant.ToInt32(), constant.rmode());
         } else {
           return Operand(constant.ToInt32());
         }
       case Constant::kInt64:
-        if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-            constant.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
+        if (RelocInfo::IsWasmPtrReference(constant.rmode())) {
           return Operand(constant.ToInt64(), constant.rmode());
         } else {
-          DCHECK(constant.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+          DCHECK(!RelocInfo::IsWasmSizeReference(constant.rmode()));
           return Operand(constant.ToInt64());
         }
       case Constant::kFloat32:

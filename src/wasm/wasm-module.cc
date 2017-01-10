@@ -849,9 +849,13 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   int function_table_count = static_cast<int>(function_tables.size());
   Handle<FixedArray> function_tables =
       factory->NewFixedArray(function_table_count, TENURED);
+  Handle<FixedArray> signature_tables =
+      factory->NewFixedArray(function_table_count, TENURED);
   for (int i = 0; i < function_table_count; ++i) {
-    temp_instance.function_tables[i] = factory->NewFixedArray(0, TENURED);
+    temp_instance.function_tables[i] = factory->NewFixedArray(1, TENURED);
+    temp_instance.signature_tables[i] = factory->NewFixedArray(1, TENURED);
     function_tables->set(i, *temp_instance.function_tables[i]);
+    signature_tables->set(i, *temp_instance.signature_tables[i]);
   }
 
   HistogramTimerScope wasm_compile_module_time_scope(
@@ -954,6 +958,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   ret->set_max_mem_pages(max_mem_pages);
   if (function_table_count > 0) {
     ret->set_function_tables(function_tables);
+    ret->set_signature_tables(signature_tables);
     ret->set_empty_function_tables(function_tables);
   }
 
@@ -1042,11 +1047,13 @@ static void UpdateDispatchTablesInternal(Isolate* isolate,
                                          Handle<FixedArray> dispatch_tables,
                                          int index, WasmFunction* function,
                                          Handle<Code> code) {
-  DCHECK_EQ(0, dispatch_tables->length() % 3);
-  for (int i = 0; i < dispatch_tables->length(); i += 3) {
+  DCHECK_EQ(0, dispatch_tables->length() % 4);
+  for (int i = 0; i < dispatch_tables->length(); i += 4) {
     int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
-    Handle<FixedArray> dispatch_table(
+    Handle<FixedArray> function_table(
         FixedArray::cast(dispatch_tables->get(i + 2)), isolate);
+    Handle<FixedArray> signature_table(
+        FixedArray::cast(dispatch_tables->get(i + 3)), isolate);
     if (function) {
       // TODO(titzer): the signature might need to be copied to avoid
       // a dangling pointer in the signature map.
@@ -1055,12 +1062,12 @@ static void UpdateDispatchTablesInternal(Isolate* isolate,
       int sig_index = static_cast<int>(
           instance->module()->function_tables[table_index].map.FindOrInsert(
               function->sig));
-      dispatch_table->set(index, Smi::FromInt(sig_index));
-      dispatch_table->set(index + (dispatch_table->length() / 2), *code);
+      signature_table->set(index, Smi::FromInt(sig_index));
+      function_table->set(index, *code);
     } else {
       Code* code = nullptr;
-      dispatch_table->set(index, Smi::FromInt(-1));
-      dispatch_table->set(index + (dispatch_table->length() / 2), code);
+      signature_table->set(index, Smi::FromInt(-1));
+      function_table->set(index, code);
     }
   }
 }
@@ -1207,9 +1214,9 @@ class WasmInstanceBuilder {
         static_cast<int>(module_->function_tables.size());
     table_instances_.reserve(module_->function_tables.size());
     for (int index = 0; index < function_table_count; ++index) {
-      table_instances_.push_back({Handle<WasmTableObject>::null(),
-                                  Handle<FixedArray>::null(),
-                                  Handle<FixedArray>::null()});
+      table_instances_.push_back(
+          {Handle<WasmTableObject>::null(), Handle<FixedArray>::null(),
+           Handle<FixedArray>::null(), Handle<FixedArray>::null()});
     }
 
     //--------------------------------------------------------------------------
@@ -1415,7 +1422,8 @@ class WasmInstanceBuilder {
   struct TableInstance {
     Handle<WasmTableObject> table_object;    // WebAssembly.Table instance
     Handle<FixedArray> js_wrappers;          // JSFunctions exported
-    Handle<FixedArray> dispatch_table;       // internal (code, sig) pairs
+    Handle<FixedArray> function_table;       // internal code array
+    Handle<FixedArray> signature_table;      // internal sig array
   };
 
   Isolate* isolate_;
@@ -1620,12 +1628,14 @@ class WasmInstanceBuilder {
             return -1;
           }
 
-          // Allocate a new dispatch table.
-          table_instance.dispatch_table =
-              isolate_->factory()->NewFixedArray(table_size * 2);
-          for (int i = 0; i < table_size * 2; ++i) {
-            table_instance.dispatch_table->set(i,
-                                               Smi::FromInt(kInvalidSigIndex));
+          // Allocate a new dispatch table and signature table.
+          table_instance.function_table =
+              isolate_->factory()->NewFixedArray(table_size);
+          table_instance.signature_table =
+              isolate_->factory()->NewFixedArray(table_size);
+          for (int i = 0; i < table_size; ++i) {
+            table_instance.signature_table->set(i,
+                                                Smi::FromInt(kInvalidSigIndex));
           }
           // Initialize the dispatch table with the (foreign) JS functions
           // that are already in the table.
@@ -1640,9 +1650,8 @@ class WasmInstanceBuilder {
               return -1;
             }
             int sig_index = table.map.FindOrInsert(function->sig);
-            table_instance.dispatch_table->set(i, Smi::FromInt(sig_index));
-            table_instance.dispatch_table->set(i + table_size,
-                                               *UnwrapImportWrapper(val));
+            table_instance.signature_table->set(i, Smi::FromInt(sig_index));
+            table_instance.function_table->set(i, *UnwrapImportWrapper(val));
           }
 
           num_imported_tables++;
@@ -1907,28 +1916,37 @@ class WasmInstanceBuilder {
                         Handle<WasmInstanceObject> instance) {
     Handle<FixedArray> old_function_tables =
         compiled_module_->function_tables();
+    Handle<FixedArray> old_signature_tables =
+        compiled_module_->signature_tables();
     int function_table_count =
         static_cast<int>(module_->function_tables.size());
     Handle<FixedArray> new_function_tables =
+        isolate_->factory()->NewFixedArray(function_table_count);
+    Handle<FixedArray> new_signature_tables =
         isolate_->factory()->NewFixedArray(function_table_count);
     for (int index = 0; index < function_table_count; ++index) {
       WasmIndirectFunctionTable& table = module_->function_tables[index];
       TableInstance& table_instance = table_instances_[index];
       int table_size = static_cast<int>(table.min_size);
 
-      if (table_instance.dispatch_table.is_null()) {
+      if (table_instance.function_table.is_null()) {
         // Create a new dispatch table if necessary.
-        table_instance.dispatch_table =
-            isolate_->factory()->NewFixedArray(table_size * 2);
+        table_instance.function_table =
+            isolate_->factory()->NewFixedArray(table_size);
+        table_instance.signature_table =
+            isolate_->factory()->NewFixedArray(table_size);
         for (int i = 0; i < table_size; ++i) {
           // Fill the table with invalid signature indexes so that
           // uninitialized entries will always fail the signature check.
-          table_instance.dispatch_table->set(i, Smi::FromInt(kInvalidSigIndex));
+          table_instance.signature_table->set(i,
+                                              Smi::FromInt(kInvalidSigIndex));
         }
       }
 
       new_function_tables->set(static_cast<int>(index),
-                               *table_instance.dispatch_table);
+                               *table_instance.function_table);
+      new_signature_tables->set(static_cast<int>(index),
+                                *table_instance.signature_table);
 
       Handle<FixedArray> all_dispatch_tables;
       if (!table_instance.table_object.is_null()) {
@@ -1936,7 +1954,7 @@ class WasmInstanceBuilder {
         all_dispatch_tables = WasmTableObject::AddDispatchTable(
             isolate_, table_instance.table_object,
             Handle<WasmInstanceObject>::null(), index,
-            Handle<FixedArray>::null());
+            Handle<FixedArray>::null(), Handle<FixedArray>::null());
       }
 
       // TODO(titzer): this does redundant work if there are multiple tables,
@@ -1955,9 +1973,9 @@ class WasmInstanceBuilder {
           int table_index = static_cast<int>(i + base);
           int32_t sig_index = table.map.Find(function->sig);
           DCHECK_GE(sig_index, 0);
-          table_instance.dispatch_table->set(table_index,
-                                             Smi::FromInt(sig_index));
-          table_instance.dispatch_table->set(table_index + table_size,
+          table_instance.signature_table->set(table_index,
+                                              Smi::FromInt(sig_index));
+          table_instance.function_table->set(table_index,
                                              code_table->get(func_index));
 
           if (!all_dispatch_tables.is_null()) {
@@ -2008,7 +2026,7 @@ class WasmInstanceBuilder {
         // Add the new dispatch table to the WebAssembly.Table object.
         all_dispatch_tables = WasmTableObject::AddDispatchTable(
             isolate_, table_instance.table_object, instance, index,
-            table_instance.dispatch_table);
+            table_instance.function_table, table_instance.signature_table);
       }
     }
     // Patch all code that has references to the old indirect tables.
@@ -2019,9 +2037,13 @@ class WasmInstanceBuilder {
         ReplaceReferenceInCode(
             code, Handle<Object>(old_function_tables->get(j), isolate_),
             Handle<Object>(new_function_tables->get(j), isolate_));
+        ReplaceReferenceInCode(
+            code, Handle<Object>(old_signature_tables->get(j), isolate_),
+            Handle<Object>(new_signature_tables->get(j), isolate_));
       }
     }
     compiled_module_->set_function_tables(new_function_tables);
+    compiled_module_->set_signature_tables(new_signature_tables);
   }
 };
 

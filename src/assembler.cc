@@ -334,8 +334,7 @@ void RelocInfo::update_wasm_memory_reference(
     uint32_t current_size_reference = wasm_memory_size_reference();
     uint32_t updated_size_reference =
         new_size + (current_size_reference - old_size);
-    unchecked_update_wasm_memory_size(updated_size_reference,
-                                      icache_flush_mode);
+    unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
   } else {
     UNREACHABLE();
   }
@@ -356,6 +355,18 @@ void RelocInfo::update_wasm_global_reference(
   unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(isolate_, pc_, sizeof(int32_t));
+  }
+}
+
+void RelocInfo::update_wasm_function_table_size_reference(
+    uint32_t old_size, uint32_t new_size, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
+  uint32_t current_size_reference = wasm_function_table_size_reference();
+  uint32_t updated_size_reference =
+      new_size + (current_size_reference - old_size);
+  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
   }
 }
 
@@ -769,6 +780,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm memory size reference";
     case WASM_GLOBAL_REFERENCE:
       return "wasm global value reference";
+    case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
+      return "wasm function table size reference";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -866,6 +879,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_MEMORY_REFERENCE:
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
+    case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case NONE32:
     case NONE64:
       break;

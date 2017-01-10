@@ -348,6 +348,7 @@ WasmGraphBuilder::WasmGraphBuilder(
     : zone_(zone),
       jsgraph_(jsgraph),
       module_(module_env),
+      signature_tables_(zone),
       function_tables_(zone),
       function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
@@ -2306,6 +2307,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
   trap_->AddTrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
   Node* table = function_tables_[table_index];
+  Node* signatures = signature_tables_[table_index];
 
   // Load signature from the table and check.
   // The table is a FixedArray; signatures are encoded as SMIs.
@@ -2314,7 +2316,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   const int fixed_offset = access.header_size - access.tag();
   {
     Node* load_sig = graph()->NewNode(
-        machine->Load(MachineType::AnyTagged()), table,
+        machine->Load(MachineType::AnyTagged()), signatures,
         graph()->NewNode(machine->Int32Add(),
                          graph()->NewNode(machine->Word32Shl(), key,
                                           Int32Constant(kPointerSizeLog2)),
@@ -2329,14 +2331,12 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   }
 
   // Load code object from the table.
-  uint32_t table_size = module_->module->function_tables[table_index].min_size;
-  uint32_t offset = fixed_offset + kPointerSize * table_size;
   Node* load_code = graph()->NewNode(
       machine->Load(MachineType::AnyTagged()), table,
       graph()->NewNode(machine->Int32Add(),
                        graph()->NewNode(machine->Word32Shl(), key,
                                         Int32Constant(kPointerSizeLog2)),
-                       Uint32Constant(offset)),
+                       Uint32Constant(fixed_offset)),
       *effect_, *control_);
 
   args[0] = load_code;
@@ -2968,12 +2968,18 @@ Node* WasmGraphBuilder::MemSize(uint32_t offset) {
 
 void WasmGraphBuilder::EnsureFunctionTableNodes() {
   if (function_tables_.size() > 0) return;
-  for (size_t i = 0; i < module_->instance->function_tables.size(); ++i) {
-    auto handle = module_->instance->function_tables[i];
-    DCHECK(!handle.is_null());
-    function_tables_.push_back(HeapConstant(handle));
+  size_t tables_size = module_->instance->function_tables.size();
+  DCHECK(tables_size == module_->instance->signature_tables.size());
+  for (size_t i = 0; i < tables_size; ++i) {
+    auto function_handle = module_->instance->function_tables[i];
+    auto signature_handle = module_->instance->signature_tables[i];
+    DCHECK(!function_handle.is_null() && !signature_handle.is_null());
+    function_tables_.push_back(HeapConstant(function_handle));
+    signature_tables_.push_back(HeapConstant(signature_handle));
     uint32_t table_size = module_->module->function_tables[i].min_size;
-    function_table_sizes_.push_back(Uint32Constant(table_size));
+    function_table_sizes_.push_back(jsgraph()->RelocatableInt32Constant(
+        static_cast<uint32_t>(table_size),
+        RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));
   }
 }
 

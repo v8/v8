@@ -148,22 +148,23 @@ DEFINE_OBJ_GETTER(WasmTableObject, dispatch_tables, kDispatchTables, FixedArray)
 Handle<FixedArray> WasmTableObject::AddDispatchTable(
     Isolate* isolate, Handle<WasmTableObject> table_obj,
     Handle<WasmInstanceObject> instance, int table_index,
-    Handle<FixedArray> dispatch_table) {
+    Handle<FixedArray> function_table, Handle<FixedArray> signature_table) {
   Handle<FixedArray> dispatch_tables(
       FixedArray::cast(table_obj->GetInternalField(kDispatchTables)), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % 3);
+  DCHECK_EQ(0, dispatch_tables->length() % 4);
 
   if (instance.is_null()) return dispatch_tables;
   // TODO(titzer): use weak cells here to avoid leaking instances.
 
   // Grow the dispatch table and add a new triple at the end.
   Handle<FixedArray> new_dispatch_tables =
-      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 3);
+      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 4);
 
   new_dispatch_tables->set(dispatch_tables->length() + 0, *instance);
   new_dispatch_tables->set(dispatch_tables->length() + 1,
                            Smi::FromInt(table_index));
-  new_dispatch_tables->set(dispatch_tables->length() + 2, *dispatch_table);
+  new_dispatch_tables->set(dispatch_tables->length() + 2, *function_table);
+  new_dispatch_tables->set(dispatch_tables->length() + 3, *signature_table);
 
   table_obj->SetInternalField(WasmTableObject::kDispatchTables,
                               *new_dispatch_tables);

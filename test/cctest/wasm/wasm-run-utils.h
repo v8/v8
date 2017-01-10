@@ -247,7 +247,9 @@ class TestingModule : public ModuleEnv {
     }
 
     instance->function_tables.push_back(
-        isolate_->factory()->NewFixedArray(table_size * 2));
+        isolate_->factory()->NewFixedArray(table_size));
+    instance->signature_tables.push_back(
+        isolate_->factory()->NewFixedArray(table_size));
   }
 
   void PopulateIndirectFunctionTable() {
@@ -255,13 +257,13 @@ class TestingModule : public ModuleEnv {
     // Initialize the fixed arrays in instance->function_tables.
     for (uint32_t i = 0; i < instance->function_tables.size(); i++) {
       WasmIndirectFunctionTable& table = module_.function_tables[i];
-      Handle<FixedArray> array = instance->function_tables[i];
+      Handle<FixedArray> function_table = instance->function_tables[i];
+      Handle<FixedArray> signature_table = instance->signature_tables[i];
       int table_size = static_cast<int>(table.values.size());
       for (int j = 0; j < table_size; j++) {
         WasmFunction& function = module_.functions[table.values[j]];
-        array->set(j, Smi::FromInt(table.map.Find(function.sig)));
-        array->set(j + table_size,
-                   *instance->function_code[function.func_index]);
+        signature_table->set(j, Smi::FromInt(table.map.Find(function.sig)));
+        function_table->set(j, *instance->function_code[function.func_index]);
       }
     }
   }

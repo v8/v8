@@ -238,6 +238,7 @@ class WasmGraphBuilder {
   wasm::ModuleEnv* module_ = nullptr;
   Node* mem_buffer_ = nullptr;
   Node* mem_size_ = nullptr;
+  NodeVector signature_tables_;
   NodeVector function_tables_;
   NodeVector function_table_sizes_;
   Node** control_ = nullptr;
