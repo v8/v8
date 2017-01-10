@@ -1135,9 +1135,8 @@ MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
   if (!ReadVarint<uint32_t>().To(&utf8_length) ||
       utf8_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      !ReadRawBytes(utf8_length).To(&utf8_bytes)) {
+      !ReadRawBytes(utf8_length).To(&utf8_bytes))
     return MaybeHandle<String>();
-  }
   return isolate_->factory()->NewStringFromUtf8(
       Vector<const char>::cast(utf8_bytes), pretenure_);
 }
@@ -1148,20 +1147,16 @@ MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length >
           static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
-      byte_length % sizeof(uc16) != 0 ||
-      !ReadRawBytes(byte_length).To(&bytes)) {
+      byte_length % sizeof(uc16) != 0 || !ReadRawBytes(byte_length).To(&bytes))
     return MaybeHandle<String>();
-  }
 
   // Allocate an uninitialized string so that we can do a raw memcpy into the
   // string on the heap (regardless of alignment).
-  if (byte_length == 0) return isolate_->factory()->empty_string();
   Handle<SeqTwoByteString> string;
   if (!isolate_->factory()
            ->NewRawTwoByteString(byte_length / sizeof(uc16), pretenure_)
-           .ToHandle(&string)) {
+           .ToHandle(&string))
     return MaybeHandle<String>();
-  }
 
   // Copy the bytes directly into the new string.
   // Warning: this uses host endianness.
