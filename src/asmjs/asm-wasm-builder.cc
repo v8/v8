@@ -67,6 +67,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         script_(script),
         typer_(typer),
         typer_failed_(false),
+        typer_finished_(false),
         breakable_blocks_(zone),
         foreign_variables_(zone),
         init_function_(nullptr),
@@ -121,6 +122,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     VisitFunctionLiteral(literal_);
     if (HasStackOverflow()) {
       return false;
+    }
+    if (!typer_finished_) {
+      typer_->FailWithMessage("Module missing export section.");
+      typer_failed_ = true;
     }
     if (typer_failed_) {
       return false;
@@ -322,10 +327,16 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitReturnStatement(ReturnStatement* stmt) {
     if (scope_ == kModuleScope) {
+      if (typer_finished_) {
+        typer_->FailWithMessage("Module has multiple returns.");
+        typer_failed_ = true;
+        return;
+      }
       if (!typer_->ValidateAfterFunctionsPhase()) {
         typer_failed_ = true;
         return;
       }
+      typer_finished_ = true;
       scope_ = kExportScope;
       RECURSE(Visit(stmt->expression()));
       scope_ = kModuleScope;
@@ -1947,6 +1958,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   Handle<Script> script_;
   AsmTyper* typer_;
   bool typer_failed_;
+  bool typer_finished_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   ZoneVector<ForeignVariable> foreign_variables_;
   WasmFunctionBuilder* init_function_;
