@@ -1383,7 +1383,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (1) Sequential string?  If yes, go to (4).
 
   STATIC_ASSERT((kIsNotStringMask | kStringRepresentationMask |
-                 kShortExternalStringMask) == 0x93);
+                 kShortExternalStringMask) == 0xa7);
   __ mov(r3, Operand(kIsNotStringMask | kStringRepresentationMask |
                      kShortExternalStringMask));
   __ AndP(r3, r2);
@@ -1422,9 +1422,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ble(&runtime);
   __ SmiUntag(r3);
 
-  STATIC_ASSERT(4 == kOneByteStringTag);
+  STATIC_ASSERT(8 == kOneByteStringTag);
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  STATIC_ASSERT(kStringEncodingMask == 4);
+  STATIC_ASSERT(kStringEncodingMask == 8);
   __ ExtractBitMask(r5, r2, kStringEncodingMask, SetRC);
   __ beq(&encoding_type_UC16, Label::kNear);
   __ LoadP(code,
