@@ -362,8 +362,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Try to store the value as a double.
     {
       Label non_number_value(this);
-      Node* double_value = PrepareValueForWrite(value, Representation::Double(),
-                                                &non_number_value);
+      Node* double_value = TryTaggedToFloat64(value, &non_number_value);
+
       // Make sure we do not store signalling NaNs into double arrays.
       double_value = Float64SilenceNaN(double_value);
       // If we're about to introduce holes, ensure holey elements.

@@ -975,20 +975,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* LoadReceiverMap(Node* receiver);
 
-  // Extends properties backing store by JSObject::kFieldsAdded elements.
-  void ExtendPropertiesBackingStore(Node* object);
-
-  Node* PrepareValueForWrite(Node* value, Representation representation,
-                             Label* bailout);
-
-  void StoreNamedField(Node* object, FieldIndex index,
-                       Representation representation, Node* value,
-                       bool transition_to_field);
-
-  void StoreNamedField(Node* object, Node* offset, bool is_inobject,
-                       Representation representation, Node* value,
-                       bool transition_to_field);
-
   // Emits keyed sloppy arguments load. Returns either the loaded value.
   Node* LoadKeyedSloppyArguments(Node* receiver, Node* key, Label* bailout) {
     return EmitKeyedSloppyArguments(receiver, key, nullptr, bailout);
