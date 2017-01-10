@@ -2650,12 +2650,12 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 
 
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  DCHECK(jssp.Is(StackPointer()));
   UseScratchRegisterScope temps(this);
   Register type_reg = temps.AcquireX();
   Register code_reg = temps.AcquireX();
 
   if (type == StackFrame::INTERNAL) {
+    DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
     Push(lr, fp);
     Push(type_reg);
@@ -2666,7 +2666,18 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     // jssp[3] : fp
     // jssp[1] : type
     // jssp[0] : [code object]
+  } else if (type == StackFrame::WASM) {
+    DCHECK(csp.Is(StackPointer()));
+    Mov(type_reg, Smi::FromInt(type));
+    Push(xzr, lr);
+    Push(fp, type_reg);
+    Add(fp, csp, TypedFrameConstants::kFixedFrameSizeFromFp);
+    // csp[3] for alignment
+    // csp[2] : lr
+    // csp[1] : fp
+    // csp[0] : type
   } else {
+    DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
     Push(lr, fp);
     Push(type_reg);
