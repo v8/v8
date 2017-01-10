@@ -520,6 +520,8 @@ DEFINE_BOOL(wasm_loop_assignment_analysis, true,
 
 DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
 DEFINE_IMPLICATION(ignition_staging, validate_asm)
+DEFINE_BOOL(suppress_asm_messages, false,
+            "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")
 
 DEFINE_BOOL(dump_wasm_module, false, "dump WASM module bytes")

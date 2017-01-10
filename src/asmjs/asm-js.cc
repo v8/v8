@@ -170,9 +170,11 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   auto asm_wasm_result = builder.Run(&foreign_globals);
   if (!asm_wasm_result.success) {
     DCHECK(!info->isolate()->has_pending_exception());
-    MessageHandler::ReportMessage(info->isolate(),
-                                  builder.typer()->message_location(),
-                                  builder.typer()->error_message());
+    if (!FLAG_suppress_asm_messages) {
+      MessageHandler::ReportMessage(info->isolate(),
+                                    builder.typer()->message_location(),
+                                    builder.typer()->error_message());
+    }
     return MaybeHandle<FixedArray>();
   }
   double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
@@ -226,7 +228,9 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
       info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
       Handle<JSArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
-  MessageHandler::ReportMessage(info->isolate(), &location, message);
+  if (!FLAG_suppress_asm_messages) {
+    MessageHandler::ReportMessage(info->isolate(), &location, message);
+  }
 
   return result;
 }
