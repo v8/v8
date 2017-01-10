@@ -29,6 +29,9 @@ declare_args() {
   # Enable compiler warnings when using V8_DEPRECATED apis.
   v8_deprecation_warnings = false
 
+  # Allow the embedder to add a custom suffix to the version string.
+  v8_embedder_string = ""
+
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
   v8_imminent_deprecation_warnings = ""
 
@@ -173,6 +176,10 @@ config("features") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   defines = []
+
+  if (v8_embedder_string != "") {
+    defines += [ "V8_EMBEDDER_STRING=\"$v8_embedder_string\"" ]
+  }
 
   if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
