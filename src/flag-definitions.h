@@ -518,7 +518,7 @@ DEFINE_BOOL(wasm_break_on_decoder_error, false,
 DEFINE_BOOL(wasm_loop_assignment_analysis, true,
             "perform loop assignment analysis for WASM")
 
-DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
+DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 DEFINE_IMPLICATION(ignition_staging, validate_asm)
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")
 
