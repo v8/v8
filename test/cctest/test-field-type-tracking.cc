@@ -1379,11 +1379,23 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
   struct TestConfig {
     Handle<JSFunction> js_func1_;
     Handle<JSFunction> js_func2_;
+    Handle<FieldType> function_type_;
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func1_ = factory->NewFunction(factory->empty_string());
-      js_func2_ = factory->NewFunction(factory->empty_string());
+      Handle<String> name = factory->empty_string();
+      Handle<Map> sloppy_map =
+          factory->CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
+      Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfo(
+          name, MaybeHandle<Code>(), sloppy_map->is_constructor());
+      function_type_ = FieldType::Class(sloppy_map, isolate);
+      CHECK(sloppy_map->is_stable());
+
+      js_func1_ =
+          factory->NewFunction(sloppy_map, info, isolate->native_context());
+
+      js_func2_ =
+          factory->NewFunction(sloppy_map, info, isolate->native_context());
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
@@ -1394,11 +1406,8 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToDataFieldAfterTargetMap) {
     }
 
     void UpdateExpectations(int property_index, Expectations& expectations) {
-      Isolate* isolate = CcTest::i_isolate();
-      Handle<FieldType> function_type =
-          FieldType::Class(isolate->sloppy_function_map(), isolate);
       expectations.SetDataField(property_index, Representation::HeapObject(),
-                                function_type);
+                                function_type_);
     }
   };
 
@@ -2365,13 +2374,20 @@ TEST(TransitionDataConstantToAnotherDataConstant) {
   v8::HandleScope scope(CcTest::isolate());
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
-  Handle<FieldType> function_type =
-      FieldType::Class(isolate->sloppy_function_map(), isolate);
+  Handle<String> name = factory->empty_string();
+  Handle<Map> sloppy_map =
+      factory->CreateSloppyFunctionMap(FUNCTION_WITH_WRITEABLE_PROTOTYPE);
+  Handle<SharedFunctionInfo> info = factory->NewSharedFunctionInfo(
+      name, MaybeHandle<Code>(), sloppy_map->is_constructor());
+  Handle<FieldType> function_type = FieldType::Class(sloppy_map, isolate);
+  CHECK(sloppy_map->is_stable());
 
-  Handle<JSFunction> js_func1 = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> js_func1 =
+      factory->NewFunction(sloppy_map, info, isolate->native_context());
   TransitionToDataConstantOperator transition_op1(js_func1);
 
-  Handle<JSFunction> js_func2 = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> js_func2 =
+      factory->NewFunction(sloppy_map, info, isolate->native_context());
   TransitionToDataConstantOperator transition_op2(js_func2);
 
   FieldGeneralizationChecker checker(
