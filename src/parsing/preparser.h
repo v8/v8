@@ -1271,6 +1271,11 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement
   BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                            ZoneList<const AstRawString*>* names, bool* ok) {
+    for (auto declaration : parsing_result->declarations) {
+      DeclareAndInitializeVariables(PreParserStatement::Default(),
+                                    &(parsing_result->descriptor), &declaration,
+                                    names, ok);
+    }
     return PreParserStatement::Default();
   }
 

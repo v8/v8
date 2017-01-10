@@ -8865,16 +8865,22 @@ TEST(NoPessimisticContextAllocation) {
        false},
       {"function inner() { for (var {a, my_var} in {}) { } my_var; }", false},
       {"function inner() { for (var {a, my_var} of []) { } my_var; }", false},
+      {"function inner() { for (let my_var = 0; my_var < 1; ++my_var) { my_var "
+       "} }",
+       false},
+      {"function inner() { for (var my_var = 0; my_var < 1; ++my_var) { my_var "
+       "} }",
+       false},
+      {"function inner() { for (let a = 0, my_var = 0; my_var < 1; ++my_var) { "
+       "my_var } }",
+       false},
+      {"function inner() { for (var a = 0, my_var = 0; my_var < 1; ++my_var) { "
+       "my_var } }",
+       false},
       {"function inner() { class my_var {}; my_var }", false},
       // In the following cases we still context allocate pessimistically:
       {"function inner() { function my_var() {} my_var; }", true},
       {"function inner() { if (true) { function my_var() {} }  my_var; }",
-       true},
-      {"function inner() { for (let my_var = 0; my_var < 1; ++my_var) { my_var "
-       "} }",
-       true},
-      {"function inner() { for (let a = 0, my_var = 0; my_var < 1; ++my_var) { "
-       "my_var } }",
        true},
   };
 
