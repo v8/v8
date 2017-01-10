@@ -101,8 +101,12 @@ def parse_args():
   parser.add_argument(
       '--second-d8',
       help='optional path to second d8 executable, default: same as first')
-  parser.add_argument('testcase', help='path to test case')
+  parser.add_argument('testcase', help='path to test case', nargs='?')
   options = parser.parse_args()
+
+  if not options.testcase:
+    # Don't check further as we want to bail out early without test case.
+    return options
 
   # Ensure we make a sane comparison.
   assert (options.first_arch != options.second_arch or
@@ -184,6 +188,10 @@ def fail_bailout(output, ignore_by_output_fun):
 
 def main():
   options = parse_args()
+
+  if not options.testcase:
+    print '# V8 correctness - pass - no test file given'
+    return RETURN_PASS
 
   # Suppressions are architecture and configuration specific.
   suppress = v8_suppressions.get_suppression(
