@@ -263,6 +263,9 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   if (length == -1) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
+  if (length == 0) {
+    return isolate->heap()->empty_string();
+  }
 
   if (one_byte) {
     Handle<SeqOneByteString> answer;

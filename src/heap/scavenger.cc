@@ -30,6 +30,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     table_.Register(kVisitSeqOneByteString, &EvacuateSeqOneByteString);
     table_.Register(kVisitSeqTwoByteString, &EvacuateSeqTwoByteString);
     table_.Register(kVisitShortcutCandidate, &EvacuateShortcutCandidate);
+    table_.Register(kVisitThinString, &EvacuateThinString);
     table_.Register(kVisitByteArray, &EvacuateByteArray);
     table_.Register(kVisitFixedArray, &EvacuateFixedArray);
     table_.Register(kVisitFixedDoubleArray, &EvacuateFixedDoubleArray);
@@ -87,6 +88,12 @@ class ScavengingVisitor : public StaticVisitorBase {
 
   static VisitorDispatchTable<ScavengingCallback>* GetTable() {
     return &table_;
+  }
+
+  static void EvacuateThinStringNoShortcut(Map* map, HeapObject** slot,
+                                           HeapObject* object) {
+    EvacuateObject<POINTER_OBJECT, kWordAligned>(map, slot, object,
+                                                 ThinString::kSize);
   }
 
  private:
@@ -335,6 +342,22 @@ class ScavengingVisitor : public StaticVisitorBase {
                                                  object_size);
   }
 
+  static inline void EvacuateThinString(Map* map, HeapObject** slot,
+                                        HeapObject* object) {
+    if (marks_handling == IGNORE_MARKS) {
+      HeapObject* actual = ThinString::cast(object)->actual();
+      *slot = actual;
+      // ThinStrings always refer to internalized strings, which are
+      // always in old space.
+      DCHECK(!map->GetHeap()->InNewSpace(actual));
+      object->set_map_word(MapWord::FromForwardingAddress(actual));
+      return;
+    }
+
+    EvacuateObject<POINTER_OBJECT, kWordAligned>(map, slot, object,
+                                                 ThinString::kSize);
+  }
+
   template <ObjectContents object_contents>
   class ObjectEvacuationStrategy {
    public:
@@ -419,6 +442,10 @@ void Scavenger::SelectScavengingVisitorsTable() {
           StaticVisitorBase::kVisitShortcutCandidate,
           scavenging_visitors_table_.GetVisitorById(
               StaticVisitorBase::kVisitConsString));
+      scavenging_visitors_table_.Register(
+          StaticVisitorBase::kVisitThinString,
+          &ScavengingVisitor<TRANSFER_MARKS, LOGGING_AND_PROFILING_DISABLED>::
+              EvacuateThinStringNoShortcut);
     }
   }
 }

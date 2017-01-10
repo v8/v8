@@ -503,6 +503,15 @@ FieldAccess AccessBuilder::ForConsStringSecond() {
 }
 
 // static
+FieldAccess AccessBuilder::ForThinStringActual() {
+  FieldAccess access = {kTaggedBase,         ThinString::kActualOffset,
+                        Handle<Name>(),      MaybeHandle<Map>(),
+                        Type::String(),      MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForSlicedStringOffset() {
   FieldAccess access = {kTaggedBase,         SlicedString::kOffsetOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),

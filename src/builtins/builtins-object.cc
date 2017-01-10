@@ -37,24 +37,26 @@ void Builtins::Generate_ObjectHasOwnProperty(
   Node* map = assembler.LoadMap(object);
   Node* instance_type = assembler.LoadMapInstanceType(map);
 
-  Variable var_index(&assembler, MachineType::PointerRepresentation());
+  {
+    Variable var_index(&assembler, MachineType::PointerRepresentation());
+    Variable var_unique(&assembler, MachineRepresentation::kTagged);
 
-  Label keyisindex(&assembler), if_iskeyunique(&assembler);
-  assembler.TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
-                      &call_runtime);
+    Label keyisindex(&assembler), if_iskeyunique(&assembler);
+    assembler.TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
+                        &var_unique, &call_runtime);
 
-  assembler.Bind(&if_iskeyunique);
-  assembler.TryHasOwnProperty(object, map, instance_type, key, &return_true,
-                              &return_false, &call_runtime);
+    assembler.Bind(&if_iskeyunique);
+    assembler.TryHasOwnProperty(object, map, instance_type, var_unique.value(),
+                                &return_true, &return_false, &call_runtime);
 
-  assembler.Bind(&keyisindex);
-  // Handle negative keys in the runtime.
-  assembler.GotoIf(
-      assembler.IntPtrLessThan(var_index.value(), assembler.IntPtrConstant(0)),
-      &call_runtime);
-  assembler.TryLookupElement(object, map, instance_type, var_index.value(),
-                             &return_true, &return_false, &call_runtime);
-
+    assembler.Bind(&keyisindex);
+    // Handle negative keys in the runtime.
+    assembler.GotoIf(assembler.IntPtrLessThan(var_index.value(),
+                                              assembler.IntPtrConstant(0)),
+                     &call_runtime);
+    assembler.TryLookupElement(object, map, instance_type, var_index.value(),
+                               &return_true, &return_false, &call_runtime);
+  }
   assembler.Bind(&return_true);
   assembler.Return(assembler.BooleanConstant(true));
 
