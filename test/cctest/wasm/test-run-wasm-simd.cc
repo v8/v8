@@ -74,20 +74,21 @@ int32_t NotEqual(float a, float b) { return a != b ? 0xFFFFFFFF : 0; }
 #define WASM_SIMD_CHECK_SPLAT4(TYPE, value, LANE_TYPE, lv) \
   WASM_SIMD_CHECK4(TYPE, value, LANE_TYPE, lv, lv, lv, lv)
 
-#define WASM_SIMD_CHECK_F32_LANE(value, lane_value, lane_index)             \
-  WASM_IF(WASM_F32_NE(WASM_GET_LOCAL(lane_value),                           \
-                      WASM_SIMD_F32x4_EXTRACT_LANE(lane_index,              \
-                                                   WASM_GET_LOCAL(value))), \
-          WASM_RETURN1(WASM_ZERO))
+#define WASM_SIMD_CHECK_F32_LANE(TYPE, value, lane_value, lane_index)       \
+  WASM_IF(                                                                  \
+      WASM_I32_NE(WASM_I32_REINTERPRET_F32(WASM_GET_LOCAL(lane_value)),     \
+                  WASM_I32_REINTERPRET_F32(WASM_SIMD_##TYPE##_EXTRACT_LANE( \
+                      lane_index, WASM_GET_LOCAL(value)))),                 \
+      WASM_RETURN1(WASM_ZERO))
 
-#define WASM_SIMD_CHECK_F32x4(value, lv0, lv1, lv2, lv3) \
-  WASM_SIMD_CHECK_F32_LANE(value, lv0, 0)                \
-  , WASM_SIMD_CHECK_F32_LANE(value, lv1, 1),             \
-      WASM_SIMD_CHECK_F32_LANE(value, lv2, 2),           \
-      WASM_SIMD_CHECK_F32_LANE(value, lv3, 3)
+#define WASM_SIMD_CHECK4_F32(TYPE, value, lv0, lv1, lv2, lv3) \
+  WASM_SIMD_CHECK_F32_LANE(TYPE, value, lv0, 0)               \
+  , WASM_SIMD_CHECK_F32_LANE(TYPE, value, lv1, 1),            \
+      WASM_SIMD_CHECK_F32_LANE(TYPE, value, lv2, 2),          \
+      WASM_SIMD_CHECK_F32_LANE(TYPE, value, lv3, 3)
 
-#define WASM_SIMD_CHECK_SPLAT_F32x4(value, lv) \
-  WASM_SIMD_CHECK_F32x4(value, lv, lv, lv, lv)
+#define WASM_SIMD_CHECK_SPLAT4_F32(TYPE, value, lv) \
+  WASM_SIMD_CHECK4_F32(TYPE, value, lv, lv, lv, lv)
 
 #if V8_TARGET_ARCH_ARM
 WASM_EXEC_TEST(F32x4Splat) {
@@ -96,16 +97,12 @@ WASM_EXEC_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(kExecuteCompiled);
   byte lane_val = 0;
   byte simd = r.AllocateLocal(kWasmS128);
-  BUILD(
-      r,
-      WASM_BLOCK(
-          WASM_SET_LOCAL(simd, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(lane_val))),
-          WASM_SIMD_CHECK_SPLAT_F32x4(simd, lane_val), WASM_RETURN1(WASM_ONE)));
+  BUILD(r, WASM_BLOCK(WASM_SET_LOCAL(simd, WASM_SIMD_F32x4_SPLAT(
+                                               WASM_GET_LOCAL(lane_val))),
+                      WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd, lane_val),
+                      WASM_RETURN1(WASM_ONE)));
 
-  FOR_FLOAT32_INPUTS(i) {
-    if (std::isnan(*i)) continue;
-    CHECK_EQ(1, r.Call(*i));
-  }
+  FOR_FLOAT32_INPUTS(i) { CHECK_EQ(1, r.Call(*i)); }
 }
 
 WASM_EXEC_TEST(F32x4ReplaceLane) {
@@ -155,10 +152,10 @@ WASM_EXEC_TEST(F32x4FromInt32x4) {
                WASM_SET_LOCAL(simd0, WASM_SIMD_I32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(
                    simd1, WASM_SIMD_F32x4_FROM_I32x4(WASM_GET_LOCAL(simd0))),
-               WASM_SIMD_CHECK_SPLAT_F32x4(simd1, expected_signed),
+               WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd1, expected_signed),
                WASM_SET_LOCAL(
                    simd2, WASM_SIMD_F32x4_FROM_U32x4(WASM_GET_LOCAL(simd0))),
-               WASM_SIMD_CHECK_SPLAT_F32x4(simd2, expected_unsigned),
+               WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd2, expected_unsigned),
                WASM_RETURN1(WASM_ONE)));
 
   FOR_INT32_INPUTS(i) {
@@ -206,7 +203,7 @@ void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op) {
                WASM_SET_LOCAL(simd, WASM_SIMD_F32x4_SPLAT(WASM_GET_LOCAL(a))),
                WASM_SET_LOCAL(
                    simd, WASM_SIMD_UNOP(simd_op & 0xffu, WASM_GET_LOCAL(simd))),
-               WASM_SIMD_CHECK_SPLAT_F32x4(simd, expected),
+               WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd, expected),
                WASM_RETURN1(WASM_ONE)));
 
   FOR_FLOAT32_INPUTS(i) {
@@ -232,18 +229,18 @@ void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
                WASM_SET_LOCAL(simd1, WASM_SIMD_BINOP(simd_op & 0xffu,
                                                      WASM_GET_LOCAL(simd0),
                                                      WASM_GET_LOCAL(simd1))),
-               WASM_SIMD_CHECK_SPLAT_F32x4(simd1, expected),
+               WASM_SIMD_CHECK_SPLAT4_F32(F32x4, simd1, expected),
                WASM_RETURN1(WASM_ONE)));
 
   FOR_FLOAT32_INPUTS(i) {
+    if (std::isnan(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
+      if (std::isnan(*j)) continue;
       float expected = expected_op(*i, *j);
-      int result_type = std::fpclassify(expected);
-      // Skip arithmetic operations on NaNs or whose expected result is a NaN
-      // or denormalized.
-      // TODO(bbudge) On platforms where denormals are flushed to zero, test
-      // with expected = 0.
-      if (result_type == FP_NAN || result_type == FP_SUBNORMAL) continue;
+      // SIMD on some platforms may handle denormalized numbers differently.
+      // TODO(bbudge) On platforms that flush denorms to zero, test with
+      // expected == 0.
+      if (std::fpclassify(expected) == FP_SUBNORMAL) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected));
     }
   }
@@ -270,12 +267,12 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
                WASM_RETURN1(WASM_ONE)));
 
   FOR_FLOAT32_INPUTS(i) {
+    if (std::isnan(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
-      int diff_type = std::fpclassify(*i - *j);
-      // Skip comparisons on NaNs or pairs whose difference is a NaN.
-      // Skip comparisons on pairs whose difference is denormalized.
-      // On some platforms, SIMD instructions may flush denormals to zero.
-      if (diff_type == FP_NAN || diff_type == FP_SUBNORMAL) continue;
+      if (std::isnan(*j)) continue;
+      // SIMD on some platforms may handle denormalized numbers differently.
+      // Check for number pairs that are very close together.
+      if (std::fpclassify(*i - *j) == FP_SUBNORMAL) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
     }
   }
