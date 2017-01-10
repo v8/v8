@@ -22,8 +22,6 @@ function assertErrorMessage(func, type, msg) {
   assertThrows(func, type);
 }
 
-let PROP_FLAGS = false;  // property flags are implemented correctly
-
 let emptyModuleBinary = (() => {
   var builder = new WasmModuleBuilder();
   return new Int8Array(builder.toBuffer());
@@ -130,9 +128,9 @@ assertEq(new Module(emptyModuleBinary.buffer) instanceof Module, true);
 // 'WebAssembly.Module.prototype' data property
 let moduleProtoDesc = Object.getOwnPropertyDescriptor(Module, 'prototype');
 assertEq(typeof moduleProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(moduleProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(moduleProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(moduleProtoDesc.configurable, false);
+assertEq(moduleProtoDesc.writable, false);
+assertEq(moduleProtoDesc.enumerable, false);
+assertEq(moduleProtoDesc.configurable, false);
 
 // 'WebAssembly.Module.prototype' object
 let moduleProto = Module.prototype;
@@ -234,9 +232,9 @@ assertErrorMessage(() => new Instance({}), TypeError, "first argument must be a 
 // 'WebAssembly.Instance.prototype' data property
 let instanceProtoDesc = Object.getOwnPropertyDescriptor(Instance, 'prototype');
 assertEq(typeof instanceProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(instanceProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(instanceProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(instanceProtoDesc.configurable, false);
+assertEq(instanceProtoDesc.writable, false);
+assertEq(instanceProtoDesc.enumerable, false);
+assertEq(instanceProtoDesc.configurable, false);
 
 // 'WebAssembly.Instance.prototype' object
 let instanceProto = Instance.prototype;
@@ -291,9 +289,9 @@ assertEq(new Memory({initial:1.5}).buffer.byteLength, kPageSize);
 // 'WebAssembly.Memory.prototype' data property
 let memoryProtoDesc = Object.getOwnPropertyDescriptor(Memory, 'prototype');
 assertEq(typeof memoryProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(memoryProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(memoryProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(memoryProtoDesc.configurable, false);
+assertEq(memoryProtoDesc.writable, false);
+assertEq(memoryProtoDesc.enumerable, false);
+assertEq(memoryProtoDesc.configurable, false);
 
 // 'WebAssembly.Memory.prototype' object
 let memoryProto = Memory.prototype;
@@ -383,9 +381,9 @@ assertEq(new Table({initial:1, maximum:1.5, element:"anyfunc"}) instanceof Table
 // 'WebAssembly.Table.prototype' data property
 let tableProtoDesc = Object.getOwnPropertyDescriptor(Table, 'prototype');
 assertEq(typeof tableProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(tableProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(tableProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(tableProtoDesc.configurable, false);
+assertEq(tableProtoDesc.writable, false);
+assertEq(tableProtoDesc.enumerable, false);
+assertEq(tableProtoDesc.configurable, false);
 
 // 'WebAssembly.Table.prototype' object
 let tableProto = Table.prototype;

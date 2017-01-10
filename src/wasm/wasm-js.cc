@@ -566,8 +566,9 @@ void WebAssemblyMemoryGetBuffer(
 static i::Handle<i::FunctionTemplateInfo> NewTemplate(i::Isolate* i_isolate,
                                                       FunctionCallback func) {
   Isolate* isolate = reinterpret_cast<Isolate*>(i_isolate);
-  Local<FunctionTemplate> local = FunctionTemplate::New(isolate, func);
-  return v8::Utils::OpenHandle(*local);
+  Local<FunctionTemplate> templ = FunctionTemplate::New(isolate, func);
+  templ->ReadOnlyPrototype();
+  return v8::Utils::OpenHandle(*templ);
 }
 
 namespace internal {
