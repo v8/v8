@@ -1075,6 +1075,7 @@
         'objects-printer.cc',
         'objects.cc',
         'objects.h',
+        'objects/module-info.h',
         'objects/object-macros.h',
         'objects/object-macros-undef.h',
         'objects/scope-info.h',

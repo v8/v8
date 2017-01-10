@@ -8,8 +8,10 @@
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
-#include "src/objects/object-macros.h"
 #include "src/utils.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {

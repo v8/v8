@@ -19,7 +19,6 @@
 #include "src/flags.h"
 #include "src/list.h"
 #include "src/messages.h"
-#include "src/objects/object-macros.h"
 #include "src/property-details.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode.h"
@@ -39,6 +38,8 @@
 #include "src/s390/constants-s390.h"  // NOLINT
 #endif
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 //
 // Most object types in the V8 JavaScript are described in this file.
@@ -168,6 +169,7 @@
 namespace v8 {
 namespace internal {
 
+class ModuleInfo;
 struct InliningPosition;
 
 enum KeyedAccessStoreMode {
@@ -7960,52 +7962,6 @@ class ModuleInfoEntry : public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfoEntry);
 };
 
-// ModuleInfo is to ModuleDescriptor what ScopeInfo is to Scope.
-class ModuleInfo : public FixedArray {
- public:
-  DECLARE_CAST(ModuleInfo)
-
-  static Handle<ModuleInfo> New(Isolate* isolate, Zone* zone,
-                                ModuleDescriptor* descr);
-
-  inline FixedArray* module_requests() const;
-  inline FixedArray* special_exports() const;
-  inline FixedArray* regular_exports() const;
-  inline FixedArray* namespace_imports() const;
-  inline FixedArray* regular_imports() const;
-
-  // Accessors for [regular_exports].
-  int RegularExportCount() const;
-  String* RegularExportLocalName(int i) const;
-  int RegularExportCellIndex(int i) const;
-  FixedArray* RegularExportExportNames(int i) const;
-
-  static Handle<ModuleInfoEntry> LookupRegularImport(Handle<ModuleInfo> info,
-                                                     Handle<String> local_name);
-
-#ifdef DEBUG
-  inline bool Equals(ModuleInfo* other) const;
-#endif
-
- private:
-  friend class Factory;
-  friend class ModuleDescriptor;
-  enum {
-    kModuleRequestsIndex,
-    kSpecialExportsIndex,
-    kRegularExportsIndex,
-    kNamespaceImportsIndex,
-    kRegularImportsIndex,
-    kLength
-  };
-  enum {
-    kRegularExportLocalNameOffset,
-    kRegularExportCellIndexOffset,
-    kRegularExportExportNamesOffset,
-    kRegularExportLength
-  };
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfo);
-};
 // When importing a module namespace (import * as foo from "bar"), a
 // JSModuleNamespace object (representing module "bar") is created and bound to
 // the declared variable (foo).  A module can have at most one namespace object.

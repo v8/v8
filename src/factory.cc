@@ -13,6 +13,8 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/module-info.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {

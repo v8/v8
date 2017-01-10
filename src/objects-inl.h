@@ -30,6 +30,7 @@
 #include "src/lookup-cache-inl.h"
 #include "src/lookup.h"
 #include "src/objects.h"
+#include "src/objects/module-info.h"
 #include "src/objects/scope-info.h"
 #include "src/property.h"
 #include "src/prototype.h"
@@ -8082,35 +8083,6 @@ SMI_ACCESSORS(ModuleInfoEntry, module_request, kModuleRequestOffset)
 SMI_ACCESSORS(ModuleInfoEntry, cell_index, kCellIndexOffset)
 SMI_ACCESSORS(ModuleInfoEntry, beg_pos, kBegPosOffset)
 SMI_ACCESSORS(ModuleInfoEntry, end_pos, kEndPosOffset)
-
-FixedArray* ModuleInfo::module_requests() const {
-  return FixedArray::cast(get(kModuleRequestsIndex));
-}
-
-FixedArray* ModuleInfo::special_exports() const {
-  return FixedArray::cast(get(kSpecialExportsIndex));
-}
-
-FixedArray* ModuleInfo::regular_exports() const {
-  return FixedArray::cast(get(kRegularExportsIndex));
-}
-
-FixedArray* ModuleInfo::regular_imports() const {
-  return FixedArray::cast(get(kRegularImportsIndex));
-}
-
-FixedArray* ModuleInfo::namespace_imports() const {
-  return FixedArray::cast(get(kNamespaceImportsIndex));
-}
-
-#ifdef DEBUG
-bool ModuleInfo::Equals(ModuleInfo* other) const {
-  return regular_exports() == other->regular_exports() &&
-         regular_imports() == other->regular_imports() &&
-         special_exports() == other->special_exports() &&
-         namespace_imports() == other->namespace_imports();
-}
-#endif
 
 void Map::ClearCodeCache(Heap* heap) {
   // No write barrier is needed since empty_fixed_array is not in new space.
