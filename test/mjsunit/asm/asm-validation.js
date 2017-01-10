@@ -401,3 +401,15 @@ function assertValidAsm(func) {
   Module();
   assertFalse(%IsAsmWasmCode(Module));
 })();
+
+(function TestUndefinedGlobalCall() {
+  function Module() {
+    "use asm";
+    function foo() {
+      return bar() | 0;
+    }
+    return foo;
+  }
+  Module();
+  assertFalse(%IsAsmWasmCode(Module));
+})();

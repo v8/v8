@@ -2389,6 +2389,9 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
         DCHECK(false);
         FAIL(call, "Redeclared global identifier.");
       }
+      if (call->GetCallType() != Call::OTHER_CALL) {
+        FAIL(call, "Invalid call of existing global function.");
+      }
       SetTypeOf(call_var_proxy, reinterpret_cast<AsmType*>(call_type));
       SetTypeOf(call, return_type);
       return return_type;
@@ -2417,6 +2420,10 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
 
     if (!callee_type->CanBeInvokedWith(return_type, args)) {
       FAIL(call, "Function invocation does not match function type.");
+    }
+
+    if (call->GetCallType() != Call::OTHER_CALL) {
+      FAIL(call, "Invalid forward call of global function.");
     }
 
     SetTypeOf(call_var_proxy, call_var_info->type());
@@ -2477,6 +2484,9 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
         DCHECK(false);
         FAIL(call, "Redeclared global identifier.");
       }
+      if (call->GetCallType() != Call::KEYED_PROPERTY_CALL) {
+        FAIL(call, "Invalid call of existing function table.");
+      }
       SetTypeOf(call_property, reinterpret_cast<AsmType*>(call_type));
       SetTypeOf(call, return_type);
       return return_type;
@@ -2501,6 +2511,9 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
            "signature.");
     }
 
+    if (call->GetCallType() != Call::KEYED_PROPERTY_CALL) {
+      FAIL(call, "Invalid forward call of function table.");
+    }
     SetTypeOf(call_property, previous_type->signature());
     SetTypeOf(call, return_type);
     return return_type;
