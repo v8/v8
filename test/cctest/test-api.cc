@@ -23619,20 +23619,15 @@ THREADED_TEST(FunctionNew) {
   CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
   Local<Value> result = CompileRun("func();");
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result).FromJust());
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  // Verify function not cached
-  auto serial_number = handle(
+  // Serial number should be invalid => should not be cached.
+  auto serial_number =
       i::Smi::cast(i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
                        ->shared()
                        ->get_api_func_data()
-                       ->serial_number()),
-      i_isolate);
-  auto slow_cache = i_isolate->slow_template_instantiations_cache();
-  CHECK(slow_cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
-        i::UnseededNumberDictionary::kNotFound);
-  auto fast_cache = i_isolate->fast_template_instantiations_cache();
-  CHECK(fast_cache->get(static_cast<uint32_t>(serial_number->value()))
-            ->IsUndefined(i_isolate));
+                       ->serial_number())
+          ->value();
+  CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
+
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;

@@ -11410,6 +11410,8 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECLARE_PRINTER(FunctionTemplateInfo)
   DECLARE_VERIFIER(FunctionTemplateInfo)
 
+  static const int kInvalidSerialNumber = 0;
+
   static const int kCallCodeOffset = TemplateInfo::kHeaderSize;
   static const int kPrototypeTemplateOffset =
       kCallCodeOffset + kPointerSize;

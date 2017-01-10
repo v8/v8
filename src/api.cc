@@ -1276,7 +1276,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
   obj->set_do_not_cache(do_not_cache);
-  int next_serial_number = 0;
+  int next_serial_number = i::FunctionTemplateInfo::kInvalidSerialNumber;
   if (!do_not_cache) {
     next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
   }
