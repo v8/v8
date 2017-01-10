@@ -139,36 +139,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   LoadIC::GenerateRuntimeGetProperty(masm);
 }
 
-
-static void LoadIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-  Register slot = LoadDescriptor::SlotRegister();
-  Register vector = LoadWithVectorDescriptor::VectorRegister();
-  DCHECK(!rdi.is(receiver) && !rdi.is(name) && !rdi.is(slot) &&
-         !rdi.is(vector));
-
-  __ PopReturnAddressTo(rdi);
-  __ Push(receiver);
-  __ Push(name);
-  __ Push(slot);
-  __ Push(vector);
-  __ PushReturnAddressFrom(rdi);
-}
-
-
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is on the stack.
-
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->ic_load_miss(), 1);
-
-  LoadIC_PushArgs(masm);
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kLoadIC_Miss);
-}
-
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is on the stack.
   Register receiver = LoadDescriptor::ReceiverRegister();
@@ -183,34 +153,6 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(Runtime::kGetProperty);
-}
-
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is on the stack.
-  Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->ic_keyed_load_miss(), 1);
-
-  LoadIC_PushArgs(masm);
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss);
-}
-
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // The return address is on the stack.
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-
-  DCHECK(!rbx.is(receiver) && !rbx.is(name));
-
-  __ PopReturnAddressTo(rbx);
-  __ Push(receiver);
-  __ Push(name);
-  __ PushReturnAddressFrom(rbx);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedGetProperty);
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {

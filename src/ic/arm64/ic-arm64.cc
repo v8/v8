@@ -121,56 +121,12 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   GenerateRuntimeGetProperty(masm);
 }
 
-
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is in lr.
-  Isolate* isolate = masm->isolate();
-  ASM_LOCATION("LoadIC::GenerateMiss");
-
-  DCHECK(!AreAliased(x4, x5, LoadWithVectorDescriptor::SlotRegister(),
-                     LoadWithVectorDescriptor::VectorRegister()));
-  __ IncrementCounter(isolate->counters()->ic_load_miss(), 1, x4, x5);
-
-  // Perform tail call to the entry.
-  __ Push(LoadWithVectorDescriptor::ReceiverRegister(),
-          LoadWithVectorDescriptor::NameRegister(),
-          LoadWithVectorDescriptor::SlotRegister(),
-          LoadWithVectorDescriptor::VectorRegister());
-  __ TailCallRuntime(Runtime::kLoadIC_Miss);
-}
-
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is in lr.
   __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(Runtime::kGetProperty);
-}
-
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is in lr.
-  Isolate* isolate = masm->isolate();
-
-  DCHECK(!AreAliased(x10, x11, LoadWithVectorDescriptor::SlotRegister(),
-                     LoadWithVectorDescriptor::VectorRegister()));
-  __ IncrementCounter(isolate->counters()->ic_keyed_load_miss(), 1, x10, x11);
-
-  __ Push(LoadWithVectorDescriptor::ReceiverRegister(),
-          LoadWithVectorDescriptor::NameRegister(),
-          LoadWithVectorDescriptor::SlotRegister(),
-          LoadWithVectorDescriptor::VectorRegister());
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss);
-}
-
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // The return address is in lr.
-  __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedGetProperty);
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {

@@ -1092,8 +1092,6 @@ class RuntimeCallTimerScope {
   SC(ic_compare_miss, V8.ICCompareMiss)                                        \
   SC(ic_call_miss, V8.ICCallMiss)                                              \
   SC(ic_keyed_call_miss, V8.ICKeyedCallMiss)                                   \
-  SC(ic_load_miss, V8.ICLoadMiss)                                              \
-  SC(ic_keyed_load_miss, V8.ICKeyedLoadMiss)                                   \
   SC(ic_store_miss, V8.ICStoreMiss)                                            \
   SC(ic_keyed_store_miss, V8.ICKeyedStoreMiss)                                 \
   SC(cow_arrays_created_runtime, V8.COWArraysCreatedRuntime)                   \

@@ -18,11 +18,32 @@ void Builtins::Generate_KeyedLoadIC_Megamorphic_TF(
   AccessorAssembler::GenerateKeyedLoadICMegamorphic(state);
 }
 
-void Builtins::Generate_KeyedLoadIC_Miss(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateMiss(masm);
+void Builtins::Generate_KeyedLoadIC_Miss(compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  typedef LoadWithVectorDescriptor Descriptor;
+  CodeStubAssembler assembler(state);
+
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+
+  assembler.TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, name,
+                            slot, vector);
 }
-void Builtins::Generate_KeyedLoadIC_Slow(MacroAssembler* masm) {
-  KeyedLoadIC::GenerateRuntimeGetProperty(masm);
+
+void Builtins::Generate_KeyedLoadIC_Slow(compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  typedef LoadWithVectorDescriptor Descriptor;
+  CodeStubAssembler assembler(state);
+
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+
+  assembler.TailCallRuntime(Runtime::kKeyedGetProperty, context, receiver,
+                            name);
 }
 
 void Builtins::Generate_KeyedStoreIC_Megamorphic_TF(

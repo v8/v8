@@ -286,8 +286,6 @@ class LoadIC : public IC {
   }
 
   // Code generator routines.
-
-  static void GenerateMiss(MacroAssembler* masm);
   static void GenerateRuntimeGetProperty(MacroAssembler* masm);
   static void GenerateNormal(MacroAssembler* masm);
 
@@ -353,10 +351,6 @@ class KeyedLoadIC : public LoadIC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);
-
-  // Code generator routines.
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
 
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 

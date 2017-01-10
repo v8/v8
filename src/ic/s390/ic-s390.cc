@@ -138,29 +138,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 // A register that isn't one of the parameters to the load ic.
 static const Register LoadIC_TempRegister() { return r5; }
 
-static void LoadIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-  Register slot = LoadDescriptor::SlotRegister();
-  Register vector = LoadWithVectorDescriptor::VectorRegister();
-
-  __ Push(receiver, name, slot, vector);
-}
-
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is in lr.
-  Isolate* isolate = masm->isolate();
-
-  DCHECK(!AreAliased(r6, r7, LoadWithVectorDescriptor::SlotRegister(),
-                     LoadWithVectorDescriptor::VectorRegister()));
-  __ IncrementCounter(isolate->counters()->ic_load_miss(), 1, r6, r7);
-
-  LoadIC_PushArgs(masm);
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kLoadIC_Miss);
-}
-
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // The return address is in lr.
 
@@ -169,29 +146,6 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(Runtime::kGetProperty);
-}
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  // The return address is in lr.
-  Isolate* isolate = masm->isolate();
-
-  DCHECK(!AreAliased(r6, r7, LoadWithVectorDescriptor::SlotRegister(),
-                     LoadWithVectorDescriptor::VectorRegister()));
-  __ IncrementCounter(isolate->counters()->ic_keyed_load_miss(), 1, r6, r7);
-
-  LoadIC_PushArgs(masm);
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss);
-}
-
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // The return address is in lr.
-
-  __ Push(LoadDescriptor::ReceiverRegister(), LoadDescriptor::NameRegister());
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedGetProperty);
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {

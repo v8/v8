@@ -138,34 +138,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   GenerateRuntimeGetProperty(masm);
 }
 
-
-static void LoadIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-
-  Register slot = LoadDescriptor::SlotRegister();
-  Register vector = LoadWithVectorDescriptor::VectorRegister();
-  DCHECK(!edi.is(receiver) && !edi.is(name) && !edi.is(slot) &&
-         !edi.is(vector));
-
-  __ pop(edi);
-  __ push(receiver);
-  __ push(name);
-  __ push(slot);
-  __ push(vector);
-  __ push(edi);
-}
-
-
-void LoadIC::GenerateMiss(MacroAssembler* masm) {
-  // Return address is on the stack.
-  __ IncrementCounter(masm->isolate()->counters()->ic_load_miss(), 1);
-  LoadIC_PushArgs(masm);
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kLoadIC_Miss);
-}
-
 void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
   // Return address is on the stack.
   Register receiver = LoadDescriptor::ReceiverRegister();
@@ -179,32 +151,6 @@ void LoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(Runtime::kGetProperty);
-}
-
-
-void KeyedLoadIC::GenerateMiss(MacroAssembler* masm) {
-  // Return address is on the stack.
-  __ IncrementCounter(masm->isolate()->counters()->ic_keyed_load_miss(), 1);
-
-  LoadIC_PushArgs(masm);
-
-  // Perform tail call to the entry.
-  __ TailCallRuntime(Runtime::kKeyedLoadIC_Miss);
-}
-
-void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register name = LoadDescriptor::NameRegister();
-  DCHECK(!ebx.is(receiver) && !ebx.is(name));
-
-  __ pop(ebx);
-  __ push(receiver);
-  __ push(name);
-  __ push(ebx);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedGetProperty);
 }
 
 static void StoreIC_PushArgs(MacroAssembler* masm) {

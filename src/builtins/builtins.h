@@ -212,8 +212,8 @@ namespace internal {
   /* Handlers */                                                               \
   TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,              \
       LoadWithVector)                                                          \
-  ASM(KeyedLoadIC_Miss)                                                        \
-  ASH(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC)                          \
+  TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)              \
+  TFS(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC, LoadWithVector)          \
   TFS(KeyedStoreIC_Megamorphic_TF, KEYED_STORE_IC, kNoExtraICState,            \
       StoreWithVector)                                                         \
   TFS(KeyedStoreIC_Megamorphic_Strict_TF, KEYED_STORE_IC,                      \
