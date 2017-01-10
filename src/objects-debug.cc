@@ -555,6 +555,8 @@ void String::StringVerify() {
     ConsString::cast(this)->ConsStringVerify();
   } else if (IsSlicedString()) {
     SlicedString::cast(this)->SlicedStringVerify();
+  } else if (IsThinString()) {
+    ThinString::cast(this)->ThinStringVerify();
   }
 }
 
@@ -566,12 +568,17 @@ void ConsString::ConsStringVerify() {
   CHECK(this->length() >= ConsString::kMinLength);
   CHECK(this->length() == this->first()->length() + this->second()->length());
   if (this->IsFlat()) {
-    // A flat cons can only be created by String::SlowTryFlatten.
-    // Afterwards, the first part may be externalized.
-    CHECK(this->first()->IsSeqString() || this->first()->IsExternalString());
+    // A flat cons can only be created by String::SlowFlatten.
+    // Afterwards, the first part may be externalized or internalized.
+    CHECK(this->first()->IsSeqString() || this->first()->IsExternalString() ||
+          this->first()->IsThinString());
   }
 }
 
+void ThinString::ThinStringVerify() {
+  CHECK(this->actual()->IsInternalizedString());
+  CHECK(this->actual()->IsSeqString() || this->actual()->IsExternalString());
+}
 
 void SlicedString::SlicedStringVerify() {
   CHECK(!this->parent()->IsConsString());

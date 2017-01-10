@@ -1423,7 +1423,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (6) External string.  Make it, offset-wise, look like a sequential string.
   //     Go to (4).
   // (7) Short external string or not a string?  If yes, bail out to runtime.
-  // (8) Sliced string.  Replace subject with parent.  Go to (1).
+  // (8) Sliced or thin string.  Replace subject with parent.  Go to (1).
 
   Label seq_string /* 4 */, external_string /* 6 */, check_underlying /* 1 */,
       not_seq_nor_cons /* 5 */, not_long_external /* 7 */;
@@ -1444,6 +1444,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (2) Sequential or cons?  If not, go to (5).
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  STATIC_ASSERT(kThinStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   // Go to (5).
@@ -1470,8 +1471,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Branch(&runtime, ls, a3, Operand(a1));
   __ sra(a1, a1, kSmiTagSize);  // Untag the Smi.
 
-  STATIC_ASSERT(kStringEncodingMask == 4);
-  STATIC_ASSERT(kOneByteStringTag == 4);
+  STATIC_ASSERT(kStringEncodingMask == 8);
+  STATIC_ASSERT(kOneByteStringTag == 8);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   __ And(a0, a0, Operand(kStringEncodingMask));  // Non-zero for one-byte.
   __ lw(t9, FieldMemOperand(regexp_data, JSRegExp::kDataOneByteCodeOffset));
@@ -1720,11 +1721,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ And(at, a1, Operand(kIsNotStringMask | kShortExternalStringMask));
   __ Branch(&runtime, ne, at, Operand(zero_reg));
 
-  // (8) Sliced string.  Replace subject with parent.  Go to (4).
+  // (8) Sliced or thin string.  Replace subject with parent.  Go to (4).
+  Label thin_string;
+  __ Branch(&thin_string, eq, a1, Operand(kThinStringTag));
   // Load offset into t0 and replace subject string with parent.
   __ lw(t0, FieldMemOperand(subject, SlicedString::kOffsetOffset));
   __ sra(t0, t0, kSmiTagSize);
   __ lw(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
+  __ jmp(&check_underlying);  // Go to (4).
+
+  __ bind(&thin_string);
+  __ lw(subject, FieldMemOperand(subject, ThinString::kActualOffset));
   __ jmp(&check_underlying);  // Go to (4).
 #endif  // V8_INTERPRETED_REGEXP
 }

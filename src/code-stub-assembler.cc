@@ -1565,6 +1565,9 @@ Node* CodeStubAssembler::AllocateHeapNumberWithValue(Node* value,
 Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
                                                   AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
+  if (length == 0) {
+    return LoadRoot(Heap::kempty_stringRootIndex);
+  }
   Node* result = Allocate(SeqOneByteString::SizeFor(length), flags);
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
   StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
@@ -1584,8 +1587,10 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
   Variable var_result(this, MachineRepresentation::kTagged);
 
   // Compute the SeqOneByteString size and check if it fits into new space.
-  Label if_sizeissmall(this), if_notsizeissmall(this, Label::kDeferred),
-      if_join(this);
+  Label if_lengthiszero(this), if_sizeissmall(this),
+      if_notsizeissmall(this, Label::kDeferred), if_join(this);
+  GotoIf(WordEqual(length, IntPtrOrSmiConstant(0, mode)), &if_lengthiszero);
+
   Node* raw_size = GetArrayAllocationSize(
       length, UINT8_ELEMENTS, mode,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
@@ -1618,6 +1623,12 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
     Goto(&if_join);
   }
 
+  Bind(&if_lengthiszero);
+  {
+    var_result.Bind(LoadRoot(Heap::kempty_stringRootIndex));
+    Goto(&if_join);
+  }
+
   Bind(&if_join);
   return var_result.value();
 }
@@ -1625,6 +1636,9 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
 Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
                                                   AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
+  if (length == 0) {
+    return LoadRoot(Heap::kempty_stringRootIndex);
+  }
   Node* result = Allocate(SeqTwoByteString::SizeFor(length), flags);
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
   StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
@@ -1644,8 +1658,10 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
   Variable var_result(this, MachineRepresentation::kTagged);
 
   // Compute the SeqTwoByteString size and check if it fits into new space.
-  Label if_sizeissmall(this), if_notsizeissmall(this, Label::kDeferred),
-      if_join(this);
+  Label if_lengthiszero(this), if_sizeissmall(this),
+      if_notsizeissmall(this, Label::kDeferred), if_join(this);
+  GotoIf(WordEqual(length, IntPtrOrSmiConstant(0, mode)), &if_lengthiszero);
+
   Node* raw_size = GetArrayAllocationSize(
       length, UINT16_ELEMENTS, mode,
       SeqOneByteString::kHeaderSize + kObjectAlignmentMask);
@@ -1677,6 +1693,12 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
         CallRuntime(Runtime::kAllocateSeqTwoByteString, context,
                     mode == SMI_PARAMETERS ? length : SmiFromWord(length));
     var_result.Bind(result);
+    Goto(&if_join);
+  }
+
+  Bind(&if_lengthiszero);
+  {
+    var_result.Bind(LoadRoot(Heap::kempty_stringRootIndex));
     Goto(&if_join);
   }
 
@@ -2982,7 +3004,7 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
   // Translate the {index} into a Word.
   index = ParameterToWord(index, parameter_mode);
 
-  // We may need to loop in case of cons or sliced strings.
+  // We may need to loop in case of cons, thin, or sliced strings.
   Variable var_index(this, MachineType::PointerRepresentation());
   Variable var_result(this, MachineRepresentation::kWord32);
   Variable var_string(this, MachineRepresentation::kTagged);
@@ -3134,14 +3156,29 @@ Node* CodeStubAssembler::StringCharCodeAt(Node* string, Node* index,
 
         Bind(&if_stringisnotexternal);
         {
-          // The {string} is a SlicedString, continue with its parent.
-          Node* string_offset =
-              LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
-          Node* string_parent =
-              LoadObjectField(string, SlicedString::kParentOffset);
-          var_index.Bind(IntPtrAdd(index, string_offset));
-          var_string.Bind(string_parent);
-          Goto(&loop);
+          Label if_stringissliced(this), if_stringisthin(this);
+          Branch(
+              Word32Equal(Word32And(string_instance_type,
+                                    Int32Constant(kStringRepresentationMask)),
+                          Int32Constant(kSlicedStringTag)),
+              &if_stringissliced, &if_stringisthin);
+          Bind(&if_stringissliced);
+          {
+            // The {string} is a SlicedString, continue with its parent.
+            Node* string_offset =
+                LoadAndUntagObjectField(string, SlicedString::kOffsetOffset);
+            Node* string_parent =
+                LoadObjectField(string, SlicedString::kParentOffset);
+            var_index.Bind(IntPtrAdd(index, string_offset));
+            var_string.Bind(string_parent);
+            Goto(&loop);
+          }
+          Bind(&if_stringisthin);
+          {
+            // The {string} is a ThinString, continue with its actual value.
+            var_string.Bind(LoadObjectField(string, ThinString::kActualOffset));
+            Goto(&loop);
+          }
         }
       }
     }
@@ -3272,11 +3309,13 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   Label runtime(this);
 
   Variable var_instance_type(this, MachineRepresentation::kWord32);  // Int32.
+  Variable var_representation(this, MachineRepresentation::kWord32);  // Int32.
   Variable var_result(this, MachineRepresentation::kTagged);        // String.
   Variable var_from(this, MachineRepresentation::kTagged);          // Smi.
   Variable var_string(this, MachineRepresentation::kTagged);        // String.
 
   var_instance_type.Bind(Int32Constant(0));
+  var_representation.Bind(Int32Constant(0));
   var_string.Bind(string);
   var_from.Bind(from);
 
@@ -3317,7 +3356,8 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // and put the underlying string into var_string.
 
   // If the string is not indirect, it can only be sequential or external.
-  STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
+  STATIC_ASSERT(kIsIndirectStringMask ==
+                (kSlicedStringTag & kConsStringTag & kThinStringTag));
   STATIC_ASSERT(kIsIndirectStringMask != 0);
   Label underlying_unpacked(this);
   GotoIf(Word32Equal(
@@ -3325,13 +3365,14 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
              Int32Constant(0)),
          &underlying_unpacked);
 
-  // The subject string is either a sliced or cons string.
+  // The subject string is a sliced, cons, or thin string.
 
-  Label sliced_string(this);
-  GotoIf(Word32NotEqual(
-             Word32And(instance_type, Int32Constant(kSlicedNotConsMask)),
-             Int32Constant(0)),
-         &sliced_string);
+  Label sliced_string(this), thin_or_sliced(this);
+  var_representation.Bind(
+      Word32And(instance_type, Int32Constant(kStringRepresentationMask)));
+  GotoIf(
+      Word32NotEqual(var_representation.value(), Int32Constant(kConsStringTag)),
+      &thin_or_sliced);
 
   // Cons string.  Check whether it is flat, then fetch first part.
   // Flat cons strings have an empty second part.
@@ -3343,14 +3384,33 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     Node* first_string_part = LoadObjectField(string, ConsString::kFirstOffset);
     var_string.Bind(first_string_part);
     var_instance_type.Bind(LoadInstanceType(first_string_part));
+    var_representation.Bind(Word32And(
+        var_instance_type.value(), Int32Constant(kStringRepresentationMask)));
 
+    // The loaded first part might be a thin string.
+    Branch(Word32Equal(Word32And(var_instance_type.value(),
+                                 Int32Constant(kIsIndirectStringMask)),
+                       Int32Constant(0)),
+           &underlying_unpacked, &thin_or_sliced);
+  }
+
+  Bind(&thin_or_sliced);
+  {
+    GotoIf(Word32Equal(var_representation.value(),
+                       Int32Constant(kSlicedStringTag)),
+           &sliced_string);
+    Node* actual_string =
+        LoadObjectField(var_string.value(), ThinString::kActualOffset);
+    var_string.Bind(actual_string);
+    var_instance_type.Bind(LoadInstanceType(actual_string));
     Goto(&underlying_unpacked);
   }
 
   Bind(&sliced_string);
   {
     // Fetch parent and correct start index by offset.
-    Node* sliced_offset = LoadObjectField(string, SlicedString::kOffsetOffset);
+    Node* sliced_offset =
+        LoadObjectField(var_string.value(), SlicedString::kOffsetOffset);
     var_from.Bind(SmiAdd(from, sliced_offset));
 
     Node* slice_parent = LoadObjectField(string, SlicedString::kParentOffset);
@@ -4123,45 +4183,6 @@ Node* CodeStubAssembler::ToString(Node* context, Node* input) {
   return result.value();
 }
 
-Node* CodeStubAssembler::FlattenString(Node* string) {
-  CSA_ASSERT(this, IsString(string));
-  Variable var_result(this, MachineRepresentation::kTagged);
-  var_result.Bind(string);
-
-  Node* instance_type = LoadInstanceType(string);
-
-  // Check if the {string} is not a ConsString (i.e. already flat).
-  Label is_cons(this, Label::kDeferred), is_flat_in_cons(this), end(this);
-  {
-    GotoUnless(Word32Equal(Word32And(instance_type,
-                                     Int32Constant(kStringRepresentationMask)),
-                           Int32Constant(kConsStringTag)),
-               &end);
-
-    // Check whether the right hand side is the empty string (i.e. if
-    // this is really a flat string in a cons string).
-    Node* rhs = LoadObjectField(string, ConsString::kSecondOffset);
-    Branch(WordEqual(rhs, EmptyStringConstant()), &is_flat_in_cons, &is_cons);
-  }
-
-  // Bail out to the runtime.
-  Bind(&is_cons);
-  {
-    var_result.Bind(
-        CallRuntime(Runtime::kFlattenString, NoContextConstant(), string));
-    Goto(&end);
-  }
-
-  Bind(&is_flat_in_cons);
-  {
-    var_result.Bind(LoadObjectField(string, ConsString::kFirstOffset));
-    Goto(&end);
-  }
-
-  Bind(&end);
-  return var_result.value();
-}
-
 Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
   Label if_isreceiver(this, Label::kDeferred), if_isnotreceiver(this);
   Variable result(this, MachineRepresentation::kTagged);
@@ -4303,17 +4324,19 @@ void CodeStubAssembler::Use(Label* label) {
 
 void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
                                   Variable* var_index, Label* if_keyisunique,
-                                  Label* if_bailout) {
+                                  Variable* var_unique, Label* if_bailout) {
   DCHECK_EQ(MachineType::PointerRepresentation(), var_index->rep());
+  DCHECK_EQ(MachineRepresentation::kTagged, var_unique->rep());
   Comment("TryToName");
 
-  Label if_hascachedindex(this), if_keyisnotindex(this);
+  Label if_hascachedindex(this), if_keyisnotindex(this), if_thinstring(this);
   // Handle Smi and HeapNumber keys.
   var_index->Bind(TryToIntptr(key, &if_keyisnotindex));
   Goto(if_keyisindex);
 
   Bind(&if_keyisnotindex);
   Node* key_map = LoadMap(key);
+  var_unique->Bind(key);
   // Symbols are unique.
   GotoIf(IsSymbolMap(key_map), if_keyisunique);
   Node* key_instance_type = LoadMapInstanceType(key_map);
@@ -4330,11 +4353,21 @@ void CodeStubAssembler::TryToName(Node* key, Label* if_keyisindex,
   Node* not_an_index =
       Word32And(hash, Int32Constant(Name::kIsNotArrayIndexMask));
   GotoIf(Word32Equal(not_an_index, Int32Constant(0)), if_bailout);
+  // Check if we have a ThinString.
+  GotoIf(Word32Equal(key_instance_type, Int32Constant(THIN_STRING_TYPE)),
+         &if_thinstring);
+  GotoIf(
+      Word32Equal(key_instance_type, Int32Constant(THIN_ONE_BYTE_STRING_TYPE)),
+      &if_thinstring);
   // Finally, check if |key| is internalized.
   STATIC_ASSERT(kNotInternalizedTag != 0);
   Node* not_internalized =
       Word32And(key_instance_type, Int32Constant(kIsNotInternalizedMask));
   GotoIf(Word32NotEqual(not_internalized, Int32Constant(0)), if_bailout);
+  Goto(if_keyisunique);
+
+  Bind(&if_thinstring);
+  var_unique->Bind(LoadObjectField(key, ThinString::kActualOffset));
   Goto(if_keyisunique);
 
   Bind(&if_hascachedindex);
@@ -5186,9 +5219,11 @@ void CodeStubAssembler::TryPrototypeChainLookup(
   }
 
   Variable var_index(this, MachineType::PointerRepresentation());
+  Variable var_unique(this, MachineRepresentation::kTagged);
 
   Label if_keyisindex(this), if_iskeyunique(this);
-  TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, if_bailout);
+  TryToName(key, &if_keyisindex, &var_index, &if_iskeyunique, &var_unique,
+            if_bailout);
 
   Bind(&if_iskeyunique);
   {
@@ -5210,8 +5245,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
       Label next_proto(this);
       lookup_property_in_holder(receiver, var_holder.value(), holder_map,
-                                holder_instance_type, key, &next_proto,
-                                if_bailout);
+                                holder_instance_type, var_unique.value(),
+                                &next_proto, if_bailout);
       Bind(&next_proto);
 
       // Bailout if it can be an integer indexed exotic case.
