@@ -46,6 +46,9 @@ IGNORE_TEST_CASES = {
   'crbug.com/666308':
       re.compile(r'.*End stripped down and modified version.*'
                  r'\.prototype.*instanceof.*.*', re.S),
+
+  'crbug.com/679957':
+      re.compile(r'.*performance\.now.*', re.S),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
