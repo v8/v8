@@ -510,8 +510,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                              offset, flags);
       } break;
 
-      case StackFrame::WASM: {
-        WasmFrame* wasm_frame = WasmFrame::cast(frame);
+      case StackFrame::WASM_COMPILED: {
+        WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
         Handle<WasmInstanceObject> instance(wasm_frame->wasm_instance(), this);
         const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
@@ -533,6 +533,10 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
             FrameArray::AppendWasmFrame(elements, instance, wasm_function_index,
                                         abstract_code, offset, flags);
       } break;
+
+      case StackFrame::WASM_INTERPRETER_ENTRY:
+        // TODO(clemensh): Add frames.
+        break;
 
       default:
         break;
@@ -699,7 +703,7 @@ class CaptureStackTraceHelper {
     return stack_frame;
   }
 
-  Handle<JSObject> NewStackFrameObject(WasmFrame* frame) {
+  Handle<JSObject> NewStackFrameObject(WasmCompiledFrame* frame) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
 
@@ -783,7 +787,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
       }
     } else {
       DCHECK(frame->is_wasm());
-      WasmFrame* wasm_frame = WasmFrame::cast(frame);
+      WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
       Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(wasm_frame);
       stack_trace_elems->set(frames_seen, *new_frame_obj);
       frames_seen++;
@@ -1220,7 +1224,7 @@ Object* Isolate::UnwindAndFindHandler() {
     if (FLAG_wasm_eh_prototype) {
       if (frame->is_wasm() && is_catchable_by_wasm(exception)) {
         int stack_slots = 0;  // Will contain stack slot count of frame.
-        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
+        WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
         offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
         if (offset >= 0) {
           // Compute the stack pointer from the frame pointer. This ensures that
@@ -1308,6 +1312,9 @@ Object* Isolate::UnwindAndFindHandler() {
       offset = js_frame->LookupExceptionHandlerInTable(nullptr, nullptr);
       CHECK_EQ(-1, offset);
     }
+
+    // TODO(clemensh): Handle unwinding interpreted wasm frames (stored in the
+    // WasmInterpreter C++ object).
 
     RemoveMaterializedObjectsOnUnwind(frame);
   }

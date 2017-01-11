@@ -97,9 +97,10 @@ class StackHandler BASE_EMBEDDED {
   V(EXIT, ExitFrame)                                     \
   V(JAVA_SCRIPT, JavaScriptFrame)                        \
   V(OPTIMIZED, OptimizedFrame)                           \
-  V(WASM, WasmFrame)                                     \
+  V(WASM_COMPILED, WasmCompiledFrame)                    \
   V(WASM_TO_JS, WasmToJsFrame)                           \
   V(JS_TO_WASM, JsToWasmFrame)                           \
+  V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)   \
   V(INTERPRETED, InterpretedFrame)                       \
   V(STUB, StubFrame)                                     \
   V(STUB_FAILURE_TRAMPOLINE, StubFailureTrampolineFrame) \
@@ -463,9 +464,12 @@ class StackFrame BASE_EMBEDDED {
   bool is_exit() const { return type() == EXIT; }
   bool is_optimized() const { return type() == OPTIMIZED; }
   bool is_interpreted() const { return type() == INTERPRETED; }
-  bool is_wasm() const { return type() == WASM; }
+  bool is_wasm_compiled() const { return type() == WASM_COMPILED; }
   bool is_wasm_to_js() const { return type() == WASM_TO_JS; }
   bool is_js_to_wasm() const { return type() == JS_TO_WASM; }
+  bool is_wasm_interpreter_entry() const {
+    return type() == WASM_INTERPRETER_ENTRY;
+  }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_builtin() const { return type() == BUILTIN; }
   bool is_internal() const { return type() == INTERNAL; }
@@ -480,6 +484,10 @@ class StackFrame BASE_EMBEDDED {
     Type type = this->type();
     return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
            (type == INTERPRETED) || (type == BUILTIN);
+  }
+  bool is_wasm() const {
+    Type type = this->type();
+    return type == WASM_COMPILED || type == WASM_INTERPRETER_ENTRY;
   }
 
   // Accessors.
@@ -729,7 +737,7 @@ class BuiltinExitFrame : public ExitFrame {
   friend class StackFrameIteratorBase;
 };
 
-class JavaScriptFrame;
+class StandardFrame;
 
 class FrameSummary BASE_EMBEDDED {
  public:
@@ -744,7 +752,7 @@ class FrameSummary BASE_EMBEDDED {
                AbstractCode* abstract_code, int code_offset,
                bool is_constructor, Mode mode = kExactSummary);
 
-  static FrameSummary GetFirst(JavaScriptFrame* frame);
+  static FrameSummary GetFirst(StandardFrame* frame);
 
   Handle<Object> receiver() const { return receiver_; }
   Handle<JSFunction> function() const { return function_; }
@@ -786,6 +794,11 @@ class StandardFrame : public StackFrame {
 
   // Check if this frame is a constructor frame invoked through 'new'.
   virtual bool IsConstructor() const;
+
+  // Build a list with summaries for this frame including all inlined frames.
+  virtual void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
 
   static StandardFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_standard());
@@ -836,10 +849,9 @@ class JavaScriptFrame : public StandardFrame {
  public:
   Type type() const override { return JAVA_SCRIPT; }
 
-  // Build a list with summaries for this frame including all inlined frames.
-  virtual void Summarize(
+  void Summarize(
       List<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
 
   // Accessors.
   virtual JSFunction* function() const;
@@ -1091,9 +1103,9 @@ class BuiltinFrame final : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmFrame : public StandardFrame {
+class WasmCompiledFrame : public StandardFrame {
  public:
-  Type type() const override { return WASM; }
+  Type type() const override { return WASM_COMPILED; }
 
   // GC support.
   void Iterate(ObjectVisitor* v) const override;
@@ -1116,13 +1128,53 @@ class WasmFrame : public StandardFrame {
   int position() const override;
   bool at_to_number_conversion() const;
 
-  static WasmFrame* cast(StackFrame* frame) {
-    DCHECK(frame->is_wasm());
-    return static_cast<WasmFrame*>(frame);
+  void Summarize(List<FrameSummary>* frames,
+                 FrameSummary::Mode mode) const override;
+
+  static WasmCompiledFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_compiled());
+    return static_cast<WasmCompiledFrame*>(frame);
   }
 
  protected:
-  inline explicit WasmFrame(StackFrameIteratorBase* iterator);
+  inline explicit WasmCompiledFrame(StackFrameIteratorBase* iterator);
+
+  Address GetCallerStackPointer() const override;
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmInterpreterEntryFrame : public StandardFrame {
+ public:
+  Type type() const override { return WASM_INTERPRETER_ENTRY; }
+
+  // GC support.
+  void Iterate(ObjectVisitor* v) const override;
+
+  // Printing support.
+  void Print(StringStream* accumulator, PrintMode mode,
+             int index) const override;
+
+  void Summarize(
+      List<FrameSummary>* frames,
+      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+
+  // Determine the code for the frame.
+  Code* unchecked_code() const override;
+
+  // Accessors.
+  WasmInstanceObject* wasm_instance() const;
+  Script* script() const override;
+  int position() const override;
+
+  static WasmInterpreterEntryFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_wasm_interpreter_entry());
+    return static_cast<WasmInterpreterEntryFrame*>(frame);
+  }
+
+ protected:
+  inline explicit WasmInterpreterEntryFrame(StackFrameIteratorBase* iterator);
 
   Address GetCallerStackPointer() const override;
 
@@ -1313,7 +1365,9 @@ class StackTraceFrameIterator BASE_EMBEDDED {
   inline bool is_javascript() const;
   inline bool is_wasm() const;
   inline JavaScriptFrame* javascript_frame() const;
-  inline WasmFrame* wasm_frame() const;
+  // TODO(clemensh): Remove / refactor this for general wasm frames
+  // (compiled/interpreted).
+  inline WasmCompiledFrame* wasm_compiled_frame() const;
 
   // Advance to the frame holding the arguments for the current
   // frame. This only affects the current frame if it is a javascript frame and

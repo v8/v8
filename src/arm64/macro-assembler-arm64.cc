@@ -2666,7 +2666,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     // jssp[3] : fp
     // jssp[1] : type
     // jssp[0] : [code object]
-  } else if (type == StackFrame::WASM) {
+  } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
     Push(xzr, lr);

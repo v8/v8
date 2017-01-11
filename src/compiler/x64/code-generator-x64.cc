@@ -285,7 +285,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     gen_->AddProtectedInstruction(pc_, current_pc);
 
     if (frame_elided_) {
-      __ EnterFrame(StackFrame::WASM);
+      __ EnterFrame(StackFrame::WASM_COMPILED);
     }
 
     wasm::TrapReason trap_id = wasm::kTrapMemOutOfBounds;
@@ -2321,7 +2321,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       bool old_has_frame = __ has_frame();
       if (frame_elided_) {
         __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM);
+        __ EnterFrame(StackFrame::WASM_COMPILED);
       }
       GenerateCallToTrap(trap_id);
       if (frame_elided_) {

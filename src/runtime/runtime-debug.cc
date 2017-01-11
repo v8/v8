@@ -526,8 +526,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
     // Add the function name.
     Handle<WasmCompiledModule> compiled_module(
-        it.wasm_frame()->wasm_instance()->compiled_module(), isolate);
-    int func_index = it.wasm_frame()->function_index();
+        it.wasm_compiled_frame()->wasm_instance()->compiled_module(), isolate);
+    int func_index = it.wasm_compiled_frame()->function_index();
     Handle<String> func_name = WasmCompiledModule::GetFunctionName(
         isolate, compiled_module, func_index);
     details->set(kFrameDetailsFunctionIndex, *func_name);

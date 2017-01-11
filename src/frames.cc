@@ -468,11 +468,13 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         case Code::OPTIMIZED_FUNCTION:
           return OPTIMIZED;
         case Code::WASM_FUNCTION:
-          return WASM;
+          return WASM_COMPILED;
         case Code::WASM_TO_JS_FUNCTION:
           return WASM_TO_JS;
         case Code::JS_TO_WASM_FUNCTION:
           return JS_TO_WASM;
+        case Code::WASM_INTERPRETER_ENTRY:
+          return WASM_INTERPRETER_ENTRY;
         default:
           // All other types should have an explicit marker
           break;
@@ -496,7 +498,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case CONSTRUCT:
     case ARGUMENTS_ADAPTOR:
     case WASM_TO_JS:
-    case WASM:
+    case WASM_COMPILED:
       return candidate;
     case JS_TO_WASM:
     case JAVA_SCRIPT:
@@ -760,6 +762,12 @@ void StandardFrame::SetCallerFp(Address caller_fp) {
 
 bool StandardFrame::IsConstructor() const { return false; }
 
+void StandardFrame::Summarize(List<FrameSummary>* functions,
+                              FrameSummary::Mode mode) const {
+  // This should only be called on frames which override this method.
+  UNREACHABLE();
+}
+
 void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
   // Make sure that we're not doing "safe" stack frame iteration. We cannot
   // possibly find pointers in optimized frames in that state.
@@ -791,7 +799,8 @@ void StandardFrame::IterateCompiledFrame(ObjectVisitor* v) const {
       case CONSTRUCT:
       case JS_TO_WASM:
       case WASM_TO_JS:
-      case WASM:
+      case WASM_COMPILED:
+      case WASM_INTERPRETER_ENTRY:
         frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
         break;
       case JAVA_SCRIPT:
@@ -973,15 +982,15 @@ JSFunction* JavaScriptFrame::function() const {
 
 Object* JavaScriptFrame::receiver() const { return GetParameter(-1); }
 
-Script* JavaScriptFrame::script() const {
-  return Script::cast(function()->shared()->script());
-}
-
 Object* JavaScriptFrame::context() const {
   const int offset = StandardFrameConstants::kContextOffset;
   Object* maybe_result = Memory::Object_at(fp() + offset);
   DCHECK(!maybe_result->IsSmi());
   return maybe_result;
+}
+
+Script* JavaScriptFrame::script() const {
+  return Script::cast(function()->shared()->script());
 }
 
 int JavaScriptFrame::LookupExceptionHandlerInTable(
@@ -1134,7 +1143,7 @@ FrameSummary::FrameSummary(Object* receiver, JSFunction* function,
          mode == kApproximateSummary);
 }
 
-FrameSummary FrameSummary::GetFirst(JavaScriptFrame* frame) {
+FrameSummary FrameSummary::GetFirst(StandardFrame* frame) {
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
   return frames.first();
@@ -1522,8 +1531,8 @@ void StackFrame::PrintIndex(StringStream* accumulator,
   accumulator->Add((mode == OVERVIEW) ? "%5d: " : "[%d]: ", index);
 }
 
-void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
-                      int index) const {
+void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
+                              int index) const {
   PrintIndex(accumulator, mode, index);
   accumulator->Add("WASM [");
   Script* script = this->script();
@@ -1543,35 +1552,36 @@ void WasmFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-Code* WasmFrame::unchecked_code() const {
-  return static_cast<Code*>(isolate()->FindCodeObject(pc()));
+Code* WasmCompiledFrame::unchecked_code() const {
+  return isolate()->FindCodeObject(pc());
 }
 
-void WasmFrame::Iterate(ObjectVisitor* v) const { IterateCompiledFrame(v); }
+void WasmCompiledFrame::Iterate(ObjectVisitor* v) const {
+  IterateCompiledFrame(v);
+}
 
-Address WasmFrame::GetCallerStackPointer() const {
+Address WasmCompiledFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-WasmInstanceObject* WasmFrame::wasm_instance() const {
+WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
   WasmInstanceObject* obj = wasm::GetOwningWasmInstance(LookupCode());
   // This is a live stack frame; it must have a live instance.
   DCHECK_NOT_NULL(obj);
   return obj;
 }
 
-uint32_t WasmFrame::function_index() const {
+uint32_t WasmCompiledFrame::function_index() const {
   FixedArray* deopt_data = LookupCode()->deoptimization_data();
   DCHECK(deopt_data->length() == 2);
   return Smi::cast(deopt_data->get(1))->value();
 }
 
-Script* WasmFrame::script() const {
-  Handle<JSObject> instance(JSObject::cast(wasm_instance()), isolate());
-  return *wasm::GetScript(instance);
+Script* WasmCompiledFrame::script() const {
+  return wasm_instance()->compiled_module()->script();
 }
 
-int WasmFrame::position() const {
+int WasmCompiledFrame::position() const {
   int position = StandardFrame::position();
   if (wasm_instance()->compiled_module()->is_asm_js()) {
     Handle<WasmCompiledModule> compiled_module(
@@ -1585,7 +1595,12 @@ int WasmFrame::position() const {
   return position;
 }
 
-bool WasmFrame::at_to_number_conversion() const {
+void WasmCompiledFrame::Summarize(List<FrameSummary>* functions,
+                                  FrameSummary::Mode mode) const {
+  // TODO(clemensh): Implement.
+}
+
+bool WasmCompiledFrame::at_to_number_conversion() const {
   // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
   // ToNumber conversion call.
   Address callee_pc = reinterpret_cast<Address>(this->callee_pc());
@@ -1598,13 +1613,56 @@ bool WasmFrame::at_to_number_conversion() const {
   return !!pos;
 }
 
-int WasmFrame::LookupExceptionHandlerInTable(int* stack_slots) {
+int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   DCHECK_NOT_NULL(stack_slots);
   Code* code = LookupCode();
   HandlerTable* table = HandlerTable::cast(code->handler_table());
   int pc_offset = static_cast<int>(pc() - code->entry());
   *stack_slots = code->stack_slots();
   return table->LookupReturn(pc_offset);
+}
+
+void WasmInterpreterEntryFrame::Iterate(ObjectVisitor* v) const {
+  IterateCompiledFrame(v);
+}
+
+void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
+                                      int index) const {
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add("WASM TO INTERPRETER [");
+  Script* script = this->script();
+  accumulator->PrintName(script->name());
+  accumulator->Add("]");
+  if (mode != OVERVIEW) accumulator->Add("\n");
+}
+
+void WasmInterpreterEntryFrame::Summarize(List<FrameSummary>* functions,
+                                          FrameSummary::Mode mode) const {
+  // TODO(clemensh): Implement this.
+}
+
+Code* WasmInterpreterEntryFrame::unchecked_code() const {
+  return isolate()->FindCodeObject(pc());
+}
+
+WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
+  WasmInstanceObject* ret = wasm::GetOwningWasmInstance(LookupCode());
+  // This is a live stack frame, there must be a live wasm instance available.
+  DCHECK_NOT_NULL(ret);
+  return ret;
+}
+
+Script* WasmInterpreterEntryFrame::script() const {
+  return wasm_instance()->compiled_module()->script();
+}
+
+int WasmInterpreterEntryFrame::position() const {
+  // TODO(clemensh): Implement this.
+  return 0;
+}
+
+Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
+  return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
 namespace {

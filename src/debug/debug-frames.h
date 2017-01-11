@@ -33,7 +33,9 @@ class FrameInspector {
     return frame_->is_arguments_adaptor() ? ArgumentsAdaptorFrame::cast(frame_)
                                           : JavaScriptFrame::cast(frame_);
   }
-  inline WasmFrame* wasm_frame() { return WasmFrame::cast(frame_); }
+  inline WasmCompiledFrame* wasm_frame() {
+    return WasmCompiledFrame::cast(frame_);
+  }
 
   JavaScriptFrame* GetArgumentsFrame() { return javascript_frame(); }
   void SetArgumentsFrame(StandardFrame* frame);

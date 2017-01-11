@@ -1482,6 +1482,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A Wasm to JavaScript adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
+    case AbstractCode::WASM_INTERPRETER_ENTRY:
+      description = "A Wasm to Interpreter adapter";
+      tag = CodeEventListener::STUB_TAG;
+      break;
     case AbstractCode::NUMBER_OF_KINDS:
       UNIMPLEMENTED();
   }
