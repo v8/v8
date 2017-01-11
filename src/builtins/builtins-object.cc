@@ -11,59 +11,57 @@
 namespace v8 {
 namespace internal {
 
+class ObjectBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit ObjectBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  void IsString(Node* object, Label* if_string, Label* if_notstring);
+  void ReturnToStringFormat(Node* context, Node* string);
+};
+
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
-void Builtins::Generate_ObjectHasOwnProperty(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
+  Node* object = Parameter(0);
+  Node* key = Parameter(1);
+  Node* context = Parameter(4);
 
-  Node* object = assembler.Parameter(0);
-  Node* key = assembler.Parameter(1);
-  Node* context = assembler.Parameter(4);
-
-  Label call_runtime(&assembler), return_true(&assembler),
-      return_false(&assembler);
+  Label call_runtime(this), return_true(this), return_false(this);
 
   // Smi receivers do not have own properties.
-  Label if_objectisnotsmi(&assembler);
-  assembler.Branch(assembler.TaggedIsSmi(object), &return_false,
-                   &if_objectisnotsmi);
-  assembler.Bind(&if_objectisnotsmi);
+  Label if_objectisnotsmi(this);
+  Branch(TaggedIsSmi(object), &return_false, &if_objectisnotsmi);
+  Bind(&if_objectisnotsmi);
 
-  Node* map = assembler.LoadMap(object);
-  Node* instance_type = assembler.LoadMapInstanceType(map);
+  Node* map = LoadMap(object);
+  Node* instance_type = LoadMapInstanceType(map);
 
-  Variable var_index(&assembler, MachineType::PointerRepresentation());
+  Variable var_index(this, MachineType::PointerRepresentation());
 
-  Label keyisindex(&assembler), if_iskeyunique(&assembler);
-  assembler.TryToName(key, &keyisindex, &var_index, &if_iskeyunique,
-                      &call_runtime);
+  Label keyisindex(this), if_iskeyunique(this);
+  TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &call_runtime);
 
-  assembler.Bind(&if_iskeyunique);
-  assembler.TryHasOwnProperty(object, map, instance_type, key, &return_true,
-                              &return_false, &call_runtime);
+  Bind(&if_iskeyunique);
+  TryHasOwnProperty(object, map, instance_type, key, &return_true,
+                    &return_false, &call_runtime);
 
-  assembler.Bind(&keyisindex);
+  Bind(&keyisindex);
   // Handle negative keys in the runtime.
-  assembler.GotoIf(
-      assembler.IntPtrLessThan(var_index.value(), assembler.IntPtrConstant(0)),
-      &call_runtime);
-  assembler.TryLookupElement(object, map, instance_type, var_index.value(),
-                             &return_true, &return_false, &call_runtime);
+  GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
+  TryLookupElement(object, map, instance_type, var_index.value(), &return_true,
+                   &return_false, &call_runtime);
 
-  assembler.Bind(&return_true);
-  assembler.Return(assembler.BooleanConstant(true));
+  Bind(&return_true);
+  Return(BooleanConstant(true));
 
-  assembler.Bind(&return_false);
-  assembler.Return(assembler.BooleanConstant(false));
+  Bind(&return_false);
+  Return(BooleanConstant(false));
 
-  assembler.Bind(&call_runtime);
-  assembler.Return(assembler.CallRuntime(Runtime::kObjectHasOwnProperty,
-                                         context, object, key));
+  Bind(&call_runtime);
+  Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));
 }
 
 // ES6 19.1.2.1 Object.assign
@@ -106,115 +104,90 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
   return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
 }
 
-namespace {  // anonymous namespace for ObjectProtoToString()
+void ObjectBuiltinsAssembler::IsString(Node* object, Label* if_string,
+                                       Label* if_notstring) {
+  Label if_notsmi(this);
+  Branch(TaggedIsSmi(object), if_notstring, &if_notsmi);
 
-void IsString(CodeStubAssembler* assembler, compiler::Node* object,
-              CodeStubAssembler::Label* if_string,
-              CodeStubAssembler::Label* if_notstring) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-
-  Label if_notsmi(assembler);
-  assembler->Branch(assembler->TaggedIsSmi(object), if_notstring, &if_notsmi);
-
-  assembler->Bind(&if_notsmi);
+  Bind(&if_notsmi);
   {
-    Node* instance_type = assembler->LoadInstanceType(object);
+    Node* instance_type = LoadInstanceType(object);
 
-    assembler->Branch(assembler->IsStringInstanceType(instance_type), if_string,
-                      if_notstring);
+    Branch(IsStringInstanceType(instance_type), if_string, if_notstring);
   }
 }
 
-void ReturnToStringFormat(CodeStubAssembler* assembler, compiler::Node* context,
-                          compiler::Node* string) {
-  typedef compiler::Node Node;
+void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
+                                                   Node* string) {
+  Node* lhs = HeapConstant(factory()->NewStringFromStaticChars("[object "));
+  Node* rhs = HeapConstant(factory()->NewStringFromStaticChars("]"));
 
-  Node* lhs = assembler->HeapConstant(
-      assembler->factory()->NewStringFromStaticChars("[object "));
-  Node* rhs = assembler->HeapConstant(
-      assembler->factory()->NewStringFromStaticChars("]"));
+  Callable callable =
+      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
 
-  Callable callable = CodeFactory::StringAdd(
-      assembler->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
-
-  assembler->Return(assembler->CallStub(
-      callable, context, assembler->CallStub(callable, context, lhs, string),
-      rhs));
+  Return(CallStub(callable, context, CallStub(callable, context, lhs, string),
+                  rhs));
 }
 
-}  // namespace
-
 // ES6 section 19.1.3.6 Object.prototype.toString
-void Builtins::Generate_ObjectProtoToString(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
+  Label return_undefined(this, Label::kDeferred),
+      return_null(this, Label::kDeferred),
+      return_arguments(this, Label::kDeferred), return_array(this),
+      return_api(this, Label::kDeferred), return_object(this),
+      return_regexp(this), return_function(this), return_error(this),
+      return_date(this), return_jsvalue(this),
+      return_jsproxy(this, Label::kDeferred);
 
-  Label return_undefined(&assembler, Label::kDeferred),
-      return_null(&assembler, Label::kDeferred),
-      return_arguments(&assembler, Label::kDeferred), return_array(&assembler),
-      return_api(&assembler, Label::kDeferred), return_object(&assembler),
-      return_regexp(&assembler), return_function(&assembler),
-      return_error(&assembler), return_date(&assembler),
-      return_jsvalue(&assembler), return_jsproxy(&assembler, Label::kDeferred);
+  Label if_isproxy(this, Label::kDeferred);
 
-  Label if_isproxy(&assembler, Label::kDeferred);
+  Label checkstringtag(this);
+  Label if_tostringtag(this), if_notostringtag(this);
 
-  Label checkstringtag(&assembler);
-  Label if_tostringtag(&assembler), if_notostringtag(&assembler);
+  Node* receiver = Parameter(0);
+  Node* context = Parameter(3);
 
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
+  GotoIf(WordEqual(receiver, UndefinedConstant()), &return_undefined);
 
-  assembler.GotoIf(assembler.WordEqual(receiver, assembler.UndefinedConstant()),
-                   &return_undefined);
+  GotoIf(WordEqual(receiver, NullConstant()), &return_null);
 
-  assembler.GotoIf(assembler.WordEqual(receiver, assembler.NullConstant()),
-                   &return_null);
+  Callable to_object = CodeFactory::ToObject(isolate());
+  receiver = CallStub(to_object, context, receiver);
 
-  Callable to_object = CodeFactory::ToObject(assembler.isolate());
-  receiver = assembler.CallStub(to_object, context, receiver);
-
-  Node* receiver_instance_type = assembler.LoadInstanceType(receiver);
+  Node* receiver_instance_type = LoadInstanceType(receiver);
 
   // for proxies, check IsArray before getting @@toStringTag
-  Variable var_proxy_is_array(&assembler, MachineRepresentation::kTagged);
-  var_proxy_is_array.Bind(assembler.BooleanConstant(false));
+  Variable var_proxy_is_array(this, MachineRepresentation::kTagged);
+  var_proxy_is_array.Bind(BooleanConstant(false));
 
-  assembler.Branch(
-      assembler.Word32Equal(receiver_instance_type,
-                            assembler.Int32Constant(JS_PROXY_TYPE)),
-      &if_isproxy, &checkstringtag);
+  Branch(Word32Equal(receiver_instance_type, Int32Constant(JS_PROXY_TYPE)),
+         &if_isproxy, &checkstringtag);
 
-  assembler.Bind(&if_isproxy);
+  Bind(&if_isproxy);
   {
     // This can throw
     var_proxy_is_array.Bind(
-        assembler.CallRuntime(Runtime::kArrayIsArray, context, receiver));
-    assembler.Goto(&checkstringtag);
+        CallRuntime(Runtime::kArrayIsArray, context, receiver));
+    Goto(&checkstringtag);
   }
 
-  assembler.Bind(&checkstringtag);
+  Bind(&checkstringtag);
   {
-    Node* to_string_tag_symbol = assembler.HeapConstant(
-        assembler.isolate()->factory()->to_string_tag_symbol());
+    Node* to_string_tag_symbol =
+        HeapConstant(isolate()->factory()->to_string_tag_symbol());
 
-    GetPropertyStub stub(assembler.isolate());
+    GetPropertyStub stub(isolate());
     Callable get_property =
         Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());
-    Node* to_string_tag_value = assembler.CallStub(
-        get_property, context, receiver, to_string_tag_symbol);
+    Node* to_string_tag_value =
+        CallStub(get_property, context, receiver, to_string_tag_symbol);
 
-    IsString(&assembler, to_string_tag_value, &if_tostringtag,
-             &if_notostringtag);
+    IsString(to_string_tag_value, &if_tostringtag, &if_notostringtag);
 
-    assembler.Bind(&if_tostringtag);
-    ReturnToStringFormat(&assembler, context, to_string_tag_value);
+    Bind(&if_tostringtag);
+    ReturnToStringFormat(context, to_string_tag_value);
   }
-  assembler.Bind(&if_notostringtag);
+  Bind(&if_notostringtag);
   {
     size_t const kNumCases = 11;
     Label* case_labels[kNumCases];
@@ -242,195 +215,164 @@ void Builtins::Generate_ObjectProtoToString(
     case_labels[10] = &return_jsproxy;
     case_values[10] = JS_PROXY_TYPE;
 
-    assembler.Switch(receiver_instance_type, &return_object, case_values,
-                     case_labels, arraysize(case_values));
+    Switch(receiver_instance_type, &return_object, case_values, case_labels,
+           arraysize(case_values));
 
-    assembler.Bind(&return_undefined);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->undefined_to_string()));
+    Bind(&return_undefined);
+    Return(HeapConstant(isolate()->factory()->undefined_to_string()));
 
-    assembler.Bind(&return_null);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->null_to_string()));
+    Bind(&return_null);
+    Return(HeapConstant(isolate()->factory()->null_to_string()));
 
-    assembler.Bind(&return_arguments);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->arguments_to_string()));
+    Bind(&return_arguments);
+    Return(HeapConstant(isolate()->factory()->arguments_to_string()));
 
-    assembler.Bind(&return_array);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->array_to_string()));
+    Bind(&return_array);
+    Return(HeapConstant(isolate()->factory()->array_to_string()));
 
-    assembler.Bind(&return_function);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->function_to_string()));
+    Bind(&return_function);
+    Return(HeapConstant(isolate()->factory()->function_to_string()));
 
-    assembler.Bind(&return_error);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->error_to_string()));
+    Bind(&return_error);
+    Return(HeapConstant(isolate()->factory()->error_to_string()));
 
-    assembler.Bind(&return_date);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->date_to_string()));
+    Bind(&return_date);
+    Return(HeapConstant(isolate()->factory()->date_to_string()));
 
-    assembler.Bind(&return_regexp);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->regexp_to_string()));
+    Bind(&return_regexp);
+    Return(HeapConstant(isolate()->factory()->regexp_to_string()));
 
-    assembler.Bind(&return_api);
+    Bind(&return_api);
     {
-      Node* class_name =
-          assembler.CallRuntime(Runtime::kClassOf, context, receiver);
-      ReturnToStringFormat(&assembler, context, class_name);
+      Node* class_name = CallRuntime(Runtime::kClassOf, context, receiver);
+      ReturnToStringFormat(context, class_name);
     }
 
-    assembler.Bind(&return_jsvalue);
+    Bind(&return_jsvalue);
     {
-      Label return_boolean(&assembler), return_number(&assembler),
-          return_string(&assembler);
+      Label return_boolean(this), return_number(this), return_string(this);
 
-      Node* value = assembler.LoadJSValueValue(receiver);
-      assembler.GotoIf(assembler.TaggedIsSmi(value), &return_number);
-      Node* instance_type = assembler.LoadInstanceType(value);
+      Node* value = LoadJSValueValue(receiver);
+      GotoIf(TaggedIsSmi(value), &return_number);
+      Node* instance_type = LoadInstanceType(value);
 
-      assembler.GotoIf(assembler.IsStringInstanceType(instance_type),
-                       &return_string);
-      assembler.GotoIf(
-          assembler.Word32Equal(instance_type,
-                                assembler.Int32Constant(HEAP_NUMBER_TYPE)),
-          &return_number);
-      assembler.GotoIf(
-          assembler.Word32Equal(instance_type,
-                                assembler.Int32Constant(ODDBALL_TYPE)),
-          &return_boolean);
+      GotoIf(IsStringInstanceType(instance_type), &return_string);
+      GotoIf(Word32Equal(instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
+             &return_number);
+      GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)),
+             &return_boolean);
 
-      CSA_ASSERT(&assembler,
-                 assembler.Word32Equal(instance_type,
-                                       assembler.Int32Constant(SYMBOL_TYPE)));
-      assembler.Goto(&return_object);
+      CSA_ASSERT(this, Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)));
+      Goto(&return_object);
 
-      assembler.Bind(&return_string);
-      assembler.Return(assembler.HeapConstant(
-          assembler.isolate()->factory()->string_to_string()));
+      Bind(&return_string);
+      Return(HeapConstant(isolate()->factory()->string_to_string()));
 
-      assembler.Bind(&return_number);
-      assembler.Return(assembler.HeapConstant(
-          assembler.isolate()->factory()->number_to_string()));
+      Bind(&return_number);
+      Return(HeapConstant(isolate()->factory()->number_to_string()));
 
-      assembler.Bind(&return_boolean);
-      assembler.Return(assembler.HeapConstant(
-          assembler.isolate()->factory()->boolean_to_string()));
+      Bind(&return_boolean);
+      Return(HeapConstant(isolate()->factory()->boolean_to_string()));
     }
 
-    assembler.Bind(&return_jsproxy);
+    Bind(&return_jsproxy);
     {
-      assembler.GotoIf(assembler.WordEqual(var_proxy_is_array.value(),
-                                           assembler.BooleanConstant(true)),
-                       &return_array);
+      GotoIf(WordEqual(var_proxy_is_array.value(), BooleanConstant(true)),
+             &return_array);
 
-      Node* map = assembler.LoadMap(receiver);
+      Node* map = LoadMap(receiver);
 
       // Return object if the proxy {receiver} is not callable.
-      assembler.Branch(assembler.IsCallableMap(map), &return_function,
-                       &return_object);
+      Branch(IsCallableMap(map), &return_function, &return_object);
     }
 
     // Default
-    assembler.Bind(&return_object);
-    assembler.Return(assembler.HeapConstant(
-        assembler.isolate()->factory()->object_to_string()));
+    Bind(&return_object);
+    Return(HeapConstant(isolate()->factory()->object_to_string()));
   }
 }
 
-void Builtins::Generate_ObjectCreate(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  CodeStubAssembler a(state);
+TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
+  Node* prototype = Parameter(1);
+  Node* properties = Parameter(2);
+  Node* context = Parameter(3 + 2);
 
-  Node* prototype = a.Parameter(1);
-  Node* properties = a.Parameter(2);
-  Node* context = a.Parameter(3 + 2);
-
-  Label call_runtime(&a, Label::kDeferred), prototype_valid(&a),
-      no_properties(&a);
+  Label call_runtime(this, Label::kDeferred), prototype_valid(this),
+      no_properties(this);
   {
-    a.Comment("Argument 1 check: prototype");
-    a.GotoIf(a.WordEqual(prototype, a.NullConstant()), &prototype_valid);
-    a.BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
+    Comment("Argument 1 check: prototype");
+    GotoIf(WordEqual(prototype, NullConstant()), &prototype_valid);
+    BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
   }
 
-  a.Bind(&prototype_valid);
+  Bind(&prototype_valid);
   {
-    a.Comment("Argument 2 check: properties");
+    Comment("Argument 2 check: properties");
     // Check that we have a simple object
-    a.GotoIf(a.TaggedIsSmi(properties), &call_runtime);
+    GotoIf(TaggedIsSmi(properties), &call_runtime);
     // Undefined implies no properties.
-    a.GotoIf(a.WordEqual(properties, a.UndefinedConstant()), &no_properties);
-    Node* properties_map = a.LoadMap(properties);
-    a.GotoIf(a.IsSpecialReceiverMap(properties_map), &call_runtime);
+    GotoIf(WordEqual(properties, UndefinedConstant()), &no_properties);
+    Node* properties_map = LoadMap(properties);
+    GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
-    a.GotoUnless(a.WordEqual(a.LoadElements(properties),
-                             a.LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
-                 &call_runtime);
+    GotoUnless(WordEqual(LoadElements(properties),
+                         LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+               &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
-    Node* bit_field3 = a.LoadMapBitField3(properties_map);
-    a.GotoIf(a.IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
-    a.Branch(a.IsSetWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3),
-             &call_runtime, &no_properties);
+    Node* bit_field3 = LoadMapBitField3(properties_map);
+    GotoIf(IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
+    Branch(IsSetWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3),
+           &call_runtime, &no_properties);
   }
 
   // Create a new object with the given prototype.
-  a.Bind(&no_properties);
+  Bind(&no_properties);
   {
-    Variable map(&a, MachineRepresentation::kTagged);
-    Variable properties(&a, MachineRepresentation::kTagged);
-    Label non_null_proto(&a), instantiate_map(&a), good(&a);
+    Variable map(this, MachineRepresentation::kTagged);
+    Variable properties(this, MachineRepresentation::kTagged);
+    Label non_null_proto(this), instantiate_map(this), good(this);
 
-    a.Branch(a.WordEqual(prototype, a.NullConstant()), &good, &non_null_proto);
+    Branch(WordEqual(prototype, NullConstant()), &good, &non_null_proto);
 
-    a.Bind(&good);
+    Bind(&good);
     {
-      map.Bind(a.LoadContextElement(
+      map.Bind(LoadContextElement(
           context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP));
-      properties.Bind(
-          a.AllocateNameDictionary(NameDictionary::kInitialCapacity));
-      a.Goto(&instantiate_map);
+      properties.Bind(AllocateNameDictionary(NameDictionary::kInitialCapacity));
+      Goto(&instantiate_map);
     }
 
-    a.Bind(&non_null_proto);
+    Bind(&non_null_proto);
     {
-      properties.Bind(a.EmptyFixedArrayConstant());
+      properties.Bind(EmptyFixedArrayConstant());
       Node* object_function =
-          a.LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX);
-      Node* object_function_map = a.LoadObjectField(
+          LoadContextElement(context, Context::OBJECT_FUNCTION_INDEX);
+      Node* object_function_map = LoadObjectField(
           object_function, JSFunction::kPrototypeOrInitialMapOffset);
       map.Bind(object_function_map);
-      a.GotoIf(a.WordEqual(prototype, a.LoadMapPrototype(map.value())),
-               &instantiate_map);
+      GotoIf(WordEqual(prototype, LoadMapPrototype(map.value())),
+             &instantiate_map);
       // Try loading the prototype info.
       Node* prototype_info =
-          a.LoadMapPrototypeInfo(a.LoadMap(prototype), &call_runtime);
-      a.Comment("Load ObjectCreateMap from PrototypeInfo");
+          LoadMapPrototypeInfo(LoadMap(prototype), &call_runtime);
+      Comment("Load ObjectCreateMap from PrototypeInfo");
       Node* weak_cell =
-          a.LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
-      a.GotoIf(a.WordEqual(weak_cell, a.UndefinedConstant()), &call_runtime);
-      map.Bind(a.LoadWeakCellValue(weak_cell, &call_runtime));
-      a.Goto(&instantiate_map);
+          LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
+      GotoIf(WordEqual(weak_cell, UndefinedConstant()), &call_runtime);
+      map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
+      Goto(&instantiate_map);
     }
 
-    a.Bind(&instantiate_map);
+    Bind(&instantiate_map);
     {
-      Node* instance =
-          a.AllocateJSObjectFromMap(map.value(), properties.value());
-      a.Return(instance);
+      Node* instance = AllocateJSObjectFromMap(map.value(), properties.value());
+      Return(instance);
     }
   }
 
-  a.Bind(&call_runtime);
+  Bind(&call_runtime);
   {
-    a.Return(
-        a.CallRuntime(Runtime::kObjectCreate, context, prototype, properties));
+    Return(CallRuntime(Runtime::kObjectCreate, context, prototype, properties));
   }
 }
 
@@ -927,90 +869,73 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
-void Builtins::Generate_CreateIterResultObject(
-    compiler::CodeAssemblerState* state) {
+TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
   typedef CreateIterResultObjectDescriptor Descriptor;
-  typedef compiler::Node Node;
-  CodeStubAssembler a(state);
 
-  Node* const value = a.Parameter(Descriptor::kValue);
-  Node* const done = a.Parameter(Descriptor::kDone);
-  Node* const context = a.Parameter(Descriptor::kContext);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const done = Parameter(Descriptor::kDone);
+  Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const native_context = a.LoadNativeContext(context);
+  Node* const native_context = LoadNativeContext(context);
   Node* const map =
-      a.LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
-  Node* const result = a.AllocateJSObjectFromMap(map);
+  Node* const result = AllocateJSObjectFromMap(map);
 
-  a.StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset,
-                                   value);
-  a.StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);
+  StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset, value);
+  StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);
 
-  a.Return(result);
+  Return(result);
 }
 
-void Builtins::Generate_HasProperty(compiler::CodeAssemblerState* state) {
+TF_BUILTIN(HasProperty, ObjectBuiltinsAssembler) {
   typedef HasPropertyDescriptor Descriptor;
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
 
-  Node* key = assembler.Parameter(Descriptor::kKey);
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.Return(
-      assembler.HasProperty(object, key, context, Runtime::kHasProperty));
+  Return(HasProperty(object, key, context, Runtime::kHasProperty));
 }
 
-void Builtins::Generate_ForInFilter(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(ForInFilter, ObjectBuiltinsAssembler) {
   typedef ForInFilterDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* key = assembler.Parameter(Descriptor::kKey);
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.Return(assembler.ForInFilter(key, object, context));
+  Return(ForInFilter(key, object, context));
 }
 
-void Builtins::Generate_InstanceOf(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
   typedef CompareDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kLeft);
-  Node* callable = assembler.Parameter(Descriptor::kRight);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kLeft);
+  Node* callable = Parameter(Descriptor::kRight);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.Return(assembler.InstanceOf(object, callable, context));
+  Return(InstanceOf(object, callable, context));
 }
 
 // ES6 section 7.3.19 OrdinaryHasInstance ( C, O )
-void Builtins::Generate_OrdinaryHasInstance(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(OrdinaryHasInstance, ObjectBuiltinsAssembler) {
   typedef CompareDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* constructor = assembler.Parameter(Descriptor::kLeft);
-  Node* object = assembler.Parameter(Descriptor::kRight);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* constructor = Parameter(Descriptor::kLeft);
+  Node* object = Parameter(Descriptor::kRight);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.Return(assembler.OrdinaryHasInstance(context, constructor, object));
+  Return(OrdinaryHasInstance(context, constructor, object));
 }
 
-void Builtins::Generate_GetSuperConstructor(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(GetSuperConstructor, ObjectBuiltinsAssembler) {
   typedef TypeofDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.Return(assembler.GetSuperConstructor(object, context));
+  Return(GetSuperConstructor(object, context));
 }
 
 }  // namespace internal
