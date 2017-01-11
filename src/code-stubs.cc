@@ -553,7 +553,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
       call_add_stub(assembler), end(assembler);
   Variable var_fadd_lhs(assembler, MachineRepresentation::kFloat64),
       var_fadd_rhs(assembler, MachineRepresentation::kFloat64),
-      var_type_feedback(assembler, MachineRepresentation::kWord32),
+      var_type_feedback(assembler, MachineRepresentation::kTaggedSigned),
       var_result(assembler, MachineRepresentation::kTagged);
 
   // Check if the {lhs} is a Smi or a HeapObject.
@@ -589,7 +589,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
       assembler->Bind(&if_notoverflow);
       {
         var_type_feedback.Bind(
-            assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall));
+            assembler->SmiConstant(BinaryOperationFeedback::kSignedSmall));
         var_result.Bind(assembler->BitcastWordToTaggedSigned(
             assembler->Projection(0, pair)));
         assembler->Goto(&end);
@@ -650,7 +650,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
   assembler->Bind(&do_fadd);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value =
         assembler->Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
     Node* result = assembler->AllocateHeapNumberWithValue(value);
@@ -697,7 +697,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
                             &call_with_any_feedback);
 
       var_type_feedback.Bind(
-          assembler->Int32Constant(BinaryOperationFeedback::kString));
+          assembler->SmiConstant(BinaryOperationFeedback::kString));
       Callable callable = CodeFactory::StringAdd(
           assembler->isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
       var_result.Bind(assembler->CallStub(callable, context, lhs, rhs));
@@ -720,14 +720,14 @@ compiler::Node* AddWithFeedbackStub::Generate(
   assembler->Bind(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     assembler->Goto(&call_add_stub);
   }
 
   assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+        assembler->SmiConstant(BinaryOperationFeedback::kAny));
     assembler->Goto(&call_add_stub);
   }
 
@@ -759,7 +759,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       call_with_any_feedback(assembler);
   Variable var_fsub_lhs(assembler, MachineRepresentation::kFloat64),
       var_fsub_rhs(assembler, MachineRepresentation::kFloat64),
-      var_type_feedback(assembler, MachineRepresentation::kWord32),
+      var_type_feedback(assembler, MachineRepresentation::kTaggedSigned),
       var_result(assembler, MachineRepresentation::kTagged);
 
   // Check if the {lhs} is a Smi or a HeapObject.
@@ -797,7 +797,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
       assembler->Bind(&if_notoverflow);
       // lhs, rhs, result smi. combined - smi.
       var_type_feedback.Bind(
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall));
+          assembler->SmiConstant(BinaryOperationFeedback::kSignedSmall));
       var_result.Bind(
           assembler->BitcastWordToTaggedSigned(assembler->Projection(0, pair)));
       assembler->Goto(&end);
@@ -860,7 +860,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
   assembler->Bind(&do_fsub);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber));
     Node* lhs_value = var_fsub_lhs.value();
     Node* rhs_value = var_fsub_rhs.value();
     Node* value = assembler->Float64Sub(lhs_value, rhs_value);
@@ -884,7 +884,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     assembler->Bind(&if_rhsissmi);
     {
       var_type_feedback.Bind(
-          assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+          assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
       assembler->Goto(&call_subtract_stub);
     }
 
@@ -898,7 +898,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
                             &check_rhsisoddball);
 
       var_type_feedback.Bind(
-          assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+          assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
       assembler->Goto(&call_subtract_stub);
     }
   }
@@ -913,14 +913,14 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
     assembler->GotoUnless(rhs_is_oddball, &call_with_any_feedback);
 
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     assembler->Goto(&call_subtract_stub);
   }
 
   assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+        assembler->SmiConstant(BinaryOperationFeedback::kAny));
     assembler->Goto(&call_subtract_stub);
   }
 
@@ -955,7 +955,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   Variable var_lhs_float64(assembler, MachineRepresentation::kFloat64),
       var_rhs_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
-      var_type_feedback(assembler, MachineRepresentation::kWord32);
+      var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
 
   Label lhs_is_smi(assembler), lhs_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(lhs), &lhs_is_smi, &lhs_is_not_smi);
@@ -971,7 +971,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
       // Both {lhs} and {rhs} are Smis. The result is not necessarily a smi,
       // in case of overflow.
       var_result.Bind(assembler->SmiMul(lhs, rhs));
-      var_type_feedback.Bind(assembler->SelectInt32Constant(
+      var_type_feedback.Bind(assembler->SelectSmiConstant(
           assembler->TaggedIsSmi(var_result.value()),
           BinaryOperationFeedback::kSignedSmall,
           BinaryOperationFeedback::kNumber));
@@ -1033,7 +1033,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   assembler->Bind(&do_fmul);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value =
         assembler->Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
     Node* result = assembler->AllocateHeapNumberWithValue(value);
@@ -1074,14 +1074,14 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   assembler->Bind(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     assembler->Goto(&call_multiply_stub);
   }
 
   assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+        assembler->SmiConstant(BinaryOperationFeedback::kAny));
     assembler->Goto(&call_multiply_stub);
   }
 
@@ -1116,7 +1116,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
-      var_type_feedback(assembler, MachineRepresentation::kWord32);
+      var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
 
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
@@ -1182,7 +1182,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
       assembler->GotoIf(assembler->Word32NotEqual(untagged_dividend, truncated),
                         &bailout);
       var_type_feedback.Bind(
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall));
+          assembler->SmiConstant(BinaryOperationFeedback::kSignedSmall));
       var_result.Bind(assembler->SmiFromWord32(untagged_result));
       assembler->Goto(&end);
 
@@ -1253,7 +1253,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   assembler->Bind(&do_fdiv);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value = assembler->Float64Div(var_dividend_float64.value(),
                                         var_divisor_float64.value());
     var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
@@ -1294,14 +1294,14 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   assembler->Bind(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     assembler->Goto(&call_divide_stub);
   }
 
   assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+        assembler->SmiConstant(BinaryOperationFeedback::kAny));
     assembler->Goto(&call_divide_stub);
   }
 
@@ -1335,7 +1335,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   Variable var_dividend_float64(assembler, MachineRepresentation::kFloat64),
       var_divisor_float64(assembler, MachineRepresentation::kFloat64),
       var_result(assembler, MachineRepresentation::kTagged),
-      var_type_feedback(assembler, MachineRepresentation::kWord32);
+      var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
 
   Label dividend_is_smi(assembler), dividend_is_not_smi(assembler);
   assembler->Branch(assembler->TaggedIsSmi(dividend), &dividend_is_smi,
@@ -1350,7 +1350,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
     assembler->Bind(&divisor_is_smi);
     {
       var_result.Bind(assembler->SmiMod(dividend, divisor));
-      var_type_feedback.Bind(assembler->SelectInt32Constant(
+      var_type_feedback.Bind(assembler->SelectSmiConstant(
           assembler->TaggedIsSmi(var_result.value()),
           BinaryOperationFeedback::kSignedSmall,
           BinaryOperationFeedback::kNumber));
@@ -1414,7 +1414,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   assembler->Bind(&do_fmod);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value = assembler->Float64Mod(var_dividend_float64.value(),
                                         var_divisor_float64.value());
     var_result.Bind(assembler->AllocateHeapNumberWithValue(value));
@@ -1455,14 +1455,14 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   assembler->Bind(&call_with_oddball_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
     assembler->Goto(&call_modulus_stub);
   }
 
   assembler->Bind(&call_with_any_feedback);
   {
     var_type_feedback.Bind(
-        assembler->Int32Constant(BinaryOperationFeedback::kAny));
+        assembler->SmiConstant(BinaryOperationFeedback::kAny));
     assembler->Goto(&call_modulus_stub);
   }
 

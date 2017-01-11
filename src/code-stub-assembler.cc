@@ -131,6 +131,13 @@ Node* CodeStubAssembler::SelectTaggedConstant(Node* condition, Node* true_value,
                         MachineRepresentation::kTagged);
 }
 
+Node* CodeStubAssembler::SelectSmiConstant(Node* condition, Smi* true_value,
+                                           Smi* false_value) {
+  return SelectConstant(condition, SmiConstant(true_value),
+                        SmiConstant(false_value),
+                        MachineRepresentation::kTaggedSigned);
+}
+
 Node* CodeStubAssembler::NoContextConstant() { return NumberConstant(0); }
 
 #define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
@@ -5489,11 +5496,9 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback,
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
-  // TODO(interpreter): Consider passing the feedback as Smi already to avoid
-  // the tagging completely.
   Node* previous_feedback =
       LoadFixedArrayElement(type_feedback_vector, slot_id);
-  Node* combined_feedback = SmiOr(previous_feedback, SmiFromWord32(feedback));
+  Node* combined_feedback = SmiOr(previous_feedback, feedback);
   StoreFixedArrayElement(type_feedback_vector, slot_id, combined_feedback,
                          SKIP_WRITE_BARRIER);
 }

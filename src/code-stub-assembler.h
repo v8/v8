@@ -250,6 +250,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* SelectBooleanConstant(Node* condition);
   Node* SelectTaggedConstant(Node* condition, Node* true_value,
                              Node* false_value);
+  Node* SelectSmiConstant(Node* condition, Smi* true_value, Smi* false_value);
+  Node* SelectSmiConstant(Node* condition, int true_value, Smi* false_value) {
+    return SelectSmiConstant(condition, Smi::FromInt(true_value), false_value);
+  }
+  Node* SelectSmiConstant(Node* condition, Smi* true_value, int false_value) {
+    return SelectSmiConstant(condition, true_value, Smi::FromInt(false_value));
+  }
+  Node* SelectSmiConstant(Node* condition, int true_value, int false_value) {
+    return SelectSmiConstant(condition, Smi::FromInt(true_value),
+                             Smi::FromInt(false_value));
+  }
 
   Node* TruncateWordToWord32(Node* value);
 

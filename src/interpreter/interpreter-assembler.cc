@@ -1060,7 +1060,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
   Variable* loop_vars[] = {&var_value, var_type_feedback};
   Label loop(this, 2, loop_vars), done_loop(this, &var_result);
   var_value.Bind(value);
-  var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kNone));
+  var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNone));
   Goto(&loop);
   Bind(&loop);
   {
@@ -1076,8 +1076,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
       // Convert the Smi {value}.
       var_result.Bind(SmiToWord32(value));
       var_type_feedback->Bind(
-          Word32Or(var_type_feedback->value(),
-                   Int32Constant(BinaryOperationFeedback::kSignedSmall)));
+          SmiOr(var_type_feedback->value(),
+                SmiConstant(BinaryOperationFeedback::kSignedSmall)));
       Goto(&done_loop);
     }
 
@@ -1095,8 +1095,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
         // Truncate the floating point value.
         var_result.Bind(TruncateHeapNumberValueToWord32(value));
         var_type_feedback->Bind(
-            Word32Or(var_type_feedback->value(),
-                     Int32Constant(BinaryOperationFeedback::kNumber)));
+            SmiOr(var_type_feedback->value(),
+                  SmiConstant(BinaryOperationFeedback::kNumber)));
         Goto(&done_loop);
       }
 
@@ -1105,9 +1105,8 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
         // We do not require an Or with earlier feedback here because once we
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
-        CSA_ASSERT(this,
-                   Word32Equal(var_type_feedback->value(),
-                               Int32Constant(BinaryOperationFeedback::kNone)));
+        CSA_ASSERT(this, SmiEqual(var_type_feedback->value(),
+                                  SmiConstant(BinaryOperationFeedback::kNone)));
 
         Label if_valueisoddball(this),
             if_valueisnotoddball(this, Label::kDeferred);
@@ -1120,7 +1119,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
           // Convert Oddball to a Number and perform checks again.
           var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
           var_type_feedback->Bind(
-              Int32Constant(BinaryOperationFeedback::kNumberOrOddball));
+              SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
           Goto(&loop);
         }
 
@@ -1129,7 +1128,7 @@ Node* InterpreterAssembler::TruncateTaggedToWord32WithFeedback(
           // Convert the {value} to a Number first.
           Callable callable = CodeFactory::NonNumberToNumber(isolate());
           var_value.Bind(CallStub(callable, context, value));
-          var_type_feedback->Bind(Int32Constant(BinaryOperationFeedback::kAny));
+          var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kAny));
           Goto(&loop);
         }
       }
