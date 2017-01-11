@@ -284,6 +284,8 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   if (cont->IsBranch()) {
     inputs[input_count++] = g.Label(cont->true_block());
     inputs[input_count++] = g.Label(cont->false_block());
+  } else if (cont->IsTrap()) {
+    inputs[input_count++] = g.TempImmediate(cont->trap_id());
   }
 
   if (cont->IsDeoptimize()) {
@@ -1924,9 +1926,12 @@ static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
                              cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.TempImmediate(cont->trap_id()));
   }
 }
 
@@ -2138,6 +2143,9 @@ void EmitWordCompareZero(InstructionSelector* selector, Node* value,
     selector->EmitDeoptimize(opcode, g.NoOutput(), value_operand,
                              g.TempImmediate(0), cont->reason(),
                              cont->frame_state());
+  } else if (cont->IsTrap()) {
+    selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
+                   g.TempImmediate(cont->trap_id()));
   } else {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    g.TempImmediate(0));
@@ -2284,12 +2292,16 @@ void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
-  UNREACHABLE();
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node,
                                           Runtime::FunctionId func_id) {
-  UNREACHABLE();
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
