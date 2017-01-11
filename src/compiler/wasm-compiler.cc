@@ -2475,11 +2475,7 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::ValueType type) {
       return BuildChangeInt32ToTagged(node);
     case wasm::kWasmS128:
     case wasm::kWasmI64:
-      // Throw a TypeError. The native context is good enough here because we
-      // only throw a TypeError.
-      return BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
-                                jsgraph()->isolate()->native_context(), nullptr,
-                                0, effect_, *control_);
+      UNREACHABLE();
     case wasm::kWasmF32:
       node = graph()->NewNode(jsgraph()->machine()->ChangeFloat32ToFloat64(),
                               node);
@@ -2641,11 +2637,7 @@ Node* WasmGraphBuilder::FromJS(Node* node, Node* context,
     }
     case wasm::kWasmS128:
     case wasm::kWasmI64:
-      // Throw a TypeError. The native context is good enough here because we
-      // only throw a TypeError.
-      return BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
-                                jsgraph()->isolate()->native_context(), nullptr,
-                                0, effect_, *control_);
+      UNREACHABLE();
     case wasm::kWasmF32:
       num = graph()->NewNode(jsgraph()->machine()->TruncateFloat64ToFloat32(),
                              num);
@@ -2740,22 +2732,59 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
   return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
+bool IsJSCompatible(wasm::ValueType type) {
+  return (type != wasm::kWasmI64) && (type != wasm::kWasmS128);
+}
+
+bool HasJSCompatibleSignature(wasm::FunctionSig* sig) {
+  for (size_t i = 0; i < sig->parameter_count(); i++) {
+    if (!IsJSCompatible(sig->GetParam(i))) {
+      return false;
+    }
+  }
+  for (size_t i = 0; i < sig->return_count(); i++) {
+    if (!IsJSCompatible(sig->GetReturn(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
                                             wasm::FunctionSig* sig) {
   int wasm_count = static_cast<int>(sig->parameter_count());
-  int param_count;
-  if (jsgraph()->machine()->Is64()) {
-    param_count = static_cast<int>(sig->parameter_count());
-  } else {
-    param_count = Int64Lowering::GetParameterCountAfterLowering(sig);
-  }
-  int count = param_count + 3;
+  int count = wasm_count + 3;
   Node** args = Buffer(count);
 
   // Build the start and the JS parameter nodes.
-  Node* start = Start(param_count + 5);
+  Node* start = Start(wasm_count + 5);
   *control_ = start;
   *effect_ = start;
+
+  if (!HasJSCompatibleSignature(sig_)) {
+    // Throw a TypeError. The native context is good enough here because we
+    // only throw a TypeError.
+    BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
+                       jsgraph()->isolate()->native_context(), nullptr, 0,
+                       effect_, *control_);
+
+    // Add a dummy call to the wasm function so that the generated wrapper
+    // contains a reference to the wrapped wasm function. Without this reference
+    // the wasm function could not be re-imported into another wasm module.
+    int pos = 0;
+    args[pos++] = HeapConstant(wasm_code);
+    args[pos++] = *effect_;
+    args[pos++] = *control_;
+
+    // We only need a dummy call descriptor.
+    wasm::FunctionSig::Builder dummy_sig_builder(jsgraph()->zone(), 0, 0);
+    CallDescriptor* desc = wasm::ModuleEnv::GetWasmCallDescriptor(
+        jsgraph()->zone(), dummy_sig_builder.Build());
+    *effect_ = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
+    Return(jsgraph()->UndefinedConstant());
+    return;
+  }
+
   // Create the context parameter
   Node* context = graph()->NewNode(
       jsgraph()->common()->Parameter(
@@ -2770,11 +2799,6 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
     Node* param = Param(i + 1);
     Node* wasm_param = FromJS(param, context, sig->GetParam(i));
     args[pos++] = wasm_param;
-    if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kWasmI64) {
-      // We make up the high word with SAR to get the proper sign extension.
-      args[pos++] = graph()->NewNode(jsgraph()->machine()->Word32Sar(),
-                                     wasm_param, jsgraph()->Int32Constant(31));
-    }
   }
 
   args[pos++] = *effect_;
@@ -2783,18 +2807,10 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   // Call the WASM code.
   CallDescriptor* desc =
       wasm::ModuleEnv::GetWasmCallDescriptor(jsgraph()->zone(), sig);
-  if (jsgraph()->machine()->Is32()) {
-    desc = wasm::ModuleEnv::GetI32WasmCallDescriptor(jsgraph()->zone(), desc);
-  }
+
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
   *effect_ = call;
   Node* retval = call;
-  if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
-      sig->GetReturn(0) == wasm::kWasmI64) {
-    // The return values comes as two values, we pick the low word.
-    retval = graph()->NewNode(jsgraph()->common()->Projection(0), retval,
-                              graph()->start());
-  }
   Node* jsval = ToJS(
       retval, sig->return_count() == 0 ? wasm::kWasmStmt : sig->GetReturn());
   Return(jsval);
@@ -2807,11 +2823,6 @@ int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
   for (int i = 0; i < param_count; ++i) {
     Node* param = Param(param_index++);
     args[pos++] = ToJS(param, sig->GetParam(i));
-    if (jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kWasmI64) {
-      // On 32 bit platforms we have to skip the high word of int64
-      // parameters.
-      param_index++;
-    }
   }
   return pos;
 }
@@ -2821,19 +2832,23 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   DCHECK(target->IsCallable());
 
   int wasm_count = static_cast<int>(sig->parameter_count());
-  int param_count;
-  if (jsgraph()->machine()->Is64()) {
-    param_count = wasm_count;
-  } else {
-    param_count = Int64Lowering::GetParameterCountAfterLowering(sig);
-  }
 
   // Build the start and the parameter nodes.
   Isolate* isolate = jsgraph()->isolate();
   CallDescriptor* desc;
-  Node* start = Start(param_count + 3);
+  Node* start = Start(wasm_count + 3);
   *effect_ = start;
   *control_ = start;
+
+  if (!HasJSCompatibleSignature(sig_)) {
+    // Throw a TypeError. The native context is good enough here because we
+    // only throw a TypeError.
+    Return(BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
+                              jsgraph()->isolate()->native_context(), nullptr,
+                              0, effect_, *control_));
+    return;
+  }
+
   Node** args = Buffer(wasm_count + 7);
 
   Node* call;

@@ -1016,7 +1016,7 @@ static Handle<Code> UnwrapImportWrapper(Handle<Object> target) {
       code = handle(target);
     }
   }
-  DCHECK(found == 1);
+  DCHECK_EQ(1, found);
   return code;
 }
 
@@ -1026,7 +1026,6 @@ static Handle<Code> CompileImportWrapper(Isolate* isolate, int index,
                                          Handle<String> module_name,
                                          MaybeHandle<String> import_name,
                                          ModuleOrigin origin) {
-  Handle<Code> code;
   WasmFunction* other_func = GetWasmFunctionForImportWrapper(isolate, target);
   if (other_func) {
     if (sig->Equals(other_func->sig)) {
