@@ -798,6 +798,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
+  // Returns true if any of the mask's bit are set in the given Smi.
+  // Smi-encoding of the mask is performed implicitly!
+  Node* IsSetSmi(Node* smi, int untagged_mask) {
+    intptr_t mask_word = bit_cast<intptr_t>(Smi::FromInt(untagged_mask));
+    return WordNotEqual(
+        WordAnd(BitcastTaggedToWord(smi), IntPtrConstant(mask_word)),
+        IntPtrConstant(0));
+  }
+
   // Returns true if all of the |T|'s bits in given |word32| are clear.
   template <typename T>
   Node* IsClearWord32(Node* word32) {

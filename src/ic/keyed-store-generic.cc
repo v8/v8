@@ -225,6 +225,15 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   if (update_length != kDontChangeLength) {
     CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(receiver_map),
                                  Int32Constant(JS_ARRAY_TYPE)));
+    // Check if the length property is writable. The fast check is only
+    // supported for fast properties.
+    GotoIf(IsDictionaryMap(receiver_map), slow);
+    // The length property is non-configurable, so it's guaranteed to always
+    // be the first property.
+    Node* descriptors = LoadMapDescriptors(receiver_map);
+    Node* details =
+        LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
+    GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), slow);
   }
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   const int kHeaderSize = FixedArray::kHeaderSize - kHeapObjectTag;

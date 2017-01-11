@@ -239,10 +239,9 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     Node* descriptors = assembler.LoadMapDescriptors(map);
     Node* details = assembler.LoadFixedArrayElement(
         descriptors, DescriptorArray::ToDetailsIndex(0));
-    mask = READ_ONLY << PropertyDetails::AttributesField::kShift;
-    Node* mask_node = assembler.SmiConstant(mask);
-    test = assembler.SmiAnd(details, mask_node);
-    assembler.GotoIf(assembler.WordEqual(test, mask_node), &runtime);
+    assembler.GotoIf(
+        assembler.IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask),
+        &runtime);
 
     arg_index.Bind(assembler.IntPtrConstant(0));
     kind = assembler.DecodeWord32<Map::ElementsKindBits>(bit_field2);
