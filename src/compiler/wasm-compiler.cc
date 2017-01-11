@@ -189,7 +189,7 @@ class WasmTrapHelper : public ZoneObject {
   }
 
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_ARM || \
-    V8_TARGET_ARCH_ARM64
+    V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS
 #define WASM_TRAP_IF_SUPPORTED
 #endif
 
