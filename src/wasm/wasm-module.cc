@@ -2402,3 +2402,66 @@ Handle<JSArray> wasm::GetImports(Isolate* isolate,
 
   return array_object;
 }
+
+Handle<JSArray> wasm::GetExports(Isolate* isolate,
+                                 Handle<WasmModuleObject> module_object) {
+  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
+                                             isolate);
+  Factory* factory = isolate->factory();
+
+  Handle<String> name_string = factory->InternalizeUtf8String("name");
+  Handle<String> kind_string = factory->InternalizeUtf8String("kind");
+
+  Handle<String> function_string = factory->InternalizeUtf8String("function");
+  Handle<String> table_string = factory->InternalizeUtf8String("table");
+  Handle<String> memory_string = factory->InternalizeUtf8String("memory");
+  Handle<String> global_string = factory->InternalizeUtf8String("global");
+
+  // Create the result array.
+  WasmModule* module = compiled_module->module();
+  int num_exports = static_cast<int>(module->export_table.size());
+  Handle<JSArray> array_object = factory->NewJSArray(FAST_ELEMENTS, 0, 0);
+  Handle<FixedArray> storage = factory->NewFixedArray(num_exports);
+  JSArray::SetContent(array_object, storage);
+  array_object->set_length(Smi::FromInt(num_exports));
+
+  Handle<JSFunction> object_function =
+      Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
+
+  // Populate the result array.
+  for (int index = 0; index < num_exports; ++index) {
+    WasmExport& exp = module->export_table[index];
+
+    Handle<JSObject> entry = factory->NewJSObject(object_function, TENURED);
+
+    Handle<String> export_kind;
+    switch (exp.kind) {
+      case kExternalFunction:
+        export_kind = function_string;
+        break;
+      case kExternalTable:
+        export_kind = table_string;
+        break;
+      case kExternalMemory:
+        export_kind = memory_string;
+        break;
+      case kExternalGlobal:
+        export_kind = global_string;
+        break;
+      default:
+        UNREACHABLE();
+    }
+
+    MaybeHandle<String> export_name =
+        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+            isolate, compiled_module, exp.name_offset, exp.name_length);
+
+    JSObject::AddProperty(entry, name_string, export_name.ToHandleChecked(),
+                          NONE);
+    JSObject::AddProperty(entry, kind_string, export_kind, NONE);
+
+    storage->set(index, *entry);
+  }
+
+  return array_object;
+}

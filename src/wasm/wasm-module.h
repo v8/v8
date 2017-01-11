@@ -399,6 +399,9 @@ V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
 V8_EXPORT_PRIVATE Handle<JSArray> GetImports(Isolate* isolate,
                                              Handle<WasmModuleObject> module);
 
+V8_EXPORT_PRIVATE Handle<JSArray> GetExports(Isolate* isolate,
+                                             Handle<WasmModuleObject> module);
+
 V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            const byte* end,
                                            ErrorThrower* thrower,

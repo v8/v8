@@ -194,7 +194,6 @@ assertEq(arr[3].kind, "global");
 assertEq(arr[3].module, "g");
 assertEq(arr[3].name, "x");
 
-if (false) { // TODO: Module.exports property
 // 'WebAssembly.Module.exports' data property
 let moduleExportsDesc = Object.getOwnPropertyDescriptor(Module, 'exports');
 assertEq(typeof moduleExportsDesc.value, "function");
@@ -211,7 +210,22 @@ assertErrorMessage(() => moduleExports({}), TypeError, /first argument must be a
 var arr = moduleExports(emptyModule);
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
-var arr = moduleExports(new Module(wasmTextToBinary('(module (func (export "a")) (memory (export "b") 1) (table (export "c") 1 anyfunc) (global (export "⚡") i32 (i32.const 0)))')));
+let exportingModuleBinary2 = (() => {
+  var text =
+  '(module (func (export "a")) (memory (export "b") 1) (table (export "c") 1 anyfunc) (global (export "⚡") i32 (i32.const 0)))';
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("foo", kSig_v_v)
+    .addBody([])
+    .exportAs("a");
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs("b");
+  builder.setFunctionTableLength(1);
+  builder.addExportOfKind("c", kExternalTable, 0);
+  var o = builder.addGlobal(kWasmI32, false)
+      .exportAs("x");
+  return new Int8Array(builder.toBuffer());
+})();
+var arr = moduleExports(new Module(exportingModuleBinary2));
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 4);
 assertEq(arr[0].kind, "function");
@@ -221,8 +235,7 @@ assertEq(arr[1].name, "b");
 assertEq(arr[2].kind, "table");
 assertEq(arr[2].name, "c");
 assertEq(arr[3].kind, "global");
-assertEq(arr[3].name, "⚡");
-}
+assertEq(arr[3].name, "x");
 
 // 'WebAssembly.Instance' data property
 let instanceDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Instance');

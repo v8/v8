@@ -262,6 +262,36 @@ void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(Utils::ToLocal(imports));
 }
 
+void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope scope(args.GetIsolate());
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  ErrorThrower thrower(i_isolate, "WebAssembly.Module.exports()");
+
+  if (args.Length() < 1) {
+    thrower.TypeError("Argument 0 must be a WebAssembly.Module");
+    return;
+  }
+
+  Local<Context> context = isolate->GetCurrentContext();
+  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+  if (!BrandCheck(isolate, Utils::OpenHandle(*args[0]),
+                  i::Handle<i::Symbol>(i_context->wasm_module_sym()),
+                  "Argument 0 must be a WebAssembly.Module")) {
+    return;
+  }
+
+  Local<Object> module_obj = Local<Object>::Cast(args[0]);
+  i::Handle<i::WasmModuleObject> i_module_obj =
+      i::Handle<i::WasmModuleObject>::cast(v8::Utils::OpenHandle(*module_obj));
+
+  i::Handle<i::JSArray> exports = i::wasm::GetExports(i_isolate, i_module_obj);
+
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(Utils::ToLocal(exports));
+}
+
 void WebAssemblyInstanceCtor(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
@@ -752,6 +782,8 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
                         module_constructor, DONT_ENUM);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
+              1);
+  InstallFunc(isolate, module_constructor, "exports", WebAssemblyModuleExports,
               1);
 
   // Setup Instance
