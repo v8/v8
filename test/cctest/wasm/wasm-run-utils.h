@@ -181,6 +181,10 @@ class TestingModule : public ModuleEnv {
     rng.NextBytes(raw, end - raw);
   }
 
+  void SetMaxMemPages(uint32_t max_mem_pages) {
+    module_.max_mem_pages = max_mem_pages;
+  }
+
   uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name) {
     if (module->functions.size() == 0) {
       // TODO(titzer): Reserving space here to avoid the underlying WasmFunction

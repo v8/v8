@@ -297,10 +297,20 @@ TEST(Breakpoint_I32And_disable) {
 }
 
 TEST(GrowMemory) {
-  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-  r.module().AddMemory(WasmModule::kPageSize);
-  BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-  CHECK_EQ(1, r.Call(1));
+  {
+    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
+    r.module().SetMaxMemPages(10);
+    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+    CHECK_EQ(1, r.Call(1));
+  }
+  {
+    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
+    r.module().SetMaxMemPages(10);
+    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+    CHECK_EQ(-1, r.Call(11));
+  }
 }
 
 TEST(GrowMemoryPreservesData) {
