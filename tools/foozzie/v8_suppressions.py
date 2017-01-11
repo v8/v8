@@ -39,6 +39,10 @@ CARET_RE = re.compile(r'^\s*\^\s*$')
 IGNORE_SOURCES = {
   # This contains a usage of f.arguments that often fires.
   'crbug.com/662424': '/v8/test/mjsunit/regress/regress-2989.js',
+
+  # Cases of stdlib access going wrong.
+  'crbug.com/680110' : '/v8/test/mjsunit/compiler/regress-443744.js',
+  'crbug.com/680110' : '/v8/test/mjsunit/regress/wasm/regression-647649.js',
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
