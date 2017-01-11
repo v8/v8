@@ -324,7 +324,11 @@ class ModuleDecoder : public Decoder {
                                      &module->min_mem_pages, &has_max,
                                      kSpecMaxWasmMemoryPages,
                                      &module->max_mem_pages);
-            module->has_memory = true;
+            if (module->has_memory) {
+              error("At most one memory object is supported");
+            } else {
+              module->has_memory = true;
+            }
             break;
           }
           case kExternalGlobal: {

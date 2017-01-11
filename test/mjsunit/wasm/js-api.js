@@ -41,6 +41,13 @@ let importingModuleBinary = (() => {
   return new Int8Array(builder.toBuffer());
 })();
 
+let moduleBinaryImporting2Memories = (() => {
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("", "memory1");
+  builder.addImportedMemory("", "memory2");
+  return new Int8Array(builder.toBuffer());
+})();
+
 // 'WebAssembly' data property on global object
 let wasmDesc = Object.getOwnPropertyDescriptor(this, 'WebAssembly');
 assertEq(typeof wasmDesc.value, "object");
@@ -477,6 +484,13 @@ assertEq(tbl.grow(1), 1);
 assertEq(tbl.length, 2);
 assertErrorMessage(() => tbl.grow(1), Error, /failed to grow table/);
 }
+
+// 'WebAssembly.validate' function
+assertErrorMessage(() => WebAssembly.validate(), TypeError);
+assertErrorMessage(() => WebAssembly.validate("hi"), TypeError);
+assertEq(WebAssembly.validate(emptyModuleBinary), true);
+// TODO: other ways for validate to return false.
+assertEq(WebAssembly.validate(moduleBinaryImporting2Memories), false);
 
 // 'WebAssembly.compile' data property
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');

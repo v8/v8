@@ -1658,6 +1658,9 @@ class WasmInstanceBuilder {
           break;
         }
         case kExternalMemory: {
+          // Validation should have failed if more than one memory object was
+          // provided.
+          DCHECK(!instance->has_memory_object());
           if (!WasmJs::IsWasmMemoryObject(isolate_, value)) {
             ReportLinkError("memory import must be a WebAssembly.Memory object",
                             index, module_name, import_name);
