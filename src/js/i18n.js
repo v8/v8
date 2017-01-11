@@ -1124,7 +1124,7 @@ AddBoundMethod(GlobalIntlCollator, 'compare', compare, 2, 'collator', false);
  * For example \u00DFP (Eszett+P) becomes SSP.
  */
 function isWellFormedCurrencyCode(currency) {
-  return typeof currency == "string" && currency.length == 3 &&
+  return typeof currency === "string" && currency.length === 3 &&
       IS_NULL(%regexp_internal_match(/[^A-Za-z]/, currency));
 }
 
@@ -2029,18 +2029,11 @@ function LocaleConvertCase(s, locales, isToUpper) {
 
   // StringSplit is slower than this.
   var pos = %StringIndexOf(language, '-', 0);
-  if (pos != -1) {
+  if (pos !== -1) {
     language = %_Call(StringSubstring, language, 0, pos);
   }
 
-  var CUSTOM_CASE_LANGUAGES = ['az', 'el', 'lt', 'tr'];
-  var langIndex = %ArrayIndexOf(CUSTOM_CASE_LANGUAGES, language, 0);
-  if (langIndex == -1) {
-    // language-independent case conversion.
-    return isToUpper ? %StringToUpperCaseI18N(s) : %StringToLowerCaseI18N(s);
-  }
-  return %StringLocaleConvertCase(s, isToUpper,
-                                  CUSTOM_CASE_LANGUAGES[langIndex]);
+  return %StringLocaleConvertCase(s, isToUpper, language);
 }
 
 /**

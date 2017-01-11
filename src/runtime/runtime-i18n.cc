@@ -1010,20 +1010,13 @@ inline int FindFirstUpperOrNonAscii(Handle<String> s, int length) {
   return length;
 }
 
-}  // namespace
-
-RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-
-  int length = s->length();
-  s = String::Flatten(s);
-
+MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
   if (!s->HasOnlyOneByteChars()) {
     // Use a slower implementation for strings with characters beyond U+00FF.
     return LocaleConvertCase(s, isolate, false, "");
   }
+
+  int length = s->length();
 
   // We depend here on the invariant that the length of a Latin1
   // string is invariant under ToLowerCase, and the result always
@@ -1080,14 +1073,8 @@ RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
   return *result;
 }
 
-RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(args.length(), 1);
-  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
-
+MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate) {
   int32_t length = s->length();
-  s = String::Flatten(s);
-
   if (s->HasOnlyOneByteChars() && length > 0) {
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
@@ -1147,26 +1134,65 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
   return LocaleConvertCase(s, isolate, true, "");
 }
 
+MUST_USE_RESULT Object* ConvertCase(Handle<String> s, bool is_upper,
+                                    Isolate* isolate) {
+  return is_upper ? ConvertToUpper(s, isolate) : ConvertToLower(s, isolate);
+}
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_StringToLowerCaseI18N) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  s = String::Flatten(s);
+  return ConvertToLower(s, isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(args.length(), 1);
+  CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
+  s = String::Flatten(s);
+  return ConvertToUpper(s, isolate);
+}
+
 RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
   HandleScope scope(isolate);
   DCHECK_EQ(args.length(), 3);
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(is_upper, 1);
-  CONVERT_ARG_HANDLE_CHECKED(SeqOneByteString, lang, 2);
+  CONVERT_ARG_HANDLE_CHECKED(String, lang_arg, 2);
 
-  // All the languages requiring special handling ("az", "el", "lt", "tr")
-  // have a 2-letter language code.
-  DCHECK(lang->length() == 2);
-  uint8_t lang_str[3];
-  memcpy(lang_str, lang->GetChars(), 2);
-  lang_str[2] = 0;
+  DCHECK(lang_arg->length() <= 3);
+  lang_arg = String::Flatten(lang_arg);
+
+  // All the languages requiring special-handling have two-letter codes.
+  if (V8_UNLIKELY(lang_arg->length() > 2))
+    return ConvertCase(s, is_upper, isolate);
+
+  char c1, c2;
+  {
+    DisallowHeapAllocation no_gc;
+    String::FlatContent lang = lang_arg->GetFlatContent();
+    c1 = lang.Get(0);
+    c2 = lang.Get(1);
+  }
   s = String::Flatten(s);
   // TODO(jshin): Consider adding a fast path for ASCII or Latin-1. The fastpath
   // in the root locale needs to be adjusted for az, lt and tr because even case
   // mapping of ASCII range characters are different in those locales.
-  // Greek (el) does not require any adjustment, though.
-  return LocaleConvertCase(s, isolate, is_upper,
-                           reinterpret_cast<const char*>(lang_str));
+  // Greek (el) does not require any adjustment.
+  if (V8_UNLIKELY(c1 == 't' && c2 == 'r'))
+    return LocaleConvertCase(s, isolate, is_upper, "tr");
+  if (V8_UNLIKELY(c1 == 'e' && c2 == 'l'))
+    return LocaleConvertCase(s, isolate, is_upper, "el");
+  if (V8_UNLIKELY(c1 == 'l' && c2 == 't'))
+    return LocaleConvertCase(s, isolate, is_upper, "lt");
+  if (V8_UNLIKELY(c1 == 'a' && c2 == 'z'))
+    return LocaleConvertCase(s, isolate, is_upper, "az");
+
+  return ConvertCase(s, is_upper, isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_DateCacheVersion) {
