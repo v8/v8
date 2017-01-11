@@ -8496,6 +8496,11 @@ void Isolate::RestoreOriginalHeapLimit() {
   isolate->heap()->RestoreOriginalHeapLimit();
 }
 
+bool Isolate::IsHeapLimitIncreasedForDebugging() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->heap()->IsHeapLimitIncreasedForDebugging();
+}
+
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

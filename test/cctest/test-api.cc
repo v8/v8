@@ -26622,10 +26622,13 @@ UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
   {
     size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
     CHECK_EQ(16 * MB, limit_before);
+    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     isolate->IncreaseHeapLimitForDebugging();
+    CHECK(isolate->IsHeapLimitIncreasedForDebugging());
     size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
     CHECK_EQ(4 * 16 * MB, limit_after);
     isolate->RestoreOriginalHeapLimit();
+    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
   }
   isolate->Dispose();

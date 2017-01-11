@@ -7075,6 +7075,12 @@ class V8_EXPORT Isolate {
   void RestoreOriginalHeapLimit();
 
   /**
+   * Returns true if the heap limit was increased for debugging and the
+   * original heap limit was not restored yet.
+   */
+  bool IsHeapLimitIncreasedForDebugging();
+
+  /**
    * Allows the host application to provide the address of a function that is
    * notified each time code is added, moved or removed.
    *
