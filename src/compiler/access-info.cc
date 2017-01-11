@@ -52,6 +52,8 @@ std::ostream& operator<<(std::ostream& os, AccessMode access_mode) {
       return os << "Load";
     case AccessMode::kStore:
       return os << "Store";
+    case AccessMode::kStoreInLiteral:
+      return os << "StoreInLiteral";
   }
   UNREACHABLE();
   return os;
@@ -282,7 +284,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
     int const number = descriptors->SearchWithCache(isolate(), *name, *map);
     if (number != DescriptorArray::kNotFound) {
       PropertyDetails const details = descriptors->GetDetails(number);
-      if (access_mode == AccessMode::kStore) {
+      if (access_mode == AccessMode::kStore ||
+          access_mode == AccessMode::kStoreInLiteral) {
         // Don't bother optimizing stores to read-only properties.
         if (details.IsReadOnly()) {
           return false;
@@ -380,6 +383,11 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
     // integer indexed exotic objects (see ES6 section 9.4.5).
     if (map->IsJSTypedArrayMap() && name->IsString() &&
         IsSpecialIndex(isolate()->unicode_cache(), String::cast(*name))) {
+      return false;
+    }
+
+    // Don't search on the prototype when storing in literals
+    if (access_mode == AccessMode::kStoreInLiteral) {
       return false;
     }
 

@@ -129,8 +129,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       }
 
       // Monomorphic property access.
-      effect =
-          BuildCheckMaps(constructor, effect, control, MapList{receiver_map});
+      effect = BuildCheckMaps(constructor, effect, control,
+                              access_info.receiver_maps());
 
       // Lower to OrdinaryHasInstance(C, O).
       NodeProperties::ReplaceValueInput(node, constructor, 0);
@@ -150,8 +150,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     }
 
     // Monomorphic property access.
-    effect =
-        BuildCheckMaps(constructor, effect, control, MapList{receiver_map});
+    effect = BuildCheckMaps(constructor, effect, control,
+                            access_info.receiver_maps());
 
     // Call the @@hasInstance handler.
     Node* target = jsgraph()->Constant(access_info.constant());
@@ -968,6 +968,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
+    DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
     AssumePrototypesStable(access_info.receiver_maps(), holder);
   }
 
@@ -1028,6 +1029,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         }
         break;
       }
+      case AccessMode::kStoreInLiteral:
       case AccessMode::kStore: {
         // We need a FrameState for the setter stub to restore the correct
         // context and return the appropriate value to fullcodegen.
@@ -1258,8 +1260,75 @@ JSNativeContextSpecialization::BuildPropertyAccess(
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     Node* node) {
-  // TODO(franzih): Use feedback
-  return NoChange();
+  DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, node->opcode());
+
+  // If deoptimization is disabled, we cannot optimize.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  DataPropertyParameters const& p = DataPropertyParametersOf(node->op());
+
+  if (!p.feedback().IsValid()) return NoChange();
+
+  StoreDataPropertyInLiteralICNexus nexus(p.feedback().vector(),
+                                          p.feedback().slot());
+  if (nexus.IsUninitialized()) {
+    return NoChange();
+  }
+
+  if (nexus.ic_state() == MEGAMORPHIC) {
+    return NoChange();
+  }
+
+  DCHECK_EQ(MONOMORPHIC, nexus.ic_state());
+
+  Handle<Map> receiver_map(nexus.FindFirstMap(), isolate());
+  Handle<Name> cached_name =
+      handle(Name::cast(nexus.GetFeedbackExtra()), isolate());
+
+  PropertyAccessInfo access_info;
+  AccessInfoFactory access_info_factory(dependencies(), native_context(),
+                                        graph()->zone());
+  if (!access_info_factory.ComputePropertyAccessInfo(
+          receiver_map, cached_name, AccessMode::kStoreInLiteral,
+          &access_info)) {
+    return NoChange();
+  }
+
+  if (access_info.IsGeneric()) {
+    return NoChange();
+  }
+
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Monomorphic property access.
+  receiver = BuildCheckHeapObject(receiver, &effect, control);
+
+  effect =
+      BuildCheckMaps(receiver, effect, control, access_info.receiver_maps());
+
+  // Ensure that {name} matches the cached name.
+  Node* name = NodeProperties::GetValueInput(node, 1);
+  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), name,
+                                 jsgraph()->HeapConstant(cached_name));
+  effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+
+  Node* value = NodeProperties::GetValueInput(node, 2);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node);
+
+  // Generate the actual property access.
+  ValueEffectControl continuation = BuildPropertyAccess(
+      receiver, value, context, frame_state_lazy, effect, control, cached_name,
+      access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY,
+      p.feedback().vector(), p.feedback().slot());
+  value = continuation.value();
+  effect = continuation.effect();
+  control = continuation.control();
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 namespace {
@@ -1285,6 +1354,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     ElementAccessInfo const& access_info, AccessMode access_mode,
     KeyedAccessStoreMode store_mode) {
+  DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
+
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
   ElementsKind elements_kind = access_info.elements_kind();
@@ -1381,6 +1452,9 @@ JSNativeContextSpecialization::BuildElementAccess(
             base_pointer, external_pointer, index, effect, control);
         break;
       }
+      case AccessMode::kStoreInLiteral:
+        UNREACHABLE();
+        break;
       case AccessMode::kStore: {
         // Ensure that the {value} is actually a Number.
         value = effect = graph()->NewNode(simplified()->CheckNumber(), value,

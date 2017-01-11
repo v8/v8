@@ -151,7 +151,7 @@ void Verifier::Visitor::Check(Node* node) {
                   "control");
     }
 
-    // Verify that no-no-throw nodes only have IfSuccess/IfException control
+    // Verify that nodes that can throw only have IfSuccess/IfException control
     // uses.
     if (!node->op()->HasProperty(Operator::kNoThrow)) {
       int count_success = 0, count_exception = 0;

@@ -753,6 +753,8 @@ void BytecodeGraphBuilder::VisitStaGlobalStrict() {
 }
 
 void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
+  PrepareEagerCheckpoint();
+
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* name =
