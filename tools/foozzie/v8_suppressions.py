@@ -114,6 +114,9 @@ ALLOWED_LINE_DIFFS = [
   # crbug.com/662840
   r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
   r"(?: is not defined))$",
+
+  # crbug.com/680064. This subsumes one of the above expressions.
+  r'^(.*)TypeError: .* function$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
@@ -127,6 +130,9 @@ IGNORE_LINES = [
 
   # crbug.com/677032
   r'^.*:\d+:.*asm\.js.*: success$',
+
+  # crbug.com/680064
+  r'^\s*at .* \(<anonymous>\)$',
 ]
 
 
