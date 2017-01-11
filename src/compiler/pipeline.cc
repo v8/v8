@@ -745,9 +745,13 @@ struct GraphBuilderPhase {
     bool succeeded = false;
 
     if (data->info()->is_optimizing_from_bytecode()) {
-      BytecodeGraphBuilder graph_builder(temp_zone, data->info(),
-                                         data->jsgraph(), 1.0f,
-                                         data->source_positions());
+      // Bytecode graph builder assumes deoptimziation is enabled.
+      DCHECK(data->info()->is_deoptimization_enabled());
+      BytecodeGraphBuilder graph_builder(
+          temp_zone, data->info()->shared_info(),
+          handle(data->info()->closure()->feedback_vector()),
+          data->info()->osr_ast_id(), data->jsgraph(), 1.0f,
+          data->source_positions());
       succeeded = graph_builder.CreateGraph();
     } else {
       AstGraphBuilderWithPositions graph_builder(

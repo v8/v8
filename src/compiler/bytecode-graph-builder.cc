@@ -444,21 +444,25 @@ Node* BytecodeGraphBuilder::Environment::Checkpoint(
 }
 
 BytecodeGraphBuilder::BytecodeGraphBuilder(
-    Zone* local_zone, CompilationInfo* info, JSGraph* jsgraph,
-    float invocation_frequency, SourcePositionTable* source_positions,
-    int inlining_id)
+    Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
+    Handle<TypeFeedbackVector> feedback_vector, BailoutId osr_ast_id,
+    JSGraph* jsgraph, float invocation_frequency,
+    SourcePositionTable* source_positions, int inlining_id)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
-      bytecode_array_(handle(info->shared_info()->bytecode_array())),
+      bytecode_array_(handle(shared_info->bytecode_array())),
       exception_handler_table_(
           handle(HandlerTable::cast(bytecode_array()->handler_table()))),
-      feedback_vector_(handle(info->closure()->feedback_vector())),
+      feedback_vector_(feedback_vector),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),
-          bytecode_array()->register_count(), info->shared_info())),
-      osr_ast_id_(info->osr_ast_id()),
+          bytecode_array()->register_count(), shared_info)),
+      bytecode_iterator_(nullptr),
+      bytecode_analysis_(nullptr),
+      environment_(nullptr),
+      osr_ast_id_(osr_ast_id),
       osr_loop_offset_(-1),
       merge_environments_(local_zone),
       exception_handlers_(local_zone),
@@ -469,10 +473,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       is_liveness_analysis_enabled_(FLAG_analyze_environment_liveness),
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
-      start_position_(info->shared_info()->start_position(), inlining_id) {
-  // Bytecode graph builder assumes deoptimziation is enabled.
-  DCHECK(info->is_deoptimization_enabled());
-}
+      start_position_(shared_info->start_position(), inlining_id) {}
 
 Node* BytecodeGraphBuilder::GetNewTarget() {
   if (!new_target_.is_set()) {
