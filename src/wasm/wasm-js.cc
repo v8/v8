@@ -177,6 +177,12 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 must be a buffer source");
     return;
   }
+
+  if (args.Length() > 2) {
+    thrower.LinkError(
+        "WebAssembly.instantiate accepts no more than 2 parameters");
+    return;
+  }
   i::MaybeHandle<i::JSObject> module_obj =
       CreateModuleObject(isolate, args[0], &thrower);
   if (module_obj.is_null()) return;
@@ -185,7 +191,48 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(Utils::ToLocal(module_obj.ToHandleChecked()));
 }
 
-void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
+MaybeLocal<Value> InstantiateModuleImpl(
+    i::Isolate* i_isolate, i::Handle<i::JSObject> i_module_obj,
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
+  // It so happens that in both the WebAssembly.instantiate, as well as
+  // WebAssembly.Instance ctor, the positions of the ffi object and memory
+  // are the same. If that changes later, we refactor the consts into
+  // parameters.
+  static const int kFfiOffset = 1;
+  static const int kMemOffset = 2;
+
+  MaybeLocal<Value> nothing;
+  i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
+  if (args.Length() > kFfiOffset && args[kFfiOffset]->IsObject()) {
+    Local<Object> obj = Local<Object>::Cast(args[kFfiOffset]);
+    ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
+  }
+
+  i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
+  if (args.Length() > kMemOffset && args[kMemOffset]->IsObject()) {
+    Local<Object> obj = Local<Object>::Cast(args[kMemOffset]);
+    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
+    if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
+      memory = i::Handle<i::JSArrayBuffer>(
+          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
+    } else {
+      thrower->TypeError("Argument %d must be a WebAssembly.Memory",
+                         kMemOffset);
+      return nothing;
+    }
+  }
+  i::MaybeHandle<i::JSObject> instance = i::wasm::WasmModule::Instantiate(
+      i_isolate, thrower, i_module_obj, ffi, memory);
+  if (instance.is_null()) {
+    if (!thrower->error())
+      thrower->RuntimeError("Could not instantiate module");
+    return nothing;
+  }
+  DCHECK(!i_isolate->has_pending_exception());
+  return Utils::ToLocal(instance.ToHandleChecked());
+}
+
+void WebAssemblyInstanceCtor(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -205,37 +252,51 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  Local<Object> obj = Local<Object>::Cast(args[0]);
-  i::Handle<i::JSObject> i_obj =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*obj));
+  Local<Object> module_obj = Local<Object>::Cast(args[0]);
+  i::Handle<i::JSObject> i_module_obj =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*module_obj));
 
-  i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
-  if (args.Length() > 1 && args[1]->IsObject()) {
-    Local<Object> obj = Local<Object>::Cast(args[1]);
-    ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
-  }
+  MaybeLocal<Value> instance =
+      InstantiateModuleImpl(i_isolate, i_module_obj, args, &thrower);
+  if (instance.IsEmpty()) return;
 
-  i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  if (args.Length() > 2 && args[2]->IsObject()) {
-    Local<Object> obj = Local<Object>::Cast(args[2]);
-    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-    if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
-      memory = i::Handle<i::JSArrayBuffer>(
-          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
-    } else {
-      thrower.TypeError("Argument 2 must be a WebAssembly.Memory");
-      return;
-    }
-  }
-  i::MaybeHandle<i::JSObject> instance =
-      i::wasm::WasmModule::Instantiate(i_isolate, &thrower, i_obj, ffi, memory);
-  if (instance.is_null()) {
-    if (!thrower.error()) thrower.RuntimeError("Could not instantiate module");
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(instance.ToLocalChecked());
+}
+
+void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  HandleScope scope(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.compile()");
+
+  if (args.Length() < 1) {
+    thrower.TypeError("Argument 0 must be a buffer source");
     return;
   }
-  DCHECK(!i_isolate->has_pending_exception());
+  i::MaybeHandle<i::JSObject> module_obj =
+      CreateModuleObject(isolate, args[0], &thrower);
+
+  Local<Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Promise::Resolver> resolver;
+  if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  if (module_obj.is_null()) {
+    DCHECK(thrower.error());
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+  } else {
+    MaybeLocal<Value> instance = InstantiateModuleImpl(
+        i_isolate, module_obj.ToHandleChecked(), args, &thrower);
+    if (instance.IsEmpty()) {
+      DCHECK(thrower.error());
+      resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    } else {
+      DCHECK(!thrower.error());
+      resolver->Resolve(context, instance.ToLocalChecked());
+    }
+  }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(Utils::ToLocal(instance.ToHandleChecked()));
+  return_value.Set(resolver->GetPromise());
 }
 
 bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
@@ -642,8 +703,11 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   // Setup compile
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
 
-  // Setup compile
+  // Setup validate
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
+
+  // Setup instantiate
+  InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
   // Setup Module
   Handle<JSFunction> module_constructor =
@@ -660,7 +724,7 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup Instance
   Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
+      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstanceCtor, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
 
   // Setup Table

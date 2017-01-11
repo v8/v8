@@ -57,11 +57,20 @@ function CheckInstance(instance) {
 }
 
 // Official API
-let module = new WebAssembly.Module(buffer);
-CheckInstance(new WebAssembly.Instance(module));
+(function BasicJSAPITest() {
+  print("sync module compile...");
+  let module = new WebAssembly.Module(buffer);
+  print("sync module instantiate...");
+  CheckInstance(new WebAssembly.Instance(module));
 
-let promise = WebAssembly.compile(buffer);
-promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
+  print("async module compile...");
+  let promise = WebAssembly.compile(buffer);
+  promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
+
+  print("async instantiate...");
+  let instance_promise = WebAssembly.instantiate(buffer);
+  instance_promise.then(CheckInstance);
+})();
 
 // Check that validate works correctly for a module.
 assertTrue(WebAssembly.validate(buffer));
