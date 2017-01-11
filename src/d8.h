@@ -11,6 +11,7 @@
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
 #include "src/list.h"
+#include "src/utils.h"
 
 #include "src/base/once.h"
 

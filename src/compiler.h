@@ -22,8 +22,10 @@ class CompilationJob;
 class JavaScriptFrame;
 class ParseInfo;
 class ScriptData;
-
-enum class LazyCompilationMode { kAlways, kIfRequested };
+template <typename T>
+class ThreadedList;
+template <typename T>
+class ThreadedListZoneEntry;
 
 // The V8 compiler API.
 //
@@ -53,11 +55,9 @@ class Compiler : public AllStatic {
   static bool CompileDebugCode(Handle<SharedFunctionInfo> shared);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
-  // Prepare a compilation job for unoptimized code. If |mode| is
-  // LazyCompilationMode::kAlways, the returned job will not compile any inner
-  // functions. Requires ParseAndAnalyse.
+  // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
   static CompilationJob* PrepareUnoptimizedCompilationJob(
-      CompilationInfo* info, LazyCompilationMode mode);
+      CompilationInfo* info);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job);
@@ -67,10 +67,15 @@ class Compiler : public AllStatic {
   // offer this chance, optimized closure instantiation will not call this.
   static void PostInstantiation(Handle<JSFunction> function, PretenureFlag);
 
+  typedef ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>
+      EagerInnerFunctionLiterals;
+
   // Parser::Parse, then Compiler::Analyze.
   static bool ParseAndAnalyze(ParseInfo* info);
-  // Rewrite, analyze scopes, and renumber.
-  static bool Analyze(ParseInfo* info);
+  // Rewrite, analyze scopes, and renumber. If |eager_literals| is non-null, it
+  // is appended with inner function literals which should be eagerly compiled.
+  static bool Analyze(ParseInfo* info,
+                      EagerInnerFunctionLiterals* eager_literals = nullptr);
   // Adds deoptimization support, requires ParseAndAnalyze.
   static bool EnsureDeoptimizationSupport(CompilationInfo* info);
   // Ensures that bytecode is generated, calls ParseAndAnalyze internally.
@@ -119,8 +124,7 @@ class Compiler : public AllStatic {
 
   // Create a shared function info object (the code may be lazily compiled).
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(
-      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer,
-      LazyCompilationMode mode = LazyCompilationMode::kIfRequested);
+      FunctionLiteral* node, Handle<Script> script, CompilationInfo* outer);
 
   // Create a shared function info object for a native function literal.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(

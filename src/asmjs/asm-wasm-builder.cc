@@ -145,8 +145,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (decl->fun()->body() == nullptr) {
       // TODO(titzer/bradnelson): Reuse SharedFunctionInfos used here when
       // compiling the wasm module.
-      Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfo(
-          decl->fun(), script_, info_, LazyCompilationMode::kAlways);
+      Handle<SharedFunctionInfo> shared =
+          Compiler::GetSharedFunctionInfo(decl->fun(), script_, info_);
       shared->set_is_toplevel(false);
       ParseInfo info(&zone, script_);
       info.set_shared_info(shared);

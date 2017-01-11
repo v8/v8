@@ -206,8 +206,8 @@ bool CompilerDispatcherJob::PrepareToCompileOnMainThread() {
 
   DeferredHandleScope scope(isolate_);
   if (Compiler::Analyze(parse_info_.get())) {
-    compile_job_.reset(Compiler::PrepareUnoptimizedCompilationJob(
-        compile_info_.get(), LazyCompilationMode::kAlways));
+    compile_job_.reset(
+        Compiler::PrepareUnoptimizedCompilationJob(compile_info_.get()));
   }
   compile_info_->set_deferred_handles(scope.Detach());
 

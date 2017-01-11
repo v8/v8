@@ -33,7 +33,7 @@ typedef CodeStubAssembler::Variable Variable;
 
 class InterpreterCompilationJob final : public CompilationJob {
  public:
-  InterpreterCompilationJob(CompilationInfo* info, LazyCompilationMode mode);
+  explicit InterpreterCompilationJob(CompilationInfo* info);
 
  protected:
   Status PrepareJobImpl() final;
@@ -191,10 +191,9 @@ int Interpreter::InterruptBudget() {
   return FLAG_interrupt_budget * kCodeSizeMultiplier;
 }
 
-InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info,
-                                                     LazyCompilationMode mode)
+InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
     : CompilationJob(info->isolate(), info, "Ignition"),
-      generator_(info, mode),
+      generator_(info),
       runtime_call_stats_(info->isolate()->counters()->runtime_call_stats()),
       background_execute_counter_("CompileBackgroundIgnition") {}
 
@@ -253,9 +252,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
   return SUCCEEDED;
 }
 
-CompilationJob* Interpreter::NewCompilationJob(CompilationInfo* info,
-                                               LazyCompilationMode mode) {
-  return new InterpreterCompilationJob(info, mode);
+CompilationJob* Interpreter::NewCompilationJob(CompilationInfo* info) {
+  return new InterpreterCompilationJob(info);
 }
 
 bool Interpreter::IsDispatchTableInitialized() {

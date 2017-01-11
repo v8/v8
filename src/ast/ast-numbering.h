@@ -12,11 +12,20 @@ namespace internal {
 class FunctionLiteral;
 class Isolate;
 class Zone;
+template <typename T>
+class ThreadedList;
+template <typename T>
+class ThreadedListZoneEntry;
+template <typename T>
+class ZoneVector;
 
 namespace AstNumbering {
 // Assign type feedback IDs, bailout IDs, and generator yield IDs to an AST node
-// tree; perform catch prediction for TryStatements.
-bool Renumber(Isolate* isolate, Zone* zone, FunctionLiteral* function);
+// tree; perform catch prediction for TryStatements. If |eager_literals| is
+// non-null, adds any eager inner literal functions into it.
+bool Renumber(
+    Isolate* isolate, Zone* zone, FunctionLiteral* function,
+    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals);
 }
 
 // Some details on yield IDs

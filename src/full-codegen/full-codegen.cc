@@ -28,8 +28,8 @@ namespace internal {
 
 class FullCodegenCompilationJob final : public CompilationJob {
  public:
-  FullCodegenCompilationJob(CompilationInfo* info, LazyCompilationMode mode)
-      : CompilationJob(info->isolate(), info, "Full-Codegen"), mode_(mode) {}
+  explicit FullCodegenCompilationJob(CompilationInfo* info)
+      : CompilationJob(info->isolate(), info, "Full-Codegen") {}
 
   bool can_execute_on_background_thread() const override { return false; }
 
@@ -37,26 +37,22 @@ class FullCodegenCompilationJob final : public CompilationJob {
 
   CompilationJob::Status ExecuteJobImpl() final {
     DCHECK(ThreadId::Current().Equals(isolate()->thread_id()));
-    return FullCodeGenerator::MakeCode(info(), stack_limit(), mode_) ? SUCCEEDED
-                                                                     : FAILED;
+    return FullCodeGenerator::MakeCode(info(), stack_limit()) ? SUCCEEDED
+                                                              : FAILED;
   }
 
   CompilationJob::Status FinalizeJobImpl() final { return SUCCEEDED; }
 
  private:
-  LazyCompilationMode mode_;
-
   DISALLOW_COPY_AND_ASSIGN(FullCodegenCompilationJob);
 };
 
 FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
                                      CompilationInfo* info,
-                                     uintptr_t stack_limit,
-                                     LazyCompilationMode mode)
+                                     uintptr_t stack_limit)
     : masm_(masm),
       info_(info),
       isolate_(info->isolate()),
-      compilation_mode_(mode),
       zone_(info->zone()),
       scope_(info->scope()),
       nesting_stack_(NULL),
@@ -77,20 +73,17 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
 }
 
 // static
-CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info,
-                                                     LazyCompilationMode mode) {
-  return new FullCodegenCompilationJob(info, mode);
+CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info) {
+  return new FullCodegenCompilationJob(info);
 }
 
 // static
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
-  return MakeCode(info, info->isolate()->stack_guard()->real_climit(),
-                  LazyCompilationMode::kIfRequested);
+  return MakeCode(info, info->isolate()->stack_guard()->real_climit());
 }
 
 // static
-bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit,
-                                 LazyCompilationMode mode) {
+bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
   DCHECK(!info->shared_info()->must_use_ignition_turbo());
@@ -112,7 +105,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit,
                       CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
-  FullCodeGenerator cgen(&masm, info, stack_limit, mode);
+  FullCodeGenerator cgen(&masm, info, stack_limit);
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     DCHECK(!isolate->has_pending_exception());
@@ -1293,7 +1286,7 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::GetSharedFunctionInfo(expr, script(), info_, compilation_mode_);
+      Compiler::GetSharedFunctionInfo(expr, script(), info_);
   if (function_info.is_null()) {
     SetStackOverflow();
     return;
