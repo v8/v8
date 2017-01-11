@@ -8900,9 +8900,7 @@ void Debug::ProcessDebugMessages(Isolate* isolate) {
 
 
 Local<Context> Debug::GetDebugContext(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
+  return debug::GetDebugContext(isolate);
 }
 
 
@@ -8955,7 +8953,9 @@ bool debug::SetDebugEventListener(Isolate* isolate, debug::EventCallback that,
 }
 
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
-  return Debug::GetDebugContext(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
 }
 
 MaybeLocal<Value> debug::Call(Local<Context> context,
