@@ -14,6 +14,7 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
+#include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/list.h"
@@ -845,6 +846,9 @@ class Heap {
   void MemoryPressureNotification(MemoryPressureLevel level,
                                   bool is_isolate_locked);
   void CheckMemoryPressure();
+
+  void SetOutOfMemoryCallback(v8::debug::OutOfMemoryCallback callback,
+                              void* data);
 
   double MonotonicallyIncreasingTimeInMs();
 
@@ -1759,6 +1763,8 @@ class Heap {
 
   void CollectGarbageOnMemoryPressure();
 
+  void InvokeOutOfMemoryCallback();
+
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
@@ -2168,6 +2174,9 @@ class Heap {
   // Stores the memory pressure level that set by MemoryPressureNotification
   // and reset by a mark-compact garbage collection.
   base::AtomicValue<MemoryPressureLevel> memory_pressure_level_;
+
+  v8::debug::OutOfMemoryCallback out_of_memory_callback_;
+  void* out_of_memory_callback_data_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;

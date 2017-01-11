@@ -8819,7 +8819,6 @@ bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
   return true;
 }
 
-
 void Debug::DebugBreak(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
 }
@@ -8985,6 +8984,13 @@ void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
       i::BreakException, type == BreakOnAnyException);
   internal_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
                                                     type != NoBreakOnException);
+}
+
+void debug::SetOutOfMemoryCallback(Isolate* isolate,
+                                   OutOfMemoryCallback callback, void* data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i_isolate->heap()->SetOutOfMemoryCallback(callback, data);
 }
 
 void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {

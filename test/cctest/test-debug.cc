@@ -6644,3 +6644,31 @@ TEST(DebugStepOverFunctionWithCaughtException) {
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
   CHECK_EQ(break_point_hit_count, 4);
 }
+
+bool out_of_memory_callback_called = false;
+void OutOfMemoryCallback(void* data) {
+  out_of_memory_callback_called = true;
+  reinterpret_cast<v8::Isolate*>(data)->IncreaseHeapLimitForDebugging();
+}
+
+UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  create_params.constraints.set_max_old_space_size(10);
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope scope(isolate);
+    LocalContext context(isolate);
+    v8::debug::SetOutOfMemoryCallback(isolate, OutOfMemoryCallback,
+                                      reinterpret_cast<void*>(isolate));
+    CHECK(!out_of_memory_callback_called);
+    // The following allocation fails unless the out-of-memory callback
+    // increases the heap limit.
+    int length = 10 * i::MB / i::kPointerSize;
+    i_isolate->factory()->NewFixedArray(length, i::TENURED);
+    CHECK(out_of_memory_callback_called);
+  }
+  isolate->Dispose();
+}
