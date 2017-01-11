@@ -36,3 +36,9 @@ WasmDebugInfo *WasmDebugInfo::cast(Object *object) {
 WasmInstanceObject *WasmDebugInfo::wasm_instance() {
   return WasmInstanceObject::cast(get(kInstance));
 }
+
+void WasmDebugInfo::RunInterpreter(Handle<WasmDebugInfo> debug_info,
+                                   int func_index, uint8_t *arg_buffer) {
+  // TODO(clemensh): Implement this.
+  UNIMPLEMENTED();
+}

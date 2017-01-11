@@ -102,6 +102,12 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
                                     const wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index);
 
+// Compiles a stub that redirects a call to a wasm function to the wasm
+// interpreter. It's ABI compatible with the compiled wasm function.
+Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
+                                         wasm::FunctionSig* sig,
+                                         Handle<WasmInstanceObject> instance);
+
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.
 class WasmTrapHelper;
@@ -182,6 +188,8 @@ class WasmGraphBuilder {
 
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
+  void BuildWasmInterpreterEntry(uint32_t func_index, wasm::FunctionSig* sig,
+                                 Handle<WasmInstanceObject> instance);
 
   Node* ToJS(Node* node, wasm::ValueType type);
   Node* FromJS(Node* node, Node* context, wasm::ValueType type);

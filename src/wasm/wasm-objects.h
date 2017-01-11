@@ -383,6 +383,9 @@ class WasmDebugInfo : public FixedArray {
   static bool IsDebugInfo(Object*);
   static WasmDebugInfo* cast(Object*);
 
+  static void RunInterpreter(Handle<WasmDebugInfo>, int func_index,
+                             uint8_t* arg_buffer);
+
   DECLARE_GETTER(wasm_instance, WasmInstanceObject);
 };
 

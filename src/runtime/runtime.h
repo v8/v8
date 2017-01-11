@@ -943,7 +943,8 @@ namespace internal {
   F(ThrowWasmTrapRemByZero, 0, 1)            \
   F(ThrowWasmTrapFloatUnrepresentable, 0, 1) \
   F(ThrowWasmTrapFuncInvalid, 0, 1)          \
-  F(ThrowWasmTrapFuncSigMismatch, 0, 1)
+  F(ThrowWasmTrapFuncSigMismatch, 0, 1)      \
+  F(WasmRunInterpreter, 3, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
