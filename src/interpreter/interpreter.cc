@@ -2186,7 +2186,6 @@ void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
 // registers. The new.target is in the accumulator.
 //
 void Interpreter::DoNew(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
   Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
   Node* constructor = __ LoadRegister(constructor_reg);
