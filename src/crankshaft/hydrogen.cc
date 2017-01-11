@@ -8366,23 +8366,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinFunctionCall(Call* expr) {
         return true;
       }
       break;
-    case kMathCeil:
-      if (expr->arguments()->length() == 1) {
-        // Math.ceil(x) = -Math.floor(-x)
-        HValue* minus_zero = Add<HConstant>(-0.0);
-        HValue* argument = Pop();
-        Drop(2);  // Receiver and function.
-        argument = AddUncasted<HSub>(minus_zero, argument);
-        Add<HSimulate>(expr->id(), REMOVABLE_SIMULATE);
-        {
-          NoObservableSideEffectsScope scope(this);
-          argument = AddUncasted<HUnaryMathOperation>(argument, kMathFloor);
-          argument = AddUncasted<HSub>(minus_zero, argument);
-        }
-        ast_context()->ReturnValue(argument);
-        return true;
-      }
-      break;
     case kMathImul:
       if (expr->arguments()->length() == 2) {
         HValue* right = Pop();
@@ -8580,23 +8563,6 @@ bool HOptimizedGraphBuilder::TryInlineBuiltinMethodCall(
         Drop(2);  // Receiver and function.
         HInstruction* op = NewUncasted<HUnaryMathOperation>(argument, id);
         ast_context()->ReturnInstruction(op, ast_id);
-        return true;
-      }
-      break;
-    case kMathCeil:
-      if (argument_count == 2) {
-        // Math.ceil(x) = -Math.floor(-x)
-        HValue* minus_zero = Add<HConstant>(-0.0);
-        HValue* argument = Pop();
-        Drop(2);  // Receiver and function.
-        argument = AddUncasted<HSub>(minus_zero, argument);
-        Add<HSimulate>(ast_id, REMOVABLE_SIMULATE);
-        {
-          NoObservableSideEffectsScope scope(this);
-          argument = AddUncasted<HUnaryMathOperation>(argument, kMathFloor);
-          argument = AddUncasted<HSub>(minus_zero, argument);
-        }
-        ast_context()->ReturnValue(argument);
         return true;
       }
       break;
