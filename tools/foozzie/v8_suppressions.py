@@ -33,6 +33,14 @@ MAX_LINE_LENGTH = 512
 # For ignoring lines before carets and to ignore caret positions.
 CARET_RE = re.compile(r'^\s*\^\s*$')
 
+# Ignore by original source files. Map from bug->relative file paths in V8,
+# e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
+# be suppressed if one of the files below was used to mutate the test.
+IGNORE_SOURCES = {
+  # This contains a usage of f.arguments that often fires.
+  'crbug.com/662424': '/v8/test/mjsunit/regress/regress-2989.js',
+}
+
 # Ignore by test case pattern. Map from bug->regexp.
 # Regular expressions are assumed to be compiled. We use regexp.match.
 IGNORE_TEST_CASES = {
@@ -213,7 +221,10 @@ class Suppression(object):
   def diff(self, output1, output2):
     return None
 
-  def ignore(self, testcase):
+  def ignore_by_metadata(self, metadata):
+    return False
+
+  def ignore_by_content(self, testcase):
     return False
 
   def ignore_by_output1(self, output):
@@ -239,9 +250,15 @@ class V8Suppression(Suppression):
         IGNORE_LINES,
     )
 
-  def ignore(self, testcase):
+  def ignore_by_content(self, testcase):
     for bug, exp in IGNORE_TEST_CASES.iteritems():
       if exp.match(testcase):
+        return bug
+    return False
+
+  def ignore_by_metadata(self, metadata):
+    for bug, source in IGNORE_SOURCES.iteritems():
+      if source in metadata['sources']:
         return bug
     return False
 

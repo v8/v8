@@ -148,6 +148,16 @@ def parse_args():
   return options
 
 
+def metadata_bailout(metadata, ignore_fun):
+  """Print failure state and return if ignore_fun matches metadata."""
+  bug = (ignore_fun(metadata) or '').strip()
+  if bug:
+    print FAILURE_HEADER_TEMPLATE % dict(
+        configs='', sources='', suppression=bug)
+    return True
+  return False
+
+
 def test_pattern_bailout(testcase, ignore_fun):
   """Print failure state and return if ignore_fun matches testcase."""
   with open(testcase) as f:
@@ -191,12 +201,15 @@ def main():
       options.second_arch, options.second_config,
   )
 
-  if test_pattern_bailout(options.testcase, suppress.ignore):
-    return RETURN_FAIL
-
   # Get metadata.
   with open(options.meta_data_path) as f:
     metadata = json.load(f)
+
+  if metadata_bailout(metadata, suppress.ignore_by_metadata):
+    return RETURN_FAIL
+
+  if test_pattern_bailout(options.testcase, suppress.ignore_by_content):
+    return RETURN_FAIL
 
   common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
   first_config_flags = common_flags + CONFIGS[options.first_config]
