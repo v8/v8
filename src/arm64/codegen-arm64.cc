@@ -108,12 +108,8 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   __ TestAndBranchIfAllClear(result, kIsIndirectStringMask, &check_sequential);
 
   // Dispatch on the indirect string shape: slice or cons.
-  Label cons_string, thin_string;
-  __ And(result, result, kStringRepresentationMask);
-  __ Cmp(result, kConsStringTag);
-  __ B(eq, &cons_string);
-  __ Cmp(result, kThinStringTag);
-  __ B(eq, &thin_string);
+  Label cons_string;
+  __ TestAndBranchIfAllClear(result, kSlicedNotConsMask, &cons_string);
 
   // Handle slices.
   Label indirect_string_loaded;
@@ -121,11 +117,6 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
          UntagSmiFieldMemOperand(string, SlicedString::kOffsetOffset));
   __ Ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ Add(index, index, result.W());
-  __ B(&indirect_string_loaded);
-
-  // Handle thin strings.
-  __ Bind(&thin_string);
-  __ Ldr(string, FieldMemOperand(string, ThinString::kActualOffset));
   __ B(&indirect_string_loaded);
 
   // Handle cons strings.

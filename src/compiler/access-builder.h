@@ -167,9 +167,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to ConsString::second() field.
   static FieldAccess ForConsStringSecond();
 
-  // Provides access to ThinString::actual() field.
-  static FieldAccess ForThinStringActual();
-
   // Provides access to SlicedString::offset() field.
   static FieldAccess ForSlicedStringOffset();
 
