@@ -80,6 +80,7 @@ class PlatformInterfaceDescriptor;
   V(SubString)                            \
   V(Keyed)                                \
   V(Named)                                \
+  V(CreateIterResultObject)               \
   V(HasProperty)                          \
   V(ForInFilter)                          \
   V(GetProperty)                          \
@@ -477,6 +478,13 @@ class TypeConversionDescriptor final : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(TypeConversionDescriptor, CallInterfaceDescriptor)
 
   static const Register ArgumentRegister();
+};
+
+class CreateIterResultObjectDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kValue, kDone)
+  DECLARE_DEFAULT_DESCRIPTOR(CreateIterResultObjectDescriptor,
+                             CallInterfaceDescriptor, kParameterCount)
 };
 
 class HasPropertyDescriptor final : public CallInterfaceDescriptor {

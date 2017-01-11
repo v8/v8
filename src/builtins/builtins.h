@@ -412,6 +412,10 @@ namespace internal {
   TFJ(FunctionPrototypeHasInstance, 1)                                         \
   CPP(FunctionPrototypeToString)                                               \
                                                                                \
+  /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
+  TFS(CreateIterResultObject, BUILTIN, kNoExtraICState,                        \
+      CreateIterResultObject)                                                  \
+                                                                               \
   /* Generator and Async */                                                    \
   CPP(GeneratorFunctionConstructor)                                            \
   /* ES6 section 25.3.1.2 Generator.prototype.next ( value ) */                \

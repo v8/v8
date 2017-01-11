@@ -65,18 +65,20 @@ void Generate_GeneratorPrototypeResume(
 
   assembler->Bind(&if_receiverisclosed);
   {
+    Callable create_iter_result_object =
+        CodeFactory::CreateIterResultObject(assembler->isolate());
+
     // The {receiver} is closed already.
     Node* result = nullptr;
     switch (resume_mode) {
       case JSGeneratorObject::kNext:
-        result = assembler->CallRuntime(Runtime::kCreateIterResultObject,
-                                        context, assembler->UndefinedConstant(),
-                                        assembler->BooleanConstant(true));
+        result = assembler->CallStub(create_iter_result_object, context,
+                                     assembler->UndefinedConstant(),
+                                     assembler->TrueConstant());
         break;
       case JSGeneratorObject::kReturn:
-        result =
-            assembler->CallRuntime(Runtime::kCreateIterResultObject, context,
-                                   value, assembler->BooleanConstant(true));
+        result = assembler->CallStub(create_iter_result_object, context, value,
+                                     assembler->TrueConstant());
         break;
       case JSGeneratorObject::kThrow:
         result = assembler->CallRuntime(Runtime::kThrow, context, value);

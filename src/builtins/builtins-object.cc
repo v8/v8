@@ -927,6 +927,29 @@ BUILTIN(ObjectSeal) {
   return *object;
 }
 
+void Builtins::Generate_CreateIterResultObject(
+    compiler::CodeAssemblerState* state) {
+  typedef CreateIterResultObjectDescriptor Descriptor;
+  typedef compiler::Node Node;
+  CodeStubAssembler a(state);
+
+  Node* const value = a.Parameter(Descriptor::kValue);
+  Node* const done = a.Parameter(Descriptor::kDone);
+  Node* const context = a.Parameter(Descriptor::kContext);
+
+  Node* const native_context = a.LoadNativeContext(context);
+  Node* const map =
+      a.LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+
+  Node* const result = a.AllocateJSObjectFromMap(map);
+
+  a.StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kValueOffset,
+                                   value);
+  a.StoreObjectFieldNoWriteBarrier(result, JSIteratorResult::kDoneOffset, done);
+
+  a.Return(result);
+}
+
 void Builtins::Generate_HasProperty(compiler::CodeAssemblerState* state) {
   typedef HasPropertyDescriptor Descriptor;
   typedef compiler::Node Node;

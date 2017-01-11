@@ -167,6 +167,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Construct(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
+  static Callable CreateIterResultObject(Isolate* isolate);
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);
 

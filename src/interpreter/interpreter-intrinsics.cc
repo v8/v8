@@ -230,6 +230,12 @@ Node* IntrinsicsHelper::IntrinsicAsStubCall(Node* args_reg, Node* context,
   return __ CallStubN(callable.descriptor(), 1, input_count, args);
 }
 
+Node* IntrinsicsHelper::CreateIterResultObject(Node* input, Node* arg_count,
+                                               Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::CreateIterResultObject(isolate()));
+}
+
 Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,
                                     Node* context) {
   return IntrinsicAsStubCall(input, context,

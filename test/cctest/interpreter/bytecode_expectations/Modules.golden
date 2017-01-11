@@ -13,7 +13,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 125
+bytecode array length: 124
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -56,15 +56,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   13 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
@@ -83,7 +83,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 125
+bytecode array length: 124
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -126,15 +126,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   24 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
@@ -155,7 +155,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 195
+bytecode array length: 194
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -198,15 +198,15 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(7), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
   /*   64 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
@@ -259,7 +259,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 160
+bytecode array length: 159
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -302,15 +302,15 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(7), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
   /*   49 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
@@ -348,7 +348,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 164
+bytecode array length: 163
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -393,15 +393,15 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(7), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
   /*   49 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
@@ -439,7 +439,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 168
+bytecode array length: 167
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -484,15 +484,15 @@ bytecodes: [
                 B(Star), R(6),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(6), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(8),
                 B(Mov), R(5), R(7),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(7), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(7), U8(2),
   /*   51 S> */ B(Return),
                 B(Ldar), R(5),
   /*    0 E> */ B(Throw),
@@ -528,7 +528,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 136
+bytecode array length: 135
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -573,15 +573,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   32 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
@@ -603,7 +603,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 173
+bytecode array length: 172
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -648,15 +648,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   26 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
@@ -692,7 +692,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 125
+bytecode array length: 124
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -735,15 +735,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   30 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
@@ -762,7 +762,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 125
+bytecode array length: 124
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -805,15 +805,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   19 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
@@ -833,7 +833,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 164
+bytecode array length: 163
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(21),
@@ -880,15 +880,15 @@ bytecodes: [
                 B(Star), R(5),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(26),
+                B(JumpIfTrue), U8(25),
                 B(LdaSmi), U8(2),
                 B(TestEqualStrict), R(5), U8(0),
-                B(JumpIfTrue), U8(16),
+                B(JumpIfTrue), U8(15),
                 B(Jump), U8(2),
                 B(LdaTrue),
                 B(Star), R(7),
                 B(Mov), R(4), R(6),
-                B(CallRuntime), U16(Runtime::k_CreateIterResultObject), R(6), U8(2),
+                B(InvokeIntrinsic), U8(Runtime::k_CreateIterResultObject), R(6), U8(2),
   /*   45 S> */ B(Return),
                 B(Ldar), R(4),
   /*    0 E> */ B(Throw),
