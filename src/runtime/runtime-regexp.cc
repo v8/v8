@@ -431,6 +431,9 @@ MUST_USE_RESULT static Object* StringReplaceGlobalAtomRegExpWithString(
   } else {
     result_len = static_cast<int>(result_len_64);
   }
+  if (result_len == 0) {
+    return isolate->heap()->empty_string();
+  }
 
   int subject_pos = 0;
   int result_pos = 0;

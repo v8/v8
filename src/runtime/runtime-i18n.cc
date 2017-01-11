@@ -865,6 +865,8 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
   Handle<SeqTwoByteString> result;
   std::unique_ptr<uc16[]> sap;
 
+  if (dest_length == 0) return isolate->heap()->empty_string();
+
   // This is not a real loop. It'll be executed only once (no overflow) or
   // twice (overflow).
   for (int i = 0; i < 2; ++i) {
@@ -1086,7 +1088,7 @@ RUNTIME_FUNCTION(Runtime_StringToUpperCaseI18N) {
   int32_t length = s->length();
   s = String::Flatten(s);
 
-  if (s->HasOnlyOneByteChars()) {
+  if (s->HasOnlyOneByteChars() && length > 0) {
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 

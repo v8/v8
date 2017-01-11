@@ -1165,6 +1165,10 @@ void V8HeapExplorer::ExtractStringReferences(int entry, String* string) {
     SlicedString* ss = SlicedString::cast(string);
     SetInternalReference(ss, entry, "parent", ss->parent(),
                          SlicedString::kParentOffset);
+  } else if (string->IsThinString()) {
+    ThinString* ts = ThinString::cast(string);
+    SetInternalReference(ts, entry, "actual", ts->actual(),
+                         ThinString::kActualOffset);
   }
 }
 
