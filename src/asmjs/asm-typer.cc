@@ -1163,6 +1163,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     parameter_types.push_back(type);
     SetTypeOf(proxy, type);
     SetTypeOf(expr, type);
+    SetTypeOf(expr->value(), type);
   }
 
   if (static_cast<int>(annotated_parameters) != fun->parameter_count()) {
