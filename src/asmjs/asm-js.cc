@@ -209,27 +209,25 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   result->set(kWasmDataScriptPosition,
               Smi::FromInt(info->literal()->position()));
 
-  MessageLocation location(info->script(), info->literal()->position(),
-                           info->literal()->position());
-  char text[100];
-  int length;
   if (FLAG_trace_asm_time) {
-    length =
+    MessageLocation location(info->script(), info->literal()->position(),
+                             info->literal()->position());
+    char text[100];
+    int length =
         base::OS::SNPrintF(text, arraysize(text),
                            "success, asm->wasm: %0.3f ms, compile: %0.3f ms",
                            asm_wasm_time, compile_time);
-  } else {
-    length = base::OS::SNPrintF(text, arraysize(text), "success");
-  }
-  DCHECK_NE(-1, length);
-  USE(length);
-  Handle<String> stext(info->isolate()->factory()->InternalizeUtf8String(text));
-  Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
-      Handle<JSArray>::null());
-  message->set_error_level(v8::Isolate::kMessageInfo);
-  if (!FLAG_suppress_asm_messages) {
-    MessageHandler::ReportMessage(info->isolate(), &location, message);
+    DCHECK_NE(-1, length);
+    USE(length);
+    Handle<String> stext(
+        info->isolate()->factory()->InternalizeUtf8String(text));
+    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+        info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
+        Handle<JSArray>::null());
+    message->set_error_level(v8::Isolate::kMessageInfo);
+    if (!FLAG_suppress_asm_messages) {
+      MessageHandler::ReportMessage(info->isolate(), &location, message);
+    }
   }
 
   return result;
@@ -320,28 +318,29 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
     return single_function;
   }
 
-  i::Handle<i::Script> script(i::Script::cast(wasm_data->get(kWasmDataScript)));
-  int32_t position = 0;
-  if (!wasm_data->get(kWasmDataScriptPosition)->ToInt32(&position)) {
-    UNREACHABLE();
-  }
-  MessageLocation location(script, position, position);
-  char text[50];
-  int length;
   if (FLAG_trace_asm_time) {
-    length = base::OS::SNPrintF(text, arraysize(text), "success, %0.3f ms",
-                                instantiate_timer.Elapsed().InMillisecondsF());
-  } else {
-    length = base::OS::SNPrintF(text, arraysize(text), "success");
+    i::Handle<i::Script> script(
+        i::Script::cast(wasm_data->get(kWasmDataScript)));
+    int32_t position = 0;
+    if (!wasm_data->get(kWasmDataScriptPosition)->ToInt32(&position)) {
+      UNREACHABLE();
+    }
+    MessageLocation location(script, position, position);
+    char text[50];
+    int length =
+        base::OS::SNPrintF(text, arraysize(text), "success, %0.3f ms",
+                           instantiate_timer.Elapsed().InMillisecondsF());
+    DCHECK_NE(-1, length);
+    USE(length);
+    Handle<String> stext(isolate->factory()->InternalizeUtf8String(text));
+    Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
+        isolate, MessageTemplate::kAsmJsInstantiated, &location, stext,
+        Handle<JSArray>::null());
+    message->set_error_level(v8::Isolate::kMessageInfo);
+    if (!FLAG_suppress_asm_messages) {
+      MessageHandler::ReportMessage(isolate, &location, message);
+    }
   }
-  DCHECK_NE(-1, length);
-  USE(length);
-  Handle<String> stext(isolate->factory()->InternalizeUtf8String(text));
-  Handle<JSMessageObject> message = MessageHandler::MakeMessageObject(
-      isolate, MessageTemplate::kAsmJsInstantiated, &location, stext,
-      Handle<JSArray>::null());
-  message->set_error_level(v8::Isolate::kMessageInfo);
-  MessageHandler::ReportMessage(isolate, &location, message);
 
   return module_object;
 }
