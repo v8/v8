@@ -240,9 +240,6 @@
 
   #BUG(v8:5683)
   'wasm/import-memory': [SKIP],
-
-  # Crashes with WASM turned on by default on arm64 gc-stress
-  'regress/regress-500831': [PASS, ['arch == arm64', SKIP]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
