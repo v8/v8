@@ -70,9 +70,9 @@ CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const* op) {
   return OpParameter<CheckedStoreRepresentation>(op);
 }
 
-MachineRepresentation StackSlotRepresentationOf(Operator const* op) {
+int StackSlotSizeOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kStackSlot, op->opcode());
-  return OpParameter<MachineRepresentation>(op);
+  return OpParameter<int>(op);
 }
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
@@ -458,6 +458,15 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(kWord16)                          \
   V(kWord32)
 
+#define STACK_SLOT_CACHED_SIZES_LIST(V) V(4) V(8) V(16)
+
+struct StackSlotOperator : public Operator1<int> {
+  explicit StackSlotOperator(int size)
+      : Operator1<int>(IrOpcode::kStackSlot,
+                       Operator::kNoDeopt | Operator::kNoThrow, "StackSlot", 0,
+                       0, 0, 1, 0, 0, size) {}
+};
+
 struct MachineOperatorGlobalCache {
 #define PURE(Name, properties, value_input_count, control_input_count,         \
              output_count)                                                     \
@@ -522,17 +531,12 @@ struct MachineOperatorGlobalCache {
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
 
-#define STACKSLOT(Type)                                                      \
-  struct StackSlot##Type##Operator final                                     \
-      : public Operator1<MachineRepresentation> {                            \
-    StackSlot##Type##Operator()                                              \
-        : Operator1<MachineRepresentation>(                                  \
-              IrOpcode::kStackSlot, Operator::kNoDeopt | Operator::kNoThrow, \
-              "StackSlot", 0, 0, 0, 1, 0, 0,                                 \
-              MachineType::Type().representation()) {}                       \
-  };                                                                         \
-  StackSlot##Type##Operator kStackSlot##Type;
-  MACHINE_TYPE_LIST(STACKSLOT)
+#define STACKSLOT(Size)                                                     \
+  struct StackSlotOfSize##Size##Operator final : public StackSlotOperator { \
+    StackSlotOfSize##Size##Operator() : StackSlotOperator(Size) {}          \
+  };                                                                        \
+  StackSlotOfSize##Size##Operator kStackSlotSize##Size;
+  STACK_SLOT_CACHED_SIZES_LIST(STACKSLOT)
 #undef STACKSLOT
 
 #define STORE(Type)                                                            \
@@ -735,15 +739,21 @@ const Operator* MachineOperatorBuilder::ProtectedLoad(LoadRepresentation rep) {
   return nullptr;
 }
 
-const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
-#define STACKSLOT(Type)                              \
-  if (rep == MachineType::Type().representation()) { \
-    return &cache_.kStackSlot##Type;                 \
+const Operator* MachineOperatorBuilder::StackSlot(int size) {
+  DCHECK_LE(0, size);
+#define CASE_CACHED_SIZE(Size) \
+  case Size:                   \
+    return &cache_.kStackSlotSize##Size;
+  switch (size) {
+    STACK_SLOT_CACHED_SIZES_LIST(CASE_CACHED_SIZE);
+    default:
+      return new (zone_) StackSlotOperator(size);
   }
-  MACHINE_TYPE_LIST(STACKSLOT)
-#undef STACKSLOT
-  UNREACHABLE();
-  return nullptr;
+#undef CASE_CACHED_SIZE
+}
+
+const Operator* MachineOperatorBuilder::StackSlot(MachineRepresentation rep) {
+  return StackSlot(1 << ElementSizeLog2Of(rep));
 }
 
 const Operator* MachineOperatorBuilder::Store(StoreRepresentation store_rep) {

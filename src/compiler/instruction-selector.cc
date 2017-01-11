@@ -1632,7 +1632,7 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
 }
 
 void InstructionSelector::VisitStackSlot(Node* node) {
-  int size = 1 << ElementSizeLog2Of(StackSlotRepresentationOf(node->op()));
+  int size = StackSlotSizeOf(node->op());
   int slot = frame_->AllocateSpillSlot(size);
   OperandGenerator g(this);
 
