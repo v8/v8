@@ -153,7 +153,6 @@ assertEq(typeof emptyModule, "object");
 //TODO assertEq(String(emptyModule), "[object WebAssembly.Module]");
 assertEq(Object.getPrototypeOf(emptyModule), moduleProto);
 
-if (false) { // TODO: Module.imports support
 // 'WebAssembly.Module.imports' data property
 let moduleImportsDesc = Object.getOwnPropertyDescriptor(Module, 'imports');
 assertEq(typeof moduleImportsDesc.value, "function");
@@ -167,10 +166,19 @@ assertEq(moduleImports.length, 1);
 assertErrorMessage(() => moduleImports(), TypeError, /requires more than 0 arguments/);
 assertErrorMessage(() => moduleImports(undefined), TypeError, /first argument must be a WebAssembly.Module/);
 assertErrorMessage(() => moduleImports({}), TypeError, /first argument must be a WebAssembly.Module/);
-var arr = moduleImports(new Module(wasmTextToBinary('(module)')));
+var arr = moduleImports(new Module(emptyModuleBinary));
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
-var arr = moduleImports(new Module(wasmTextToBinary('(module (func (import "a" "b")) (memory (import "c" "d") 1) (table (import "e" "f") 1 anyfunc) (global (import "g" "⚡") i32))')));
+let importingModuleBinary2 = (() => {
+  var text = '(module (func (import "a" "b")) (memory (import "c" "d") 1) (table (import "e" "f") 1 anyfunc) (global (import "g" "⚡") i32))'
+  let builder = new WasmModuleBuilder();
+  builder.addImport("a", "b", kSig_i_i);
+  builder.addImportedMemory("c", "d");
+  builder.addImportedTable("e", "f");
+  builder.addImportedGlobal("g", "x", kWasmI32);
+  return new Int8Array(builder.toBuffer());
+})();
+var arr = moduleImports(new Module(importingModuleBinary2));
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 4);
 assertEq(arr[0].kind, "function");
@@ -184,8 +192,7 @@ assertEq(arr[2].module, "e");
 assertEq(arr[2].name, "f");
 assertEq(arr[3].kind, "global");
 assertEq(arr[3].module, "g");
-assertEq(arr[3].name, "⚡");
-}
+assertEq(arr[3].name, "x");
 
 if (false) { // TODO: Module.exports property
 // 'WebAssembly.Module.exports' data property
