@@ -41,9 +41,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       case kExternalStringTag:
         return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                    instance_size, has_unboxed_fields);
-
-      case kThinStringTag:
-        return kVisitThinString;
     }
     UNREACHABLE();
   }

@@ -2540,12 +2540,10 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(
   andl(scratch1, Immediate(kFlatOneByteStringMask));
   andl(scratch2, Immediate(kFlatOneByteStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  const int kShift = 8;
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
-  shlp(scratch2, Immediate(kShift));
-  orp(scratch1, scratch2);
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
+  leap(scratch1, Operand(scratch1, scratch2, times_8, 0));
   cmpl(scratch1,
-       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << kShift)));
+       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << 3)));
   j(not_equal, on_fail, near_jump);
 }
 
