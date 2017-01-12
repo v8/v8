@@ -59,6 +59,7 @@
 // Control.
 //------------------------------------------------------------------------------
 #define WASM_NOP kExprNop
+#define WASM_END kExprEnd
 
 #define ARITY_0 0
 #define ARITY_1 1
