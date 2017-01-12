@@ -1835,11 +1835,11 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverMap(Node* receiver,
     HeapObjectMatcher mtarget(m.InputAt(0));
     HeapObjectMatcher mnewtarget(m.InputAt(1));
     if (mtarget.HasValue() && mnewtarget.HasValue()) {
-      Handle<JSFunction> constructor =
-          Handle<JSFunction>::cast(mtarget.Value());
-      if (constructor->has_initial_map()) {
-        Handle<Map> initial_map(constructor->initial_map(), isolate());
-        if (initial_map->constructor_or_backpointer() == *mnewtarget.Value()) {
+      Handle<JSFunction> original_constructor =
+          Handle<JSFunction>::cast(mnewtarget.Value());
+      if (original_constructor->has_initial_map()) {
+        Handle<Map> initial_map(original_constructor->initial_map(), isolate());
+        if (initial_map->constructor_or_backpointer() == *mtarget.Value()) {
           // Walk up the {effect} chain to see if the {receiver} is the
           // dominating effect and there's no other observable write in
           // between.
