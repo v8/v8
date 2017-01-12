@@ -12,6 +12,8 @@
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
 #include "src/globals.h"
+#include "src/interpreter/bytecode-array-iterator.h"
+#include "src/interpreter/bytecodes.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {
@@ -92,9 +94,13 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
       Object);
 
   Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result, Execution::Call(isolate, eval_fun, receiver, 0, NULL),
-      Object);
+  {
+    NoSideEffectScope no_side_effect(isolate,
+                                     FLAG_side_effect_free_debug_evaluate);
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, result, Execution::Call(isolate, eval_fun, receiver, 0, NULL),
+        Object);
+  }
 
   // Skip the global proxy as it has no properties and always delegates to the
   // real global object.
@@ -247,6 +253,146 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
     recv = handle(frame_->receiver(), isolate_);
   }
   JSObject::SetOwnPropertyIgnoreAttributes(target, name, recv, NONE).Check();
+}
+
+namespace {
+
+bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
+  DCHECK_EQ(Runtime::INLINE, Runtime::FunctionForId(id)->intrinsic_type);
+  switch (id) {
+    // Whitelist for intrinsics.
+    case Runtime::kInlineToObject:
+      return true;
+    default:
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] intrinsic %s may cause side effect.\n",
+               Runtime::FunctionForId(id)->name);
+      }
+      return false;
+  }
+}
+
+bool RuntimeFunctionHasNoSideEffect(Runtime::FunctionId id) {
+  DCHECK_EQ(Runtime::RUNTIME, Runtime::FunctionForId(id)->intrinsic_type);
+  switch (id) {
+    // Whitelist for runtime functions.
+    case Runtime::kToObject:
+    case Runtime::kLoadLookupSlotForCall:
+    case Runtime::kThrowReferenceError:
+      return true;
+    default:
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] runtime %s may cause side effect.\n",
+               Runtime::FunctionForId(id)->name);
+      }
+      return false;
+  }
+}
+
+bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
+  typedef interpreter::Bytecode Bytecode;
+  typedef interpreter::Bytecodes Bytecodes;
+  if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
+  if (Bytecodes::IsCallOrNew(bytecode)) return true;
+  switch (bytecode) {
+    // Whitelist for bytecodes.
+    case Bytecode::kStackCheck:
+    case Bytecode::kLdaLookupSlot:
+    case Bytecode::kLdaGlobal:
+    case Bytecode::kLdaNamedProperty:
+    case Bytecode::kLdaKeyedProperty:
+    case Bytecode::kAdd:
+    case Bytecode::kReturn:
+    case Bytecode::kCreateCatchContext:
+    case Bytecode::kSetPendingMessage:
+      return true;
+    default:
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] bytecode %s may cause side effect.\n",
+               Bytecodes::ToString(bytecode));
+      }
+      return false;
+  }
+}
+
+bool BuiltinHasNoSideEffect(Builtins::Name id) {
+  switch (id) {
+    // Whitelist for builtins.
+    case Builtins::kMathSin:
+      return true;
+    default:
+      if (FLAG_trace_side_effect_free_debug_evaluate) {
+        PrintF("[debug-evaluate] built-in %s may cause side effect.\n",
+               Builtins::name(id));
+      }
+      return false;
+  }
+}
+
+static const Address accessors_with_no_side_effect[] = {
+    // Whitelist for accessors.
+    FUNCTION_ADDR(Accessors::StringLengthGetter),
+    FUNCTION_ADDR(Accessors::ArrayLengthGetter)};
+
+}  // anonymous namespace
+
+// static
+bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
+  if (FLAG_trace_side_effect_free_debug_evaluate) {
+    PrintF("[debug-evaluate] Checking function %s for side effect.\n",
+           info->DebugName()->ToCString().get());
+  }
+
+  DCHECK(info->is_compiled());
+
+  if (info->HasBytecodeArray()) {
+    // Check bytecodes against whitelist.
+    Handle<BytecodeArray> bytecode_array(info->bytecode_array());
+    if (FLAG_trace_side_effect_free_debug_evaluate) bytecode_array->Print();
+    for (interpreter::BytecodeArrayIterator it(bytecode_array); !it.done();
+         it.Advance()) {
+      interpreter::Bytecode bytecode = it.current_bytecode();
+
+      if (interpreter::Bytecodes::IsCallRuntime(bytecode)) {
+        if (bytecode == interpreter::Bytecode::kInvokeIntrinsic) {
+          Runtime::FunctionId id = it.GetIntrinsicIdOperand(0);
+          if (IntrinsicHasNoSideEffect(id)) continue;
+        } else {
+          Runtime::FunctionId id = it.GetRuntimeIdOperand(0);
+          if (RuntimeFunctionHasNoSideEffect(id)) continue;
+        }
+        return false;
+      }
+
+      if (BytecodeHasNoSideEffect(bytecode)) continue;
+
+      // Did not match whitelist.
+      return false;
+    }
+    return true;
+  } else {
+    // Check built-ins against whitelist.
+    int builtin_index = info->code()->builtin_index();
+    if (builtin_index >= 0 && builtin_index < Builtins::builtin_count &&
+        BuiltinHasNoSideEffect(static_cast<Builtins::Name>(builtin_index))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// static
+bool DebugEvaluate::CallbackHasNoSideEffect(Address function_addr) {
+  for (size_t i = 0; i < arraysize(accessors_with_no_side_effect); i++) {
+    if (function_addr == accessors_with_no_side_effect[i]) return true;
+  }
+
+  if (FLAG_trace_side_effect_free_debug_evaluate) {
+    PrintF("[debug-evaluate] API Callback at %p may cause side effect.\n",
+           reinterpret_cast<void*>(function_addr));
+  }
+  return false;
 }
 
 }  // namespace internal

@@ -5,6 +5,7 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/compiler.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
@@ -1845,14 +1846,19 @@ RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
   return *str;
 }
 
-// Set one shot breakpoints for the callback function that is passed to a
-// built-in function such as Array.forEach to enable stepping into the callback,
-// if we are indeed stepping and the callback is subject to debugging.
-RUNTIME_FUNCTION(Runtime_DebugPrepareStepInIfStepping) {
+// On function call, depending on circumstances, prepare for stepping in,
+// or perform a side effect check.
+RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  isolate->debug()->PrepareStepIn(fun);
+  if (isolate->debug()->last_step_action() >= StepIn) {
+    isolate->debug()->PrepareStepIn(fun);
+  }
+  if (isolate->needs_side_effect_check() &&
+      !isolate->debug()->PerformSideEffectCheck(fun)) {
+    return isolate->heap()->exception();
+  }
   return isolate->heap()->undefined_value();
 }
 

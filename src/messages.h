@@ -654,6 +654,7 @@ class ErrorUtils : public AllStatic {
   T(YieldInParameter, "Yield expression not allowed in formal parameter")      \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
+  T(NoSideEffectDebugEvaluate, "Possible side-effect in debug-evaluate")       \
   /* URIError */                                                               \
   T(URIMalformed, "URI malformed")                                             \
   /* Wasm errors (currently Error) */                                          \

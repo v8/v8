@@ -419,6 +419,8 @@ typedef List<HeapObject*> DebugObjectCache;
   V(bool, is_profiling, false)                                                \
   /* true if a trace is being formatted through Error.prepareStackTrace. */   \
   V(bool, formatting_stack_trace, false)                                      \
+  /* Perform side effect checks on function call and API callbacks. */        \
+  V(bool, needs_side_effect_check, false)                                     \
   ISOLATE_INIT_SIMULATOR_LIST(V)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \

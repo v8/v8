@@ -2366,17 +2366,15 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   Bind(&regular_invoke);
 }
 
-
-void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
-                                             const ParameterCount& expected,
-                                             const ParameterCount& actual) {
-  Label skip_flooding;
-  ExternalReference last_step_action =
-      ExternalReference::debug_last_step_action_address(isolate());
-  STATIC_ASSERT(StepFrame > StepIn);
-  Mov(x4, Operand(last_step_action));
+void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
+                                    const ParameterCount& expected,
+                                    const ParameterCount& actual) {
+  Label skip_hook;
+  ExternalReference debug_hook_active =
+      ExternalReference::debug_hook_on_function_call_address(isolate());
+  Mov(x4, Operand(debug_hook_active));
   Ldrsb(x4, MemOperand(x4));
-  CompareAndBranch(x4, Operand(StepIn), lt, &skip_flooding);
+  CompareAndBranch(x4, Operand(0), eq, &skip_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -2393,7 +2391,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
     }
     Push(fun);
     Push(fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    CallRuntime(Runtime::kDebugOnFunctionCall);
     Pop(fun);
     if (new_target.is_valid()) {
       Pop(new_target);
@@ -2407,7 +2405,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
       SmiUntag(expected.reg());
     }
   }
-  bind(&skip_flooding);
+  bind(&skip_hook);
 }
 
 
@@ -2421,7 +2419,9 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK(function.is(x1));
   DCHECK_IMPLIES(new_target.is_valid(), new_target.is(x3));
 
-  FloodFunctionIfStepping(function, new_target, expected, actual);
+  if (call_wrapper.NeedsDebugHookCheck()) {
+    CheckDebugHook(function, new_target, expected, actual);
+  }
 
   // Clear the new.target register if not given.
   if (!new_target.is_valid()) {

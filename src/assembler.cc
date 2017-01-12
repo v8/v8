@@ -1584,6 +1584,10 @@ ExternalReference ExternalReference::debug_is_active_address(
   return ExternalReference(isolate->debug()->is_active_address());
 }
 
+ExternalReference ExternalReference::debug_hook_on_function_call_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->hook_on_function_call_address());
+}
 
 ExternalReference ExternalReference::debug_after_break_target_address(
     Isolate* isolate) {

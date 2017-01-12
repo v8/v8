@@ -1061,6 +1061,8 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
 
   static ExternalReference debug_is_active_address(Isolate* isolate);
+  static ExternalReference debug_hook_on_function_call_address(
+      Isolate* isolate);
   static ExternalReference debug_after_break_target_address(Isolate* isolate);
 
   static ExternalReference is_profiling_address(Isolate* isolate);
@@ -1167,7 +1169,7 @@ class CallWrapper {
   // Called just after emitting a call, i.e., at the return site for the call.
   virtual void AfterCall() const = 0;
   // Return whether call needs to check for debug stepping.
-  virtual bool NeedsDebugStepCheck() const { return false; }
+  virtual bool NeedsDebugHookCheck() const { return false; }
 };
 
 
@@ -1186,7 +1188,7 @@ class CheckDebugStepCallWrapper : public CallWrapper {
   virtual ~CheckDebugStepCallWrapper() {}
   virtual void BeforeCall(int call_size) const {}
   virtual void AfterCall() const {}
-  virtual bool NeedsDebugStepCheck() const { return true; }
+  virtual bool NeedsDebugHookCheck() const { return true; }
 };
 
 

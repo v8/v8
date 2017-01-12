@@ -750,12 +750,11 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Flood function if we are stepping.
   Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
   Label stepping_prepared;
-  ExternalReference last_step_action =
-      ExternalReference::debug_last_step_action_address(masm->isolate());
-  STATIC_ASSERT(StepFrame > StepIn);
-  __ Mov(x10, Operand(last_step_action));
+  ExternalReference debug_hook =
+      ExternalReference::debug_hook_on_function_call_address(masm->isolate());
+  __ Mov(x10, Operand(debug_hook));
   __ Ldrsb(x10, MemOperand(x10));
-  __ CompareAndBranch(x10, Operand(StepIn), ge, &prepare_step_in_if_stepping);
+  __ CompareAndBranch(x10, Operand(0), ne, &prepare_step_in_if_stepping);
 
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
@@ -815,7 +814,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     __ Push(x1, x2, x4);
-    __ CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(x2, x1);
     __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
   }

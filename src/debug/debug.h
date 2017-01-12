@@ -514,6 +514,9 @@ class Debug {
     return is_active() && !debug_context().is_null() && break_id() != 0;
   }
 
+  bool PerformSideEffectCheck(Handle<JSFunction> function);
+  bool PerformSideEffectCheckForCallback(Address function);
+
   // Flags and states.
   DebugScope* debugger_entry() {
     return reinterpret_cast<DebugScope*>(
@@ -547,6 +550,10 @@ class Debug {
     return reinterpret_cast<Address>(&is_active_);
   }
 
+  Address hook_on_function_call_address() {
+    return reinterpret_cast<Address>(&hook_on_function_call_);
+  }
+
   Address after_break_target_address() {
     return reinterpret_cast<Address>(&after_break_target_);
   }
@@ -567,6 +574,7 @@ class Debug {
   explicit Debug(Isolate* isolate);
 
   void UpdateState();
+  void UpdateHookOnFunctionCall();
   void Unload();
   void SetNextBreakId() {
     thread_local_.break_id_ = ++thread_local_.break_count_;
@@ -662,16 +670,30 @@ class Debug {
   base::Semaphore command_received_;  // Signaled for each command received.
   LockingCommandMessageQueue command_queue_;
 
+  // Debugger is active, i.e. there is a debug event listener attached.
   bool is_active_;
+  // Debugger needs to be notified on every new function call.
+  // Used for stepping and read-only checks
+  bool hook_on_function_call_;
+  // Suppress debug events.
   bool is_suppressed_;
+  // LiveEdit is enabled.
   bool live_edit_enabled_;
+  // Do not trigger debug break events.
   bool break_disabled_;
+  // Do not break on break points.
   bool break_points_active_;
+  // Nested inside a debug event listener.
   bool in_debug_event_listener_;
+  // Trigger debug break events for all exceptions.
   bool break_on_exception_;
+  // Trigger debug break events for uncaught exceptions.
   bool break_on_uncaught_exception_;
+  // Termination exception because side effect check has failed.
+  bool side_effect_check_failed_;
 
-  DebugInfoListNode* debug_info_list_;  // List of active debug info objects.
+  // List of active debug info objects.
+  DebugInfoListNode* debug_info_list_;
 
   // Storage location for jump when exiting debug break calls.
   // Note that this address is not GC safe.  It should be computed immediately
@@ -731,6 +753,7 @@ class Debug {
   friend class DisableBreak;
   friend class LiveEdit;
   friend class SuppressDebug;
+  friend class NoSideEffectScope;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
@@ -804,6 +827,23 @@ class SuppressDebug BASE_EMBEDDED {
   DISALLOW_COPY_AND_ASSIGN(SuppressDebug);
 };
 
+class NoSideEffectScope {
+ public:
+  NoSideEffectScope(Isolate* isolate, bool disallow_side_effects)
+      : isolate_(isolate),
+        old_needs_side_effect_check_(isolate->needs_side_effect_check()) {
+    isolate->set_needs_side_effect_check(old_needs_side_effect_check_ ||
+                                         disallow_side_effects);
+    isolate->debug()->UpdateHookOnFunctionCall();
+    isolate->debug()->side_effect_check_failed_ = false;
+  }
+  ~NoSideEffectScope();
+
+ private:
+  Isolate* isolate_;
+  bool old_needs_side_effect_check_;
+  DISALLOW_COPY_AND_ASSIGN(NoSideEffectScope);
+};
 
 // Code generator routines.
 class DebugCodegen : public AllStatic {

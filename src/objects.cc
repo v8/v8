@@ -28,6 +28,7 @@
 #include "src/counters-inl.h"
 #include "src/counters.h"
 #include "src/date.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -13340,6 +13341,16 @@ String* SharedFunctionInfo::DebugName() {
   Object* n = name();
   if (!n->IsString() || String::cast(n)->length() == 0) return inferred_name();
   return String::cast(n);
+}
+
+bool SharedFunctionInfo::HasNoSideEffect() {
+  if (!computed_has_no_side_effect()) {
+    DisallowHeapAllocation not_handlified;
+    Handle<SharedFunctionInfo> info(this);
+    set_has_no_side_effect(DebugEvaluate::FunctionHasNoSideEffect(info));
+    set_computed_has_no_side_effect(true);
+  }
+  return has_no_side_effect();
 }
 
 // The filter is a pattern that matches function names in this way:

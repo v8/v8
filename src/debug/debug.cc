@@ -14,6 +14,7 @@
 #include "src/compilation-cache.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
@@ -42,6 +43,7 @@ Debug::Debug(Isolate* isolate)
       command_received_(0),
       command_queue_(isolate->logger(), kQueueInitialSize),
       is_active_(false),
+      hook_on_function_call_(false),
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
       break_disabled_(false),
@@ -49,6 +51,7 @@ Debug::Debug(Isolate* isolate)
       in_debug_event_listener_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
+      side_effect_check_failed_(false),
       debug_info_list_(NULL),
       feature_tracker_(isolate),
       isolate_(isolate) {
@@ -406,6 +409,7 @@ void Debug::ThreadInit() {
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
+  UpdateHookOnFunctionCall();
 }
 
 
@@ -906,16 +910,19 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 
 void Debug::PrepareStepIn(Handle<JSFunction> function) {
   CHECK(last_step_action() >= StepIn);
-  if (!is_active()) return;
+  if (ignore_events()) return;
   if (in_debug_scope()) return;
+  if (break_disabled()) return;
   FloodWithOneShot(function);
 }
 
 void Debug::PrepareStepInSuspendedGenerator() {
   CHECK(has_suspended_generator());
-  if (!is_active()) return;
+  if (ignore_events()) return;
   if (in_debug_scope()) return;
+  if (break_disabled()) return;
   thread_local_.last_step_action_ = StepIn;
+  UpdateHookOnFunctionCall();
   Handle<JSFunction> function(
       JSGeneratorObject::cast(thread_local_.suspended_generator_)->function());
   FloodWithOneShot(function);
@@ -923,9 +930,10 @@ void Debug::PrepareStepInSuspendedGenerator() {
 }
 
 void Debug::PrepareStepOnThrow() {
-  if (!is_active()) return;
   if (last_step_action() == StepNone) return;
+  if (ignore_events()) return;
   if (in_debug_scope()) return;
+  if (break_disabled()) return;
 
   ClearOneShot();
 
@@ -976,6 +984,7 @@ void Debug::PrepareStep(StepAction step_action) {
   feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   thread_local_.last_step_action_ = step_action;
+  UpdateHookOnFunctionCall();
 
   // If the function on the top frame is unresolved perform step out. This will
   // be the case when calling unknown function and having the debugger stopped
@@ -1106,6 +1115,7 @@ void Debug::ClearStepping() {
   thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
+  UpdateHookOnFunctionCall();
 }
 
 
@@ -2136,6 +2146,13 @@ void Debug::UpdateState() {
   is_active_ = is_active;
 }
 
+void Debug::UpdateHookOnFunctionCall() {
+  STATIC_ASSERT(StepFrame > StepIn);
+  STATIC_ASSERT(LastStepAction == StepFrame);
+  hook_on_function_call_ = thread_local_.last_step_action_ >= StepIn ||
+                           isolate_->needs_side_effect_check();
+}
+
 // Calls the registered debug message handler. This callback is part of the
 // public API.
 void Debug::InvokeMessageHandler(MessageImpl message) {
@@ -2331,6 +2348,50 @@ DebugScope::~DebugScope() {
   debug_->thread_local_.return_value_ = return_value_;
 
   debug_->UpdateState();
+}
+
+bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {
+  DCHECK(isolate_->needs_side_effect_check());
+  DisallowJavascriptExecution no_js(isolate_);
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) return false;
+  Deoptimizer::DeoptimizeFunction(*function);
+  if (!function->shared()->HasNoSideEffect()) {
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      PrintF("[debug-evaluate] Function %s failed side effect check.\n",
+             function->shared()->DebugName()->ToCString().get());
+    }
+    side_effect_check_failed_ = true;
+    // Throw an uncatchable termination exception.
+    isolate_->TerminateExecution();
+    return false;
+  }
+  return true;
+}
+
+bool Debug::PerformSideEffectCheckForCallback(Address function) {
+  DCHECK(isolate_->needs_side_effect_check());
+  if (DebugEvaluate::CallbackHasNoSideEffect(function)) return true;
+  side_effect_check_failed_ = true;
+  // Throw an uncatchable termination exception.
+  isolate_->TerminateExecution();
+  isolate_->OptionalRescheduleException(false);
+  return false;
+}
+
+NoSideEffectScope::~NoSideEffectScope() {
+  if (isolate_->needs_side_effect_check() &&
+      isolate_->debug()->side_effect_check_failed_) {
+    DCHECK(isolate_->has_pending_exception());
+    DCHECK_EQ(isolate_->heap()->termination_exception(),
+              isolate_->pending_exception());
+    // Convert the termination exception into a regular exception.
+    isolate_->CancelTerminateExecution();
+    isolate_->Throw(*isolate_->factory()->NewEvalError(
+        MessageTemplate::kNoSideEffectDebugEvaluate));
+  }
+  isolate_->set_needs_side_effect_check(old_needs_side_effect_check_);
+  isolate_->debug()->UpdateHookOnFunctionCall();
+  isolate_->debug()->side_effect_check_failed_ = false;
 }
 
 MessageImpl MessageImpl::NewEvent(DebugEvent event, bool running,

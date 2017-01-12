@@ -7359,6 +7359,9 @@ class SharedFunctionInfo: public HeapObject {
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
+  // The function cannot cause any side effects.
+  bool HasNoSideEffect();
+
   // Used for flags such as --hydrogen-filter.
   bool PassesFilter(const char* raw_filter);
 
@@ -7467,6 +7470,12 @@ class SharedFunctionInfo: public HeapObject {
 
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
+
+  // Indicates that the function cannot cause side-effects.
+  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
+
+  // Indicates that |has_no_side_effect| has been computed and set.
+  DECL_BOOLEAN_ACCESSORS(computed_has_no_side_effect)
 
   inline FunctionKind kind() const;
   inline void set_kind(FunctionKind kind);
@@ -7754,6 +7763,8 @@ class SharedFunctionInfo: public HeapObject {
     // byte 3
     kDeserialized = kFunctionKind + 10,
     kIsAsmWasmBroken,
+    kHasNoSideEffect,
+    kComputedHasNoSideEffect,
     kCompilerHintsCount,  // Pseudo entry
   };
   // kFunctionKind has to be byte-aligned

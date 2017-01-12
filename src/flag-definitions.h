@@ -697,6 +697,11 @@ DEFINE_IMPLICATION(trace_array_abuse, trace_external_array_abuse)
 // debugger
 DEFINE_BOOL(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
+DEFINE_BOOL(side_effect_free_debug_evaluate, false,
+            "use side-effect-free debug-evaluate for testing")
+DEFINE_BOOL(
+    trace_side_effect_free_debug_evaluate, false,
+    "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
 // execution.cc

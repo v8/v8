@@ -24,6 +24,9 @@ class DebugEvaluate : public AllStatic {
                                    int inlined_jsframe_index,
                                    Handle<String> source);
 
+  static bool FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info);
+  static bool CallbackHasNoSideEffect(Address function_addr);
+
  private:
   // This class builds a context chain for evaluation of expressions
   // in debugger.
