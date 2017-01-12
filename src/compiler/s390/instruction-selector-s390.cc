@@ -1625,9 +1625,27 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
 
   if (selector->CanCover(user, value)) {
     switch (value->opcode()) {
-      case IrOpcode::kWord32Equal:
+      case IrOpcode::kWord32Equal: {
         cont->OverwriteAndNegateIfEqual(kEqual);
+        Int32BinopMatcher m(value);
+        if (m.right().Is(0)) {
+          // Try to combine the branch with a comparison.
+          Node* const user = m.node();
+          Node* const value = m.left().node();
+          if (selector->CanCover(user, value)) {
+            switch (value->opcode()) {
+              case IrOpcode::kInt32Sub:
+                return VisitWord32Compare(selector, value, cont);
+              case IrOpcode::kWord32And:
+                return VisitWordCompare(selector, value, kS390_Tst64, cont,
+                                        true, kUint32Imm);
+              default:
+                break;
+            }
+          }
+        }
         return VisitWord32Compare(selector, value, cont);
+      }
       case IrOpcode::kInt32LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWord32Compare(selector, value, cont);
@@ -1641,9 +1659,27 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         cont->OverwriteAndNegateIfEqual(kUnsignedLessThanOrEqual);
         return VisitWord32Compare(selector, value, cont);
 #if V8_TARGET_ARCH_S390X
-      case IrOpcode::kWord64Equal:
+      case IrOpcode::kWord64Equal: {
         cont->OverwriteAndNegateIfEqual(kEqual);
+        Int64BinopMatcher m(value);
+        if (m.right().Is(0)) {
+          // Try to combine the branch with a comparison.
+          Node* const user = m.node();
+          Node* const value = m.left().node();
+          if (selector->CanCover(user, value)) {
+            switch (value->opcode()) {
+              case IrOpcode::kInt64Sub:
+                return VisitWord64Compare(selector, value, cont);
+              case IrOpcode::kWord64And:
+                return VisitWordCompare(selector, value, kS390_Tst64, cont,
+                                        true, kUint32Imm);
+              default:
+                break;
+            }
+          }
+        }
         return VisitWord64Compare(selector, value, cont);
+      }
       case IrOpcode::kInt64LessThan:
         cont->OverwriteAndNegateIfEqual(kSignedLessThan);
         return VisitWord64Compare(selector, value, cont);

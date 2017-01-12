@@ -1675,21 +1675,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_Tst32:
       if (HasRegisterInput(instr, 1)) {
-        __ AndP(r0, i.InputRegister(0), i.InputRegister(1));
+        __ lr(r0, i.InputRegister(0));
+        __ nr(r0, i.InputRegister(1));
       } else {
-        __ AndP(r0, i.InputRegister(0), i.InputImmediate(1));
+        Operand opnd = i.InputImmediate(1);
+        if (is_uint16(opnd.immediate())) {
+          __ tmll(i.InputRegister(0), opnd);
+        } else {
+          __ lr(r0, i.InputRegister(0));
+          __ nilf(r0, opnd);
+        }
       }
-      __ LoadAndTestP_ExtendSrc(r0, r0);
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_Tst64:
       if (HasRegisterInput(instr, 1)) {
         __ AndP(r0, i.InputRegister(0), i.InputRegister(1));
       } else {
-        __ AndP(r0, i.InputRegister(0), i.InputImmediate(1));
+        Operand opnd = i.InputImmediate(1);
+        if (is_uint16(opnd.immediate())) {
+          __ tmll(i.InputRegister(0), opnd);
+        } else {
+          __ AndP(r0, i.InputRegister(0), opnd);
+        }
       }
       break;
-#endif
     case kS390_Float64SilenceNaN: {
       DoubleRegister value = i.InputDoubleRegister(0);
       DoubleRegister result = i.OutputDoubleRegister();
