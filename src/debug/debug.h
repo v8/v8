@@ -86,8 +86,7 @@ enum PromiseDebugActionName {
 
 class BreakLocation {
  public:
-  static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
-                                 JavaScriptFrame* frame);
+  static BreakLocation FromFrame(StandardFrame* frame);
 
   static void AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                     JavaScriptFrame* frame,
@@ -454,6 +453,13 @@ class Debug {
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
+  // The parameter is either a BreakPointInfo object, or a FixedArray of
+  // BreakPointInfo objects.
+  // Returns an empty handle if no breakpoint is hit, or a FixedArray with all
+  // hit breakpoints.
+  MaybeHandle<FixedArray> GetHitBreakPointObjects(
+      Handle<Object> break_point_objects);
+
   // Stepping handling.
   void PrepareStep(StepAction step_action);
   void PrepareStepIn(Handle<JSFunction> function);
@@ -642,9 +648,9 @@ class Debug {
 
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
-  Handle<Object> CheckBreakPoints(Handle<DebugInfo> debug_info,
-                                  BreakLocation* location,
-                                  bool* has_break_points = nullptr);
+  MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
+                                           BreakLocation* location,
+                                           bool* has_break_points = nullptr);
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
   bool CheckBreakPoint(Handle<Object> break_point_object);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
