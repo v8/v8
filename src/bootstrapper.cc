@@ -21,6 +21,10 @@
 #include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-js.h"
 
+#if V8_I18N_SUPPORT
+#include "src/i18n.h"
+#endif  // V8_I18N_SUPPORT
+
 namespace v8 {
 namespace internal {
 
@@ -2350,11 +2354,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->Object_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
     Handle<JSFunction> date_time_format_constructor = InstallFunction(
-        intl, "DateTimeFormat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        intl, "DateTimeFormat", JS_OBJECT_TYPE, DateFormat::kSize,
         date_time_format_prototype, Builtins::kIllegal);
     JSObject::AddProperty(date_time_format_prototype,
                           factory->constructor_string(),
                           date_time_format_constructor, DONT_ENUM);
+    InstallWithIntrinsicDefaultProto(
+        isolate, date_time_format_constructor,
+        Context::INTL_DATE_TIME_FORMAT_FUNCTION_INDEX);
 
     Handle<JSObject> number_format_prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
@@ -2364,11 +2371,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->Object_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
     Handle<JSFunction> number_format_constructor = InstallFunction(
-        intl, "NumberFormat", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        intl, "NumberFormat", JS_OBJECT_TYPE, NumberFormat::kSize,
         number_format_prototype, Builtins::kIllegal);
     JSObject::AddProperty(number_format_prototype,
                           factory->constructor_string(),
                           number_format_constructor, DONT_ENUM);
+    InstallWithIntrinsicDefaultProto(
+        isolate, number_format_constructor,
+        Context::INTL_NUMBER_FORMAT_FUNCTION_INDEX);
 
     Handle<JSObject> collator_prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
@@ -2378,10 +2388,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->Object_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
     Handle<JSFunction> collator_constructor =
-        InstallFunction(intl, "Collator", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        InstallFunction(intl, "Collator", JS_OBJECT_TYPE, Collator::kSize,
                         collator_prototype, Builtins::kIllegal);
     JSObject::AddProperty(collator_prototype, factory->constructor_string(),
                           collator_constructor, DONT_ENUM);
+    InstallWithIntrinsicDefaultProto(isolate, collator_constructor,
+                                     Context::INTL_COLLATOR_FUNCTION_INDEX);
 
     Handle<JSObject> v8_break_iterator_prototype =
         factory->NewJSObject(isolate->object_function(), TENURED);
@@ -2391,11 +2403,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->Object_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
     Handle<JSFunction> v8_break_iterator_constructor = InstallFunction(
-        intl, "v8BreakIterator", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+        intl, "v8BreakIterator", JS_OBJECT_TYPE, V8BreakIterator::kSize,
         v8_break_iterator_prototype, Builtins::kIllegal);
     JSObject::AddProperty(v8_break_iterator_prototype,
                           factory->constructor_string(),
                           v8_break_iterator_constructor, DONT_ENUM);
+    InstallWithIntrinsicDefaultProto(
+        isolate, v8_break_iterator_constructor,
+        Context::INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX);
   }
 #endif  // V8_I18N_SUPPORT
 

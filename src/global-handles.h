@@ -396,8 +396,6 @@ class GlobalHandles::PendingPhantomCallback {
 class EternalHandles {
  public:
   enum SingletonHandle {
-    I18N_TEMPLATE_ONE,
-    I18N_TEMPLATE_TWO,
     DATE_CACHE_VERSION,
 
     NUMBER_OF_SINGLETON_HANDLES

@@ -96,7 +96,7 @@ function AddBoundMethod(obj, methodName, implementation, length, typename,
   %SetNativeFlag(getter);
 }
 
-function IntlConstruct(receiver, constructor, initializer, newTarget, args,
+function IntlConstruct(receiver, constructor, create, newTarget, args,
                        compat) {
   var locales = args[0];
   var options = args[1];
@@ -114,7 +114,7 @@ function IntlConstruct(receiver, constructor, initializer, newTarget, args,
     return new constructor(locales, options);
   }
 
-  return initializer(receiver, locales, options);
+  return create(locales, options);
 }
 
 
@@ -950,11 +950,7 @@ InstallFunction(GlobalIntl, 'getCanonicalLocales', function(locales) {
  * Initializes the given object so it's a valid Collator instance.
  * Useful for subclassing.
  */
-function initializeCollator(collator, locales, options) {
-  if (%IsInitializedIntlObject(collator)) {
-    throw %make_type_error(kReinitializeIntl, "Collator");
-  }
-
+function CreateCollator(locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {};
   }
@@ -1041,12 +1037,9 @@ function initializeCollator(collator, locales, options) {
     usage: {value: internalOptions.usage, writable: true}
   });
 
-  var internalCollator = %CreateCollator(requestedLocale,
-                                         internalOptions,
-                                         resolved);
+  var collator = %CreateCollator(requestedLocale, internalOptions, resolved);
 
-  // Writable, configurable and enumerable are set to false by default.
-  %MarkAsInitializedIntlObjectOfType(collator, 'collator', internalCollator);
+  %MarkAsInitializedIntlObjectOfType(collator, 'collator');
   collator[resolvedSymbol] = resolved;
 
   return collator;
@@ -1060,7 +1053,7 @@ function initializeCollator(collator, locales, options) {
  * @constructor
  */
 function CollatorConstructor() {
-  return IntlConstruct(this, GlobalIntlCollator, initializeCollator, new.target,
+  return IntlConstruct(this, GlobalIntlCollator, CreateCollator, new.target,
                        arguments);
 }
 %SetCode(GlobalIntlCollator, CollatorConstructor);
@@ -1111,8 +1104,7 @@ InstallFunction(GlobalIntlCollator, 'supportedLocalesOf', function(locales) {
  * the sort order, or x comes after y in the sort order, respectively.
  */
 function compare(collator, x, y) {
-  return %InternalCompare(%GetImplFromInitializedIntlObject(collator),
-                          TO_STRING(x), TO_STRING(y));
+  return %InternalCompare(collator, TO_STRING(x), TO_STRING(y));
 };
 
 
@@ -1160,11 +1152,7 @@ var patternAccessor = {
  * Initializes the given object so it's a valid NumberFormat instance.
  * Useful for subclassing.
  */
-function initializeNumberFormat(numberFormat, locales, options) {
-  if (%IsInitializedIntlObject(numberFormat)) {
-    throw %make_type_error(kReinitializeIntl, "NumberFormat");
-  }
-
+function CreateNumberFormat(locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {};
   }
@@ -1260,16 +1248,15 @@ function initializeNumberFormat(numberFormat, locales, options) {
   if (HAS_OWN_PROPERTY(internalOptions, 'maximumSignificantDigits')) {
     defineWEProperty(resolved, 'maximumSignificantDigits', UNDEFINED);
   }
-  var formatter = %CreateNumberFormat(requestedLocale,
-                                      internalOptions,
-                                      resolved);
+  var numberFormat = %CreateNumberFormat(requestedLocale, internalOptions,
+                                         resolved);
 
   if (internalOptions.style === 'currency') {
     %object_define_property(resolved, 'currencyDisplay',
         {value: currencyDisplay, writable: true});
   }
 
-  %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat', formatter);
+  %MarkAsInitializedIntlObjectOfType(numberFormat, 'numberformat');
   numberFormat[resolvedSymbol] = resolved;
 
   return numberFormat;
@@ -1283,7 +1270,7 @@ function initializeNumberFormat(numberFormat, locales, options) {
  * @constructor
  */
 function NumberFormatConstructor() {
-  return IntlConstruct(this, GlobalIntlNumberFormat, initializeNumberFormat,
+  return IntlConstruct(this, GlobalIntlNumberFormat, CreateNumberFormat,
                        new.target, arguments, true);
 }
 %SetCode(GlobalIntlNumberFormat, NumberFormatConstructor);
@@ -1352,8 +1339,7 @@ function formatNumber(formatter, value) {
   // Spec treats -0 and +0 as 0.
   var number = TO_NUMBER(value) + 0;
 
-  return %InternalNumberFormat(%GetImplFromInitializedIntlObject(formatter),
-                               number);
+  return %InternalNumberFormat(formatter, number);
 }
 
 
@@ -1564,12 +1550,7 @@ function toDateTimeOptions(options, required, defaults) {
  * Initializes the given object so it's a valid DateTimeFormat instance.
  * Useful for subclassing.
  */
-function initializeDateTimeFormat(dateFormat, locales, options) {
-
-  if (%IsInitializedIntlObject(dateFormat)) {
-    throw %make_type_error(kReinitializeIntl, "DateTimeFormat");
-  }
-
+function CreateDateTimeFormat(locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {};
   }
@@ -1631,14 +1612,14 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
     year: {writable: true}
   });
 
-  var formatter = %CreateDateTimeFormat(
+  var dateFormat = %CreateDateTimeFormat(
     requestedLocale, {skeleton: ldmlString, timeZone: tz}, resolved);
 
   if (resolved.timeZone === "Etc/Unknown") {
     throw %make_range_error(kUnsupportedTimeZone, tz);
   }
 
-  %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat', formatter);
+  %MarkAsInitializedIntlObjectOfType(dateFormat, 'dateformat');
   dateFormat[resolvedSymbol] = resolved;
 
   return dateFormat;
@@ -1652,7 +1633,7 @@ function initializeDateTimeFormat(dateFormat, locales, options) {
  * @constructor
  */
 function DateTimeFormatConstructor() {
-  return IntlConstruct(this, GlobalIntlDateTimeFormat, initializeDateTimeFormat,
+  return IntlConstruct(this, GlobalIntlDateTimeFormat, CreateDateTimeFormat,
                        new.target, arguments, true);
 }
 %SetCode(GlobalIntlDateTimeFormat, DateTimeFormatConstructor);
@@ -1738,8 +1719,7 @@ function formatDate(formatter, dateValue) {
 
   if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
 
-  return %InternalDateFormat(%GetImplFromInitializedIntlObject(formatter),
-                             new GlobalDate(dateMs));
+  return %InternalDateFormat(formatter, new GlobalDate(dateMs));
 }
 
 function FormatDateToParts(dateValue) {
@@ -1761,8 +1741,7 @@ function FormatDateToParts(dateValue) {
 
   if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
 
-  return %InternalDateFormatToParts(
-      %GetImplFromInitializedIntlObject(this), new GlobalDate(dateMs));
+  return %InternalDateFormatToParts(this, new GlobalDate(dateMs));
 }
 
 %FunctionSetLength(FormatDateToParts, 0);
@@ -1818,11 +1797,7 @@ function canonicalizeTimeZoneID(tzID) {
  * Initializes the given object so it's a valid BreakIterator instance.
  * Useful for subclassing.
  */
-function initializeBreakIterator(iterator, locales, options) {
-  if (%IsInitializedIntlObject(iterator)) {
-    throw %make_type_error(kReinitializeIntl, "v8BreakIterator");
-  }
-
+function CreateBreakIterator(locales, options) {
   if (IS_UNDEFINED(options)) {
     options = {};
   }
@@ -1841,12 +1816,9 @@ function initializeBreakIterator(iterator, locales, options) {
     locale: {writable: true}
   });
 
-  var internalIterator = %CreateBreakIterator(locale.locale,
-                                              internalOptions,
-                                              resolved);
+  var iterator = %CreateBreakIterator(locale.locale, internalOptions, resolved);
 
-  %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator',
-                                     internalIterator);
+  %MarkAsInitializedIntlObjectOfType(iterator, 'breakiterator');
   iterator[resolvedSymbol] = resolved;
 
   return iterator;
@@ -1860,7 +1832,7 @@ function initializeBreakIterator(iterator, locales, options) {
  * @constructor
  */
 function v8BreakIteratorConstructor() {
-  return IntlConstruct(this, GlobalIntlv8BreakIterator, initializeBreakIterator,
+  return IntlConstruct(this, GlobalIntlv8BreakIterator, CreateBreakIterator,
                        new.target, arguments);
 }
 %SetCode(GlobalIntlv8BreakIterator, v8BreakIteratorConstructor);
@@ -1912,8 +1884,7 @@ InstallFunction(GlobalIntlv8BreakIterator, 'supportedLocalesOf',
  * gets discarded.
  */
 function adoptText(iterator, text) {
-  %BreakIteratorAdoptText(%GetImplFromInitializedIntlObject(iterator),
-                          TO_STRING(text));
+  %BreakIteratorAdoptText(iterator, TO_STRING(text));
 }
 
 
@@ -1921,7 +1892,7 @@ function adoptText(iterator, text) {
  * Returns index of the first break in the string and moves current pointer.
  */
 function first(iterator) {
-  return %BreakIteratorFirst(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorFirst(iterator);
 }
 
 
@@ -1929,7 +1900,7 @@ function first(iterator) {
  * Returns the index of the next break and moves the pointer.
  */
 function next(iterator) {
-  return %BreakIteratorNext(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorNext(iterator);
 }
 
 
@@ -1937,7 +1908,7 @@ function next(iterator) {
  * Returns index of the current break.
  */
 function current(iterator) {
-  return %BreakIteratorCurrent(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorCurrent(iterator);
 }
 
 
@@ -1945,7 +1916,7 @@ function current(iterator) {
  * Returns type of the current break.
  */
 function breakType(iterator) {
-  return %BreakIteratorBreakType(%GetImplFromInitializedIntlObject(iterator));
+  return %BreakIteratorBreakType(iterator);
 }
 
 

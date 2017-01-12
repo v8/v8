@@ -249,6 +249,13 @@ enum ContextLookupFlags {
   V(INT8X16_FUNCTION_INDEX, JSFunction, int8x16_function)                      \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
+  V(INTL_DATE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                          \
+    intl_date_time_format_function)                                            \
+  V(INTL_NUMBER_FORMAT_FUNCTION_INDEX, JSFunction,                             \
+    intl_number_format_function)                                               \
+  V(INTL_COLLATOR_FUNCTION_INDEX, JSFunction, intl_collator_function)          \
+  V(INTL_V8_BREAK_ITERATOR_FUNCTION_INDEX, JSFunction,                         \
+    intl_v8_break_iterator_function)                                           \
   V(JS_ARRAY_FAST_SMI_ELEMENTS_MAP_INDEX, Map,                                 \
     js_array_fast_smi_elements_map_index)                                      \
   V(JS_ARRAY_FAST_HOLEY_SMI_ELEMENTS_MAP_INDEX, Map,                           \

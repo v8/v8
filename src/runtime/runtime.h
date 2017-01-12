@@ -259,8 +259,7 @@ namespace internal {
   F(GetLanguageTagVariants, 1, 1)            \
   F(IsInitializedIntlObject, 1, 1)           \
   F(IsInitializedIntlObjectOfType, 2, 1)     \
-  F(MarkAsInitializedIntlObjectOfType, 3, 1) \
-  F(GetImplFromInitializedIntlObject, 1, 1)  \
+  F(MarkAsInitializedIntlObjectOfType, 2, 1) \
   F(CreateDateTimeFormat, 3, 1)              \
   F(InternalDateFormat, 2, 1)                \
   F(InternalDateFormatToParts, 2, 1)         \
