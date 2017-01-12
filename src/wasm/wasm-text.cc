@@ -141,7 +141,7 @@ void wasm::PrintWasmText(const WasmModule *module,
   AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   int line_nr = 0;
-  int control_depth = 1;
+  int control_depth = 0;
 
   // Print the function signature.
   os << "func";

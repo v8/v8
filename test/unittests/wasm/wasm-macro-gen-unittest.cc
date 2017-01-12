@@ -49,7 +49,6 @@ TEST_F(WasmMacroGenTest, Constants) {
 
 TEST_F(WasmMacroGenTest, Statements) {
   EXPECT_SIZE(1, WASM_NOP);
-  EXPECT_SIZE(1, WASM_END);
 
   EXPECT_SIZE(4, WASM_SET_LOCAL(0, WASM_ZERO));
 

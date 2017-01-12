@@ -108,19 +108,7 @@ class FunctionBodyDecoderTest : public TestWithZone {
   // verification failures.
   void Verify(ErrorCode expected, FunctionSig* sig, const byte* start,
               const byte* end) {
-    size_t locals_size = local_decls.Size();
-    size_t total_size = end - start + locals_size + 1;
-    byte* buffer = static_cast<byte*>(zone()->New(total_size));
-    // Prepend the local decls to the code.
-    local_decls.Emit(buffer);
-    // Emit the code.
-    memcpy(buffer + locals_size, start, end - start);
-    // Append an extra end opcode.
-    buffer[total_size - 1] = kExprEnd;
-
-    start = buffer;
-    end = buffer + total_size;
-
+    local_decls.Prepend(zone(), &start, &end);
     // Verify the code.
     DecodeResult result = VerifyWasmCode(
         zone()->allocator(), module == nullptr ? nullptr : module->module, sig,
@@ -473,7 +461,11 @@ TEST_F(FunctionBodyDecoderTest, Block0Block0) {
 }
 
 TEST_F(FunctionBodyDecoderTest, Block0_end) {
-  EXPECT_FAILURE(v_v, WASM_EMPTY_BLOCK, kExprEnd);
+  EXPECT_VERIFIES(v_v, WASM_EMPTY_BLOCK, kExprEnd);
+}
+
+TEST_F(FunctionBodyDecoderTest, Block0_end_end) {
+  EXPECT_FAILURE(v_v, WASM_EMPTY_BLOCK, kExprEnd, kExprEnd);
 }
 
 TEST_F(FunctionBodyDecoderTest, Block1) {
@@ -726,13 +718,14 @@ TEST_F(FunctionBodyDecoderTest, IfNopElseNop) {
   EXPECT_VERIFIES(v_i, WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP));
 }
 
-TEST_F(FunctionBodyDecoderTest, If_end) {
-  static const byte code[] = {kExprGetLocal, 0, WASM_IF_OP, kExprEnd};
+TEST_F(FunctionBodyDecoderTest, If_end_end) {
+  static const byte code[] = {kExprGetLocal, 0, WASM_IF_OP, kExprEnd, kExprEnd};
   EXPECT_VERIFIES_C(v_i, code);
 }
 
-TEST_F(FunctionBodyDecoderTest, If_end_end) {
-  static const byte code[] = {kExprGetLocal, 0, WASM_IF_OP, kExprEnd, kExprEnd};
+TEST_F(FunctionBodyDecoderTest, If_end_end_end) {
+  static const byte code[] = {kExprGetLocal, 0,        WASM_IF_OP,
+                              kExprEnd,      kExprEnd, kExprEnd};
   EXPECT_FAILURE_C(v_i, code);
 }
 

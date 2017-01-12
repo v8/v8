@@ -509,18 +509,7 @@ class WasmFunctionCompiler : private GraphAndBuilders {
   uint32_t function_index() { return function_->func_index; }
 
   void Build(const byte* start, const byte* end) {
-    size_t locals_size = local_decls.Size();
-    size_t total_size = end - start + locals_size + 1;
-    byte* buffer = static_cast<byte*>(zone()->New(total_size));
-    // Prepend the local decls to the code.
-    local_decls.Emit(buffer);
-    // Emit the code.
-    memcpy(buffer + locals_size, start, end - start);
-    // Append an extra end opcode.
-    buffer[total_size - 1] = kExprEnd;
-
-    start = buffer;
-    end = buffer + total_size;
+    local_decls.Prepend(zone(), &start, &end);
 
     CHECK_GE(kMaxInt, end - start);
     int len = static_cast<int>(end - start);
