@@ -2415,13 +2415,11 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
   const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
   // Interleave bits from both instance types and compare them in one check.
-  const int kShift = 8;
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
   and_(scratch1, kFlatOneByteStringMask);
   and_(scratch2, kFlatOneByteStringMask);
-  shl(scratch2, kShift);
-  or_(scratch1, scratch2);
-  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << kShift));
+  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << 3));
   j(not_equal, failure);
 }
 

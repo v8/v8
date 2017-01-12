@@ -225,8 +225,6 @@ AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
 AllocationResult Heap::AllocateOneByteInternalizedString(
     Vector<const uint8_t> str, uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
-  // The canonical empty_string is the only zero-length string we allow.
-  DCHECK_IMPLIES(str.length() == 0, roots_[kempty_stringRootIndex] == nullptr);
   // Compute map and object size.
   Map* map = one_byte_internalized_string_map();
   int size = SeqOneByteString::SizeFor(str.length());
@@ -258,7 +256,6 @@ AllocationResult Heap::AllocateOneByteInternalizedString(
 AllocationResult Heap::AllocateTwoByteInternalizedString(Vector<const uc16> str,
                                                          uint32_t hash_field) {
   CHECK_GE(String::kMaxLength, str.length());
-  DCHECK_NE(0, str.length());  // Use Heap::empty_string() instead.
   // Compute map and object size.
   Map* map = internalized_string_map();
   int size = SeqTwoByteString::SizeFor(str.length());

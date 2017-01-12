@@ -73,7 +73,7 @@ void CodeStubDescriptor::Initialize(Register stack_parameter_count,
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
   UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
-  int index = stubs->FindEntry(isolate(), GetKey());
+  int index = stubs->FindEntry(GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
     return true;

@@ -31,10 +31,6 @@ void StaticNewSpaceVisitor<StaticVisitor>::Initialize() {
       kVisitConsString,
       &FixedBodyVisitor<StaticVisitor, ConsString::BodyDescriptor, int>::Visit);
 
-  table_.Register(
-      kVisitThinString,
-      &FixedBodyVisitor<StaticVisitor, ThinString::BodyDescriptor, int>::Visit);
-
   table_.Register(kVisitSlicedString,
                   &FixedBodyVisitor<StaticVisitor, SlicedString::BodyDescriptor,
                                     int>::Visit);
@@ -119,10 +115,6 @@ void StaticMarkingVisitor<StaticVisitor>::Initialize() {
 
   table_.Register(kVisitConsString,
                   &FixedBodyVisitor<StaticVisitor, ConsString::BodyDescriptor,
-                                    void>::Visit);
-
-  table_.Register(kVisitThinString,
-                  &FixedBodyVisitor<StaticVisitor, ThinString::BodyDescriptor,
                                     void>::Visit);
 
   table_.Register(kVisitSlicedString,

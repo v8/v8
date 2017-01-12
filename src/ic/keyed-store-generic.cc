@@ -461,8 +461,6 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
 
   // Out-of-capacity accesses (index >= capacity) jump here. Additionally,
   // an ElementsKind transition might be necessary.
-  // The index can also be negative at this point! Jump to the runtime in that
-  // case to convert it to a named property.
   Bind(&if_grow);
   {
     Comment("Grow backing store");
@@ -758,8 +756,6 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
   Node* context = Parameter(Descriptor::kContext);
 
   Variable var_index(this, MachineType::PointerRepresentation());
-  Variable var_unique(this, MachineRepresentation::kTagged);
-  var_unique.Bind(name);  // Dummy initialization.
   Label if_index(this), if_unique_name(this), slow(this);
 
   GotoIf(TaggedIsSmi(receiver), &slow);
@@ -771,7 +767,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
                               Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
          &slow);
 
-  TryToName(name, &if_index, &var_index, &if_unique_name, &var_unique, &slow);
+  TryToName(name, &if_index, &var_index, &if_unique_name, &slow);
 
   Bind(&if_index);
   {
@@ -783,8 +779,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
   Bind(&if_unique_name);
   {
     Comment("key is unique name");
-    StoreICParameters p(context, receiver, var_unique.value(), value, slot,
-                        vector);
+    KeyedStoreGenericAssembler::StoreICParameters p(context, receiver, name,
+                                                    value, slot, vector);
     EmitGenericPropertyStore(receiver, receiver_map, &p, &slow, language_mode);
   }
 

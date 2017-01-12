@@ -604,7 +604,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (8) Is the external string one byte?  If yes, go to (5).
   // (9) Two byte sequential.  Load regexp code for two byte. Go to (E).
   // (10) Short external string or not a string?  If yes, bail out to runtime.
-  // (11) Sliced or thin string.  Replace subject with parent. Go to (1).
+  // (11) Sliced string.  Replace subject with parent. Go to (1).
 
   Label seq_one_byte_string /* 5 */, seq_two_byte_string /* 9 */,
       external_string /* 7 */, check_underlying /* 1 */,
@@ -634,7 +634,6 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // have already been covered.
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
-  STATIC_ASSERT(kThinStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ cmp(ebx, Immediate(kExternalStringTag));
@@ -913,17 +912,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ test(ebx, Immediate(kIsNotStringMask | kShortExternalStringTag));
   __ j(not_zero, &runtime);
 
-  // (11) Sliced or thin string.  Replace subject with parent.  Go to (1).
-  Label thin_string;
-  __ cmp(ebx, Immediate(kThinStringTag));
-  __ j(equal, &thin_string, Label::kNear);
+  // (11) Sliced string.  Replace subject with parent.  Go to (1).
   // Load offset into edi and replace subject string with parent.
   __ mov(edi, FieldOperand(eax, SlicedString::kOffsetOffset));
   __ mov(eax, FieldOperand(eax, SlicedString::kParentOffset));
-  __ jmp(&check_underlying);  // Go to (1).
-
-  __ bind(&thin_string);
-  __ mov(eax, FieldOperand(eax, ThinString::kActualOffset));
   __ jmp(&check_underlying);  // Go to (1).
 #endif  // V8_INTERPRETED_REGEXP
 }
