@@ -81,6 +81,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* NewPromiseCapability(Node* context, Node* constructor,
                              Node* debug_event = nullptr);
 
+  void BranchIfAccessCheckFailed(Node* context, Node* native_context,
+                                 Node* promise_constructor, Node* executor,
+                                 Label* if_noaccess);
+
  protected:
   void PromiseInit(Node* promise);
 

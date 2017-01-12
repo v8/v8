@@ -2872,6 +2872,10 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
   return var_value_map.value();
 }
 
+Node* CodeStubAssembler::InstanceTypeEqual(Node* instance_type, int type) {
+  return Word32Equal(instance_type, Int32Constant(type));
+}
+
 Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
   Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   uint32_t mask =

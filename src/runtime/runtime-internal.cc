@@ -9,6 +9,7 @@
 #include "src/arguments.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
@@ -492,6 +493,15 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   return *Object::TypeOf(isolate, object);
+}
+
+RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
+  Handle<JSObject> global_proxy(target->global_proxy(), isolate);
+  return *isolate->factory()->ToBoolean(
+      Builtins::AllowDynamicFunction(isolate, target, global_proxy));
 }
 
 }  // namespace internal

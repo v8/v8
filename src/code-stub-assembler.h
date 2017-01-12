@@ -667,6 +667,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
+  Node* InstanceTypeEqual(Node* instance_type, int type);
   Node* IsSpecialReceiverMap(Node* map);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);
   Node* IsStringInstanceType(Node* instance_type);

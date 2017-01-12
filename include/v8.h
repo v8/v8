@@ -6508,6 +6508,7 @@ class V8_EXPORT Isolate {
     kFunctionConstructorReturnedUndefined = 35,
     kAssigmentExpressionLHSIsCallInSloppy = 36,
     kAssigmentExpressionLHSIsCallInStrict = 37,
+    kPromiseConstructorReturnedUndefined = 38,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
