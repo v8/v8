@@ -546,11 +546,14 @@ function assertCompileError(args, err, msg) {
 //TODO  assertEq(Boolean(error.message.match(msg)), true);
 }
 assertCompileError([], TypeError, /requires more than 0 arguments/);
-//TODO assertCompileError([undefined], TypeError, /first argument must be an ArrayBuffer or typed array object/);
-//TODO assertCompileError([1], TypeError, /first argument must be an ArrayBuffer or typed array object/);
-//TODO assertCompileError([{}], TypeError, /first argument must be an ArrayBuffer or typed array object/);
-//TODO assertCompileError([new Uint8Array()], CompileError, /failed to match magic number/);
-//TODO assertCompileError([new ArrayBuffer()], CompileError, /failed to match magic number/);
+assertCompileError([undefined], TypeError, /first argument must be an ArrayBuffer or typed array object/);
+assertCompileError([1], TypeError, /first argument must be an ArrayBuffer or typed array object/);
+assertCompileError([{}], TypeError, /first argument must be an ArrayBuffer or typed array object/);
+assertCompileError([new Uint8Array()], CompileError, /BufferSource argument is empty/);
+assertCompileError([new ArrayBuffer()], CompileError, /BufferSource argument is empty/);
+assertCompileError([new Uint8Array("hi!")], CompileError, /failed to match magic number/);
+assertCompileError([new ArrayBuffer("hi!")], CompileError, /failed to match magic number/);
+
 function assertCompileSuccess(bytes) {
     var module = null;
     compile(bytes).then(m => module = m);

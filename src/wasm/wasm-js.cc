@@ -56,9 +56,6 @@ RawBuffer GetRawBufferSource(
     start = reinterpret_cast<const byte*>(contents.Data());
     end = start + contents.ByteLength();
 
-    if (start == nullptr || end == start) {
-      thrower->CompileError("ArrayBuffer argument is empty");
-    }
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
@@ -70,13 +67,12 @@ RawBuffer GetRawBufferSource(
         reinterpret_cast<const byte*>(contents.Data()) + array->ByteOffset();
     end = start + array->ByteLength();
 
-    if (start == nullptr || end == start) {
-      thrower->CompileError("ArrayBuffer argument is empty");
-    }
   } else {
     thrower->TypeError("Argument 0 must be an ArrayBuffer or Uint8Array");
   }
-
+  if (start == nullptr || end == start) {
+    thrower->CompileError("BufferSource argument is empty");
+  }
   return {start, end};
 }
 
