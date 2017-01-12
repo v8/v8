@@ -224,10 +224,10 @@ namespace internal {
   TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
   ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                   \
-  ASH(LoadIC_Normal, HANDLER, Code::LOAD_IC)                                   \
+  TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector)                   \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                     \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                 \
-  ASH(StoreIC_Normal, HANDLER, Code::STORE_IC)                                 \
+  TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector)                \
   ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)       \
   TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)            \
   TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)            \
