@@ -142,7 +142,7 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetFlagsForTestCase(self, testcase, context):
     return (testcase.flags + context.mode_flags + self.harness +
-            self.GetIncludesForTest(testcase) + ["--harmony"] +
+            self.GetIncludesForTest(testcase) +
             (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
             [self.GetPathForTest(testcase)] +
             (["--throws"] if "negative" in self.GetTestRecord(testcase)
@@ -150,7 +150,8 @@ class Test262TestSuite(testsuite.TestSuite):
             (["--allow-natives-syntax"]
              if "detachArrayBuffer.js" in
                 self.GetTestRecord(testcase).get("includes", [])
-             else []))
+             else []) +
+            ([flag for flag in testcase.outcomes if flag.startswith("--")]))
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
@@ -221,7 +222,9 @@ class Test262TestSuite(testsuite.TestSuite):
     if (statusfile.FAIL_SLOPPY in testcase.outcomes and
         "--use-strict" not in testcase.flags):
       return outcome != statusfile.FAIL
-    return not outcome in (testcase.outcomes or [statusfile.PASS])
+    return not outcome in ([outcome for outcome in testcase.outcomes
+                                    if not outcome.startswith('--')]
+                           or [statusfile.PASS])
 
   def PrepareSources(self):
     # The archive is created only on swarming. Local checkouts have the
