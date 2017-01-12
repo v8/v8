@@ -785,7 +785,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppendIfFastOrUseFull(
       CHECK_EQ(*full_layout_descriptor, layout_desc);
     } else {
       CHECK(!switched_to_slow_mode);
-      if (details.type() == DATA) {
+      if (details.location() == kField) {
         nof++;
         int field_index = details.field_index();
         int field_width_in_words = details.field_width_in_words();
@@ -1193,7 +1193,7 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
   int first_non_tagged_field_offset = end_offset;
   for (int i = 0; i < number_of_descriptors; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() != DATA) continue;
+    if (details.location() != kField) continue;
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     if (!index.is_inobject()) continue;
     all_fields_tagged &= !details.representation().IsDouble();

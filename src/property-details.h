@@ -64,14 +64,12 @@ STATIC_ASSERT(SKIP_SYMBOLS ==
 class Smi;
 class TypeInfo;
 
-// Type of properties.
 // Order of kinds is significant.
 // Must fit in the BitField PropertyDetails::KindField.
 enum PropertyKind { kData = 0, kAccessor = 1 };
 
-
 // Order of modes is significant.
-// Must fit in the BitField PropertyDetails::StoreModeField.
+// Must fit in the BitField PropertyDetails::LocationField.
 enum PropertyLocation { kField = 0, kDescriptor = 1 };
 
 

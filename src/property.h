@@ -20,6 +20,8 @@ namespace internal {
 // optionally a piece of data.
 class Descriptor final BASE_EMBEDDED {
  public:
+  Descriptor() : details_(Smi::kZero) {}
+
   Handle<Name> GetKey() const { return key_; }
   Handle<Object> GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
@@ -57,8 +59,6 @@ class Descriptor final BASE_EMBEDDED {
   PropertyDetails details_;
 
  protected:
-  Descriptor() : details_(Smi::kZero) {}
-
   void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
     DCHECK(key->IsUniqueName());
     DCHECK_IMPLIES(key->IsPrivate(), !details.IsEnumerable());

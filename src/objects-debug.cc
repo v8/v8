@@ -339,7 +339,9 @@ void JSObject::JSObjectVerify() {
     DescriptorArray* descriptors = map()->instance_descriptors();
     Isolate* isolate = GetIsolate();
     for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
-      if (descriptors->GetDetails(i).type() == DATA) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.location() == kField) {
+        DCHECK_EQ(kData, details.kind());
         Representation r = descriptors->GetDetails(i).representation();
         FieldIndex index = FieldIndex::ForDescriptor(map(), i);
         if (IsUnboxedDoubleField(index)) {

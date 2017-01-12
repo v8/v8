@@ -179,7 +179,8 @@ bool IsFastLiteral(Handle<JSObject> boilerplate, int max_depth,
   int limit = boilerplate->map()->NumberOfOwnDescriptors();
   for (int i = 0; i < limit; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() != DATA) continue;
+    if (details.location() != kField) continue;
+    DCHECK_EQ(kData, details.kind());
     if ((*max_properties)-- == 0) return false;
     FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
     if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
@@ -1189,7 +1190,8 @@ Node* JSCreateLowering::AllocateFastLiteral(
   for (int i = 0; i < boilerplate_nof; ++i) {
     PropertyDetails const property_details =
         boilerplate_map->instance_descriptors()->GetDetails(i);
-    if (property_details.type() != DATA) continue;
+    if (property_details.location() != kField) continue;
+    DCHECK_EQ(kData, property_details.kind());
     Handle<Name> property_name(
         boilerplate_map->instance_descriptors()->GetKey(i), isolate());
     FieldIndex index = FieldIndex::ForDescriptor(*boilerplate_map, i);

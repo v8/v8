@@ -3365,20 +3365,6 @@ class DescriptorArray: public FixedArray {
   }
 
  private:
-  // An entry in a DescriptorArray, represented as an (array, index) pair.
-  class Entry {
-   public:
-    inline explicit Entry(DescriptorArray* descs, int index) :
-        descs_(descs), index_(index) { }
-
-    inline PropertyType type();
-    inline Object* GetCallbackObject();
-
-   private:
-    DescriptorArray* descs_;
-    int index_;
-  };
-
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
   void CopyFrom(int index, DescriptorArray* src);

@@ -2327,7 +2327,8 @@ void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
 
 void JSObject::WriteToField(int descriptor, PropertyDetails details,
                             Object* value) {
-  DCHECK(details.type() == DATA);
+  DCHECK_EQ(kField, details.location());
+  DCHECK_EQ(kData, details.kind());
   DisallowHeapAllocation no_gc;
   FieldIndex index = FieldIndex::ForDescriptor(map(), descriptor);
   if (details.representation().IsDouble()) {
@@ -3195,14 +3196,6 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
   int first_key = GetSortedKeyIndex(first);
   SetSortedKey(first, GetSortedKeyIndex(second));
   SetSortedKey(second, first_key);
-}
-
-
-PropertyType DescriptorArray::Entry::type() { return descs_->GetType(index_); }
-
-
-Object* DescriptorArray::Entry::GetCallbackObject() {
-  return descs_->GetValue(index_);
 }
 
 
@@ -4896,7 +4889,9 @@ bool Map::CanBeDeprecated() {
     if (details.representation().IsSmi()) return true;
     if (details.representation().IsDouble()) return true;
     if (details.representation().IsHeapObject()) return true;
-    if (details.type() == DATA_CONSTANT) return true;
+    if (details.kind() == kData && details.location() == kDescriptor) {
+      return true;
+    }
   }
   return false;
 }
@@ -5620,7 +5615,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
   PropertyDetails details = desc->GetDetails();
-  CHECK(details.type() != DATA || !details.representation().IsDouble());
+  CHECK(details.location() != kField || !details.representation().IsDouble());
 #endif
 }
 

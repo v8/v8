@@ -1716,12 +1716,12 @@ HValue* HGraphBuilder::BuildUncheckedDictionaryElementLoad(HValue* receiver,
     details_index->ClearFlag(HValue::kCanOverflow);
     HValue* details = Add<HLoadKeyed>(elements, details_index, nullptr, nullptr,
                                       FAST_ELEMENTS);
-    int details_mask = PropertyDetails::TypeField::kMask;
+    int details_mask = PropertyDetails::KindField::kMask;
     details = AddUncasted<HBitwise>(Token::BIT_AND, details,
                                     Add<HConstant>(details_mask));
     IfBuilder details_compare(this);
-    details_compare.If<HCompareNumericAndBranch>(
-        details, graph()->GetConstant0(), Token::EQ);
+    details_compare.If<HCompareNumericAndBranch>(details, New<HConstant>(kData),
+                                                 Token::EQ);
     details_compare.Then();
     HValue* result_index =
         AddUncasted<HAdd>(base_index, Add<HConstant>(start_offset + 1));
@@ -5401,7 +5401,8 @@ static bool IsFastLiteral(Handle<JSObject> boilerplate,
     int limit = boilerplate->map()->NumberOfOwnDescriptors();
     for (int i = 0; i < limit; i++) {
       PropertyDetails details = descriptors->GetDetails(i);
-      if (details.type() != DATA) continue;
+      if (details.location() != kField) continue;
+      DCHECK_EQ(kData, details.kind());
       if ((*max_properties)-- == 0) return false;
       FieldIndex field_index = FieldIndex::ForDescriptor(boilerplate->map(), i);
       if (boilerplate->IsUnboxedDoubleField(field_index)) continue;
@@ -11586,7 +11587,8 @@ void HOptimizedGraphBuilder::BuildEmitInObjectProperties(
   int copied_fields = 0;
   for (int i = 0; i < limit; i++) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() != DATA) continue;
+    if (details.location() != kField) continue;
+    DCHECK_EQ(kData, details.kind());
     copied_fields++;
     FieldIndex field_index = FieldIndex::ForDescriptor(*boilerplate_map, i);
 

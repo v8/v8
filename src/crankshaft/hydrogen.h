@@ -2514,14 +2514,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     bool IsProperty() const { return IsFound() && !IsTransition(); }
     bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
     bool IsData() const {
-      return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kField;
     }
     bool IsDataConstant() const {
-      return lookup_type_ == DESCRIPTOR_TYPE &&
-             details_.type() == DATA_CONSTANT;
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kDescriptor;
     }
     bool IsAccessorConstant() const {
-      return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
+      return !IsTransition() && details_.kind() == kAccessor &&
+             details_.location() == kDescriptor;
     }
     bool IsConfigurable() const { return details_.IsConfigurable(); }
     bool IsReadOnly() const { return details_.IsReadOnly(); }
@@ -2580,7 +2582,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       return details_.representation();
     }
     bool IsTransitionToData() const {
-      return IsTransition() && details_.type() == DATA;
+      return IsTransition() && details_.kind() == kData &&
+             details_.location() == kField;
     }
 
     Zone* zone() { return builder_->zone(); }

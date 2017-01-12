@@ -1737,7 +1737,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
-    DCHECK_EQ(ACCESSOR_CONSTANT, details.type());
+    DCHECK_EQ(kAccessor, details.kind());
     PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i));

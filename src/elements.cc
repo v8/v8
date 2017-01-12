@@ -1384,7 +1384,7 @@ class DictionaryElementsAccessor
       if (!dict->IsKey(isolate, key)) continue;
       DCHECK(!dict->IsDeleted(i));
       PropertyDetails details = dict->DetailsAt(i);
-      if (details.type() == ACCESSOR_CONSTANT) return true;
+      if (details.kind() == kAccessor) return true;
     }
     return false;
   }
@@ -1594,7 +1594,7 @@ class DictionaryElementsAccessor
         continue;
       }
 
-      if (dictionary->DetailsAt(i).type() == ACCESSOR_CONSTANT) {
+      if (dictionary->DetailsAt(i).kind() == kAccessor) {
         // Restart from beginning in slow path, otherwise we may observably
         // access getters out of order
         return false;

@@ -298,14 +298,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           return LookupTransition(receiver_map, name, holder, access_info);
         }
       }
-      switch (details.type()) {
-        case DATA_CONSTANT: {
-          *access_info = PropertyAccessInfo::DataConstant(
-              MapList{receiver_map},
-              handle(descriptors->GetValue(number), isolate()), holder);
-          return true;
-        }
-        case DATA: {
+      if (details.location() == kField) {
+        if (details.kind() == kData) {
           int index = descriptors->GetFieldIndex(number);
           Representation details_representation = details.representation();
           FieldIndex field_index = FieldIndex::ForPropertyIndex(
@@ -347,8 +341,21 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               MapList{receiver_map}, field_index, field_representation,
               field_type, field_map, holder);
           return true;
+        } else {
+          DCHECK_EQ(kAccessor, details.kind());
+          // TODO(turbofan): Add support for general accessors?
+          return false;
         }
-        case ACCESSOR_CONSTANT: {
+
+      } else {
+        DCHECK_EQ(kDescriptor, details.location());
+        if (details.kind() == kData) {
+          *access_info = PropertyAccessInfo::DataConstant(
+              MapList{receiver_map},
+              handle(descriptors->GetValue(number), isolate()), holder);
+          return true;
+        } else {
+          DCHECK_EQ(kAccessor, details.kind());
           Handle<Object> accessors(descriptors->GetValue(number), isolate());
           if (!accessors->IsAccessorPair()) return false;
           Handle<Object> accessor(
@@ -369,10 +376,6 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           *access_info = PropertyAccessInfo::AccessorConstant(
               MapList{receiver_map}, accessor, holder);
           return true;
-        }
-        case ACCESSOR: {
-          // TODO(turbofan): Add support for general accessors?
-          return false;
         }
       }
       UNREACHABLE();
@@ -512,7 +515,7 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
     // Don't bother optimizing stores to read-only properties.
     if (details.IsReadOnly()) return false;
     // TODO(bmeurer): Handle transition to data constant?
-    if (details.type() != DATA) return false;
+    if (details.location() != kField) return false;
     int const index = details.field_index();
     Representation details_representation = details.representation();
     FieldIndex field_index = FieldIndex::ForPropertyIndex(

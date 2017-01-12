@@ -335,29 +335,32 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       os << "\n   ";
       descs->GetKey(i)->NamePrint(os);
       os << ": ";
-      switch (descs->GetType(i)) {
-        case DATA: {
-          FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-          if (IsUnboxedDoubleField(index)) {
-            os << "<unboxed double> " << RawFastDoublePropertyAt(index);
+      PropertyDetails details = descs->GetDetails(i);
+      FieldIndex field_index;
+      switch (details.location()) {
+        case kField: {
+          field_index = FieldIndex::ForDescriptor(map(), i);
+          if (IsUnboxedDoubleField(field_index)) {
+            os << "<unboxed double> " << RawFastDoublePropertyAt(field_index);
           } else {
-            os << Brief(RawFastPropertyAt(index));
+            os << Brief(RawFastPropertyAt(field_index));
           }
-          os << " (data field at offset " << index.property_index() << ")";
           break;
         }
-        case ACCESSOR: {
-          FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-          os << " (accessor field at offset " << index.property_index() << ")";
-          break;
-        }
-        case DATA_CONSTANT:
-          os << Brief(descs->GetConstant(i)) << " (data constant)";
-          break;
-        case ACCESSOR_CONSTANT:
-          os << Brief(descs->GetCallbacksObject(i)) << " (accessor constant)";
+        case kDescriptor:
+          os << Brief(descs->GetValue(i));
           break;
       }
+      os << " (" << (details.kind() == kData ? "data" : "accessor");
+      switch (details.location()) {
+        case kField: {
+          os << " field at offset " << field_index.property_index();
+          break;
+        }
+        case kDescriptor:
+          break;
+      }
+      os << ")";
     }
   } else if (IsJSGlobalObject()) {
     global_dictionary()->Print(os);
@@ -1423,7 +1426,7 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   } else if (transition_info()->IsJSArray()) {
     os << "Array literal " << Brief(transition_info());
   } else {
-    os << "unknown transition_info" << Brief(transition_info());
+    os << "unknown transition_info " << Brief(transition_info());
   }
   os << "\n";
 }
@@ -1641,8 +1644,10 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
         Object* value =
             target->instance_descriptors()->GetValue(target->LastAdded());
         os << " " << Brief(value);
+      } else {
+        os << " field";
       }
-      os << "), attrs: " << details.attributes();
+      os << ", attrs: " << details.attributes() << ")";
     }
     os << " -> " << Brief(target);
   }

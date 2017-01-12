@@ -163,10 +163,13 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     case LookupIterator::NOT_FOUND:
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
       break;
-    case LookupIterator::DATA:
-      inline_followup =
-          it->property_details().type() == DATA && !it->is_dictionary_holder();
+    case LookupIterator::DATA: {
+      PropertyDetails details = it->property_details();
+      inline_followup = details.kind() == kData &&
+                        details.location() == kField &&
+                        !it->is_dictionary_holder();
       break;
+    }
     case LookupIterator::ACCESSOR: {
       Handle<Object> accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
@@ -274,7 +277,8 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::TRANSITION:
       UNREACHABLE();
     case LookupIterator::DATA: {
-      DCHECK_EQ(DATA, it->property_details().type());
+      DCHECK_EQ(kData, it->property_details().kind());
+      DCHECK_EQ(kField, it->property_details().location());
       __ Move(LoadFieldDescriptor::ReceiverRegister(), reg);
       Handle<Object> smi_handler =
           LoadIC::SimpleFieldLoad(isolate(), it->GetFieldIndex());

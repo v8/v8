@@ -63,7 +63,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
         if (entry != GlobalDictionary::kNotFound) {
           DCHECK(dictionary->ValueAt(entry)->IsPropertyCell());
           PropertyCell* cell = PropertyCell::cast(dictionary->ValueAt(entry));
-          if (cell->property_details().type() == DATA) {
+          if (cell->property_details().kind() == kData) {
             Object* value = cell->value();
             if (!value->IsTheHole(isolate)) {
               return Handle<Object>(value, isolate);
@@ -76,7 +76,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
         NameDictionary* dictionary = receiver->property_dictionary();
         int entry = dictionary->FindEntry(key);
         if ((entry != NameDictionary::kNotFound) &&
-            (dictionary->DetailsAt(entry).type() == DATA)) {
+            (dictionary->DetailsAt(entry).kind() == kData)) {
           Object* value = dictionary->ValueAt(entry);
           return Handle<Object>(value, isolate);
         }

@@ -4360,8 +4360,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         Handle<DescriptorArray>(from->map()->instance_descriptors());
     for (int i = 0; i < from->map()->NumberOfOwnDescriptors(); i++) {
       PropertyDetails details = descs->GetDetails(i);
-      switch (details.type()) {
-        case DATA: {
+      if (details.location() == kField) {
+        if (details.kind() == kData) {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
@@ -4369,18 +4369,21 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
                                                 isolate());
           JSObject::AddProperty(to, key, value, details.attributes());
-          break;
+        } else {
+          DCHECK_EQ(kAccessor, details.kind());
+          UNREACHABLE();
         }
-        case DATA_CONSTANT: {
+
+      } else {
+        DCHECK_EQ(kDescriptor, details.location());
+        if (details.kind() == kData) {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> constant(descs->GetConstant(i), isolate());
           JSObject::AddProperty(to, key, constant, details.attributes());
-          break;
-        }
-        case ACCESSOR:
-          UNREACHABLE();
-        case ACCESSOR_CONSTANT: {
+
+        } else {
+          DCHECK_EQ(kAccessor, details.kind());
           Handle<Name> key(descs->GetKey(i));
           LookupIterator it(to, key, LookupIterator::OWN_SKIP_INTERCEPTOR);
           CHECK_NE(LookupIterator::ACCESS_CHECK, it.state());
@@ -4393,7 +4396,6 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
                             PropertyCellType::kMutable);
           JSObject::SetNormalizedProperty(to, key, callbacks, d);
-          break;
         }
       }
     }

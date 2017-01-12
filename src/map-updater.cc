@@ -22,6 +22,10 @@ inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
   return false;
 }
 
+inline bool LocationFitsInto(PropertyLocation what, PropertyLocation where) {
+  return where == kField || what == kDescriptor;
+}
+
 }  // namespace
 
 Name* MapUpdater::GetKey(int descriptor) const {
@@ -276,8 +280,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       return CopyGeneralizeAllRepresentations("GenAll_Incompatible");
     }
     // Check if old location fits into tmp location.
-    if (old_details.location() == kField &&
-        tmp_details.location() == kDescriptor) {
+    if (!LocationFitsInto(old_details.location(), tmp_details.location())) {
       break;
     }
 
@@ -573,14 +576,14 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
     MaybeHandle<FieldType> new_field_type;
     MaybeHandle<Object> old_value;
     MaybeHandle<Object> new_value;
-    if (old_details.type() == DATA) {
+    if (old_details.location() == kField) {
       old_field_type = handle(
           old_descriptors_->GetFieldType(modified_descriptor_), isolate_);
     } else {
       old_value =
           handle(old_descriptors_->GetValue(modified_descriptor_), isolate_);
     }
-    if (new_details.type() == DATA) {
+    if (new_details.location() == kField) {
       new_field_type =
           handle(new_descriptors->GetFieldType(modified_descriptor_), isolate_);
     } else {
