@@ -496,7 +496,7 @@ DEFINE_NEG_IMPLICATION(minimal, crankshaft)
 DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
-DEFINE_BOOL(expose_wasm, false, "expose WASM interface to JavaScript")
+DEFINE_BOOL(expose_wasm, true, "expose WASM interface to JavaScript")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
 DEFINE_BOOL(trace_wasm_encoder, false, "trace encoding of wasm code")
