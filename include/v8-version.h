@@ -10,31 +10,11 @@
 // system so their names cannot be changed without changing the scripts.
 #define V8_MAJOR_VERSION 5
 #define V8_MINOR_VERSION 7
-#define V8_BUILD_NUMBER 0
+#define V8_BUILD_NUMBER 442
 #define V8_PATCH_LEVEL 0
 
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
-#define V8_IS_CANDIDATE_VERSION 1
-
-#if V8_IS_CANDIDATE_VERSION
-#define V8_CANDIDATE_STRING " (candidate)"
-#else
-#define V8_CANDIDATE_STRING ""
-#endif
-
-#define V8_SX(x) #x
-#define V8_S(x) V8_SX(x)
-
-#if V8_PATCH_LEVEL > 0
-#define V8_VERSION_STRING                                        \
-  V8_S(V8_MAJOR_VERSION)                                         \
-  "." V8_S(V8_MINOR_VERSION) "." V8_S(V8_BUILD_NUMBER) "." V8_S( \
-      V8_PATCH_LEVEL) V8_CANDIDATE_STRING
-#else
-#define V8_VERSION_STRING \
-  V8_S(V8_MAJOR_VERSION)  \
-  "." V8_S(V8_MINOR_VERSION) "." V8_S(V8_BUILD_NUMBER) V8_CANDIDATE_STRING
-#endif
+#define V8_IS_CANDIDATE_VERSION 0
 
 #endif  // V8_INCLUDE_VERSION_H_
