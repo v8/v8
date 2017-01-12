@@ -2439,10 +2439,10 @@ bool ValueSerializerTestWithWasm::g_saved_flag = false;
 // A simple module which exports an "increment" function.
 // Copied from test/mjsunit/wasm/incrementer.wasm.
 const unsigned char kIncrementerWasm[] = {
-    0,   97, 115, 109, 13, 0,  0, 0, 1,   6,   1,  96,  1,   127, 1,   127,
-    3,   2,  1,   0,   7,  13, 1, 9, 105, 110, 99, 114, 101, 109, 101, 110,
-    116, 0,  0,   10,  9,  1,  7, 0, 32,  0,   65, 1,   106, 11,
-};
+    0x00, 0x61, 0x73, 0x6d, 0x0d, 0x00, 0x00, 0x00, 0x01, 0x06, 0x01, 0x60,
+    0x01, 0x7f, 0x01, 0x7f, 0x03, 0x02, 0x01, 0x00, 0x07, 0x0d, 0x01, 0x09,
+    0x69, 0x6e, 0x63, 0x72, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x00, 0x00, 0x0a,
+    0x08, 0x01, 0x06, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a};
 
 TEST_F(ValueSerializerTestWithWasm, RoundTripWasmModule) {
   RoundTripTest(
@@ -2521,7 +2521,6 @@ const unsigned char kSerializedIncrementerWasm[] = {
     0x2f, 0x2f};
 
 TEST_F(ValueSerializerTestWithWasm, DecodeWasmModule) {
-  if (true) return;  // TODO(mtrofin): fix this test
   std::vector<uint8_t> raw(
       kSerializedIncrementerWasm,
       kSerializedIncrementerWasm + sizeof(kSerializedIncrementerWasm));
@@ -2542,7 +2541,6 @@ const unsigned char kSerializedIncrementerWasmWithInvalidCompiledData[] = {
     0x01, 0x06, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6a, 0x00};
 
 TEST_F(ValueSerializerTestWithWasm, DecodeWasmModuleWithInvalidCompiledData) {
-  if (true) return;  // TODO(titzer): regenerate this test
   std::vector<uint8_t> raw(
       kSerializedIncrementerWasmWithInvalidCompiledData,
       kSerializedIncrementerWasmWithInvalidCompiledData +
