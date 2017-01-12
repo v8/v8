@@ -237,6 +237,7 @@ class WasmCompiledModule : public FixedArray {
 
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                \
   MACRO(WASM_OBJECT, WasmSharedModuleData, shared)    \
+  MACRO(OBJECT, Context, native_context)              \
   MACRO(OBJECT, FixedArray, code_table)               \
   MACRO(OBJECT, FixedArray, function_tables)          \
   MACRO(OBJECT, FixedArray, signature_tables)         \

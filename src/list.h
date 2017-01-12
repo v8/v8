@@ -64,8 +64,8 @@ class List {
   // not safe to use after operations that can change the list's
   // backing store (e.g. Add).
   inline T& operator[](int i) const {
-    DCHECK(0 <= i);
-    SLOW_DCHECK(static_cast<unsigned>(i) < static_cast<unsigned>(length_));
+    DCHECK_LE(0, i);
+    DCHECK_GT(length_, i);
     return data_[i];
   }
   inline T& at(int i) const { return operator[](i); }

@@ -461,13 +461,14 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
         js_frame->Summarize(&frames);
         for (int i = frames.length() - 1; i >= 0; i--) {
-          Handle<JSFunction> fun = frames[i].function();
+          const auto& summ = frames[i].AsJavaScript();
+          Handle<JSFunction> fun = summ.function();
 
           // Filter out internal frames that we do not want to show.
           if (!helper.IsVisibleInStackTrace(*fun)) continue;
 
           Handle<Object> recv = frames[i].receiver();
-          Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+          Handle<AbstractCode> abstract_code = summ.abstract_code();
           const int offset = frames[i].code_offset();
 
           bool force_constructor = false;
@@ -627,21 +628,22 @@ class CaptureStackTraceHelper {
   }
 
   Handle<JSObject> NewStackFrameObject(FrameSummary& summ) {
-    int position = summ.abstract_code()->SourcePosition(summ.code_offset());
-    return NewStackFrameObject(summ.function(), position,
-                               summ.is_constructor());
+    if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
+    if (summ.IsWasm()) return NewStackFrameObject(summ.AsWasm());
+    UNREACHABLE();
+    return Handle<JSObject>::null();
   }
 
-  Handle<JSObject> NewStackFrameObject(Handle<JSFunction> fun, int position,
-                                       bool is_constructor) {
+  Handle<JSObject> NewStackFrameObject(
+      const FrameSummary::JavaScriptFrameSummary& summ) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
-    Handle<Script> script(Script::cast(fun->shared()->script()), isolate_);
+    Handle<Script> script = Handle<Script>::cast(summ.script());
 
     if (!line_key_.is_null()) {
       Script::PositionInfo info;
-      bool valid_pos =
-          Script::GetPositionInfo(script, position, &info, Script::WITH_OFFSET);
+      bool valid_pos = Script::GetPositionInfo(script, summ.SourcePosition(),
+                                               &info, Script::WITH_OFFSET);
 
       if (!column_key_.is_null() && valid_pos) {
         JSObject::AddProperty(stack_frame, column_key_,
@@ -676,12 +678,13 @@ class CaptureStackTraceHelper {
     }
 
     if (!function_key_.is_null()) {
-      Handle<Object> fun_name = JSFunction::GetDebugName(fun);
+      Handle<String> fun_name = summ.FunctionName();
       JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
     }
 
     if (!constructor_key_.is_null()) {
-      Handle<Object> is_constructor_obj = factory()->ToBoolean(is_constructor);
+      Handle<Object> is_constructor_obj =
+          factory()->ToBoolean(summ.is_constructor());
       JSObject::AddProperty(stack_frame, constructor_key_, is_constructor_obj,
                             NONE);
     }
@@ -703,29 +706,28 @@ class CaptureStackTraceHelper {
     return stack_frame;
   }
 
-  Handle<JSObject> NewStackFrameObject(WasmCompiledFrame* frame) {
+  Handle<JSObject> NewStackFrameObject(
+      const FrameSummary::WasmFrameSummary& summ) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
 
     if (!function_key_.is_null()) {
       Handle<WasmCompiledModule> compiled_module(
-          frame->wasm_instance()->compiled_module(), isolate_);
+          summ.wasm_instance()->compiled_module(), isolate_);
       Handle<String> name = WasmCompiledModule::GetFunctionName(
-          isolate_, compiled_module, frame->function_index());
+          isolate_, compiled_module, summ.function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
     // Encode the function index as line number (1-based).
     if (!line_key_.is_null()) {
       JSObject::AddProperty(
           stack_frame, line_key_,
-          isolate_->factory()->NewNumberFromInt(frame->function_index() + 1),
+          isolate_->factory()->NewNumberFromInt(summ.function_index() + 1),
           NONE);
     }
     // Encode the byte offset as column (1-based).
     if (!column_key_.is_null()) {
-      Code* code = frame->LookupCode();
-      int offset = static_cast<int>(frame->pc() - code->instruction_start());
-      int position = AbstractCode::cast(code)->SourcePosition(offset);
+      int position = summ.byte_offset();
       // Make position 1-based.
       if (position >= 0) ++position;
       JSObject::AddProperty(stack_frame, column_key_,
@@ -733,7 +735,7 @@ class CaptureStackTraceHelper {
                             NONE);
     }
     if (!script_id_key_.is_null()) {
-      int script_id = frame->script()->id();
+      int script_id = summ.script()->id();
       JSObject::AddProperty(stack_frame, script_id_key_,
                             handle(Smi::FromInt(script_id), isolate_), NONE);
     }
@@ -770,25 +772,16 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   for (StackTraceFrameIterator it(this); !it.done() && (frames_seen < limit);
        it.Advance()) {
     StandardFrame* frame = it.frame();
-    if (frame->is_java_script()) {
-      // Set initial size to the maximum inlining level + 1 for the outermost
-      // function.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      JavaScriptFrame::cast(frame)->Summarize(&frames);
-      for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
-        Handle<JSFunction> fun = frames[i].function();
-        // Filter frames from other security contexts.
-        if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-            !this->context()->HasSameSecurityTokenAs(fun->context()))
-          continue;
-        Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(frames[i]);
-        stack_trace_elems->set(frames_seen, *new_frame_obj);
-        frames_seen++;
-      }
-    } else {
-      DCHECK(frame->is_wasm());
-      WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
-      Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(wasm_frame);
+    // Set initial size to the maximum inlining level + 1 for the outermost
+    // function.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+      // Filter frames from other security contexts.
+      if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+          !this->context()->HasSameSecurityTokenAs(*frames[i].native_context()))
+        continue;
+      Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(frames[i]);
       stack_trace_elems->set(frames_seen, *new_frame_obj);
       frames_seen++;
     }
@@ -1345,7 +1338,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       List<FrameSummary> summaries;
       frame->Summarize(&summaries);
       for (const FrameSummary& summary : summaries) {
-        Handle<AbstractCode> code = summary.abstract_code();
+        Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
           if (code->GetCode()->is_promise_rejection()) {
             return HandlerTable::PROMISE;
@@ -1359,7 +1352,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         }
 
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
-          DCHECK(summary.function()->shared()->asm_function());
+          DCHECK(summary.AsJavaScript().function()->shared()->asm_function());
           // asm code cannot contain try-catch.
           continue;
         }
@@ -1503,23 +1496,27 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (it.done()) return false;
   StandardFrame* frame = it.frame();
-  // TODO(clemensh): handle wasm frames
-  if (!frame->is_java_script()) return false;
-  JSFunction* fun = JavaScriptFrame::cast(frame)->function();
-  Object* script = fun->shared()->script();
-  if (!script->IsScript() ||
-      (Script::cast(script)->source()->IsUndefined(this))) {
-    return false;
-  }
-  Handle<Script> casted_script(Script::cast(script), this);
   // Compute the location from the function and the relocation info of the
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  JavaScriptFrame::cast(frame)->Summarize(&frames);
+  frame->Summarize(&frames);
   FrameSummary& summary = frames.last();
-  int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
-  *target = MessageLocation(casted_script, pos, pos + 1, handle(fun, this));
+  int pos = summary.SourcePosition();
+  Handle<JSFunction> fun;
+  Handle<Object> script = summary.script();
+  if (!script->IsScript() ||
+      (Script::cast(*script)->source()->IsUndefined(this))) {
+    return false;
+  }
+
+  // TODO(wasm): Remove this once trap-if is always on.
+  // Background: Without trap-if, the information on the stack trace is
+  // incomplete (see bug v8:5007).
+  if (summary.IsWasmCompiled() && !FLAG_wasm_trap_if) return false;
+
+  if (summary.IsJavaScript()) fun = summary.AsJavaScript().function();
+  *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, fun);
   return true;
 }
 

@@ -450,6 +450,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
   compiled_module->InitId();
   compiled_module->set_shared(shared);
+  compiled_module->set_native_context(isolate->native_context());
   return compiled_module;
 }
 

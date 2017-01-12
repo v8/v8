@@ -318,10 +318,6 @@ JavaScriptFrame* StackTraceFrameIterator::javascript_frame() const {
   return JavaScriptFrame::cast(frame());
 }
 
-WasmCompiledFrame* StackTraceFrameIterator::wasm_compiled_frame() const {
-  return WasmCompiledFrame::cast(frame());
-}
-
 inline StackFrame* SafeStackFrameIterator::frame() const {
   DCHECK(!done());
   DCHECK(frame_->is_java_script() || frame_->is_exit() ||

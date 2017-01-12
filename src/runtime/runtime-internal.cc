@@ -332,7 +332,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // information to get canonical location information.
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
-    FrameSummary& summary = frames.last();
+    auto& summary = frames.last().AsJavaScript();
     Handle<JSFunction> function = summary.function();
     Handle<Object> script(function->shared()->script(), isolate);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());

@@ -435,21 +435,17 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
     return Smi::kZero;
   }
 
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
-    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-    if (it.is_wasm()) {
-      n++;
-    } else {
-      it.javascript_frame()->Summarize(&frames);
-      for (int i = frames.length() - 1; i >= 0; i--) {
-        // Omit functions from native and extension scripts.
-        if (frames[i].function()->shared()->IsSubjectToDebugging()) n++;
-      }
+    frames.Clear();
+    it.frame()->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0; i--) {
+      // Omit functions from native and extension scripts.
+      if (frames[i].is_subject_to_debugging()) n++;
     }
   }
   return Smi::FromInt(n);
 }
-
 
 static const int kFrameDetailsFrameIdIndex = 0;
 static const int kFrameDetailsReceiverIndex = 1;
@@ -499,11 +495,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
   StackTraceFrameIterator it(isolate, id);
   // Inlined frame index in optimized frame, starting from outer function.
-  int inlined_jsframe_index =
+  int inlined_frame_index =
       DebugFrameHelper::FindIndexedNonNativeFrame(&it, index);
-  if (inlined_jsframe_index == -1) return heap->undefined_value();
+  if (inlined_frame_index == -1) return heap->undefined_value();
 
-  FrameInspector frame_inspector(it.frame(), inlined_jsframe_index, isolate);
+  FrameInspector frame_inspector(it.frame(), inlined_frame_index, isolate);
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -514,10 +510,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   Handle<Object> frame_id(DebugFrameHelper::WrapFrameId(it.frame()->id()),
                           isolate);
 
-  // Find source position in unoptimized code.
-  int position = frame_inspector.GetSourcePosition();
-
-  if (it.is_wasm()) {
+  if (frame_inspector.summary().IsWasm()) {
     // Create the details array (no dynamic information for wasm).
     Handle<FixedArray> details =
         isolate->factory()->NewFixedArray(kFrameDetailsFirstDynamicIndex);
@@ -526,11 +519,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
     // Add the function name.
-    Handle<WasmCompiledModule> compiled_module(
-        it.wasm_compiled_frame()->wasm_instance()->compiled_module(), isolate);
-    int func_index = it.wasm_compiled_frame()->function_index();
-    Handle<String> func_name = WasmCompiledModule::GetFunctionName(
-        isolate, compiled_module, func_index);
+    Handle<String> func_name = frame_inspector.summary().FunctionName();
     details->set(kFrameDetailsFunctionIndex, *func_name);
 
     // Add the script wrapper
@@ -545,20 +534,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     details->set(kFrameDetailsLocalCountIndex, Smi::kZero);
 
     // Add the source position.
-    // For wasm, it is function-local, so translate it to a module-relative
-    // position, such that together with the script it uniquely identifies the
-    // position.
-    Handle<Object> positionValue;
-    if (position != kNoSourcePosition) {
-      int translated_position = position;
-      // No further translation needed for asm.js modules.
-      if (!compiled_module->is_asm_js()) {
-        translated_position +=
-            wasm::GetFunctionCodeOffset(compiled_module, func_index);
-      }
-      details->set(kFrameDetailsSourcePositionIndex,
-                   Smi::FromInt(translated_position));
-    }
+    int position = frame_inspector.summary().SourcePosition();
+    details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
 
     // Add the constructor information.
     details->set(kFrameDetailsConstructCallIndex, heap->ToBoolean(false));
@@ -578,6 +555,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
 
     return *isolate->factory()->NewJSArrayWithElements(details);
   }
+
+  // Find source position in unoptimized code.
+  int position = frame_inspector.GetSourcePosition();
 
   // Handle JavaScript frames.
   bool is_optimized = it.frame()->is_optimized();
@@ -660,7 +640,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // the provided parameters whereas the function frame always have the number
   // of arguments matching the functions parameters. The rest of the
   // information (except for what is collected above) is the same.
-  if ((inlined_jsframe_index == 0) &&
+  if ((inlined_frame_index == 0) &&
       it.javascript_frame()->has_adapted_arguments()) {
     it.AdvanceToArgumentsFrame();
     frame_inspector.SetArgumentsFrame(it.frame());
@@ -718,7 +698,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
   if (is_optimized) {
     flags |= 1 << 1;
-    flags |= inlined_jsframe_index << 2;
+    flags |= inlined_frame_index << 2;
   }
   details->set(kFrameDetailsFlagsIndex, Smi::FromInt(flags));
 

@@ -62,7 +62,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
                                        JavaScriptFrame* frame) {
   FrameSummary summary = FrameSummary::GetFirst(frame);
   int offset = summary.code_offset();
-  Handle<AbstractCode> abstract_code = summary.abstract_code();
+  Handle<AbstractCode> abstract_code = summary.AsJavaScript().abstract_code();
   if (abstract_code->IsCode()) offset = offset - 1;
   auto it = BreakIterator::GetIterator(debug_info, abstract_code);
   it->SkipTo(BreakIndexFromCodeOffset(debug_info, abstract_code, offset));
@@ -72,7 +72,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
 void BreakLocation::AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                           JavaScriptFrame* frame,
                                           List<BreakLocation>* result_out) {
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   if (abstract_code->IsCode()) offset = offset - 1;
@@ -558,11 +558,9 @@ void Debug::Break(JavaScriptFrame* frame) {
     // Fall through.
     case StepIn: {
       FrameSummary summary = FrameSummary::GetFirst(frame);
-      int offset = summary.code_offset();
-      step_break = step_break || location.IsReturn() ||
-                   (current_fp != last_fp) ||
-                   (thread_local_.last_statement_position_ !=
-                    summary.abstract_code()->SourceStatementPosition(offset));
+      step_break = step_break || location.IsReturn() || current_fp != last_fp ||
+                   thread_local_.last_statement_position_ !=
+                       summary.SourceStatementPosition();
       break;
     }
     case StepFrame:
@@ -1000,7 +998,7 @@ void Debug::PrepareStep(StepAction step_action) {
   }
 
   // Get the debug info (create it if it does not exist).
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
@@ -2259,11 +2257,10 @@ void Debug::PrintBreakLocation() {
   if (iterator.done()) return;
   JavaScriptFrame* frame = iterator.frame();
   FrameSummary summary = FrameSummary::GetFirst(frame);
-  int source_position =
-      summary.abstract_code()->SourcePosition(summary.code_offset());
-  Handle<Object> script_obj(summary.function()->shared()->script(), isolate_);
+  int source_position = summary.SourcePosition();
+  Handle<Object> script_obj = summary.script();
   PrintF("[debug] break in function '");
-  summary.function()->PrintName();
+  summary.FunctionName()->PrintOn(stdout);
   PrintF("'.\n");
   if (script_obj->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_obj);

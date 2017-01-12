@@ -971,8 +971,9 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions,
   Code* code = LookupCode();
   int offset = static_cast<int>(pc() - code->instruction_start());
   AbstractCode* abstract_code = AbstractCode::cast(code);
-  FrameSummary summary(receiver(), function(), abstract_code, offset,
-                       IsConstructor(), mode);
+  FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
+                                               function(), abstract_code,
+                                               offset, IsConstructor(), mode);
   functions->Add(summary);
 }
 
@@ -1129,12 +1130,14 @@ bool CannotDeoptFromAsmCode(Code* code, JSFunction* function) {
 
 }  // namespace
 
-FrameSummary::FrameSummary(Object* receiver, JSFunction* function,
-                           AbstractCode* abstract_code, int code_offset,
-                           bool is_constructor, Mode mode)
-    : receiver_(receiver, function->GetIsolate()),
-      function_(function),
-      abstract_code_(abstract_code),
+FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
+    Isolate* isolate, Object* receiver, JSFunction* function,
+    AbstractCode* abstract_code, int code_offset, bool is_constructor,
+    Mode mode)
+    : FrameSummaryBase(isolate, JAVA_SCRIPT),
+      receiver_(receiver, isolate),
+      function_(function, isolate),
+      abstract_code_(abstract_code, isolate),
       code_offset_(code_offset),
       is_constructor_(is_constructor) {
   DCHECK(abstract_code->IsBytecodeArray() ||
@@ -1143,35 +1146,165 @@ FrameSummary::FrameSummary(Object* receiver, JSFunction* function,
          mode == kApproximateSummary);
 }
 
-FrameSummary FrameSummary::GetFirst(StandardFrame* frame) {
+bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
+  return function()->shared()->IsSubjectToDebugging();
+}
+
+int FrameSummary::JavaScriptFrameSummary::SourcePosition() const {
+  return abstract_code()->SourcePosition(code_offset());
+}
+
+int FrameSummary::JavaScriptFrameSummary::SourceStatementPosition() const {
+  return abstract_code()->SourceStatementPosition(code_offset());
+}
+
+Handle<Object> FrameSummary::JavaScriptFrameSummary::script() const {
+  return handle(function_->shared()->script(), isolate());
+}
+
+Handle<String> FrameSummary::JavaScriptFrameSummary::FunctionName() const {
+  return JSFunction::GetDebugName(function_);
+}
+
+Handle<Context> FrameSummary::JavaScriptFrameSummary::native_context() const {
+  return handle(function_->context()->native_context(), isolate());
+}
+
+FrameSummary::WasmFrameSummary::WasmFrameSummary(
+    Isolate* isolate, FrameSummary::Kind kind,
+    Handle<WasmInstanceObject> instance, bool at_to_number_conversion)
+    : FrameSummaryBase(isolate, kind),
+      wasm_instance_(instance),
+      at_to_number_conversion_(at_to_number_conversion) {}
+
+Handle<Object> FrameSummary::WasmFrameSummary::receiver() const {
+  return wasm_instance_->GetIsolate()->global_proxy();
+}
+
+#define WASM_SUMMARY_DISPATCH(type, name)                                      \
+  type FrameSummary::WasmFrameSummary::name() const {                          \
+    DCHECK(kind() == Kind::WASM_COMPILED || kind() == Kind::WASM_INTERPRETED); \
+    return kind() == Kind::WASM_COMPILED                                       \
+               ? static_cast<const WasmCompiledFrameSummary*>(this)->name()    \
+               : static_cast<const WasmInterpretedFrameSummary*>(this)         \
+                     ->name();                                                 \
+  }
+
+WASM_SUMMARY_DISPATCH(uint32_t, function_index)
+WASM_SUMMARY_DISPATCH(int, byte_offset)
+
+#undef WASM_SUMMARY_DISPATCH
+
+int FrameSummary::WasmFrameSummary::SourcePosition() const {
+  int offset = byte_offset();
+  Handle<WasmCompiledModule> compiled_module(wasm_instance()->compiled_module(),
+                                             isolate());
+  if (compiled_module->is_asm_js()) {
+    offset = WasmCompiledModule::GetAsmJsSourcePosition(
+        compiled_module, function_index(), offset, at_to_number_conversion());
+  } else {
+    offset += compiled_module->GetFunctionOffset(function_index());
+  }
+  return offset;
+}
+
+Handle<Script> FrameSummary::WasmFrameSummary::script() const {
+  return handle(wasm_instance()->compiled_module()->script());
+}
+
+Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
+  Handle<WasmCompiledModule> compiled_module(
+      wasm_instance()->compiled_module());
+  return WasmCompiledModule::GetFunctionName(compiled_module->GetIsolate(),
+                                             compiled_module, function_index());
+}
+
+Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
+  return wasm_instance()->compiled_module()->native_context();
+}
+
+FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> code,
+    int code_offset, bool at_to_number_conversion)
+    : WasmFrameSummary(isolate, WASM_COMPILED, instance,
+                       at_to_number_conversion),
+      code_(code),
+      code_offset_(code_offset) {}
+
+uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
+  FixedArray* deopt_data = code()->deoptimization_data();
+  DCHECK_EQ(2, deopt_data->length());
+  DCHECK(deopt_data->get(1)->IsSmi());
+  int val = Smi::cast(deopt_data->get(1))->value();
+  DCHECK_LE(0, val);
+  return static_cast<uint32_t>(val);
+}
+
+int FrameSummary::WasmCompiledFrameSummary::byte_offset() const {
+  return AbstractCode::cast(*code())->SourcePosition(code_offset());
+}
+
+FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
+    Isolate* isolate, Handle<WasmInstanceObject> instance,
+    uint32_t function_index, int byte_offset)
+    : WasmFrameSummary(isolate, WASM_INTERPRETED, instance, false),
+      function_index_(function_index),
+      byte_offset_(byte_offset) {}
+
+FrameSummary::~FrameSummary() {
+#define FRAME_SUMMARY_DESTR(kind, type, field, desc) \
+  case kind:                                         \
+    field.~type();                                   \
+    break;
+  switch (base_.kind()) {
+    FRAME_SUMMARY_VARIANTS(FRAME_SUMMARY_DESTR)
+    default:
+      UNREACHABLE();
+  }
+#undef FRAME_SUMMARY_DESTR
+}
+
+FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
+  DCHECK_LE(0, index);
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
+  DCHECK_GT(frames.length(), index);
+  return frames[index];
+}
+
+FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
+  List<FrameSummary> frames(1);
+  frame->Summarize(&frames);
+  DCHECK_EQ(1, frames.length());
   return frames.first();
 }
 
-void FrameSummary::Print() {
-  PrintF("receiver: ");
-  receiver_->ShortPrint();
-  PrintF("\nfunction: ");
-  function_->shared()->DebugName()->ShortPrint();
-  PrintF("\ncode: ");
-  abstract_code_->ShortPrint();
-  if (abstract_code_->IsCode()) {
-    Code* code = abstract_code_->GetCode();
-    if (code->kind() == Code::FUNCTION) PrintF(" UNOPT ");
-    if (code->kind() == Code::OPTIMIZED_FUNCTION) {
-      if (function()->shared()->asm_function()) {
-        DCHECK(CannotDeoptFromAsmCode(code, *function()));
-        PrintF(" ASM ");
-      } else {
-        PrintF(" OPT (approximate)");
-      }
-    }
-  } else {
-    PrintF(" BYTECODE ");
+#define FRAME_SUMMARY_DISPATCH(ret, name)        \
+  ret FrameSummary::name() const {               \
+    switch (base_.kind()) {                      \
+      case JAVA_SCRIPT:                          \
+        return java_script_summary_.name();      \
+      case WASM_COMPILED:                        \
+        return wasm_compiled_summary_.name();    \
+      case WASM_INTERPRETED:                     \
+        return wasm_interpreted_summary_.name(); \
+      default:                                   \
+        UNREACHABLE();                           \
+        return ret{};                            \
+    }                                            \
   }
-  PrintF("\npc: %d\n", code_offset_);
-}
+
+FRAME_SUMMARY_DISPATCH(Handle<Object>, receiver)
+FRAME_SUMMARY_DISPATCH(int, code_offset)
+FRAME_SUMMARY_DISPATCH(bool, is_constructor)
+FRAME_SUMMARY_DISPATCH(bool, is_subject_to_debugging)
+FRAME_SUMMARY_DISPATCH(Handle<Object>, script)
+FRAME_SUMMARY_DISPATCH(int, SourcePosition)
+FRAME_SUMMARY_DISPATCH(int, SourceStatementPosition)
+FRAME_SUMMARY_DISPATCH(Handle<String>, FunctionName)
+FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
+
+#undef FRAME_SUMMARY_DISPATCH
 
 void OptimizedFrame::Summarize(List<FrameSummary>* frames,
                                FrameSummary::Mode mode) const {
@@ -1269,8 +1402,9 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames,
         code_offset = bailout_id.ToInt();  // Points to current bytecode.
         abstract_code = AbstractCode::cast(shared_info->bytecode_array());
       }
-      FrameSummary summary(receiver, function, abstract_code, code_offset,
-                           is_constructor);
+      FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver,
+                                                   function, abstract_code,
+                                                   code_offset, is_constructor);
       frames->Add(summary);
       is_constructor = false;
     } else if (frame_opcode == Translation::CONSTRUCT_STUB_FRAME) {
@@ -1484,8 +1618,9 @@ void InterpretedFrame::Summarize(List<FrameSummary>* functions,
   DCHECK(functions->length() == 0);
   AbstractCode* abstract_code =
       AbstractCode::cast(function()->shared()->bytecode_array());
-  FrameSummary summary(receiver(), function(), abstract_code,
-                       GetBytecodeOffset(), IsConstructor());
+  FrameSummary::JavaScriptFrameSummary summary(
+      isolate(), receiver(), function(), abstract_code, GetBytecodeOffset(),
+      IsConstructor());
   functions->Add(summary);
 }
 
@@ -1572,9 +1707,7 @@ WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
 }
 
 uint32_t WasmCompiledFrame::function_index() const {
-  FixedArray* deopt_data = LookupCode()->deoptimization_data();
-  DCHECK(deopt_data->length() == 2);
-  return Smi::cast(deopt_data->get(1))->value();
+  return FrameSummary::GetSingle(this).AsWasmCompiled().function_index();
 }
 
 Script* WasmCompiledFrame::script() const {
@@ -1582,22 +1715,18 @@ Script* WasmCompiledFrame::script() const {
 }
 
 int WasmCompiledFrame::position() const {
-  int position = StandardFrame::position();
-  if (wasm_instance()->compiled_module()->is_asm_js()) {
-    Handle<WasmCompiledModule> compiled_module(
-        WasmInstanceObject::cast(wasm_instance())->compiled_module(),
-        isolate());
-    DCHECK_LE(0, position);
-    position = WasmCompiledModule::GetAsmJsSourcePosition(
-        compiled_module, function_index(), static_cast<uint32_t>(position),
-        at_to_number_conversion());
-  }
-  return position;
+  return FrameSummary::GetSingle(this).SourcePosition();
 }
 
 void WasmCompiledFrame::Summarize(List<FrameSummary>* functions,
                                   FrameSummary::Mode mode) const {
-  // TODO(clemensh): Implement.
+  DCHECK_EQ(0, functions->length());
+  Handle<Code> code(LookupCode(), isolate());
+  int offset = static_cast<int>(pc() - code->instruction_start());
+  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  FrameSummary::WasmCompiledFrameSummary summary(
+      isolate(), instance, code, offset, at_to_number_conversion());
+  functions->Add(summary);
 }
 
 bool WasmCompiledFrame::at_to_number_conversion() const {
@@ -1639,6 +1768,7 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
 void WasmInterpreterEntryFrame::Summarize(List<FrameSummary>* functions,
                                           FrameSummary::Mode mode) const {
   // TODO(clemensh): Implement this.
+  UNIMPLEMENTED();
 }
 
 Code* WasmInterpreterEntryFrame::unchecked_code() const {
@@ -1657,8 +1787,7 @@ Script* WasmInterpreterEntryFrame::script() const {
 }
 
 int WasmInterpreterEntryFrame::position() const {
-  // TODO(clemensh): Implement this.
-  return 0;
+  return FrameSummary::GetFirst(this).AsWasmInterpreted().SourcePosition();
 }
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
