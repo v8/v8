@@ -1858,12 +1858,19 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
   switch (instr->SpecialValue()) {
     case 4:
       if (instr->Bits(21, 20) == 2 && instr->Bits(11, 8) == 1 &&
-          instr->Bit(4) == 1) {
-        // vmov Qd, Qm
+          instr->Bit(6) == 1 && instr->Bit(4) == 1) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
-        out_buffer_pos_ +=
-            SNPrintF(out_buffer_ + out_buffer_pos_, "vmov q%d, q%d", Vd, Vm);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        if (Vm == Vn) {
+          // vmov Qd, Qm
+          out_buffer_pos_ +=
+              SNPrintF(out_buffer_ + out_buffer_pos_, "vmov q%d, q%d", Vd, Vm);
+        } else {
+          // vorr Qd, Qm, Qn.
+          out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                      "vorr q%d, q%d, q%d", Vd, Vn, Vm);
+        }
       } else if (instr->Bits(11, 8) == 8) {
         const char* op = (instr->Bit(4) == 0) ? "vadd" : "vtst";
         int size = kBitsPerByte * (1 << instr->Bits(21, 20));
@@ -1899,6 +1906,14 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         // vceq.f32 Qd, Qm, Qn.
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 1 && instr->Bits(21, 20) == 0 &&
+                 instr->Bit(6) == 1 && instr->Bit(4) == 1) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        // vand Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "vand q%d, q%d, q%d", Vd, Vn, Vm);
       } else if (instr->Bits(11, 8) == 0x3) {
         int size = kBitsPerByte * (1 << instr->Bits(21, 20));
         int Vd = instr->VFPDRegValue(kSimd128Precision);

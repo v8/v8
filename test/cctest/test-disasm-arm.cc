@@ -1025,6 +1025,10 @@ TEST(Neon) {
               "f3020154       veor q0, q1, q2");
       COMPARE(veor(q15, q0, q8),
               "f340e170       veor q15, q0, q8");
+      COMPARE(vand(q15, q0, q8),
+              "f240e170       vand q15, q0, q8");
+      COMPARE(vorr(q15, q0, q8),
+              "f260e170       vorr q15, q0, q8");
       COMPARE(vadd(q15, q0, q8),
               "f240ed60       vadd.f32 q15, q0, q8");
       COMPARE(vadd(Neon8, q0, q1, q2),

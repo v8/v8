@@ -3934,16 +3934,9 @@ void Assembler::vmov(NeonDataType dt, Register dst, DwVfpRegister src,
 }
 
 void Assembler::vmov(const QwNeonRegister dst, const QwNeonRegister src) {
-  DCHECK(IsEnabled(NEON));
   // Instruction details available in ARM DDI 0406C.b, A8-938.
-  DCHECK(VfpRegisterIsAvailable(dst));
-  DCHECK(VfpRegisterIsAvailable(src));
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vm, m;
-  src.split_code(&vm, &m);
-  emit(0x1E4U * B23 | d * B22 | 2 * B20 | vm * B16 | vd * B12 | B8 | m * B7 |
-       B6 | m * B5 | B4 | vm);
+  // vmov is encoded as vorr.
+  vorr(dst, src, src);
 }
 
 void Assembler::vmvn(const QwNeonRegister dst, const QwNeonRegister src) {
@@ -4138,19 +4131,82 @@ void Assembler::veor(DwVfpRegister dst, DwVfpRegister src1,
        B4 | vm);
 }
 
-void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
-                     QwNeonRegister src2) {
-  // Qd = veor(Qn, Qm) SIMD integer exclusive OR.
-  // Instruction details available in ARM DDI 0406C.b, A8.8.888.
-  DCHECK(IsEnabled(NEON));
+enum BinaryBitwiseOp { VAND, VBIC, VBIF, VBIT, VBSL, VEOR, VORR, VORN };
+
+static Instr EncodeNeonBinaryBitwiseOp(BinaryBitwiseOp op,
+                                       const QwNeonRegister dst,
+                                       const QwNeonRegister src1,
+                                       const QwNeonRegister src2) {
+  int op_encoding = 0;
+  switch (op) {
+    case VBIC:
+      op_encoding = 0x1 * B20;
+      break;
+    case VBIF:
+      op_encoding = B24 | 0x3 * B20;
+      break;
+    case VBIT:
+      op_encoding = B24 | 0x2 * B20;
+      break;
+    case VBSL:
+      op_encoding = B24 | 0x1 * B20;
+      break;
+    case VEOR:
+      op_encoding = B24;
+      break;
+    case VORR:
+      op_encoding = 0x2 * B20;
+      break;
+    case VORN:
+      op_encoding = 0x3 * B20;
+      break;
+    case VAND:
+      // op_encoding is 0.
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
   int vd, d;
   dst.split_code(&vd, &d);
   int vn, n;
   src1.split_code(&vn, &n);
   int vm, m;
   src2.split_code(&vm, &m);
-  emit(0x1E6U * B23 | d * B22 | vn * B16 | vd * B12 | B8 | n * B7 | B6 |
-       m * B5 | B4 | vm);
+  return 0x1E4U * B23 | op_encoding | d * B22 | vn * B16 | vd * B12 | B8 |
+         n * B7 | B6 | m * B5 | B4 | vm;
+}
+
+void Assembler::vand(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Qd = vand(Qn, Qm) SIMD AND.
+  // Instruction details available in ARM DDI 0406C.b, A8.8.836.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VAND, dst, src1, src2));
+}
+
+void Assembler::vbsl(QwNeonRegister dst, const QwNeonRegister src1,
+                     const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vbsl(Qn, Qm) SIMD bitwise select.
+  // Instruction details available in ARM DDI 0406C.b, A8-844.
+  emit(EncodeNeonBinaryBitwiseOp(VBSL, dst, src1, src2));
+}
+
+void Assembler::veor(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Qd = veor(Qn, Qm) SIMD exclusive OR.
+  // Instruction details available in ARM DDI 0406C.b, A8.8.888.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VEOR, dst, src1, src2));
+}
+
+void Assembler::vorr(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  // Qd = vorr(Qn, Qm) SIMD OR.
+  // Instruction details available in ARM DDI 0406C.b, A8.8.976.
+  DCHECK(IsEnabled(NEON));
+  emit(EncodeNeonBinaryBitwiseOp(VORR, dst, src1, src2));
 }
 
 void Assembler::vadd(QwNeonRegister dst, const QwNeonRegister src1,
@@ -4409,22 +4465,6 @@ void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst,
   // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
   // Instruction details available in ARM DDI 0406C.b, A8-852.
   emit(EncodeNeonCompareOp(dt, dst, src1, src2, gt));
-}
-
-void Assembler::vbsl(QwNeonRegister dst, const QwNeonRegister src1,
-                     const QwNeonRegister src2) {
-  DCHECK(IsEnabled(NEON));
-  // Qd = vbsl(Qn, Qm) SIMD bitwise select.
-  // Instruction details available in ARM DDI 0406C.b, A8-844.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vn, n;
-  src1.split_code(&vn, &n);
-  int vm, m;
-  src2.split_code(&vm, &m);
-  int op = 1;  // vbsl
-  emit(0x1E6U * B23 | d * B22 | op * B20 | vn * B16 | vd * B12 | 0x1 * B8 |
-       n * B7 | B6 | m * B5 | B4 | vm);
 }
 
 void Assembler::vext(QwNeonRegister dst, const QwNeonRegister src1,
