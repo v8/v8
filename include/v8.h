@@ -6779,8 +6779,10 @@ class V8_EXPORT Isolate {
    * garbage collection types it is sufficient to provide object groups
    * for partially dependent handles only.
    */
-  template<typename T> void SetObjectGroupId(const Persistent<T>& object,
-                                             UniqueId id);
+  template <typename T>
+  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
+                    void SetObjectGroupId(const Persistent<T>& object,
+                                          UniqueId id));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6789,8 +6791,10 @@ class V8_EXPORT Isolate {
    * are removed. It is intended to be used in the before-garbage-collection
    * callback function.
    */
-  template<typename T> void SetReferenceFromGroup(UniqueId id,
-                                                  const Persistent<T>& child);
+  template <typename T>
+  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
+                    void SetReferenceFromGroup(UniqueId id,
+                                               const Persistent<T>& child));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6798,8 +6802,10 @@ class V8_EXPORT Isolate {
    * too. After each garbage collection, all implicit references are removed. It
    * is intended to be used in the before-garbage-collection callback function.
    */
-  template<typename T, typename S>
-  void SetReference(const Persistent<T>& parent, const Persistent<S>& child);
+  template <typename T, typename S>
+  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
+                    void SetReference(const Persistent<T>& parent,
+                                      const Persistent<S>& child));
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);

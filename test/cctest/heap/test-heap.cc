@@ -6200,44 +6200,6 @@ TEST(SharedFunctionInfoIterator) {
   CHECK_EQ(0, sfi_count);
 }
 
-
-template <typename T>
-static UniqueId MakeUniqueId(const Persistent<T>& p) {
-  return UniqueId(reinterpret_cast<uintptr_t>(*v8::Utils::OpenPersistent(p)));
-}
-
-
-TEST(Regress519319) {
-  if (!FLAG_incremental_marking) return;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Heap* heap = CcTest::heap();
-  LocalContext context;
-
-  v8::Persistent<Value> parent;
-  v8::Persistent<Value> child;
-
-  parent.Reset(isolate, v8::Object::New(isolate));
-  child.Reset(isolate, v8::Object::New(isolate));
-
-  heap::SimulateFullSpace(heap->old_space());
-  CcTest::CollectGarbage(OLD_SPACE);
-  {
-    UniqueId id = MakeUniqueId(parent);
-    isolate->SetObjectGroupId(parent, id);
-    isolate->SetReferenceFromGroup(id, child);
-  }
-  // The CollectGarbage call above starts sweeper threads.
-  // The crash will happen if the following two functions
-  // are called before sweeping finishes.
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                i::GarbageCollectionReason::kTesting);
-  heap->FinalizeIncrementalMarkingIfComplete(
-      i::GarbageCollectionReason::kTesting);
-}
-
-
 HEAP_TEST(Regress587004) {
   FLAG_concurrent_sweeping = false;
 #ifdef VERIFY_HEAP
