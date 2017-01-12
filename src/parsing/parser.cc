@@ -2839,6 +2839,7 @@ class InitializerRewriter final
     if (to_rewrite->is_rewritten()) return;
     Parser::PatternRewriter::RewriteDestructuringAssignment(parser_, to_rewrite,
                                                             scope_);
+    AstTraversalVisitor::VisitRewritableExpression(to_rewrite);
   }
 
   // Code in function literals does not need to be eagerly rewritten, it will be
