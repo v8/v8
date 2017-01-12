@@ -145,6 +145,7 @@ enum Opcode {
   STFDU = 55 << 26,    // Store Floating-Point Double with Update
   LD = 58 << 26,       // Load Double Word
   EXT3 = 59 << 26,     // Extended code set 3
+  EXT6 = 60 << 26,     // Extended code set 6
   STD = 62 << 26,      // Store Double Word (optionally with Update)
   EXT4 = 63 << 26      // Extended code set 4
 };
@@ -314,10 +315,37 @@ enum OpcodeExt5 {
   RLDCR = 9 << 1   // Rotate Left Double Word then Clear Right
 };
 
+// Bits 10-3
+#define XX3_OPCODE_LIST(V)                                   \
+  V(xsaddsp, XSADDSP, 0 << 3)   /* VSX Scalar Add SP */      \
+  V(xssubsp, XSSUBSP, 8 << 3)   /* VSX Scalar Subtract SP */ \
+  V(xsmulsp, XSMULSP, 16 << 3)  /* VSX Scalar Multiply SP */ \
+  V(xsdivsp, XSDIVSP, 24 << 3)  /* VSX Scalar Divide SP */   \
+  V(xsadddp, XSADDDP, 32 << 3)  /* VSX Scalar Add DP */      \
+  V(xssubdp, XSSUBDP, 40 << 3)  /* VSX Scalar Subtract DP */ \
+  V(xsmuldp, XSMULDP, 48 << 3)  /* VSX Scalar Multiply DP */ \
+  V(xsdivdp, XSDIVDP, 56 << 3)  /* VSX Scalar Divide DP */   \
+  V(xsmaxdp, XSMAXDP, 160 << 3) /* VSX Scalar Maximum DP */  \
+  V(xsmindp, XSMINDP, 168 << 3) /* VSX Scalar Minimum DP */
+
+// Bits 10-2
+#define XX2_OPCODE_LIST(V)                                          \
+  V(XSCVDPSP, XSCVDPSP, 265 << 2) /* VSX Scalar Convert DP to SP */ \
+  V(XSCVSPDP, XSCVSPDP, 329 << 2) /* VSX Scalar Convert SP to DP */
+
+enum OpcodeExt6 {
+#define DECLARE_OPCODES(name, opcode_name, opcode_value) \
+  opcode_name = opcode_value,
+  XX3_OPCODE_LIST(DECLARE_OPCODES) XX2_OPCODE_LIST(DECLARE_OPCODES)
+#undef DECLARE_OPCODES
+};
+
 // Instruction encoding bits and masks.
 enum {
   // Instruction encoding bit
   B1 = 1 << 1,
+  B2 = 1 << 2,
+  B3 = 1 << 3,
   B4 = 1 << 4,
   B5 = 1 << 5,
   B7 = 1 << 7,

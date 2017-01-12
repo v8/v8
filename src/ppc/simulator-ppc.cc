@@ -3295,6 +3295,51 @@ void Simulator::ExecuteExt5(Instruction* instr) {
 }
 #endif
 
+void Simulator::ExecuteExt6(Instruction* instr) {
+  switch (instr->Bits(10, 3) << 3) {
+    case XSADDDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val + frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case XSSUBDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val - frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case XSMULDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val * frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case XSDIVDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val / frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+  }
+  UNIMPLEMENTED();  // Not used by V8.
+}
 
 void Simulator::ExecuteGeneric(Instruction* instr) {
   int opcode = instr->OpcodeValue() << 26;
@@ -3810,6 +3855,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #endif
+    case EXT6: {
+      ExecuteExt6(instr);
+      break;
+    }
 
     default: {
       UNIMPLEMENTED();

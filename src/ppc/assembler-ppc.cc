@@ -79,6 +79,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.part() == base::CPU::PPC_POWER7 ||
       cpu.part() == base::CPU::PPC_POWER8) {
     supported_ |= (1u << ISELECT);
+    supported_ |= (1u << VSX);
   }
 #if V8_OS_LINUX
   if (!(cpu.part() == base::CPU::PPC_G5 || cpu.part() == base::CPU::PPC_G4)) {
@@ -96,6 +97,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << FPU);
   supported_ |= (1u << LWSYNC);
   supported_ |= (1u << ISELECT);
+  supported_ |= (1u << VSX);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
 #endif
@@ -646,6 +648,14 @@ void Assembler::xo_form(Instr instr, Register rt, Register ra, Register rb,
   emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | o | r);
 }
 
+void Assembler::xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
+                         DoubleRegister b) {
+  int AX = ((a.code() & 0x20) >> 5) & 0x1;
+  int BX = ((b.code() & 0x20) >> 5) & 0x1;
+  int TX = ((t.code() & 0x20) >> 5) & 0x1;
+  emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 | (b.code()
+       & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
+}
 
 void Assembler::md_form(Instr instr, Register ra, Register rs, int shift,
                         int maskbit, RCBit r) {
@@ -2327,6 +2337,24 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
        frc.code() * B6 | rc);
 }
 
+// Support for VSX instructions
+
+void Assembler::xsadddp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSADDDP, frt, fra, frb);
+}
+void Assembler::xssubdp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSSUBDP, frt, fra, frb);
+}
+void Assembler::xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSDIVDP, frt, fra, frb);
+}
+void Assembler::xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
+                        const DoubleRegister frb) {
+  xx3_form(EXT6 | XSMULDP, frt, fra, frb);
+}
 
 // Pseudo instructions.
 void Assembler::nop(int type) {

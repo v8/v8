@@ -1990,16 +1990,32 @@ void LCodeGen::DoArithmeticD(LArithmeticD* instr) {
   DoubleRegister result = ToDoubleRegister(instr->result());
   switch (instr->op()) {
     case Token::ADD:
-      __ fadd(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xsadddp(result, left, right);
+      } else {
+        __ fadd(result, left, right);
+      }
       break;
     case Token::SUB:
-      __ fsub(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xssubdp(result, left, right);
+      } else {
+        __ fsub(result, left, right);
+      }
       break;
     case Token::MUL:
-      __ fmul(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xsmuldp(result, left, right);
+      } else {
+        __ fmul(result, left, right);
+      }
       break;
     case Token::DIV:
-      __ fdiv(result, left, right);
+      if (CpuFeatures::IsSupported(VSX)) {
+        __ xsdivdp(result, left, right);
+      } else {
+        __ fdiv(result, left, right);
+      }
       break;
     case Token::MOD: {
       __ PrepareCallCFunction(0, 2, scratch0());

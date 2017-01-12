@@ -1104,6 +1104,17 @@ class Assembler : public AssemblerBase {
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
 
+  // Support for VSX instructions
+
+  void xsadddp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frb);
+  void xssubdp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frb);
+  void xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frb);
+  void xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
+               const DoubleRegister frc);
+
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -1406,6 +1417,8 @@ class Assembler : public AssemblerBase {
   void x_form(Instr instr, Register ra, Register rs, Register rb, RCBit r);
   void xo_form(Instr instr, Register rt, Register ra, Register rb, OEBit o,
                RCBit r);
+  void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
+                DoubleRegister b);
   void md_form(Instr instr, Register ra, Register rs, int shift, int maskbit,
                RCBit r);
   void mds_form(Instr instr, Register ra, Register rs, Register rb, int maskbit,
