@@ -41,7 +41,6 @@ namespace base = v8::base;
 namespace {
 
 static const int kInvalidSigIndex = -1;
-static const int kPlaceholderMarker = 1000000000;
 
 byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
@@ -148,52 +147,12 @@ void RelocateGlobals(Handle<FixedArray> code_table, Address old_start,
   }
 }
 
-Handle<Code> CreatePlaceholder(Factory* factory, uint32_t index,
-                               Code::Kind kind) {
-  // Create a placeholder code object and encode the corresponding index in
-  // the {constant_pool_offset} field of the code object.
-  // TODO(titzer): instead of placeholders, use a reloc_info mode.
-  static byte buffer[] = {0, 0, 0, 0};  // fake instructions.
-  static CodeDesc desc = {
+Handle<Code> CreatePlaceholder(Factory* factory, Code::Kind kind) {
+  byte buffer[] = {0, 0, 0, 0};  // fake instructions.
+  CodeDesc desc = {
       buffer, arraysize(buffer), arraysize(buffer), 0, 0, nullptr, 0, nullptr};
-  Handle<Code> code = factory->NewCode(desc, Code::KindField::encode(kind),
-                                       Handle<Object>::null());
-  code->set_constant_pool_offset(static_cast<int>(index) + kPlaceholderMarker);
-  return code;
-}
-
-bool LinkFunction(Handle<Code> unlinked,
-                  std::vector<Handle<Code>>& code_table) {
-  bool modified = false;
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-  AllowDeferredHandleDereference embedding_raw_address;
-  for (RelocIterator it(*unlinked, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsCodeTarget(mode)) {
-      Code* target =
-          Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      if (target->constant_pool_offset() < kPlaceholderMarker) continue;
-      switch (target->kind()) {
-        case Code::WASM_FUNCTION:        // fall through
-        case Code::WASM_TO_JS_FUNCTION:  // fall through
-        case Code::JS_TO_WASM_FUNCTION: {
-          // Patch direct calls to placeholder code objects.
-          uint32_t index = target->constant_pool_offset() - kPlaceholderMarker;
-          Handle<Code> new_target = code_table[index];
-          if (target != *new_target) {
-            it.rinfo()->set_target_address(new_target->instruction_start(),
-                                           UPDATE_WRITE_BARRIER,
-                                           SKIP_ICACHE_FLUSH);
-            modified = true;
-          }
-          break;
-        }
-        default:
-          break;
-      }
-    }
-  }
-  return modified;
+  return factory->NewCode(desc, Code::KindField::encode(kind),
+                          Handle<Object>::null());
 }
 
 void FlushICache(Isolate* isolate, Handle<FixedArray> code_table) {
@@ -550,7 +509,8 @@ void PatchDirectCallsAndContext(Handle<FixedArray> new_functions,
         continue;
       ++num_wasm_calls;
       Code* new_code = Code::cast(new_functions->get(exp.index));
-      DCHECK_EQ(kind, new_code->kind());
+      DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
+             new_code->kind() == Code::WASM_TO_JS_FUNCTION);
       it.rinfo()->set_target_address(new_code->instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     }
@@ -954,12 +914,11 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
       factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
 
   // Initialize the code table with placeholders.
+  Handle<Code> code_placeholder =
+      CreatePlaceholder(factory, Code::WASM_FUNCTION);
   for (uint32_t i = 0; i < functions.size(); ++i) {
-    Code::Kind kind = Code::WASM_FUNCTION;
-    if (i < num_imported_functions) kind = Code::WASM_TO_JS_FUNCTION;
-    Handle<Code> placeholder = CreatePlaceholder(factory, i, kind);
-    code_table->set(static_cast<int>(i), *placeholder);
-    temp_instance.function_code[i] = placeholder;
+    code_table->set(static_cast<int>(i), *code_placeholder);
+    temp_instance.function_code[i] = code_placeholder;
   }
 
   isolate->counters()->wasm_functions_per_module()->AddSample(
@@ -988,18 +947,6 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
     Code* code = *temp_instance.function_code[i];
     code_table->set(static_cast<int>(i), code);
     RecordStats(isolate, code);
-  }
-
-  // Link the functions in the module.
-  for (size_t i = FLAG_skip_compiling_wasm_funcs;
-       i < temp_instance.function_code.size(); ++i) {
-    Handle<Code> code = temp_instance.function_code[i];
-    bool modified = LinkFunction(code, temp_instance.function_code);
-    if (modified) {
-      // TODO(mtrofin): do we need to flush the cache here?
-      Assembler::FlushICache(isolate, code->instruction_start(),
-                             code->instruction_size());
-    }
   }
 
   // Create heap objects for script, module bytes and asm.js offset table to be
