@@ -252,8 +252,10 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
         // the empty literals array here.
         array->set(index, *factory->empty_literals_array(), SKIP_WRITE_BARRIER);
       } else {
-        Handle<FixedArray> value = factory->NewFixedArray(length);
-        array->set(index, *value);
+        // TODO(mvstanton): Create the array.
+        // Handle<FixedArray> value = factory->NewFixedArray(length);
+        // array->set(index, *value);
+        array->set(index, *factory->empty_literals_array(), SKIP_WRITE_BARRIER);
       }
     }
     i += entry_size;
@@ -374,10 +376,10 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           break;
         }
         case FeedbackVectorSlotKind::CREATE_CLOSURE: {
-          // Clear the literals in the embedded LiteralsArray.
-          LiteralsArray* literals = LiteralsArray::cast(Get(slot));
-          for (int i = 0; i < literals->literals_count(); i++) {
-            literals->set_literal_undefined(i);
+          // Fill the array with undefined.
+          FixedArray* array = FixedArray::cast(Get(slot));
+          for (int i = 1; i < array->length(); i++) {
+            array->set_undefined(i);
           }
           break;
         }
