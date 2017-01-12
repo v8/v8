@@ -1851,7 +1851,13 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
 
 Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
   Handle<Map> map = isolate()->js_module_namespace_map();
-  return Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map));
+  Handle<JSModuleNamespace> module_namespace(
+      Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map)));
+  FieldIndex index = FieldIndex::ForDescriptor(
+      *map, JSModuleNamespace::kToStringTagFieldIndex);
+  Handle<String> to_string_value = NewStringFromAsciiChecked("Module");
+  module_namespace->FastPropertyAtPut(index, *to_string_value);
+  return module_namespace;
 }
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(

@@ -2583,11 +2583,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {  // Install @@toStringTag.
       PropertyAttributes attribs =
           static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY);
-      Descriptor d = Descriptor::DataConstant(
-          factory->to_string_tag_symbol(),
-          factory->NewStringFromAsciiChecked("Module"), attribs);
+      Descriptor d =
+          Descriptor::DataField(factory->to_string_tag_symbol(),
+                                JSModuleNamespace::kToStringTagFieldIndex,
+                                attribs, Representation::Tagged());
       map->AppendDescriptor(&d);
     }
+
+    map->SetInObjectProperties(JSModuleNamespace::kInObjectFieldCount);
   }
 
   {  // -- I t e r a t o r R e s u l t

@@ -1279,9 +1279,9 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
 }
 
 void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "JSModuleNamespace");
+  JSObjectPrintHeader(os, this, "JSModuleNamespace");
   os << "\n - module: " << Brief(module());
-  os << "\n";
+  JSObjectPrintBody(os, this);
 }
 
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT

@@ -7962,8 +7962,16 @@ class JSModuleNamespace : public JSObject {
   // schedule an exception and return Nothing.
   MUST_USE_RESULT MaybeHandle<Object> GetExport(Handle<String> name);
 
+  // In-object fields.
+  enum {
+    kToStringTagFieldIndex,
+    kInObjectFieldCount,
+  };
+
   static const int kModuleOffset = JSObject::kHeaderSize;
-  static const int kSize = kModuleOffset + kPointerSize;
+  static const int kHeaderSize = kModuleOffset + kPointerSize;
+
+  static const int kSize = kHeaderSize + kPointerSize * kInObjectFieldCount;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSModuleNamespace);
