@@ -88,8 +88,6 @@ class Descriptor final BASE_EMBEDDED {
   friend class MapUpdater;
 };
 
-std::ostream& operator<<(std::ostream& os, const Descriptor& d);
-
 }  // namespace internal
 }  // namespace v8
 

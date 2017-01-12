@@ -3247,7 +3247,7 @@ class DescriptorArray: public FixedArray {
   inline PropertyDetails GetDetails(int descriptor_number);
   inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
-  FieldType* GetFieldType(int descriptor_number);
+  inline FieldType* GetFieldType(int descriptor_number);
   inline Object* GetConstant(int descriptor_number);
   inline Object* GetCallbacksObject(int descriptor_number);
   inline AccessorDescriptor* GetCallbacks(int descriptor_number);
@@ -3330,6 +3330,9 @@ class DescriptorArray: public FixedArray {
 
   // Print all the descriptors.
   void PrintDescriptors(std::ostream& os);  // NOLINT
+
+  void PrintDescriptorDetails(std::ostream& os, int descriptor,
+                              PropertyDetails::PrintMode mode);
 #endif
 
 #ifdef DEBUG
@@ -6184,7 +6187,8 @@ class Map: public HeapObject {
                                           Descriptor* descriptor,
                                           TransitionFlag flag);
 
-  static Handle<Object> WrapType(Handle<FieldType> type);
+  static Handle<Object> WrapFieldType(Handle<FieldType> type);
+  static FieldType* UnwrapFieldType(Object* wrapped_type);
 
   MUST_USE_RESULT static MaybeHandle<Map> CopyWithField(
       Handle<Map> map, Handle<Name> name, Handle<FieldType> type,

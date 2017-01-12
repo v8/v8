@@ -434,7 +434,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           old_details.representation(), old_field_type, next_representation,
           target_field_type, isolate_);
 
-      Handle<Object> wrapped_type(Map::WrapType(next_field_type));
+      Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));
       Descriptor d;
       if (next_kind == kData) {
         d = Descriptor::DataField(key, current_offset, wrapped_type,
@@ -476,7 +476,7 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), next_representation);
 
-      Handle<Object> wrapped_type(Map::WrapType(old_field_type));
+      Handle<Object> wrapped_type(Map::WrapFieldType(old_field_type));
       Descriptor d;
       if (next_kind == kData) {
         d = Descriptor::DataField(key, current_offset, wrapped_type,

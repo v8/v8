@@ -3128,6 +3128,12 @@ int DescriptorArray::GetFieldIndex(int descriptor_number) {
   return GetDetails(descriptor_number).field_index();
 }
 
+FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
+  DCHECK(GetDetails(descriptor_number).location() == kField);
+  Object* wrapped_type = GetValue(descriptor_number);
+  return Map::UnwrapFieldType(wrapped_type);
+}
+
 Object* DescriptorArray::GetConstant(int descriptor_number) {
   return GetValue(descriptor_number);
 }

@@ -336,10 +336,9 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       descs->GetKey(i)->NamePrint(os);
       os << ": ";
       PropertyDetails details = descs->GetDetails(i);
-      FieldIndex field_index;
       switch (details.location()) {
         case kField: {
-          field_index = FieldIndex::ForDescriptor(map(), i);
+          FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
           if (IsUnboxedDoubleField(field_index)) {
             os << "<unboxed double> " << RawFastDoublePropertyAt(field_index);
           } else {
@@ -351,16 +350,8 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
           os << Brief(descs->GetValue(i));
           break;
       }
-      os << " (" << (details.kind() == kData ? "data" : "accessor");
-      switch (details.location()) {
-        case kField: {
-          os << " field at offset " << field_index.property_index();
-          break;
-        }
-        case kDescriptor:
-          break;
-      }
-      os << ")";
+      os << " ";
+      details.PrintAsFastTo(os, PropertyDetails::kForProperties);
     }
   } else if (IsJSGlobalObject()) {
     global_dictionary()->Print(os);
@@ -1146,7 +1137,8 @@ void Cell::CellPrint(std::ostream& os) {  // NOLINT
 void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyCell");
   os << "\n - value: " << Brief(value());
-  os << "\n - details: " << property_details();
+  os << "\n - details: ";
+  property_details().PrintAsSlowTo(os);
   PropertyCellType cell_type = property_details().cell_type();
   os << "\n - cell_type: ";
   if (value()->IsTheHole(GetIsolate())) {
@@ -1588,15 +1580,43 @@ void DescriptorArray::Print() {
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
   HandleScope scope(GetIsolate());
-  os << "Descriptor array #" << number_of_descriptors();
+  os << "Descriptor array #" << number_of_descriptors() << ":";
   for (int i = 0; i < number_of_descriptors(); i++) {
-    Descriptor desc;
-    Get(i, &desc);
-    os << "\n " << i << ": " << desc;
+    Name* key = GetKey(i);
+    os << "\n  [" << i << "]: ";
+#ifdef OBJECT_PRINT
+    key->NamePrint(os);
+#else
+    key->ShortPrint(os);
+#endif
+    os << " ";
+    PrintDescriptorDetails(os, i, PropertyDetails::kPrintFull);
   }
   os << "\n";
 }
 
+void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
+                                             PropertyDetails::PrintMode mode) {
+  PropertyDetails details = GetDetails(descriptor);
+  details.PrintAsFastTo(os, mode);
+  os << " @ ";
+  Object* value = GetValue(descriptor);
+  switch (details.location()) {
+    case kField: {
+      FieldType* field_type = Map::UnwrapFieldType(value);
+      field_type->PrintTo(os);
+      break;
+    }
+    case kDescriptor:
+      os << Brief(value);
+      if (value->IsAccessorPair()) {
+        AccessorPair* pair = AccessorPair::cast(value);
+        os << "(get: " << Brief(pair->getter())
+           << ", set: " << Brief(pair->setter()) << ")";
+      }
+      break;
+  }
+}
 
 void TransitionArray::Print() {
   OFStream os(stdout);
@@ -1634,20 +1654,13 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
     } else if (key == heap->strict_function_transition_symbol()) {
       os << " (transition to strict function)";
     } else {
-      PropertyDetails details = GetTargetDetails(key, target);
+      DCHECK(!IsSpecialTransition(key));
       os << "(transition to ";
-      if (details.location() == kDescriptor) {
-        os << "immutable ";
-      }
-      os << (details.kind() == kData ? "data" : "accessor");
-      if (details.location() == kDescriptor) {
-        Object* value =
-            target->instance_descriptors()->GetValue(target->LastAdded());
-        os << " " << Brief(value);
-      } else {
-        os << " field";
-      }
-      os << ", attrs: " << details.attributes() << ")";
+      int descriptor = target->LastAdded();
+      DescriptorArray* descriptors = target->instance_descriptors();
+      descriptors->PrintDescriptorDetails(os, descriptor,
+                                          PropertyDetails::kForTransitions);
+      os << ")";
     }
     os << " -> " << Brief(target);
   }

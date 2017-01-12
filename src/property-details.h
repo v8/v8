@@ -375,6 +375,19 @@ class PropertyDetails BASE_EMBEDDED {
   void Print(bool dictionary_mode);
 #endif
 
+  enum PrintMode {
+    kPrintAttributes = 1 << 0,
+    kPrintFieldIndex = 1 << 1,
+    kPrintRepresentation = 1 << 2,
+    kPrintPointer = 1 << 3,
+
+    kForProperties = kPrintFieldIndex,
+    kForTransitions = kPrintAttributes,
+    kPrintFull = -1,
+  };
+  void PrintAsSlowTo(std::ostream& out);
+  void PrintAsFastTo(std::ostream& out, PrintMode mode = kPrintFull);
+
  private:
   PropertyDetails(int value, int pointer) {
     value_ = DescriptorPointer::update(value, pointer);
@@ -393,7 +406,6 @@ class PropertyDetails BASE_EMBEDDED {
 
 std::ostream& operator<<(std::ostream& os,
                          const PropertyAttributes& attributes);
-std::ostream& operator<<(std::ostream& os, const PropertyDetails& details);
 }  // namespace internal
 }  // namespace v8
 
