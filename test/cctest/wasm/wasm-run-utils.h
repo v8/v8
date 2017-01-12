@@ -85,6 +85,7 @@ class TestingModule : public ModuleEnv {
                                               Vector<const byte>::empty()),
                                zone->allocator())
                          : nullptr) {
+    WasmJs::Install(isolate_);
     instance->module = &module_;
     instance->globals_start = global_data;
     module_.globals_size = kMaxGlobalsSize;
@@ -223,7 +224,6 @@ class TestingModule : public ModuleEnv {
     // Wrap the code so it can be called as a JS function.
     Handle<WasmInstanceObject> instance_obj(0, isolate_);
     Handle<Code> code = instance->function_code[index];
-    WasmJs::InstallWasmMapsIfNeeded(isolate_, isolate_->native_context());
     Handle<Code> ret_code =
         compiler::CompileJSToWasmWrapper(isolate_, &module_, code, index);
     Handle<JSFunction> ret = WasmExportedFunction::New(

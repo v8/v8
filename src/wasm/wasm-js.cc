@@ -71,7 +71,7 @@ RawBuffer GetRawBufferSource(
     end = start + array->ByteLength();
 
     if (start == nullptr || end == start) {
-      thrower->TypeError("ArrayBuffer argument is empty");
+      thrower->CompileError("ArrayBuffer argument is empty");
     }
   } else {
     thrower->TypeError("Argument 0 must be an ArrayBuffer or Uint8Array");
@@ -203,23 +203,31 @@ MaybeLocal<Value> InstantiateModuleImpl(
 
   MaybeLocal<Value> nothing;
   i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
-  if (args.Length() > kFfiOffset && args[kFfiOffset]->IsObject()) {
+  if (args.Length() > kFfiOffset && !args[kFfiOffset]->IsUndefined()) {
+    if (!args[kFfiOffset]->IsObject()) {
+      thrower->TypeError("Argument %d must be an object", kFfiOffset);
+      return nothing;
+    }
     Local<Object> obj = Local<Object>::Cast(args[kFfiOffset]);
     ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
   }
 
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  if (args.Length() > kMemOffset && args[kMemOffset]->IsObject()) {
-    Local<Object> obj = Local<Object>::Cast(args[kMemOffset]);
-    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-    if (i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
-      memory = i::Handle<i::JSArrayBuffer>(
-          i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
-    } else {
+  if (args.Length() > kMemOffset && !args[kMemOffset]->IsUndefined()) {
+    if (!args[kMemOffset]->IsObject()) {
       thrower->TypeError("Argument %d must be a WebAssembly.Memory",
                          kMemOffset);
       return nothing;
     }
+    Local<Object> obj = Local<Object>::Cast(args[kMemOffset]);
+    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
+    if (!i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
+      thrower->TypeError("Argument %d must be a WebAssembly.Memory",
+                         kMemOffset);
+      return nothing;
+    }
+    memory = i::Handle<i::JSArrayBuffer>(
+        i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
   }
   i::MaybeHandle<i::JSObject> instance = i::wasm::WasmModule::Instantiate(
       i_isolate, thrower, i_module_obj, ffi, memory);
@@ -292,7 +300,7 @@ void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(Utils::ToLocal(exports));
 }
 
-void WebAssemblyInstanceCtor(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -722,20 +730,39 @@ Handle<JSFunction> InstallGetter(Isolate* isolate, Handle<JSObject> object,
   return function;
 }
 
-void WasmJs::InstallWasmModuleSymbolIfNeeded(Isolate* isolate,
-                                             Handle<JSGlobalObject> global,
-                                             Handle<Context> context) {
-  if (!context->get(Context::WASM_MODULE_SYM_INDEX)->IsSymbol() ||
-      !context->get(Context::WASM_INSTANCE_SYM_INDEX)->IsSymbol()) {
-    InstallWasmMapsIfNeeded(isolate, isolate->native_context());
-    InstallWasmConstructors(isolate, isolate->global_object(),
-                            isolate->native_context());
-  }
-}
+void WasmJs::Install(Isolate* isolate) {
+  Handle<JSGlobalObject> global = isolate->global_object();
+  Handle<Context> context(global->native_context(), isolate);
+  // TODO(titzer): once FLAG_expose_wasm is gone, this should become a DCHECK.
+  if (context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) return;
 
-void WasmJs::InstallWasmConstructors(Isolate* isolate,
-                                     Handle<JSGlobalObject> global,
-                                     Handle<Context> context) {
+  // Install Maps.
+
+  // TODO(titzer): Also make one for strict mode functions?
+  Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
+
+  InstanceType instance_type = prev_map->instance_type();
+  int internal_fields = JSObject::GetInternalFieldCount(*prev_map);
+  CHECK_EQ(0, internal_fields);
+  int pre_allocated =
+      prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
+  int instance_size = 0;
+  int in_object_properties = 0;
+  int wasm_internal_fields = internal_fields + 1  // module instance object
+      + 1                  // function arity
+      + 1;                 // function signature
+  JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_internal_fields,
+                                          0, &instance_size,
+                                          &in_object_properties);
+
+  int unused_property_fields = in_object_properties - pre_allocated;
+  Handle<Map> map = Map::CopyInitialMap(
+      prev_map, instance_size, in_object_properties, unused_property_fields);
+
+  context->set_wasm_function_map(*map);
+
+  // Install symbols.
+
   Factory* factory = isolate->factory();
   // Create private symbols.
   Handle<Symbol> module_sym = factory->NewPrivateSymbol();
@@ -750,7 +777,9 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   Handle<Symbol> memory_sym = factory->NewPrivateSymbol();
   context->set_wasm_memory_sym(*memory_sym);
 
-  // Bind the WebAssembly object.
+  // Install the JS API.
+
+  // Setup WebAssembly
   Handle<String> name = v8_str(isolate, "WebAssembly");
   Handle<JSFunction> cons = factory->NewFunction(name);
   JSFunction::SetInstancePrototype(
@@ -775,10 +804,10 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   context->set_wasm_module_constructor(*module_constructor);
   Handle<JSObject> module_proto =
       factory->NewJSObject(module_constructor, TENURED);
-  i::Handle<i::Map> map = isolate->factory()->NewMap(
+  i::Handle<i::Map> module_map = isolate->factory()->NewMap(
       i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmModuleObject::kFieldCount * i::kPointerSize);
-  JSFunction::SetInitialMap(module_constructor, map, module_proto);
+  JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
   JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
                         module_constructor, DONT_ENUM);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
@@ -788,8 +817,17 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
 
   // Setup Instance
   Handle<JSFunction> instance_constructor =
-      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstanceCtor, 1);
+      InstallFunc(isolate, webassembly, "Instance", WebAssemblyInstance, 1);
   context->set_wasm_instance_constructor(*instance_constructor);
+  Handle<JSObject> instance_proto =
+      factory->NewJSObject(instance_constructor, TENURED);
+  i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
+      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+                             WasmInstanceObject::kFieldCount * i::kPointerSize);
+  JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
+  JSObject::AddProperty(instance_proto,
+                        isolate->factory()->constructor_string(),
+                        instance_constructor, DONT_ENUM);
 
   // Setup Table
   Handle<JSFunction> table_constructor =
@@ -797,10 +835,10 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   context->set_wasm_table_constructor(*table_constructor);
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
-  map = isolate->factory()->NewMap(
+  i::Handle<i::Map> table_map = isolate->factory()->NewMap(
       i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmTableObject::kFieldCount * i::kPointerSize);
-  JSFunction::SetInitialMap(table_constructor, map, table_proto);
+  JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
                         table_constructor, DONT_ENUM);
   InstallGetter(isolate, table_proto, "length", WebAssemblyTableGetLength);
@@ -814,10 +852,10 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
   context->set_wasm_memory_constructor(*memory_constructor);
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
-  map = isolate->factory()->NewMap(
+  i::Handle<i::Map> memory_map = isolate->factory()->NewMap(
       i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmMemoryObject::kFieldCount * i::kPointerSize);
-  JSFunction::SetInitialMap(memory_constructor, map, memory_proto);
+  JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
                         memory_constructor, DONT_ENUM);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
@@ -837,49 +875,6 @@ void WasmJs::InstallWasmConstructors(Isolate* isolate,
       isolate->native_context()->wasm_runtime_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),
                         runtime_error, attributes);
-}
-
-void WasmJs::Install(Isolate* isolate, Handle<JSGlobalObject> global) {
-  if (!FLAG_expose_wasm && !FLAG_validate_asm) {
-    return;
-  }
-
-  // Setup wasm function map.
-  Handle<Context> context(global->native_context(), isolate);
-  InstallWasmMapsIfNeeded(isolate, context);
-
-  if (FLAG_expose_wasm) {
-    InstallWasmConstructors(isolate, global, context);
-  }
-}
-
-void WasmJs::InstallWasmMapsIfNeeded(Isolate* isolate,
-                                     Handle<Context> context) {
-  if (!context->get(Context::WASM_FUNCTION_MAP_INDEX)->IsMap()) {
-    // TODO(titzer): Move this to bootstrapper.cc??
-    // TODO(titzer): Also make one for strict mode functions?
-    Handle<Map> prev_map = Handle<Map>(context->sloppy_function_map(), isolate);
-
-    InstanceType instance_type = prev_map->instance_type();
-    int internal_fields = JSObject::GetInternalFieldCount(*prev_map);
-    CHECK_EQ(0, internal_fields);
-    int pre_allocated =
-        prev_map->GetInObjectProperties() - prev_map->unused_property_fields();
-    int instance_size = 0;
-    int in_object_properties = 0;
-    int wasm_internal_fields = internal_fields + 1  // module instance object
-                               + 1                  // function arity
-                               + 1;                 // function signature
-    JSFunction::CalculateInstanceSizeHelper(instance_type, wasm_internal_fields,
-                                            0, &instance_size,
-                                            &in_object_properties);
-
-    int unused_property_fields = in_object_properties - pre_allocated;
-    Handle<Map> map = Map::CopyInitialMap(
-        prev_map, instance_size, in_object_properties, unused_property_fields);
-
-    context->set_wasm_function_map(*map);
-  }
 }
 
 static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> symbol) {

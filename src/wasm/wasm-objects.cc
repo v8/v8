@@ -292,12 +292,15 @@ bool WasmInstanceObject::IsWasmInstanceObject(Object* object) {
 
 Handle<WasmInstanceObject> WasmInstanceObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  Handle<Map> map = isolate->factory()->NewMap(
-      JS_OBJECT_TYPE, JSObject::kHeaderSize + kFieldCount * kPointerSize);
+  Handle<JSFunction> instance_cons(
+      isolate->native_context()->wasm_instance_constructor());
+  Handle<JSObject> instance_object =
+      isolate->factory()->NewJSObject(instance_cons, TENURED);
+  Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
+  Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
+      .Check();
   Handle<WasmInstanceObject> instance(
-      reinterpret_cast<WasmInstanceObject*>(
-          *isolate->factory()->NewJSObjectFromMap(map, TENURED)),
-      isolate);
+      reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
   instance->SetInternalField(kCompiledModule, *compiled_module);
   instance->SetInternalField(kMemoryObject, isolate->heap()->undefined_value());

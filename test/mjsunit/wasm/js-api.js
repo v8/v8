@@ -134,8 +134,8 @@ assertErrorMessage(() => new Module(), TypeError, /requires more than 0 argument
 assertErrorMessage(() => new Module(undefined), TypeError, "first argument must be an ArrayBuffer or typed array object");
 assertErrorMessage(() => new Module(1), TypeError, "first argument must be an ArrayBuffer or typed array object");
 assertErrorMessage(() => new Module({}), TypeError, "first argument must be an ArrayBuffer or typed array object");
-//TODO assertErrorMessage(() => new Module(new Uint8Array()), CompileError, /failed to match magic number/);
-//TODO assertErrorMessage(() => new Module(new ArrayBuffer()), CompileError, /failed to match magic number/);
+assertErrorMessage(() => new Module(new Uint8Array()), CompileError, /failed to match magic number/);
+assertErrorMessage(() => new Module(new ArrayBuffer()), CompileError, /failed to match magic number/);
 assertEq(new Module(emptyModuleBinary) instanceof Module, true);
 assertEq(new Module(emptyModuleBinary.buffer) instanceof Module, true);
 
@@ -259,9 +259,9 @@ assertEq(Instance.name, "Instance");
 assertErrorMessage(() => Instance(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Instance(1), TypeError, "first argument must be a WebAssembly.Module");
 assertErrorMessage(() => new Instance({}), TypeError, "first argument must be a WebAssembly.Module");
-//TODO assertErrorMessage(() => new Instance(emptyModule, null), TypeError, "second argument must be an object");
-//TODO assertEq(new Instance(emptyModule) instanceof Instance, true);
-//TODO assertEq(new Instance(emptyModule, {}) instanceof Instance, true);
+assertErrorMessage(() => new Instance(emptyModule, null), TypeError, "second argument must be an object");
+assertEq(new Instance(emptyModule) instanceof Instance, true);
+assertEq(new Instance(emptyModule, {}) instanceof Instance, true);
 
 // 'WebAssembly.Instance.prototype' data property
 let instanceProtoDesc = Object.getOwnPropertyDescriptor(Instance, 'prototype');

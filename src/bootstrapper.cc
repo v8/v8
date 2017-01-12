@@ -4166,8 +4166,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
 
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<JSGlobalObject> global(JSGlobalObject::cast(
-      native_context->global_object()));
 
   Handle<JSObject> Error = isolate->error_function();
   Handle<String> name =
@@ -4175,7 +4173,9 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
 
-  WasmJs::Install(isolate, global);
+  if (FLAG_expose_wasm || FLAG_validate_asm) {
+    WasmJs::Install(isolate);
+  }
 
   return true;
 }
