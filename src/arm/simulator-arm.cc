@@ -3840,7 +3840,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         set_q_register(Vd, data);
       } else if (instr->Bits(11, 8) == 8) {
         // vadd/vtst
-        int size = static_cast<NeonSize>(instr->Bits(21, 20));
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
@@ -3993,6 +3993,57 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           dst[i] = (src1[i] == src2[i]) ? 0xFFFFFFFF : 0;
         }
         set_q_register(Vd, dst);
+      } else if (instr->Bits(11, 8) == 0x3) {
+        // vcge/vcgt.s<size> Qd, Qm, Qn.
+        bool ge = instr->Bit(4) == 1;
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        switch (size) {
+          case Neon8: {
+            int8_t src1[16], src2[16];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
+            for (int i = 0; i < 16; i++) {
+              if (ge)
+                src1[i] = src1[i] >= src2[i] ? 0xFF : 0;
+              else
+                src1[i] = src1[i] > src2[i] ? 0xFF : 0;
+            }
+            set_q_register(Vd, src1);
+            break;
+          }
+          case Neon16: {
+            int16_t src1[8], src2[8];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
+            for (int i = 0; i < 8; i++) {
+              if (ge)
+                src1[i] = src1[i] >= src2[i] ? 0xFFFF : 0;
+              else
+                src1[i] = src1[i] > src2[i] ? 0xFFFF : 0;
+            }
+            set_q_register(Vd, src1);
+            break;
+          }
+          case Neon32: {
+            int32_t src1[4], src2[4];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
+            for (int i = 0; i < 4; i++) {
+              if (ge)
+                src1[i] = src1[i] >= src2[i] ? 0xFFFFFFFF : 0;
+              else
+                src1[i] = src1[i] > src2[i] ? 0xFFFFFFFF : 0;
+            }
+            set_q_register(Vd, src1);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
+        }
       } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xf &&
                  instr->Bit(6) == 1 && instr->Bit(4) == 1) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -4062,7 +4113,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
     case 6:
       if (instr->Bits(11, 8) == 8 && instr->Bit(4) == 0) {
         // vsub.size Qd, Qm, Qn.
-        int size = static_cast<NeonSize>(instr->Bits(21, 20));
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
@@ -4103,7 +4154,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         }
       } else if (instr->Bits(11, 8) == 8 && instr->Bit(4) == 1) {
         // vceq.size Qd, Qm, Qn.
-        int size = static_cast<NeonSize>(instr->Bits(21, 20));
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
         int Vd = instr->VFPDRegValue(kSimd128Precision);
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         int Vn = instr->VFPNRegValue(kSimd128Precision);
@@ -4193,6 +4244,76 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           src1[i] = src1[i] * src2[i];
         }
         set_q_register(Vd, src1);
+      } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xe &&
+                 instr->Bit(4) == 0) {
+        // vcge/vcgt.f32 Qd, Qm, Qn
+        bool ge = instr->Bit(21) == 0;
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        float src1[4], src2[4];
+        get_q_register(Vn, src1);
+        get_q_register(Vm, src2);
+        uint32_t dst[4];
+        for (int i = 0; i < 4; i++) {
+          if (ge) {
+            dst[i] = src1[i] >= src2[i] ? 0xFFFFFFFFu : 0;
+          } else {
+            dst[i] = src1[i] > src2[i] ? 0xFFFFFFFFu : 0;
+          }
+        }
+        set_q_register(Vd, dst);
+      } else if (instr->Bits(11, 8) == 0x3) {
+        // vcge/vcgt.u<size> Qd, Qm, Qn.
+        bool ge = instr->Bit(4) == 1;
+        NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        switch (size) {
+          case Neon8: {
+            uint8_t src1[16], src2[16];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
+            for (int i = 0; i < 16; i++) {
+              if (ge)
+                src1[i] = src1[i] >= src2[i] ? 0xFFu : 0;
+              else
+                src1[i] = src1[i] > src2[i] ? 0xFFu : 0;
+            }
+            set_q_register(Vd, src1);
+            break;
+          }
+          case Neon16: {
+            uint16_t src1[8], src2[8];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
+            for (int i = 0; i < 8; i++) {
+              if (ge)
+                src1[i] = src1[i] >= src2[i] ? 0xFFFFu : 0;
+              else
+                src1[i] = src1[i] > src2[i] ? 0xFFFFu : 0;
+            }
+            set_q_register(Vd, src1);
+            break;
+          }
+          case Neon32: {
+            uint32_t src1[4], src2[4];
+            get_q_register(Vn, src1);
+            get_q_register(Vm, src2);
+            for (int i = 0; i < 4; i++) {
+              if (ge)
+                src1[i] = src1[i] >= src2[i] ? 0xFFFFFFFFu : 0;
+              else
+                src1[i] = src1[i] > src2[i] ? 0xFFFFFFFFu : 0;
+            }
+            set_q_register(Vd, src1);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
+        }
       } else {
         UNIMPLEMENTED();
       }
@@ -4314,7 +4435,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           set_d_register(vd, &result);
         } else if (instr->Bits(17, 16) == 0x2 && instr->Bits(11, 6) == 0x7) {
           // vzip.<size> Qd, Qm.
-          int size = static_cast<NeonSize>(instr->Bits(19, 18));
+          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           switch (size) {
@@ -4368,7 +4489,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           // vrev<op>.size Qd, Qm
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
-          int size = static_cast<NeonSize>(instr->Bits(19, 18));
+          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
           NeonSize op = static_cast<NeonSize>(static_cast<int>(Neon64) -
                                               instr->Bits(8, 7));
           switch (op) {
@@ -4452,7 +4573,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         } else if (instr->Bits(17, 16) == 0x1 && instr->Bit(11) == 0) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
-          int size = static_cast<NeonSize>(instr->Bits(19, 18));
+          NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
           if (instr->Bits(9, 6) == 0xd) {
             // vabs<type>.<size> Qd, Qm
             if (instr->Bit(10) != 0) {

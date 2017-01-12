@@ -1393,6 +1393,14 @@ class Assembler : public AssemblerBase {
             const QwNeonRegister src2);
   void vceq(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
+  void vcge(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vcge(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
+  void vcgt(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vcgt(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
   void vbsl(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
   void vext(const QwNeonRegister dst, const QwNeonRegister src1,

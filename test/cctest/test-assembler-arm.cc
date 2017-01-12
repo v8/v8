@@ -1289,8 +1289,11 @@ TEST(15) {
     uint32_t vadd8[4], vadd16[4], vadd32[4];
     uint32_t vsub8[4], vsub16[4], vsub32[4];
     uint32_t vmul8[4], vmul16[4], vmul32[4];
+    uint32_t vceq[4], vceqf[4], vcgef[4], vcgtf[4];
+    uint32_t vcge_s8[4], vcge_u16[4], vcge_s32[4];
+    uint32_t vcgt_s8[4], vcgt_u16[4], vcgt_s32[4];
     float vrecpe[4], vrecps[4], vrsqrte[4], vrsqrts[4];
-    uint32_t vtst[4], vceq[4], vceqf[4], vbsl[4];
+    uint32_t vtst[4], vbsl[4];
     uint32_t vext[4];
     uint32_t vzip8a[4], vzip8b[4], vzip16a[4], vzip16b[4], vzip32a[4],
         vzip32b[4];
@@ -1518,6 +1521,18 @@ TEST(15) {
     __ vceq(q1, q1, q0);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vceqf))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    // vcge (float).
+    __ vmov(s0, 1.0);
+    __ vmov(s1, -1.0);
+    __ vmov(s2, -0.0);
+    __ vmov(s3, 0.0);
+    __ vdup(q1, s3);
+    __ vcge(q2, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgef))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(q2, q1, q0);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgtf))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
     // vadd (integer).
     __ mov(r4, Operand(0x81));
@@ -1585,11 +1600,39 @@ TEST(15) {
     // vceq.
     __ mov(r4, Operand(0x03));
     __ vdup(Neon8, q0, r4);
-    __ mov(r4, Operand(0x03));
     __ vdup(Neon16, q1, r4);
     __ vceq(Neon8, q1, q0, q1);
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vceq))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vcge/vcgt.
+    __ mov(r4, Operand(0x03));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vcge(NeonS8, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcge_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(NeonS8, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_s8))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon16, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vcge(NeonU16, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcge_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(NeonU16, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_u16))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ mov(r4, Operand(0xff));
+    __ vdup(Neon32, q0, r4);
+    __ vdup(Neon8, q1, r4);
+    __ vcge(NeonS32, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcge_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
+    __ vcgt(NeonS32, q2, q0, q1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vcgt_s32))));
+    __ vst1(Neon8, NeonListOperand(q2), NeonMemOperand(r4));
 
     // vtst.
     __ mov(r4, Operand(0x03));
@@ -1784,6 +1827,9 @@ TEST(15) {
     CHECK_EQ_SPLAT(vrsqrte, 0.5f);   // 1 / sqrt(4)
     CHECK_EQ_SPLAT(vrsqrts, -1.0f);  // (3 - (2 * 2.5)) / 2
     CHECK_EQ_SPLAT(vceqf, 0xffffffffu);
+    // [0] >= [-1, 1, -0, 0]
+    CHECK_EQ_32X4(vcgef, 0u, 0xffffffffu, 0xffffffffu, 0xffffffffu);
+    CHECK_EQ_32X4(vcgtf, 0u, 0xffffffffu, 0u, 0u);
     CHECK_EQ_SPLAT(vadd8, 0x03030303u);
     CHECK_EQ_SPLAT(vadd16, 0x00030003u);
     CHECK_EQ_SPLAT(vadd32, 0x00000003u);
@@ -1794,6 +1840,15 @@ TEST(15) {
     CHECK_EQ_SPLAT(vmul16, 0x00040004u);
     CHECK_EQ_SPLAT(vmul32, 0x00000004u);
     CHECK_EQ_SPLAT(vceq, 0x00ff00ffu);
+    // [0, 3, 0, 3, ...] >= [3, 3, 3, 3, ...]
+    CHECK_EQ_SPLAT(vcge_s8, 0x00ff00ffu);
+    CHECK_EQ_SPLAT(vcgt_s8, 0u);
+    // [0x00ff, 0x00ff, ...] >= [0xffff, 0xffff, ...]
+    CHECK_EQ_SPLAT(vcge_u16, 0u);
+    CHECK_EQ_SPLAT(vcgt_u16, 0u);
+    // [0x000000ff, 0x000000ff, ...] >= [0xffffffff, 0xffffffff, ...]
+    CHECK_EQ_SPLAT(vcge_s32, 0xffffffffu);
+    CHECK_EQ_SPLAT(vcgt_s32, 0xffffffffu);
     CHECK_EQ_SPLAT(vtst, 0x00ff00ffu);
     CHECK_EQ_SPLAT(vbsl, 0x02010201u);
 

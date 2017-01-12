@@ -4319,7 +4319,7 @@ void Assembler::vtst(NeonSize size, QwNeonRegister dst,
 void Assembler::vceq(const QwNeonRegister dst, const QwNeonRegister src1,
                      const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vceq(Qn, Qm) SIMD integer compare equal.
+  // Qd = vceq(Qn, Qm) SIMD floating point compare equal.
   // Instruction details available in ARM DDI 0406C.b, A8-844.
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4334,7 +4334,7 @@ void Assembler::vceq(const QwNeonRegister dst, const QwNeonRegister src1,
 void Assembler::vceq(NeonSize size, QwNeonRegister dst,
                      const QwNeonRegister src1, const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vceq(Qn, Qm) SIMD bitwise compare equal.
+  // Qd = vceq(Qn, Qm) SIMD integer compare equal.
   // Instruction details available in ARM DDI 0406C.b, A8-844.
   int vd, d;
   dst.split_code(&vd, &d);
@@ -4345,6 +4345,70 @@ void Assembler::vceq(NeonSize size, QwNeonRegister dst,
   int sz = static_cast<int>(size);
   emit(0x1E6U * B23 | d * B22 | sz * B20 | vn * B16 | vd * B12 | 0x8 * B8 |
        n * B7 | B6 | m * B5 | B4 | vm);
+}
+
+static Instr EncodeNeonCompareOp(const QwNeonRegister dst,
+                                 const QwNeonRegister src1,
+                                 const QwNeonRegister src2, Condition cond) {
+  DCHECK(cond == ge || cond == gt);
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int is_gt = (cond == gt) ? 1 : 0;
+  return 0x1E6U * B23 | d * B22 | is_gt * B21 | vn * B16 | vd * B12 | 0xe * B8 |
+         n * B7 | B6 | m * B5 | vm;
+}
+
+static Instr EncodeNeonCompareOp(NeonDataType dt, const QwNeonRegister dst,
+                                 const QwNeonRegister src1,
+                                 const QwNeonRegister src2, Condition cond) {
+  DCHECK(cond == ge || cond == gt);
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int size = (dt & NeonDataTypeSizeMask) / 2;
+  int U = dt & NeonDataTypeUMask;
+  int is_ge = (cond == ge) ? 1 : 0;
+  return 0x1E4U * B23 | U | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         0x3 * B8 | n * B7 | B6 | m * B5 | is_ge * B4 | vm;
+}
+
+void Assembler::vcge(const QwNeonRegister dst, const QwNeonRegister src1,
+                     const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vcge(Qn, Qm) SIMD floating point compare greater or equal.
+  // Instruction details available in ARM DDI 0406C.b, A8-848.
+  emit(EncodeNeonCompareOp(dst, src1, src2, ge));
+}
+
+void Assembler::vcge(NeonDataType dt, QwNeonRegister dst,
+                     const QwNeonRegister src1, const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vcge(Qn, Qm) SIMD integer compare greater or equal.
+  // Instruction details available in ARM DDI 0406C.b, A8-848.
+  emit(EncodeNeonCompareOp(dt, dst, src1, src2, ge));
+}
+
+void Assembler::vcgt(const QwNeonRegister dst, const QwNeonRegister src1,
+                     const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vcgt(Qn, Qm) SIMD floating point compare greater than.
+  // Instruction details available in ARM DDI 0406C.b, A8-852.
+  emit(EncodeNeonCompareOp(dst, src1, src2, gt));
+}
+
+void Assembler::vcgt(NeonDataType dt, QwNeonRegister dst,
+                     const QwNeonRegister src1, const QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vcgt(Qn, Qm) SIMD integer compare greater than.
+  // Instruction details available in ARM DDI 0406C.b, A8-852.
+  emit(EncodeNeonCompareOp(dt, dst, src1, src2, gt));
 }
 
 void Assembler::vbsl(QwNeonRegister dst, const QwNeonRegister src1,

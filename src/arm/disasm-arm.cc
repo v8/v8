@@ -1899,6 +1899,16 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         // vceq.f32 Qd, Qm, Qn.
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vceq.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0x3) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
+        // vcge/vcgt.s<size> Qd, Qm, Qn.
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.s%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
       } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xf &&
                  instr->Bit(6) == 1 && instr->Bit(4) == 1) {
         int Vd = instr->VFPDRegValue(kSimd128Precision);
@@ -1983,6 +1993,25 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         int Vm = instr->VFPMRegValue(kSimd128Precision);
         out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "vmul.f32 q%d, q%d, q%d", Vd, Vn, Vm);
+      } else if (instr->Bit(20) == 0 && instr->Bits(11, 8) == 0xe &&
+                 instr->Bit(4) == 0) {
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = (instr->Bit(21) == 0) ? "vcge" : "vcgt";
+        // vcge/vcgt.f32 Qd, Qm, Qn.
+        out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
+                                    "%s.f32 q%d, q%d, q%d", op, Vd, Vn, Vm);
+      } else if (instr->Bits(11, 8) == 0x3) {
+        int size = kBitsPerByte * (1 << instr->Bits(21, 20));
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        int Vn = instr->VFPNRegValue(kSimd128Precision);
+        const char* op = (instr->Bit(4) == 1) ? "vcge" : "vcgt";
+        // vcge/vcgt.u<size> Qd, Qm, Qn.
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "%s.u%d q%d, q%d, q%d", op,
+                     size, Vd, Vn, Vm);
       } else {
         Unknown(instr);
       }
