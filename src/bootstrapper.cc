@@ -1919,9 +1919,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_promise_prototype_map(*prototype_map);
 
     {  // Internal: PromiseInternalConstructor
+       // Also exposed as extrasUtils.createPromise.
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPromiseInternalConstructor, 1, false);
+                               Builtins::kPromiseInternalConstructor, 1, true);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::PROMISE_INTERNAL_CONSTRUCTOR_INDEX);
     }
@@ -1942,9 +1943,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {  // Internal: ResolvePromise
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kResolvePromise, 2, false);
+       // Also exposed as extrasUtils.resolvePromise.
+      Handle<JSFunction> function = SimpleCreateFunction(
+          isolate, factory->empty_string(), Builtins::kResolvePromise, 2, true);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_RESOLVE_INDEX);
     }
@@ -3652,6 +3653,8 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   InstallInternalArray(extras_utils, "InternalPackedArray", FAST_ELEMENTS);
 
+  InstallFunction(extras_utils, isolate()->promise_internal_constructor(),
+                  factory()->NewStringFromAsciiChecked("createPromise"));
   InstallFunction(extras_utils, isolate()->promise_resolve(),
                   factory()->NewStringFromAsciiChecked("resolvePromise"));
 

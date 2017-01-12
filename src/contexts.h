@@ -66,7 +66,6 @@ enum ContextLookupFlags {
     promise_internal_constructor)                                       \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
   V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)       \
-  V(PROMISE_CREATE_AND_SET_INDEX, JSFunction, promise_create_and_set)   \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                 \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                       \
   V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                   \
@@ -103,7 +102,6 @@ enum ContextLookupFlags {
   V(OBJECT_VALUE_OF, JSFunction, object_value_of)                             \
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
-  V(PROMISE_CREATE_INDEX, JSFunction, promise_create)                         \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
   V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_ID_RESOLVE_HANDLER_INDEX, JSFunction, promise_id_resolve_handler) \

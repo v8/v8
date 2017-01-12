@@ -31,11 +31,6 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 
 // For bootstrapper.
 
-// This is used by utils and v8-extras.
-function PromiseCreate(parent) {
-  return %promise_internal_constructor(parent);
-}
-
 // Export to bindings
 function DoRejectPromise(promise, reason) {
   %PromiseReject(promise, reason, true);
@@ -154,7 +149,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 ]);
 
 %InstallToContext([
-  "promise_create", PromiseCreate,
   "promise_reject", DoRejectPromise,
   "promise_id_resolve_handler", PromiseIdResolveHandler,
   "promise_id_reject_handler", PromiseIdRejectHandler
@@ -164,7 +158,6 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 // resolve/reject closures, and allows them to later resolve and reject any
 // promise without having to hold on to those closures forever.
 utils.InstallFunctions(extrasUtils, 0, [
-  "createPromise", PromiseCreate,
   "rejectPromise", DoRejectPromise,
   "markPromiseAsHandled", MarkPromiseAsHandled
 ]);
