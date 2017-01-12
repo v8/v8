@@ -1952,7 +1952,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     {  // Internal: PromiseHandle
       Handle<JSFunction> function = SimpleCreateFunction(
-          isolate, factory->empty_string(), Builtins::kPromiseHandle, 6, true);
+          isolate, factory->empty_string(), Builtins::kPromiseHandle, 5, false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_HANDLE_INDEX);
       // Set up catch prediction

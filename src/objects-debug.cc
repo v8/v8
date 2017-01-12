@@ -1042,7 +1042,6 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
 void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(IsPromiseReactionJobInfo());
-  CHECK(promise()->IsJSPromise());
   CHECK(value()->IsObject());
   CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
   CHECK(deferred_promise()->IsUndefined(isolate) ||

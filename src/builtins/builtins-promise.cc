@@ -569,10 +569,10 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
                  &reject);
 
       Node* info = AllocatePromiseReactionJobInfo(
-          promise, result, var_on_resolve.value(), deferred_promise,
-          deferred_on_resolve, deferred_on_reject, context);
+          result, var_on_resolve.value(), deferred_promise, deferred_on_resolve,
+          deferred_on_reject, context);
       // TODO(gsathya): Move this to TF
-      CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info,
+      CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise, info,
                   SmiConstant(v8::Promise::kFulfilled));
       Goto(&out);
 
@@ -589,11 +589,11 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
         Bind(&enqueue);
         {
           Node* info = AllocatePromiseReactionJobInfo(
-              promise, result, var_on_reject.value(), deferred_promise,
+              result, var_on_reject.value(), deferred_promise,
               deferred_on_resolve, deferred_on_reject, context);
           // TODO(gsathya): Move this to TF
-          CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info,
-                      SmiConstant(v8::Promise::kRejected));
+          CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise,
+                      info, SmiConstant(v8::Promise::kRejected));
           Goto(&out);
         }
       }
@@ -873,10 +873,11 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
       LoadObjectField(promise, JSPromise::kDeferredOnRejectOffset);
 
   Node* const info = AllocatePromiseReactionJobInfo(
-      promise, result, tasks, deferred_promise, deferred_on_resolve,
-      deferred_on_reject, context);
+      result, tasks, deferred_promise, deferred_on_resolve, deferred_on_reject,
+      context);
 
-  CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info, status_smi);
+  CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, promise, info,
+              status_smi);
   Goto(&debug_async_event_enqueue_recurring);
 
   Bind(&debug_async_event_enqueue_recurring);
@@ -1226,13 +1227,12 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
 }
 
 TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(1);
-  Node* const value = Parameter(2);
-  Node* const handler = Parameter(3);
-  Node* const deferred_promise = Parameter(4);
-  Node* const deferred_on_resolve = Parameter(5);
-  Node* const deferred_on_reject = Parameter(6);
-  Node* const context = Parameter(9);
+  Node* const value = Parameter(1);
+  Node* const handler = Parameter(2);
+  Node* const deferred_promise = Parameter(3);
+  Node* const deferred_on_resolve = Parameter(4);
+  Node* const deferred_on_reject = Parameter(5);
+  Node* const context = Parameter(8);
   Isolate* isolate = this->isolate();
 
   Variable var_reason(this, MachineRepresentation::kTagged);
@@ -1248,7 +1248,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   Bind(&promisehook_before);
   {
     GotoUnless(IsPromiseHookEnabled(), &run_handler);
-    CallRuntime(Runtime::kPromiseHookBefore, context, promise);
+    CallRuntime(Runtime::kPromiseHookBefore, context, deferred_promise);
     Goto(&run_handler);
   }
 
@@ -1289,7 +1289,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   Bind(&promisehook_after);
   {
     GotoUnless(IsPromiseHookEnabled(), &debug_pop);
-    CallRuntime(Runtime::kPromiseHookAfter, context, promise);
+    CallRuntime(Runtime::kPromiseHookAfter, context, deferred_promise);
     Goto(&debug_pop);
   }
 

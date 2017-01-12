@@ -3292,7 +3292,6 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* maybe_exception) {
   PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
 
-  Handle<JSPromise> promise(info->promise(), this);
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
@@ -3309,9 +3308,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
         FixedArray::cast(info->deferred_on_reject()), this);
     Handle<FixedArray> tasks_arr = Handle<FixedArray>::cast(tasks);
     for (int i = 0; i < deferred_promise_arr->length(); i++) {
-      Handle<Object> argv[] = {promise,
-                               value,
-                               handle(tasks_arr->get(i), this),
+      Handle<Object> argv[] = {value, handle(tasks_arr->get(i), this),
                                handle(deferred_promise_arr->get(i), this),
                                handle(deferred_on_resolve_arr->get(i), this),
                                handle(deferred_on_reject_arr->get(i), this)};
@@ -3323,10 +3320,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
       }
     }
   } else {
-    Handle<Object> argv[] = {promise,
-                             value,
-                             tasks,
-                             deferred_promise,
+    Handle<Object> argv[] = {value, tasks, deferred_promise,
                              handle(info->deferred_on_resolve(), this),
                              handle(info->deferred_on_reject(), this)};
     *result = Execution::TryCall(this, promise_handle_fn, undefined,

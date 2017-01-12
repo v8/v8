@@ -8223,14 +8223,12 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
 }
 
 Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
-    Node* promise, Node* value, Node* tasks, Node* deferred_promise,
-    Node* deferred_on_resolve, Node* deferred_on_reject, Node* context) {
+    Node* value, Node* tasks, Node* deferred_promise, Node* deferred_on_resolve,
+    Node* deferred_on_reject, Node* context) {
   Node* const result = Allocate(PromiseReactionJobInfo::kSize);
   StoreMapNoWriteBarrier(result, Heap::kPromiseReactionJobInfoMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kValueOffset,
                                  value);
-  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kPromiseOffset,
-                                 promise);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kTasksOffset,
                                  tasks);
   StoreObjectFieldNoWriteBarrier(

@@ -1152,7 +1152,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Promise helpers
   Node* IsPromiseHookEnabled();
 
-  Node* AllocatePromiseReactionJobInfo(Node* promise, Node* value, Node* tasks,
+  Node* AllocatePromiseReactionJobInfo(Node* value, Node* tasks,
                                        Node* deferred_promise,
                                        Node* deferred_on_resolve,
                                        Node* deferred_on_reject, Node* context);

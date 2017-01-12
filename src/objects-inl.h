@@ -5733,7 +5733,6 @@ SMI_ACCESSORS(PromiseResolveThenableJobInfo, debug_id, kDebugIdOffset)
 SMI_ACCESSORS(PromiseResolveThenableJobInfo, debug_name, kDebugNameOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
 
-ACCESSORS(PromiseReactionJobInfo, promise, JSPromise, kPromiseOffset);
 ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
 ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
 ACCESSORS(PromiseReactionJobInfo, deferred_promise, Object,

@@ -1843,14 +1843,13 @@ TEST(AllocatePromiseReactionJobInfo) {
   PromiseBuiltinsAssembler p(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = p.AllocateAndInitJSPromise(context);
   Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred_promise =
       m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(deferred_promise, 0, m.UndefinedConstant());
   Node* const info = m.AllocatePromiseReactionJobInfo(
-      promise, m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
+      m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
       m.UndefinedConstant(), context);
   m.Return(info);
 
@@ -1864,7 +1863,6 @@ TEST(AllocatePromiseReactionJobInfo) {
   Handle<PromiseReactionJobInfo> promise_info =
       Handle<PromiseReactionJobInfo>::cast(result);
   CHECK_EQ(Smi::FromInt(1), promise_info->value());
-  CHECK(promise_info->promise()->IsJSPromise());
   CHECK(promise_info->tasks()->IsFixedArray());
   CHECK(promise_info->deferred_promise()->IsFixedArray());
   CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));

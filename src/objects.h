@@ -6591,7 +6591,6 @@ class JSPromise;
 // Struct to hold state required for PromiseReactionJob.
 class PromiseReactionJobInfo : public Struct {
  public:
-  DECL_ACCESSORS(promise, JSPromise)
   DECL_ACCESSORS(value, Object)
   DECL_ACCESSORS(tasks, Object)
 
@@ -6606,8 +6605,7 @@ class PromiseReactionJobInfo : public Struct {
 
   DECL_ACCESSORS(context, Context)
 
-  static const int kPromiseOffset = Struct::kHeaderSize;
-  static const int kValueOffset = kPromiseOffset + kPointerSize;
+  static const int kValueOffset = Struct::kHeaderSize;
   static const int kTasksOffset = kValueOffset + kPointerSize;
   static const int kDeferredPromiseOffset = kTasksOffset + kPointerSize;
   static const int kDeferredOnResolveOffset =

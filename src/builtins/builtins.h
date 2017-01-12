@@ -636,7 +636,7 @@ namespace internal {
   TFJ(PerformPromiseThen, 4)                                                   \
   TFJ(ResolvePromise, 2)                                                       \
   TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject)      \
-  TFJ(PromiseHandle, 6)                                                        \
+  TFJ(PromiseHandle, 5)                                                        \
   TFJ(PromiseResolve, 1)                                                       \
   TFJ(PromiseReject, 1)                                                        \
                                                                                \

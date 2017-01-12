@@ -1015,12 +1015,11 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
 }
 
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
-    Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
-    Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
-    Handle<Object> deferred_on_reject, Handle<Context> context) {
+    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred_promise,
+    Handle<Object> deferred_on_resolve, Handle<Object> deferred_on_reject,
+    Handle<Context> context) {
   Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
       NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
-  result->set_promise(*promise);
   result->set_value(*value);
   result->set_tasks(*tasks);
   result->set_deferred_promise(*deferred_promise);

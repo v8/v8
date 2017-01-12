@@ -110,15 +110,15 @@ bool GetDebugIdForAsyncFunction(Isolate* isolate,
   return true;
 }
 
-void SetDebugInfo(Isolate* isolate, Handle<PromiseReactionJobInfo> info,
-                  int status) {
+void SetDebugInfo(Isolate* isolate, Handle<JSPromise> promise,
+                  Handle<PromiseReactionJobInfo> info, int status) {
   int id;
   PromiseDebugActionName name;
 
   if (GetDebugIdForAsyncFunction(isolate, info, &id)) {
     name = kDebugAsyncFunction;
   } else {
-    id = isolate->debug()->NextAsyncTaskId(handle(info->promise(), isolate));
+    id = isolate->debug()->NextAsyncTaskId(promise);
     DCHECK(status != v8::Promise::kPending);
     name = status == v8::Promise::kFulfilled ? kDebugPromiseResolve
                                              : kDebugPromiseReject;
@@ -128,11 +128,11 @@ void SetDebugInfo(Isolate* isolate, Handle<PromiseReactionJobInfo> info,
   info->set_debug_name(name);
 }
 
-void EnqueuePromiseReactionJob(Isolate* isolate,
+void EnqueuePromiseReactionJob(Isolate* isolate, Handle<JSPromise> promise,
                                Handle<PromiseReactionJobInfo> info,
                                int status) {
   if (isolate->debug()->is_active()) {
-    SetDebugInfo(isolate, info, status);
+    SetDebugInfo(isolate, promise, info, status);
   }
 
   isolate->EnqueueMicrotask(info);
@@ -166,11 +166,11 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise, int status,
                          isolate);
     Handle<PromiseReactionJobInfo> info =
         isolate->factory()->NewPromiseReactionJobInfo(
-            promise, value, tasks, handle(promise->deferred_promise(), isolate),
+            value, tasks, handle(promise->deferred_promise(), isolate),
             handle(promise->deferred_on_resolve(), isolate),
             handle(promise->deferred_on_reject(), isolate),
             isolate->native_context());
-    EnqueuePromiseReactionJob(isolate, info, status);
+    EnqueuePromiseReactionJob(isolate, promise, info, status);
   }
 
   PromiseSet(isolate, promise, status, value);
@@ -193,10 +193,11 @@ RUNTIME_FUNCTION(Runtime_PromiseReject) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
   HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(PromiseReactionJobInfo, info, 0);
-  CONVERT_SMI_ARG_CHECKED(status, 1);
-  EnqueuePromiseReactionJob(isolate, info, status);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(PromiseReactionJobInfo, info, 1);
+  CONVERT_SMI_ARG_CHECKED(status, 2);
+  EnqueuePromiseReactionJob(isolate, promise, info, status);
   return isolate->heap()->undefined_value();
 }
 

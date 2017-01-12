@@ -17933,10 +17933,23 @@ TEST(PromiseHook) {
       global->Get(context, v8_str("resolve")).ToLocalChecked();
   auto before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
   auto after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
+
+  CompileRun("value = ''; var p2 = p1.then(() => { value = 'fulfilled' }); \n");
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  parent_promise = global->Get(context, v8_str("parent")).ToLocalChecked();
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p2")->Equals(env.local(), init_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), parent_promise).FromJust());
+  CHECK(GetPromise("p2")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p2")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p2")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK_EQ(10, promise_hook_data->promise_hook_count);
 
   promise_hook_data->Reset();
   promise_hook_data->promise_hook_value = "rejected";
@@ -17962,8 +17975,8 @@ TEST(PromiseHook) {
   resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
   before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
   after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
 
@@ -17991,8 +18004,8 @@ TEST(PromiseHook) {
   CHECK(GetPromise("p1")->Equals(env.local(), init_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   CHECK(GetPromise("p")->Equals(env.local(), parent_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
   CHECK_EQ(1, promise_hook_data->parent_promise_count);
 
@@ -18131,8 +18144,8 @@ TEST(PromiseHook) {
   resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
   before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
   after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   // 3) resolve hook (p)
   // 4) before hook (p)
