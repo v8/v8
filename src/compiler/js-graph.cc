@@ -66,11 +66,6 @@ Node* JSGraph::EmptyFixedArrayConstant() {
                 HeapConstant(factory()->empty_fixed_array()));
 }
 
-Node* JSGraph::EmptyLiteralsArrayConstant() {
-  return CACHED(kEmptyLiteralsArrayConstant,
-                HeapConstant(factory()->empty_literals_array()));
-}
-
 Node* JSGraph::EmptyStringConstant() {
   return CACHED(kEmptyStringConstant, HeapConstant(factory()->empty_string()));
 }
