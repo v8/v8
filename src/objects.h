@@ -7438,9 +7438,6 @@ class SharedFunctionInfo: public HeapObject {
   // which does not change this flag).
   DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
 
-  // Is this a function or top-level/eval code.
-  DECL_BOOLEAN_ACCESSORS(is_function)
-
   // Indicates that code for this function must be compiled through the
   // Ignition / TurboFan pipeline, and is unsupported by
   // FullCodegen / Crankshaft.
@@ -7746,10 +7743,11 @@ class SharedFunctionInfo: public HeapObject {
     kIsAsmFunction,
     kIsAnonymousExpression,
     kNameShouldPrintAsAnonymous,
-    kIsFunction,
     kMustUseIgnitionTurbo,
     kDontFlush,
     kIsDeclaration,
+
+    kUnused,  // unused.
     // byte 2
     kFunctionKind,
     // rest of byte 2 and first two bits of byte 3 are used by FunctionKind

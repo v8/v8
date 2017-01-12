@@ -351,12 +351,8 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info;
-    if (location.function()->shared()->is_function()) {
-      info.reset(new ParseInfo(&zone, handle(location.function()->shared())));
-    } else {
-      info.reset(new ParseInfo(&zone, location.script()));
-    }
+    std::unique_ptr<ParseInfo> info(
+        new ParseInfo(&zone, handle(location.function()->shared())));
     if (parsing::ParseAny(info.get())) {
       CallPrinter printer(isolate,
                           location.function()->shared()->IsUserJavaScript());

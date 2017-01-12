@@ -240,7 +240,7 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
 
   // We only handle functions (no eval / top-level code / wasm) that are
   // attached to a script.
-  if (!function->script()->IsScript() || !function->is_function() ||
+  if (!function->script()->IsScript() || function->is_toplevel() ||
       function->asm_function() || function->native()) {
     return false;
   }

@@ -225,7 +225,7 @@ void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
     Handle<JSObject> target, Handle<JSFunction> function) {
   // Do not materialize the arguments object for eval or top-level code.
   // Skip if "arguments" is already taken.
-  if (!function->shared()->is_function()) return;
+  if (function->shared()->is_toplevel()) return;
   Maybe<bool> maybe = JSReceiver::HasOwnProperty(
       target, isolate_->factory()->arguments_string());
   DCHECK(maybe.IsJust());

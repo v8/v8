@@ -2629,8 +2629,6 @@ class FunctionLiteral final : public Expression {
     return HasDuplicateParameters::decode(bit_field_);
   }
 
-  bool is_function() const { return IsFunction::decode(bit_field_); }
-
   // This is used as a heuristic on when to eagerly compile a function
   // literal. We consider the following constructs as hints that the
   // function will be called immediately:
@@ -2695,7 +2693,7 @@ class FunctionLiteral final : public Expression {
                   int function_length, FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
-                  bool is_function, bool has_braces, int function_literal_id)
+                  bool has_braces, int function_literal_id)
       : Expression(position, kFunctionLiteral),
         materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
@@ -2714,7 +2712,6 @@ class FunctionLiteral final : public Expression {
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
-                  IsFunction::encode(is_function) |
                   ShouldNotBeUsedOnceHintField::encode(false) |
                   DontOptimizeReasonField::encode(kNoReason);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
@@ -2724,9 +2721,8 @@ class FunctionLiteral final : public Expression {
       : public BitField<FunctionType, Expression::kNextBitFieldIndex, 2> {};
   class Pretenure : public BitField<bool, FunctionTypeBits::kNext, 1> {};
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
-  class IsFunction : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
   class ShouldNotBeUsedOnceHintField
-      : public BitField<bool, IsFunction::kNext, 1> {};
+      : public BitField<bool, HasDuplicateParameters::kNext, 1> {};
   class DontOptimizeReasonField
       : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
   };
@@ -3479,7 +3475,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         zone_, name, ast_value_factory_, scope, body,
         materialized_literal_count, expected_property_count, parameter_count,
         function_length, function_type, has_duplicate_parameters,
-        eager_compile_hint, position, true, has_braces, function_literal_id);
+        eager_compile_hint, position, has_braces, function_literal_id);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
@@ -3494,7 +3490,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         body, materialized_literal_count, expected_property_count,
         parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kShouldLazyCompile, 0, false, true,
+        FunctionLiteral::kShouldLazyCompile, 0, true,
         FunctionLiteral::kIdTypeTopLevel);
   }
 
