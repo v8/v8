@@ -823,35 +823,33 @@ class LiteralFixer {
  public:
   static void PatchLiterals(FunctionInfoWrapper* compile_info_wrapper,
                             Handle<SharedFunctionInfo> shared_info,
-                            bool feedback_metadata_changed, Isolate* isolate) {
+                            Isolate* isolate) {
     int new_literal_count = compile_info_wrapper->GetLiteralCount();
-    int old_literal_count = shared_info->num_literals();
 
-    if (old_literal_count == new_literal_count && !feedback_metadata_changed) {
-      // If literal count didn't change, simply go over all functions
-      // and clear literal arrays.
-      ClearValuesVisitor visitor;
-      IterateJSFunctions(shared_info, &visitor);
-    } else {
-      // When literal count changes, we have to create new array instances.
-      // Since we cannot create instances when iterating heap, we should first
-      // collect all functions and fix their literal arrays.
-      Handle<FixedArray> function_instances =
-          CollectJSFunctions(shared_info, isolate);
-      Handle<TypeFeedbackMetadata> feedback_metadata(
-          shared_info->feedback_metadata());
+    // Recreate the literal array and type feedback vector.
+    // Since the feedback vector roots literal arrays for nested functions,
+    // we can't simply leave it in place because those nested literal
+    // array and feedback vectors may have changed structure.
+    Handle<FixedArray> function_instances =
+        CollectJSFunctions(shared_info, isolate);
+    Handle<TypeFeedbackMetadata> feedback_metadata(
+        shared_info->feedback_metadata());
 
-      for (int i = 0; i < function_instances->length(); i++) {
-        Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-        Handle<TypeFeedbackVector> vector =
-            TypeFeedbackVector::New(isolate, feedback_metadata);
-        Handle<LiteralsArray> new_literals =
-            LiteralsArray::New(isolate, vector, new_literal_count);
-        fun->set_literals(*new_literals);
-      }
+    for (int i = 0; i < function_instances->length(); i++) {
+      Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
+      Handle<TypeFeedbackVector> vector =
+          TypeFeedbackVector::New(isolate, feedback_metadata);
+      Handle<LiteralsArray> new_literals =
+          LiteralsArray::New(isolate, vector, new_literal_count);
+      Handle<LiteralsArray> old_literals(fun->literals(), isolate);
+      fun->set_literals(*new_literals);
 
-      shared_info->set_num_literals(new_literal_count);
+      // The literals are rooted in a containing feedback vector.
+      // Replace them there, so new closures have the correct literals.
+      ReplaceRoots(old_literals, new_literals);
     }
+
+    shared_info->set_num_literals(new_literal_count);
   }
 
  private:
@@ -870,6 +868,56 @@ class LiteralFixer {
         }
       }
     }
+  }
+
+  template <typename Visitor>
+  static void IterateAllJSFunctions(Heap* heap, Visitor* visitor) {
+    HeapIterator iterator(heap);
+    for (HeapObject* obj = iterator.next(); obj != NULL;
+         obj = iterator.next()) {
+      if (obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(obj);
+        visitor->visit(function);
+      }
+    }
+  }
+
+  class ReplaceRootsVisitor {
+   public:
+    ReplaceRootsVisitor(Handle<LiteralsArray> old_literals,
+                        Handle<LiteralsArray> new_literals)
+        : old_literals_(old_literals), new_literals_(new_literals) {}
+
+    void visit(JSFunction* fun) {
+      if (!fun->shared()->is_compiled()) return;
+
+      // Look in the type feedback vector for a copy of literals.
+      TypeFeedbackVector* vector = fun->feedback_vector();
+      // Note: it's important to get the feedback metadata from the
+      // type feedback vector, because there may be a new metadata
+      // object in the SharedFunctionInfo (with a different slot
+      // configuration).
+      TypeFeedbackMetadataIterator iter(vector->metadata());
+      while (iter.HasNext()) {
+        FeedbackVectorSlot slot = iter.Next();
+        FeedbackVectorSlotKind kind = iter.kind();
+        if (kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
+          Object* obj = vector->Get(slot);
+          if (obj == *old_literals_) {
+            vector->Set(slot, *new_literals_);
+          }
+        }
+      }
+    }
+
+    Handle<LiteralsArray> old_literals_;
+    Handle<LiteralsArray> new_literals_;
+  };
+
+  static void ReplaceRoots(Handle<LiteralsArray> old_literals,
+                           Handle<LiteralsArray> new_literals) {
+    ReplaceRootsVisitor replace_visitor(old_literals, new_literals);
+    IterateAllJSFunctions(old_literals->GetHeap(), &replace_visitor);
   }
 
   // Finds all instances of JSFunction that refers to the provided shared_info
@@ -972,7 +1020,6 @@ void LiveEdit::ReplaceFunctionCode(
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
   Handle<SharedFunctionInfo> new_shared_info =
       compile_info_wrapper.GetSharedFunctionInfo();
-  bool feedback_metadata_changed = false;
 
   if (shared_info->is_compiled()) {
     // Take whatever code we can get from the new shared function info. We
@@ -1019,8 +1066,6 @@ void LiveEdit::ReplaceFunctionCode(
     // Update the type feedback vector, if needed.
     Handle<TypeFeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
-    feedback_metadata_changed =
-        new_feedback_metadata->DiffersFrom(shared_info->feedback_metadata());
     shared_info->set_feedback_metadata(*new_feedback_metadata);
   }
 
@@ -1029,8 +1074,7 @@ void LiveEdit::ReplaceFunctionCode(
   shared_info->set_start_position(start_position);
   shared_info->set_end_position(end_position);
 
-  LiteralFixer::PatchLiterals(&compile_info_wrapper, shared_info,
-                              feedback_metadata_changed, isolate);
+  LiteralFixer::PatchLiterals(&compile_info_wrapper, shared_info, isolate);
 
   DeoptimizeDependentFunctions(*shared_info);
   isolate->compilation_cache()->Remove(shared_info);
