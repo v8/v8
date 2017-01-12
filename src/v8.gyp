@@ -397,6 +397,7 @@
         '../include/v8-profiler.h',
         '../include/v8-testing.h',
         '../include/v8-util.h',
+        '../include/v8-version-string.h',
         '../include/v8-version.h',
         '../include/v8.h',
         '../include/v8config.h',

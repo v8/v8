@@ -851,6 +851,17 @@ if (v8_use_external_startup_data) {
   }
 }
 
+# This is split out to be a non-code containing target that the Chromium browser
+# DLL can depend upon to get only a version string.
+v8_source_set("v8_version") {
+  configs = [ ":internal_config" ]
+
+  sources = [
+    "include/v8-version-string.h",
+    "include/v8-version.h",
+  ]
+}
+
 v8_source_set("v8_base") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -864,7 +875,6 @@ v8_source_set("v8_base") {
     "include/v8-profiler.h",
     "include/v8-testing.h",
     "include/v8-util.h",
-    "include/v8-version.h",
     "include/v8.h",
     "include/v8config.h",
     "src/accessors.cc",
@@ -2189,6 +2199,7 @@ v8_source_set("v8_base") {
   deps = [
     ":v8_libbase",
     ":v8_libsampler",
+    ":v8_version",
   ]
 
   sources += [ v8_generated_peephole_source ]
