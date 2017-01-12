@@ -221,7 +221,7 @@ void Deserializer::DeserializeInternalFields(
   DisallowHeapAllocation no_gc;
   DisallowJavascriptExecution no_js(isolate_);
   DisallowCompilation no_compile(isolate_);
-  DCHECK_NOT_NULL(internal_fields_deserializer);
+  DCHECK_NOT_NULL(internal_fields_deserializer.callback);
   for (int code = source_.Get(); code != kSynchronize; code = source_.Get()) {
     HandleScope scope(isolate_);
     int space = code & kSpaceMask;
@@ -233,8 +233,9 @@ void Deserializer::DeserializeInternalFields(
     int size = source_.GetInt();
     byte* data = new byte[size];
     source_.CopyRaw(data, size);
-    internal_fields_deserializer(v8::Utils::ToLocal(obj), index,
-                                 {reinterpret_cast<char*>(data), size});
+    internal_fields_deserializer.callback(v8::Utils::ToLocal(obj), index,
+                                          {reinterpret_cast<char*>(data), size},
+                                          internal_fields_deserializer.data);
     delete[] data;
   }
 }

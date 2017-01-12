@@ -6281,17 +6281,33 @@ class V8_EXPORT EmbedderHeapTracer {
 };
 
 /**
- * Callback to the embedder used in SnapshotCreator to handle internal fields.
+ * Callback and supporting data used in SnapshotCreator to implement embedder
+ * logic to serialize internal fields.
  */
-typedef StartupData (*SerializeInternalFieldsCallback)(Local<Object> holder,
-                                                       int index);
+struct SerializeInternalFieldsCallback {
+  typedef StartupData (*CallbackFunction)(Local<Object> holder, int index,
+                                          void* data);
+  SerializeInternalFieldsCallback(CallbackFunction function = nullptr,
+                                  void* data_arg = nullptr)
+      : callback(function), data(data_arg) {}
+  CallbackFunction callback;
+  void* data;
+};
 
 /**
- * Callback to the embedder used to deserialize internal fields.
+ * Callback and supporting data used to implement embedder logic to deserialize
+ * internal fields.
  */
-typedef void (*DeserializeInternalFieldsCallback)(Local<Object> holder,
-                                                  int index,
-                                                  StartupData payload);
+struct DeserializeInternalFieldsCallback {
+  typedef void (*CallbackFunction)(Local<Object> holder, int index,
+                                   StartupData payload, void* data);
+  DeserializeInternalFieldsCallback(CallbackFunction function = nullptr,
+                                    void* data_arg = nullptr)
+      : callback(function), data(data_arg) {}
+  void (*callback)(Local<Object> holder, int index, StartupData payload,
+                   void* data);
+  void* data;
+};
 
 /**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
@@ -7689,7 +7705,8 @@ class V8_EXPORT SnapshotCreator {
    * \returns the index of the context in the snapshot blob.
    */
   size_t AddContext(Local<Context> context,
-                    SerializeInternalFieldsCallback callback = nullptr);
+                    SerializeInternalFieldsCallback callback =
+                        SerializeInternalFieldsCallback());
 
   /**
    * Add a template to be included in the snapshot blob.
@@ -8029,7 +8046,8 @@ class V8_EXPORT Context {
 
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
-      DeserializeInternalFieldsCallback internal_fields_deserializer = nullptr,
+      DeserializeInternalFieldsCallback internal_fields_deserializer =
+          DeserializeInternalFieldsCallback(),
       ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<Value> global_object = MaybeLocal<Value>());
 

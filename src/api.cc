@@ -615,8 +615,8 @@ StartupData SnapshotCreator::CreateBlob(
 
   {
     // The default snapshot does not support internal fields.
-    i::PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                            nullptr);
+    i::PartialSerializer partial_serializer(
+        isolate, &startup_serializer, v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&default_context, false);
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
@@ -6297,7 +6297,7 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::MaybeLocal<ObjectTemplate> global_template,
                                 v8::MaybeLocal<Value> global_object) {
   return NewContext(external_isolate, extensions, global_template,
-                    global_object, 0, nullptr);
+                    global_object, 0, DeserializeInternalFieldsCallback());
 }
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
@@ -6334,7 +6334,8 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
                   "Global template needs to have access check handlers.");
   i::Handle<i::JSGlobalProxy> global_proxy =
       CreateEnvironment<i::JSGlobalProxy>(isolate, nullptr, global_template,
-                                          global_object, 0, nullptr);
+                                          global_object, 0,
+                                          DeserializeInternalFieldsCallback());
   if (global_proxy.is_null()) {
     if (isolate->has_pending_exception()) {
       isolate->OptionalRescheduleException(true);
