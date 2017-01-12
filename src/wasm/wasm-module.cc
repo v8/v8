@@ -467,9 +467,18 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
   return byte_pos;
 }
 
-void PatchDirectCalls(Handle<FixedArray> new_functions,
-                      Handle<WasmCompiledModule> compiled_module,
-                      WasmModule* module, int start) {
+void PatchContext(RelocIterator& it, Context* context) {
+  Object* old = it.rinfo()->target_object();
+  // The only context we use is the native context.
+  DCHECK_IMPLIES(old->IsContext(), old->IsNativeContext());
+  if (!old->IsNativeContext()) return;
+  it.rinfo()->set_target_object(context, UPDATE_WRITE_BARRIER,
+                                SKIP_ICACHE_FLUSH);
+}
+
+void PatchDirectCallsAndContext(Handle<FixedArray> new_functions,
+                                Handle<WasmCompiledModule> compiled_module,
+                                WasmModule* module, int start) {
   DisallowHeapAllocation no_gc;
   AllowDeferredHandleDereference embedding_raw_address;
   SeqOneByteString* module_bytes = compiled_module->module_bytes();
@@ -479,6 +488,9 @@ void PatchDirectCalls(Handle<FixedArray> new_functions,
                 compiled_module->module()->num_exported_functions,
             new_functions->length());
   DCHECK_EQ(start, compiled_module->module()->num_imported_functions);
+  Context* context = compiled_module->ptr_to_native_context();
+  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
 
   // Allocate decoder outside of the loop and reuse it to decode all function
   // indexes.
@@ -499,8 +511,12 @@ void PatchDirectCalls(Handle<FixedArray> new_functions,
     const byte* func_bytes =
         module_bytes->GetChars() +
         compiled_module->module()->functions[func_index].code_start_offset;
-    for (RelocIterator it(wasm_function, RelocInfo::kCodeTargetMask);
-         !it.done(); it.next()) {
+    for (RelocIterator it(wasm_function, mode_mask); !it.done(); it.next()) {
+      if (RelocInfo::IsEmbeddedObject(it.rinfo()->rmode())) {
+        PatchContext(it, context);
+        continue;
+      }
+      DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
       Code::Kind kind =
           Code::GetCodeFromTargetAddress(it.rinfo()->target_address())->kind();
       if (kind != Code::WASM_FUNCTION && kind != Code::WASM_TO_JS_FUNCTION)
@@ -522,8 +538,12 @@ void PatchDirectCalls(Handle<FixedArray> new_functions,
     DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
     // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
     int num_wasm_calls = 0;
-    for (RelocIterator it(export_wrapper, RelocInfo::kCodeTargetMask);
-         !it.done(); it.next()) {
+    for (RelocIterator it(export_wrapper, mode_mask); !it.done(); it.next()) {
+      if (RelocInfo::IsEmbeddedObject(it.rinfo()->rmode())) {
+        PatchContext(it, context);
+        continue;
+      }
+      DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
       Code::Kind kind =
           Code::GetCodeFromTargetAddress(it.rinfo()->target_address())->kind();
       if (kind != Code::WASM_FUNCTION && kind != Code::WASM_TO_JS_FUNCTION)
@@ -1237,6 +1257,7 @@ class WasmInstanceBuilder {
               compiled_module_->instance_id());
       }
       compiled_module_->set_code_table(code_table);
+      compiled_module_->set_native_context(isolate_->native_context());
     }
     module_ = compiled_module_->module();
 
@@ -1366,11 +1387,9 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     if (function_table_count > 0) InitializeTables(code_table, instance);
 
-    if (num_imported_functions > 0 || !owner.is_null()) {
-      // If the code was cloned, or new imports were compiled, patch.
-      PatchDirectCalls(code_table, compiled_module_, module_,
-                       num_imported_functions);
-    }
+    // Patch new call sites and the context.
+    PatchDirectCallsAndContext(code_table, compiled_module_, module_,
+                               num_imported_functions);
 
     FlushICache(isolate_, code_table);
 

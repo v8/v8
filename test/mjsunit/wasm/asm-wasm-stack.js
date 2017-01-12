@@ -137,8 +137,7 @@ function generateOverflowWasmFromAsmJs() {
   } catch (ex) {
     e = ex;
   }
-  // TODO(wasm): Re-enable the check once 673297 is fixed.
-  //assertInstanceof(e, RangeError, 'RangeError should have been thrown');
+  assertInstanceof(e, RangeError, 'RangeError should have been thrown');
   checkTopFunctionsOnCallsites(e, [
     ['f', 124, 13],  // --
     ['f', 126, 12],  // --
