@@ -445,36 +445,99 @@ void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
   }
 }
 
-void PatchDirectCalls(Handle<FixedArray> old_functions,
-                      Handle<FixedArray> new_functions, int start) {
-  DCHECK_EQ(new_functions->length(), old_functions->length());
+int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
+  DCHECK_EQ(static_cast<int>(kExprCallFunction), static_cast<int>(*pc));
+  decoder.Reset(pc + 1, pc + 6);
+  uint32_t call_idx = decoder.consume_u32v("call index");
+  DCHECK(decoder.ok());
+  DCHECK_GE(kMaxInt, call_idx);
+  return static_cast<int>(call_idx);
+}
 
+int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
+                                       size_t offset_l) {
+  DCHECK_GE(kMaxInt, offset_l);
+  int offset = static_cast<int>(offset_l);
+  DCHECK(!iterator.done());
+  int byte_pos;
+  do {
+    byte_pos = iterator.source_position().ScriptOffset();
+    iterator.Advance();
+  } while (!iterator.done() && iterator.code_offset() <= offset);
+  return byte_pos;
+}
+
+void PatchDirectCalls(Handle<FixedArray> new_functions,
+                      Handle<WasmCompiledModule> compiled_module,
+                      WasmModule* module, int start) {
   DisallowHeapAllocation no_gc;
-  std::map<Code*, Code*> old_to_new_code;
-  for (int i = 0; i < new_functions->length(); ++i) {
-    old_to_new_code.insert(std::make_pair(Code::cast(old_functions->get(i)),
-                                          Code::cast(new_functions->get(i))));
-  }
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
   AllowDeferredHandleDereference embedding_raw_address;
-  for (int i = start; i < new_functions->length(); ++i) {
-    Code* wasm_function = Code::cast(new_functions->get(i));
-    for (RelocIterator it(wasm_function, mode_mask); !it.done(); it.next()) {
-      Code* old_code =
-          Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      if (old_code->kind() == Code::WASM_TO_JS_FUNCTION ||
-          old_code->kind() == Code::WASM_FUNCTION) {
-        auto found = old_to_new_code.find(old_code);
-        DCHECK(found != old_to_new_code.end());
-        Code* new_code = found->second;
-        if (new_code != old_code) {
-          it.rinfo()->set_target_address(new_code->instruction_start(),
-                                         UPDATE_WRITE_BARRIER,
-                                         SKIP_ICACHE_FLUSH);
-        }
-      }
+  SeqOneByteString* module_bytes = compiled_module->module_bytes();
+  std::vector<WasmFunction>* wasm_functions =
+      &compiled_module->module()->functions;
+  DCHECK_EQ(wasm_functions->size() +
+                compiled_module->module()->num_exported_functions,
+            new_functions->length());
+  DCHECK_EQ(start, compiled_module->module()->num_imported_functions);
+
+  // Allocate decoder outside of the loop and reuse it to decode all function
+  // indexes.
+  wasm::Decoder decoder(nullptr, nullptr);
+  int num_wasm_functions = static_cast<int>(wasm_functions->size());
+  int func_index = start;
+  // Patch all wasm functions.
+  for (; func_index < num_wasm_functions; ++func_index) {
+    Code* wasm_function = Code::cast(new_functions->get(func_index));
+    DCHECK(wasm_function->kind() == Code::WASM_FUNCTION);
+    // Iterate simultaneously over the relocation information and the source
+    // position table. For each call in the reloc info, move the source position
+    // iterator forward to that position to find the byte offset of the
+    // respective call. Then extract the call index from the module wire bytes
+    // to find the new compiled function.
+    SourcePositionTableIterator source_pos_iterator(
+        wasm_function->source_position_table());
+    const byte* func_bytes =
+        module_bytes->GetChars() +
+        compiled_module->module()->functions[func_index].code_start_offset;
+    for (RelocIterator it(wasm_function, RelocInfo::kCodeTargetMask);
+         !it.done(); it.next()) {
+      Code::Kind kind =
+          Code::GetCodeFromTargetAddress(it.rinfo()->target_address())->kind();
+      if (kind != Code::WASM_FUNCTION && kind != Code::WASM_TO_JS_FUNCTION)
+        continue;
+      size_t offset = it.rinfo()->pc() - wasm_function->instruction_start();
+      int byte_pos =
+          AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
+      int called_func_index =
+          ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
+      Code* new_code = Code::cast(new_functions->get(called_func_index));
+      it.rinfo()->set_target_address(new_code->instruction_start(),
+                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     }
   }
+  // Patch all exported functions.
+  for (auto exp : module->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+    Code* export_wrapper = Code::cast(new_functions->get(func_index));
+    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+    // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
+    int num_wasm_calls = 0;
+    for (RelocIterator it(export_wrapper, RelocInfo::kCodeTargetMask);
+         !it.done(); it.next()) {
+      Code::Kind kind =
+          Code::GetCodeFromTargetAddress(it.rinfo()->target_address())->kind();
+      if (kind != Code::WASM_FUNCTION && kind != Code::WASM_TO_JS_FUNCTION)
+        continue;
+      ++num_wasm_calls;
+      Code* new_code = Code::cast(new_functions->get(exp.index));
+      DCHECK_EQ(kind, new_code->kind());
+      it.rinfo()->set_target_address(new_code->instruction_start(),
+                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+    }
+    DCHECK_EQ(1, num_wasm_calls);
+    func_index++;
+  }
+  DCHECK_EQ(new_functions->length(), func_index);
 }
 
 static void ResetCompiledModule(Isolate* isolate, WasmInstanceObject* owner,
@@ -1305,7 +1368,8 @@ class WasmInstanceBuilder {
 
     if (num_imported_functions > 0 || !owner.is_null()) {
       // If the code was cloned, or new imports were compiled, patch.
-      PatchDirectCalls(old_code_table, code_table, num_imported_functions);
+      PatchDirectCalls(code_table, compiled_module_, module_,
+                       num_imported_functions);
     }
 
     FlushICache(isolate_, code_table);
