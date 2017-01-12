@@ -740,6 +740,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Convert any object to a Primitive.
   Node* JSReceiverToPrimitive(Node* context, Node* input);
 
+  // Convert a String to a flat String.
+  Node* FlattenString(Node* string);
+
   enum ToIntegerTruncationMode {
     kNoTruncation,
     kTruncateMinusZero,
@@ -852,8 +855,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Various building blocks for stubs doing property lookups.
   void TryToName(Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Variable* var_unique,
-                 Label* if_bailout);
+                 Label* if_keyisunique, Label* if_bailout);
 
   // Calculates array index for given dictionary entry and entry field.
   // See Dictionary::EntryToIndex().

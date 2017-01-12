@@ -79,7 +79,6 @@ class StaticVisitorBase : public AllStatic {
   V(StructGeneric)         \
   V(ConsString)            \
   V(SlicedString)          \
-  V(ThinString)            \
   V(Symbol)                \
   V(Oddball)               \
   V(Code)                  \

@@ -275,11 +275,6 @@ bool HeapObject::IsConsString() const {
   return StringShape(String::cast(this)).IsCons();
 }
 
-bool HeapObject::IsThinString() const {
-  if (!IsString()) return false;
-  return StringShape(String::cast(this)).IsThin();
-}
-
 bool HeapObject::IsSlicedString() const {
   if (!IsString()) return false;
   return StringShape(String::cast(this)).IsSliced();
@@ -703,7 +698,6 @@ CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Symbol)
 CAST_ACCESSOR(TemplateInfo)
-CAST_ACCESSOR(ThinString)
 CAST_ACCESSOR(Uint16x8)
 CAST_ACCESSOR(Uint32x4)
 CAST_ACCESSOR(Uint8x16)
@@ -848,10 +842,6 @@ bool String::HasOnlyOneByteChars() {
 
 bool StringShape::IsCons() {
   return (type_ & kStringRepresentationMask) == kConsStringTag;
-}
-
-bool StringShape::IsThin() {
-  return (type_ & kStringRepresentationMask) == kThinStringTag;
 }
 
 bool StringShape::IsSliced() {
@@ -3710,19 +3700,10 @@ bool String::Equals(Handle<String> one, Handle<String> two) {
 
 
 Handle<String> String::Flatten(Handle<String> string, PretenureFlag pretenure) {
-  if (string->IsConsString()) {
-    Handle<ConsString> cons = Handle<ConsString>::cast(string);
-    if (cons->IsFlat()) {
-      string = handle(cons->first());
-    } else {
-      return SlowFlatten(cons, pretenure);
-    }
-  }
-  if (string->IsThinString()) {
-    string = handle(Handle<ThinString>::cast(string)->actual());
-    DCHECK(!string->IsConsString());
-  }
-  return string;
+  if (!string->IsConsString()) return string;
+  Handle<ConsString> cons = Handle<ConsString>::cast(string);
+  if (cons->IsFlat()) return handle(cons->first());
+  return SlowFlatten(cons, pretenure);
 }
 
 
@@ -3743,9 +3724,6 @@ uint16_t String::Get(int index) {
     case kSlicedStringTag | kOneByteStringTag:
     case kSlicedStringTag | kTwoByteStringTag:
       return SlicedString::cast(this)->SlicedStringGet(index);
-    case kThinStringTag | kOneByteStringTag:
-    case kThinStringTag | kTwoByteStringTag:
-      return ThinString::cast(this)->ThinStringGet(index);
     default:
       break;
   }
@@ -3777,7 +3755,6 @@ String* String::GetUnderlying() {
   DCHECK(this->IsFlat());
   DCHECK(StringShape(this).IsIndirect());
   STATIC_ASSERT(ConsString::kFirstOffset == SlicedString::kParentOffset);
-  STATIC_ASSERT(ConsString::kFirstOffset == ThinString::kActualOffset);
   const int kUnderlyingOffset = SlicedString::kParentOffset;
   return String::cast(READ_FIELD(this, kUnderlyingOffset));
 }
@@ -3828,11 +3805,6 @@ ConsString* String::VisitFlat(Visitor* visitor,
       case kConsStringTag | kOneByteStringTag:
       case kConsStringTag | kTwoByteStringTag:
         return ConsString::cast(string);
-
-      case kThinStringTag | kOneByteStringTag:
-      case kThinStringTag | kTwoByteStringTag:
-        string = ThinString::cast(string)->actual();
-        continue;
 
       default:
         UNREACHABLE();
@@ -3965,7 +3937,6 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kSecondOffset, value, mode);
 }
 
-ACCESSORS(ThinString, actual, String, kActualOffset);
 
 bool ExternalString::is_short() {
   InstanceType type = map()->instance_type();

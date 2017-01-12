@@ -181,6 +181,47 @@ TEST(ToString) {
   }
 }
 
+TEST(FlattenString) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  m.Return(m.FlattenString(m.Parameter(0)));
+
+  Handle<Code> code = data.GenerateCode();
+  FunctionTester ft(code, kNumParams);
+
+  Handle<FixedArray> test_cases(isolate->factory()->NewFixedArray(4));
+  Handle<String> expected(
+      isolate->factory()->InternalizeUtf8String("hello, world!"));
+  test_cases->set(0, *expected);
+
+  Handle<String> string(
+      isolate->factory()->InternalizeUtf8String("filler hello, world! filler"));
+  Handle<String> sub_string(
+      isolate->factory()->NewProperSubString(string, 7, 20));
+  test_cases->set(1, *sub_string);
+
+  Handle<String> hello(isolate->factory()->InternalizeUtf8String("hello,"));
+  Handle<String> world(isolate->factory()->InternalizeUtf8String(" world!"));
+  Handle<String> cons_str(
+      isolate->factory()->NewConsString(hello, world).ToHandleChecked());
+  test_cases->set(2, *cons_str);
+
+  Handle<String> empty(isolate->factory()->InternalizeUtf8String(""));
+  Handle<String> fake_cons_str(
+      isolate->factory()->NewConsString(expected, empty).ToHandleChecked());
+  test_cases->set(3, *fake_cons_str);
+
+  for (int i = 0; i < 4; ++i) {
+    Handle<String> test = handle(String::cast(test_cases->get(i)));
+    Handle<Object> result = ft.Call(test).ToHandleChecked();
+    CHECK(result->IsString());
+    CHECK(Handle<String>::cast(result)->IsFlat());
+    CHECK(String::Equals(Handle<String>::cast(result), expected));
+  }
+}
+
 TEST(TryToName) {
   typedef CodeAssemblerLabel Label;
   typedef CodeAssemblerVariable Variable;
@@ -198,26 +239,22 @@ TEST(TryToName) {
 
     Label passed(&m), failed(&m);
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
-    {
-      Variable var_index(&m, MachineType::PointerRepresentation());
-      Variable var_unique(&m, MachineRepresentation::kTagged);
+    Variable var_index(&m, MachineType::PointerRepresentation());
 
-      m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
-                  &if_bailout);
+    m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &if_bailout);
 
-      m.Bind(&if_keyisindex);
-      m.GotoUnless(m.WordEqual(expected_result,
-                               m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
-                   &failed);
-      m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
-               &passed, &failed);
+    m.Bind(&if_keyisindex);
+    m.GotoUnless(
+        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
+        &failed);
+    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()), &passed,
+             &failed);
 
-      m.Bind(&if_keyisunique);
-      m.GotoUnless(m.WordEqual(expected_result,
-                               m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
-                   &failed);
-      m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
-    }
+    m.Bind(&if_keyisunique);
+    m.GotoUnless(
+        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
+        &failed);
+    m.Branch(m.WordEqual(expected_arg, key), &passed, &failed);
 
     m.Bind(&if_bailout);
     m.Branch(
@@ -312,23 +349,6 @@ TEST(TryToName) {
     // TryToName(<non-internalized string>) => bailout.
     Handle<Object> key = isolate->factory()->NewStringFromAsciiChecked("test");
     ft.CheckTrue(key, expect_bailout);
-  }
-
-  {
-    // TryToName(<thin string>) => internalized version.
-    Handle<String> s = isolate->factory()->NewStringFromAsciiChecked("foo");
-    Handle<String> internalized = isolate->factory()->InternalizeString(s);
-    ft.CheckTrue(s, expect_unique, internalized);
-  }
-
-  {
-    // TryToName(<thin two-byte string>) => internalized version.
-    uc16 array1[] = {2001, 2002, 2003};
-    Vector<const uc16> str1(array1);
-    Handle<String> s =
-        isolate->factory()->NewStringFromTwoByte(str1).ToHandleChecked();
-    Handle<String> internalized = isolate->factory()->InternalizeString(s);
-    ft.CheckTrue(s, expect_unique, internalized);
   }
 }
 

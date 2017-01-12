@@ -109,7 +109,6 @@
 //           - SeqTwoByteString
 //         - SlicedString
 //         - ConsString
-//         - ThinString
 //         - ExternalString
 //           - ExternalOneByteString
 //           - ExternalTwoByteString
@@ -336,12 +335,10 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(CONS_STRING_TYPE)                                           \
   V(EXTERNAL_STRING_TYPE)                                       \
   V(SLICED_STRING_TYPE)                                         \
-  V(THIN_STRING_TYPE)                                           \
   V(ONE_BYTE_STRING_TYPE)                                       \
   V(CONS_ONE_BYTE_STRING_TYPE)                                  \
   V(EXTERNAL_ONE_BYTE_STRING_TYPE)                              \
   V(SLICED_ONE_BYTE_STRING_TYPE)                                \
-  V(THIN_ONE_BYTE_STRING_TYPE)                                  \
   V(EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE)                    \
   V(SHORT_EXTERNAL_STRING_TYPE)                                 \
   V(SHORT_EXTERNAL_ONE_BYTE_STRING_TYPE)                        \
@@ -525,10 +522,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE,               \
     ExternalTwoByteString::kShortSize,                                        \
     short_external_internalized_string_with_one_byte_data,                    \
-    ShortExternalInternalizedStringWithOneByteData)                           \
-  V(THIN_STRING_TYPE, ThinString::kSize, thin_string, ThinString)             \
-  V(THIN_ONE_BYTE_STRING_TYPE, ThinString::kSize, thin_one_byte_string,       \
-    ThinOneByteString)
+    ShortExternalInternalizedStringWithOneByteData)
 
 // A struct is a simple object a set of object-valued fields.  Including an
 // object type in this causes the compiler to generate most of the boilerplate
@@ -580,21 +574,20 @@ const uint32_t kIsNotInternalizedMask = 0x40;
 const uint32_t kNotInternalizedTag = 0x40;
 const uint32_t kInternalizedTag = 0x0;
 
-// If bit 7 is clear then bit 3 indicates whether the string consists of
+// If bit 7 is clear then bit 2 indicates whether the string consists of
 // two-byte characters or one-byte characters.
-const uint32_t kStringEncodingMask = 0x8;
+const uint32_t kStringEncodingMask = 0x4;
 const uint32_t kTwoByteStringTag = 0x0;
-const uint32_t kOneByteStringTag = 0x8;
+const uint32_t kOneByteStringTag = 0x4;
 
-// If bit 7 is clear, the low-order 3 bits indicate the representation
+// If bit 7 is clear, the low-order 2 bits indicate the representation
 // of the string.
-const uint32_t kStringRepresentationMask = 0x07;
+const uint32_t kStringRepresentationMask = 0x03;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
   kExternalStringTag = 0x2,
-  kSlicedStringTag = 0x3,
-  kThinStringTag = 0x5
+  kSlicedStringTag = 0x3
 };
 const uint32_t kIsIndirectStringMask = 0x1;
 const uint32_t kIsIndirectStringTag = 0x1;
@@ -604,17 +597,21 @@ STATIC_ASSERT((kConsStringTag &
                kIsIndirectStringMask) == kIsIndirectStringTag);  // NOLINT
 STATIC_ASSERT((kSlicedStringTag &
                kIsIndirectStringMask) == kIsIndirectStringTag);  // NOLINT
-STATIC_ASSERT((kThinStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 
-// If bit 7 is clear, then bit 4 indicates whether this two-byte
+// Use this mask to distinguish between cons and slice only after making
+// sure that the string is one of the two (an indirect string).
+const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
+STATIC_ASSERT(IS_POWER_OF_TWO(kSlicedNotConsMask));
+
+// If bit 7 is clear, then bit 3 indicates whether this two-byte
 // string actually contains one byte data.
-const uint32_t kOneByteDataHintMask = 0x10;
-const uint32_t kOneByteDataHintTag = 0x10;
+const uint32_t kOneByteDataHintMask = 0x08;
+const uint32_t kOneByteDataHintTag = 0x08;
 
 // If bit 7 is clear and string representation indicates an external string,
-// then bit 5 indicates whether the data pointer is cached.
-const uint32_t kShortExternalStringMask = 0x20;
-const uint32_t kShortExternalStringTag = 0x20;
+// then bit 4 indicates whether the data pointer is cached.
+const uint32_t kShortExternalStringMask = 0x10;
+const uint32_t kShortExternalStringTag = 0x10;
 
 // A ConsString with an empty string as the right side is a candidate
 // for being shortcut by the garbage collector. We don't allocate any
@@ -678,9 +675,6 @@ enum InstanceType {
   SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE =
       SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE |
       kNotInternalizedTag,
-  THIN_STRING_TYPE = kTwoByteStringTag | kThinStringTag | kNotInternalizedTag,
-  THIN_ONE_BYTE_STRING_TYPE =
-      kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
 
   // Non-string names
   SYMBOL_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
@@ -1035,7 +1029,6 @@ template <class C> inline bool Is(Object* obj);
   V(SeqTwoByteString)            \
   V(SeqOneByteString)            \
   V(InternalizedString)          \
-  V(ThinString)                  \
   V(Symbol)                      \
                                  \
   V(FixedTypedArrayBase)         \
@@ -9280,7 +9273,6 @@ class StringShape BASE_EMBEDDED {
   inline bool IsExternal();
   inline bool IsCons();
   inline bool IsSliced();
-  inline bool IsThin();
   inline bool IsIndirect();
   inline bool IsExternalOneByte();
   inline bool IsExternalTwoByte();
@@ -9994,34 +9986,6 @@ class ConsString: public String {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConsString);
 };
 
-// The ThinString class describes string objects that are just references
-// to another string object. They are used for in-place internalization when
-// the original string cannot actually be internalized in-place: in these
-// cases, the original string is converted to a ThinString pointing at its
-// internalized version (which is allocated as a new object).
-// In terms of memory layout and most algorithms operating on strings,
-// ThinStrings can be thought of as "one-part cons strings".
-class ThinString : public String {
- public:
-  // Actual string that this ThinString refers to.
-  inline String* actual() const;
-  inline void set_actual(String* s,
-                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-
-  V8_EXPORT_PRIVATE uint16_t ThinStringGet(int index);
-
-  DECLARE_CAST(ThinString)
-  DECLARE_VERIFIER(ThinString)
-
-  // Layout description.
-  static const int kActualOffset = String::kSize;
-  static const int kSize = kActualOffset + kPointerSize;
-
-  typedef FixedBodyDescriptor<kActualOffset, kSize, kSize> BodyDescriptor;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(ThinString);
-};
 
 // The Sliced String class describes strings that are substrings of another
 // sequential string.  The motivation is to save time and memory when creating

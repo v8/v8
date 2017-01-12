@@ -39,24 +39,21 @@ TF_BUILTIN(ObjectHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* map = LoadMap(object);
   Node* instance_type = LoadMapInstanceType(map);
 
-  {
-    Variable var_index(this, MachineType::PointerRepresentation());
-    Variable var_unique(this, MachineRepresentation::kTagged);
+  Variable var_index(this, MachineType::PointerRepresentation());
 
-    Label keyisindex(this), if_iskeyunique(this);
-    TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &var_unique,
-              &call_runtime);
+  Label keyisindex(this), if_iskeyunique(this);
+  TryToName(key, &keyisindex, &var_index, &if_iskeyunique, &call_runtime);
 
-    Bind(&if_iskeyunique);
-    TryHasOwnProperty(object, map, instance_type, var_unique.value(),
-                      &return_true, &return_false, &call_runtime);
+  Bind(&if_iskeyunique);
+  TryHasOwnProperty(object, map, instance_type, key, &return_true,
+                    &return_false, &call_runtime);
 
-    Bind(&keyisindex);
-    // Handle negative keys in the runtime.
-    GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
-    TryLookupElement(object, map, instance_type, var_index.value(),
-                     &return_true, &return_false, &call_runtime);
-  }
+  Bind(&keyisindex);
+  // Handle negative keys in the runtime.
+  GotoIf(IntPtrLessThan(var_index.value(), IntPtrConstant(0)), &call_runtime);
+  TryLookupElement(object, map, instance_type, var_index.value(), &return_true,
+                   &return_false, &call_runtime);
+
   Bind(&return_true);
   Return(BooleanConstant(true));
 

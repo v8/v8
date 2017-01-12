@@ -101,8 +101,6 @@ using v8::MemoryPressureLevel;
   V(Map, string_map, StringMap)                                                \
   V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, cons_string_map, ConsStringMap)                                       \
-  V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
-  V(Map, thin_string_map, ThinStringMap)                                       \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
   V(Map, external_string_map, ExternalStringMap)                               \
@@ -2132,6 +2130,10 @@ class Heap {
 
   MUST_USE_RESULT AllocationResult
       AllocateCode(int object_size, bool immovable);
+
+  MUST_USE_RESULT AllocationResult InternalizeStringWithKey(HashTableKey* key);
+
+  MUST_USE_RESULT AllocationResult InternalizeString(String* str);
 
   // ===========================================================================
 
