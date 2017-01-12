@@ -48,6 +48,13 @@ let moduleBinaryImporting2Memories = (() => {
   return new Int8Array(builder.toBuffer());
 })();
 
+let moduleBinaryWithMemSectionAndMemImport = (() => {
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.addImportedMemory("", "memory1");
+  return new Int8Array(builder.toBuffer());
+})();
+
 // 'WebAssembly' data property on global object
 let wasmDesc = Object.getOwnPropertyDescriptor(this, 'WebAssembly');
 assertEq(typeof wasmDesc.value, "object");
@@ -511,6 +518,7 @@ assertErrorMessage(() => WebAssembly.validate("hi"), TypeError);
 assertEq(WebAssembly.validate(emptyModuleBinary), true);
 // TODO: other ways for validate to return false.
 assertEq(WebAssembly.validate(moduleBinaryImporting2Memories), false);
+assertEq(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport), false);
 
 // 'WebAssembly.compile' data property
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');

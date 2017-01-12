@@ -324,11 +324,7 @@ class ModuleDecoder : public Decoder {
                                      &module->min_mem_pages, &has_max,
                                      kSpecMaxWasmMemoryPages,
                                      &module->max_mem_pages);
-            if (module->has_memory) {
-              error("At most one memory object is supported");
-            } else {
-              module->has_memory = true;
-            }
+            SetHasMemory(module);
             break;
           }
           case kExternalGlobal: {
@@ -403,7 +399,7 @@ class ModuleDecoder : public Decoder {
             "memory", "pages", kV8MaxWasmMemoryPages, &module->min_mem_pages,
             &has_max, kSpecMaxWasmMemoryPages, &module->max_mem_pages);
       }
-      module->has_memory = true;
+      SetHasMemory(module);
       section_iter.advance();
     }
 
@@ -683,6 +679,14 @@ class ModuleDecoder : public Decoder {
   ModuleOrigin origin_;
 
   uint32_t off(const byte* ptr) { return static_cast<uint32_t>(ptr - start_); }
+
+  void SetHasMemory(WasmModule* module) {
+    if (module->has_memory) {
+      error("At most one memory object is supported");
+    } else {
+      module->has_memory = true;
+    }
+  }
 
   // Decodes a single global entry inside a module starting at {pc_}.
   void DecodeGlobalInModule(WasmModule* module, uint32_t index,

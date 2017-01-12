@@ -58,7 +58,6 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var i2;
   {
     let builder = new WasmModuleBuilder();
-    builder.addMemory(1, 1, false);
     builder.addImportedMemory("fil", "imported_mem");
     builder.addFunction("bar", kSig_i_i)
       .addBody([

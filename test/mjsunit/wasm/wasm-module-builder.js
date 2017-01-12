@@ -547,9 +547,9 @@ class WasmModuleBuilder {
     return buffer;
   }
 
-  instantiate(...args) {
+  instantiate(ffi) {
     let module = new WebAssembly.Module(this.toBuffer());
-    let instance = new WebAssembly.Instance(module, ...args);
+    let instance = new WebAssembly.Instance(module, ffi);
     return instance;
   }
 }
