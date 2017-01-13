@@ -70,6 +70,8 @@ void V8Debugger::enable() {
   v8::HandleScope scope(m_isolate);
   v8::debug::SetDebugEventListener(m_isolate, &V8Debugger::v8DebugEventCallback,
                                    v8::External::New(m_isolate, this));
+  v8::debug::SetAsyncTaskListener(m_isolate, &V8Debugger::v8AsyncTaskListener,
+                                  this);
   m_debuggerContext.Reset(m_isolate, v8::debug::GetDebugContext(m_isolate));
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
@@ -85,6 +87,7 @@ void V8Debugger::disable() {
   allAsyncTasksCanceled();
   m_wasmTranslation.Clear();
   v8::debug::SetDebugEventListener(m_isolate, nullptr);
+  v8::debug::SetAsyncTaskListener(m_isolate, nullptr, nullptr);
 }
 
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
@@ -533,15 +536,9 @@ void V8Debugger::handleV8DebugEvent(
   v8::HandleScope scope(m_isolate);
 
   v8::DebugEvent event = eventDetails.GetEvent();
-  if (event != v8::AsyncTaskEvent && event != v8::Break &&
-      event != v8::Exception && event != v8::AfterCompile &&
-      event != v8::CompileError)
+  if (event != v8::Break && event != v8::Exception &&
+      event != v8::AfterCompile && event != v8::CompileError)
     return;
-
-  if (event == v8::AsyncTaskEvent) {
-    handleV8AsyncTaskEvent(eventDetails.GetEventData());
-    return;
-  }
 
   v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
   DCHECK(!eventContext.IsEmpty());
@@ -596,52 +593,35 @@ void V8Debugger::handleV8DebugEvent(
   }
 }
 
-void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Object> eventData) {
-  if (!m_maxAsyncCallStackDepth) return;
-
-  // TODO(kozyatinskiy): remove usage of current context as soon as async event
-  // is migrated to pure C++ API.
-  v8::debug::PromiseDebugActionType type =
-      static_cast<v8::debug::PromiseDebugActionType>(
-          eventData
-              ->Get(m_isolate->GetCurrentContext(),
-                    toV8StringInternalized(m_isolate, "type_"))
-              .ToLocalChecked()
-              ->ToInteger(m_isolate->GetCurrentContext())
-              .ToLocalChecked()
-              ->Value());
-  int id = static_cast<int>(eventData
-                                ->Get(m_isolate->GetCurrentContext(),
-                                      toV8StringInternalized(m_isolate, "id_"))
-                                .ToLocalChecked()
-                                ->ToInteger(m_isolate->GetCurrentContext())
-                                .ToLocalChecked()
-                                ->Value());
+void V8Debugger::v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
+                                     int id, void* data) {
+  V8Debugger* debugger = static_cast<V8Debugger*>(data);
+  if (!debugger->m_maxAsyncCallStackDepth) return;
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
     case v8::debug::kDebugEnqueueAsyncFunction:
-      asyncTaskScheduled("async function", ptr, true);
+      debugger->asyncTaskScheduled("async function", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseResolve:
-      asyncTaskScheduled("Promise.resolve", ptr, true);
+      debugger->asyncTaskScheduled("Promise.resolve", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseReject:
-      asyncTaskScheduled("Promise.reject", ptr, true);
+      debugger->asyncTaskScheduled("Promise.reject", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseResolveThenableJob:
-      asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
+      debugger->asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
       break;
     case v8::debug::kDebugPromiseCollected:
-      asyncTaskCanceled(ptr);
+      debugger->asyncTaskCanceled(ptr);
       break;
     case v8::debug::kDebugWillHandle:
-      asyncTaskStarted(ptr);
+      debugger->asyncTaskStarted(ptr);
       break;
     case v8::debug::kDebugDidHandle:
-      asyncTaskFinished(ptr);
+      debugger->asyncTaskFinished(ptr);
       break;
   }
 }

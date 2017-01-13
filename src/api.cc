@@ -9308,6 +9308,14 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
+void debug::SetAsyncTaskListener(Isolate* v8_isolate,
+                                 debug::AsyncTaskListener listener,
+                                 void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  isolate->debug()->SetAsyncTaskListener(listener, data);
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();

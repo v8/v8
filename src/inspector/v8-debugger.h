@@ -114,7 +114,8 @@ class V8Debugger {
   v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
                                                   const char* functionName);
   void handleV8DebugEvent(const v8::debug::EventDetails&);
-  void handleV8AsyncTaskEvent(v8::Local<v8::Object> eventData);
+  static void v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
+                                  int id, void* data);
 
   v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>,
                                          v8::Local<v8::Object>);

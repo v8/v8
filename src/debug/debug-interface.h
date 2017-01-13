@@ -5,6 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_INTERFACE_H_
 #define V8_DEBUG_DEBUG_INTERFACE_H_
 
+#include <functional>
+
 #include "include/v8-debug.h"
 #include "include/v8-util.h"
 #include "include/v8.h"
@@ -201,6 +203,12 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
+
+typedef std::function<void(debug::PromiseDebugActionType type, int id,
+                           void* data)>
+    AsyncTaskListener;
+void SetAsyncTaskListener(Isolate* isolate, AsyncTaskListener listener,
+                          void* data);
 
 }  // namespace debug
 }  // namespace v8

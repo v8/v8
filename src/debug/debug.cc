@@ -1859,8 +1859,30 @@ int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
   return async_id->value();
 }
 
+void Debug::SetAsyncTaskListener(debug::AsyncTaskListener listener,
+                                 void* data) {
+  async_task_listener_ = listener;
+  async_task_listener_data_ = data;
+  UpdateState();
+}
+
 void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
   if (in_debug_scope() || ignore_events()) return;
+
+  if (async_task_listener_) {
+    async_task_listener_(type, id, async_task_listener_data_);
+    // There are three types of event listeners: C++ message_handler,
+    // JavaScript event listener and C++ event listener.
+    // Currently inspector still uses C++ event listener and installs
+    // more specific event listeners for part of events. Calling of
+    // C++ event listener is redundant when more specific event listener
+    // is presented. Other clients can install JavaScript event listener
+    // (e.g. some of NodeJS module).
+    bool non_inspector_listener_exists =
+        message_handler_ != nullptr ||
+        (event_listener_.is_null() && !event_listener_->IsForeign());
+    if (!non_inspector_listener_exists) return;
+  }
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
@@ -2144,7 +2166,8 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
 }
 
 void Debug::UpdateState() {
-  bool is_active = message_handler_ != NULL || !event_listener_.is_null();
+  bool is_active = message_handler_ != nullptr || !event_listener_.is_null() ||
+                   async_task_listener_ != nullptr;
   if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.

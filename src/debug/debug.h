@@ -466,6 +466,8 @@ class Debug {
 
   int NextAsyncTaskId(Handle<JSObject> promise);
 
+  void SetAsyncTaskListener(debug::AsyncTaskListener listener, void* data);
+
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
   // function needs to be compiled already.
@@ -660,6 +662,9 @@ class Debug {
   Handle<Object> event_listener_data_;
 
   v8::Debug::MessageHandler message_handler_;
+
+  debug::AsyncTaskListener async_task_listener_ = nullptr;
+  void* async_task_listener_data_ = nullptr;
 
   static const int kQueueInitialSize = 4;
   base::Semaphore command_received_;  // Signaled for each command received.
