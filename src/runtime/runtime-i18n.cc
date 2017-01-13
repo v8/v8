@@ -839,6 +839,7 @@ MUST_USE_RESULT Object* LocaleConvertCase(Handle<String> s, Isolate* isolate,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, isolate->factory()->NewRawTwoByteString(dest_length));
     DisallowHeapAllocation no_gc;
+    DCHECK(s->IsFlat());
     String::FlatContent flat = s->GetFlatContent();
     const UChar* src = GetUCharBufferFromFlat(flat, &sap, src_length);
     status = U_ZERO_ERROR;
@@ -1004,6 +1005,7 @@ MUST_USE_RESULT Object* ConvertToLower(Handle<String> s, Isolate* isolate) {
       isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
   DisallowHeapAllocation no_gc;
+  DCHECK(s->IsFlat());
   String::FlatContent flat = s->GetFlatContent();
   uint8_t* dest = result->GetChars();
   if (flat.IsOneByte()) {
@@ -1043,6 +1045,7 @@ MUST_USE_RESULT Object* ConvertToUpper(Handle<String> s, Isolate* isolate) {
     Handle<SeqOneByteString> result =
         isolate->factory()->NewRawOneByteString(length).ToHandleChecked();
 
+    DCHECK(s->IsFlat());
     int sharp_s_count;
     bool is_result_single_byte;
     {
@@ -1128,8 +1131,11 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
   CONVERT_BOOLEAN_ARG_CHECKED(is_upper, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, lang_arg, 2);
 
-  DCHECK(lang_arg->length() <= 3);
+  // Primary language tag can be up to 8 characters long in theory.
+  // https://tools.ietf.org/html/bcp47#section-2.2.1
+  DCHECK(lang_arg->length() <= 8);
   lang_arg = String::Flatten(lang_arg);
+  s = String::Flatten(s);
 
   // All the languages requiring special-handling have two-letter codes.
   if (V8_UNLIKELY(lang_arg->length() > 2))
@@ -1142,7 +1148,6 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
     c1 = lang.Get(0);
     c2 = lang.Get(1);
   }
-  s = String::Flatten(s);
   // TODO(jshin): Consider adding a fast path for ASCII or Latin-1. The fastpath
   // in the root locale needs to be adjusted for az, lt and tr because even case
   // mapping of ASCII range characters are different in those locales.
