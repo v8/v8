@@ -2949,7 +2949,9 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   }
 
   // The return value is also passed via this buffer:
-  DCHECK_GE(1, sig->return_count());
+  DCHECK_GE(wasm::kV8MaxWasmFunctionReturns, sig->return_count());
+  // TODO(wasm): Handle multi-value returns.
+  DCHECK_EQ(1, wasm::kV8MaxWasmFunctionReturns);
   int return_size_bytes =
       sig->return_count() == 0 ? 0 : 1 << ElementSizeLog2Of(sig->GetReturn(0));
 

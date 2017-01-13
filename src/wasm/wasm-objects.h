@@ -239,6 +239,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(WASM_OBJECT, WasmSharedModuleData, shared)    \
   MACRO(OBJECT, Context, native_context)              \
   MACRO(OBJECT, FixedArray, code_table)               \
+  MACRO(OBJECT, FixedArray, weak_exported_functions)  \
   MACRO(OBJECT, FixedArray, function_tables)          \
   MACRO(OBJECT, FixedArray, signature_tables)         \
   MACRO(OBJECT, FixedArray, empty_function_tables)    \
@@ -280,6 +281,7 @@ class WasmCompiledModule : public FixedArray {
     ret->reset_weak_owning_instance();
     ret->reset_weak_next_instance();
     ret->reset_weak_prev_instance();
+    ret->reset_weak_exported_functions();
     return ret;
   }
 
@@ -373,16 +375,21 @@ class WasmCompiledModule : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };
 
-// TODO(clemensh): Extend this object for breakpoint support, or remove it.
-// TODO(clemensh): Exclude this object from serialization.
 class WasmDebugInfo : public FixedArray {
-  enum Fields { kInstance, kFieldCount };
-
  public:
+  enum Fields {
+    kInstance,
+    kInterpreterHandle,
+    kInterpretedFunctions,
+    kFieldCount
+  };
+
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 
   static bool IsDebugInfo(Object*);
   static WasmDebugInfo* cast(Object*);
+
+  static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
 
   static void RunInterpreter(Handle<WasmDebugInfo>, int func_index,
                              uint8_t* arg_buffer);

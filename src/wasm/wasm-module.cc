@@ -1319,7 +1319,7 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     // Set up the exports object for the new instance.
     //--------------------------------------------------------------------------
-    ProcessExports(code_table, instance);
+    ProcessExports(code_table, instance, compiled_module_);
 
     //--------------------------------------------------------------------------
     // Add instance to Memory object
@@ -1781,24 +1781,23 @@ class WasmInstanceBuilder {
     return mem_buffer;
   }
 
+  bool NeedsWrappers() {
+    if (module_->num_exported_functions > 0) return true;
+    for (auto table_instance : table_instances_) {
+      if (!table_instance.js_wrappers.is_null()) return true;
+    }
+    for (auto table : module_->function_tables) {
+      if (table.exported) return true;
+    }
+    return false;
+  }
+
   // Process the exports, creating wrappers for functions, tables, memories,
   // and globals.
   void ProcessExports(Handle<FixedArray> code_table,
-                      Handle<WasmInstanceObject> instance) {
-    bool needs_wrappers = module_->num_exported_functions > 0;
-    for (auto table_instance : table_instances_) {
-      if (!table_instance.js_wrappers.is_null()) {
-        needs_wrappers = true;
-        break;
-      }
-    }
-    for (auto table : module_->function_tables) {
-      if (table.exported) {
-        needs_wrappers = true;
-        break;
-      }
-    }
-    if (needs_wrappers) {
+                      Handle<WasmInstanceObject> instance,
+                      Handle<WasmCompiledModule> compiled_module) {
+    if (NeedsWrappers()) {
       // Fill the table to cache the exported JSFunction wrappers.
       js_wrappers_.insert(js_wrappers_.begin(), module_->functions.size(),
                           Handle<JSFunction>::null());
@@ -1826,6 +1825,18 @@ class WasmInstanceBuilder {
         ++export_index;
       }
     }
+
+    // Store weak references to all exported functions.
+    Handle<FixedArray> weak_exported_functions;
+    if (compiled_module->has_weak_exported_functions()) {
+      weak_exported_functions = compiled_module->weak_exported_functions();
+    } else {
+      weak_exported_functions =
+          isolate_->factory()->NewFixedArray(export_index);
+      compiled_module->set_weak_exported_functions(weak_exported_functions);
+    }
+    DCHECK_EQ(export_index, weak_exported_functions->length());
+
     // Process each export in the export table (go in reverse so asm.js
     // can skip duplicates).
     for (auto exp : base::Reversed(module_->export_table)) {
@@ -1858,6 +1869,10 @@ class WasmInstanceBuilder {
             js_wrappers_[exp.index] = js_function;
           }
           desc.set_value(js_function);
+          Handle<WeakCell> weak_export =
+              isolate_->factory()->NewWeakCell(js_function);
+          DCHECK_GT(weak_exported_functions->length(), export_index);
+          weak_exported_functions->set(export_index, *weak_export);
           break;
         }
         case kExternalTable: {
