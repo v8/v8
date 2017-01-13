@@ -98,8 +98,6 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     this.body = body;
-    // Automatically add the end for the function block to the body.
-    body.push(kExprEnd);
     return this;
   }
 

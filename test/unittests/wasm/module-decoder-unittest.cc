@@ -933,7 +933,7 @@ TEST_F(WasmFunctionVerifyTest, Ok_v_v_empty) {
       kLocalF32,  // --
       6,
       kLocalF64,  // --
-      kExprEnd    // body
+      kExprNop    // body
   };
 
   FunctionResult result =
