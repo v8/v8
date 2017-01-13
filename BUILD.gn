@@ -2504,14 +2504,10 @@ group("gn_all") {
 
   deps = [
     ":d8",
+    ":v8_fuzzers",
     ":v8_hello_world",
     ":v8_parser_shell",
     ":v8_sample_process",
-    ":v8_simple_json_fuzzer",
-    ":v8_simple_parser_fuzzer",
-    ":v8_simple_regexp_fuzzer",
-    ":v8_simple_wasm_asmjs_fuzzer",
-    ":v8_simple_wasm_fuzzer",
     "test:gn_all",
     "tools:gn_all",
   ]
@@ -2523,6 +2519,26 @@ group("gn_all") {
   if (v8_test_isolation_mode != "noop") {
     deps += [ ":d8_run" ]
   }
+}
+
+group("v8_fuzzers") {
+  testonly = true
+  deps = [
+    ":v8_simple_json_fuzzer",
+    ":v8_simple_parser_fuzzer",
+    ":v8_simple_regexp_fuzzer",
+    ":v8_simple_wasm_asmjs_fuzzer",
+    ":v8_simple_wasm_call_fuzzer",
+    ":v8_simple_wasm_code_fuzzer",
+    ":v8_simple_wasm_data_section_fuzzer",
+    ":v8_simple_wasm_function_sigs_section_fuzzer",
+    ":v8_simple_wasm_fuzzer",
+    ":v8_simple_wasm_globals_section_fuzzer",
+    ":v8_simple_wasm_imports_section_fuzzer",
+    ":v8_simple_wasm_memory_section_fuzzer",
+    ":v8_simple_wasm_names_section_fuzzer",
+    ":v8_simple_wasm_types_section_fuzzer",
+  ]
 }
 
 if (is_component_build) {
