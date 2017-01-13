@@ -353,7 +353,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  List<JSFunction*> functions(2);
+  List<SharedFunctionInfo*> functions(2);
   frame->GetFunctions(&functions);
   if (functions.length() > 1) {
     int inlined_jsframe_index = functions.length() - 1;
