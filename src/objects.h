@@ -8053,8 +8053,6 @@ class Module : public Struct {
   static const int kSize = kRequestedModulesOffset + kPointerSize;
 
  private:
-  enum { kEvaluatedBit };
-
   static void CreateExport(Handle<Module> module, int cell_index,
                            Handle<FixedArray> names);
   static void CreateIndirectExport(Handle<Module> module, Handle<String> name,
