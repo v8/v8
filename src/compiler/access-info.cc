@@ -146,9 +146,6 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
     case kInvalid:
       break;
 
-    case kNotFound:
-      return true;
-
     case kDataField: {
       // Check if we actually access the same field.
       if (this->transition_map_.address() == that->transition_map_.address() &&
@@ -175,6 +172,8 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
       }
       return false;
     }
+
+    case kNotFound:
     case kGeneric: {
       this->receiver_maps_.insert(this->receiver_maps_.end(),
                                   that->receiver_maps_.begin(),
