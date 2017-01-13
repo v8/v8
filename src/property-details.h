@@ -232,26 +232,16 @@ enum class PropertyCellConstantType {
 // They are used both in property dictionaries and instance descriptors.
 class PropertyDetails BASE_EMBEDDED {
  public:
-  PropertyDetails(PropertyAttributes attributes, PropertyType type, int index,
+  // Property details for dictionary mode properties/elements.
+  PropertyDetails(PropertyKind kind, PropertyAttributes attributes, int index,
                   PropertyCellType cell_type) {
-    value_ = TypeField::encode(type) | AttributesField::encode(attributes) |
+    value_ = KindField::encode(kind) | LocationField::encode(kField) |
+             AttributesField::encode(attributes) |
              DictionaryStorageField::encode(index) |
              PropertyCellTypeField::encode(cell_type);
-
-    DCHECK(type == this->type());
-    DCHECK(attributes == this->attributes());
   }
 
-  PropertyDetails(PropertyAttributes attributes,
-                  PropertyType type,
-                  Representation representation,
-                  int field_index = 0) {
-    value_ = TypeField::encode(type)
-        | AttributesField::encode(attributes)
-        | RepresentationField::encode(EncodeRepresentation(representation))
-        | FieldIndexField::encode(field_index);
-  }
-
+  // Property details for fast mode properties.
   PropertyDetails(PropertyKind kind, PropertyAttributes attributes,
                   PropertyLocation location, Representation representation,
                   int field_index = 0) {
@@ -263,7 +253,7 @@ class PropertyDetails BASE_EMBEDDED {
 
   static PropertyDetails Empty(
       PropertyCellType cell_type = PropertyCellType::kNoCell) {
-    return PropertyDetails(NONE, DATA, 0, cell_type);
+    return PropertyDetails(kData, NONE, 0, cell_type);
   }
 
   int pointer() const { return DescriptorPointer::decode(value_); }

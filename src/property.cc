@@ -25,8 +25,8 @@ std::ostream& operator<<(std::ostream& os,
 Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyAttributes attributes,
                                  Representation representation) {
-  return Descriptor(key, FieldType::Any(key->GetIsolate()), attributes, DATA,
-                    representation, field_index);
+  return DataField(key, field_index, FieldType::Any(key->GetIsolate()),
+                   attributes, representation);
 }
 
 // Outputs PropertyDetails as a dictionary details.

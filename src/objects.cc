@@ -3754,14 +3754,14 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
             value = isolate->factory()->NewHeapNumber(old->value());
           }
         }
-        PropertyDetails d(details.attributes(), DATA, i + 1,
+        PropertyDetails d(kData, details.attributes(), i + 1,
                           PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
 
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         Handle<Object> value(object->RawFastPropertyAt(index), isolate);
-        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
+        PropertyDetails d(kAccessor, details.attributes(), i + 1,
                           PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
       }
@@ -3770,14 +3770,14 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
       DCHECK_EQ(kDescriptor, details.location());
       if (details.kind() == kData) {
         Handle<Object> value(descs->GetConstant(i), isolate);
-        PropertyDetails d(details.attributes(), DATA, i + 1,
+        PropertyDetails d(kData, details.attributes(), i + 1,
                           PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
 
       } else {
         DCHECK_EQ(kAccessor, details.kind());
         Handle<Object> value(descs->GetCallbacksObject(i), isolate);
-        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
+        PropertyDetails d(kAccessor, details.attributes(), i + 1,
                           PropertyCellType::kNoCell);
         dictionary = NameDictionary::Add(dictionary, key, value, d);
       }
@@ -5753,7 +5753,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
             Representation::Tagged());
       }
     } else {
-      DCHECK_EQ(kDescriptor, details.location());
+      DCHECK_EQ(kAccessor, details.kind());
       d = Descriptor::AccessorConstant(key, handle(value, isolate),
                                        details.attributes());
     }
@@ -6967,7 +6967,7 @@ Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
   }
 
   Handle<NameDictionary> dict(proxy->property_dictionary());
-  PropertyDetails details(DONT_ENUM, DATA, 0, PropertyCellType::kNoCell);
+  PropertyDetails details(kData, DONT_ENUM, 0, PropertyCellType::kNoCell);
   Handle<NameDictionary> result =
       NameDictionary::Add(dict, private_name, value, details);
   if (!dict.is_identical_to(result)) proxy->set_properties(*result);
@@ -17100,12 +17100,12 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
     if (original_cell_type == PropertyCellType::kInvalidated) {
       cell = PropertyCell::InvalidateEntry(dictionary, entry);
     }
-    PropertyDetails details(NONE, DATA, 0, cell_type);
+    PropertyDetails details(kData, NONE, 0, cell_type);
     cell->set_property_details(details);
     return cell;
   }
   cell = isolate->factory()->NewPropertyCell();
-  PropertyDetails details(NONE, DATA, 0, cell_type);
+  PropertyDetails details(kData, NONE, 0, cell_type);
   dictionary =
       GlobalDictionary::Add(dictionary, name, cell, details, entry_out);
   // {*entry_out} is initialized inside GlobalDictionary::Add().

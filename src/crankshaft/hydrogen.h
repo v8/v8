@@ -2456,7 +2456,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
           field_type_(HType::Tagged()),
           access_(HObjectAccess::ForMap()),
           lookup_type_(NOT_FOUND),
-          details_(NONE, DATA, Representation::None()) {}
+          details_(PropertyDetails::Empty()) {}
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the

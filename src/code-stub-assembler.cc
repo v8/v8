@@ -4617,7 +4617,7 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   // Prepare details of the new property.
   Variable var_details(this, MachineRepresentation::kTaggedSigned);
   const int kInitialIndex = 0;
-  PropertyDetails d(NONE, DATA, kInitialIndex, PropertyCellType::kNoCell);
+  PropertyDetails d(kData, NONE, kInitialIndex, PropertyCellType::kNoCell);
   enum_index =
       SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
   STATIC_ASSERT(kInitialIndex == 0);

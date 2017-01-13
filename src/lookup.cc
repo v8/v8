@@ -275,8 +275,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
     JSObject::MigrateToMap(holder, new_map);
     ReloadPropertyInformation<false>();
   } else {
-    PropertyDetails details(attributes, v8::internal::DATA, 0,
-                            PropertyCellType::kMutable);
+    PropertyDetails details(kData, attributes, 0, PropertyCellType::kMutable);
     if (holder->IsJSGlobalObject()) {
       Handle<GlobalDictionary> dictionary(holder->global_dictionary());
 
@@ -344,7 +343,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
       // SetNextEnumerationIndex.
       int index = dictionary->NextEnumerationIndex();
       dictionary->SetNextEnumerationIndex(index + 1);
-      property_details_ = PropertyDetails(attributes, i::DATA, index,
+      property_details_ = PropertyDetails(kData, attributes, index,
                                           PropertyCellType::kUninitialized);
       PropertyCellType new_type =
           PropertyCell::UpdatedType(cell, value, property_details_);
@@ -355,7 +354,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
     } else {
       // Don't set enumeration index (it will be set during value store).
       property_details_ =
-          PropertyDetails(attributes, i::DATA, 0, PropertyCellType::kNoCell);
+          PropertyDetails(kData, attributes, 0, PropertyCellType::kNoCell);
       transition_ = map;
     }
     return;
@@ -369,7 +368,7 @@ void LookupIterator::PrepareTransitionToDataProperty(
   if (transition->is_dictionary_map()) {
     // Don't set enumeration index (it will be set during value store).
     property_details_ =
-        PropertyDetails(attributes, i::DATA, 0, PropertyCellType::kNoCell);
+        PropertyDetails(kData, attributes, 0, PropertyCellType::kNoCell);
   } else {
     property_details_ = transition->GetLastDescriptorDetails();
     has_property_ = true;
@@ -518,8 +517,7 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   Handle<JSObject> receiver = GetStoreTarget();
   holder_ = receiver;
 
-  PropertyDetails details(attributes, ACCESSOR_CONSTANT, 0,
-                          PropertyCellType::kMutable);
+  PropertyDetails details(kAccessor, attributes, 0, PropertyCellType::kMutable);
 
   if (IsElement()) {
     // TODO(verwaest): Move code into the element accessor.
