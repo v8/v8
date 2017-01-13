@@ -123,7 +123,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (HasStackOverflow()) {
       return false;
     }
-    if (!typer_finished_) {
+    if (!typer_finished_ && !typer_failed_) {
       typer_->FailWithMessage("Module missing export section.");
       typer_failed_ = true;
     }
