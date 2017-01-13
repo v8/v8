@@ -3385,6 +3385,7 @@ void Isolate::RunMicrotasks() {
 void Isolate::RunMicrotasksInternal() {
   if (!pending_microtask_count()) return;
   TRACE_EVENT0("v8.execute", "RunMicrotasks");
+  TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();
