@@ -1503,7 +1503,7 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   frame->Summarize(&frames);
   FrameSummary& summary = frames.last();
   int pos = summary.SourcePosition();
-  Handle<JSFunction> fun;
+  Handle<SharedFunctionInfo> shared;
   Handle<Object> script = summary.script();
   if (!script->IsScript() ||
       (Script::cast(*script)->source()->IsUndefined(this))) {
@@ -1515,8 +1515,10 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   // incomplete (see bug v8:5007).
   if (summary.IsWasmCompiled() && !FLAG_wasm_trap_if) return false;
 
-  if (summary.IsJavaScript()) fun = summary.AsJavaScript().function();
-  *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, fun);
+  if (summary.IsJavaScript()) {
+    shared = handle(summary.AsJavaScript().function()->shared());
+  }
+  *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, shared);
   return true;
 }
 

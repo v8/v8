@@ -333,13 +333,13 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
     auto& summary = frames.last().AsJavaScript();
-    Handle<JSFunction> function = summary.function();
-    Handle<Object> script(function->shared()->script(), isolate);
+    Handle<SharedFunctionInfo> shared(summary.function()->shared());
+    Handle<Object> script(shared->script(), isolate);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
         !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {
       Handle<Script> casted_script = Handle<Script>::cast(script);
-      *target = MessageLocation(casted_script, pos, pos + 1, function);
+      *target = MessageLocation(casted_script, pos, pos + 1, shared);
       return true;
     }
   }
@@ -351,11 +351,9 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info(
-        new ParseInfo(&zone, handle(location.function()->shared())));
+    std::unique_ptr<ParseInfo> info(new ParseInfo(&zone, location.shared()));
     if (parsing::ParseAny(info.get())) {
-      CallPrinter printer(isolate,
-                          location.function()->shared()->IsUserJavaScript());
+      CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
     } else {

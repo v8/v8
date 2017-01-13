@@ -21,11 +21,11 @@ MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
                                  int end_pos)
     : script_(script), start_pos_(start_pos), end_pos_(end_pos) {}
 MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
-                                 int end_pos, Handle<JSFunction> function)
+                                 int end_pos, Handle<SharedFunctionInfo> shared)
     : script_(script),
       start_pos_(start_pos),
       end_pos_(end_pos),
-      function_(function) {}
+      shared_(shared) {}
 MessageLocation::MessageLocation() : start_pos_(-1), end_pos_(-1) {}
 
 // If no message listeners have been registered this one is called
