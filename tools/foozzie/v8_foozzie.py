@@ -37,6 +37,10 @@ TIMEOUT = 3
 RETURN_PASS = 0
 RETURN_FAIL = 2
 
+# The number of hex digits used from the hash of the original source file path.
+# Keep the number small to avoid duplicate explosion.
+SOURCE_HASH_LENGTH = 3
+
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 PREAMBLE = [
   os.path.join(BASE_PATH, 'v8_mock.js'),
@@ -202,6 +206,8 @@ def main():
   )
 
   # Get metadata.
+  # TODO(machenbach): We probably don't need the metadata file anymore
+  # now that the metadata is printed in the test cases.
   with open(options.meta_data_path) as f:
     metadata = json.load(f)
 
@@ -242,17 +248,16 @@ def main():
   if fail_bailout(second_config_output, suppress.ignore_by_output2):
     return RETURN_FAIL
 
-  difference = suppress.diff(
+  difference, source = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
   if difference:
     # The first three entries will be parsed by clusterfuzz. Format changes
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
-    hsh = lambda x: hashlib.sha1(x).hexdigest()[:8]
     print FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
-        sources=','.join(map(hsh, metadata['sources'])),
+        sources=hashlib.sha1(source).hexdigest()[:SOURCE_HASH_LENGTH],
         suppression='', # We can't tie bugs to differences.
         first_config_label=first_config_label,
         second_config_label=second_config_label,

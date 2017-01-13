@@ -148,6 +148,7 @@ IGNORE_LINES = [
 ALLOWED_LINE_DIFFS = [re.compile(exp) for exp in ALLOWED_LINE_DIFFS]
 IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 
+ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
 def line_pairs(lines):
   return itertools.izip_longest(
@@ -185,6 +186,14 @@ def ignore_by_regexp(line1, line2, allowed):
 
 
 def diff_output(output1, output2, allowed, ignore1, ignore2):
+  """Returns a tuple (difference, source).
+
+  The difference is None if there's no difference, otherwise a string
+  with a readable diff.
+
+  The source is a string with the last source output within the test case.
+  It is the string 'none' if no such output existed.
+  """
   def useful_line(ignore):
     def fun(line):
       return all(not e.match(line) for e in ignore)
@@ -192,6 +201,10 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
   lines1 = filter(useful_line(ignore1), output1)
   lines2 = filter(useful_line(ignore2), output2)
+
+  # This keeps track where we are in the original source file of the fuzz
+  # test case.
+  source = 'none'
 
   for ((line1, lookahead1), (line2, lookahead2)) in itertools.izip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
@@ -201,12 +214,17 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
     # One iterator ends earlier.
     if line1 is None:
-      return '+ %s' % short_line_output(line2)
+      return '+ %s' % short_line_output(line2), source
     if line2 is None:
-      return '- %s' % short_line_output(line1)
+      return '- %s' % short_line_output(line1), source
 
     # If lines are equal, no further checks are necessary.
     if line1 == line2:
+      # Instrumented original-source-file output must be equal in both
+      # versions. It only makes sense to update it here when both lines
+      # are equal.
+      if line1.startswith(ORIGINAL_SOURCE_PREFIX):
+        source = line1[len(ORIGINAL_SOURCE_PREFIX):]
       continue
 
     # Look ahead. If next line is a caret, ignore this line.
@@ -218,10 +236,13 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       continue
 
     # Lines are different.
-    return '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2))
+    return (
+        '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2)),
+        source,
+    )
 
   # No difference found.
-  return None
+  return None, source
 
 
 def get_suppression(arch1, config1, arch2, config2):

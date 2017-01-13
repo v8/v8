@@ -1,3 +1,3 @@
 {
-  "sources": ["name/to/file.js"]
+  "sources": ["name/to/a/file.js", "name/to/file.js"]
 }
