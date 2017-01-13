@@ -6283,6 +6283,8 @@ class Map: public HeapObject {
 
   Code* LookupInCodeCache(Name* name, Code::Flags code);
 
+  static Handle<Map> GetObjectCreateMap(Handle<HeapObject> prototype);
+
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
 
@@ -6306,6 +6308,8 @@ class Map: public HeapObject {
   inline bool IsJSGlobalObjectMap();
   inline bool IsJSTypedArrayMap();
   inline bool IsJSDataViewMap();
+
+  inline bool IsSpecialReceiverMap();
 
   inline bool CanOmitMapChecks();
 
@@ -7090,7 +7094,8 @@ class Script: public Struct {
   V(Number, isSafeInteger, NumberIsSafeInteger)             \
   V(Number, parseFloat, NumberParseFloat)                   \
   V(Number, parseInt, NumberParseInt)                       \
-  V(Number.prototype, toString, NumberToString)
+  V(Number.prototype, toString, NumberToString)             \
+  V(Object, create, ObjectCreate)
 
 #define ATOMIC_FUNCTIONS_WITH_ID_LIST(V) \
   V(Atomics, load, AtomicsLoad)          \
