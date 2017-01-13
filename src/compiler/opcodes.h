@@ -800,6 +800,10 @@ class V8_EXPORT_PRIVATE IrOpcode {
            (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
   }
+
+  static bool IsContextChainExtendingOpcode(Value value) {
+    return kJSCreateFunctionContext <= value && value <= kJSCreateScriptContext;
+  }
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, IrOpcode::Value);

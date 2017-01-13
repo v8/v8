@@ -339,6 +339,17 @@ MaybeHandle<Context> NodeProperties::GetSpecializationContext(
 
 
 // static
+Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
+  Node* context = NodeProperties::GetContextInput(node);
+  while (*depth > 0 &&
+         IrOpcode::IsContextChainExtendingOpcode(context->opcode())) {
+    context = NodeProperties::GetContextInput(context);
+    (*depth)--;
+  }
+  return context;
+}
+
+// static
 Type* NodeProperties::GetTypeOrAny(Node* node) {
   return IsTyped(node) ? node->type() : Type::Any();
 }
