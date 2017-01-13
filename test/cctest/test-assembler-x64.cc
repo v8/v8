@@ -201,7 +201,7 @@ TEST(AssemblerX64ImulOperation) {
   CHECK_EQ(-1, result);
 }
 
-TEST(AssemblerX64testbwOperation) {
+TEST(AssemblerX64testbwqOperation) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   // Allocate an executable page of memory.
@@ -336,6 +336,12 @@ TEST(AssemblerX64testbwOperation) {
   __ testw(r12, r11);
   __ j(zero, &bad);
   __ testw(r11, r12);
+  __ j(zero, &bad);
+
+  // Test sign-extended imediate tests
+  __ movq(r11, Immediate(2));
+  __ shlq(r11, Immediate(32));
+  __ testq(r11, Immediate(-1));
   __ j(zero, &bad);
 
   // All tests passed

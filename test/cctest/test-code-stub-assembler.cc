@@ -2082,7 +2082,6 @@ TEST(NewElementsCapacitySmi) {
   m.Return(m.CalculateNewElementsCapacity(m.Parameter(0),
                                           CodeStubAssembler::SMI_PARAMETERS));
   Handle<Code> code = data.GenerateCode();
-  code->Print();
   CHECK(!code.is_null());
   FunctionTester ft(code, 1);
   Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
@@ -2293,6 +2292,191 @@ TEST(NewPromiseCapability) {
             .ToHandleChecked();
     CHECK_EQ(*rejected_str, *prop2);
   }
+}
+
+TEST(DirectMemoryTest8BitWord32Immediate) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int8_t buffer[] = {1, 2, 4, 8, 17, 33, 65, 127};
+  const int element_count = 8;
+  Label bad(&m);
+
+  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
+                                        MachineType::Uint8());
+      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
+}
+
+TEST(DirectMemoryTest16BitWord32Immediate) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int16_t buffer[] = {156, 2234, 4544, 8444, 1723, 3888, 658, 1278};
+  const int element_count = 8;
+  Label bad(&m);
+
+  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded =
+          m.LoadBufferObject(buffer_node, static_cast<int>(i * sizeof(int16_t)),
+                             MachineType::Uint16());
+      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
+}
+
+TEST(DirectMemoryTest8BitWord32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int8_t buffer[] = {1, 2, 4, 8, 17, 33, 65, 127, 67, 38};
+  const int element_count = 10;
+  Label bad(&m);
+  Node* constants[element_count];
+
+  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    constants[i] = m.LoadBufferObject(buffer_node, static_cast<int>(i),
+                                      MachineType::Uint8());
+  }
+
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
+                                        MachineType::Uint8());
+      Node* masked = m.Word32And(loaded, constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+
+      masked = m.Word32And(constants[i], constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
+}
+
+TEST(DirectMemoryTest16BitWord32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int16_t buffer[] = {1, 2, 4, 8, 12345, 33, 65, 255, 67, 3823};
+  const int element_count = 10;
+  Label bad(&m);
+  Node* constants[element_count];
+
+  Node* buffer_node1 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    constants[i] =
+        m.LoadBufferObject(buffer_node1, static_cast<int>(i * sizeof(int16_t)),
+                           MachineType::Uint16());
+  }
+  Node* buffer_node2 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded = m.LoadBufferObject(buffer_node1,
+                                        static_cast<int>(i * sizeof(int16_t)),
+                                        MachineType::Uint16());
+      Node* masked = m.Word32And(loaded, constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+
+      // Force a memory access relative to a high-number register.
+      loaded = m.LoadBufferObject(buffer_node2,
+                                  static_cast<int>(i * sizeof(int16_t)),
+                                  MachineType::Uint16());
+      masked = m.Word32And(loaded, constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+
+      masked = m.Word32And(constants[i], constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
 }
 
 }  // namespace internal
