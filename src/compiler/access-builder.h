@@ -241,15 +241,6 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
 
-  // Provides access to HashTable fields.
-  static FieldAccess ForHashTableBaseNumberOfElements();
-  static FieldAccess ForHashTableBaseNumberOfDeletedElement();
-  static FieldAccess ForHashTableBaseCapacity();
-
-  // Provides access to Dictionary fields.
-  static FieldAccess ForDictionaryMaxNumberKey();
-  static FieldAccess ForNextEnumerationIndex();
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);
 };

@@ -843,68 +843,6 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
   return access;
 }
 
-// static
-FieldAccess AccessBuilder::ForHashTableBaseNumberOfElements() {
-  FieldAccess access = {
-      kTaggedBase,
-      FixedArray::OffsetOfElementAt(HashTableBase::kNumberOfElementsIndex),
-      MaybeHandle<Name>(),
-      MaybeHandle<Map>(),
-      Type::SignedSmall(),
-      MachineType::TaggedSigned(),
-      kNoWriteBarrier};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForHashTableBaseNumberOfDeletedElement() {
-  FieldAccess access = {
-      kTaggedBase, FixedArray::OffsetOfElementAt(
-                       HashTableBase::kNumberOfDeletedElementsIndex),
-      MaybeHandle<Name>(), MaybeHandle<Map>(), Type::SignedSmall(),
-      MachineType::TaggedSigned(), kNoWriteBarrier};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForHashTableBaseCapacity() {
-  FieldAccess access = {
-      kTaggedBase,
-      FixedArray::OffsetOfElementAt(HashTableBase::kCapacityIndex),
-      MaybeHandle<Name>(),
-      MaybeHandle<Map>(),
-      Type::SignedSmall(),
-      MachineType::TaggedSigned(),
-      kNoWriteBarrier};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForDictionaryMaxNumberKey() {
-  FieldAccess access = {
-      kTaggedBase,
-      FixedArray::OffsetOfElementAt(NameDictionary::kMaxNumberKeyIndex),
-      MaybeHandle<Name>(),
-      MaybeHandle<Map>(),
-      Type::Any(),
-      MachineType::AnyTagged(),
-      kNoWriteBarrier};
-  return access;
-}
-
-// static
-FieldAccess AccessBuilder::ForNextEnumerationIndex() {
-  FieldAccess access = {
-      kTaggedBase,
-      FixedArray::OffsetOfElementAt(NameDictionary::kNextEnumerationIndexIndex),
-      MaybeHandle<Name>(),
-      MaybeHandle<Map>(),
-      Type::SignedSmall(),
-      MachineType::TaggedSigned(),
-      kNoWriteBarrier};
-  return access;
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

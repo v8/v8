@@ -222,8 +222,30 @@ RUNTIME_FUNCTION(Runtime_ObjectCreate) {
   // function's initial map from the current native context.
   // TODO(bmeurer): Use a dedicated cache for Object.create; think about
   // slack tracking for Object.create.
-  Handle<Map> map =
-      Map::GetObjectCreateMap(Handle<HeapObject>::cast(prototype));
+  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
+                  isolate);
+  if (map->prototype() != *prototype) {
+    if (prototype->IsNull(isolate)) {
+      map = isolate->slow_object_with_null_prototype_map();
+    } else if (prototype->IsJSObject()) {
+      Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+      if (!js_prototype->map()->is_prototype_map()) {
+        JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
+      }
+      Handle<PrototypeInfo> info =
+          Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+      // TODO(verwaest): Use inobject slack tracking for this map.
+      if (info->HasObjectCreateMap()) {
+        map = handle(info->ObjectCreateMap(), isolate);
+      } else {
+        map = Map::CopyInitialMap(map);
+        Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
+        PrototypeInfo::SetObjectCreateMap(info, map);
+      }
+    } else {
+      map = Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
+    }
+  }
 
   bool is_dictionary_map = map->is_dictionary_map();
   Handle<FixedArray> object_properties;
