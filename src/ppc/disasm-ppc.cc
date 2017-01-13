@@ -562,6 +562,24 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
 #endif
+    case MODSW: {
+      Format(instr, "modsw  'rt, 'ra, 'rb");
+      return;
+    }
+    case MODUW: {
+      Format(instr, "moduw  'rt, 'ra, 'rb");
+      return;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case MODSD: {
+      Format(instr, "modsd  'rt, 'ra, 'rb");
+      return;
+    }
+    case MODUD: {
+      Format(instr, "modud  'rt, 'ra, 'rb");
+      return;
+    }
+#endif
     case SRAWIX: {
       Format(instr, "srawi'.  'ra,'rs,'sh");
       return;

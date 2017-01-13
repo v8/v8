@@ -670,7 +670,9 @@ CPU::CPU()
 
   part_ = -1;
   if (auxv_cpu_type) {
-    if (strcmp(auxv_cpu_type, "power8") == 0) {
+    if (strcmp(auxv_cpu_type, "power9") == 0) {
+      part_ = PPC_POWER9;
+    } else if (strcmp(auxv_cpu_type, "power8") == 0) {
       part_ = PPC_POWER8;
     } else if (strcmp(auxv_cpu_type, "power7") == 0) {
       part_ = PPC_POWER7;
@@ -689,6 +691,9 @@ CPU::CPU()
 
 #elif V8_OS_AIX
   switch (_system_configuration.implementation) {
+    case POWER_9:
+      part_ = PPC_POWER9;
+      break;
     case POWER_8:
       part_ = PPC_POWER8;
       break;

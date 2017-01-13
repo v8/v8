@@ -785,6 +785,7 @@ enum CpuFeature {
   LWSYNC,
   ISELECT,
   VSX,
+  MODULO,
   // S390
   DISTINCT_OPS,
   GENERAL_INSTR_EXT,

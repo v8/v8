@@ -837,6 +837,8 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divwu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
+  void modsw(Register rt, Register ra, Register rb);
+  void moduw(Register rt, Register ra, Register rb);
 
   void addi(Register dst, Register src, const Operand& imm);
   void addis(Register dst, Register src, const Operand& imm);
@@ -932,6 +934,8 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divdu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
+  void modsd(Register rt, Register ra, Register rb);
+  void modud(Register rt, Register ra, Register rb);
 #endif
 
   void rlwinm(Register ra, Register rs, int sh, int mb, int me,

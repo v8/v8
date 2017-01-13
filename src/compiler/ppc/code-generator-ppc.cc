@@ -1447,19 +1447,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_FLOAT_BINOP_RC(fdiv, MiscField::decode(instr->opcode()));
       break;
     case kPPC_Mod32:
-      ASSEMBLE_MODULO(divw, mullw);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ modsw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divw, mullw);
+      }
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_Mod64:
-      ASSEMBLE_MODULO(divd, mulld);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ modsd(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divd, mulld);
+      }
       break;
 #endif
     case kPPC_ModU32:
-      ASSEMBLE_MODULO(divwu, mullw);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ moduw(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divwu, mullw);
+      }
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_ModU64:
-      ASSEMBLE_MODULO(divdu, mulld);
+      if (CpuFeatures::IsSupported(MODULO)) {
+        __ modud(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1));
+      } else {
+        ASSEMBLE_MODULO(divdu, mulld);
+      }
       break;
 #endif
     case kPPC_ModDouble:

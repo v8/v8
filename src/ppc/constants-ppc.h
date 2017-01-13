@@ -204,24 +204,27 @@ enum OpcodeExt2 {
   STWX = 151 << 1,    // store word w/ x-form
   MTVSRD = 179 << 1,  // Move To VSR Doubleword
   STDUX = 181 << 1,
-  STWUX = 183 << 1,    // store word w/ update x-form
-                       /*
-      MTCRF
-      MTMSR
-      STWCXx
-      SUBFZEX
-    */
-  ADDZEX = 202 << 1,   // Add to Zero Extended
-                       /*
-     MTSR
+  STWUX = 183 << 1,   // store word w/ update x-form
+                      /*
+     MTCRF
+     MTMSR
+     STWCXx
+     SUBFZEX
    */
+  ADDZEX = 202 << 1,  // Add to Zero Extended
+                      /*
+    MTSR
+  */
+
   MTVSRWA = 211 << 1,  // Move To VSR Word Algebraic
   STBX = 215 << 1,     // store byte w/ x-form
   MULLD = 233 << 1,    // Multiply Low Double Word
   MULLW = 235 << 1,    // Multiply Low Word
   MTVSRWZ = 243 << 1,  // Move To VSR Word And Zero
   STBUX = 247 << 1,    // store byte w/ update x-form
+  MODUD = 265 << 1,    // Modulo Unsigned Dword
   ADDX = 266 << 1,     // Add
+  MODUW = 267 << 1,    // Modulo Unsigned Word
   LHZX = 279 << 1,     // load half-word zero w/ x-form
   LHZUX = 311 << 1,    // load half-word zero w/ update x-form
   LWAX = 341 << 1,     // load word algebraic w/ x-form
@@ -255,6 +258,8 @@ enum OpcodeExt2 {
   STFSUX = 695 << 1,  // store float-single w/ update x-form
   STFDX = 727 << 1,   // store float-double w/ x-form
   STFDUX = 759 << 1,  // store float-double w/ update x-form
+  MODSD = 777 << 1,   // Modulo Signed Dword
+  MODSW = 779 << 1,   // Modulo Signed Word
   LHBRX = 790 << 1,   // load half word byte reversed w/ x-form
   SRAW = 792 << 1,    // Shift Right Algebraic Word
   SRAD = 794 << 1,    // Shift Right Algebraic Double Word

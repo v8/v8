@@ -1708,6 +1708,60 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       break;
     }
 #endif
+    case MODUW: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint32_t ra_val = get_register(ra);
+      uint32_t rb_val = get_register(rb);
+      uint32_t alu_out = (rb_val == 0) ? -1 : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case MODUD: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint64_t ra_val = get_register(ra);
+      uint64_t rb_val = get_register(rb);
+      uint64_t alu_out = (rb_val == 0) ? -1 : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#endif
+    case MODSW: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      int32_t ra_val = get_register(ra);
+      int32_t rb_val = get_register(rb);
+      bool overflow = (ra_val == kMinInt && rb_val == -1);
+      // result is undefined if divisor is zero or if operation
+      // is 0x80000000 / -1.
+      int32_t alu_out = (rb_val == 0 || overflow) ? -1 : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case MODSD: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      int64_t ra_val = get_register(ra);
+      int64_t rb_val = get_register(rb);
+      int64_t one = 1;  // work-around gcc
+      int64_t kMinLongLong = (one << 63);
+      // result is undefined if divisor is zero or if operation
+      // is 0x80000000_00000000 / -1.
+      int64_t alu_out =
+          (rb_val == 0 || (ra_val == kMinLongLong && rb_val == -1))
+              ? -1
+              : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#endif
     case SRAW: {
       int rs = instr->RSValue();
       int ra = instr->RAValue();

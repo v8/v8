@@ -66,6 +66,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 #ifndef USE_SIMULATOR
   // Probe for additional features at runtime.
   base::CPU cpu;
+  if (cpu.part() == base::CPU::PPC_POWER9) {
+    supported_ |= (1u << MODULO);
+  }
 #if V8_TARGET_ARCH_PPC64
   if (cpu.part() == base::CPU::PPC_POWER8) {
     supported_ |= (1u << FPR_GPR_MOV);
@@ -98,6 +101,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   supported_ |= (1u << LWSYNC);
   supported_ |= (1u << ISELECT);
   supported_ |= (1u << VSX);
+  supported_ |= (1u << MODULO);
 #if V8_TARGET_ARCH_PPC64
   supported_ |= (1u << FPR_GPR_MOV);
 #endif
@@ -951,6 +955,13 @@ void Assembler::divwu(Register dst, Register src1, Register src2, OEBit o,
   xo_form(EXT2 | DIVWU, dst, src1, src2, o, r);
 }
 
+void Assembler::modsw(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODSW, ra, rt, rb, LeaveRC);
+}
+
+void Assembler::moduw(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODUW, ra, rt, rb, LeaveRC);
+}
 
 void Assembler::addi(Register dst, Register src, const Operand& imm) {
   DCHECK(!src.is(r0));  // use li instead to show intent
@@ -1554,6 +1565,14 @@ void Assembler::divd(Register dst, Register src1, Register src2, OEBit o,
 void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
                       RCBit r) {
   xo_form(EXT2 | DIVDU, dst, src1, src2, o, r);
+}
+
+void Assembler::modsd(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODSD, ra, rt, rb, LeaveRC);
+}
+
+void Assembler::modud(Register rt, Register ra, Register rb) {
+  x_form(EXT2 | MODUD, ra, rt, rb, LeaveRC);
 }
 #endif
 
