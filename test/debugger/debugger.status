@@ -25,9 +25,6 @@
   # parameter value
   'debug/es6/debug-scope-default-param-with-eval': [FAIL],
 
-  # Issue 5837: Investigate flakiness.
-  'debug/es8/async-function-debug-scopes': [SKIP],
-
   # Slow test
   'debug/debug-scopes': [PASS, SLOW],
 
