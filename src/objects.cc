@@ -9159,8 +9159,10 @@ Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
   Handle<FieldType> type = value->OptimalType(isolate, representation);
 
   MapUpdater mu(isolate, map);
-  return mu.ReconfigureToDataField(descriptor, attributes, representation,
-                                   type);
+  Handle<Map> new_map =
+      mu.ReconfigureToDataField(descriptor, attributes, representation, type);
+  new_map->set_migration_target(true);
+  return new_map;
 }
 
 }  // namespace
