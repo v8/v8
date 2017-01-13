@@ -1233,6 +1233,16 @@ TEST(14) {
   CHECK_EQ(ex2, t.field[2]);                     \
   CHECK_EQ(ex3, t.field[3]);
 
+#define CHECK_ESTIMATE(expected, tolerance, value) \
+  CHECK_LT((expected) - (tolerance), value);       \
+  CHECK_GT((expected) + (tolerance), value);
+
+#define CHECK_ESTIMATE_SPLAT(field, ex, tol) \
+  CHECK_ESTIMATE(ex, tol, t.field[0]);       \
+  CHECK_ESTIMATE(ex, tol, t.field[1]);       \
+  CHECK_ESTIMATE(ex, tol, t.field[2]);       \
+  CHECK_ESTIMATE(ex, tol, t.field[3]);
+
 #define INT32_TO_FLOAT(val) \
   std::round(static_cast<float>(bit_cast<int32_t>(val)))
 #define UINT32_TO_FLOAT(val) \
@@ -1840,9 +1850,9 @@ TEST(15) {
     CHECK_EQ_SPLAT(vaddf, 2.0);
     CHECK_EQ_SPLAT(vsubf, -1.0);
     CHECK_EQ_SPLAT(vmulf, 4.0);
-    CHECK_EQ_SPLAT(vrecpe, 0.5f);    // 1 / 2
+    CHECK_ESTIMATE_SPLAT(vrecpe, 0.5f, 0.1f);  // 1 / 2
     CHECK_EQ_SPLAT(vrecps, -1.0f);   // 2 - (2 * 1.5)
-    CHECK_EQ_SPLAT(vrsqrte, 0.5f);   // 1 / sqrt(4)
+    CHECK_ESTIMATE_SPLAT(vrsqrte, 0.5f, 0.1f);  // 1 / sqrt(4)
     CHECK_EQ_SPLAT(vrsqrts, -1.0f);  // (3 - (2 * 2.5)) / 2
     CHECK_EQ_SPLAT(vceqf, 0xffffffffu);
     // [0] >= [-1, 1, -0, 0]
