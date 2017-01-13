@@ -3118,11 +3118,6 @@ PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
 }
 
 
-PropertyType DescriptorArray::GetType(int descriptor_number) {
-  return GetDetails(descriptor_number).type();
-}
-
-
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
   DCHECK(GetDetails(descriptor_number).location() == kField);
   return GetDetails(descriptor_number).field_index();
@@ -3134,47 +3129,25 @@ FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
   return Map::UnwrapFieldType(wrapped_type);
 }
 
-Object* DescriptorArray::GetConstant(int descriptor_number) {
-  return GetValue(descriptor_number);
-}
-
-
-Object* DescriptorArray::GetCallbacksObject(int descriptor_number) {
-  DCHECK(GetType(descriptor_number) == ACCESSOR_CONSTANT);
-  return GetValue(descriptor_number);
-}
-
-
-AccessorDescriptor* DescriptorArray::GetCallbacks(int descriptor_number) {
-  DCHECK(GetType(descriptor_number) == ACCESSOR_CONSTANT);
-  Foreign* p = Foreign::cast(GetCallbacksObject(descriptor_number));
-  return reinterpret_cast<AccessorDescriptor*>(p->foreign_address());
-}
-
-
 void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
   desc->Init(handle(GetKey(descriptor_number), GetIsolate()),
              handle(GetValue(descriptor_number), GetIsolate()),
              GetDetails(descriptor_number));
 }
 
-
-void DescriptorArray::SetDescriptor(int descriptor_number, Descriptor* desc) {
+void DescriptorArray::Set(int descriptor_number, Name* key, Object* value,
+                          PropertyDetails details) {
   // Range check.
   DCHECK(descriptor_number < number_of_descriptors());
-  set(ToKeyIndex(descriptor_number), *desc->GetKey());
-  set(ToValueIndex(descriptor_number), *desc->GetValue());
-  set(ToDetailsIndex(descriptor_number), desc->GetDetails().AsSmi());
+  set(ToKeyIndex(descriptor_number), key);
+  set(ToValueIndex(descriptor_number), value);
+  set(ToDetailsIndex(descriptor_number), details.AsSmi());
 }
 
-
 void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
-  // Range check.
-  DCHECK(descriptor_number < number_of_descriptors());
-
-  set(ToKeyIndex(descriptor_number), *desc->GetKey());
-  set(ToValueIndex(descriptor_number), *desc->GetValue());
-  set(ToDetailsIndex(descriptor_number), desc->GetDetails().AsSmi());
+  Name* key = *desc->GetKey();
+  Object* value = *desc->GetValue();
+  Set(descriptor_number, key, value, desc->GetDetails());
 }
 
 

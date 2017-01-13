@@ -3738,11 +3738,10 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Name> key(descs->GetKey(i));
-    // TODO(ishell): Simplify the below code.
+    Handle<Object> value;
     if (details.location() == kField) {
       FieldIndex index = FieldIndex::ForDescriptor(*map, i);
       if (details.kind() == kData) {
-        Handle<Object> value;
         if (object->IsUnboxedDoubleField(index)) {
           double old_value = object->RawFastDoublePropertyAt(index);
           value = isolate->factory()->NewHeapNumber(old_value);
@@ -3754,34 +3753,19 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
             value = isolate->factory()->NewHeapNumber(old->value());
           }
         }
-        PropertyDetails d(kData, details.attributes(), i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-
       } else {
         DCHECK_EQ(kAccessor, details.kind());
-        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
-        PropertyDetails d(kAccessor, details.attributes(), i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
+        value = handle(object->RawFastPropertyAt(index), isolate);
       }
 
     } else {
       DCHECK_EQ(kDescriptor, details.location());
-      if (details.kind() == kData) {
-        Handle<Object> value(descs->GetConstant(i), isolate);
-        PropertyDetails d(kData, details.attributes(), i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-
-      } else {
-        DCHECK_EQ(kAccessor, details.kind());
-        Handle<Object> value(descs->GetCallbacksObject(i), isolate);
-        PropertyDetails d(kAccessor, details.attributes(), i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-      }
+      value = handle(descs->GetValue(i), isolate);
     }
+    DCHECK(!value.is_null());
+    PropertyDetails d(details.kind(), details.attributes(), i + 1,
+                      PropertyCellType::kNoCell);
+    dictionary = NameDictionary::Add(dictionary, key, value, d);
   }
 
   // Copy the next enumeration index from instance descriptor.
@@ -8520,7 +8504,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
       } else {
         DCHECK_EQ(kDescriptor, details.location());
         if (details.kind() == kData) {
-          if (descs->GetConstant(i) == value) {
+          if (descs->GetValue(i) == value) {
             return descs->GetKey(i);
           }
         }
@@ -9136,9 +9120,9 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
   } else {
     DCHECK_EQ(kDescriptor, details.location());
     if (details.kind() == kData) {
-      DCHECK(descriptors->GetConstant(descriptor) != value ||
+      DCHECK(descriptors->GetValue(descriptor) != value ||
              value->FitsRepresentation(details.representation()));
-      return descriptors->GetConstant(descriptor) == value;
+      return descriptors->GetValue(descriptor) == value;
     } else {
       DCHECK_EQ(kAccessor, details.kind());
       return false;
@@ -9447,9 +9431,7 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
         details = details.CopyAddAttributes(
             static_cast<PropertyAttributes>(attributes & mask));
       }
-      Descriptor inner_desc(
-          handle(key), handle(value, desc->GetIsolate()), details);
-      descriptors->SetDescriptor(i, &inner_desc);
+      descriptors->Set(i, key, value, details);
     }
   } else {
     for (int i = 0; i < size; ++i) {
@@ -10112,16 +10094,10 @@ void DescriptorArray::SetEnumCache(Handle<DescriptorArray> descriptors,
   }
 }
 
-
 void DescriptorArray::CopyFrom(int index, DescriptorArray* src) {
-  Object* value = src->GetValue(index);
   PropertyDetails details = src->GetDetails(index);
-  Descriptor desc(handle(src->GetKey(index)),
-                  handle(value, src->GetIsolate()),
-                  details);
-  SetDescriptor(index, &desc);
+  Set(index, src->GetKey(index), src->GetValue(index), details);
 }
-
 
 void DescriptorArray::Sort() {
   // In-place heap sort.

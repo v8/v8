@@ -1741,7 +1741,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i));
     Handle<PropertyCell> cell = NewPropertyCell();
-    cell->set_value(descs->GetCallbacksObject(i));
+    cell->set_value(descs->GetValue(i));
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(dictionary, name, cell, d));
   }

@@ -3245,12 +3245,8 @@ class DescriptorArray: public FixedArray {
   inline Object** GetDescriptorStartSlot(int descriptor_number);
   inline Object** GetDescriptorEndSlot(int descriptor_number);
   inline PropertyDetails GetDetails(int descriptor_number);
-  inline PropertyType GetType(int descriptor_number);
   inline int GetFieldIndex(int descriptor_number);
   inline FieldType* GetFieldType(int descriptor_number);
-  inline Object* GetConstant(int descriptor_number);
-  inline Object* GetCallbacksObject(int descriptor_number);
-  inline AccessorDescriptor* GetCallbacks(int descriptor_number);
 
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
@@ -3261,6 +3257,8 @@ class DescriptorArray: public FixedArray {
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
+  inline void Set(int descriptor_number, Name* key, Object* value,
+                  PropertyDetails details);
   void Replace(int descriptor_number, Descriptor* descriptor);
 
   // Append automatically sets the enumeration index. This should only be used
@@ -3371,8 +3369,6 @@ class DescriptorArray: public FixedArray {
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
   void CopyFrom(int index, DescriptorArray* src);
-
-  inline void SetDescriptor(int descriptor_number, Descriptor* desc);
 
   // Swap first and second descriptor.
   inline void SwapSortedKeys(int first, int second);

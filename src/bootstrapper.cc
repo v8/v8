@@ -4387,8 +4387,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           FieldIndex index = FieldIndex::ForDescriptor(from->map(), i);
           DCHECK(!descs->GetDetails(i).representation().IsDouble());
-          Handle<Object> value = Handle<Object>(from->RawFastPropertyAt(index),
-                                                isolate());
+          Handle<Object> value(from->RawFastPropertyAt(index), isolate());
           JSObject::AddProperty(to, key, value, details.attributes());
         } else {
           DCHECK_EQ(kAccessor, details.kind());
@@ -4400,8 +4399,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         if (details.kind() == kData) {
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
-          Handle<Object> constant(descs->GetConstant(i), isolate());
-          JSObject::AddProperty(to, key, constant, details.attributes());
+          Handle<Object> value(descs->GetValue(i), isolate());
+          JSObject::AddProperty(to, key, value, details.attributes());
 
         } else {
           DCHECK_EQ(kAccessor, details.kind());
@@ -4413,10 +4412,10 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner(isolate());
           DCHECK(!to->HasFastProperties());
           // Add to dictionary.
-          Handle<Object> callbacks(descs->GetCallbacksObject(i), isolate());
+          Handle<Object> value(descs->GetValue(i), isolate());
           PropertyDetails d(kAccessor, details.attributes(), i + 1,
                             PropertyCellType::kMutable);
-          JSObject::SetNormalizedProperty(to, key, callbacks, d);
+          JSObject::SetNormalizedProperty(to, key, value, d);
         }
       }
     }
