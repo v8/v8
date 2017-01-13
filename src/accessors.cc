@@ -844,10 +844,10 @@ static Handle<Object> ArgumentsForInlinedFunction(
 static int FindFunctionInFrame(JavaScriptFrame* frame,
                                Handle<JSFunction> function) {
   DisallowHeapAllocation no_allocation;
-  List<JSFunction*> functions(2);
-  frame->GetFunctions(&functions);
-  for (int i = functions.length() - 1; i >= 0; i--) {
-    if (functions[i] == *function) return i;
+  List<FrameSummary> frames(2);
+  frame->Summarize(&frames);
+  for (int i = frames.length() - 1; i >= 0; i--) {
+    if (*frames[i].AsJavaScript().function() == *function) return i;
   }
   return -1;
 }
@@ -951,19 +951,16 @@ static inline bool AllowAccessToFunction(Context* current_context,
 class FrameFunctionIterator {
  public:
   FrameFunctionIterator(Isolate* isolate, const DisallowHeapAllocation& promise)
-      : isolate_(isolate),
-        frame_iterator_(isolate),
-        functions_(2),
-        index_(0) {
-    GetFunctions();
+      : isolate_(isolate), frame_iterator_(isolate), frames_(2), index_(0) {
+    GetFrames();
   }
   JSFunction* next() {
     while (true) {
-      if (functions_.length() == 0) return NULL;
-      JSFunction* next_function = functions_[index_];
+      if (frames_.length() == 0) return NULL;
+      JSFunction* next_function = *frames_[index_].AsJavaScript().function();
       index_--;
       if (index_ < 0) {
-        GetFunctions();
+        GetFrames();
       }
       // Skip functions from other origins.
       if (!AllowAccessToFunction(isolate_->context(), next_function)) continue;
@@ -984,18 +981,18 @@ class FrameFunctionIterator {
   }
 
  private:
-  void GetFunctions() {
-    functions_.Rewind(0);
+  void GetFrames() {
+    frames_.Rewind(0);
     if (frame_iterator_.done()) return;
     JavaScriptFrame* frame = frame_iterator_.frame();
-    frame->GetFunctions(&functions_);
-    DCHECK(functions_.length() > 0);
+    frame->Summarize(&frames_);
+    DCHECK(frames_.length() > 0);
     frame_iterator_.Advance();
-    index_ = functions_.length() - 1;
+    index_ = frames_.length() - 1;
   }
   Isolate* isolate_;
   JavaScriptFrameIterator frame_iterator_;
-  List<JSFunction*> functions_;
+  List<FrameSummary> frames_;
   int index_;
 };
 
