@@ -44,8 +44,8 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     // as being a caught exception event.
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
     isolate->debug()->OnAsyncTaskEvent(
-        debug::kDebugEnqueueRecurring,
-        isolate->debug()->NextAsyncTaskId(promise), kDebugPromiseReject);
+        debug::kDebugEnqueuePromiseReject,
+        isolate->debug()->NextAsyncTaskId(promise));
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();
@@ -112,20 +112,12 @@ bool GetDebugIdForAsyncFunction(Isolate* isolate,
 
 void SetDebugInfo(Isolate* isolate, Handle<JSPromise> promise,
                   Handle<PromiseReactionJobInfo> info, int status) {
-  int id;
-  PromiseDebugActionName name;
-
-  if (GetDebugIdForAsyncFunction(isolate, info, &id)) {
-    name = kDebugAsyncFunction;
-  } else {
+  int id = kDebugPromiseNoID;
+  if (!GetDebugIdForAsyncFunction(isolate, info, &id)) {
     id = isolate->debug()->NextAsyncTaskId(promise);
     DCHECK(status != v8::Promise::kPending);
-    name = status == v8::Promise::kFulfilled ? kDebugPromiseResolve
-                                             : kDebugPromiseReject;
   }
-
   info->set_debug_id(id);
-  info->set_debug_name(name);
 }
 
 void EnqueuePromiseReactionJob(Isolate* isolate, Handle<JSPromise> promise,
@@ -153,10 +145,9 @@ void PromiseFulfill(Isolate* isolate, Handle<JSPromise> promise, int status,
                     Handle<Object> value) {
   if (isolate->debug()->is_active()) {
     isolate->debug()->OnAsyncTaskEvent(
-        debug::kDebugEnqueueRecurring,
-        isolate->debug()->NextAsyncTaskId(promise),
-        status == v8::Promise::kFulfilled ? kDebugPromiseResolve
-                                          : kDebugPromiseReject);
+        status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
+                                          : debug::kDebugEnqueuePromiseReject,
+        isolate->debug()->NextAsyncTaskId(promise));
   }
   // Check if there are any callbacks.
   if (!promise->deferred_promise()->IsUndefined(isolate)) {

@@ -1235,7 +1235,6 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
   os << "\n - resolve: " << Brief(resolve());
   os << "\n - reject: " << Brief(reject());
   os << "\n - debug id: " << debug_id();
-  os << "\n - debug name: " << debug_name();
   os << "\n - context: " << Brief(context());
   os << "\n";
 }
@@ -1249,7 +1248,6 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
   os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
   os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
   os << "\n - debug id: " << debug_id();
-  os << "\n - debug name: " << debug_name();
   os << "\n - reaction context: " << Brief(context());
   os << "\n";
 }

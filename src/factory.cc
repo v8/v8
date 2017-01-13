@@ -1026,7 +1026,6 @@ Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
   result->set_deferred_on_resolve(*deferred_on_resolve);
   result->set_deferred_on_reject(*deferred_on_reject);
   result->set_debug_id(kDebugPromiseFirstID);
-  result->set_debug_name(kDebugNotActive);
   result->set_context(*context);
   return result;
 }

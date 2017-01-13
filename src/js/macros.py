@@ -196,19 +196,3 @@ define kArrayInstanceConstructorModified = 28;
 define kLegacyFunctionDeclaration = 29;
 define kRegExpPrototypeSourceGetter = 30;
 define kRegExpPrototypeOldFlagGetter = 31;
-
-# [[PromiseState]] values:
-# These values must be kept in sync with v8::Promise::PromiseState in
-# include/v8.h
-define kRejected = 2;
-
-define kResolveCallback = 0;
-define kRejectCallback = 1;
-
-# These values must be kept in sync with PromiseDebugActionName in
-# src/debug/debug.h
-define kAsyncFunction = 1;
-define kPromiseResolve = 2;
-define kPromiseReject = 3;
-define kPromiseResolveThenableJob = 4;
-define kDebugPromiseCollected = 5;

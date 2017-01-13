@@ -1682,11 +1682,11 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   return CallFunction("MakeCompileEvent", arraysize(argv), argv);
 }
 
-MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<Smi> type, Handle<Smi> id,
-                                              Handle<Smi> name) {
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<Smi> type,
+                                              Handle<Smi> id) {
   DCHECK(id->IsNumber());
   // Create the async task event object.
-  Handle<Object> argv[] = {type, id, name};
+  Handle<Object> argv[] = {type, id};
   return CallFunction("MakeAsyncTaskEvent", arraysize(argv), argv);
 }
 
@@ -1821,8 +1821,7 @@ void SendAsyncTaskEventCancel(const v8::WeakCallbackInfo<void>& info) {
       reinterpret_cast<CollectedCallbackData*>(info.GetParameter()));
   if (!data->debug->is_active()) return;
   HandleScope scope(data->isolate);
-  data->debug->OnAsyncTaskEvent(debug::kDebugCancel, data->id,
-                                kDebugPromiseCollected);
+  data->debug->OnAsyncTaskEvent(debug::kDebugPromiseCollected, data->id);
 }
 
 void ResetPromiseHandle(const v8::WeakCallbackInfo<void>& info) {
@@ -1860,8 +1859,7 @@ int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
   return async_id->value();
 }
 
-void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
-                             PromiseDebugActionName name) {
+void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
   if (in_debug_scope() || ignore_events()) return;
 
   HandleScope scope(isolate_);
@@ -1872,8 +1870,7 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
   if (!MakeAsyncTaskEvent(handle(Smi::FromInt(type), isolate_),
-                          handle(Smi::FromInt(id), isolate_),
-                          handle(Smi::FromInt(name), isolate_))
+                          handle(Smi::FromInt(id), isolate_))
            .ToHandle(&event_data))
     return;
 

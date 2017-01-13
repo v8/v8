@@ -3264,35 +3264,29 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
 namespace {
 class PromiseDebugEventScope {
  public:
-  PromiseDebugEventScope(Isolate* isolate, int id, int name)
-      : isolate_(isolate),
-        id_(id),
-        name_(static_cast<PromiseDebugActionName>(name)),
-        is_debug_active_(isolate_->debug()->is_active() &&
-                         id != kDebugPromiseNoID && name_ != kDebugNotActive) {
-    if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_, name_);
+  PromiseDebugEventScope(Isolate* isolate, int id)
+      : isolate_(isolate), id_(id) {
+    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
+      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_);
     }
   }
 
   ~PromiseDebugEventScope() {
-    if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_, name_);
+    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
+      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_);
     }
   }
 
  private:
   Isolate* isolate_;
   int id_;
-  PromiseDebugActionName name_;
-  bool is_debug_active_;
 };
 }  // namespace
 
 void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
+  PromiseDebugEventScope helper(this, info->debug_id());
 
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
@@ -3333,7 +3327,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
 void Isolate::PromiseResolveThenableJob(
     Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
     MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
+  PromiseDebugEventScope helper(this, info->debug_id());
 
   Handle<JSReceiver> thenable(info->thenable(), this);
   Handle<JSFunction> resolve(info->resolve(), this);

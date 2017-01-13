@@ -8241,9 +8241,6 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
       deferred_on_reject);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kDebugIdOffset,
                                  SmiConstant(kDebugPromiseNoID));
-  StoreObjectFieldNoWriteBarrier(result,
-                                 PromiseReactionJobInfo::kDebugNameOffset,
-                                 SmiConstant(kDebugNotActive));
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kContextOffset,
                                  context);
   return result;

@@ -1088,36 +1088,19 @@ function MakeScriptObject_(script, include_source) {
 }
 
 
-function PromiseDebugActionNameToString(name) {
-  switch (name) {
-    case kAsyncFunction: return "async function";
-    case kPromiseResolve: return "Promise.resolve";
-    case kPromiseReject: return "Promise.reject";
-    case kPromiseResolveThenableJob: return "PromiseResolveThenableJob";
-    case kDebugPromiseCollected: return "Promise collected";
-  }
-}
-
-function MakeAsyncTaskEvent(type, id, name) {
-  return new AsyncTaskEvent(type,
-                            id, PromiseDebugActionNameToString(name));
+function MakeAsyncTaskEvent(type, id) {
+  return new AsyncTaskEvent(type, id);
 }
 
 
-function AsyncTaskEvent(type, id, name) {
+function AsyncTaskEvent(type, id) {
   this.type_ = type;
   this.id_ = id;
-  this.name_ = name;
 }
 
 
 AsyncTaskEvent.prototype.type = function() {
   return this.type_;
-}
-
-
-AsyncTaskEvent.prototype.name = function() {
-  return this.name_;
 }
 
 

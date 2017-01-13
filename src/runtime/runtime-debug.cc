@@ -1893,8 +1893,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   JSObject::SetProperty(promise, async_stack_id_symbol,
                         handle(Smi::FromInt(id), isolate), STRICT)
       .Assert();
-  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueRecurring, id,
-                                     kDebugAsyncFunction);
+  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id);
   return isolate->heap()->undefined_value();
 }
 
@@ -1905,10 +1904,9 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
   CONVERT_SMI_ARG_CHECKED(status, 1);
   if (isolate->debug()->is_active()) {
     isolate->debug()->OnAsyncTaskEvent(
-        debug::kDebugEnqueueRecurring,
-        isolate->debug()->NextAsyncTaskId(promise),
-        status == v8::Promise::kFulfilled ? kDebugPromiseResolve
-                                          : kDebugPromiseReject);
+        status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
+                                          : debug::kDebugEnqueuePromiseReject,
+        isolate->debug()->NextAsyncTaskId(promise));
   }
   return isolate->heap()->undefined_value();
 }

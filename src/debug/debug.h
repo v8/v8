@@ -75,15 +75,6 @@ enum DebugBreakType {
 const int kDebugPromiseNoID = 0;
 const int kDebugPromiseFirstID = 1;
 
-enum PromiseDebugActionName {
-  kDebugNotActive,
-  kDebugAsyncFunction,
-  kDebugPromiseResolve,
-  kDebugPromiseReject,
-  kDebugPromiseResolveThenableJob,
-  kDebugPromiseCollected,
-};
-
 class BreakLocation {
  public:
   static BreakLocation FromFrame(StandardFrame* frame);
@@ -419,8 +410,7 @@ class Debug {
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
-                        PromiseDebugActionName name);
+  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id);
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
@@ -614,8 +604,7 @@ class Debug {
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
   MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<Smi> type,
-                                                         Handle<Smi> id,
-                                                         Handle<Smi> name);
+                                                         Handle<Smi> id);
 
   // Mirror cache handling.
   void ClearMirrorCache();

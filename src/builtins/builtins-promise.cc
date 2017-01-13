@@ -664,9 +664,6 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobInfo(
                                  PromiseResolveThenableJobInfo::kDebugIdOffset,
                                  SmiConstant(kDebugPromiseNoID));
   StoreObjectFieldNoWriteBarrier(
-      info, PromiseResolveThenableJobInfo::kDebugNameOffset,
-      SmiConstant(kDebugNotActive));
-  StoreObjectFieldNoWriteBarrier(
       info, PromiseResolveThenableJobInfo::kContextOffset, context);
   return info;
 }
@@ -796,12 +793,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 
     Node* const debug_id =
         CallRuntime(Runtime::kDebugNextAsyncTaskId, context, promise);
-    Node* const debug_name = SmiConstant(kDebugPromiseResolveThenableJob);
-
     StoreObjectField(info, PromiseResolveThenableJobInfo::kDebugIdOffset,
                      debug_id);
-    StoreObjectField(info, PromiseResolveThenableJobInfo::kDebugNameOffset,
-                     debug_name);
 
     GotoIf(TaggedIsSmi(result), &enqueue);
     GotoUnless(HasInstanceType(result, JS_PROMISE_TYPE), &enqueue);

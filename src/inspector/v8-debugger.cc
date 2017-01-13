@@ -610,11 +610,6 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Object> eventData) {
               ->ToInteger(m_isolate->GetCurrentContext())
               .ToLocalChecked()
               ->Value());
-  String16 name = toProtocolStringWithTypeCheck(
-      eventData
-          ->Get(m_isolate->GetCurrentContext(),
-                toV8StringInternalized(m_isolate, "name_"))
-          .ToLocalChecked());
   int id = static_cast<int>(eventData
                                 ->Get(m_isolate->GetCurrentContext(),
                                       toV8StringInternalized(m_isolate, "id_"))
@@ -627,10 +622,19 @@ void V8Debugger::handleV8AsyncTaskEvent(v8::Local<v8::Object> eventData) {
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
-    case v8::debug::kDebugEnqueueRecurring:
-      asyncTaskScheduled(name, ptr, true);
+    case v8::debug::kDebugEnqueueAsyncFunction:
+      asyncTaskScheduled("async function", ptr, true);
       break;
-    case v8::debug::kDebugCancel:
+    case v8::debug::kDebugEnqueuePromiseResolve:
+      asyncTaskScheduled("Promise.resolve", ptr, true);
+      break;
+    case v8::debug::kDebugEnqueuePromiseReject:
+      asyncTaskScheduled("Promise.reject", ptr, true);
+      break;
+    case v8::debug::kDebugEnqueuePromiseResolveThenableJob:
+      asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
+      break;
+    case v8::debug::kDebugPromiseCollected:
       asyncTaskCanceled(ptr);
       break;
     case v8::debug::kDebugWillHandle:

@@ -1037,7 +1037,6 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
   CHECK(resolve()->IsJSFunction());
   CHECK(reject()->IsJSFunction());
   VerifySmiField(kDebugIdOffset);
-  VerifySmiField(kDebugNameOffset);
   CHECK(context()->IsContext());
 }
 
@@ -1056,7 +1055,6 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
         deferred_on_reject()->IsCallable() ||
         deferred_on_reject()->IsFixedArray());
   VerifySmiField(kDebugIdOffset);
-  VerifySmiField(kDebugNameOffset);
   CHECK(context()->IsContext());
 }
 
