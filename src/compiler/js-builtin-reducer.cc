@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-builtin-reducer.h"
 
+#include "src/base/bits.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
@@ -1485,6 +1486,99 @@ Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
   return NoChange();
 }
 
+// ES6 section #sec-object.create Object.create(proto, properties)
+Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
+  // We need exactly target, receiver and value parameters.
+  int arg_count = node->op()->ValueInputCount();
+  if (arg_count != 3) return NoChange();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* prototype = NodeProperties::GetValueInput(node, 2);
+  Type* prototype_type = NodeProperties::GetType(prototype);
+  Handle<Map> instance_map;
+  if (!prototype_type->IsHeapConstant()) return NoChange();
+  Handle<HeapObject> prototype_const =
+      prototype_type->AsHeapConstant()->Value();
+  if (!prototype_const->IsNull(isolate()) && !prototype_const->IsJSReceiver()) {
+    return NoChange();
+  }
+  instance_map = Map::GetObjectCreateMap(prototype_const);
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+  if (instance_map->is_dictionary_map()) {
+    // Allocated an empty NameDictionary as backing store for the properties.
+    Handle<Map> map(isolate()->heap()->hash_table_map(), isolate());
+    int capacity =
+        NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
+    DCHECK(base::bits::IsPowerOfTwo32(capacity));
+    int length = NameDictionary::EntryToIndex(capacity);
+    int size = NameDictionary::SizeFor(length);
+
+    effect = graph()->NewNode(
+        common()->BeginRegion(RegionObservability::kNotObservable), effect);
+
+    Node* value = effect =
+        graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                         jsgraph()->Constant(size), effect, control);
+    effect =
+        graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
+                         value, jsgraph()->HeapConstant(map), effect, control);
+
+    // Initialize FixedArray fields.
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForFixedArrayLength()), value,
+        jsgraph()->SmiConstant(length), effect, control);
+    // Initialize HashTable fields.
+    effect =
+        graph()->NewNode(simplified()->StoreField(
+                             AccessBuilder::ForHashTableBaseNumberOfElements()),
+                         value, jsgraph()->SmiConstant(0), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(
+            AccessBuilder::ForHashTableBaseNumberOfDeletedElement()),
+        value, jsgraph()->SmiConstant(0), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForHashTableBaseCapacity()),
+        value, jsgraph()->SmiConstant(capacity), effect, control);
+    // Initialize Dictionary fields.
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForDictionaryMaxNumberKey()),
+        value, jsgraph()->UndefinedConstant(), effect, control);
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForNextEnumerationIndex()),
+        value, jsgraph()->SmiConstant(PropertyDetails::kInitialIndex), effect,
+        control);
+
+    properties = effect =
+        graph()->NewNode(common()->FinishRegion(), value, effect);
+  }
+
+  int const instance_size = instance_map->instance_size();
+  dependencies()->AssumeInitialMapCantChange(instance_map);
+
+  // Emit code to allocate the JSObject instance for the given
+  // {instance_map}.
+  effect = graph()->NewNode(
+      common()->BeginRegion(RegionObservability::kNotObservable), effect);
+  Node* value = effect =
+      graph()->NewNode(simplified()->Allocate(NOT_TENURED),
+                       jsgraph()->Constant(instance_size), effect, control);
+  effect =
+      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()), value,
+                       jsgraph()->HeapConstant(instance_map), effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSObjectProperties()), value,
+      properties, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
+      jsgraph()->EmptyFixedArrayConstant(), effect, control);
+
+  value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+
+  // replace it
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
 // ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
 Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
   JSCallReduction r(node);
@@ -1989,6 +2083,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kNumberParseInt:
       reduction = ReduceNumberParseInt(node);
+      break;
+    case kObjectCreate:
+      reduction = ReduceObjectCreate(node);
       break;
     case kStringFromCharCode:
       reduction = ReduceStringFromCharCode(node);

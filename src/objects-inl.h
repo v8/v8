@@ -2219,6 +2219,9 @@ int JSObject::GetHeaderSize(InstanceType type) {
   }
 }
 
+inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
+  return instance_type <= LAST_SPECIAL_RECEIVER_TYPE;
+}
 
 int JSObject::GetInternalFieldCount(Map* map) {
   int instance_size = map->instance_size();
@@ -4946,6 +4949,12 @@ bool Map::IsJSGlobalObjectMap() {
 bool Map::IsJSTypedArrayMap() { return instance_type() == JS_TYPED_ARRAY_TYPE; }
 bool Map::IsJSDataViewMap() { return instance_type() == JS_DATA_VIEW_TYPE; }
 
+bool Map::IsSpecialReceiverMap() {
+  bool result = IsSpecialReceiverInstanceType(instance_type());
+  DCHECK_IMPLIES(!result,
+                 !has_named_interceptor() && !is_access_check_needed());
+  return result;
+}
 
 bool Map::CanOmitMapChecks() {
   return is_stable() && FLAG_omit_map_checks_for_leaf_maps;
