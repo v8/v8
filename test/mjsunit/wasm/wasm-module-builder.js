@@ -359,7 +359,7 @@ class WasmModuleBuilder {
               break;
             case kWasmI64:
               section.emit_u8(kExprI64Const);
-              section.emit_u8(global.init);
+              section.emit_u32v(global.init);
               break;
             case kWasmF32:
               section.emit_u8(kExprF32Const);

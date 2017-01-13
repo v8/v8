@@ -1923,6 +1923,10 @@ class WasmInstanceBuilder {
             case kWasmF64:
               num = *GetRawGlobalPtr<double>(global);
               break;
+            case kWasmI64:
+              thrower_->LinkError(
+                  "export of globals of type I64 is not allowed.");
+              break;
             default:
               UNREACHABLE();
           }
