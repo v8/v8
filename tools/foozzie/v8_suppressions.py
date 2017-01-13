@@ -24,6 +24,7 @@ Alternatively, think about adding a behavior change to v8_suppressions.js
 to silence a particular class of problems.
 """
 
+import hashlib
 import itertools
 import re
 
@@ -148,6 +149,10 @@ IGNORE_LINES = [
 ALLOWED_LINE_DIFFS = [re.compile(exp) for exp in ALLOWED_LINE_DIFFS]
 IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 
+# The number of hex digits used from the hash of the original source file path.
+# Keep the number small to avoid duplicate explosion.
+SOURCE_HASH_LENGTH = 3
+
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
 def line_pairs(lines):
@@ -186,13 +191,13 @@ def ignore_by_regexp(line1, line2, allowed):
 
 
 def diff_output(output1, output2, allowed, ignore1, ignore2):
-  """Returns a tuple (difference, source).
+  """Returns a tuple (difference, source_key).
 
   The difference is None if there's no difference, otherwise a string
   with a readable diff.
 
-  The source is a string with the last source output within the test case.
-  It is the string 'none' if no such output existed.
+  The source_key is a short hash of the last source output within the test
+  case. It is the string 'none' if no such output existed.
   """
   def useful_line(ignore):
     def fun(line):
@@ -204,7 +209,7 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
   # This keeps track where we are in the original source file of the fuzz
   # test case.
-  source = 'none'
+  source_key = 'none'
 
   for ((line1, lookahead1), (line2, lookahead2)) in itertools.izip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
@@ -214,9 +219,9 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
     # One iterator ends earlier.
     if line1 is None:
-      return '+ %s' % short_line_output(line2), source
+      return '+ %s' % short_line_output(line2), source_key
     if line2 is None:
-      return '- %s' % short_line_output(line1), source
+      return '- %s' % short_line_output(line1), source_key
 
     # If lines are equal, no further checks are necessary.
     if line1 == line2:
@@ -225,6 +230,7 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       # are equal.
       if line1.startswith(ORIGINAL_SOURCE_PREFIX):
         source = line1[len(ORIGINAL_SOURCE_PREFIX):]
+        source_key = hashlib.sha1(source).hexdigest()[:SOURCE_HASH_LENGTH]
       continue
 
     # Look ahead. If next line is a caret, ignore this line.
@@ -238,11 +244,11 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
     # Lines are different.
     return (
         '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2)),
-        source,
+        source_key,
     )
 
   # No difference found.
-  return None, source
+  return None, source_key
 
 
 def get_suppression(arch1, config1, arch2, config2):

@@ -8,7 +8,6 @@ V8 correctness fuzzer launcher script.
 """
 
 import argparse
-import hashlib
 import itertools
 import json
 import os
@@ -36,10 +35,6 @@ TIMEOUT = 3
 # Return codes.
 RETURN_PASS = 0
 RETURN_FAIL = 2
-
-# The number of hex digits used from the hash of the original source file path.
-# Keep the number small to avoid duplicate explosion.
-SOURCE_HASH_LENGTH = 3
 
 BASE_PATH = os.path.dirname(os.path.abspath(__file__))
 PREAMBLE = [
@@ -248,7 +243,7 @@ def main():
   if fail_bailout(second_config_output, suppress.ignore_by_output2):
     return RETURN_FAIL
 
-  difference, source = suppress.diff(
+  difference, source_key = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
   if difference:
     # The first three entries will be parsed by clusterfuzz. Format changes
@@ -257,7 +252,7 @@ def main():
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
     print FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
-        sources=hashlib.sha1(source).hexdigest()[:SOURCE_HASH_LENGTH],
+        sources=source_key,
         suppression='', # We can't tie bugs to differences.
         first_config_label=first_config_label,
         second_config_label=second_config_label,
