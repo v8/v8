@@ -21,7 +21,7 @@ declare_args() {
   v8_android_log_stdout = false
 
   # Sets -DVERIFY_HEAP.
-  v8_enable_verify_heap = false
+  v8_enable_verify_heap = ""
 
   # Sets -DVERIFY_PREDICTABLE
   v8_enable_verify_predictable = false
@@ -52,7 +52,13 @@ declare_args() {
   v8_interpreted_regexp = false
 
   # Sets -dOBJECT_PRINT.
-  v8_object_print = ""
+  v8_enable_object_print = ""
+
+  # Sets -dTRACE_MAPS.
+  v8_enable_trace_maps = ""
+
+  # Sets -dV8_ENABLE_CHECKS.
+  v8_enable_v8_checks = ""
 
   # With post mortem support enabled, metadata is embedded into libv8 that
   # describes various parameters of the VM for use by debuggers. See
@@ -90,11 +96,20 @@ if (v8_enable_gdbjit == "") {
 }
 
 # Derived defaults.
-if (v8_object_print == "") {
-  v8_object_print = is_debug && !v8_optimized_debug
+if (v8_enable_verify_heap == "") {
+  v8_enable_verify_heap = is_debug
+}
+if (v8_enable_object_print == "") {
+  v8_enable_object_print = is_debug
 }
 if (v8_enable_disassembler == "") {
-  v8_enable_disassembler = is_debug && !v8_optimized_debug
+  v8_enable_disassembler = is_debug
+}
+if (v8_enable_trace_maps == "") {
+  v8_enable_trace_maps = is_debug
+}
+if (v8_enable_v8_checks == "") {
+  v8_enable_v8_checks = is_debug
 }
 
 # Specifies if the target build is a simulator build. Comparing target cpu
@@ -180,7 +195,7 @@ config("features") {
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
   }
-  if (v8_object_print) {
+  if (v8_enable_object_print) {
     defines += [ "OBJECT_PRINT" ]
   }
   if (v8_enable_verify_heap) {
@@ -188,6 +203,12 @@ config("features") {
   }
   if (v8_enable_verify_predictable) {
     defines += [ "VERIFY_PREDICTABLE" ]
+  }
+  if (v8_enable_trace_maps) {
+    defines += [ "TRACE_MAPS" ]
+  }
+  if (v8_enable_v8_checks) {
+    defines += [ "V8_ENABLE_CHECKS" ]
   }
   if (v8_interpreted_regexp) {
     defines += [ "V8_INTERPRETED_REGEXP" ]
@@ -352,15 +373,7 @@ config("toolchain") {
       ldflags += [ "-rdynamic" ]
     }
 
-    # TODO(jochen): Add support for different debug optimization levels.
-    defines += [
-      "ENABLE_DISASSEMBLER",
-      "V8_ENABLE_CHECKS",
-      "OBJECT_PRINT",
-      "VERIFY_HEAP",
-      "DEBUG",
-      "TRACE_MAPS",
-    ]
+    defines += [ "DEBUG" ]
     if (v8_enable_slow_dchecks) {
       defines += [ "ENABLE_SLOW_DCHECKS" ]
     }
