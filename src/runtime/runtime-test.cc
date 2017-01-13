@@ -828,5 +828,22 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmOrphanedInstance) {
   return isolate->heap()->ToBoolean(true);
 }
 
+RUNTIME_FUNCTION(Runtime_Verify) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+#ifdef VERIFY_HEAP
+  object->ObjectVerify();
+#else
+  CHECK(object->IsObject());
+  if (object->IsHeapObject()) {
+    CHECK(HeapObject::cast(*object)->map()->IsMap());
+  } else {
+    CHECK(object->IsSmi());
+  }
+#endif
+  return isolate->heap()->ToBoolean(true);
+}
+
 }  // namespace internal
 }  // namespace v8
