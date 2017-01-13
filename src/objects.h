@@ -2568,8 +2568,8 @@ class JSObject: public JSReceiver {
   DECLARE_PRINTER(JSObject)
   DECLARE_VERIFIER(JSObject)
 #ifdef OBJECT_PRINT
-  void PrintProperties(std::ostream& os);   // NOLINT
-  void PrintElements(std::ostream& os);     // NOLINT
+  bool PrintProperties(std::ostream& os);  // NOLINT
+  bool PrintElements(std::ostream& os);    // NOLINT
 #endif
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   void PrintTransitions(std::ostream& os);  // NOLINT

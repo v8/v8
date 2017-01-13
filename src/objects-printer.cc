@@ -327,12 +327,12 @@ void FixedTypedArray<Traits>::FixedTypedArrayPrint(
   os << "fixed " << Traits::Designator();
 }
 
-
-void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
+bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
-    for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
-      os << "\n   ";
+    int i = 0;
+    for (; i < map()->NumberOfOwnDescriptors(); i++) {
+      os << "\n    ";
       descs->GetKey(i)->NamePrint(os);
       os << ": ";
       PropertyDetails details = descs->GetDetails(i);
@@ -353,11 +353,13 @@ void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
       os << " ";
       details.PrintAsFastTo(os, PropertyDetails::kForProperties);
     }
+    return i > 0;
   } else if (IsJSGlobalObject()) {
     global_dictionary()->Print(os);
   } else {
     property_dictionary()->Print(os);
   }
+  return true;
 }
 
 namespace {
@@ -376,10 +378,8 @@ bool is_the_hole(double maybe_hole) {
   return bit_cast<uint64_t>(maybe_hole) == kHoleNanInt64;
 }
 
-}  // namespace
-
 template <class T, bool print_the_hole>
-static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
+void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   T* array = T::cast(object);
   if (array->length() == 0) return;
   int previous_index = 0;
@@ -410,38 +410,42 @@ static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   }
 }
 
+void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
+  // Print in array notation for non-sparse arrays.
+  Object* previous_value = array->get(0);
+  Object* value = nullptr;
+  int previous_index = 0;
+  int i;
+  for (i = 1; i <= array->length(); i++) {
+    if (i < array->length()) value = array->get(i);
+    if (previous_value == value && i != array->length()) {
+      continue;
+    }
+    os << "\n";
+    std::stringstream ss;
+    ss << previous_index;
+    if (previous_index != i - 1) {
+      ss << '-' << (i - 1);
+    }
+    os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
+    previous_index = i;
+    previous_value = value;
+  }
+}
 
-void JSObject::PrintElements(std::ostream& os) {  // NOLINT
+}  // namespace
+
+bool JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  if (elements()->length() == 0) return;
+  if (elements()->length() == 0) return false;
   switch (map()->elements_kind()) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
-      // Print in array notation for non-sparse arrays.
-      FixedArray* array = FixedArray::cast(elements());
-      Object* previous_value = array->get(0);
-      Object* value = nullptr;
-      int previous_index = 0;
-      int i;
-      for (i = 1; i <= array->length(); i++) {
-        if (i < array->length()) value = array->get(i);
-        if (previous_value == value && i != array->length()) {
-          continue;
-        }
-        os << "\n";
-        std::stringstream ss;
-        ss << previous_index;
-        if (previous_index != i - 1) {
-          ss << '-' << (i - 1);
-        }
-        os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
-        previous_index = i;
-        previous_value = value;
-      }
+      PrintFixedArrayElements(os, FixedArray::cast(elements()));
       break;
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
@@ -476,6 +480,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     case NO_ELEMENTS:
       break;
   }
+  return true;
 }
 
 
@@ -507,12 +512,12 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
   os << "\n - properties = " << Brief(obj->properties()) << " {";
-  obj->PrintProperties(os);
-  os << "\n }\n";
+  if (obj->PrintProperties(os)) os << "\n ";
+  os << "}\n";
   if (print_elements && obj->elements()->length() > 0) {
-    os << " - elements = {";
-    obj->PrintElements(os);
-    os << "\n }\n";
+    os << " - elements = " << Brief(obj->elements()) << " {";
+    if (obj->PrintElements(os)) os << "\n ";
+    os << "}\n";
   }
   int internal_fields = obj->GetInternalFieldCount();
   if (internal_fields > 0) {
@@ -638,25 +643,18 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedArray");
+  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  for (int i = 0; i < length(); i++) {
-    os << "\n  [" << i << "]: " << Brief(get(i));
-  }
+  PrintFixedArrayElements(os, this);
   os << "\n";
 }
 
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");
+  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  for (int i = 0; i < length(); i++) {
-    os << "\n  [" << i << "]: ";
-    if (is_the_hole(i)) {
-      os << "<the hole>";
-    } else {
-      os << get_scalar(i);
-    }
-  }
+  DoPrintElements<FixedDoubleArray, true>(os, this);
   os << "\n";
 }
 
