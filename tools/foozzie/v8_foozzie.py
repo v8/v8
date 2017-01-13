@@ -21,7 +21,7 @@ import v8_suppressions
 CONFIGS = dict(
   default=[],
   validate_asm=['--validate-asm'], # Maybe add , '--disable-asm-warnings'
-  fullcode=['--nocrankshaft', '--turbo-filter=~'],
+  fullcode=['--nocrankshaft', '--turbo-filter=~', '--novalidate-asm'],
   noturbo=['--turbo-filter=~', '--noturbo-asm'],
   noturbo_opt=['--always-opt', '--turbo-filter=~', '--noturbo-asm'],
   ignition_staging=['--ignition-staging'],

@@ -9,7 +9,7 @@
 # Compared x64,fullcode with x64,ignition_staging
 #
 # Flags of x64,fullcode:
---abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --nocrankshaft --turbo-filter=~
+--abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --nocrankshaft --turbo-filter=~ --novalidate-asm
 # Flags of x64,ignition_staging:
 --abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --ignition-staging
 #
