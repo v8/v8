@@ -188,7 +188,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 MaybeLocal<Value> InstantiateModuleImpl(
-    i::Isolate* i_isolate, i::Handle<i::JSObject> i_module_obj,
+    i::Isolate* i_isolate, i::Handle<i::WasmModuleObject> i_module_obj,
     const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
   // It so happens that in both the WebAssembly.instantiate, as well as
   // WebAssembly.Instance ctor, the positions of the ffi object and memory
@@ -199,6 +199,10 @@ MaybeLocal<Value> InstantiateModuleImpl(
 
   MaybeLocal<Value> nothing;
   i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
+  // This is a first - level validation of the argument. If present, we only
+  // check its type. {Instantiate} will further check that if the module
+  // has imports, the argument must be present, as well as piecemeal
+  // import satisfaction.
   if (args.Length() > kFfiOffset && !args[kFfiOffset]->IsUndefined()) {
     if (!args[kFfiOffset]->IsObject()) {
       thrower->TypeError("Argument %d must be an object", kFfiOffset);
@@ -208,6 +212,7 @@ MaybeLocal<Value> InstantiateModuleImpl(
     ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
   }
 
+  // The memory argument is a legacy, not spec - compliant artifact.
   i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
   if (args.Length() > kMemOffset && !args[kMemOffset]->IsUndefined()) {
     if (!args[kMemOffset]->IsObject()) {
@@ -317,8 +322,8 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   Local<Object> module_obj = Local<Object>::Cast(args[0]);
-  i::Handle<i::JSObject> i_module_obj =
-      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*module_obj));
+  i::Handle<i::WasmModuleObject> i_module_obj =
+      i::Handle<i::WasmModuleObject>::cast(v8::Utils::OpenHandle(*module_obj));
 
   MaybeLocal<Value> instance =
       InstantiateModuleImpl(i_isolate, i_module_obj, args, &thrower);
@@ -339,7 +344,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 must be a buffer source");
     return;
   }
-  i::MaybeHandle<i::JSObject> module_obj =
+  i::MaybeHandle<i::WasmModuleObject> module_obj =
       CreateModuleObject(isolate, args[0], &thrower);
 
   Local<Context> context = isolate->GetCurrentContext();

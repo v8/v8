@@ -240,8 +240,8 @@ class WasmSerializationTest {
     ErrorThrower thrower(current_isolate(), "");
     v8::Local<v8::WasmCompiledModule> deserialized_module;
     CHECK(Deserialize().ToLocal(&deserialized_module));
-    Handle<JSObject> module_object =
-        Handle<JSObject>::cast(v8::Utils::OpenHandle(*deserialized_module));
+    Handle<WasmModuleObject> module_object = Handle<WasmModuleObject>::cast(
+        v8::Utils::OpenHandle(*deserialized_module));
     {
       DisallowHeapAllocation assume_no_gc;
       Handle<WasmCompiledModule> compiled_part(

@@ -254,8 +254,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<JSReceiver> foreign) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
-  i::Handle<i::JSObject> module(
-      i::JSObject::cast(wasm_data->get(kWasmDataCompiledModule)));
+  i::Handle<i::WasmModuleObject> module(
+      i::WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
 

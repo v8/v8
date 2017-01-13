@@ -1121,9 +1121,10 @@ void wasm::UpdateDispatchTables(Isolate* isolate,
 class WasmInstanceBuilder {
  public:
   WasmInstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
-                      Handle<JSObject> module_object, Handle<JSReceiver> ffi,
-                      Handle<JSArrayBuffer> memory)
+                      Handle<WasmModuleObject> module_object,
+                      Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory)
       : isolate_(isolate),
+        module_(module_object->compiled_module()->module()),
         thrower_(thrower),
         module_object_(module_object),
         ffi_(ffi),
@@ -1132,6 +1133,15 @@ class WasmInstanceBuilder {
   // Build an instance, in all of its glory.
   MaybeHandle<WasmInstanceObject> Build() {
     MaybeHandle<WasmInstanceObject> nothing;
+
+    // Check that an imports argument was provided, if the module requires it.
+    // No point in continuing otherwise.
+    if (!module_->import_table.empty() && ffi_.is_null()) {
+      thrower_->TypeError(
+          "Imports argument must be present and must be an object");
+      return nothing;
+    }
+
     HistogramTimerScope wasm_instantiate_module_time_scope(
         isolate_->counters()->wasm_instantiate_module_time());
     Factory* factory = isolate_->factory();
@@ -1154,8 +1164,7 @@ class WasmInstanceBuilder {
       Handle<WasmCompiledModule> original;
       {
         DisallowHeapAllocation no_gc;
-        original = handle(
-            WasmCompiledModule::cast(module_object_->GetInternalField(0)));
+        original = handle(module_object_->compiled_module());
         if (original->has_weak_owning_instance()) {
           owner = handle(WasmInstanceObject::cast(
               original->weak_owning_instance()->value()));
@@ -1206,7 +1215,6 @@ class WasmInstanceBuilder {
       compiled_module_->set_code_table(code_table);
       compiled_module_->set_native_context(isolate_->native_context());
     }
-    module_ = compiled_module_->module();
 
     //--------------------------------------------------------------------------
     // Allocate the instance object.
@@ -1442,7 +1450,7 @@ class WasmInstanceBuilder {
 
     DCHECK(!isolate_->has_pending_exception());
     TRACE("Finishing instance %d\n", compiled_module_->instance_id());
-    TRACE_CHAIN(WasmCompiledModule::cast(module_object_->GetInternalField(0)));
+    TRACE_CHAIN(module_object_->compiled_module());
     return instance;
   }
 
@@ -1456,9 +1464,9 @@ class WasmInstanceBuilder {
   };
 
   Isolate* isolate_;
-  WasmModule* module_;
+  WasmModule* const module_;
   ErrorThrower* thrower_;
-  Handle<JSObject> module_object_;
+  Handle<WasmModuleObject> module_object_;
   Handle<JSReceiver> ffi_;
   Handle<JSArrayBuffer> memory_;
   Handle<JSArrayBuffer> globals_;
@@ -1475,9 +1483,9 @@ class WasmInstanceBuilder {
         import_name->length(), import_name->ToCString().get(), error);
   }
 
-  MaybeHandle<Object> ReportTypeError(const char* error, uint32_t index,
+  MaybeHandle<Object> ReportLinkError(const char* error, uint32_t index,
                                       Handle<String> module_name) {
-    thrower_->TypeError("Import #%d module=\"%.*s\" error: %s", index,
+    thrower_->LinkError("Import #%d module=\"%.*s\" error: %s", index,
                         module_name->length(), module_name->ToCString().get(),
                         error);
     return MaybeHandle<Object>();
@@ -1486,22 +1494,22 @@ class WasmInstanceBuilder {
   // Look up an import value in the {ffi_} object.
   MaybeHandle<Object> LookupImport(uint32_t index, Handle<String> module_name,
                                    Handle<String> import_name) {
-    if (ffi_.is_null()) {
-      return ReportTypeError("FFI is not an object", index, module_name);
-    }
+    // We pre-validated in the js-api layer that the ffi object is present, and
+    // a JSObject, if the module has imports.
+    DCHECK(!ffi_.is_null());
 
     // Look up the module first.
     MaybeHandle<Object> result =
         Object::GetPropertyOrElement(ffi_, module_name);
     if (result.is_null()) {
-      return ReportTypeError("module not found", index, module_name);
+      return ReportLinkError("module not found", index, module_name);
     }
 
     Handle<Object> module = result.ToHandleChecked();
 
     // Look up the value in the module.
     if (!module->IsJSReceiver()) {
-      return ReportTypeError("module is not an object or function", index,
+      return ReportLinkError("module is not an object or function", index,
                              module_name);
     }
 
@@ -2101,8 +2109,9 @@ class WasmInstanceBuilder {
 // Instantiates a WASM module, creating a WebAssembly.Instance from a
 // WebAssembly.Module.
 MaybeHandle<WasmInstanceObject> WasmModule::Instantiate(
-    Isolate* isolate, ErrorThrower* thrower, Handle<JSObject> wasm_module,
-    Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory) {
+    Isolate* isolate, ErrorThrower* thrower,
+    Handle<WasmModuleObject> wasm_module, Handle<JSReceiver> ffi,
+    Handle<JSArrayBuffer> memory) {
   WasmInstanceBuilder builder(isolate, thrower, wasm_module, ffi, memory);
   return builder.Build();
 }

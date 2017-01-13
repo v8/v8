@@ -41,6 +41,12 @@ let importingModuleBinary = (() => {
   return new Int8Array(builder.toBuffer());
 })();
 
+let memoryImportingModuleBinary = (() => {
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("", "my_memory");
+  return new Int8Array(builder.toBuffer());
+})();
+
 let moduleBinaryImporting2Memories = (() => {
   var builder = new WasmModuleBuilder();
   builder.addImportedMemory("", "memory1");
@@ -256,10 +262,16 @@ let Instance = WebAssembly.Instance;
 assertEq(Instance, instanceDesc.value);
 assertEq(Instance.length, 1);
 assertEq(Instance.name, "Instance");
+
 assertErrorMessage(() => Instance(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Instance(1), TypeError, "first argument must be a WebAssembly.Module");
 assertErrorMessage(() => new Instance({}), TypeError, "first argument must be a WebAssembly.Module");
 assertErrorMessage(() => new Instance(emptyModule, null), TypeError, "second argument must be an object");
+assertErrorMessage(() => new Instance(importingModule, null), TypeError, "");
+assertErrorMessage(() => new Instance(importingModule, undefined), TypeError, "");
+assertErrorMessage(() => new Instance(importingModule, {"":{g:()=>{}}}), LinkError, "");
+assertErrorMessage(() => new Instance(importingModule, {t:{f:()=>{}}}), LinkError, "");
+
 assertEq(new Instance(emptyModule) instanceof Instance, true);
 assertEq(new Instance(emptyModule, {}) instanceof Instance, true);
 
@@ -563,55 +575,63 @@ function assertCompileSuccess(bytes) {
 assertCompileSuccess(emptyModuleBinary);
 assertCompileSuccess(emptyModuleBinary.buffer);
 
-if (false) {  // TODO: implement WebAssembly.instantiate
-  // 'WebAssembly.instantiate' data property
-  let instantiateDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'instantiate');
-  assertEq(typeof instantiateDesc.value, "function");
-  assertEq(instantiateDesc.writable, true);
-  assertEq(instantiateDesc.enumerable, false);
-  assertEq(instantiateDesc.configurable, true);
+// 'WebAssembly.instantiate' data property
+let instantiateDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'instantiate');
+assertEq(typeof instantiateDesc.value, "function");
+assertEq(instantiateDesc.writable, true);
+assertEq(instantiateDesc.enumerable, false);
+assertEq(instantiateDesc.configurable, true);
 
-  // 'WebAssembly.instantiate' function
-  let instantiate = WebAssembly.instantiate;
-  assertEq(instantiate, instantiateDesc.value);
-  assertEq(instantiate.length, 2);
-  assertEq(instantiate.name, "instantiate");
-  function assertInstantiateError(args, err, msg) {
-    var error = null;
-    try {
-      instantiate(...args).catch(e => error = e);
-    } catch(e) {
-      error = e;
-    }
-    drainJobQueue();
-    assertEq(error instanceof err, true);
-    assertEq(Boolean(error.stack.match("jsapi.js")), true);
-    assertEq(Boolean(error.message.match(msg)), true);
+// 'WebAssembly.instantiate' function
+let instantiate = WebAssembly.instantiate;
+assertEq(instantiate, instantiateDesc.value);
+assertEq(instantiate.length, 1);
+assertEq(instantiate.name, "instantiate");
+function assertInstantiateError(args, err, msg) {
+  var error = null;
+  try {
+    instantiate(...args).catch(e => error = e);
+  } catch(e) {
+    error = e;
   }
-  assertInstantiateError([], TypeError, /requires more than 0 arguments/);
-  assertInstantiateError([undefined], TypeError, /first argument must be a WebAssembly.Module, ArrayBuffer or typed array object/);
-  assertInstantiateError([1], TypeError, /first argument must be a WebAssembly.Module, ArrayBuffer or typed array object/);
-  assertInstantiateError([{}], TypeError, /first argument must be a WebAssembly.Module, ArrayBuffer or typed array object/);
-  assertInstantiateError([new Uint8Array()], CompileError, /failed to match magic number/);
-  assertInstantiateError([new ArrayBuffer()], CompileError, /failed to match magic number/);
-  assertInstantiateError([importingModule], TypeError, /second argument must be an object/);
-  assertInstantiateError([importingModule, null], TypeError, /second argument must be an object/);
-  assertInstantiateError([importingModuleBinary, null], TypeError, /second argument must be an object/);
-  function assertInstantiateSuccess(module, imports) {
-    var result = null;
-    instantiate(module, imports).then(r => result = r);
-    drainJobQueue();
-    if (module instanceof Module) {
-      assertEq(result instanceof Instance, true);
-    } else {
-      assertEq(result.module instanceof Module, true);
-      assertEq(result.instance instanceof Instance, true);
-    }
-  }
-  assertInstantiateSuccess(emptyModule);
-  assertInstantiateSuccess(emptyModuleBinary);
-  assertInstantiateSuccess(emptyModuleBinary.buffer);
-  assertInstantiateSuccess(importingModule, {"":{f:()=>{}}});
-  assertInstantiateSuccess(importingModuleBinary, {"":{f:()=>{}}});
-  assertInstantiateSuccess(importingModuleBinary.buffer, {"":{f:()=>{}}});
+  drainJobQueue();
+  assertEq(error instanceof err, true);
+  assertEq(Boolean(error.stack.match("js-api.js")), true);
+  //TOassertEq(Boolean(error.message.match(msg)), true);
 }
+var scratch_memory = new WebAssembly.Memory(new ArrayBuffer(10));
+assertInstantiateError([], TypeError, /requires more than 0 arguments/);
+assertInstantiateError([undefined], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([1], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([{}], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([new Uint8Array()], CompileError, /failed to match magic number/);
+assertInstantiateError([new ArrayBuffer()], CompileError, /failed to match magic number/);
+assertInstantiateError([new Uint8Array("hi!")], CompileError, /failed to match magic number/);
+assertInstantiateError([new ArrayBuffer("hi!")], CompileError, /failed to match magic number/);
+assertInstantiateError([importingModule], TypeError, /second argument must be an object/);
+assertInstantiateError([importingModule, null], TypeError, /second argument must be an object/);
+assertInstantiateError([importingModuleBinary, null], TypeError, /second argument must be an object/);
+assertInstantiateError([emptyModule, null], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([importingModule, {"":{f:()=>{}}}], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([importingModuleBinary, null], TypeError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, undefined], TypeError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, {}], LinkError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, {"":{g:()=>{}}}], LinkError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, {t:{f:()=>{}}}], LinkError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, null], TypeError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, undefined], TypeError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, {}], LinkError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, {"mod": {"my_memory": scratch_memory}}], LinkError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, {"": {"memory": scratch_memory}}], LinkError, /TODO: error messages?/);
+
+function assertInstantiateSuccess(module_bytes, imports) {
+  var result = null;
+  instantiate(module_bytes, imports).then(r => result = r).catch(e => print(e));
+  drainJobQueue();
+  assertEq(result instanceof Instance, true);
+}
+assertInstantiateSuccess(emptyModuleBinary);
+assertInstantiateSuccess(emptyModuleBinary.buffer);
+assertInstantiateSuccess(importingModuleBinary, {"":{f:()=>{}}});
+assertInstantiateSuccess(importingModuleBinary.buffer, {"":{f:()=>{}}});
+assertInstantiateSuccess(memoryImportingModuleBinary, {"": {"my_memory": scratch_memory}});

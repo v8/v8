@@ -216,8 +216,9 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   // Creates a new instantiation of the module in the given isolate.
   static MaybeHandle<WasmInstanceObject> Instantiate(
-      Isolate* isolate, ErrorThrower* thrower, Handle<JSObject> wasm_module,
-      Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory);
+      Isolate* isolate, ErrorThrower* thrower,
+      Handle<WasmModuleObject> wasm_module, Handle<JSReceiver> ffi,
+      Handle<JSArrayBuffer> memory);
 
   MaybeHandle<WasmCompiledModule> CompileFunctions(
       Isolate* isolate, Handle<Managed<WasmModule>> module_wrapper,
