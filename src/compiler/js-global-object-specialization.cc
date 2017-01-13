@@ -214,9 +214,11 @@ Reduction JSGlobalObjectSpecialization::ReduceJSStoreGlobal(Node* node) {
                                           value, effect, control);
 
         // Check {value} map agains the {property_cell} map.
-        effect = graph()->NewNode(simplified()->CheckMaps(ZoneHandleSet<Map>(
-                                      property_cell_value_map)),
-                                  value, effect, control);
+        effect =
+            graph()->NewNode(simplified()->CheckMaps(
+                                 CheckMapsFlag::kNone,
+                                 ZoneHandleSet<Map>(property_cell_value_map)),
+                             value, effect, control);
         property_cell_value_type = Type::OtherInternal();
         representation = MachineRepresentation::kTaggedPointer;
       } else {

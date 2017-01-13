@@ -1197,8 +1197,9 @@ JSNativeContextSpecialization::BuildPropertyAccess(
           if (access_info.field_map().ToHandle(&field_map)) {
             // Emit a map check for the value.
             effect = graph()->NewNode(
-                simplified()->CheckMaps(ZoneHandleSet<Map>(field_map)), value,
-                effect, control);
+                simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                        ZoneHandleSet<Map>(field_map)),
+                value, effect, control);
           }
           field_access.write_barrier_kind = kPointerWriteBarrier;
           break;
@@ -1519,9 +1520,11 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (access_mode == AccessMode::kStore &&
         IsFastSmiOrObjectElementsKind(elements_kind) &&
         store_mode != STORE_NO_TRANSITION_HANDLE_COW) {
-      effect = graph()->NewNode(simplified()->CheckMaps(ZoneHandleSet<Map>(
-                                    factory()->fixed_array_map())),
-                                elements, effect, control);
+      effect = graph()->NewNode(
+          simplified()->CheckMaps(
+              CheckMapsFlag::kNone,
+              ZoneHandleSet<Map>(factory()->fixed_array_map())),
+          elements, effect, control);
     }
 
     // Check if the {receiver} is a JSArray.
@@ -1748,11 +1751,15 @@ Node* JSNativeContextSpecialization::BuildCheckMaps(
     }
   }
   ZoneHandleSet<Map> maps;
+  CheckMapsFlags flags = CheckMapsFlag::kNone;
   for (Handle<Map> map : receiver_maps) {
     maps.insert(map, graph()->zone());
+    if (map->is_migration_target()) {
+      flags |= CheckMapsFlag::kTryMigrateInstance;
+    }
   }
-  return graph()->NewNode(simplified()->CheckMaps(maps), receiver, effect,
-                          control);
+  return graph()->NewNode(simplified()->CheckMaps(flags, maps), receiver,
+                          effect, control);
 }
 
 void JSNativeContextSpecialization::AssumePrototypesStable(

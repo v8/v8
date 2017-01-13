@@ -234,9 +234,19 @@ std::ostream& operator<<(std::ostream& os, CheckForMinusZeroMode mode) {
   return os;
 }
 
+std::ostream& operator<<(std::ostream& os, CheckMapsFlags flags) {
+  bool empty = true;
+  if (flags & CheckMapsFlag::kTryMigrateInstance) {
+    os << "TryMigrateInstance";
+    empty = false;
+  }
+  if (empty) os << "None";
+  return os;
+}
+
 bool operator==(CheckMapsParameters const& lhs,
                 CheckMapsParameters const& rhs) {
-  return lhs.maps() == rhs.maps();
+  return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps();
 }
 
 bool operator!=(CheckMapsParameters const& lhs,
@@ -244,13 +254,15 @@ bool operator!=(CheckMapsParameters const& lhs,
   return !(lhs == rhs);
 }
 
-size_t hash_value(CheckMapsParameters const& p) { return hash_value(p.maps()); }
+size_t hash_value(CheckMapsParameters const& p) {
+  return base::hash_combine(p.flags(), p.maps());
+}
 
 std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
   ZoneHandleSet<Map> const& maps = p.maps();
+  os << p.flags();
   for (size_t i = 0; i < maps.size(); ++i) {
-    if (i != 0) os << ", ";
-    os << Brief(*maps[i]);
+    os << ", " << Brief(*maps[i]);
   }
   return os;
 }
@@ -742,8 +754,9 @@ const Operator* SimplifiedOperatorBuilder::CheckedTaggedToFloat64(
   return nullptr;
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckMaps(ZoneHandleSet<Map> maps) {
-  CheckMapsParameters const parameters(maps);
+const Operator* SimplifiedOperatorBuilder::CheckMaps(CheckMapsFlags flags,
+                                                     ZoneHandleSet<Map> maps) {
+  CheckMapsParameters const parameters(flags, maps);
   return new (zone()) Operator1<CheckMapsParameters>(  // --
       IrOpcode::kCheckMaps,                            // opcode
       Operator::kNoThrow | Operator::kNoWrite,         // flags

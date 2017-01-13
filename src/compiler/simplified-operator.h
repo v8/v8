@@ -145,14 +145,28 @@ std::ostream& operator<<(std::ostream&, CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
 
+// Flags for map checks.
+enum class CheckMapsFlag : uint8_t {
+  kNone = 0u,
+  kTryMigrateInstance = 1u << 0,  // Try instance migration.
+};
+typedef base::Flags<CheckMapsFlag> CheckMapsFlags;
+
+DEFINE_OPERATORS_FOR_FLAGS(CheckMapsFlags)
+
+std::ostream& operator<<(std::ostream&, CheckMapsFlags);
+
 // A descriptor for map checks.
 class CheckMapsParameters final {
  public:
-  explicit CheckMapsParameters(ZoneHandleSet<Map> const& maps) : maps_(maps) {}
+  CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps)
+      : flags_(flags), maps_(maps) {}
 
+  CheckMapsFlags flags() const { return flags_; }
   ZoneHandleSet<Map> const& maps() const { return maps_; }
 
  private:
+  CheckMapsFlags const flags_;
   ZoneHandleSet<Map> const maps_;
 };
 
@@ -364,7 +378,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckIf();
   const Operator* CheckBounds();
-  const Operator* CheckMaps(ZoneHandleSet<Map>);
+  const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
 
   const Operator* CheckHeapObject();
   const Operator* CheckInternalizedString();

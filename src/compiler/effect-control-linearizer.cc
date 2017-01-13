@@ -1058,25 +1058,79 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
 
   ZoneHandleSet<Map> const& maps = p.maps();
-  int const map_count = static_cast<int>(maps.size());
+  size_t const map_count = maps.size();
 
-  auto done = __ MakeLabelFor(GraphAssemblerLabelType::kNonDeferred,
-                              static_cast<size_t>(map_count));
+  if (p.flags() & CheckMapsFlag::kTryMigrateInstance) {
+    auto done =
+        __ MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, map_count * 2);
+    auto migrate = __ MakeDeferredLabel<1>();
 
-  // Load the current map of the {value}.
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+    // Load the current map of the {value}.
+    Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
 
-  for (int i = 0; i < map_count; ++i) {
-    Node* map = __ HeapConstant(maps[i]);
-    Node* check = __ WordEqual(value_map, map);
-    if (i == map_count - 1) {
-      __ DeoptimizeUnless(DeoptimizeReason::kWrongMap, check, frame_state);
-    } else {
-      __ GotoIf(check, &done);
+    // Perform the map checks.
+    for (size_t i = 0; i < map_count; ++i) {
+      Node* map = __ HeapConstant(maps[i]);
+      Node* check = __ WordEqual(value_map, map);
+      if (i == map_count - 1) {
+        __ GotoUnless(check, &migrate);
+        __ Goto(&done);
+      } else {
+        __ GotoIf(check, &done);
+      }
     }
+
+    // Perform the (deferred) instance migration.
+    __ Bind(&migrate);
+    {
+      Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+      Runtime::FunctionId id = Runtime::kTryMigrateInstance;
+      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+          graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+      Node* result =
+          __ Call(desc, __ CEntryStubConstant(1), value,
+                  __ ExternalConstant(ExternalReference(id, isolate())),
+                  __ Int32Constant(1), __ NoContextConstant());
+      Node* check = ObjectIsSmi(result);
+      __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, check,
+                      frame_state);
+    }
+
+    // Reload the current map of the {value}.
+    value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+    // Perform the map checks again.
+    for (size_t i = 0; i < map_count; ++i) {
+      Node* map = __ HeapConstant(maps[i]);
+      Node* check = __ WordEqual(value_map, map);
+      if (i == map_count - 1) {
+        __ DeoptimizeUnless(DeoptimizeReason::kWrongMap, check, frame_state);
+      } else {
+        __ GotoIf(check, &done);
+      }
+    }
+
+    __ Goto(&done);
+    __ Bind(&done);
+  } else {
+    auto done =
+        __ MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, map_count);
+
+    // Load the current map of the {value}.
+    Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+    for (size_t i = 0; i < map_count; ++i) {
+      Node* map = __ HeapConstant(maps[i]);
+      Node* check = __ WordEqual(value_map, map);
+      if (i == map_count - 1) {
+        __ DeoptimizeUnless(DeoptimizeReason::kWrongMap, check, frame_state);
+      } else {
+        __ GotoIf(check, &done);
+      }
+    }
+    __ Goto(&done);
+    __ Bind(&done);
   }
-  __ Goto(&done);
-  __ Bind(&done);
   return value;
 }
 
