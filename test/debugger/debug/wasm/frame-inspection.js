@@ -15,8 +15,8 @@ var break_count = 0;
 const expected_frames = [
   // func-name; wasm?; pos; line; col
   ['call_debugger', false],        // --
-  ['wasm_2', true, 56, 2, 0],      // --
-  ['wasm_1', true, 52, 3, 0],      // --
+  ['wasm_2', true, 56, 2, 2],      // --
+  ['wasm_1', true, 52, 3, 2],      // --
   ['testFrameInspection', false],  // --
   ['', false]
 ];

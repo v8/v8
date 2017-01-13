@@ -1851,13 +1851,19 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   FunctionSig* sig = WasmOpcodes::Signature(opcode);
 
   if (sig->parameter_count() == 1) {
-    byte code[] = {WASM_NO_LOCALS, kExprGetLocal, 0, static_cast<byte>(opcode)};
+    byte code[] = {WASM_NO_LOCALS, kExprGetLocal, 0, static_cast<byte>(opcode),
+                   WASM_END};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
                       code + arraysize(code));
   } else {
     CHECK_EQ(2, sig->parameter_count());
-    byte code[] = {WASM_NO_LOCALS,           kExprGetLocal, 0, kExprGetLocal, 1,
-                   static_cast<byte>(opcode)};
+    byte code[] = {WASM_NO_LOCALS,
+                   kExprGetLocal,
+                   0,
+                   kExprGetLocal,
+                   1,
+                   static_cast<byte>(opcode),
+                   WASM_END};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
                       code + arraysize(code));
   }
