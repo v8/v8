@@ -1025,8 +1025,8 @@ class JavaScriptFrame : public StandardFrame {
   // Determine the code for the frame.
   Code* unchecked_code() const override;
 
-  // Return a list with {SharedFunctionInfo} objects of this frame.
-  virtual void GetFunctions(List<SharedFunctionInfo*>* functions) const;
+  // Return a list with JSFunctions of this frame.
+  virtual void GetFunctions(List<JSFunction*>* functions) const;
 
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
@@ -1105,10 +1105,10 @@ class OptimizedFrame : public JavaScriptFrame {
   // GC support.
   void Iterate(ObjectVisitor* v) const override;
 
-  // Return a list with {SharedFunctionInfo} objects of this frame.
+  // Return a list with JSFunctions of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()
   // is the top-most activation)
-  void GetFunctions(List<SharedFunctionInfo*>* functions) const override;
+  void GetFunctions(List<JSFunction*>* functions) const override;
 
   void Summarize(
       List<FrameSummary>* frames,

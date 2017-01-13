@@ -926,7 +926,7 @@ bool JavaScriptFrame::IsConstructor() const {
 
 
 bool JavaScriptFrame::HasInlinedFrames() const {
-  List<SharedFunctionInfo*> functions(1);
+  List<JSFunction*> functions(1);
   GetFunctions(&functions);
   return functions.length() > 1;
 }
@@ -959,9 +959,10 @@ Address JavaScriptFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
-void JavaScriptFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
+
+void JavaScriptFrame::GetFunctions(List<JSFunction*>* functions) const {
   DCHECK(functions->length() == 0);
-  functions->Add(function()->shared());
+  functions->Add(function());
 }
 
 void JavaScriptFrame::Summarize(List<FrameSummary>* functions,
@@ -1473,7 +1474,7 @@ Object* OptimizedFrame::receiver() const {
   }
 }
 
-void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
+void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) const {
   DCHECK(functions->length() == 0);
   DCHECK(is_optimized());
 
@@ -1503,20 +1504,25 @@ void OptimizedFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   // in the deoptimization translation are ordered bottom-to-top.
   while (jsframe_count != 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
+    // Skip over operands to advance to the next opcode.
+    it.Skip(Translation::NumberOfOperandsFor(opcode));
     if (opcode == Translation::JS_FRAME ||
         opcode == Translation::INTERPRETED_FRAME) {
-      it.Next();  // Skip bailout id.
       jsframe_count--;
 
-      // The second operand of the frame points to the function.
-      Object* shared = literal_array->get(it.Next());
-      functions->Add(SharedFunctionInfo::cast(shared));
+      // The translation commands are ordered and the function is always at the
+      // first position.
+      opcode = static_cast<Translation::Opcode>(it.Next());
 
-      // Skip over remaining operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(opcode) - 2);
-    } else {
-      // Skip over operands to advance to the next opcode.
-      it.Skip(Translation::NumberOfOperandsFor(opcode));
+      // Get the correct function in the optimized frame.
+      Object* function;
+      if (opcode == Translation::LITERAL) {
+        function = literal_array->get(it.Next());
+      } else {
+        CHECK_EQ(Translation::STACK_SLOT, opcode);
+        function = StackSlotAt(it.Next());
+      }
+      functions->Add(JSFunction::cast(function));
     }
   }
 }
