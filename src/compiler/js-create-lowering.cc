@@ -751,6 +751,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
+  if (!FLAG_turbo_lower_create_closure) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> shared = p.shared_info();

@@ -140,6 +140,7 @@ TEST_F(JSCreateLoweringTest, JSCreateArgumentsInlinedRestArray) {
 // JSCreateClosure
 
 TEST_F(JSCreateLoweringTest, JSCreateClosureViaInlinedAllocation) {
+  if (!FLAG_turbo_lower_create_closure) return;
   Node* const context = UndefinedConstant();
   Node* const effect = graph()->start();
   Node* const control = graph()->start();

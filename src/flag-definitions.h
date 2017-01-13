@@ -486,6 +486,8 @@ DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
 DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
+DEFINE_BOOL(turbo_lower_create_closure, false,
+            "enable inline allocation for closure instantiation")
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,
