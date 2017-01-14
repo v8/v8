@@ -1314,7 +1314,7 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r6, Operand(debug_hook_avtive));
   LoadB(r6, MemOperand(r6));
-  CmpSmiLiteral(r6, Smi::kZero, r0);
+  CmpP(r6, Operand::Zero());
   beq(&skip_hook);
   {
     FrameScope frame(this,
