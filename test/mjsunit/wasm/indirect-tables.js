@@ -443,7 +443,7 @@ function js_div(a, b) { return (a / b) | 0; }
   }
 
   let new_builder = new WasmModuleBuilder();
-  new_builder.addExport("wasm", new_builder.addFunction("", kSig_v_v));
+  new_builder.addExport("wasm", new_builder.addFunction("", kSig_v_v).addBody([]));
   new_builder.addImportedTable("x", "table", 20, 30);
   let new_module = new WebAssembly.Module(new_builder.toBuffer());
   let instance = new WebAssembly.Instance(new_module, {x: {table: table}});

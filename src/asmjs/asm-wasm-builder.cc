@@ -101,6 +101,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       uint32_t index = LookupOrInsertGlobal(fv->var, fv->type);
       foreign_init_function_->EmitWithVarInt(kExprSetGlobal, index);
     }
+    foreign_init_function_->Emit(kExprEnd);
   }
 
   Handle<FixedArray> GetForeignArgs() {
@@ -131,6 +132,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       return false;
     }
     BuildForeignInitFunction();
+    init_function_->Emit(kExprEnd);  // finish init function.
     return true;
   }
 
@@ -543,6 +545,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     RECURSE(VisitDeclarations(scope->declarations()));
     if (typer_failed_) return;
     RECURSE(VisitStatements(expr->body()));
+    if (scope_ == kFuncScope) {
+      // Finish the function-body scope block.
+      current_function_builder_->Emit(kExprEnd);
+    }
   }
 
   void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {

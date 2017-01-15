@@ -39,8 +39,6 @@ namespace wasm {
     error("Invalid opcode (enable with --" #flag ")");         \
     break;                                                     \
   }
-// TODO(titzer): this is only for intermediate migration.
-#define IMPLICIT_FUNCTION_END 1
 
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
@@ -493,41 +491,14 @@ class WasmFullDecoder : public WasmDecoder {
 
     if (failed()) return TraceFailed();
 
-#if IMPLICIT_FUNCTION_END
-    // With implicit end support (old style), the function block
-    // remains on the stack. Other control blocks are an error.
-    if (control_.size() > 1) {
-      error(pc_, control_.back().pc, "unterminated control structure");
-      return TraceFailed();
-    }
-
-    // Assume an implicit end to the function body block.
-    if (control_.size() == 1) {
-      Control* c = &control_.back();
-      if (ssa_env_->go()) {
-        FallThruTo(c);
-      }
-
-      if (c->end_env->go()) {
-        // Push the end values onto the stack.
-        stack_.resize(c->stack_depth);
-        if (c->merge.arity == 1) {
-          stack_.push_back(c->merge.vals.first);
-        } else {
-          for (unsigned i = 0; i < c->merge.arity; i++) {
-            stack_.push_back(c->merge.vals.array[i]);
-          }
-        }
-
-        TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
-        SetEnv("function:end", c->end_env);
-        DoReturn();
-        TRACE("\n");
-      }
-    }
-#else
     if (!control_.empty()) {
-      error(pc_, control_.back().pc, "unterminated control structure");
+      // Generate a better error message whether the unterminated control
+      // structure is the function body block or an innner structure.
+      if (control_.size() > 1) {
+        error(pc_, control_.back().pc, "unterminated control structure");
+      } else {
+        error("function body must end with \"end\" opcode.");
+      }
       return TraceFailed();
     }
 
@@ -535,7 +506,6 @@ class WasmFullDecoder : public WasmDecoder {
       error("function body must end with \"end\" opcode.");
       return false;
     }
-#endif
 
     if (FLAG_trace_wasm_decode_time) {
       double ms = decode_timer.Elapsed().InMillisecondsF();
