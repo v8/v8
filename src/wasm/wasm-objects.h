@@ -65,7 +65,8 @@ class WasmTableObject : public JSObject {
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
                                      uint32_t maximum,
                                      Handle<FixedArray>* js_functions);
-  static bool Grow(Handle<WasmTableObject> table, uint32_t count);
+  static void Grow(Isolate* isolate, Handle<WasmTableObject> table,
+                   uint32_t count);
   static Handle<FixedArray> AddDispatchTable(
       Isolate* isolate, Handle<WasmTableObject> table,
       Handle<WasmInstanceObject> instance, int table_index,
@@ -91,7 +92,8 @@ class WasmMemoryObject : public JSObject {
                                       Handle<JSArrayBuffer> buffer,
                                       int maximum);
 
-  static bool Grow(Handle<WasmMemoryObject> memory, uint32_t count);
+  static bool Grow(Isolate* isolate, Handle<WasmMemoryObject> memory,
+                   uint32_t count);
 };
 
 // Representation of a WebAssembly.Instance JavaScript-level object.

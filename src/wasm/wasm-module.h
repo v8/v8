@@ -440,6 +440,9 @@ int32_t GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, Handle<JSFunction> js_function);
 
+void GrowDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
+                        uint32_t old_size, uint32_t count);
+
 namespace testing {
 
 void ValidateInstancesChain(Isolate* isolate,

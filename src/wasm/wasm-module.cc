@@ -147,6 +147,19 @@ void RelocateGlobals(Handle<FixedArray> code_table, Address old_start,
   }
 }
 
+void RelocateTableSizeReferences(Handle<FixedArray> code_table,
+                                 uint32_t old_size, uint32_t new_size) {
+  for (int i = 0; i < code_table->length(); ++i) {
+    DCHECK(code_table->get(i)->IsCode());
+    Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
+    AllowDeferredHandleDereference embedding_raw_address;
+    int mask = 1 << RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE;
+    for (RelocIterator it(*code, mask); !it.done(); it.next()) {
+      it.rinfo()->update_wasm_function_table_size_reference(old_size, new_size);
+    }
+  }
+}
+
 Handle<Code> CreatePlaceholder(Factory* factory, Code::Kind kind) {
   byte buffer[] = {0, 0, 0, 0};  // fake instructions.
   CodeDesc desc = {
@@ -2340,6 +2353,42 @@ int32_t wasm::GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
   } else {
     return GrowWebAssemblyMemory(isolate, handle(instance_obj->memory_object()),
                                  pages);
+  }
+}
+
+void wasm::GrowDispatchTables(Isolate* isolate,
+                              Handle<FixedArray> dispatch_tables,
+                              uint32_t old_size, uint32_t count) {
+  DCHECK_EQ(0, dispatch_tables->length() % 4);
+  for (int i = 0; i < dispatch_tables->length(); i += 4) {
+    Handle<FixedArray> old_function_table(
+        FixedArray::cast(dispatch_tables->get(i + 2)));
+    Handle<FixedArray> old_signature_table(
+        FixedArray::cast(dispatch_tables->get(i + 3)));
+    Handle<FixedArray> new_function_table =
+        isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count);
+    Handle<FixedArray> new_signature_table =
+        isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count);
+
+    // Get code table for the instance
+    Handle<WasmInstanceObject> instance(
+        WasmInstanceObject::cast(dispatch_tables->get(i)));
+    Handle<FixedArray> code_table(instance->compiled_module()->code_table());
+
+    // Relocate size references
+    RelocateTableSizeReferences(code_table, old_size, old_size + count);
+
+    // Replace references of old tables with new tables.
+    for (int j = 0; j < code_table->length(); ++j) {
+      if (!code_table->get(j)->IsCode()) continue;
+      Handle<Code> code = Handle<Code>(Code::cast(code_table->get(j)));
+      ReplaceReferenceInCode(code, old_function_table, new_function_table);
+      ReplaceReferenceInCode(code, old_signature_table, new_signature_table);
+    }
+
+    // Update dispatch tables with new function/signature tables
+    dispatch_tables->set(i + 2, *new_function_table);
+    dispatch_tables->set(i + 3, *new_signature_table);
   }
 }
 

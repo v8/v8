@@ -371,7 +371,89 @@ function js_div(a, b) { return (a / b) | 0; }
       }
     }
   }
+})();
 
+(function TableGrowBoundsCheck() {
+  print("TableGrowBoundsCheck");
+  var kMaxSize = 30, kInitSize = 5;
+  let table = new WebAssembly.Table({element: "anyfunc",
+    initial: kInitSize, maximum: kMaxSize});
+  var builder = new WasmModuleBuilder();
+  builder.addImportedTable("x", "table", kInitSize, kMaxSize);
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module, {x: {base: 1, table: table}});
 
+  for(var i = kInitSize; i < kMaxSize; i+=5) {
+    assertEquals(i, table.length);
+    for (var j = 0; j < i; j++) table.set(j, null);
+    for (var j = 0; j < i; j++) assertEquals(null, table.get(j));
+    assertThrows(() => table.set(i, null));
+    assertThrows(() => table.get(i));
+    assertEquals(i, table.grow(5));
+  }
+  assertEquals(30, table.length);
+  assertThrows(() => table.grow(1));
+  assertThrows(() => table.set(kMaxSize, null));
+  assertThrows(() => table.get(kMaxSize));
+})();
 
+(function CumulativeGrowTest() {
+  print("CumulativeGrowTest...");
+  let table = new WebAssembly.Table({
+    element: "anyfunc", initial: 10, maximum: 30});
+  var builder = new WasmModuleBuilder();
+  builder.addImportedTable("x", "table", 10, 30);
+
+  let g = builder.addImportedGlobal("x", "base", kWasmI32);
+  let sig_index = builder.addType(kSig_i_v);
+  builder.addFunction("g", sig_index)
+    .addBody([
+      kExprGetGlobal, g
+    ]);
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprCallIndirect, sig_index, kTableZero])  // --
+    .exportAs("main");
+  builder.addFunctionTableInit(g, true, [g]);
+  let module = new WebAssembly.Module(builder.toBuffer());
+
+  var instances = [];
+  for (var i = 0; i < 10; i++) {
+    print(" base = " + i);
+    instances.push(new WebAssembly.Instance(
+        module, {x: {base: i, table: table}}));
+  }
+
+  for (var j = 0; j < 10; j++) {
+    let func = table.get(j);
+    assertEquals("function", typeof func);
+    assertEquals(j, func());
+    assertEquals(j, instances[j].exports.main(j));
+  }
+
+  assertEquals(10, table.grow(10));
+
+  // Verify that grow does not alter function behaviors
+  for (var j = 0; j < 10; j++) {
+    let func = table.get(j);
+    assertEquals("function", typeof func);
+    assertEquals(j, func());
+    assertEquals(j, instances[j].exports.main(j));
+  }
+
+  let new_builder = new WasmModuleBuilder();
+  new_builder.addExport("wasm", new_builder.addFunction("", kSig_v_v));
+  new_builder.addImportedTable("x", "table", 20, 30);
+  let new_module = new WebAssembly.Module(new_builder.toBuffer());
+  let instance = new WebAssembly.Instance(new_module, {x: {table: table}});
+  let new_func = instance.exports.wasm;
+
+  for (var j = 10; j < 20; j++) {
+    table.set(j, new_func);
+    let func = table.get(j);
+    assertEquals("function", typeof func);
+    assertSame(new_func, table.get(j));
+  }
+  assertThrows(() => table.grow(11));
 })();

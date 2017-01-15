@@ -508,7 +508,6 @@ assertEq(tblGrowDesc.enumerable, false);
 assertEq(tblGrowDesc.configurable, true);
 
 // 'WebAssembly.Table.prototype.grow' method
-if (false) { // TODO: Table.grow
 let tblGrow = tblGrowDesc.value;
 assertEq(tblGrow.length, 1);
 assertErrorMessage(() => tblGrow.call(), TypeError, /called on incompatible undefined/);
@@ -522,7 +521,6 @@ assertEq(tbl.length, 1);
 assertEq(tbl.grow(1), 1);
 assertEq(tbl.length, 2);
 assertErrorMessage(() => tbl.grow(1), Error, /failed to grow table/);
-}
 
 // 'WebAssembly.validate' function
 assertErrorMessage(() => WebAssembly.validate(), TypeError);

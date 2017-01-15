@@ -546,7 +546,10 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     isolate->ThrowException(e);
     return;
   }
+
   int new_size = static_cast<int>(new_size64);
+  i::WasmTableObject::Grow(i_isolate, receiver,
+                           static_cast<uint32_t>(new_size - old_size));
 
   if (new_size != old_size) {
     i::Handle<i::FixedArray> new_array =
@@ -557,7 +560,9 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     receiver->set_functions(*new_array);
   }
 
-  // TODO(titzer): update relevant instances.
+  // TODO(gdeepti): use weak links for instances
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(old_size);
 }
 
 void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {

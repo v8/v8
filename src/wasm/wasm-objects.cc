@@ -186,6 +186,13 @@ WasmTableObject* WasmTableObject::cast(Object* object) {
   return reinterpret_cast<WasmTableObject*>(object);
 }
 
+void WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
+                           uint32_t count) {
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables());
+  wasm::GrowDispatchTables(isolate, dispatch_tables,
+                           table->functions()->length(), count);
+}
+
 Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                Handle<JSArrayBuffer> buffer,
                                                int maximum) {
