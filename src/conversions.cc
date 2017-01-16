@@ -421,9 +421,10 @@ char* DoubleToRadixCString(double value, int radix) {
 
   // Temporary buffer for the result. We start with the decimal point in the
   // middle and write to the left for the integer part and to the right for the
-  // fractional part. 1024 characters either way with additional space for sign
-  // and decimal point should be sufficient.
-  static const int kBufferSize = 2100;
+  // fractional part. 1024 characters for the exponent and 52 for the mantissa
+  // either way, with additional space for sign, decimal point and string
+  // termination should be sufficient.
+  static const int kBufferSize = 2200;
   char buffer[kBufferSize];
   int integer_cursor = kBufferSize / 2;
   int fraction_cursor = integer_cursor;
