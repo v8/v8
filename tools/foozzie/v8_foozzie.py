@@ -8,6 +8,7 @@ V8 correctness fuzzer launcher script.
 """
 
 import argparse
+import hashlib
 import itertools
 import json
 import os
@@ -83,6 +84,13 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 
 FUZZ_TEST_RE = re.compile(r'.*fuzz(-\d+\.js)')
 SOURCE_RE = re.compile(r'print\("v8-foozzie source: (.*)"\);')
+
+# The number of hex digits used from the hash of the original source file path.
+# Keep the number small to avoid duplicate explosion.
+ORIGINAL_SOURCE_HASH_LENGTH = 3
+
+# Placeholder string if no original source file could be determined.
+ORIGINAL_SOURCE_DEFAULT = 'none'
 
 def parse_args():
   parser = argparse.ArgumentParser()
@@ -235,8 +243,15 @@ def main():
   if fail_bailout(second_config_output, suppress.ignore_by_output2):
     return RETURN_FAIL
 
-  difference, source, source_key = suppress.diff(
+  difference, source = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
+
+  if source:
+    source_key = hashlib.sha1(source).hexdigest()[:ORIGINAL_SOURCE_HASH_LENGTH]
+  else:
+    source = ORIGINAL_SOURCE_DEFAULT
+    source_key = ORIGINAL_SOURCE_DEFAULT
+
   if difference:
     # The first three entries will be parsed by clusterfuzz. Format changes
     # will require changes on the clusterfuzz side.

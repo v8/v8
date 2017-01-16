@@ -21,12 +21,12 @@ class UnitTest(unittest.TestCase):
         'x64', 'fullcode', 'x64', 'default')
     one = ''
     two = ''
-    diff = None, 'none', 'none'
+    diff = None, None
     self.assertEquals(diff, suppress.diff(one, two))
 
     one = 'a \n  b\nc();'
     two = 'a \n  b\nc();'
-    diff = None, 'none', 'none'
+    diff = None, None
     self.assertEquals(diff, suppress.diff(one, two))
 
     # Ignore line before caret, caret position, stack trace char numbers
@@ -49,7 +49,7 @@ stack line :2: foo
 Validation of asm.js module failed: baz
   undefined
 """
-    diff = None, 'none', 'none'
+    diff = None, None
     self.assertEquals(diff, suppress.diff(one, two))
 
     one = """
@@ -59,7 +59,7 @@ Extra line
     two = """
 Still equal
 """
-    diff = '- Extra line', 'none', 'none'
+    diff = '- Extra line', None
     self.assertEquals(diff, suppress.diff(one, two))
 
     one = """
@@ -69,7 +69,7 @@ Still equal
 Still equal
 Extra line
 """
-    diff = '+ Extra line', 'none', 'none'
+    diff = '+ Extra line', None
     self.assertEquals(diff, suppress.diff(one, two))
 
     one = """
@@ -81,7 +81,7 @@ undefined
 otherfile.js: TypeError: undefined is not a constructor
 """
     diff = """- somefile.js: TypeError: undefined is not a constructor
-+ otherfile.js: TypeError: undefined is not a constructor""", 'none', 'none'
++ otherfile.js: TypeError: undefined is not a constructor""", None
     self.assertEquals(diff, suppress.diff(one, two))
 
 
