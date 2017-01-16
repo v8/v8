@@ -355,13 +355,26 @@ DECLARATION_NODE_LIST(DEF_VISIT)
 // Assumes code has been parsed.  Mutates the AST, so the AST should not
 // continue to be used in the case of failure.
 bool Rewriter::Rewrite(ParseInfo* info) {
+  {
+    DisallowHeapAllocation no_allocation;
+    DisallowHandleAllocation no_handles;
+    DisallowHandleDereference no_deref;
+
+    FunctionLiteral* function = info->literal();
+    DCHECK_NOT_NULL(function);
+    Scope* scope = function->scope();
+    DCHECK_NOT_NULL(scope);
+    if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
+  }
+
   RuntimeCallTimerScope runtimeTimer(
       info->isolate(), &RuntimeCallStats::CompileRewriteReturnResult);
   FunctionLiteral* function = info->literal();
   DCHECK_NOT_NULL(function);
   Scope* scope = function->scope();
   DCHECK_NOT_NULL(scope);
-  if (!scope->is_script_scope() && !scope->is_eval_scope()) return true;
+  DCHECK(ThreadId::Current().Equals(info->isolate()->thread_id()));
+
   DeclarationScope* closure_scope = scope->GetClosureScope();
 
   ZoneList<Statement*>* body = function->body();
@@ -393,6 +406,10 @@ bool Rewriter::Rewrite(ParseInfo* info) {
 
 bool Rewriter::Rewrite(Parser* parser, DeclarationScope* closure_scope,
                        DoExpression* expr, AstValueFactory* factory) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
   Block* block = expr->block();
   DCHECK_EQ(closure_scope, closure_scope->GetClosureScope());
   DCHECK(block->scope() == nullptr ||
