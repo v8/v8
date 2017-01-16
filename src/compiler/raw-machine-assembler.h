@@ -653,6 +653,12 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* Float64RoundTiesEven(Node* a) {
     return AddNode(machine()->Float64RoundTiesEven().op(), a);
   }
+  Node* Word32ReverseBytes(Node* a) {
+    return AddNode(machine()->Word32ReverseBytes().op(), a);
+  }
+  Node* Word64ReverseBytes(Node* a) {
+    return AddNode(machine()->Word64ReverseBytes().op(), a);
+  }
 
   // Float64 bit operations.
   Node* Float64ExtractLowWord32(Node* a) {
