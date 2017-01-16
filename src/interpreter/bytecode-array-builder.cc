@@ -585,9 +585,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(size_t entry,
-                                                          int slot, int flags) {
-  OutputCreateClosure(entry, slot, flags);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
+    size_t shared_function_info_entry, int slot, int flags) {
+  OutputCreateClosure(shared_function_info_entry, slot, flags);
   return *this;
 }
 
@@ -649,17 +649,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateRegExpLiteral(
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateArrayLiteral(
-    Handle<ConstantElementsPair> constant_elements, int literal_index,
-    int flags) {
-  size_t constant_elements_entry = GetConstantPoolEntry(constant_elements);
+    size_t constant_elements_entry, int literal_index, int flags) {
   OutputCreateArrayLiteral(constant_elements_entry, literal_index, flags);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
-    Handle<FixedArray> constant_properties, int literal_index, int flags,
+    size_t constant_properties_entry, int literal_index, int flags,
     Register output) {
-  size_t constant_properties_entry = GetConstantPoolEntry(constant_properties);
   OutputCreateObjectLiteral(constant_properties_entry, literal_index, flags,
                             output);
   return *this;

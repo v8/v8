@@ -159,10 +159,7 @@ class AstValue : public ZoneObject {
     return type_ == STRING;
   }
 
-  bool IsNumber() const {
-    return type_ == NUMBER || type_ == NUMBER_WITH_DOT || type_ == SMI ||
-           type_ == SMI_WITH_DOT;
-  }
+  bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
   bool ContainsDot() const {
     return type_ == NUMBER_WITH_DOT || type_ == SMI_WITH_DOT;
@@ -174,17 +171,28 @@ class AstValue : public ZoneObject {
   }
 
   double AsNumber() const {
-    if (type_ == NUMBER || type_ == NUMBER_WITH_DOT)
-      return number_;
-    if (type_ == SMI || type_ == SMI_WITH_DOT)
-      return smi_;
+    if (IsHeapNumber()) return number_;
+    if (IsSmi()) return smi_;
     UNREACHABLE();
     return 0;
   }
 
   Smi* AsSmi() const {
-    CHECK(type_ == SMI || type_ == SMI_WITH_DOT);
+    CHECK(IsSmi());
     return Smi::FromInt(smi_);
+  }
+
+  bool ToUint32(uint32_t* value) const {
+    if (IsSmi()) {
+      int num = smi_;
+      if (num < 0) return false;
+      *value = static_cast<uint32_t>(num);
+      return true;
+    }
+    if (IsHeapNumber()) {
+      return DoubleToUint32IfEqualToSelf(number_, value);
+    }
+    return false;
   }
 
   bool EqualsString(const AstRawString* string) const {
@@ -196,6 +204,9 @@ class AstValue : public ZoneObject {
   bool BooleanValue() const;
 
   bool IsSmi() const { return type_ == SMI || type_ == SMI_WITH_DOT; }
+  bool IsHeapNumber() const {
+    return type_ == NUMBER || type_ == NUMBER_WITH_DOT;
+  }
   bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
   bool IsTrue() const { return type_ == BOOLEAN && bool_; }
   bool IsUndefined() const { return type_ == UNDEFINED; }

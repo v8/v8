@@ -5451,7 +5451,8 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     site_context.ExitScope(site, boilerplate);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    Handle<FixedArray> constant_properties = expr->constant_properties();
+    Handle<FixedArray> constant_properties =
+        expr->GetOrBuildConstantProperties(isolate());
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
 
@@ -5574,7 +5575,8 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     site_context.ExitScope(site, boilerplate_object);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    Handle<ConstantElementsPair> constants = expr->constant_elements();
+    Handle<ConstantElementsPair> constants =
+        expr->GetOrBuildConstantElements(isolate());
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);
 

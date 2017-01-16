@@ -122,6 +122,17 @@ bool IsUint32Double(double value) {
          value == FastUI2D(FastD2UI(value));
 }
 
+bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
+  if (value < 0) return false;
+  // TODO(leszeks): We maybe could be faster than FastD2UI here, since we only
+  // care about the value being valid if the conversion is valid.
+  uint32_t converted_value = FastD2UI(value);
+  if (FastUI2D(converted_value) == value) {
+    *uint32_value = converted_value;
+    return true;
+  }
+  return false;
+}
 
 int32_t NumberToInt32(Object* number) {
   if (number->IsSmi()) return Smi::cast(number)->value();

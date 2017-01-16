@@ -14,10 +14,9 @@ namespace internal {
 
 class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
  public:
-  AstNumberingVisitor(Isolate* isolate, Zone* zone,
+  AstNumberingVisitor(uintptr_t stack_limit, Zone* zone,
                       Compiler::EagerInnerFunctionLiterals* eager_literals)
-      : isolate_(isolate),
-        zone_(zone),
+      : zone_(zone),
         eager_literals_(eager_literals),
         next_id_(BailoutId::FirstUsable().ToInt()),
         yield_count_(0),
@@ -26,7 +25,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         disable_crankshaft_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
         catch_prediction_(HandlerTable::UNCAUGHT) {
-    InitializeAstVisitor(isolate);
+    InitializeAstVisitor(stack_limit);
   }
 
   bool Renumber(FunctionLiteral* node);
@@ -67,15 +66,13 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    node->AssignFeedbackVectorSlots(isolate_, properties_.get_spec(),
-                                    &slot_cache_);
+    node->AssignFeedbackVectorSlots(properties_.get_spec(), &slot_cache_);
   }
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
   Zone* zone() const { return zone_; }
 
-  Isolate* isolate_;
   Zone* zone_;
   Compiler::EagerInnerFunctionLiterals* eager_literals_;
   int next_id_;
@@ -532,7 +529,7 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));
   }
-  node->BuildConstantProperties(isolate_);
+  node->InitDepthAndFlags();
   // Mark all computed expressions that are bound to a key that
   // is shadowed by a later occurrence of the same key. For the
   // marked expressions, no store code will be is emitted.
@@ -553,7 +550,7 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
   for (int i = 0; i < node->values()->length(); i++) {
     Visit(node->values()->at(i));
   }
-  node->BuildConstantElements(isolate_);
+  node->InitDepthAndFlags();
   ReserveFeedbackSlots(node);
 }
 
@@ -662,9 +659,13 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 }
 
 bool AstNumbering::Renumber(
-    Isolate* isolate, Zone* zone, FunctionLiteral* function,
+    uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
     Compiler::EagerInnerFunctionLiterals* eager_literals) {
-  AstNumberingVisitor visitor(isolate, zone, eager_literals);
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
+  AstNumberingVisitor visitor(stack_limit, zone, eager_literals);
   return visitor.Renumber(function);
 }
 }  // namespace internal

@@ -53,7 +53,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   enum class TestFallthrough { kThen, kElse, kNone };
 
   void GenerateBytecodeBody();
-  void AllocateDeferredConstants();
+  void AllocateDeferredConstants(Isolate* isolate);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -210,6 +210,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
       native_function_literals_;
+  ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
+  ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;

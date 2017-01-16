@@ -577,6 +577,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       global_declarations_(0, info->zone()),
       function_literals_(0, info->zone()),
       native_function_literals_(0, info->zone()),
+      object_literals_(0, info->zone()),
+      array_literals_(0, info->zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
@@ -594,12 +596,12 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
 }
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
-  AllocateDeferredConstants();
+  AllocateDeferredConstants(isolate);
   if (HasStackOverflow()) return Handle<BytecodeArray>();
   return builder()->ToBytecodeArray(isolate);
 }
 
-void BytecodeGenerator::AllocateDeferredConstants() {
+void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
   // Build global declaration pair arrays.
   for (GlobalDeclarationsBuilder* globals_builder : global_declarations_) {
     Handle<FixedArray> declarations =
@@ -627,6 +629,27 @@ void BytecodeGenerator::AllocateDeferredConstants() {
                                                  expr->name());
     if (shared_info.is_null()) return SetStackOverflow();
     builder()->InsertConstantPoolEntryAt(literal.second, shared_info);
+  }
+
+  // Build object literal constant properties
+  for (std::pair<ObjectLiteral*, size_t> literal : object_literals_) {
+    ObjectLiteral* object_literal = literal.first;
+    if (object_literal->properties_count() > 0) {
+      // If constant properties is an empty fixed array, we've already added it
+      // to the constant pool when visiting the object literal.
+      Handle<FixedArray> constant_properties =
+          object_literal->GetOrBuildConstantProperties(isolate);
+
+      builder()->InsertConstantPoolEntryAt(literal.second, constant_properties);
+    }
+  }
+
+  // Build array literal constant elements
+  for (std::pair<ArrayLiteral*, size_t> literal : array_literals_) {
+    ArrayLiteral* array_literal = literal.first;
+    Handle<ConstantElementsPair> constant_elements =
+        array_literal->GetOrBuildConstantElements(isolate);
+    builder()->InsertConstantPoolEntryAt(literal.second, constant_elements);
   }
 }
 
@@ -1611,14 +1634,18 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
           expr->properties_count()),
       expr->ComputeFlags());
+
+  Register literal = register_allocator()->NewRegister();
+  size_t entry;
   // If constant properties is an empty fixed array, use our cached
   // empty_fixed_array to ensure it's only added to the constant pool once.
-  Handle<FixedArray> constant_properties = expr->properties_count() == 0
-                                               ? empty_fixed_array()
-                                               : expr->constant_properties();
-  Register literal = register_allocator()->NewRegister();
-  builder()->CreateObjectLiteral(constant_properties, expr->literal_index(),
-                                 flags, literal);
+  if (expr->properties_count() == 0) {
+    entry = builder()->GetConstantPoolEntry(empty_fixed_array());
+  } else {
+    entry = builder()->AllocateConstantPoolEntry();
+    object_literals_.push_back(std::make_pair(expr, entry));
+  }
+  builder()->CreateObjectLiteral(entry, expr->literal_index(), flags, literal);
 
   // Store computed values into the literal.
   int property_index = 0;
@@ -1800,8 +1827,11 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateArrayLiteralFlags::Encode(
       expr->IsFastCloningSupported(), expr->ComputeFlags());
-  builder()->CreateArrayLiteral(expr->constant_elements(),
-                                expr->literal_index(), flags);
+
+  size_t entry = builder()->AllocateConstantPoolEntry();
+  builder()->CreateArrayLiteral(entry, expr->literal_index(), flags);
+  array_literals_.push_back(std::make_pair(expr, entry));
+
   Register index, literal;
 
   // Evaluate all the non-constant subexpressions and store them into the

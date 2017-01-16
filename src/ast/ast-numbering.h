@@ -5,6 +5,8 @@
 #ifndef V8_AST_AST_NUMBERING_H_
 #define V8_AST_AST_NUMBERING_H_
 
+#include <stdint.h>
+
 namespace v8 {
 namespace internal {
 
@@ -24,7 +26,7 @@ namespace AstNumbering {
 // tree; perform catch prediction for TryStatements. If |eager_literals| is
 // non-null, adds any eager inner literal functions into it.
 bool Renumber(
-    Isolate* isolate, Zone* zone, FunctionLiteral* function,
+    uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
     ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals);
 }
 

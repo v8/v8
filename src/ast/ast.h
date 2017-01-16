@@ -320,6 +320,9 @@ class Expression : public AstNode {
   // True iff the expression is a literal represented as a smi.
   bool IsSmiLiteral() const;
 
+  // True iff the expression is a literal represented as a number.
+  bool IsNumberLiteral() const;
+
   // True iff the expression is a string literal.
   bool IsStringLiteral() const;
 
@@ -729,7 +732,7 @@ class ForInStatement final : public ForEachStatement {
   void set_subject(Expression* e) { subject_ = e; }
 
   // Type feedback information.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
   FeedbackVectorSlot ForInFeedbackSlot() {
@@ -951,7 +954,7 @@ class CaseClause final : public Expression {
   // CaseClause will have both a slot in the feedback vector and the
   // TypeFeedbackId to record the type information. TypeFeedbackId is used by
   // full codegen and the feedback vector slot is used by interpreter.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CompareOperationFeedbackSlot() {
@@ -1287,6 +1290,9 @@ class MaterializedLiteral : public Expression {
     depth_ = depth;
   }
 
+  // Populate the depth field and any flags the literal has.
+  void InitDepthAndFlags();
+
   // Populate the constant properties/elements fixed array.
   void BuildConstants(Isolate* isolate);
   friend class ArrayLiteral;
@@ -1387,6 +1393,7 @@ class ObjectLiteral final : public MaterializedLiteral {
   typedef ObjectLiteralProperty Property;
 
   Handle<FixedArray> constant_properties() const {
+    DCHECK(!constant_properties_.is_null());
     return constant_properties_;
   }
   int properties_count() const { return boilerplate_properties_; }
@@ -1402,6 +1409,17 @@ class ObjectLiteral final : public MaterializedLiteral {
 
   // Decide if a property should be in the object boilerplate.
   static bool IsBoilerplateProperty(Property* property);
+
+  // Populate the depth field and flags.
+  void InitDepthAndFlags();
+
+  // Get the constant properties fixed array, populating it if necessary.
+  Handle<FixedArray> GetOrBuildConstantProperties(Isolate* isolate) {
+    if (constant_properties_.is_null()) {
+      BuildConstantProperties(isolate);
+    }
+    return constant_properties();
+  }
 
   // Populate the constant properties fixed array.
   void BuildConstantProperties(Isolate* isolate);
@@ -1451,7 +1469,7 @@ class ObjectLiteral final : public MaterializedLiteral {
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
  private:
@@ -1550,6 +1568,17 @@ class ArrayLiteral final : public MaterializedLiteral {
   // ArrayLiteral can vary, so num_ids() is not a static method.
   int num_ids() const { return parent_num_ids() + 1 + values()->length(); }
 
+  // Populate the depth field and flags.
+  void InitDepthAndFlags();
+
+  // Get the constant elements fixed array, populating it if necessary.
+  Handle<ConstantElementsPair> GetOrBuildConstantElements(Isolate* isolate) {
+    if (constant_elements_.is_null()) {
+      BuildConstantElements(isolate);
+    }
+    return constant_elements();
+  }
+
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
 
@@ -1584,7 +1613,7 @@ class ArrayLiteral final : public MaterializedLiteral {
     kDisableMementos = 1 << 1
   };
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot LiteralFeedbackSlot() const { return literal_slot_; }
 
@@ -1663,7 +1692,7 @@ class VariableProxy final : public Expression {
     return var()->IsUnallocated() || var()->IsLookupSlot();
   }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot VariableFeedbackSlot() { return variable_feedback_slot_; }
@@ -1759,7 +1788,7 @@ class Property final : public Expression {
 
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
     FeedbackVectorSlotKind kind = key()->IsPropertyName()
                                       ? FeedbackVectorSlotKind::LOAD_IC
@@ -1817,7 +1846,7 @@ class Call final : public Expression {
   void set_expression(Expression* e) { expression_ = e; }
 
   // Type feedback information.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CallFeedbackICSlot() const { return ic_slot_; }
@@ -1935,7 +1964,7 @@ class CallNew final : public Expression {
   void set_expression(Expression* e) { expression_ = e; }
 
   // Type feedback information.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
     // CallNew stores feedback in the exact same way as Call. We can
     // piggyback on the type feedback infrastructure for calls.
@@ -2109,7 +2138,7 @@ class BinaryOperation final : public Expression {
   // BinaryOperation will have both a slot in the feedback vector and the
   // TypeFeedbackId to record the type information. TypeFeedbackId is used
   // by full codegen and the feedback vector slot is used by interpreter.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot BinaryOperationFeedbackSlot() const {
@@ -2202,7 +2231,7 @@ class CountOperation final : public Expression {
     return binary_operation_slot_;
   }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot CountSlot() const { return slot_; }
 
@@ -2254,7 +2283,7 @@ class CompareOperation final : public Expression {
   // CompareOperation will have both a slot in the feedback vector and the
   // TypeFeedbackId to record the type information. TypeFeedbackId is used
   // by full codegen and the feedback vector slot is used by interpreter.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CompareOperationFeedbackSlot() const {
@@ -2400,7 +2429,7 @@ class Assignment final : public Expression {
     bit_field_ = StoreModeField::update(bit_field_, mode);
   }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot AssignmentSlot() const { return slot_; }
 
@@ -2567,7 +2596,7 @@ class FunctionLiteral final : public Expression {
   }
   LanguageMode language_mode() const;
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
     // The + 1 is because we need an array with room for the literals
     // as well as the feedback vector.
@@ -2786,7 +2815,7 @@ class ClassLiteral final : public Expression {
 
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache);
 
   bool NeedsProxySlot() const {
@@ -2837,7 +2866,7 @@ class NativeFunctionLiteral final : public Expression {
     return literal_feedback_slot_;
   }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
     // 0 is a magic number here. It means we are holding the literals
     // array for a native function literal, which needs to be
@@ -2942,7 +2971,7 @@ class GetIterator final : public Expression {
 
   static int num_ids() { return parent_num_ids(); }
 
-  void AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
     iterator_property_feedback_slot_ =
         spec->AddSlot(FeedbackVectorSlotKind::LOAD_IC);

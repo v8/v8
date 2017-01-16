@@ -1354,7 +1354,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
 
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralObject(
-      expr->constant_properties(), expr->ComputeFlags(true),
+      expr->GetOrBuildConstantProperties(isolate()), expr->ComputeFlags(true),
       expr->literal_index(), expr->properties_count());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
@@ -1483,7 +1483,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralArray(
-      expr->constant_elements(), expr->ComputeFlags(true),
+      expr->GetOrBuildConstantElements(isolate()), expr->ComputeFlags(true),
       expr->literal_index(), expr->values()->length());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),

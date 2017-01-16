@@ -1097,12 +1097,7 @@ bool Object::ToUint32(uint32_t* value) {
   }
   if (IsHeapNumber()) {
     double num = HeapNumber::cast(this)->value();
-    if (num < 0) return false;
-    uint32_t uint_value = FastD2UI(num);
-    if (FastUI2D(uint_value) == num) {
-      *value = uint_value;
-      return true;
-    }
+    return DoubleToUint32IfEqualToSelf(num, value);
   }
   return false;
 }

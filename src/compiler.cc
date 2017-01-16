@@ -438,8 +438,9 @@ bool Renumber(ParseInfo* parse_info,
               Compiler::EagerInnerFunctionLiterals* eager_literals) {
   RuntimeCallTimerScope runtimeTimer(parse_info->isolate(),
                                      &RuntimeCallStats::CompileRenumber);
-  if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
-                              parse_info->literal(), eager_literals)) {
+  if (!AstNumbering::Renumber(
+          parse_info->isolate()->stack_guard()->real_climit(),
+          parse_info->zone(), parse_info->literal(), eager_literals)) {
     return false;
   }
   Handle<SharedFunctionInfo> shared_info = parse_info->shared_info();

@@ -1178,7 +1178,8 @@ void FullCodeGenerator::EmitAccessor(ObjectLiteralProperty* property) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  Handle<FixedArray> constant_properties = expr->constant_properties();
+  Handle<FixedArray> constant_properties =
+      expr->GetOrBuildConstantProperties(isolate());
   __ ldr(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ mov(r2, Operand(Smi::FromInt(expr->literal_index())));
   __ mov(r1, Operand(constant_properties));
@@ -1309,7 +1310,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
 void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  Handle<ConstantElementsPair> constant_elements = expr->constant_elements();
+  Handle<ConstantElementsPair> constant_elements =
+      expr->GetOrBuildConstantElements(isolate());
   bool has_fast_elements =
       IsFastObjectElementsKind(expr->constant_elements_kind());
 
