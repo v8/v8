@@ -792,7 +792,7 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> module_proto =
       factory->NewJSObject(module_constructor, TENURED);
   i::Handle<i::Map> module_map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmModuleObject::kFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
   JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
@@ -809,7 +809,7 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> instance_proto =
       factory->NewJSObject(instance_constructor, TENURED);
   i::Handle<i::Map> instance_map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmInstanceObject::kFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(instance_constructor, instance_map, instance_proto);
   JSObject::AddProperty(instance_proto,
@@ -823,7 +823,7 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> table_proto =
       factory->NewJSObject(table_constructor, TENURED);
   i::Handle<i::Map> table_map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmTableObject::kFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(table_constructor, table_map, table_proto);
   JSObject::AddProperty(table_proto, isolate->factory()->constructor_string(),
@@ -840,7 +840,7 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> memory_proto =
       factory->NewJSObject(memory_constructor, TENURED);
   i::Handle<i::Map> memory_map = isolate->factory()->NewMap(
-      i::JS_OBJECT_TYPE, i::JSObject::kHeaderSize +
+      i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmMemoryObject::kFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(memory_constructor, memory_map, memory_proto);
   JSObject::AddProperty(memory_proto, isolate->factory()->constructor_string(),
