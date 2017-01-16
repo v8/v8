@@ -778,14 +778,12 @@ void WasmJs::Install(Isolate* isolate) {
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
   JSObject::AddProperty(global, name, webassembly, attributes);
-
-  // Setup compile
+  PropertyAttributes ro_attributes =
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
+  JSObject::AddProperty(webassembly, factory->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly"), ro_attributes);
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
-
-  // Setup validate
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
-
-  // Setup instantiate
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
 
   // Setup Module
@@ -798,12 +796,14 @@ void WasmJs::Install(Isolate* isolate) {
       i::JS_API_OBJECT_TYPE, i::JSObject::kHeaderSize +
                              WasmModuleObject::kFieldCount * i::kPointerSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
-  JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
-                        module_constructor, DONT_ENUM);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
               1);
   InstallFunc(isolate, module_constructor, "exports", WebAssemblyModuleExports,
               1);
+  JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
+                        module_constructor, DONT_ENUM);
+  JSObject::AddProperty(module_proto, factory->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly.Module"), ro_attributes);
 
   // Setup Instance
   Handle<JSFunction> instance_constructor =
@@ -818,6 +818,8 @@ void WasmJs::Install(Isolate* isolate) {
   JSObject::AddProperty(instance_proto,
                         isolate->factory()->constructor_string(),
                         instance_constructor, DONT_ENUM);
+  JSObject::AddProperty(instance_proto, factory->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly.Instance"), ro_attributes);
 
   // Setup Table
   Handle<JSFunction> table_constructor =
@@ -835,6 +837,8 @@ void WasmJs::Install(Isolate* isolate) {
   InstallFunc(isolate, table_proto, "grow", WebAssemblyTableGrow, 1);
   InstallFunc(isolate, table_proto, "get", WebAssemblyTableGet, 1);
   InstallFunc(isolate, table_proto, "set", WebAssemblyTableSet, 2);
+  JSObject::AddProperty(table_proto, factory->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly.Table"), ro_attributes);
 
   // Setup Memory
   Handle<JSFunction> memory_constructor =
@@ -850,6 +854,8 @@ void WasmJs::Install(Isolate* isolate) {
                         memory_constructor, DONT_ENUM);
   InstallFunc(isolate, memory_proto, "grow", WebAssemblyMemoryGrow, 1);
   InstallGetter(isolate, memory_proto, "buffer", WebAssemblyMemoryGetBuffer);
+  JSObject::AddProperty(memory_proto, factory->to_string_tag_symbol(),
+                        v8_str(isolate, "WebAssembly.Memory"), ro_attributes);
 
   // Setup errors
   attributes = static_cast<PropertyAttributes>(DONT_ENUM);

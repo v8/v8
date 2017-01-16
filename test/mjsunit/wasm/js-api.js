@@ -70,7 +70,7 @@ assertEq(wasmDesc.configurable, true);
 
 // 'WebAssembly' object
 assertEq(WebAssembly, wasmDesc.value);
-//TODO assertEq(String(WebAssembly), "[object WebAssembly]");
+assertEq(String(WebAssembly), "[object WebAssembly]");
 
 // 'WebAssembly.CompileError'
 let compileErrorDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'CompileError');
@@ -155,7 +155,7 @@ assertEq(moduleProtoDesc.configurable, false);
 // 'WebAssembly.Module.prototype' object
 let moduleProto = Module.prototype;
 assertEq(moduleProto, moduleProtoDesc.value);
-assertEq(String(moduleProto), "[object Object]");
+assertEq(String(moduleProto), "[object WebAssembly.Module]");
 assertEq(Object.getPrototypeOf(moduleProto), Object.prototype);
 
 // 'WebAssembly.Module' instance objects
@@ -163,7 +163,7 @@ let emptyModule = new Module(emptyModuleBinary);
 let importingModule = new Module(importingModuleBinary);
 let exportingModule = new Module(exportingModuleBinary);
 assertEq(typeof emptyModule, "object");
-//TODO assertEq(String(emptyModule), "[object WebAssembly.Module]");
+assertEq(String(emptyModule), "[object WebAssembly.Module]");
 assertEq(Object.getPrototypeOf(emptyModule), moduleProto);
 
 // 'WebAssembly.Module.imports' data property
@@ -285,14 +285,14 @@ assertEq(instanceProtoDesc.configurable, false);
 // 'WebAssembly.Instance.prototype' object
 let instanceProto = Instance.prototype;
 assertEq(instanceProto, instanceProtoDesc.value);
-assertEq(String(instanceProto), "[object Object]");
+assertEq(String(instanceProto), "[object WebAssembly.Instance]");
 assertEq(Object.getPrototypeOf(instanceProto), Object.prototype);
 
 // 'WebAssembly.Instance' instance objects
 let exportingInstance = new Instance(exportingModule);
 assertEq(typeof exportingInstance, "object");
-//TODO:name assertEq(String(exportingInstance), "[object WebAssembly.Instance]");
-//TODO assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
+assertEq(String(exportingInstance), "[object WebAssembly.Instance]");
+assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
 
 // 'WebAssembly.Instance' 'exports' data property
 let instanceExportsDesc = Object.getOwnPropertyDescriptor(exportingInstance, 'exports');
@@ -342,13 +342,13 @@ assertEq(memoryProtoDesc.configurable, false);
 // 'WebAssembly.Memory.prototype' object
 let memoryProto = Memory.prototype;
 assertEq(memoryProto, memoryProtoDesc.value);
-assertEq(String(memoryProto), "[object Object]");
+assertEq(String(memoryProto), "[object WebAssembly.Memory]");
 assertEq(Object.getPrototypeOf(memoryProto), Object.prototype);
 
 // 'WebAssembly.Memory' instance objects
 let mem1 = new Memory({initial:1});
 assertEq(typeof mem1, "object");
-//TODO assertEq(String(mem1), "[object WebAssembly.Memory]");
+assertEq(String(mem1), "[object WebAssembly.Memory]");
 assertEq(Object.getPrototypeOf(mem1), memoryProto);
 
 // 'WebAssembly.Memory.prototype.buffer' accessor property
@@ -434,13 +434,13 @@ assertEq(tableProtoDesc.configurable, false);
 // 'WebAssembly.Table.prototype' object
 let tableProto = Table.prototype;
 assertEq(tableProto, tableProtoDesc.value);
-assertEq(String(tableProto), "[object Object]");
+assertEq(String(tableProto), "[object WebAssembly.Table]");
 assertEq(Object.getPrototypeOf(tableProto), Object.prototype);
 
 // 'WebAssembly.Table' instance objects
 let tbl1 = new Table({initial:2, element:"anyfunc"});
 assertEq(typeof tbl1, "object");
-//TODO:name assertEq(String(tbl1), "[object WebAssembly.Table]");
+assertEq(String(tbl1), "[object WebAssembly.Table]");
 assertEq(Object.getPrototypeOf(tbl1), tableProto);
 
 // 'WebAssembly.Table.prototype.length' accessor data property
