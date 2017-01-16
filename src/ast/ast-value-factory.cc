@@ -221,6 +221,7 @@ void AstValue::Internalize(Isolate* isolate) {
   }
 }
 
+
 AstRawString* AstValueFactory::GetOneByteStringInternal(
     Vector<const uint8_t> literal) {
   if (literal.length() == 1 && IsInRange(literal[0], 'a', 'z')) {

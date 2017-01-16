@@ -9,7 +9,6 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
-#include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
@@ -2376,9 +2375,6 @@ void Isolate::Deinit() {
   delete interpreter_;
   interpreter_ = NULL;
 
-  delete ast_string_constants_;
-  ast_string_constants_ = nullptr;
-
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
 
@@ -2701,11 +2697,6 @@ bool Isolate::Init(Deserializer* des) {
            Internals::kExternalMemoryLimitOffset);
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
-
-  {
-    HandleScope scope(this);
-    ast_string_constants_ = new AstStringConstants(this, heap()->HashSeed());
-  }
 
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the
