@@ -63,6 +63,7 @@ namespace wasm {
   V(I64GtS, int64_t, >)         \
   V(I64GeS, int64_t, >=)        \
   V(F32Add, float, +)           \
+  V(F32Sub, float, -)           \
   V(F32Eq, float, ==)           \
   V(F32Ne, float, !=)           \
   V(F32Lt, float, <)            \
@@ -70,6 +71,7 @@ namespace wasm {
   V(F32Gt, float, >)            \
   V(F32Ge, float, >=)           \
   V(F64Add, double, +)          \
+  V(F64Sub, double, -)          \
   V(F64Eq, double, ==)          \
   V(F64Ne, double, !=)          \
   V(F64Lt, double, <)           \
@@ -102,13 +104,11 @@ namespace wasm {
   V(I32Rol, int32_t)           \
   V(I64Ror, int64_t)           \
   V(I64Rol, int64_t)           \
-  V(F32Sub, float)             \
   V(F32Min, float)             \
   V(F32Max, float)             \
   V(F32CopySign, float)        \
   V(F64Min, double)            \
   V(F64Max, double)            \
-  V(F64Sub, double)            \
   V(F64CopySign, double)       \
   V(I32AsmjsDivS, int32_t)     \
   V(I32AsmjsDivU, uint32_t)    \
@@ -294,41 +294,6 @@ static inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a << shift) | (a >> (64 - shift));
 }
 
-static float quiet(float a) {
-  static const uint32_t kSignalingBit = 1 << 22;
-  uint32_t q = bit_cast<uint32_t>(std::numeric_limits<float>::quiet_NaN());
-  if ((q & kSignalingBit) != 0) {
-    // On some machines, the signaling bit set indicates it's a quiet NaN.
-    return bit_cast<float>(bit_cast<uint32_t>(a) | kSignalingBit);
-  } else {
-    // On others, the signaling bit set indicates it's a signaling NaN.
-    return bit_cast<float>(bit_cast<uint32_t>(a) & ~kSignalingBit);
-  }
-}
-
-static double quiet(double a) {
-  static const uint64_t kSignalingBit = 1ULL << 51;
-  uint64_t q = bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN());
-  if ((q & kSignalingBit) != 0) {
-    // On some machines, the signaling bit set indicates it's a quiet NaN.
-    return bit_cast<double>(bit_cast<uint64_t>(a) | kSignalingBit);
-  } else {
-    // On others, the signaling bit set indicates it's a signaling NaN.
-    return bit_cast<double>(bit_cast<uint64_t>(a) & ~kSignalingBit);
-  }
-}
-
-static inline float ExecuteF32Sub(float a, float b, TrapReason* trap) {
-  float result = a - b;
-  // Some architectures (e.g. MIPS) need extra checking to preserve the payload
-  // of a NaN operand.
-  if (result - result != 0) {
-    if (std::isnan(a)) return quiet(a);
-    if (std::isnan(b)) return quiet(b);
-  }
-  return result;
-}
-
 static inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
   return JSMin(a, b);
 }
@@ -339,17 +304,6 @@ static inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
 
 static inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
   return copysignf(a, b);
-}
-
-static inline double ExecuteF64Sub(double a, double b, TrapReason* trap) {
-  double result = a - b;
-  // Some architectures (e.g. MIPS) need extra checking to preserve the payload
-  // of a NaN operand.
-  if (result - result != 0) {
-    if (std::isnan(a)) return quiet(a);
-    if (std::isnan(b)) return quiet(b);
-  }
-  return result;
 }
 
 static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
