@@ -580,7 +580,9 @@ class Debug {
 
   // Check whether there are commands in the command queue.
   inline bool has_commands() const { return !command_queue_.IsEmpty(); }
-  inline bool ignore_events() const { return is_suppressed_ || !is_active_; }
+  inline bool ignore_events() const {
+    return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
+  }
   inline bool break_disabled() const {
     return break_disabled_ || in_debug_event_listener_;
   }

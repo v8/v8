@@ -258,31 +258,44 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
 namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
-  DCHECK_EQ(Runtime::INLINE, Runtime::FunctionForId(id)->intrinsic_type);
   switch (id) {
-    // Whitelist for intrinsics.
+    // Whitelist for intrinsics amd runtime functions.
+    // Conversions.
+    case Runtime::kToInteger:
+    case Runtime::kInlineToInteger:
+    case Runtime::kToObject:
     case Runtime::kInlineToObject:
+    case Runtime::kToString:
+    case Runtime::kInlineToString:
+    case Runtime::kToLength:
+    case Runtime::kInlineToLength:
+    // Loads.
+    case Runtime::kLoadLookupSlotForCall:
+    // Errors.
+    case Runtime::kThrowReferenceError:
+    // Strings.
+    case Runtime::kInlineStringCharCodeAt:
+    case Runtime::kStringCharCodeAt:
+    case Runtime::kStringIndexOf:
+    case Runtime::kStringReplaceOneCharWithString:
+    case Runtime::kSubString:
+    case Runtime::kInlineSubString:
+    case Runtime::kStringToLowerCase:
+    case Runtime::kStringToUpperCase:
+    case Runtime::kRegExpInternalReplace:
+    // Literals.
+    case Runtime::kCreateArrayLiteral:
+    case Runtime::kCreateObjectLiteral:
+    case Runtime::kCreateRegExpLiteral:
+    // Misc.
+    case Runtime::kInlineCall:
+    case Runtime::kCall:
+    case Runtime::kInlineMaxSmi:
+    case Runtime::kMaxSmi:
       return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
         PrintF("[debug-evaluate] intrinsic %s may cause side effect.\n",
-               Runtime::FunctionForId(id)->name);
-      }
-      return false;
-  }
-}
-
-bool RuntimeFunctionHasNoSideEffect(Runtime::FunctionId id) {
-  DCHECK_EQ(Runtime::RUNTIME, Runtime::FunctionForId(id)->intrinsic_type);
-  switch (id) {
-    // Whitelist for runtime functions.
-    case Runtime::kToObject:
-    case Runtime::kLoadLookupSlotForCall:
-    case Runtime::kThrowReferenceError:
-      return true;
-    default:
-      if (FLAG_trace_side_effect_free_debug_evaluate) {
-        PrintF("[debug-evaluate] runtime %s may cause side effect.\n",
                Runtime::FunctionForId(id)->name);
       }
       return false;
@@ -294,16 +307,56 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecodes Bytecodes;
   if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
   if (Bytecodes::IsCallOrNew(bytecode)) return true;
+  if (Bytecodes::WritesBooleanToAccumulator(bytecode)) return true;
+  if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
+  if (Bytecodes::IsPrefixScalingBytecode(bytecode)) return true;
   switch (bytecode) {
     // Whitelist for bytecodes.
-    case Bytecode::kStackCheck:
+    // Loads.
     case Bytecode::kLdaLookupSlot:
     case Bytecode::kLdaGlobal:
     case Bytecode::kLdaNamedProperty:
     case Bytecode::kLdaKeyedProperty:
+    // Arithmetics.
     case Bytecode::kAdd:
-    case Bytecode::kReturn:
+    case Bytecode::kAddSmi:
+    case Bytecode::kSub:
+    case Bytecode::kSubSmi:
+    case Bytecode::kMul:
+    case Bytecode::kDiv:
+    case Bytecode::kMod:
+    case Bytecode::kBitwiseAnd:
+    case Bytecode::kBitwiseAndSmi:
+    case Bytecode::kBitwiseOr:
+    case Bytecode::kBitwiseOrSmi:
+    case Bytecode::kBitwiseXor:
+    case Bytecode::kShiftLeft:
+    case Bytecode::kShiftLeftSmi:
+    case Bytecode::kShiftRight:
+    case Bytecode::kShiftRightSmi:
+    case Bytecode::kShiftRightLogical:
+    case Bytecode::kInc:
+    case Bytecode::kDec:
+    case Bytecode::kLogicalNot:
+    case Bytecode::kToBooleanLogicalNot:
+    case Bytecode::kTypeOf:
+    // Contexts.
+    case Bytecode::kCreateBlockContext:
     case Bytecode::kCreateCatchContext:
+    case Bytecode::kCreateFunctionContext:
+    case Bytecode::kCreateEvalContext:
+    case Bytecode::kCreateWithContext:
+    // Literals.
+    case Bytecode::kCreateArrayLiteral:
+    case Bytecode::kCreateObjectLiteral:
+    case Bytecode::kCreateRegExpLiteral:
+    // Misc.
+    case Bytecode::kCreateUnmappedArguments:
+    case Bytecode::kThrow:
+    case Bytecode::kIllegal:
+    case Bytecode::kCallJSRuntime:
+    case Bytecode::kStackCheck:
+    case Bytecode::kReturn:
     case Bytecode::kSetPendingMessage:
       return true;
     default:
@@ -318,7 +371,76 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
 bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
+    // Math builtins.
+    case Builtins::kMathAbs:
+    case Builtins::kMathAcos:
+    case Builtins::kMathAcosh:
+    case Builtins::kMathAsin:
+    case Builtins::kMathAsinh:
+    case Builtins::kMathAtan:
+    case Builtins::kMathAtanh:
+    case Builtins::kMathAtan2:
+    case Builtins::kMathCeil:
+    case Builtins::kMathCbrt:
+    case Builtins::kMathExpm1:
+    case Builtins::kMathClz32:
+    case Builtins::kMathCos:
+    case Builtins::kMathCosh:
+    case Builtins::kMathExp:
+    case Builtins::kMathFloor:
+    case Builtins::kMathFround:
+    case Builtins::kMathHypot:
+    case Builtins::kMathImul:
+    case Builtins::kMathLog:
+    case Builtins::kMathLog1p:
+    case Builtins::kMathLog2:
+    case Builtins::kMathLog10:
+    case Builtins::kMathMax:
+    case Builtins::kMathMin:
+    case Builtins::kMathPow:
+    case Builtins::kMathRandom:
+    case Builtins::kMathRound:
+    case Builtins::kMathSign:
     case Builtins::kMathSin:
+    case Builtins::kMathSinh:
+    case Builtins::kMathSqrt:
+    case Builtins::kMathTan:
+    case Builtins::kMathTanh:
+    case Builtins::kMathTrunc:
+    // Number builtins.
+    case Builtins::kNumberConstructor:
+    case Builtins::kNumberIsFinite:
+    case Builtins::kNumberIsInteger:
+    case Builtins::kNumberIsNaN:
+    case Builtins::kNumberIsSafeInteger:
+    case Builtins::kNumberParseFloat:
+    case Builtins::kNumberParseInt:
+    case Builtins::kNumberPrototypeToExponential:
+    case Builtins::kNumberPrototypeToFixed:
+    case Builtins::kNumberPrototypeToPrecision:
+    case Builtins::kNumberPrototypeToString:
+    case Builtins::kNumberPrototypeValueOf:
+    // String builtins. Strings are immutable.
+    case Builtins::kStringFromCharCode:
+    case Builtins::kStringFromCodePoint:
+    case Builtins::kStringConstructor:
+    case Builtins::kStringPrototypeCharAt:
+    case Builtins::kStringPrototypeCharCodeAt:
+    case Builtins::kStringPrototypeEndsWith:
+    case Builtins::kStringPrototypeIncludes:
+    case Builtins::kStringPrototypeIndexOf:
+    case Builtins::kStringPrototypeLastIndexOf:
+    case Builtins::kStringPrototypeStartsWith:
+    case Builtins::kStringPrototypeSubstr:
+    case Builtins::kStringPrototypeSubstring:
+    case Builtins::kStringPrototypeToString:
+    case Builtins::kStringPrototypeTrim:
+    case Builtins::kStringPrototypeTrimLeft:
+    case Builtins::kStringPrototypeTrimRight:
+    case Builtins::kStringPrototypeValueOf:
+    // JSON builtins.
+    case Builtins::kJsonParse:
+    case Builtins::kJsonStringify:
       return true;
     default:
       if (FLAG_trace_side_effect_free_debug_evaluate) {
@@ -354,13 +476,11 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
       interpreter::Bytecode bytecode = it.current_bytecode();
 
       if (interpreter::Bytecodes::IsCallRuntime(bytecode)) {
-        if (bytecode == interpreter::Bytecode::kInvokeIntrinsic) {
-          Runtime::FunctionId id = it.GetIntrinsicIdOperand(0);
-          if (IntrinsicHasNoSideEffect(id)) continue;
-        } else {
-          Runtime::FunctionId id = it.GetRuntimeIdOperand(0);
-          if (RuntimeFunctionHasNoSideEffect(id)) continue;
-        }
+        Runtime::FunctionId id =
+            (bytecode == interpreter::Bytecode::kInvokeIntrinsic)
+                ? it.GetIntrinsicIdOperand(0)
+                : it.GetRuntimeIdOperand(0);
+        if (IntrinsicHasNoSideEffect(id)) continue;
         return false;
       }
 
