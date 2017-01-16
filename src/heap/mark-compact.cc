@@ -104,7 +104,9 @@ static void VerifyMarking(Heap* heap, Address bottom, Address top) {
   Address next_object_must_be_here_or_later = bottom;
   for (Address current = bottom; current < top;) {
     object = HeapObject::FromAddress(current);
-    if (MarkCompactCollector::IsMarked(object)) {
+    // One word fillers at the end of a black area can be grey.
+    if (MarkCompactCollector::IsMarked(object) &&
+        object->map() != heap->one_pointer_filler_map()) {
       CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
