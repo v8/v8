@@ -114,6 +114,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         builder.AddFunction(sig_builder.Build());
     uint32_t code_size = static_cast<uint32_t>(size / num_functions);
     f->EmitCode(data, code_size);
+    uint8_t end_opcode = kExprEnd;
+    f->EmitCode(&end_opcode, 1);
     data += code_size;
     size -= code_size;
     if (fun == 0) {
