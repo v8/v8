@@ -396,37 +396,28 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   return scope_info;
 }
 
-
 ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
   return isolate->heap()->empty_scope_info();
 }
-
 
 ScopeType ScopeInfo::scope_type() {
   DCHECK_LT(0, length());
   return ScopeTypeField::decode(Flags());
 }
 
-
 bool ScopeInfo::CallsEval() {
   return length() > 0 && CallsEvalField::decode(Flags());
 }
-
 
 LanguageMode ScopeInfo::language_mode() {
   return length() > 0 ? LanguageModeField::decode(Flags()) : SLOPPY;
 }
 
-
 bool ScopeInfo::is_declaration_scope() {
   return DeclarationScopeField::decode(Flags());
 }
 
-
-int ScopeInfo::LocalCount() {
-  return StackLocalCount() + ContextLocalCount();
-}
-
+int ScopeInfo::LocalCount() { return StackLocalCount() + ContextLocalCount(); }
 
 int ScopeInfo::StackSlotCount() {
   if (length() > 0) {
@@ -436,7 +427,6 @@ int ScopeInfo::StackSlotCount() {
   }
   return 0;
 }
-
 
 int ScopeInfo::ContextLength() {
   if (length() > 0) {
@@ -459,7 +449,6 @@ int ScopeInfo::ContextLength() {
   return 0;
 }
 
-
 bool ScopeInfo::HasReceiver() {
   if (length() > 0) {
     return NONE != ReceiverVariableField::decode(Flags());
@@ -467,7 +456,6 @@ bool ScopeInfo::HasReceiver() {
     return false;
   }
 }
-
 
 bool ScopeInfo::HasAllocatedReceiver() {
   if (length() > 0) {
@@ -478,9 +466,7 @@ bool ScopeInfo::HasAllocatedReceiver() {
   }
 }
 
-
 bool ScopeInfo::HasNewTarget() { return HasNewTargetField::decode(Flags()); }
-
 
 bool ScopeInfo::HasFunctionName() {
   if (length() > 0) {
@@ -523,11 +509,7 @@ bool ScopeInfo::HasHeapAllocatedLocals() {
   }
 }
 
-
-bool ScopeInfo::HasContext() {
-  return ContextLength() > 0;
-}
-
+bool ScopeInfo::HasContext() { return ContextLength() > 0; }
 
 String* ScopeInfo::FunctionName() {
   DCHECK(HasFunctionName());
@@ -551,7 +533,6 @@ String* ScopeInfo::ParameterName(int var) {
   return String::cast(get(info_index));
 }
 
-
 String* ScopeInfo::LocalName(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, LocalCount());
@@ -561,14 +542,12 @@ String* ScopeInfo::LocalName(int var) {
   return String::cast(get(info_index));
 }
 
-
 String* ScopeInfo::StackLocalName(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, StackLocalCount());
   int info_index = StackLocalNamesIndex() + var;
   return String::cast(get(info_index));
 }
-
 
 int ScopeInfo::StackLocalIndex(int var) {
   DCHECK_LE(0, var);
@@ -577,14 +556,12 @@ int ScopeInfo::StackLocalIndex(int var) {
   return first_slot_index + var;
 }
 
-
 String* ScopeInfo::ContextLocalName(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalNamesIndex() + var;
   return String::cast(get(info_index));
 }
-
 
 VariableMode ScopeInfo::ContextLocalMode(int var) {
   DCHECK_LE(0, var);
@@ -594,7 +571,6 @@ VariableMode ScopeInfo::ContextLocalMode(int var) {
   return VariableModeField::decode(value);
 }
 
-
 InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
@@ -602,7 +578,6 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
   int value = Smi::cast(get(info_index))->value();
   return InitFlagField::decode(value);
 }
-
 
 MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
   DCHECK_LE(0, var);
@@ -620,7 +595,6 @@ bool ScopeInfo::VariableIsSynthetic(String* name) {
   return name->length() == 0 || name->Get(0) == '.' ||
          name->Equals(name->GetHeap()->this_string());
 }
-
 
 int ScopeInfo::StackSlotIndex(String* name) {
   DCHECK(name->IsInternalizedString());
@@ -710,7 +684,6 @@ String* ScopeInfo::ContextSlotName(int slot_index) {
   return ContextLocalName(var);
 }
 
-
 int ScopeInfo::ParameterIndex(String* name) {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
@@ -730,7 +703,6 @@ int ScopeInfo::ParameterIndex(String* name) {
   return -1;
 }
 
-
 int ScopeInfo::ReceiverContextSlotIndex() {
   if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT)
     return Smi::cast(get(ReceiverInfoIndex()))->value();
@@ -748,7 +720,6 @@ int ScopeInfo::FunctionContextSlotIndex(String* name) {
   return -1;
 }
 
-
 FunctionKind ScopeInfo::function_kind() {
   return FunctionKindField::decode(Flags());
 }
@@ -757,7 +728,6 @@ int ScopeInfo::ParameterNamesIndex() {
   DCHECK_LT(0, length());
   return kVariablePartIndex;
 }
-
 
 int ScopeInfo::StackLocalFirstSlotIndex() {
   return ParameterNamesIndex() + ParameterCount();
@@ -824,15 +794,12 @@ void ScopeInfo::ModuleVariable(int i, String** name, int* index,
 
 #ifdef DEBUG
 
-static void PrintList(const char* list_name,
-                      int nof_internal_slots,
-                      int start,
-                      int end,
-                      ScopeInfo* scope_info) {
+static void PrintList(const char* list_name, int nof_internal_slots, int start,
+                      int end, ScopeInfo* scope_info) {
   if (start < end) {
     PrintF("\n  // %s\n", list_name);
     if (nof_internal_slots > 0) {
-      PrintF("  %2d - %2d [internal slots]\n", 0 , nof_internal_slots - 1);
+      PrintF("  %2d - %2d [internal slots]\n", 0, nof_internal_slots - 1);
     }
     for (int i = nof_internal_slots; start < end; ++i, ++start) {
       PrintF("  %2d ", i);
@@ -841,7 +808,6 @@ static void PrintList(const char* list_name,
     }
   }
 }
-
 
 void ScopeInfo::Print() {
   PrintF("ScopeInfo ");
