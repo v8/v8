@@ -1233,25 +1233,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Not64:
       __ Not64(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kS390_RotLeftAndMask32:
-      if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-        int shiftAmount = i.InputInt32(1);
-        int endBit = 63 - i.InputInt32(3);
-        int startBit = 63 - i.InputInt32(2);
-        __ rll(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ risbg(i.OutputRegister(), i.OutputRegister(), Operand(startBit),
-                 Operand(endBit), Operand::Zero(), true);
-      } else {
-        int shiftAmount = i.InputInt32(1);
-        int clearBitLeft = 63 - i.InputInt32(2);
-        int clearBitRight = i.InputInt32(3);
-        __ rll(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBitLeft));
-        __ srlg(i.OutputRegister(), i.OutputRegister(),
-                Operand((clearBitLeft + clearBitRight)));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBitRight));
-      }
-      break;
 #if V8_TARGET_ARCH_S390X
     case kS390_RotLeftAndClear64:
       if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
