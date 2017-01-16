@@ -118,6 +118,26 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   return metadata;
 }
 
+// static
+void TypeFeedbackMetadata::EnsureAllocated(Isolate* isolate,
+                                           Handle<SharedFunctionInfo> sfi,
+                                           const FeedbackVectorSpec* spec) {
+  // If no type feedback metadata exists, create it. At this point the
+  // AstNumbering pass has already run. Note the snapshot can contain outdated
+  // vectors for a different configuration, hence we also recreate a new vector
+  // when the function is not compiled (i.e. no code was serialized).
+
+  // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
+  if (sfi->feedback_metadata()->length() == 0 || !sfi->is_compiled()) {
+    Handle<TypeFeedbackMetadata> feedback_metadata =
+        TypeFeedbackMetadata::New(isolate, spec);
+    sfi->set_feedback_metadata(*feedback_metadata);
+  }
+
+  // It's very important that recompiles do not alter the structure of the type
+  // feedback vector. Verify that the structure fits the function literal.
+  CHECK(!sfi->feedback_metadata()->SpecDiffersFrom(spec));
+}
 
 bool TypeFeedbackMetadata::SpecDiffersFrom(
     const FeedbackVectorSpec* other_spec) const {

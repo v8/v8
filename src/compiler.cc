@@ -292,24 +292,9 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
 void EnsureFeedbackMetadata(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
-
-  // If no type feedback metadata exists, we create it now. At this point the
-  // AstNumbering pass has already run. Note the snapshot can contain outdated
-  // vectors for a different configuration, hence we also recreate a new vector
-  // when the function is not compiled (i.e. no code was serialized).
-
-  // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
-  if (info->shared_info()->feedback_metadata()->length() == 0 ||
-      !info->shared_info()->is_compiled()) {
-    Handle<TypeFeedbackMetadata> feedback_metadata = TypeFeedbackMetadata::New(
-        info->isolate(), info->literal()->feedback_vector_spec());
-    info->shared_info()->set_feedback_metadata(*feedback_metadata);
-  }
-
-  // It's very important that recompiles do not alter the structure of the type
-  // feedback vector. Verify that the structure fits the function literal.
-  CHECK(!info->shared_info()->feedback_metadata()->SpecDiffersFrom(
-      info->literal()->feedback_vector_spec()));
+  TypeFeedbackMetadata::EnsureAllocated(
+      info->isolate(), info->shared_info(),
+      info->literal()->feedback_vector_spec());
 }
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
@@ -381,10 +366,11 @@ CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
 
-  EnsureFeedbackMetadata(info);
   if (ShouldUseIgnition(info)) {
+    // The bytecode generator will take care of feedback metadata creation.
     return interpreter::Interpreter::NewCompilationJob(info);
   } else {
+    EnsureFeedbackMetadata(info);
     return FullCodeGenerator::NewCompilationJob(info);
   }
 }

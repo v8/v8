@@ -217,6 +217,11 @@ class TypeFeedbackMetadata : public FixedArray {
   template <typename Spec>
   static Handle<TypeFeedbackMetadata> New(Isolate* isolate, const Spec* spec);
 
+  // Ensure that the given shared function info has type feedback metadata with
+  // the given spec.
+  static void EnsureAllocated(Isolate* isolate, Handle<SharedFunctionInfo> sfi,
+                              const FeedbackVectorSpec* spec);
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
