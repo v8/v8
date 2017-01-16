@@ -587,15 +587,11 @@ assertEq(instantiate.length, 1);
 assertEq(instantiate.name, "instantiate");
 function assertInstantiateError(args, err, msg) {
   var error = null;
-  try {
-    instantiate(...args).catch(e => error = e);
-  } catch(e) {
-    error = e;
-  }
+  instantiate(...args).catch(e => error = e);
   drainJobQueue();
   assertEq(error instanceof err, true);
   assertEq(Boolean(error.stack.match("js-api.js")), true);
-  //TOassertEq(Boolean(error.message.match(msg)), true);
+  //TODO assertEq(Boolean(error.message.match(msg)), true);
 }
 var scratch_memory = new WebAssembly.Memory(new ArrayBuffer(10));
 assertInstantiateError([], TypeError, /requires more than 0 arguments/);

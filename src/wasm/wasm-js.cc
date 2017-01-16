@@ -321,32 +321,35 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(isolate);
   ErrorThrower thrower(i_isolate, "WebAssembly.compile()");
 
-  if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a buffer source");
-    return;
-  }
-  i::MaybeHandle<i::WasmModuleObject> module_obj =
-      CreateModuleObject(isolate, args[0], &thrower);
-
   Local<Context> context = isolate->GetCurrentContext();
   v8::Local<v8::Promise::Resolver> resolver;
   if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(resolver->GetPromise());
+
+  if (args.Length() < 1) {
+    thrower.TypeError("Argument 0 must be a buffer source");
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    return;
+  }
+
+  i::MaybeHandle<i::WasmModuleObject> module_obj =
+      CreateModuleObject(isolate, args[0], &thrower);
   if (module_obj.is_null()) {
     DCHECK(thrower.error());
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-  } else {
-    MaybeLocal<Value> instance = InstantiateModuleImpl(
-        i_isolate, module_obj.ToHandleChecked(), args, &thrower);
-    if (instance.IsEmpty()) {
-      DCHECK(thrower.error());
-      resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    } else {
-      DCHECK(!thrower.error());
-      resolver->Resolve(context, instance.ToLocalChecked());
-    }
+    return;
   }
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(resolver->GetPromise());
+
+  MaybeLocal<Value> instance = InstantiateModuleImpl(
+      i_isolate, module_obj.ToHandleChecked(), args, &thrower);
+  if (instance.IsEmpty()) {
+    DCHECK(thrower.error());
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+  } else {
+    DCHECK(!thrower.error());
+    resolver->Resolve(context, instance.ToLocalChecked());
+  }
 }
 
 bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
