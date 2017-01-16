@@ -587,13 +587,10 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       loop_depth_(0),
       home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
       iterator_symbol_(info->isolate()->factory()->iterator_symbol()),
-      empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()) {
-  AstValueFactory* ast_value_factory = info->parse_info()->ast_value_factory();
-  const AstRawString* prototype_string = ast_value_factory->prototype_string();
-  ast_value_factory->Internalize(info->isolate());
-  prototype_string_ = prototype_string->string();
-  undefined_string_ = ast_value_factory->undefined_string();
-}
+      prototype_string_(info->isolate()->factory()->prototype_string()),
+      empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()),
+      undefined_string_(
+          info->isolate()->ast_string_constants()->undefined_string()) {}
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
   AllocateDeferredConstants(isolate);

@@ -6,6 +6,7 @@
 #define V8_HEAP_SYMBOLS_H_
 
 #define INTERNALIZED_STRING_LIST(V)                                \
+  V(anonymous_function_string, "(anonymous function)")             \
   V(anonymous_string, "anonymous")                                 \
   V(apply_string, "apply")                                         \
   V(arguments_string, "arguments")                                 \
@@ -14,6 +15,8 @@
   V(Array_string, "Array")                                         \
   V(ArrayIterator_string, "Array Iterator")                        \
   V(assign_string, "assign")                                       \
+  V(async_string, "async")                                         \
+  V(await_string, "await")                                         \
   V(array_to_string, "[object Array]")                             \
   V(boolean_to_string, "[object Boolean]")                         \
   V(date_to_string, "[object Date]")                               \
@@ -57,7 +60,12 @@
   V(did_handle_string, "didHandle")                                \
   V(display_name_string, "displayName")                            \
   V(done_string, "done")                                           \
+  V(dot_catch_string, ".catch")                                    \
+  V(dot_for_string, ".for")                                        \
+  V(dot_generator_object_string, ".generator_object")              \
+  V(dot_iterator_string, ".iterator")                              \
   V(dot_result_string, ".result")                                  \
+  V(dot_switch_tag_string, ".switch_tag")                          \
   V(dot_string, ".")                                               \
   V(exec_string, "exec")                                           \
   V(entries_string, "entries")                                     \
@@ -78,6 +86,7 @@
   V(getOwnPropertyDescriptors_string, "getOwnPropertyDescriptors") \
   V(getPrototypeOf_string, "getPrototypeOf")                       \
   V(get_string, "get")                                             \
+  V(get_space_string, "get ")                                      \
   V(global_string, "global")                                       \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
@@ -100,6 +109,7 @@
   V(keys_string, "keys")                                           \
   V(lastIndex_string, "lastIndex")                                 \
   V(length_string, "length")                                       \
+  V(let_string, "let")                                             \
   V(line_string, "line")                                           \
   V(literal_string, "literal")                                     \
   V(Map_string, "Map")                                             \
@@ -110,7 +120,9 @@
   V(month_string, "month")                                         \
   V(multiline_string, "multiline")                                 \
   V(name_string, "name")                                           \
+  V(native_string, "native")                                       \
   V(nan_string, "NaN")                                             \
+  V(new_target_string, ".new.target")                              \
   V(next_string, "next")                                           \
   V(not_equal, "not-equal")                                        \
   V(null_string, "null")                                           \
@@ -135,9 +147,11 @@
   V(RegExp_string, "RegExp")                                       \
   V(reject_string, "reject")                                       \
   V(resolve_string, "resolve")                                     \
+  V(return_string, "return")                                       \
   V(script_string, "script")                                       \
   V(second_string, "second")                                       \
   V(setPrototypeOf_string, "setPrototypeOf")                       \
+  V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(Set_string, "Set")                                             \
   V(source_mapping_url_string, "source_mapping_url")               \
@@ -146,6 +160,7 @@
   V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(stackTraceLimit_string, "stackTraceLimit")                     \
+  V(star_default_star_string, "*default*")                         \
   V(sticky_string, "sticky")                                       \
   V(strict_compare_ic_string, "===")                               \
   V(string_string, "string")                                       \
@@ -155,6 +170,7 @@
   V(symbol_species_string, "[Symbol.species]")                     \
   V(SyntaxError_string, "SyntaxError")                             \
   V(then_string, "then")                                           \
+  V(this_function_string, ".this_function")                        \
   V(this_string, "this")                                           \
   V(throw_string, "throw")                                         \
   V(timed_out, "timed-out")                                        \
@@ -176,6 +192,8 @@
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
   V(unicode_string, "unicode")                                     \
+  V(use_asm_string, "use asm")                                     \
+  V(use_strict_string, "use strict")                               \
   V(URIError_string, "URIError")                                   \
   V(valueOf_string, "valueOf")                                     \
   V(values_string, "values")                                       \
