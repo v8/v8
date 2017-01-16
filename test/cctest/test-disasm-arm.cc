@@ -1029,6 +1029,16 @@ TEST(Neon) {
               "f240e170       vand q15, q0, q8");
       COMPARE(vorr(q15, q0, q8),
               "f260e170       vorr q15, q0, q8");
+      COMPARE(vmin(q15, q0, q8),
+              "f260ef60       vmin.f32 q15, q0, q8");
+      COMPARE(vmax(q15, q0, q8),
+              "f240ef60       vmax.f32 q15, q0, q8");
+      COMPARE(vmax(NeonS8, q0, q1, q2),
+              "f2020644       vmax.s8 q0, q1, q2");
+      COMPARE(vmin(NeonU16, q1, q2, q8),
+              "f3142670       vmin.u16 q1, q2, q8");
+      COMPARE(vmax(NeonS32, q15, q0, q8),
+              "f260e660       vmax.s32 q15, q0, q8");
       COMPARE(vadd(q15, q0, q8),
               "f240ed60       vadd.f32 q15, q0, q8");
       COMPARE(vadd(Neon8, q0, q1, q2),

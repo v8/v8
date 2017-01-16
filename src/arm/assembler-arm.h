@@ -1383,6 +1383,14 @@ class Assembler : public AssemblerBase {
             const QwNeonRegister src2);
   void vmul(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
+  void vmin(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vmin(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
+  void vmax(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vmax(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
   // vrecpe and vrsqrte only support floating point lanes.
   void vrecpe(const QwNeonRegister dst, const QwNeonRegister src);
   void vrsqrte(const QwNeonRegister dst, const QwNeonRegister src);

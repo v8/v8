@@ -4302,58 +4302,118 @@ void Assembler::vmul(NeonSize size, QwNeonRegister dst,
        n * B7 | B6 | m * B5 | B4 | vm);
 }
 
-void Assembler::vrecpe(const QwNeonRegister dst, const QwNeonRegister src) {
+static Instr EncodeNeonMinMax(bool is_min, QwNeonRegister dst,
+                              QwNeonRegister src1, QwNeonRegister src2) {
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int min = is_min ? 1 : 0;
+  return 0x1E4U * B23 | d * B22 | min * B21 | vn * B16 | vd * B12 | 0xF * B8 |
+         n * B7 | B6 | m * B5 | vm;
+}
+
+static Instr EncodeNeonMinMax(bool is_min, NeonDataType dt, QwNeonRegister dst,
+                              QwNeonRegister src1, QwNeonRegister src2) {
+  int vd, d;
+  dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
+  int vm, m;
+  src2.split_code(&vm, &m);
+  int min = is_min ? 1 : 0;
+  int size = (dt & NeonDataTypeSizeMask) / 2;
+  int U = dt & NeonDataTypeUMask;
+  return 0x1E4U * B23 | U | d * B22 | size * B20 | vn * B16 | vd * B12 |
+         0x6 * B8 | B6 | m * B5 | min * B4 | vm;
+}
+
+void Assembler::vmin(const QwNeonRegister dst, const QwNeonRegister src1,
+                     const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vadd(Qn, Qm) SIMD reciprocal estimate.
-  // Instruction details available in ARM DDI 0406C.b, A8-1024.
+  // Qd = vmin(Qn, Qm) SIMD floating point MIN.
+  // Instruction details available in ARM DDI 0406C.b, A8-928.
+  emit(EncodeNeonMinMax(true, dst, src1, src2));
+}
+
+void Assembler::vmin(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmin(Qn, Qm) SIMD integer MIN.
+  // Instruction details available in ARM DDI 0406C.b, A8-926.
+  emit(EncodeNeonMinMax(true, dt, dst, src1, src2));
+}
+
+void Assembler::vmax(QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmax(Qn, Qm) SIMD floating point MAX.
+  // Instruction details available in ARM DDI 0406C.b, A8-928.
+  emit(EncodeNeonMinMax(false, dst, src1, src2));
+}
+
+void Assembler::vmax(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                     QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vmax(Qn, Qm) SIMD integer MAX.
+  // Instruction details available in ARM DDI 0406C.b, A8-926.
+  emit(EncodeNeonMinMax(false, dt, dst, src1, src2));
+}
+
+static Instr EncodeNeonEstimateOp(bool is_rsqrt, QwNeonRegister dst,
+                                  QwNeonRegister src) {
   int vd, d;
   dst.split_code(&vd, &d);
   int vm, m;
   src.split_code(&vm, &m);
-  emit(0x1E7U * B23 | d * B22 | 0x3B * B16 | vd * B12 | 0x5 * B8 | B6 | m * B5 |
-       vm);
+  int rsqrt = is_rsqrt ? 1 : 0;
+  return 0x1E7U * B23 | d * B22 | 0x3B * B16 | vd * B12 | 0x5 * B8 |
+         rsqrt * B7 | B6 | m * B5 | vm;
+}
+
+void Assembler::vrecpe(const QwNeonRegister dst, const QwNeonRegister src) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vrecpe(Qm) SIMD reciprocal estimate.
+  // Instruction details available in ARM DDI 0406C.b, A8-1024.
+  emit(EncodeNeonEstimateOp(false, dst, src));
 }
 
 void Assembler::vrsqrte(const QwNeonRegister dst, const QwNeonRegister src) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vadd(Qn, Qm) SIMD reciprocal square root estimate.
+  // Qd = vrsqrte(Qm) SIMD reciprocal square root estimate.
   // Instruction details available in ARM DDI 0406C.b, A8-1038.
+  emit(EncodeNeonEstimateOp(true, dst, src));
+}
+
+static Instr EncodeNeonRefinementOp(bool is_rsqrt, QwNeonRegister dst,
+                                    QwNeonRegister src1, QwNeonRegister src2) {
   int vd, d;
   dst.split_code(&vd, &d);
+  int vn, n;
+  src1.split_code(&vn, &n);
   int vm, m;
-  src.split_code(&vm, &m);
-  emit(0x1E7U * B23 | d * B22 | 0x3B * B16 | vd * B12 | 0x5 * B8 | 0x3 * B6 |
-       m * B5 | vm);
+  src2.split_code(&vm, &m);
+  int rsqrt = is_rsqrt ? 1 : 0;
+  return 0x1E4U * B23 | d * B22 | rsqrt * B21 | vn * B16 | vd * B12 | 0xF * B8 |
+         n * B7 | B6 | m * B5 | B4 | vm;
 }
 
 void Assembler::vrecps(const QwNeonRegister dst, const QwNeonRegister src1,
                        const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vadd(Qn, Qm) SIMD reciprocal refinement step.
+  // Qd = vrecps(Qn, Qm) SIMD reciprocal refinement step.
   // Instruction details available in ARM DDI 0406C.b, A8-1026.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vn, n;
-  src1.split_code(&vn, &n);
-  int vm, m;
-  src2.split_code(&vm, &m);
-  emit(0x1E4U * B23 | d * B22 | vn * B16 | vd * B12 | 0xF * B8 | n * B7 | B6 |
-       m * B5 | B4 | vm);
+  emit(EncodeNeonRefinementOp(false, dst, src1, src2));
 }
 
 void Assembler::vrsqrts(const QwNeonRegister dst, const QwNeonRegister src1,
                         const QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
-  // Qd = vadd(Qn, Qm) SIMD reciprocal square root refinement step.
+  // Qd = vrsqrts(Qn, Qm) SIMD reciprocal square root refinement step.
   // Instruction details available in ARM DDI 0406C.b, A8-1040.
-  int vd, d;
-  dst.split_code(&vd, &d);
-  int vn, n;
-  src1.split_code(&vn, &n);
-  int vm, m;
-  src2.split_code(&vm, &m);
-  emit(0x1E4U * B23 | d * B22 | B21 | vn * B16 | vd * B12 | 0xF * B8 | n * B7 |
-       B6 | m * B5 | B4 | vm);
+  emit(EncodeNeonRefinementOp(true, dst, src1, src2));
 }
 
 void Assembler::vtst(NeonSize size, QwNeonRegister dst,
