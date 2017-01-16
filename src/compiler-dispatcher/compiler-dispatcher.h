@@ -96,13 +96,11 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
  private:
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);
-  FRIEND_TEST(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread);
-  FRIEND_TEST(IgnitionCompilerDispatcherTest, FinishNowWithBackgroundTask);
-  FRIEND_TEST(IgnitionCompilerDispatcherTest,
-              AsyncAbortAllPendingBackgroundTask);
-  FRIEND_TEST(IgnitionCompilerDispatcherTest,
-              AsyncAbortAllRunningBackgroundTask);
-  FRIEND_TEST(IgnitionCompilerDispatcherTest, FinishNowDuringAbortAll);
+  FRIEND_TEST(CompilerDispatcherTest, CompileOnBackgroundThread);
+  FRIEND_TEST(CompilerDispatcherTest, FinishNowWithBackgroundTask);
+  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask);
+  FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask);
+  FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
 
   typedef std::multimap<std::pair<int, int>,
                         std::unique_ptr<CompilerDispatcherJob>>

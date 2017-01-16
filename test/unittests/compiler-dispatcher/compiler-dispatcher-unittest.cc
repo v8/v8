@@ -27,44 +27,26 @@ class CompilerDispatcherTest : public TestWithContext {
   static void SetUpTestCase() {
     old_flag_ = i::FLAG_ignition;
     i::FLAG_compiler_dispatcher = true;
+    old_ignition_flag_ = i::FLAG_ignition;
+    i::FLAG_ignition = true;
     TestWithContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TestWithContext::TearDownTestCase();
     i::FLAG_compiler_dispatcher = old_flag_;
+    i::FLAG_ignition = old_ignition_flag_;
   }
 
  private:
   static bool old_flag_;
+  static bool old_ignition_flag_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTest);
 };
 
 bool CompilerDispatcherTest::old_flag_;
-
-class IgnitionCompilerDispatcherTest : public CompilerDispatcherTest {
- public:
-  IgnitionCompilerDispatcherTest() = default;
-  ~IgnitionCompilerDispatcherTest() override = default;
-
-  static void SetUpTestCase() {
-    old_flag_ = i::FLAG_ignition;
-    i::FLAG_ignition = true;
-    CompilerDispatcherTest::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    CompilerDispatcherTest::TearDownTestCase();
-    i::FLAG_ignition = old_flag_;
-  }
-
- private:
-  static bool old_flag_;
-  DISALLOW_COPY_AND_ASSIGN(IgnitionCompilerDispatcherTest);
-};
-
-bool IgnitionCompilerDispatcherTest::old_flag_;
+bool CompilerDispatcherTest::old_ignition_flag_;
 
 namespace {
 
@@ -373,7 +355,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
   ASSERT_FALSE(i_isolate()->has_pending_exception());
 }
 
-TEST_F(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread) {
+TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -418,7 +400,7 @@ TEST_F(IgnitionCompilerDispatcherTest, CompileOnBackgroundThread) {
   ASSERT_FALSE(platform.IdleTaskPending());
 }
 
-TEST_F(IgnitionCompilerDispatcherTest, FinishNowWithBackgroundTask) {
+TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -517,7 +499,7 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
   platform.ClearIdleTask();
 }
 
-TEST_F(IgnitionCompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
+TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -561,7 +543,7 @@ TEST_F(IgnitionCompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   ASSERT_FALSE(platform.ForegroundTasksPending());
 }
 
-TEST_F(IgnitionCompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
+TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -645,7 +627,7 @@ TEST_F(IgnitionCompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   platform.ClearIdleTask();
 }
 
-TEST_F(IgnitionCompilerDispatcherTest, FinishNowDuringAbortAll) {
+TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
@@ -816,7 +798,8 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
-  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+  platform.ClearBackgroundTasks();
 }
 
 }  // namespace internal

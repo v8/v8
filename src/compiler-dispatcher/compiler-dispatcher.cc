@@ -68,10 +68,8 @@ bool IsFinished(CompilerDispatcherJob* job) {
 }
 
 bool CanRunOnAnyThread(CompilerDispatcherJob* job) {
-  return (job->status() == CompileJobStatus::kReadyToParse &&
-          job->can_parse_on_background_thread()) ||
-         (job->status() == CompileJobStatus::kReadyToCompile &&
-          job->can_compile_on_background_thread());
+  return job->status() == CompileJobStatus::kReadyToParse ||
+         job->status() == CompileJobStatus::kReadyToCompile;
 }
 
 void DoNextStepOnBackgroundThread(CompilerDispatcherJob* job) {
@@ -228,6 +226,8 @@ CompilerDispatcher::~CompilerDispatcher() {
 
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   if (!IsEnabled()) return false;
+
+  DCHECK(FLAG_ignition);
 
   if (memory_pressure_level_.Value() != MemoryPressureLevel::kNone) {
     return false;
