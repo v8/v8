@@ -241,3 +241,9 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 
   assertThrows(() => new WebAssembly.Instance(module, {"":{memory:memory}}), WebAssembly.LinkError);
 })();
+
+(function TestNoMemoryToExport() {
+  let builder = new WasmModuleBuilder();
+  builder.exportMemoryAs('memory');
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError);
+})();

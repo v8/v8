@@ -457,7 +457,11 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalMemory: {
             uint32_t index = consume_u32v("memory index");
-            if (index != 0) error("invalid memory index != 0");
+            // TODO(titzer): This should become more regular
+            // once we support multiple memories.
+            if (!module->has_memory || index != 0) {
+              error("invalid memory index != 0");
+            }
             module->mem_export = true;
             break;
           }
