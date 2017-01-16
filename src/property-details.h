@@ -72,18 +72,6 @@ enum PropertyKind { kData = 0, kAccessor = 1 };
 // Must fit in the BitField PropertyDetails::LocationField.
 enum PropertyLocation { kField = 0, kDescriptor = 1 };
 
-
-// Order of properties is significant.
-// Must fit in the BitField PropertyDetails::TypeField.
-// A copy of this is in debug/mirrors.js.
-enum PropertyType {
-  DATA = (kField << 1) | kData,
-  DATA_CONSTANT = (kDescriptor << 1) | kData,
-  ACCESSOR = (kField << 1) | kAccessor,
-  ACCESSOR_CONSTANT = (kDescriptor << 1) | kAccessor
-};
-
-
 class Representation {
  public:
   enum Kind {
@@ -298,8 +286,6 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyKind kind() const { return KindField::decode(value_); }
   PropertyLocation location() const { return LocationField::decode(value_); }
 
-  PropertyType type() const { return TypeField::decode(value_); }
-
   PropertyAttributes attributes() const {
     return AttributesField::decode(value_);
   }
@@ -347,12 +333,6 @@ class PropertyDetails BASE_EMBEDDED {
   class FieldIndexField
       : public BitField<uint32_t, 9 + kDescriptorIndexBitCount,
                         kDescriptorIndexBitCount> {};  // NOLINT
-
-  // NOTE: TypeField overlaps with KindField and LocationField.
-  class TypeField : public BitField<PropertyType, 0, 2> {};
-  STATIC_ASSERT(KindField::kNext == LocationField::kShift);
-  STATIC_ASSERT(TypeField::kShift == KindField::kShift);
-  STATIC_ASSERT(TypeField::kNext == LocationField::kNext);
 
   // All bits for both fast and slow objects must fit in a smi.
   STATIC_ASSERT(DictionaryStorageField::kNext <= 31);

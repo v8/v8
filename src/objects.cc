@@ -9482,7 +9482,8 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray* desc, int nof_descriptors) {
     }
     PropertyDetails details = GetDetails(i);
     PropertyDetails other_details = desc->GetDetails(i);
-    if (details.type() != other_details.type() ||
+    if (details.kind() != other_details.kind() ||
+        details.location() != other_details.location() ||
         !details.representation().Equals(other_details.representation())) {
       return false;
     }
