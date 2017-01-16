@@ -145,6 +145,7 @@ IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 SOURCE_HASH_LENGTH = 3
 
 ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
+ORIGINAL_SOURCE_DEFAULT = 'none'
 
 def line_pairs(lines):
   return itertools.izip_longest(
@@ -182,13 +183,15 @@ def ignore_by_regexp(line1, line2, allowed):
 
 
 def diff_output(output1, output2, allowed, ignore1, ignore2):
-  """Returns a tuple (difference, source_key).
+  """Returns a tuple (difference, source, source_key).
 
   The difference is None if there's no difference, otherwise a string
   with a readable diff.
 
-  The source_key is a short hash of the last source output within the test
-  case. It is the string 'none' if no such output existed.
+  The source is the last source output within the test case. It is the string
+  'none' if no such output existed.
+
+  The source_key is a short hash of source or 'none'.
   """
   def useful_line(ignore):
     def fun(line):
@@ -200,7 +203,8 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
   # This keeps track where we are in the original source file of the fuzz
   # test case.
-  source_key = 'none'
+  source = ORIGINAL_SOURCE_DEFAULT
+  source_key = ORIGINAL_SOURCE_DEFAULT
 
   for ((line1, lookahead1), (line2, lookahead2)) in itertools.izip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
@@ -210,9 +214,9 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
     # One iterator ends earlier.
     if line1 is None:
-      return '+ %s' % short_line_output(line2), source_key
+      return '+ %s' % short_line_output(line2), source, source_key
     if line2 is None:
-      return '- %s' % short_line_output(line1), source_key
+      return '- %s' % short_line_output(line1), source, source_key
 
     # If lines are equal, no further checks are necessary.
     if line1 == line2:
@@ -235,11 +239,12 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
     # Lines are different.
     return (
         '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2)),
+        source,
         source_key,
     )
 
   # No difference found.
-  return None, source_key
+  return None, source, source_key
 
 
 def get_suppression(arch1, config1, arch2, config2):
