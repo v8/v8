@@ -150,6 +150,7 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
       // Check if we actually access the same field.
       if (this->transition_map_.address() == that->transition_map_.address() &&
           this->field_index_ == that->field_index_ &&
+          this->field_map_.address() == that->field_map_.address() &&
           this->field_type_->Is(that->field_type_) &&
           that->field_type_->Is(this->field_type_) &&
           this->field_representation_ == that->field_representation_) {
