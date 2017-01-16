@@ -148,7 +148,7 @@ namespace internal {
   F(DebugGetInternalProperties, 1, 1)           \
   F(DebugGetPropertyDetails, 2, 1)              \
   F(DebugGetProperty, 2, 1)                     \
-  F(DebugPropertyTypeFromDetails, 1, 1)         \
+  F(DebugPropertyKindFromDetails, 1, 1)         \
   F(DebugPropertyAttributesFromDetails, 1, 1)   \
   F(CheckExecutionState, 1, 1)                  \
   F(GetFrameCount, 1, 1)                        \

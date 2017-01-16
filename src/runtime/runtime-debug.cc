@@ -391,14 +391,13 @@ RUNTIME_FUNCTION(Runtime_DebugGetProperty) {
   return *DebugGetProperty(&it);
 }
 
-
-// Return the property type calculated from the property details.
+// Return the property kind calculated from the property details.
 // args[0]: smi with property details.
-RUNTIME_FUNCTION(Runtime_DebugPropertyTypeFromDetails) {
+RUNTIME_FUNCTION(Runtime_DebugPropertyKindFromDetails) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_PROPERTY_DETAILS_CHECKED(details, 0);
-  return Smi::FromInt(static_cast<int>(details.type()));
+  return Smi::FromInt(static_cast<int>(details.kind()));
 }
 
 

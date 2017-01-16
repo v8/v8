@@ -223,11 +223,10 @@ function inherits(ctor, superCtor) {
 var kMaxProtocolStringLength = 80;
 
 
-// A copy of the PropertyType enum from property-details.h
+// A copy of the PropertyKind enum from property-details.h
 var PropertyType = {};
-PropertyType.Data                        = 0;
-PropertyType.DataConstant                = 2;
-PropertyType.AccessorConstant            = 3;
+PropertyType.Data     = 0;
+PropertyType.Accessor = 1;
 
 
 // Different attributes for a property.
@@ -799,7 +798,7 @@ ObjectMirror.prototype.lookupProperty = function(value) {
 
     // Skip properties which are defined through accessors.
     var property = properties[i];
-    if (property.propertyType() != PropertyType.AccessorConstant) {
+    if (property.propertyType() == PropertyType.Data) {
       if (property.value_ === value.value_) {
         return property;
       }
@@ -1545,7 +1544,7 @@ PropertyMirror.prototype.attributes = function() {
 
 
 PropertyMirror.prototype.propertyType = function() {
-  return %DebugPropertyTypeFromDetails(this.details_);
+  return %DebugPropertyKindFromDetails(this.details_);
 };
 
 
@@ -1603,7 +1602,7 @@ PropertyMirror.prototype.setter = function() {
  */
 PropertyMirror.prototype.isNative = function() {
   return this.is_interceptor_ ||
-         ((this.propertyType() == PropertyType.AccessorConstant) &&
+         ((this.propertyType() == PropertyType.Accessor) &&
           !this.hasGetter() && !this.hasSetter());
 };
 
