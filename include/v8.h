@@ -666,7 +666,7 @@ struct CopyablePersistentTraits {
 /**
  * A PersistentBase which allows copy and assignment.
  *
- * Copy, assignment and destructor bevavior is controlled by the traits
+ * Copy, assignment and destructor behavior is controlled by the traits
  * class M.
  *
  * Note: Persistent class hierarchy is subject to future changes.
