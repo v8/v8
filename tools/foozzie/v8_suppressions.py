@@ -49,18 +49,15 @@ IGNORE_SOURCES = {
 
 # Ignore by test case pattern. Map from bug->regexp.
 # Regular expressions are assumed to be compiled. We use regexp.match.
+# Make sure the code doesn't match in the preamble portion of the test case
+# (i.e. in the modified inlined mjsunit.js). You can reference the comment
+# between the two parts like so:
+#  'crbug.com/666308':
+#      re.compile(r'.*End stripped down and modified version.*'
+#                 r'\.prototype.*instanceof.*.*', re.S)
+# TODO(machenbach): Insert a JS sentinel between the two parts, because
+# comments are stripped during minimization.
 IGNORE_TEST_CASES = {
-  'crbug.com/662907':
-      re.compile(r'.*new Array.*\[\d+\] =.*'
-                 r'((Array)|(Object)).prototype.__defineSetter__.*', re.S),
-
-  'crbug.com/663340':
-      re.compile(r'.*\.shift\(\).*', re.S),
-
-  'crbug.com/666308':
-      re.compile(r'.*End stripped down and modified version.*'
-                 r'\.prototype.*instanceof.*.*', re.S),
-
   'crbug.com/679957':
       re.compile(r'.*performance\.now.*', re.S),
 }
@@ -77,9 +74,6 @@ IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
         re.compile(r'RangeError', re.S),
-
-    'crbug.com/669017':
-        re.compile(r'SyntaxError', re.S),
   },
   'validate_asm': {
     'validate_asm':
@@ -109,9 +103,6 @@ ALLOWED_LINE_DIFFS = [
   # Some test cases just print the message.
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
-
-  # crbug.com/669017
-  r'^(.*)SyntaxError: .*$',
 
   # Ignore lines of stack traces as character positions might not match.
   r'^    at (?:new )?([^:]*):\d+:\d+(.*)$',
