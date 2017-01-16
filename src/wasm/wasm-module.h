@@ -218,7 +218,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   static MaybeHandle<WasmInstanceObject> Instantiate(
       Isolate* isolate, ErrorThrower* thrower,
       Handle<WasmModuleObject> wasm_module, Handle<JSReceiver> ffi,
-      Handle<JSArrayBuffer> memory);
+      Handle<JSArrayBuffer> memory = Handle<JSArrayBuffer>::null());
 
   MaybeHandle<WasmCompiledModule> CompileFunctions(
       Isolate* isolate, Handle<Managed<WasmModule>> module_wrapper,

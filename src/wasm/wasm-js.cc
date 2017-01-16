@@ -195,7 +195,6 @@ MaybeLocal<Value> InstantiateModuleImpl(
   // are the same. If that changes later, we refactor the consts into
   // parameters.
   static const int kFfiOffset = 1;
-  static const int kMemOffset = 2;
 
   MaybeLocal<Value> nothing;
   i::Handle<i::JSReceiver> ffi = i::Handle<i::JSObject>::null();
@@ -212,26 +211,8 @@ MaybeLocal<Value> InstantiateModuleImpl(
     ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
   }
 
-  // The memory argument is a legacy, not spec - compliant artifact.
-  i::Handle<i::JSArrayBuffer> memory = i::Handle<i::JSArrayBuffer>::null();
-  if (args.Length() > kMemOffset && !args[kMemOffset]->IsUndefined()) {
-    if (!args[kMemOffset]->IsObject()) {
-      thrower->TypeError("Argument %d must be a WebAssembly.Memory",
-                         kMemOffset);
-      return nothing;
-    }
-    Local<Object> obj = Local<Object>::Cast(args[kMemOffset]);
-    i::Handle<i::Object> mem_obj = v8::Utils::OpenHandle(*obj);
-    if (!i::WasmJs::IsWasmMemoryObject(i_isolate, mem_obj)) {
-      thrower->TypeError("Argument %d must be a WebAssembly.Memory",
-                         kMemOffset);
-      return nothing;
-    }
-    memory = i::Handle<i::JSArrayBuffer>(
-        i::Handle<i::WasmMemoryObject>::cast(mem_obj)->buffer(), i_isolate);
-  }
-  i::MaybeHandle<i::JSObject> instance = i::wasm::WasmModule::Instantiate(
-      i_isolate, thrower, i_module_obj, ffi, memory);
+  i::MaybeHandle<i::JSObject> instance =
+      i::wasm::WasmModule::Instantiate(i_isolate, thrower, i_module_obj, ffi);
   if (instance.is_null()) {
     if (!thrower->error())
       thrower->RuntimeError("Could not instantiate module");
