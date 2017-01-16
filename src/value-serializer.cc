@@ -1595,6 +1595,7 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   DisallowHeapAllocation no_gc;
   DescriptorArray* descriptors = object->map()->instance_descriptors();
   for (unsigned i = 0; i < properties.size(); i++) {
+    // Initializing store.
     object->WriteToField(i, descriptors->GetDetails(i), *properties[i]);
   }
 }

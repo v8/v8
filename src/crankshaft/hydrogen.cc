@@ -5501,6 +5501,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
               if (info.CanAccessMonomorphic()) {
                 HValue* checked_literal = Add<HCheckMaps>(literal, map);
                 DCHECK(!info.IsAccessorConstant());
+                info.MarkAsInitializingStore();
                 store = BuildMonomorphicAccess(
                     &info, literal, checked_literal, value,
                     BailoutId::None(), BailoutId::None());
@@ -5743,9 +5744,8 @@ HInstruction* HOptimizedGraphBuilder::BuildStoreNamedField(
     }
 
     // This is a normal store.
-    instr = New<HStoreNamedField>(
-        checked_object->ActualValue(), field_access, value,
-        transition_to_field ? INITIALIZING_STORE : STORE_TO_INITIALIZED_ENTRY);
+    instr = New<HStoreNamedField>(checked_object->ActualValue(), field_access,
+                                  value, info->StoreMode());
   }
 
   if (transition_to_field) {

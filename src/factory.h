@@ -436,6 +436,12 @@ class V8_EXPORT_PRIVATE Factory final {
                                    MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<HeapNumber> NewMutableHeapNumber(
+      PretenureFlag pretenure = NOT_TENURED) {
+    double hole_nan = bit_cast<double>(kHoleNanInt64);
+    return NewHeapNumber(hole_nan, MUTABLE, pretenure);
+  }
+
 #define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
   Handle<Type> New##Type(lane_type lanes[lane_count],             \
                          PretenureFlag pretenure = NOT_TENURED);

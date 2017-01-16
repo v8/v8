@@ -746,13 +746,10 @@ bool Object::FilterKey(PropertyFilter filter) {
 
 Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
                                      Representation representation) {
-  if (representation.IsSmi() && object->IsUninitialized(isolate)) {
-    return handle(Smi::kZero, isolate);
-  }
   if (!representation.IsDouble()) return object;
   double value;
   if (object->IsUninitialized(isolate)) {
-    value = 0;
+    value = bit_cast<double>(kHoleNanInt64);
   } else if (object->IsMutableHeapNumber()) {
     value = HeapNumber::cast(*object)->value();
   } else {

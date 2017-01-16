@@ -482,6 +482,7 @@ void JsonParser<seq_one_byte>::CommitStateToJsonObject(
   int length = properties->length();
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
+    // Initializing store.
     json_object->WriteToField(i, *value);
   }
 }

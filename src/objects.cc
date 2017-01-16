@@ -3529,7 +3529,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
           FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
       DCHECK(details.representation().IsDouble());
       DCHECK(!new_map->IsUnboxedDoubleField(index));
-      Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      Handle<Object> value = isolate->factory()->NewMutableHeapNumber();
       object->RawFastPropertyAtPut(index, *value);
       object->synchronized_set_map(*new_map);
       return;
@@ -3545,7 +3545,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     // Properly initialize newly added property.
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      value = isolate->factory()->NewMutableHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3605,7 +3605,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
         // must already be prepared for data of certain type.
         DCHECK(!details.representation().IsNone());
         if (details.representation().IsDouble()) {
-          value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+          value = isolate->factory()->NewMutableHeapNumber();
         } else {
           value = isolate->factory()->uninitialized_value();
         }
@@ -3625,9 +3625,8 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       } else {
         value = handle(object->RawFastPropertyAt(index), isolate);
         if (!old_representation.IsDouble() && representation.IsDouble()) {
-          if (old_representation.IsNone()) {
-            value = handle(Smi::kZero, isolate);
-          }
+          DCHECK_IMPLIES(old_representation.IsNone(),
+                         value->IsUninitialized(isolate));
           value = Object::NewStorageFor(isolate, value, representation);
         } else if (old_representation.IsDouble() &&
                    !representation.IsDouble()) {
@@ -3647,7 +3646,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     DCHECK_EQ(kData, details.kind());
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      value = isolate->factory()->NewMutableHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
