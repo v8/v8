@@ -886,6 +886,9 @@ class PreParser : public ParserBase<PreParser> {
                                  bool is_module = false) {
     DCHECK_NULL(scope_state_);
     DeclarationScope* scope = NewScriptScope();
+#ifdef DEBUG
+    scope->set_is_being_lazily_parsed(true);
+#endif
 
     // ModuleDeclarationInstantiation for Source Text Module Records creates a
     // new Module Environment Record whose outer lexical environment record is
@@ -1089,9 +1092,19 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatement DeclareFunction(
-      PreParserIdentifier variable_name, PreParserExpression function, int pos,
-      bool is_generator, bool is_async, ZoneList<const AstRawString*>* names,
+      PreParserIdentifier variable_name, PreParserExpression function,
+      VariableMode mode, int pos, bool is_generator, bool is_async,
+      bool is_sloppy_block_function, ZoneList<const AstRawString*>* names,
       bool* ok) {
+    DCHECK_NULL(names);
+    if (variable_name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(variable_name.string_, mode);
+      if (is_sloppy_block_function) {
+        GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name.string_,
+                                                          scope());
+      }
+    }
     return Statement::Default();
   }
 
@@ -1616,8 +1629,8 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   PreParserStatementList result;
 
-  Scope* inner_scope = scope();
-  if (!parameters.is_simple) inner_scope = NewScope(BLOCK_SCOPE);
+  DeclarationScope* inner_scope = scope()->AsDeclarationScope();
+  if (!parameters.is_simple) inner_scope = NewVarblockScope();
 
   {
     BlockState block_state(&scope_state_, inner_scope);
@@ -1626,6 +1639,10 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
   }
 
   Expect(Token::RBRACE, ok);
+
+  if (is_sloppy(inner_scope->language_mode())) {
+    inner_scope->HoistSloppyBlockFunctions(nullptr);
+  }
   return result;
 }
 

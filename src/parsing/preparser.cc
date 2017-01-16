@@ -144,6 +144,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   LazyParsingResult result = ParseStatementListAndLogFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
 
+  if (is_sloppy(function_scope->language_mode())) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
 
@@ -231,6 +235,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
+
+  if (is_sloppy(language_mode)) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
 
   // Validate name and parameter names. We can do this only after parsing the
   // function, since the function can declare itself strict.

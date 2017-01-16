@@ -8615,6 +8615,21 @@ TEST(NoPessimisticContextAllocation) {
       {"function inner() { for (let my_var = 0; my_var < 1; ++my_var) { } "
        "my_var }",
        true},
+      {"function inner() { 'use strict'; if (true) { function my_var() {} }  "
+       "my_var; }",
+       true},
+      {"function inner() { 'use strict'; function inner2() { if (true) { "
+       "function my_var() {} }  my_var; } }",
+       true},
+      {"function inner() { function inner2() { 'use strict'; if (true) { "
+       "function my_var() {} }  my_var; } }",
+       true},
+      {"function inner() { () => { 'use strict'; if (true) { function my_var() "
+       "{} }  my_var; } }",
+       true},
+      {"function inner() { if (true) { let my_var; if (true) { function "
+       "my_var() {} } }  my_var; }",
+       true},
       // No pessimistic context allocation:
       {"function inner() { var my_var; my_var; }", false},
       {"function inner() { var my_var; }", false},
@@ -8806,10 +8821,18 @@ TEST(NoPessimisticContextAllocation) {
        "my_var } }",
        false},
       {"function inner() { class my_var {}; my_var }", false},
-      // In the following cases we still context allocate pessimistically:
-      {"function inner() { function my_var() {} my_var; }", true},
+      {"function inner() { function my_var() {} my_var; }", false},
       {"function inner() { if (true) { function my_var() {} }  my_var; }",
-       true},
+       false},
+      {"function inner() { function inner2() { if (true) { function my_var() "
+       "{} }  my_var; } }",
+       false},
+      {"function inner() { () => { if (true) { function my_var() {} }  my_var; "
+       "} }",
+       false},
+      {"function inner() { if (true) { var my_var; if (true) { function "
+       "my_var() {} } }  my_var; }",
+       false},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {

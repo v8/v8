@@ -1472,15 +1472,11 @@ void Parser::DeclareAndInitializeVariables(
 }
 
 Statement* Parser::DeclareFunction(const AstRawString* variable_name,
-                                   FunctionLiteral* function, int pos,
-                                   bool is_generator, bool is_async,
+                                   FunctionLiteral* function, VariableMode mode,
+                                   int pos, bool is_generator, bool is_async,
+                                   bool is_sloppy_block_function,
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok) {
-  // In ES6, a function behaves as a lexical binding, except in
-  // a script scope, or the initial scope of eval or another function.
-  VariableMode mode =
-      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
-                                                                       : VAR;
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
   Declaration* declaration =
@@ -1488,18 +1484,12 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
           CHECK_OK);
   if (names) names->Add(variable_name, zone());
-  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
-  // allow duplicates in a block. Both are represented by the
-  // sloppy_block_function_map. Don't add them to the map for async functions.
-  // Generators are also supposed to be prohibited; currently doing this behind
-  // a flag and UseCounting violations to assess web compatibility.
-  if (is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
-      !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
-    SloppyBlockFunctionStatement* delegate =
-        factory()->NewSloppyBlockFunctionStatement(scope());
+  if (is_sloppy_block_function) {
+    SloppyBlockFunctionStatement* statement =
+        factory()->NewSloppyBlockFunctionStatement();
     DeclarationScope* target_scope = GetDeclarationScope();
-    target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
-    return delegate;
+    target_scope->DeclareSloppyBlockFunction(variable_name, scope(), statement);
+    return statement;
   }
   return factory()->NewEmptyStatement(kNoSourcePosition);
 }

@@ -341,8 +341,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  const CatchInfo& catch_info, int pos);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
-                             FunctionLiteral* function, int pos,
-                             bool is_generator, bool is_async,
+                             FunctionLiteral* function, VariableMode mode,
+                             int pos, bool is_generator, bool is_async,
+                             bool is_sloppy_block_function,
                              ZoneList<const AstRawString*>* names, bool* ok);
   V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
                                     Expression* value,

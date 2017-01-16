@@ -3780,8 +3780,23 @@ ParserBase<Impl>::ParseHoistableDeclaration(
       pos, FunctionLiteral::kDeclaration, language_mode(),
       CHECK_OK_CUSTOM(NullStatement));
 
-  return impl()->DeclareFunction(variable_name, function, pos, is_generator,
-                                 is_async, names, ok);
+  // In ES6, a function behaves as a lexical binding, except in
+  // a script scope, or the initial scope of eval or another function.
+  VariableMode mode =
+      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
+                                                                       : VAR;
+  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
+  // allow duplicates in a block. Both are represented by the
+  // sloppy_block_function_map. Don't add them to the map for async functions.
+  // Generators are also supposed to be prohibited; currently doing this behind
+  // a flag and UseCounting violations to assess web compatibility.
+  bool is_sloppy_block_function =
+      is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
+      !is_async && !(allow_harmony_restrictive_generators() && is_generator);
+
+  return impl()->DeclareFunction(variable_name, function, mode, pos,
+                                 is_generator, is_async,
+                                 is_sloppy_block_function, names, ok);
 }
 
 template <typename Impl>

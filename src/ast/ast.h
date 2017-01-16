@@ -1185,22 +1185,15 @@ class SloppyBlockFunctionStatement final : public Statement {
  public:
   Statement* statement() const { return statement_; }
   void set_statement(Statement* statement) { statement_ = statement; }
-  Scope* scope() const { return scope_; }
-  SloppyBlockFunctionStatement* next() { return next_; }
-  void set_next(SloppyBlockFunctionStatement* next) { next_ = next; }
 
  private:
   friend class AstNodeFactory;
 
-  SloppyBlockFunctionStatement(Statement* statement, Scope* scope)
+  explicit SloppyBlockFunctionStatement(Statement* statement)
       : Statement(kNoSourcePosition, kSloppyBlockFunctionStatement),
-        statement_(statement),
-        scope_(scope),
-        next_(nullptr) {}
+        statement_(statement) {}
 
   Statement* statement_;
-  Scope* const scope_;
-  SloppyBlockFunctionStatement* next_;
 };
 
 
@@ -3290,9 +3283,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) EmptyStatement(pos);
   }
 
-  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement(Scope* scope) {
-    return new (zone_) SloppyBlockFunctionStatement(
-        NewEmptyStatement(kNoSourcePosition), scope);
+  SloppyBlockFunctionStatement* NewSloppyBlockFunctionStatement() {
+    return new (zone_)
+        SloppyBlockFunctionStatement(NewEmptyStatement(kNoSourcePosition));
   }
 
   CaseClause* NewCaseClause(
