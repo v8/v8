@@ -28,6 +28,8 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   static v8_inspector::V8Inspector* InspectorFromContext(
       v8::Local<v8::Context> context);
 
+  void setCurrentTimeMSForTest(double time);
+
  private:
   // V8InspectorClient implementation.
   v8::Local<v8::Context> ensureDefaultContextInGroup(
@@ -53,6 +55,9 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
   TaskRunner* task_runner_;
   FrontendChannel* frontend_channel_;
+
+  bool current_time_set_for_test_ = false;
+  double current_time_ = 0.0;
 
   DISALLOW_COPY_AND_ASSIGN(InspectorClientImpl);
 };

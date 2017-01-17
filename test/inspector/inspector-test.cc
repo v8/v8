@@ -54,7 +54,8 @@ class UtilsExtension : public v8::Extension {
                       "native function quit();"
                       "native function setlocale();"
                       "native function load();"
-                      "native function compileAndRunWithOrigin();") {}
+                      "native function compileAndRunWithOrigin();"
+                      "native function setCurrentTimeMSForTest();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -88,6 +89,13 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate,
                                        UtilsExtension::CompileAndRunWithOrigin);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "setCurrentTimeMSForTest",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       UtilsExtension::SetCurrentTimeMSForTest);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -96,8 +104,13 @@ class UtilsExtension : public v8::Extension {
     backend_runner_ = runner;
   }
 
+  static void set_inspector_client(InspectorClientImpl* client) {
+    inspector_client_ = client;
+  }
+
  private:
   static TaskRunner* backend_runner_;
+  static InspectorClientImpl* inspector_client_;
 
   static void Print(const v8::FunctionCallbackInfo<v8::Value>& args) {
     for (int i = 0; i < args.Length(); i++) {
@@ -180,9 +193,20 @@ class UtilsExtension : public v8::Extension {
         ToVector(args[0].As<v8::String>()), args[1].As<v8::String>(),
         args[2].As<v8::Int32>(), args[3].As<v8::Int32>(), nullptr, nullptr));
   }
+
+  static void SetCurrentTimeMSForTest(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsNumber()) {
+      fprintf(stderr, "Internal error: setCurrentTimeMSForTest(time).");
+      Exit();
+    }
+    inspector_client_->setCurrentTimeMSForTest(
+        args[0].As<v8::Number>()->Value());
+  }
 };
 
 TaskRunner* UtilsExtension::backend_runner_ = nullptr;
+InspectorClientImpl* UtilsExtension::inspector_client_ = nullptr;
 
 class SetTimeoutTask : public AsyncTask {
  public:
@@ -415,6 +439,7 @@ int main(int argc, char* argv[]) {
   InspectorClientImpl inspector_client(&backend_runner, &frontend_channel,
                                        &ready_semaphore);
   ready_semaphore.Wait();
+  UtilsExtension::set_inspector_client(&inspector_client);
 
   task_runners.push_back(&frontend_runner);
   task_runners.push_back(&backend_runner);
