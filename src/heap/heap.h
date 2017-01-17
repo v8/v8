@@ -753,6 +753,8 @@ class Heap {
 
   bool CanMoveObjectStart(HeapObject* object);
 
+  static bool IsImmovable(HeapObject* object);
+
   // Maintain consistency of live bytes during incremental marking.
   void AdjustLiveBytes(HeapObject* object, int by);
 

@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <utility>
 
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/context-measure.h"
 #include "src/deoptimizer.h"
@@ -6835,6 +6836,58 @@ HEAP_TEST(Regress670675) {
         IncrementalMarking::FORCE_COMPLETION, StepOrigin::kV8);
   }
   DCHECK(marking->IsStopped());
+}
+
+HEAP_TEST(Regress5831) {
+  CcTest::InitializeVM();
+  Heap* heap = CcTest::heap();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  // Used to ensure that the first code space page remains filled.
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(32);
+
+  {
+    // Ensure that the first code space page is full.
+    CEntryStub stub(isolate, 1);
+    Handle<Code> code = stub.GetCode();
+
+    int i = 0;
+    array = FixedArray::SetAndGrow(array, i++, code);
+
+    while (heap->code_space()->FirstPage()->Contains(code->address())) {
+      code = isolate->factory()->CopyCode(code);
+      array = FixedArray::SetAndGrow(array, i++, code);
+    }
+  }
+
+  class ImmovableCEntryStub : public i::CEntryStub {
+   public:
+    explicit ImmovableCEntryStub(i::Isolate* isolate)
+        : i::CEntryStub(isolate, 3, i::kSaveFPRegs, i::kArgvOnStack, true) {}
+    bool NeedsImmovableCode() override { return true; }
+  };
+
+  ImmovableCEntryStub stub(isolate);
+
+  {
+    // Make sure the code object has not yet been generated.
+    Code* code;
+    CHECK(!stub.FindCodeInCache(&code));
+  }
+
+  // Fake a serializer run.
+  isolate->serializer_enabled_ = true;
+
+  // Generate the code.
+  Handle<Code> code = stub.GetCode();
+  CHECK(code->Size() <= i::kMaxRegularHeapObjectSize);
+  CHECK(!heap->code_space()->FirstPage()->Contains(code->address()));
+
+  // Ensure it's not in large object space.
+  MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
+  CHECK(chunk->owner()->identity() != LO_SPACE);
+  CHECK(chunk->NeverEvacuate());
 }
 
 }  // namespace internal

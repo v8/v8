@@ -3160,6 +3160,11 @@ bool Heap::CanMoveObjectStart(HeapObject* object) {
   return Page::FromAddress(address)->SweepingDone();
 }
 
+bool Heap::IsImmovable(HeapObject* object) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
+  return chunk->NeverEvacuate() || chunk->owner()->identity() == LO_SPACE;
+}
+
 void Heap::AdjustLiveBytes(HeapObject* object, int by) {
   // As long as the inspected object is black and we are currently not iterating
   // the heap using HeapIterator, we can update the live byte count. We cannot
@@ -3401,18 +3406,24 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   if (!allocation.To(&result)) return allocation;
   if (immovable) {
     Address address = result->address();
+    MemoryChunk* chunk = MemoryChunk::FromAddress(address);
     // Code objects which should stay at a fixed address are allocated either
     // in the first page of code space (objects on the first page of each space
-    // are never moved) or in large object space.
-    if (!code_space_->FirstPage()->Contains(address) &&
-        MemoryChunk::FromAddress(address)->owner()->identity() != LO_SPACE) {
-      // Discard the first code allocation, which was on a page where it could
-      // be moved.
-      CreateFillerObjectAt(result->address(), object_size,
-                           ClearRecordedSlots::kNo);
-      allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
-      if (!allocation.To(&result)) return allocation;
-      OnAllocationEvent(result, object_size);
+    // are never moved), in large object space, or (during snapshot creation)
+    // the containing page is marked as immovable.
+    if (!Heap::IsImmovable(result) &&
+        !code_space_->FirstPage()->Contains(address)) {
+      if (isolate()->serializer_enabled()) {
+        chunk->MarkNeverEvacuate();
+      } else {
+        // Discard the first code allocation, which was on a page where it could
+        // be moved.
+        CreateFillerObjectAt(result->address(), object_size,
+                             ClearRecordedSlots::kNo);
+        allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
+        if (!allocation.To(&result)) return allocation;
+        OnAllocationEvent(result, object_size);
+      }
     }
   }
 

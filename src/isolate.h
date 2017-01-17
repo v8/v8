@@ -1474,6 +1474,7 @@ class Isolate {
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
+  friend class HeapTester;
   friend class OptimizingCompileDispatcher;
   friend class SweeperThread;
   friend class ThreadManager;
