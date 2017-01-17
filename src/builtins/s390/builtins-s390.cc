@@ -1377,7 +1377,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
            FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ LoadP(index, FieldMemOperand(map, FixedArray::kLengthOffset));
   __ CmpSmiLiteral(index, Smi::FromInt(2), r0);
-  __ blt(&gotta_call_runtime);
+  __ blt(&try_shared);
 
   // Find literals.
   // r9 : native context
@@ -1443,9 +1443,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ CmpSmiLiteral(index, Smi::FromInt(1), r0);
   __ bgt(&loop_top);
 
-  // We found no code.
-  __ b(&gotta_call_runtime);
-
+  // We found no code. Try the SharedFunctionInfo.
   __ bind(&try_shared);
   __ LoadP(entry,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
