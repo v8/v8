@@ -6680,7 +6680,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
   heap->RightTrimFixedArray(*array, 1);
   HeapObject* filler = HeapObject::FromAddress(previous);
   CHECK(filler->IsFiller());
-  CHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(previous)));
+  CHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(filler)));
 
   // Trim 10 times by one, two, and three word.
   for (int i = 1; i <= 3; i++) {
@@ -6689,7 +6689,7 @@ TEST(ContinuousRightTrimFixedArrayInBlackArea) {
       heap->RightTrimFixedArray(*array, i);
       HeapObject* filler = HeapObject::FromAddress(previous);
       CHECK(filler->IsFiller());
-      CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(previous)));
+      CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(filler)));
     }
   }
 

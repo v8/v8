@@ -184,7 +184,7 @@ class IncrementalMarking {
 
   static void MarkBlack(HeapObject* object, int size);
 
-  static void TransferMark(Heap* heap, Address old_start, Address new_start);
+  static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
   // Returns true if the color transfer requires live bytes updating.
   INLINE(static bool TransferColor(HeapObject* from, HeapObject* to,

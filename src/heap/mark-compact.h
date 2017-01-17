@@ -36,13 +36,10 @@ class RootMarkingVisitor;
 
 class ObjectMarking : public AllStatic {
  public:
-  INLINE(static MarkBit MarkBitFrom(Address addr)) {
-    MemoryChunk* p = MemoryChunk::FromAddress(addr);
-    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr));
-  }
-
-  INLINE(static MarkBit MarkBitFrom(HeapObject* obj)) {
-    return MarkBitFrom(reinterpret_cast<Address>(obj));
+  V8_INLINE static MarkBit MarkBitFrom(HeapObject* obj) {
+    const Address address = obj->address();
+    MemoryChunk* p = MemoryChunk::FromAddress(address);
+    return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(address));
   }
 
   static Marking::ObjectColor Color(HeapObject* obj) {

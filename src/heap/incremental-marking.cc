@@ -136,21 +136,21 @@ static void MarkObjectGreyDoNotEnqueue(Object* obj) {
   }
 }
 
-void IncrementalMarking::TransferMark(Heap* heap, Address old_start,
-                                      Address new_start) {
+void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
+                                      HeapObject* to) {
   // This is only used when resizing an object.
-  DCHECK(MemoryChunk::FromAddress(old_start) ==
-         MemoryChunk::FromAddress(new_start));
+  DCHECK(MemoryChunk::FromAddress(from->address()) ==
+         MemoryChunk::FromAddress(to->address()));
 
   if (!heap->incremental_marking()->IsMarking()) return;
 
   // If the mark doesn't move, we don't check the color of the object.
   // It doesn't matter whether the object is black, since it hasn't changed
   // size, so the adjustment to the live data count will be zero anyway.
-  if (old_start == new_start) return;
+  if (from == to) return;
 
-  MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(new_start);
-  MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(old_start);
+  MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to);
+  MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from);
 
 #ifdef DEBUG
   Marking::ObjectColor old_color = Marking::Color(old_mark_bit);
@@ -162,8 +162,7 @@ void IncrementalMarking::TransferMark(Heap* heap, Address old_start,
     return;
   } else if (Marking::IsGrey(old_mark_bit)) {
     Marking::GreyToWhite(old_mark_bit);
-    heap->incremental_marking()->WhiteToGreyAndPush(
-        HeapObject::FromAddress(new_start), new_mark_bit);
+    heap->incremental_marking()->WhiteToGreyAndPush(to, new_mark_bit);
     heap->incremental_marking()->RestartIfNotMarking();
   }
 
@@ -808,8 +807,7 @@ void IncrementalMarking::UpdateMarkingDequeAfterScavenge() {
       // them.
       if (map_word.IsForwardingAddress()) {
         HeapObject* dest = map_word.ToForwardingAddress();
-        if (Marking::IsBlack(ObjectMarking::MarkBitFrom(dest->address())))
-          continue;
+        if (Marking::IsBlack(ObjectMarking::MarkBitFrom(dest))) continue;
         array[new_top] = dest;
         new_top = ((new_top + 1) & mask);
         DCHECK(new_top != marking_deque->bottom());

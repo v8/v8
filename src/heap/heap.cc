@@ -3110,9 +3110,9 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   return result;
 }
 
-void Heap::CreateFillerObjectAt(Address addr, int size,
-                                ClearRecordedSlots mode) {
-  if (size == 0) return;
+HeapObject* Heap::CreateFillerObjectAt(Address addr, int size,
+                                       ClearRecordedSlots mode) {
+  if (size == 0) return nullptr;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
     filler->set_map_no_write_barrier(
@@ -3134,6 +3134,7 @@ void Heap::CreateFillerObjectAt(Address addr, int size,
   // none of the maps have been created yet and are NULL.
   DCHECK((filler->map() == NULL && !deserialization_complete_) ||
          filler->map()->IsMap());
+  return filler;
 }
 
 
@@ -3160,7 +3161,7 @@ void Heap::AdjustLiveBytes(HeapObject* object, int by) {
     lo_space()->AdjustLiveBytes(by);
   } else if (!in_heap_iterator() &&
              !mark_compact_collector()->sweeping_in_progress() &&
-             Marking::IsBlack(ObjectMarking::MarkBitFrom(object->address()))) {
+             Marking::IsBlack(ObjectMarking::MarkBitFrom(object))) {
     DCHECK(MemoryChunk::FromAddress(object->address())->SweepingDone());
     MemoryChunk::IncrementLiveBytes(object, by);
   }
@@ -3196,8 +3197,10 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Transfer the mark bits to their new location if the object is not within
   // a black area.
   if (!incremental_marking()->black_allocation() ||
-      !Marking::IsBlack(ObjectMarking::MarkBitFrom(new_start))) {
-    IncrementalMarking::TransferMark(this, old_start, new_start);
+      !Marking::IsBlack(
+          ObjectMarking::MarkBitFrom(HeapObject::FromAddress(new_start)))) {
+    IncrementalMarking::TransferMark(this, object,
+                                     HeapObject::FromAddress(new_start));
   }
 
   // Technically in new space this write might be omitted (except for
@@ -3208,7 +3211,7 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // Clear the mark bits of the black area that belongs now to the filler.
   // This is an optimization. The sweeper will release black fillers anyway.
   if (incremental_marking()->black_allocation() &&
-      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(old_start))) {
+      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object))) {
     Page* page = Page::FromAddress(old_start);
     page->markbits()->ClearRange(
         page->AddressToMarkbitIndex(old_start),
@@ -3283,11 +3286,13 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   // TODO(hpayer): We should shrink the large object page if the size
   // of the object changed significantly.
   if (!lo_space()->Contains(object)) {
-    CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
+    HeapObject* filler =
+        CreateFillerObjectAt(new_end, bytes_to_trim, ClearRecordedSlots::kYes);
+    DCHECK_NOT_NULL(filler);
     // Clear the mark bits of the black area that belongs now to the filler.
     // This is an optimization. The sweeper will release black fillers anyway.
     if (incremental_marking()->black_allocation() &&
-        Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(new_end))) {
+        Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(filler))) {
       Page* page = Page::FromAddress(new_end);
       page->markbits()->ClearRange(
           page->AddressToMarkbitIndex(new_end),
