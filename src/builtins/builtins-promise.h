@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/code-stub-assembler.h"
+#include "src/contexts.h"
 
 namespace v8 {
 namespace internal {
@@ -13,9 +14,27 @@ typedef compiler::CodeAssemblerState CodeAssemblerState;
 
 class PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
+  enum PromiseResolvingFunctionContextSlot {
+    // Whether the resolve/reject callback was already called.
+    kAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // The promise which resolve/reject callbacks fulfill.
+    kPromiseSlot,
+
+    // Whether to trigger a debug event or not. Used in catch
+    // prediction.
+    kDebugEventSlot,
+    kPromiseContextLength,
+  };
+
+  enum FunctionContextSlot {
+    kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
+
+    kCapabilitiesContextLength,
+  };
+
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
-
   // These allocate and initialize a promise with pending state and
   // undefined fields.
   //

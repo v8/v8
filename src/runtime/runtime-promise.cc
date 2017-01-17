@@ -5,7 +5,6 @@
 
 #include "src/debug/debug.h"
 #include "src/elements.h"
-#include "src/promise-utils.h"
 
 namespace v8 {
 namespace internal {

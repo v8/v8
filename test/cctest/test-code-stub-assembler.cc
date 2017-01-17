@@ -8,7 +8,6 @@
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/isolate.h"
-#include "src/promise-utils.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -2005,10 +2004,11 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
   CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK_EQ(Smi::FromInt(0), context_js->get(PromiseUtils::kAlreadyVisitedSlot));
-  CHECK(context_js->get(PromiseUtils::kPromiseSlot)->IsJSPromise());
+  CHECK_EQ(Smi::FromInt(0),
+           context_js->get(PromiseBuiltinsAssembler::kAlreadyVisitedSlot));
+  CHECK(context_js->get(PromiseBuiltinsAssembler::kPromiseSlot)->IsJSPromise());
   CHECK_EQ(isolate->heap()->false_value(),
-           context_js->get(PromiseUtils::kDebugEventSlot));
+           context_js->get(PromiseBuiltinsAssembler::kDebugEventSlot));
 }
 
 TEST(CreatePromiseResolvingFunctions) {
@@ -2175,11 +2175,12 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result_obj->IsContext());
   Handle<Context> context_js = Handle<Context>::cast(result_obj);
-  CHECK_EQ(GetPromiseCapabilityExecutor::kContextLength, context_js->length());
+  CHECK_EQ(PromiseBuiltinsAssembler::kCapabilitiesContextLength,
+           context_js->length());
   CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
   CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(context_js->get(GetPromiseCapabilityExecutor::kCapabilitySlot)
+  CHECK(context_js->get(PromiseBuiltinsAssembler::kCapabilitySlot)
             ->IsJSPromiseCapability());
 }
 
@@ -2226,8 +2227,10 @@ TEST(NewPromiseCapability) {
       CHECK_EQ(isolate->native_context()->closure(), context->closure());
       CHECK_EQ(isolate->heap()->the_hole_value(), context->extension());
       CHECK_EQ(*isolate->native_context(), context->native_context());
-      CHECK_EQ(PromiseUtils::kPromiseContextLength, context->length());
-      CHECK_EQ(context->get(PromiseUtils::kPromiseSlot), result->promise());
+      CHECK_EQ(PromiseBuiltinsAssembler::kPromiseContextLength,
+               context->length());
+      CHECK_EQ(context->get(PromiseBuiltinsAssembler::kPromiseSlot),
+               result->promise());
     }
   }
 

@@ -1141,8 +1141,6 @@
         'profiler/tracing-cpu-profiler.h',
         'profiler/unbound-queue-inl.h',
         'profiler/unbound-queue.h',
-        'promise-utils.h',
-        'promise-utils.cc',
         'property-descriptor.cc',
         'property-descriptor.h',
         'property-details.h',

@@ -8,7 +8,6 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
-#include "src/promise-utils.h"
 
 namespace v8 {
 namespace internal {
@@ -211,23 +210,20 @@ Node* PromiseBuiltinsAssembler::CreatePromiseContext(Node* native_context,
 Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
     Node* promise, Node* debug_event, Node* native_context) {
   Node* const context =
-      CreatePromiseContext(native_context, PromiseUtils::kPromiseContextLength);
-  StoreContextElementNoWriteBarrier(context, PromiseUtils::kAlreadyVisitedSlot,
+      CreatePromiseContext(native_context, kPromiseContextLength);
+  StoreContextElementNoWriteBarrier(context, kAlreadyVisitedSlot,
                                     SmiConstant(0));
-  StoreContextElementNoWriteBarrier(context, PromiseUtils::kPromiseSlot,
-                                    promise);
-  StoreContextElementNoWriteBarrier(context, PromiseUtils::kDebugEventSlot,
-                                    debug_event);
+  StoreContextElementNoWriteBarrier(context, kPromiseSlot, promise);
+  StoreContextElementNoWriteBarrier(context, kDebugEventSlot, debug_event);
   return context;
 }
 
 Node* PromiseBuiltinsAssembler::CreatePromiseGetCapabilitiesExecutorContext(
     Node* promise_capability, Node* native_context) {
-  int kContextLength = GetPromiseCapabilityExecutor::kContextLength;
+  int kContextLength = kCapabilitiesContextLength;
   Node* context = CreatePromiseContext(native_context, kContextLength);
-  StoreContextElementNoWriteBarrier(
-      context, GetPromiseCapabilityExecutor::kCapabilitySlot,
-      promise_capability);
+  StoreContextElementNoWriteBarrier(context, kCapabilitySlot,
+                                    promise_capability);
   return context;
 }
 
@@ -996,7 +992,7 @@ TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
   Label out(this);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  int has_already_visited_slot = PromiseUtils::kAlreadyVisitedSlot;
+  int has_already_visited_slot = kAlreadyVisitedSlot;
 
   Node* const has_already_visited =
       LoadContextElement(context, has_already_visited_slot);
@@ -1010,9 +1006,9 @@ TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
 
   // 2. Let promise be F.[[Promise]].
   Node* const promise =
-      LoadContextElement(context, IntPtrConstant(PromiseUtils::kPromiseSlot));
-  Node* const debug_event = LoadContextElement(
-      context, IntPtrConstant(PromiseUtils::kDebugEventSlot));
+      LoadContextElement(context, IntPtrConstant(kPromiseSlot));
+  Node* const debug_event =
+      LoadContextElement(context, IntPtrConstant(kDebugEventSlot));
 
   InternalPromiseReject(context, promise, value, debug_event);
   Return(UndefinedConstant());
@@ -1203,7 +1199,7 @@ TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
   Label out(this);
 
   // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  int has_already_visited_slot = PromiseUtils::kAlreadyVisitedSlot;
+  int has_already_visited_slot = kAlreadyVisitedSlot;
 
   Node* const has_already_visited =
       LoadContextElement(context, has_already_visited_slot);
@@ -1217,7 +1213,7 @@ TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
 
   // 2. Let promise be F.[[Promise]].
   Node* const promise =
-      LoadContextElement(context, IntPtrConstant(PromiseUtils::kPromiseSlot));
+      LoadContextElement(context, IntPtrConstant(kPromiseSlot));
 
   InternalResolvePromise(context, promise, value);
   Return(UndefinedConstant());
@@ -1470,8 +1466,7 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   Node* const reject = Parameter(2);
   Node* const context = Parameter(5);
 
-  Node* const capability = LoadContextElement(
-      context, GetPromiseCapabilityExecutor::kCapabilitySlot);
+  Node* const capability = LoadContextElement(context, kCapabilitySlot);
 
   Label if_alreadyinvoked(this, Label::kDeferred);
   GotoIf(WordNotEqual(

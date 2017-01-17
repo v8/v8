@@ -998,36 +998,11 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
   return context;
 }
 
-Handle<Context> Factory::NewPromiseResolvingFunctionContext(int length) {
-  DCHECK_GE(length, Context::MIN_CONTEXT_SLOTS);
-  Handle<FixedArray> array = NewFixedArray(length);
-  array->set_map_no_write_barrier(*function_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
-  context->set_extension(*the_hole_value());
-  return context;
-}
-
 Handle<Struct> Factory::NewStruct(InstanceType type) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateStruct(type),
       Struct);
-}
-
-Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
-    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred_promise,
-    Handle<Object> deferred_on_resolve, Handle<Object> deferred_on_reject,
-    Handle<Context> context) {
-  Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
-      NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
-  result->set_value(*value);
-  result->set_tasks(*tasks);
-  result->set_deferred_promise(*deferred_promise);
-  result->set_deferred_on_resolve(*deferred_on_resolve);
-  result->set_deferred_on_reject(*deferred_on_reject);
-  result->set_debug_id(kDebugPromiseFirstID);
-  result->set_context(*context);
-  return result;
 }
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
