@@ -39,9 +39,6 @@ CompilerDispatcherTracer::Scope::~Scope() {
     case ScopeID::kFinalizeParsing:
       tracer_->RecordFinalizeParsing(elapsed);
       break;
-    case ScopeID::kAnalyze:
-      tracer_->RecordAnalyze(elapsed);
-      break;
     case ScopeID::kPrepareToCompile:
       tracer_->RecordPrepareToCompile(elapsed);
       break;
@@ -63,8 +60,6 @@ const char* CompilerDispatcherTracer::Scope::Name(ScopeID scope_id) {
       return "V8.BackgroundCompile_Parse";
     case ScopeID::kFinalizeParsing:
       return "V8.BackgroundCompile_FinalizeParsing";
-    case ScopeID::kAnalyze:
-      return "V8.BackgroundCompile_Analyze";
     case ScopeID::kPrepareToCompile:
       return "V8.BackgroundCompile_PrepareToCompile";
     case ScopeID::kCompile:
@@ -102,11 +97,6 @@ void CompilerDispatcherTracer::RecordFinalizeParsing(double duration_ms) {
   finalize_parsing_events_.Push(duration_ms);
 }
 
-void CompilerDispatcherTracer::RecordAnalyze(double duration_ms) {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  analyze_events_.Push(duration_ms);
-}
-
 void CompilerDispatcherTracer::RecordPrepareToCompile(double duration_ms) {
   base::LockGuard<base::Mutex> lock(&mutex_);
   prepare_compile_events_.Push(duration_ms);
@@ -138,11 +128,6 @@ double CompilerDispatcherTracer::EstimateFinalizeParsingInMs() const {
   return Average(finalize_parsing_events_);
 }
 
-double CompilerDispatcherTracer::EstimateAnalyzeInMs() const {
-  base::LockGuard<base::Mutex> lock(&mutex_);
-  return Average(analyze_events_);
-}
-
 double CompilerDispatcherTracer::EstimatePrepareToCompileInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Average(prepare_compile_events_);
@@ -163,12 +148,11 @@ void CompilerDispatcherTracer::DumpStatistics() const {
   PrintF(
       "CompilerDispatcherTracer: "
       "prepare_parsing=%.2lfms parsing=%.2lfms/kb finalize_parsing=%.2lfms "
-      "analyze=%.2lfms prepare_compiling=%.2lfms compiling=%.2lfms/kb "
-      "finalize_compiling=%.2lfms\n",
+      "prepare_compiling=%.2lfms compiling=%.2lfms/kb "
+      "finalize_compilig=%.2lfms\n",
       EstimatePrepareToParseInMs(), EstimateParseInMs(1 * KB),
-      EstimateFinalizeParsingInMs(), EstimateAnalyzeInMs(),
-      EstimatePrepareToCompileInMs(), EstimateCompileInMs(1 * KB),
-      EstimateFinalizeCompilingInMs());
+      EstimateFinalizeParsingInMs(), EstimatePrepareToCompileInMs(),
+      EstimateCompileInMs(1 * KB), EstimateFinalizeCompilingInMs());
 }
 
 double CompilerDispatcherTracer::Average(

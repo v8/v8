@@ -8,7 +8,6 @@
 #include "include/v8.h"
 #include "src/base/platform/time.h"
 #include "src/cancelable-task.h"
-#include "src/compilation-info.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 #include "src/flags.h"
@@ -37,11 +36,7 @@ bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
       job->FinalizeParsingOnMainThread();
       break;
 
-    case CompileJobStatus::kReadyToAnalyze:
-      job->AnalyzeOnMainThread();
-      break;
-
-    case CompileJobStatus::kAnalyzed:
+    case CompileJobStatus::kReadyToAnalyse:
       job->PrepareToCompileOnMainThread();
       break;
 
@@ -229,7 +224,7 @@ CompilerDispatcher::~CompilerDispatcher() {
   task_manager_->CancelAndWait();
 }
 
-bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
+bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
   if (!IsEnabled()) return false;
 
   DCHECK(FLAG_ignition);
@@ -250,17 +245,12 @@ bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
     return false;
   }
 
-  return true;
-}
-
-bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
-  if (!CanEnqueue(function)) return false;
   if (IsEnqueued(function)) return true;
 
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: enqueuing ");
     function->ShortPrint();
-    PrintF(" for parse and compile\n");
+    PrintF("\n");
   }
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
@@ -287,43 +277,10 @@ bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
   return true;
 }
 
-bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function,
-                                 FunctionLiteral* literal) {
-  if (!CanEnqueue(function)) return false;
-  if (IsEnqueued(function)) return true;
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: enqueuing ");
-    function->ShortPrint();
-    PrintF(" for compile\n");
-  }
-
-  std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      isolate_, tracer_.get(), function, literal, max_stack_size_));
-  std::pair<int, int> key(Script::cast(function->script())->id(),
-                          function->function_literal_id());
-  jobs_.insert(std::make_pair(key, std::move(job)));
-  ScheduleIdleTaskIfNeeded();
-  return true;
+bool CompilerDispatcher::IsEnabled() const {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  return FLAG_compiler_dispatcher && platform_->IdleTasksEnabled(v8_isolate);
 }
-
-bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function,
-                                        FunctionLiteral* literal) {
-  if (!Enqueue(function, literal)) return false;
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: stepping ");
-    function->ShortPrint();
-    PrintF("\n");
-  }
-  JobMap::const_iterator job = GetJobFor(function);
-  DoNextStepOnMainThread(isolate_, job->second.get(),
-                         ExceptionHandling::kSwallow);
-  ConsiderJobForBackgroundProcessing(job->second.get());
-  return true;
-}
-
-bool CompilerDispatcher::IsEnabled() const { return FLAG_compiler_dispatcher; }
 
 bool CompilerDispatcher::IsEnqueued(Handle<SharedFunctionInfo> function) const {
   return GetJobFor(function) != jobs_.end();
@@ -345,16 +302,6 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(
   DCHECK(running_background_jobs_.find(job) == running_background_jobs_.end());
 }
 
-bool CompilerDispatcher::FinishNow(CompilerDispatcherJob* job) {
-  WaitForJobIfRunningOnBackground(job);
-  while (!IsFinished(job)) {
-    DoNextStepOnMainThread(isolate_, job, ExceptionHandling::kThrow);
-  }
-  bool result = job->status() != CompileJobStatus::kFailed;
-  job->ResetOnMainThread();
-  return result;
-}
-
 bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   JobMap::const_iterator job = GetJobFor(function);
   CHECK(job != jobs_.end());
@@ -365,7 +312,12 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
     PrintF(" now\n");
   }
 
-  bool result = FinishNow(job->second.get());
+  WaitForJobIfRunningOnBackground(job->second.get());
+  while (!IsFinished(job->second.get())) {
+    DoNextStepOnMainThread(isolate_, job->second.get(),
+                           ExceptionHandling::kThrow);
+  }
+  bool result = job->second->status() != CompileJobStatus::kFailed;
 
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: finished working on ");
@@ -374,33 +326,10 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
     tracer_->DumpStatistics();
   }
 
+  job->second->ResetOnMainThread();
   jobs_.erase(job);
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    abort_ = false;
-  }
-  return result;
-}
-
-bool CompilerDispatcher::FinishAllNow() {
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: finishing all jobs now\n");
-  }
-
-  bool result = true;
-  for (auto& it : jobs_) {
-    result &= FinishNow(it.second.get());
-  }
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: finished all jobs\n");
-  }
-
-  jobs_.clear();
-  {
-    base::LockGuard<base::Mutex> lock(&mutex_);
-    DCHECK(pending_background_jobs_.empty());
-    DCHECK(running_background_jobs_.empty());
     abort_ = false;
   }
   return result;

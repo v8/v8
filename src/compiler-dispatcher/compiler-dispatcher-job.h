@@ -16,11 +16,9 @@
 namespace v8 {
 namespace internal {
 
-class AstValueFactory;
 class CompilerDispatcherTracer;
 class CompilationInfo;
 class CompilationJob;
-class FunctionLiteral;
 class Isolate;
 class ParseInfo;
 class Parser;
@@ -34,8 +32,7 @@ enum class CompileJobStatus {
   kInitial,
   kReadyToParse,
   kParsed,
-  kReadyToAnalyze,
-  kAnalyzed,
+  kReadyToAnalyse,
   kReadyToCompile,
   kCompiled,
   kFailed,
@@ -44,14 +41,9 @@ enum class CompileJobStatus {
 
 class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  public:
-  // Creates a CompilerDispatcherJob in the initial state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<SharedFunctionInfo> shared,
                         size_t max_stack_size);
-  // Creates a CompilerDispatcherJob in the analyzed state.
-  CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
-                        Handle<SharedFunctionInfo> shared,
-                        FunctionLiteral* literal, size_t max_stack_size);
   ~CompilerDispatcherJob();
 
   CompileJobStatus status() const { return status_; }
@@ -66,15 +58,11 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // Transition from kReadyToParse to kParsed.
   void Parse();
 
-  // Transition from kParsed to kReadyToAnalyze (or kFailed). Returns false
+  // Transition from kParsed to kReadyToAnalyse (or kFailed). Returns false
   // when transitioning to kFailed. In that case, an exception is pending.
   bool FinalizeParsingOnMainThread();
 
-  // Transition from kReadyToAnalyze to kAnalyzed (or kFailed). Returns
-  // false when transitioning to kFailed. In that case, an exception is pending.
-  bool AnalyzeOnMainThread();
-
-  // Transition from kAnalyzed to kReadyToCompile (or kFailed). Returns
+  // Transition from kReadyToAnalyse to kReadyToCompile (or kFailed). Returns
   // false when transitioning to kFailed. In that case, an exception is pending.
   bool PrepareToCompileOnMainThread();
 
@@ -98,7 +86,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
  private:
   FRIEND_TEST(CompilerDispatcherJobTest, ScopeChain);
 
-  CompileJobStatus status_;
+  CompileJobStatus status_ = CompileJobStatus::kInitial;
   Isolate* isolate_;
   CompilerDispatcherTracer* tracer_;
   Handle<SharedFunctionInfo> shared_;  // Global handle.

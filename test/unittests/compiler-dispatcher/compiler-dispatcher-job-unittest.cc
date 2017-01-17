@@ -112,9 +112,7 @@ TEST_F(CompilerDispatcherJobTest, StateTransitions) {
   job->Parse();
   ASSERT_TRUE(job->status() == CompileJobStatus::kParsed);
   ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToAnalyze);
-  ASSERT_TRUE(job->AnalyzeOnMainThread());
-  ASSERT_TRUE(job->status() == CompileJobStatus::kAnalyzed);
+  ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToAnalyse);
   ASSERT_TRUE(job->PrepareToCompileOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
   job->Compile();
@@ -155,7 +153,6 @@ TEST_F(CompilerDispatcherJobTest, ScopeChain) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->AnalyzeOnMainThread());
   ASSERT_TRUE(job->PrepareToCompileOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kReadyToCompile);
 
@@ -192,7 +189,6 @@ TEST_F(CompilerDispatcherJobTest, CompileAndRun) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   job->FinalizeParsingOnMainThread();
-  job->AnalyzeOnMainThread();
   job->PrepareToCompileOnMainThread();
   job->Compile();
   ASSERT_TRUE(job->FinalizeCompilingOnMainThread());
@@ -205,7 +201,7 @@ TEST_F(CompilerDispatcherJobTest, CompileAndRun) {
   ASSERT_TRUE(job->status() == CompileJobStatus::kInitial);
 }
 
-TEST_F(CompilerDispatcherJobTest, CompileFailureToAnalyse) {
+TEST_F(CompilerDispatcherJobTest, CompileFailureToPrepare) {
   std::string raw_script("() { var a = ");
   for (int i = 0; i < 100000; i++) {
     raw_script += "'x' + ";
@@ -219,7 +215,7 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToAnalyse) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   job->FinalizeParsingOnMainThread();
-  ASSERT_FALSE(job->AnalyzeOnMainThread());
+  ASSERT_FALSE(job->PrepareToCompileOnMainThread());
   ASSERT_TRUE(job->status() == CompileJobStatus::kFailed);
   ASSERT_TRUE(i_isolate()->has_pending_exception());
 
@@ -242,7 +238,6 @@ TEST_F(CompilerDispatcherJobTest, CompileFailureToFinalize) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   job->FinalizeParsingOnMainThread();
-  job->AnalyzeOnMainThread();
   job->PrepareToCompileOnMainThread();
   job->Compile();
   ASSERT_FALSE(job->FinalizeCompilingOnMainThread());
@@ -287,7 +282,6 @@ TEST_F(CompilerDispatcherJobTest, CompileOnBackgroundThread) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   job->FinalizeParsingOnMainThread();
-  job->AnalyzeOnMainThread();
   job->PrepareToCompileOnMainThread();
 
   base::Semaphore semaphore(0);
@@ -320,7 +314,6 @@ TEST_F(CompilerDispatcherJobTest, LazyInnerFunctions) {
   job->PrepareToParseOnMainThread();
   job->Parse();
   ASSERT_TRUE(job->FinalizeParsingOnMainThread());
-  ASSERT_TRUE(job->AnalyzeOnMainThread());
   ASSERT_TRUE(job->PrepareToCompileOnMainThread());
   job->Compile();
   ASSERT_TRUE(job->FinalizeCompilingOnMainThread());

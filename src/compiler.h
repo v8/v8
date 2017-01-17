@@ -37,7 +37,7 @@ class ThreadedListZoneEntry;
 // parameters which then can be executed. If the source code contains other
 // functions, they might be compiled and allocated as part of the compilation
 // of the source code or deferred for lazy compilation at a later point.
-class V8_EXPORT_PRIVATE Compiler : public AllStatic {
+class Compiler : public AllStatic {
  public:
   enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };

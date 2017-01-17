@@ -66,8 +66,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
                                              CompilerDispatcherTracer* tracer,
                                              Handle<SharedFunctionInfo> shared,
                                              size_t max_stack_size)
-    : status_(CompileJobStatus::kInitial),
-      isolate_(isolate),
+    : isolate_(isolate),
       tracer_(tracer),
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
@@ -80,35 +79,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("CompilerDispatcherJob[%p] created for ", static_cast<void*>(this));
     shared_->ShortPrint();
-    PrintF(" in initial state.\n");
-  }
-}
-
-CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
-                                             CompilerDispatcherTracer* tracer,
-                                             Handle<SharedFunctionInfo> shared,
-                                             FunctionLiteral* literal,
-                                             size_t max_stack_size)
-    : status_(CompileJobStatus::kAnalyzed),
-      isolate_(isolate),
-      tracer_(tracer),
-      shared_(Handle<SharedFunctionInfo>::cast(
-          isolate_->global_handles()->Create(*shared))),
-      max_stack_size_(max_stack_size),
-      zone_(new Zone(isolate->allocator(), ZONE_NAME)),
-      parse_info_(new ParseInfo(
-          zone_.get(), Handle<Script>(Script::cast(shared->script())))),
-      compile_info_(
-          new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null())),
-      trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
-  parse_info_->set_literal(literal);
-  parse_info_->set_shared_info(shared);
-  parse_info_->set_function_literal_id(shared->function_literal_id());
-  parse_info_->set_language_mode(literal->scope()->language_mode());
-  if (trace_compiler_dispatcher_jobs_) {
-    PrintF("CompilerDispatcherJob[%p] created for ", static_cast<void*>(this));
-    shared_->ShortPrint();
-    PrintF(" in Analyzed state.\n");
+    PrintF("\n");
   }
 }
 
@@ -281,7 +252,7 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   if (parse_info_->literal() == nullptr) {
     status_ = CompileJobStatus::kFailed;
   } else {
-    status_ = CompileJobStatus::kReadyToAnalyze;
+    status_ = CompileJobStatus::kReadyToAnalyse;
   }
 
   DeferredHandleScope scope(isolate_);
@@ -312,38 +283,25 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   return status_ != CompileJobStatus::kFailed;
 }
 
-bool CompilerDispatcherJob::AnalyzeOnMainThread() {
+bool CompilerDispatcherJob::PrepareToCompileOnMainThread() {
   DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
-  DCHECK(status() == CompileJobStatus::kReadyToAnalyze);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kAnalyze);
+  DCHECK(status() == CompileJobStatus::kReadyToAnalyse);
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
   if (trace_compiler_dispatcher_jobs_) {
-    PrintF("CompilerDispatcherJob[%p]: Analyzing\n", static_cast<void*>(this));
+    PrintF("CompilerDispatcherJob[%p]: Preparing to compile\n",
+           static_cast<void*>(this));
   }
 
   compile_info_.reset(
       new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null()));
 
   DeferredHandleScope scope(isolate_);
-  {
-    if (Compiler::Analyze(parse_info_.get())) {
-      status_ = CompileJobStatus::kAnalyzed;
-    } else {
-      status_ = CompileJobStatus::kFailed;
-      if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
-    }
+  if (Compiler::Analyze(parse_info_.get())) {
+    compile_job_.reset(
+        Compiler::PrepareUnoptimizedCompilationJob(compile_info_.get()));
   }
   compile_info_->set_deferred_handles(scope.Detach());
 
-  return status_ != CompileJobStatus::kFailed;
-}
-
-bool CompilerDispatcherJob::PrepareToCompileOnMainThread() {
-  DCHECK(ThreadId::Current().Equals(isolate_->thread_id()));
-  DCHECK(status() == CompileJobStatus::kAnalyzed);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
-
-  compile_job_.reset(
-      Compiler::PrepareUnoptimizedCompilationJob(compile_info_.get()));
   if (!compile_job_.get()) {
     if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
     status_ = CompileJobStatus::kFailed;
@@ -443,10 +401,7 @@ double CompilerDispatcherJob::EstimateRuntimeOfNextStepInMs() const {
     case CompileJobStatus::kParsed:
       return tracer_->EstimateFinalizeParsingInMs();
 
-    case CompileJobStatus::kReadyToAnalyze:
-      return tracer_->EstimateAnalyzeInMs();
-
-    case CompileJobStatus::kAnalyzed:
+    case CompileJobStatus::kReadyToAnalyse:
       return tracer_->EstimatePrepareToCompileInMs();
 
     case CompileJobStatus::kReadyToCompile:
