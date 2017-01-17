@@ -383,7 +383,6 @@ class ThreadLocalTop BASE_EMBEDDED {
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
-  V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
 typedef List<HeapObject*> DebugObjectCache;
@@ -409,7 +408,6 @@ typedef List<HeapObject*> DebugObjectCache;
   V(CompilationStatistics*, turbo_statistics, nullptr)                        \
   V(HTracer*, htracer, nullptr)                                               \
   V(CodeTracer*, code_tracer, nullptr)                                        \
-  V(bool, fp_stubs_generated, false)                                          \
   V(uint32_t, per_isolate_assert_data, 0xFFFFFFFFu)                           \
   V(PromiseRejectCallback, promise_reject_callback, nullptr)                  \
   V(const v8::StartupData*, snapshot_blob, nullptr)                           \

@@ -905,7 +905,6 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   SaveFPRegsMode mode = kSaveFPRegs;
   CEntryStub(isolate, 1, mode).GetCode();
   StoreBufferOverflowStub(isolate, mode).GetCode();
-  isolate->set_fp_stubs_generated(true);
 }
 
 

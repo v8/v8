@@ -1622,7 +1622,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
   // Generate if not already in cache.
   CEntryStub(isolate, 1, kSaveFPRegs).GetCode();
-  isolate->set_fp_stubs_generated(true);
 }
 
 

@@ -1462,7 +1462,6 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
     save_doubles_code = *(save_doubles.GetCode());
   }
-  isolate->set_fp_stubs_generated(true);
 }
 
 
