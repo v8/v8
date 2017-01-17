@@ -639,6 +639,7 @@ namespace internal {
   TFJ(PromiseHandle, 5)                                                        \
   TFJ(PromiseResolve, 1)                                                       \
   TFJ(PromiseReject, 1)                                                        \
+  TFJ(InternalPromiseReject, 3)                                                \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \

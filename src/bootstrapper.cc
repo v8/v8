@@ -1971,6 +1971,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       promise_handle->set_is_exception_caught(true);
     }
 
+    {  // Internal: InternalPromiseReject
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kInternalPromiseReject, 3, true);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PROMISE_INTERNAL_REJECT_INDEX);
+    }
+
     {
       Handle<Code> code =
           handle(isolate->builtins()->builtin(Builtins::kPromiseResolveClosure),

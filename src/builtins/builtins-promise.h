@@ -34,14 +34,29 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                               Node* resolve, Node* reject,
                                               Node* context);
 
+  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
+      Node* promise, Node* native_context, Node* promise_context);
+
+  Node* PromiseHasHandler(Node* promise);
+
+  Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
+                                               Node* native_context);
+
+  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
+                                                    Node* promise_capability);
+
+  Node* NewPromiseCapability(Node* context, Node* constructor,
+                             Node* debug_event = nullptr);
+
+ protected:
+  void PromiseInit(Node* promise);
+
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate::Template msg_template,
                              const char* method_name = nullptr);
 
   Node* SpeciesConstructor(Node* context, Node* object,
                            Node* default_constructor);
-
-  Node* PromiseHasHandler(Node* promise);
 
   void PromiseSetHasHandler(Node* promise);
 
@@ -66,27 +81,17 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                         Label* if_isunmodified, Label* if_ismodified);
 
   Node* CreatePromiseContext(Node* native_context, int slots);
-  Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
-                                               Node* native_context);
-
-  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
-      Node* promise, Node* native_context, Node* promise_context);
-
-  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
-                                                    Node* promise_capability);
-
   void PromiseFulfill(Node* context, Node* promise, Node* result,
                       v8::Promise::PromiseState status);
-
-  Node* NewPromiseCapability(Node* context, Node* constructor,
-                             Node* debug_event = nullptr);
 
   void BranchIfAccessCheckFailed(Node* context, Node* native_context,
                                  Node* promise_constructor, Node* executor,
                                  Label* if_noaccess);
 
- protected:
-  void PromiseInit(Node* promise);
+  void InternalPromiseReject(Node* context, Node* promise, Node* value,
+                             bool debug_event);
+  void InternalPromiseReject(Node* context, Node* promise, Node* value,
+                             Node* debug_event);
 
  private:
   Node* AllocateJSPromise(Node* context);

@@ -1896,6 +1896,16 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_DebugPromiseReject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, rejected_promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+
+  isolate->debug()->OnPromiseReject(rejected_promise, value);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

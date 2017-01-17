@@ -7307,9 +7307,12 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
                                       Local<Value> value) {
   PREPARE_FOR_EXECUTION_PRIMITIVE(context, Promise_Resolver, Resolve, bool);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> argv[] = {self, Utils::OpenHandle(*value)};
+
+  // We pass true to trigger the debugger's on exception handler.
+  i::Handle<i::Object> argv[] = {self, Utils::OpenHandle(*value),
+                                 isolate->factory()->ToBoolean(true)};
   has_pending_exception =
-      i::Execution::Call(isolate, isolate->promise_reject(),
+      i::Execution::Call(isolate, isolate->promise_internal_reject(),
                          isolate->factory()->undefined_value(), arraysize(argv),
                          argv)
           .is_null();

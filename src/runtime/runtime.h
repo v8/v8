@@ -199,6 +199,7 @@ namespace internal {
   F(DebugRecordGenerator, 1, 1)                 \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
+  F(DebugPromiseReject, 2, 1)                   \
   F(DebugNextAsyncTaskId, 1, 1)                 \
   F(DebugAsyncEventEnqueueRecurring, 2, 1)      \
   F(DebugAsyncFunctionPromiseCreated, 1, 1)     \
@@ -304,7 +305,7 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                           \
   F(NewTypeError, 2, 1)                             \
   F(OrdinaryHasInstance, 2, 1)                      \
-  F(PromiseReject, 3, 1)                            \
+  F(ReportPromiseReject, 2, 1)                      \
   F(PromiseHookInit, 2, 1)                          \
   F(PromiseHookResolve, 1, 1)                       \
   F(PromiseHookBefore, 1, 1)                        \
