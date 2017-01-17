@@ -498,9 +498,10 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
         has_constant_pool_entry_(false) {}
 
   void AddFunctionDeclaration(Handle<String> name, FeedbackVectorSlot slot,
+                              FeedbackVectorSlot literal_slot,
                               FunctionLiteral* func) {
     DCHECK(!slot.IsInvalid());
-    declarations_.push_back(Declaration(name, slot, func));
+    declarations_.push_back(Declaration(name, slot, literal_slot, func));
   }
 
   void AddUndefinedDeclaration(Handle<String> name, FeedbackVectorSlot slot) {
@@ -512,7 +513,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
     Handle<FixedArray> data = info->isolate()->factory()->NewFixedArray(
-        static_cast<int>(declarations_.size() * 3), TENURED);
+        static_cast<int>(declarations_.size() * 4), TENURED);
     for (const Declaration& declaration : declarations_) {
       FunctionLiteral* func = declaration.func;
       Handle<Object> initial_value;
@@ -529,6 +530,14 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
 
       data->set(array_index++, *declaration.name);
       data->set(array_index++, Smi::FromInt(declaration.slot.ToInt()));
+      Object* undefined_or_literal_slot;
+      if (declaration.literal_slot.IsInvalid()) {
+        undefined_or_literal_slot = info->isolate()->heap()->undefined_value();
+      } else {
+        undefined_or_literal_slot =
+            Smi::FromInt(declaration.literal_slot.ToInt());
+      }
+      data->set(array_index++, undefined_or_literal_slot);
       data->set(array_index++, *initial_value);
     }
     return data;
@@ -552,11 +561,18 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   struct Declaration {
     Declaration() : slot(FeedbackVectorSlot::Invalid()), func(nullptr) {}
     Declaration(Handle<String> name, FeedbackVectorSlot slot,
+                FeedbackVectorSlot literal_slot, FunctionLiteral* func)
+        : name(name), slot(slot), literal_slot(literal_slot), func(func) {}
+    Declaration(Handle<String> name, FeedbackVectorSlot slot,
                 FunctionLiteral* func)
-        : name(name), slot(slot), func(func) {}
+        : name(name),
+          slot(slot),
+          literal_slot(FeedbackVectorSlot::Invalid()),
+          func(func) {}
 
     Handle<String> name;
     FeedbackVectorSlot slot;
+    FeedbackVectorSlot literal_slot;
     FunctionLiteral* func;
   };
   ZoneVector<Declaration> declarations_;
@@ -889,8 +905,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
-      globals_builder()->AddFunctionDeclaration(variable->name(), slot,
-                                                decl->fun());
+      globals_builder()->AddFunctionDeclaration(
+          variable->name(), slot, decl->fun()->LiteralFeedbackSlot(),
+          decl->fun());
       break;
     }
     case VariableLocation::PARAMETER:
