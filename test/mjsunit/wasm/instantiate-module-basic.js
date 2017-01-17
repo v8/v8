@@ -126,7 +126,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function InstancesAreIsolatedFromEachother() {
   print("InstancesAreIsolatedFromEachother...");
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("", "memory", 1,1);
+  builder.addImportedMemory("", "memory", 1);
   var kSig_v_i = makeSig([kWasmI32], []);
   var signature = builder.addType(kSig_v_i);
   builder.addImport("m", "some_value", kSig_i_v);
@@ -207,7 +207,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function InstanceMemoryIsIsolated() {
   print("InstanceMemoryIsIsolated...");
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("", "memory", 1,1);
+  builder.addImportedMemory("", "memory", 1);
 
   builder.addFunction("f", kSig_i_v)
     .addBody([

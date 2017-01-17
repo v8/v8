@@ -122,7 +122,7 @@ DEFINE_OBJ_GETTER(WasmModuleObject, compiled_module, kCompiledModule,
                   WasmCompiledModule)
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
-                                             uint32_t maximum,
+                                             int64_t maximum,
                                              Handle<FixedArray>* js_functions) {
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor());
@@ -133,8 +133,8 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
     (*js_functions)->set(i, null);
   }
   table_obj->SetInternalField(kFunctions, *(*js_functions));
-  table_obj->SetInternalField(kMaximum,
-                              static_cast<Object*>(Smi::FromInt(maximum)));
+  Handle<Object> max = isolate->factory()->NewNumber(maximum);
+  table_obj->SetInternalField(kMaximum, *max);
 
   Handle<FixedArray> dispatch_tables = isolate->factory()->NewFixedArray(0);
   table_obj->SetInternalField(kDispatchTables, *dispatch_tables);
@@ -176,8 +176,12 @@ DEFINE_OBJ_ACCESSORS(WasmTableObject, functions, kFunctions, FixedArray)
 
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
-uint32_t WasmTableObject::maximum_length() {
-  return SafeUint32(GetInternalField(kMaximum));
+bool WasmTableObject::has_maximum_length() {
+  return GetInternalField(kMaximum)->Number() >= 0;
+}
+
+int64_t WasmTableObject::maximum_length() {
+  return static_cast<int64_t>(GetInternalField(kMaximum)->Number());
 }
 
 WasmTableObject* WasmTableObject::cast(Object* object) {
@@ -195,14 +199,14 @@ void WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
                                                Handle<JSArrayBuffer> buffer,
-                                               int maximum) {
+                                               int32_t maximum) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor());
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
   memory_obj->SetInternalField(kArrayBuffer, *buffer);
-  memory_obj->SetInternalField(kMaximum,
-                               static_cast<Object*>(Smi::FromInt(maximum)));
+  Handle<Object> max = isolate->factory()->NewNumber(maximum);
+  memory_obj->SetInternalField(kMaximum, *max);
   Handle<Symbol> memory_sym(isolate->native_context()->wasm_memory_sym());
   Object::SetProperty(memory_obj, memory_sym, memory_obj, STRICT).Check();
   return Handle<WasmMemoryObject>::cast(memory_obj);
@@ -216,8 +220,12 @@ uint32_t WasmMemoryObject::current_pages() {
   return SafeUint32(buffer()->byte_length()) / wasm::WasmModule::kPageSize;
 }
 
+bool WasmMemoryObject::has_maximum_pages() {
+  return GetInternalField(kMaximum)->Number() >= 0;
+}
+
 int32_t WasmMemoryObject::maximum_pages() {
-  return SafeInt32(GetInternalField(kMaximum));
+  return static_cast<int32_t>(GetInternalField(kMaximum)->Number());
 }
 
 WasmMemoryObject* WasmMemoryObject::cast(Object* object) {

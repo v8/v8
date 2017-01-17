@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/managed.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
@@ -60,10 +61,11 @@ class WasmTableObject : public JSObject {
 
   FixedArray* dispatch_tables();
   uint32_t current_length();
-  uint32_t maximum_length();
+  bool has_maximum_length();
+  int64_t maximum_length();  // Returns < 0 if no maximum.
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
-                                     uint32_t maximum,
+                                     int64_t maximum,
                                      Handle<FixedArray>* js_functions);
   static void Grow(Isolate* isolate, Handle<WasmTableObject> table,
                    uint32_t count);
@@ -86,11 +88,12 @@ class WasmMemoryObject : public JSObject {
   void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);
   void ResetInstancesLink(Isolate* isolate);
   uint32_t current_pages();
-  int32_t maximum_pages();  // returns < 0 if there is no maximum
+  bool has_maximum_pages();
+  int32_t maximum_pages();  // Returns < 0 if there is no maximum.
 
   static Handle<WasmMemoryObject> New(Isolate* isolate,
                                       Handle<JSArrayBuffer> buffer,
-                                      int maximum);
+                                      int32_t maximum);
 
   static bool Grow(Isolate* isolate, Handle<WasmMemoryObject> memory,
                    uint32_t count);

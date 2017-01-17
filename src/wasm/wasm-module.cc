@@ -1669,16 +1669,34 @@ class WasmInstanceBuilder {
           table_instance.js_wrappers = Handle<FixedArray>(
               table_instance.table_object->functions(), isolate_);
 
-          // TODO(titzer): import table size must match exactly for now.
-          int table_size = table_instance.js_wrappers->length();
-          if (table_size != static_cast<int>(table.min_size)) {
+          int imported_cur_size = table_instance.js_wrappers->length();
+          if (imported_cur_size < static_cast<int>(table.min_size)) {
             thrower_->LinkError(
-                "table import %d is wrong size (%d), expected %u", index,
-                table_size, table.min_size);
+                "table import %d is smaller than minimum %d, got %u", index,
+                table.min_size, imported_cur_size);
             return -1;
           }
 
+          if (table.has_max) {
+            int64_t imported_max_size =
+                table_instance.table_object->maximum_length();
+            if (imported_max_size < 0) {
+              thrower_->LinkError(
+                  "table import %d has no maximum length, expected %d", index,
+                  table.max_size);
+              return -1;
+            }
+            if (imported_max_size > table.max_size) {
+              thrower_->LinkError(
+                  "table import %d has maximum larger than maximum %d, "
+                  "got %" PRIx64,
+                  index, table.max_size, imported_max_size);
+              return -1;
+            }
+          }
+
           // Allocate a new dispatch table and signature table.
+          int table_size = imported_cur_size;
           table_instance.function_table =
               isolate_->factory()->NewFixedArray(table_size);
           table_instance.signature_table =
@@ -1720,6 +1738,29 @@ class WasmInstanceBuilder {
           DCHECK(WasmJs::IsWasmMemoryObject(isolate_, memory));
           instance->set_memory_object(*memory);
           memory_ = Handle<JSArrayBuffer>(memory->buffer(), isolate_);
+          uint32_t imported_cur_pages = static_cast<uint32_t>(
+              memory_->byte_length()->Number() / WasmModule::kPageSize);
+          if (imported_cur_pages < module_->min_mem_pages) {
+            thrower_->LinkError(
+                "memory import %d is smaller than maximum %u, got %u", index,
+                module_->min_mem_pages, imported_cur_pages);
+          }
+          int32_t imported_max_pages = memory->maximum_pages();
+          if (module_->has_max_mem) {
+            if (imported_max_pages < 0) {
+              thrower_->LinkError(
+                  "memory import %d has no maximum limit, expected at most %u",
+                  index, imported_max_pages);
+              return -1;
+            }
+            if (static_cast<uint32_t>(imported_max_pages) >
+                module_->max_mem_pages) {
+              thrower_->LinkError(
+                  "memory import %d has larger maximum than maximum %u, got %d",
+                  index, module_->max_mem_pages, imported_max_pages);
+              return -1;
+            }
+          }
           break;
         }
         case kExternalGlobal: {
@@ -2212,13 +2253,14 @@ int32_t wasm::GetInstanceMemorySize(Isolate* isolate,
   }
 }
 
-uint32_t GetMaxInstanceMemorySize(Isolate* isolate,
-                                  Handle<WasmInstanceObject> instance) {
+uint32_t GetMaxInstanceMemoryPages(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance) {
   if (instance->has_memory_object()) {
     Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
-
-    int maximum = memory_object->maximum_pages();
-    if (maximum > 0) return static_cast<uint32_t>(maximum);
+    if (memory_object->has_maximum_pages()) {
+      uint32_t maximum = static_cast<uint32_t>(memory_object->maximum_pages());
+      if (maximum < kV8MaxWasmMemoryPages) return maximum;
+    }
   }
   uint32_t compiled_max_pages = instance->compiled_module()->max_mem_pages();
   isolate->counters()->wasm_max_mem_pages_count()->AddSample(
@@ -2294,7 +2336,7 @@ int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate, Handle<Object> receiver,
   Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
   DCHECK(IsWasmInstance(*instance));
   if (pages == 0) return GetInstanceMemorySize(isolate, instance);
-  uint32_t max_pages = GetMaxInstanceMemorySize(isolate, instance);
+  uint32_t max_pages = GetMaxInstanceMemoryPages(isolate, instance);
 
   // Grow memory object buffer and update instances associated with it.
   MaybeHandle<JSArrayBuffer> memory_buffer = handle(memory_object->buffer());
@@ -2342,7 +2384,7 @@ int32_t wasm::GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
       old_size = old_buffer->byte_length()->Number();
       old_mem_start = static_cast<Address>(old_buffer->backing_store());
     }
-    uint32_t max_pages = GetMaxInstanceMemorySize(isolate, instance_obj);
+    uint32_t max_pages = GetMaxInstanceMemoryPages(isolate, instance_obj);
     Handle<JSArrayBuffer> buffer =
         GrowMemoryBuffer(isolate, instance_buffer, pages, max_pages);
     if (buffer.is_null()) return -1;

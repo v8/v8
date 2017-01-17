@@ -382,3 +382,18 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(3, instance.exports.mem_size());
   assertEquals(3*kPageSize, instance.exports.exported_mem.buffer.byteLength);
 })();
+
+(function TestImportTooLarge() {
+  print("TestImportTooLarge");
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "m", 1, 2);
+
+  // initial size is too large
+  assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 3, maximum: 3})}}));
+
+  // maximum size is too large
+  assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 1, maximum: 4})}}));
+
+  // no maximum
+  assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 1})}}));
+})();

@@ -319,11 +319,10 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalMemory: {
             // ===== Imported memory =========================================
-            bool has_max = false;
-            consume_resizable_limits("memory", "pages", kV8MaxWasmMemoryPages,
-                                     &module->min_mem_pages, &has_max,
-                                     kSpecMaxWasmMemoryPages,
-                                     &module->max_mem_pages);
+            consume_resizable_limits(
+                "memory", "pages", kV8MaxWasmMemoryPages,
+                &module->min_mem_pages, &module->has_max_mem,
+                kSpecMaxWasmMemoryPages, &module->max_mem_pages);
             SetHasMemory(module);
             break;
           }
@@ -394,10 +393,10 @@ class ModuleDecoder : public Decoder {
       uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
-        bool has_max = false;
-        consume_resizable_limits(
-            "memory", "pages", kV8MaxWasmMemoryPages, &module->min_mem_pages,
-            &has_max, kSpecMaxWasmMemoryPages, &module->max_mem_pages);
+        consume_resizable_limits("memory", "pages", kV8MaxWasmMemoryPages,
+                                 &module->min_mem_pages, &module->has_max_mem,
+                                 kSpecMaxWasmMemoryPages,
+                                 &module->max_mem_pages);
       }
       SetHasMemory(module);
       section_iter.advance();

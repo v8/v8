@@ -179,6 +179,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   Zone* owned_zone;
   uint32_t min_mem_pages = 0;  // minimum size of the memory in 64k pages
   uint32_t max_mem_pages = 0;  // maximum size of the memory in 64k pages
+  bool has_max_mem = false;    // try if a maximum memory size exists
   bool has_memory = false;     // true if the memory was defined or imported
   bool mem_export = false;     // true if the memory is exported
   // TODO(wasm): reconcile start function index being an int with

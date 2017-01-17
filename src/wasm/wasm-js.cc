@@ -354,22 +354,22 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
                         Local<Context> context, Local<v8::Object> object,
-                        Local<String> property, int* result, int lower_bound,
-                        int upper_bound) {
+                        Local<String> property, int* result,
+                        int64_t lower_bound, uint64_t upper_bound) {
   v8::MaybeLocal<v8::Value> maybe = object->Get(context, property);
   v8::Local<v8::Value> value;
   if (maybe.ToLocal(&value)) {
     int64_t number;
     if (!value->IntegerValue(context).To(&number)) return false;
-    if (number < static_cast<int64_t>(lower_bound)) {
+    if (number < lower_bound) {
       thrower->RangeError("Property value %" PRId64
-                          " is below the lower bound %d",
+                          " is below the lower bound %" PRIx64,
                           number, lower_bound);
       return false;
     }
     if (number > static_cast<int64_t>(upper_bound)) {
       thrower->RangeError("Property value %" PRId64
-                          " is above the upper bound %d",
+                          " is above the upper bound %" PRIu64,
                           number, upper_bound);
       return false;
     }
@@ -378,8 +378,6 @@ bool GetIntegerProperty(v8::Isolate* isolate, ErrorThrower* thrower,
   }
   return false;
 }
-
-const int max_table_size = 1 << 26;
 
 void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
@@ -408,28 +406,23 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
   // The descriptor's 'initial'.
-  int initial;
+  int initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          max_table_size)) {
+                          i::wasm::kV8MaxWasmTableSize)) {
     return;
   }
   // The descriptor's 'maximum'.
-  int maximum = 0;
+  int maximum = -1;
   Local<String> maximum_key = v8_str(isolate, "maximum");
   Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
 
-  if (has_maximum.IsNothing()) {
-    // There has been an exception, just return.
-    return;
-  }
-  if (has_maximum.FromJust()) {
+  if (!has_maximum.IsNothing() && has_maximum.FromJust()) {
     if (!GetIntegerProperty(isolate, &thrower, context, descriptor, maximum_key,
-                            &maximum, initial, max_table_size)) {
+                            &maximum, initial,
+                            i::wasm::kSpecMaxWasmTableSize)) {
       return;
     }
-  } else {
-    maximum = static_cast<int>(i::wasm::kV8MaxWasmTableSize);
   }
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -452,23 +445,21 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   Local<v8::Object> descriptor = args[0]->ToObject(context).ToLocalChecked();
   // The descriptor's 'initial'.
-  int initial;
+  int initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
-                          v8_str(isolate, "initial"), &initial, 0, 65536)) {
+                          v8_str(isolate, "initial"), &initial, 0,
+                          i::wasm::kV8MaxWasmMemoryPages)) {
     return;
   }
   // The descriptor's 'maximum'.
-  int maximum = 0;
+  int maximum = -1;
   Local<String> maximum_key = v8_str(isolate, "maximum");
   Maybe<bool> has_maximum = descriptor->Has(context, maximum_key);
 
-  if (has_maximum.IsNothing()) {
-    // There has been an exception, just return.
-    return;
-  }
-  if (has_maximum.FromJust()) {
+  if (!has_maximum.IsNothing() && has_maximum.FromJust()) {
     if (!GetIntegerProperty(isolate, &thrower, context, descriptor, maximum_key,
-                            &maximum, initial, 65536)) {
+                            &maximum, initial,
+                            i::wasm::kSpecMaxWasmMemoryPages)) {
       return;
     }
   }
@@ -481,8 +472,8 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.RangeError("could not allocate memory");
     return;
   }
-  i::Handle<i::JSObject> memory_obj = i::WasmMemoryObject::New(
-      i_isolate, buffer, has_maximum.FromJust() ? maximum : -1);
+  i::Handle<i::JSObject> memory_obj =
+      i::WasmMemoryObject::New(i_isolate, buffer, maximum);
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 
@@ -523,7 +514,13 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   new_size64 += old_size;
 
-  if (new_size64 < old_size || new_size64 > receiver->maximum_length()) {
+  int64_t max_size64 = receiver->maximum_length();
+  if (max_size64 < 0 ||
+      max_size64 > static_cast<int64_t>(i::wasm::kV8MaxWasmTableSize)) {
+    max_size64 = i::wasm::kV8MaxWasmTableSize;
+  }
+
+  if (new_size64 < old_size || new_size64 > max_size64) {
     v8::Local<v8::Value> e = v8::Exception::RangeError(
         v8_str(isolate, new_size64 < old_size ? "trying to shrink table"
                                               : "maximum table size exceeded"));

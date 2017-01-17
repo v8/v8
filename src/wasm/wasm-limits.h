@@ -31,6 +31,7 @@ const size_t kV8MaxWasmTables = 1;
 const size_t kV8MaxWasmMemories = 1;
 
 const size_t kSpecMaxWasmMemoryPages = 65536;
+const size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
 
 const uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(

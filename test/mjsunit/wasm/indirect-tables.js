@@ -199,7 +199,8 @@ function js_div(a, b) { return (a / b) | 0; }
   for (let i = 0; i < 5; i++) {
     print(" base = " + i);
     let table = new WebAssembly.Table({element: "anyfunc",
-                                       initial: kTableSize});
+                                       initial: kTableSize,
+                                       maximum: kTableSize});
     assertEquals(10, table.length);
     let i2 = new WebAssembly.Instance(m2, {q: {base: i, table: table,
                                                js_div: js_div}});
@@ -242,7 +243,8 @@ function js_div(a, b) { return (a / b) | 0; }
   print("CumulativeTest...");
 
   let kTableSize = 10;
-  let table = new WebAssembly.Table({element: "anyfunc", initial: 10});
+  let table = new WebAssembly.Table(
+    {element: "anyfunc", initial: kTableSize, maximum: kTableSize});
 
   var builder = new WasmModuleBuilder();
 
@@ -456,4 +458,23 @@ function js_div(a, b) { return (a / b) | 0; }
     assertSame(new_func, table.get(j));
   }
   assertThrows(() => table.grow(11));
+})();
+
+
+(function TestImportTooLarge() {
+  print("TestImportTooLarge...");
+  let builder = new WasmModuleBuilder();
+  builder.addImportedTable("t", "t", 1, 2);
+
+  // initial size is too large
+  assertThrows(() => builder.instantiate({t: {t: new WebAssembly.Table(
+    {element: "anyfunc", initial: 3, maximum: 3})}}));
+
+  // maximum size is too large
+  assertThrows(() => builder.instantiate({t: {t: new WebAssembly.Table(
+    {element: "anyfunc", initial: 1, maximum: 4})}}));
+
+  // no maximum
+  assertThrows(() => builder.instantiate({t: {t: new WebAssembly.Table(
+    {element: "anyfunc", initial: 1})}}));
 })();
