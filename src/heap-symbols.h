@@ -107,6 +107,7 @@
   V(minus_infinity_string, "-Infinity")                            \
   V(minus_zero_string, "-0")                                       \
   V(minute_string, "minute")                                       \
+  V(Module_string, "Module")                                       \
   V(month_string, "month")                                         \
   V(multiline_string, "multiline")                                 \
   V(name_string, "name")                                           \

@@ -1853,8 +1853,8 @@ Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
       Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map)));
   FieldIndex index = FieldIndex::ForDescriptor(
       *map, JSModuleNamespace::kToStringTagFieldIndex);
-  Handle<String> to_string_value = NewStringFromAsciiChecked("Module");
-  module_namespace->FastPropertyAtPut(index, *to_string_value);
+  module_namespace->FastPropertyAtPut(index,
+                                      isolate()->heap()->Module_string());
   return module_namespace;
 }
 
