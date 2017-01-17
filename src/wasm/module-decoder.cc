@@ -334,7 +334,7 @@ class ModuleDecoder : public Decoder {
                 {kWasmStmt, false, WasmInitExpr(), 0, true, false});
             WasmGlobal* global = &module->globals.back();
             global->type = consume_value_type();
-            global->mutability = consume_u8("mutability") != 0;
+            global->mutability = consume_mutability();
             if (global->mutability) {
               error("mutable globals cannot be imported");
             }
@@ -696,7 +696,7 @@ class ModuleDecoder : public Decoder {
   void DecodeGlobalInModule(WasmModule* module, uint32_t index,
                             WasmGlobal* global) {
     global->type = consume_value_type();
-    global->mutability = consume_u8("mutability") != 0;
+    global->mutability = consume_mutability();
     const byte* pos = pc();
     global->init = consume_init_expr(module, kWasmStmt);
     switch (global->init.kind) {
@@ -986,6 +986,13 @@ class ModuleDecoder : public Decoder {
             WasmOpcodes::TypeName(TypeOf(module, expr)));
     }
     return expr;
+  }
+
+  // Read a mutability flag
+  bool consume_mutability() {
+    byte val = consume_u8("mutability");
+    if (val > 1) error(pc_ - 1, "invalid mutability");
+    return val != 0;
   }
 
   // Reads a single 8-bit integer, interpreting it as a local type.

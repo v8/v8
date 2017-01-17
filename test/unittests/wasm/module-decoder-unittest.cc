@@ -1101,6 +1101,21 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
+  static const byte data[] = {
+      SECTION(Import, 8),
+      1,                   // --
+      NAME_LENGTH(1),      // --
+      'm',                 // module name
+      NAME_LENGTH(1),      // --
+      'g',                 // global name
+      kExternalGlobal,     // import kind
+      kLocalI32,           // type
+      2,                   // invalid mutability
+  };
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, ImportTable_nosigs2) {
   static const byte data[] = {
       SECTION(Import, 6),  1,    // sig table
@@ -1507,7 +1522,6 @@ TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
   };
   EXPECT_VERIFIES(data);
 }
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
