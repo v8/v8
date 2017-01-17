@@ -386,85 +386,108 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
 }
 
 }  // namespace
-
-#define ASSEMBLE_CHECKED_LOAD_FLOAT(width, asm_instr)                         \
+#define ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, length, out_of_bounds)         \
   do {                                                                        \
-    auto result = i.Output##width##Register();                                \
-    auto ool = new (zone()) OutOfLineLoad##width(this, result);               \
-    if (instr->InputAt(0)->IsRegister()) {                                    \
-      auto offset = i.InputRegister(0);                                       \
-      __ Branch(USE_DELAY_SLOT, ool->entry(), hs, offset, i.InputOperand(1)); \
-      __ And(kScratchReg, offset, Operand(0xffffffff));                       \
-      __ Daddu(kScratchReg, i.InputRegister(2), kScratchReg);                 \
-      __ asm_instr(result, MemOperand(kScratchReg, 0));                       \
+    if (!length.is_reg() && base::bits::IsPowerOfTwo64(length.immediate())) { \
+      __ And(kScratchReg, offset, Operand(~(length.immediate() - 1)));        \
+      __ Branch(USE_DELAY_SLOT, out_of_bounds, ne, kScratchReg,               \
+                Operand(zero_reg));                                           \
     } else {                                                                  \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());           \
-      __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
-      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));           \
+      __ Branch(USE_DELAY_SLOT, out_of_bounds, hs, offset, length);           \
     }                                                                         \
-    __ bind(ool->exit());                                                     \
   } while (0)
 
-#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                              \
+#define ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, length, out_of_bounds)        \
   do {                                                                        \
-    auto result = i.OutputRegister();                                         \
-    auto ool = new (zone()) OutOfLineLoadInteger(this, result);               \
-    if (instr->InputAt(0)->IsRegister()) {                                    \
-      auto offset = i.InputRegister(0);                                       \
-      __ Branch(USE_DELAY_SLOT, ool->entry(), hs, offset, i.InputOperand(1)); \
-      __ And(kScratchReg, offset, Operand(0xffffffff));                       \
-      __ Daddu(kScratchReg, i.InputRegister(2), kScratchReg);                 \
-      __ asm_instr(result, MemOperand(kScratchReg, 0));                       \
+    if (!length.is_reg() && base::bits::IsPowerOfTwo64(length.immediate())) { \
+      __ Or(kScratchReg, zero_reg, Operand(offset));                          \
+      __ And(kScratchReg, kScratchReg, Operand(~(length.immediate() - 1)));   \
+      __ Branch(out_of_bounds, ne, kScratchReg, Operand(zero_reg));           \
     } else {                                                                  \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());           \
-      __ Branch(ool->entry(), ls, i.InputRegister(1), Operand(offset));       \
-      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));           \
+      __ Branch(out_of_bounds, ls, length.rm(), Operand(offset));             \
     }                                                                         \
-    __ bind(ool->exit());                                                     \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width, asm_instr)                 \
-  do {                                                                 \
-    Label done;                                                        \
-    if (instr->InputAt(0)->IsRegister()) {                             \
-      auto offset = i.InputRegister(0);                                \
-      auto value = i.InputOrZero##width##Register(2);                  \
-      if (value.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {      \
-        __ Move(kDoubleRegZero, 0.0);                                  \
-      }                                                                \
-      __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
-      __ And(kScratchReg, offset, Operand(0xffffffff));                \
-      __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);          \
-      __ asm_instr(value, MemOperand(kScratchReg, 0));                 \
-    } else {                                                           \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());    \
-      auto value = i.InputOrZero##width##Register(2);                  \
-      if (value.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {      \
-        __ Move(kDoubleRegZero, 0.0);                                  \
-      }                                                                \
-      __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
-      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_CHECKED_LOAD_FLOAT(width, asm_instr)                          \
+  do {                                                                         \
+    auto result = i.Output##width##Register();                                 \
+    auto ool = new (zone()) OutOfLineLoad##width(this, result);                \
+    if (instr->InputAt(0)->IsRegister()) {                                     \
+      auto offset = i.InputRegister(0);                                        \
+      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), ool->entry()); \
+      __ And(kScratchReg, offset, Operand(0xffffffff));                        \
+      __ Daddu(kScratchReg, i.InputRegister(2), kScratchReg);                  \
+      __ asm_instr(result, MemOperand(kScratchReg, 0));                        \
+    } else {                                                                   \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());            \
+      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1),               \
+                                      ool->entry());                           \
+      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));            \
+    }                                                                          \
+    __ bind(ool->exit());                                                      \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                      \
-  do {                                                                 \
-    Label done;                                                        \
-    if (instr->InputAt(0)->IsRegister()) {                             \
-      auto offset = i.InputRegister(0);                                \
-      auto value = i.InputOrZeroRegister(2);                           \
-      __ Branch(USE_DELAY_SLOT, &done, hs, offset, i.InputOperand(1)); \
-      __ And(kScratchReg, offset, Operand(0xffffffff));                \
-      __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);          \
-      __ asm_instr(value, MemOperand(kScratchReg, 0));                 \
-    } else {                                                           \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());    \
-      auto value = i.InputOrZeroRegister(2);                           \
-      __ Branch(&done, ls, i.InputRegister(1), Operand(offset));       \
-      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));     \
-    }                                                                  \
-    __ bind(&done);                                                    \
+#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                               \
+  do {                                                                         \
+    auto result = i.OutputRegister();                                          \
+    auto ool = new (zone()) OutOfLineLoadInteger(this, result);                \
+    if (instr->InputAt(0)->IsRegister()) {                                     \
+      auto offset = i.InputRegister(0);                                        \
+      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), ool->entry()); \
+      __ And(kScratchReg, offset, Operand(0xffffffff));                        \
+      __ Daddu(kScratchReg, i.InputRegister(2), kScratchReg);                  \
+      __ asm_instr(result, MemOperand(kScratchReg, 0));                        \
+    } else {                                                                   \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());            \
+      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1),               \
+                                      ool->entry());                           \
+      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));            \
+    }                                                                          \
+    __ bind(ool->exit());                                                      \
+  } while (0)
+
+#define ASSEMBLE_CHECKED_STORE_FLOAT(width, asm_instr)                   \
+  do {                                                                   \
+    Label done;                                                          \
+    if (instr->InputAt(0)->IsRegister()) {                               \
+      auto offset = i.InputRegister(0);                                  \
+      auto value = i.InputOrZero##width##Register(2);                    \
+      if (value.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {        \
+        __ Move(kDoubleRegZero, 0.0);                                    \
+      }                                                                  \
+      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), &done);  \
+      __ And(kScratchReg, offset, Operand(0xffffffff));                  \
+      __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);            \
+      __ asm_instr(value, MemOperand(kScratchReg, 0));                   \
+    } else {                                                             \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());      \
+      auto value = i.InputOrZero##width##Register(2);                    \
+      if (value.is(kDoubleRegZero) && !__ IsDoubleZeroRegSet()) {        \
+        __ Move(kDoubleRegZero, 0.0);                                    \
+      }                                                                  \
+      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1), &done); \
+      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));       \
+    }                                                                    \
+    __ bind(&done);                                                      \
+  } while (0)
+
+#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                        \
+  do {                                                                   \
+    Label done;                                                          \
+    if (instr->InputAt(0)->IsRegister()) {                               \
+      auto offset = i.InputRegister(0);                                  \
+      auto value = i.InputOrZeroRegister(2);                             \
+      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), &done);  \
+      __ And(kScratchReg, offset, Operand(0xffffffff));                  \
+      __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);            \
+      __ asm_instr(value, MemOperand(kScratchReg, 0));                   \
+    } else {                                                             \
+      int offset = static_cast<int>(i.InputOperand(0).immediate());      \
+      auto value = i.InputOrZeroRegister(2);                             \
+      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1), &done); \
+      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));       \
+    }                                                                    \
+    __ bind(&done);                                                      \
   } while (0)
 
 #define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(mode)                                  \

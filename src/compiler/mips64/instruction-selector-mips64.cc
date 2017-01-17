@@ -1854,6 +1854,15 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
                                                 : g.UseRegister(length)
                                           : g.UseRegister(length);
 
+  if (length->opcode() == IrOpcode::kInt32Constant) {
+    Int32Matcher m(length);
+    if (m.IsPowerOf2()) {
+      Emit(opcode, g.DefineAsRegister(node), offset_operand,
+           g.UseImmediate(length), g.UseRegister(buffer));
+      return;
+    }
+  }
+
   Emit(opcode | AddressingModeField::encode(kMode_MRI),
        g.DefineAsRegister(node), offset_operand, length_operand,
        g.UseRegister(buffer));
@@ -1905,6 +1914,15 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
                                                 ? g.UseImmediate(length)
                                                 : g.UseRegister(length)
                                           : g.UseRegister(length);
+
+  if (length->opcode() == IrOpcode::kInt32Constant) {
+    Int32Matcher m(length);
+    if (m.IsPowerOf2()) {
+      Emit(opcode, g.NoOutput(), offset_operand, g.UseImmediate(length),
+           g.UseRegisterOrImmediateZero(value), g.UseRegister(buffer));
+      return;
+    }
+  }
 
   Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
        offset_operand, length_operand, g.UseRegisterOrImmediateZero(value),
