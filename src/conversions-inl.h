@@ -57,7 +57,7 @@ inline unsigned int FastD2UI(double x) {
 #ifndef V8_TARGET_BIG_ENDIAN
     Address mantissa_ptr = reinterpret_cast<Address>(&x);
 #else
-    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kIntSize;
+    Address mantissa_ptr = reinterpret_cast<Address>(&x) + kInt32Size;
 #endif
     // Copy least significant 32 bits of mantissa.
     memcpy(&result, mantissa_ptr, sizeof(result));
@@ -123,13 +123,31 @@ bool IsUint32Double(double value) {
 }
 
 bool DoubleToUint32IfEqualToSelf(double value, uint32_t* uint32_value) {
-  if (value < 0) return false;
-  // TODO(leszeks): We maybe could be faster than FastD2UI here, since we only
-  // care about the value being valid if the conversion is valid.
-  uint32_t converted_value = FastD2UI(value);
-  if (FastUI2D(converted_value) == value) {
-    *uint32_value = converted_value;
-    return true;
+  const double k2Pow52 = 4503599627370496.0;
+  const uint32_t kValidTopBits = 0x43300000;
+  const uint64_t kBottomBitMask = V8_2PART_UINT64_C(0x00000000, FFFFFFFF);
+
+  // Add 2^52 to the double, to place valid uint32 values in the low-significant
+  // bits of the exponent, by effectively setting the (implicit) top bit of the
+  // significand. Note that this addition also normalises 0.0 and -0.0.
+  double shifted_value = value + k2Pow52;
+
+  // At this point, a valid uint32 valued double will be represented as:
+  //
+  // sign = 0
+  // exponent = 52
+  // significand = 1. 00...00 <value>
+  //       implicit^          ^^^^^^^ 32 bits
+  //                  ^^^^^^^^^^^^^^^ 52 bits
+  //
+  // Therefore, we can first check the top 32 bits to make sure that the sign,
+  // exponent and remaining significand bits are valid, and only then check the
+  // value in the bottom 32 bits.
+
+  uint64_t result = bit_cast<uint64_t>(shifted_value);
+  if ((result >> 32) == kValidTopBits) {
+    *uint32_value = result & kBottomBitMask;
+    return FastUI2D(result & kBottomBitMask) == value;
   }
   return false;
 }
