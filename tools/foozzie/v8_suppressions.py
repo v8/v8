@@ -73,6 +73,8 @@ IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
         re.compile(r'RangeError', re.S),
+    'crbug.com/667678':
+        re.compile(r'\[native code\]', re.S),
   },
   'validate_asm': {
     'validate_asm':
