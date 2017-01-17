@@ -86,6 +86,8 @@ IGNORE_OUTPUT = {
         re.compile(r'RangeError', re.S),
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
+    'crbug.com/681806':
+        re.compile(r'\[object WebAssembly\.Instance\]', re.S),
   },
   'validate_asm': {
     'validate_asm':
