@@ -3515,6 +3515,66 @@ TEST(MaybeAssignedParameters) {
   }
 }
 
+TEST(MaybeAssignedTopLevel) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+  i::Factory* factory = isolate->factory();
+
+  const char* prefixes[] = {
+      "let foo; ",          "let foo = 0; ",
+      "let [foo] = [1]; ",  "let {foo} = {foo: 2}; ",
+      "let {foo=3} = {}; ",
+  };
+  const char* sources[] = {
+      "function bar() {foo = 42}; ext(bar); ext(foo)",
+      "ext(function() {foo++}); ext(foo)",
+      "bar = () => --foo; ext(bar); ext(foo)",
+      "function* bar() {eval(ext)}; ext(bar); ext(foo)",
+  };
+
+  for (unsigned i = 0; i < arraysize(prefixes); ++i) {
+    const char* prefix = prefixes[i];
+    for (unsigned j = 0; j < arraysize(sources); ++j) {
+      const char* source = sources[j];
+      i::ScopedVector<char> program(Utf8LengthHelper(prefix) +
+                                    Utf8LengthHelper(source) + 1);
+      i::SNPrintF(program, "%s%s", prefix, source);
+      i::Zone zone(isolate->allocator(), ZONE_NAME);
+
+      i::Handle<i::String> string =
+          factory->InternalizeUtf8String(program.start());
+      string->PrintOn(stdout);
+      printf("\n");
+      i::Handle<i::Script> script = factory->NewScript(string);
+
+      for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
+        for (unsigned module = 0; module < 2; ++module) {
+          std::unique_ptr<i::ParseInfo> info;
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
+          info->set_module(module);
+          info->set_allow_lazy_parsing(allow_lazy);
+
+          CHECK(i::parsing::ParseProgram(info.get()));
+          CHECK(i::Compiler::Analyze(info.get()));
+
+          CHECK_NOT_NULL(info->literal());
+          i::Scope* scope = info->literal()->scope();
+          CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
+          CHECK_NULL(scope->sibling());
+          CHECK(module ? scope->is_module_scope() : scope->is_script_scope());
+
+          const i::AstRawString* var_name =
+              info->ast_value_factory()->GetOneByteString("foo");
+          i::Variable* var = scope->Lookup(var_name);
+          CHECK(var->is_used());
+          CHECK(var->maybe_assigned() == i::kMaybeAssigned);
+        }
+      }
+    }
+  }
+}
+
 namespace {
 
 i::Scope* DeserializeFunctionScope(i::Isolate* isolate, i::Zone* zone,

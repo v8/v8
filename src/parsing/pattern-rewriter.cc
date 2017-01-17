@@ -224,6 +224,14 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     } else {
       DCHECK_NOT_NULL(proxy);
       DCHECK_NOT_NULL(proxy->var());
+      if (var_init_scope->is_script_scope() ||
+          var_init_scope->is_module_scope()) {
+        // We have to pessimistically assume that top-level variables will be
+        // assigned.  This is because there may be lazily parsed top-level
+        // functions, which, for efficiency, we preparse without variable
+        // tracking.
+        proxy->set_is_assigned();
+      }
     }
     // Add break location for destructured sub-pattern.
     int pos = IsSubPattern() ? pattern->position() : value->position();
