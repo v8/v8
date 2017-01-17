@@ -149,11 +149,10 @@ Handle<Map> MapUpdater::Update() {
   return result_map_;
 }
 
-MapUpdater::State MapUpdater::CopyGeneralizeAllRepresentations(
-    const char* reason) {
+MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
   StoreMode store_mode =
       modified_descriptor_ >= 0 ? FORCE_FIELD : ALLOW_IN_DESCRIPTOR;
-  result_map_ = Map::CopyGeneralizeAllRepresentations(
+  result_map_ = Map::CopyGeneralizeAllFields(
       old_map_, new_elements_kind_, modified_descriptor_, store_mode, new_kind_,
       new_attributes_, reason);
   state_ = kEnd;
@@ -210,7 +209,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
   root_map_ = handle(old_map_->FindRootMap(), isolate_);
   int root_nof = root_map_->NumberOfOwnDescriptors();
   if (!old_map_->EquivalentToForTransition(*root_map_)) {
-    return CopyGeneralizeAllRepresentations("GenAll_NotEquivalent");
+    return CopyGeneralizeAllFields("GenAll_NotEquivalent");
   }
 
   ElementsKind from_kind = root_map_->elements_kind();
@@ -221,7 +220,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
       to_kind != SLOW_SLOPPY_ARGUMENTS_ELEMENTS &&
       !(IsTransitionableFastElementsKind(from_kind) &&
         IsMoreGeneralElementsKindTransition(from_kind, to_kind))) {
-    return CopyGeneralizeAllRepresentations("GenAll_InvalidElementsTransition");
+    return CopyGeneralizeAllFields("GenAll_InvalidElementsTransition");
   }
 
   if (modified_descriptor_ >= 0 && modified_descriptor_ < root_nof) {
@@ -229,13 +228,13 @@ MapUpdater::State MapUpdater::FindRootMap() {
         old_descriptors_->GetDetails(modified_descriptor_);
     if (old_details.kind() != new_kind_ ||
         old_details.attributes() != new_attributes_) {
-      return CopyGeneralizeAllRepresentations("GenAll_RootModification1");
+      return CopyGeneralizeAllFields("GenAll_RootModification1");
     }
     if (!new_representation_.fits_into(old_details.representation())) {
-      return CopyGeneralizeAllRepresentations("GenAll_RootModification2");
+      return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
     if (old_details.location() != kField) {
-      return CopyGeneralizeAllRepresentations("GenAll_RootModification3");
+      return CopyGeneralizeAllFields("GenAll_RootModification3");
     }
     DCHECK_EQ(kData, old_details.kind());
     DCHECK_EQ(kData, new_kind_);
@@ -243,7 +242,7 @@ MapUpdater::State MapUpdater::FindRootMap() {
     FieldType* old_field_type =
         old_descriptors_->GetFieldType(modified_descriptor_);
     if (!new_field_type_->NowIs(old_field_type)) {
-      return CopyGeneralizeAllRepresentations("GenAll_RootModification4");
+      return CopyGeneralizeAllFields("GenAll_RootModification4");
     }
   }
 
@@ -277,7 +276,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (old_details.kind() == kAccessor &&
         !EqualImmutableValues(GetValue(i), tmp_descriptors->GetValue(i))) {
       // TODO(ishell): mutable accessors are not implemented yet.
-      return CopyGeneralizeAllRepresentations("GenAll_Incompatible");
+      return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
     // Check if old location fits into tmp location.
     if (!LocationFitsInto(old_details.location(), tmp_details.location())) {
@@ -353,7 +352,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
 #endif
     if (old_details.kind() == kAccessor &&
         !EqualImmutableValues(GetValue(i), tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations("GenAll_Incompatible");
+      return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
     DCHECK(!tmp_map->is_deprecated());
     target_map_ = tmp_map;
@@ -562,7 +561,7 @@ MapUpdater::State MapUpdater::ConstructNewMap() {
   // could be inserted regardless of whether transitions array is full or not.
   if (maybe_transition == NULL &&
       !TransitionArray::CanHaveMoreTransitions(split_map)) {
-    return CopyGeneralizeAllRepresentations("GenAll_CantHaveMoreTransitions");
+    return CopyGeneralizeAllFields("GenAll_CantHaveMoreTransitions");
   }
 
   old_map_->NotifyLeafMapLayoutChange();

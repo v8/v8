@@ -3703,8 +3703,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
       }
 
       Handle<Object> map_object = materializer.At(value_index);
-      Handle<Map> map =
-          Map::GeneralizeAllFieldRepresentations(Handle<Map>::cast(map_object));
+      Handle<Map> map = Map::GeneralizeAllFields(Handle<Map>::cast(map_object));
       switch (map->instance_type()) {
         case MUTABLE_HEAP_NUMBER_TYPE:
         case HEAP_NUMBER_TYPE: {

@@ -3892,23 +3892,31 @@ int Map::NumberOfFields() {
   return result;
 }
 
-Handle<Map> Map::CopyGeneralizeAllRepresentations(
-    Handle<Map> map, ElementsKind elements_kind, int modify_index,
-    StoreMode store_mode, PropertyKind kind, PropertyAttributes attributes,
-    const char* reason) {
+void DescriptorArray::GeneralizeAllFields() {
+  int length = number_of_descriptors();
+  for (int i = 0; i < length; i++) {
+    PropertyDetails details = GetDetails(i);
+    details = details.CopyWithRepresentation(Representation::Tagged());
+    if (details.location() == kField) {
+      DCHECK_EQ(kData, details.kind());
+      SetValue(i, FieldType::Any());
+    }
+    set(ToDetailsIndex(i), details.AsSmi());
+  }
+}
+
+Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
+                                         ElementsKind elements_kind,
+                                         int modify_index, StoreMode store_mode,
+                                         PropertyKind kind,
+                                         PropertyAttributes attributes,
+                                         const char* reason) {
   Isolate* isolate = map->GetIsolate();
   Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   Handle<DescriptorArray> descriptors =
       DescriptorArray::CopyUpTo(old_descriptors, number_of_own_descriptors);
-
-  for (int i = 0; i < number_of_own_descriptors; i++) {
-    descriptors->SetRepresentation(i, Representation::Tagged());
-    if (descriptors->GetDetails(i).location() == kField) {
-      DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
-      descriptors->SetValue(i, FieldType::Any());
-    }
-  }
+  descriptors->GeneralizeAllFields();
 
   Handle<LayoutDescriptor> new_layout_descriptor(
       LayoutDescriptor::FastPointerLayout(), isolate);
@@ -4169,9 +4177,8 @@ Handle<Map> Map::ReconfigureElementsKind(Handle<Map> map,
   return mu.ReconfigureElementsKind(new_elements_kind);
 }
 
-// Generalize the representation of all DATA descriptors.
-Handle<Map> Map::GeneralizeAllFieldRepresentations(
-    Handle<Map> map) {
+// Generalize all fields and update the transition tree.
+Handle<Map> Map::GeneralizeAllFields(Handle<Map> map) {
   Isolate* isolate = map->GetIsolate();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
@@ -8843,14 +8850,7 @@ Handle<Map> Map::CopyReplaceDescriptors(
       CHECK(maybe_name.ToHandle(&name));
       ConnectTransition(map, result, name, simple_flag);
     } else {
-      int length = descriptors->number_of_descriptors();
-      for (int i = 0; i < length; i++) {
-        descriptors->SetRepresentation(i, Representation::Tagged());
-        if (descriptors->GetDetails(i).location() == kField) {
-          DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
-          descriptors->SetValue(i, FieldType::Any());
-        }
-      }
+      descriptors->GeneralizeAllFields();
       result->InitializeDescriptors(*descriptors,
                                     LayoutDescriptor::FastPointerLayout());
     }
@@ -9258,9 +9258,9 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   if (!map->GetBackPointer()->IsMap()) {
     // There is no benefit from reconstructing transition tree for maps without
     // back pointers.
-    return CopyGeneralizeAllRepresentations(
-        map, map->elements_kind(), descriptor, FORCE_FIELD, kind, attributes,
-        "GenAll_AttributesMismatchProtoMap");
+    return CopyGeneralizeAllFields(map, map->elements_kind(), descriptor,
+                                   FORCE_FIELD, kind, attributes,
+                                   "GenAll_AttributesMismatchProtoMap");
   }
 
   if (FLAG_trace_generalization) {

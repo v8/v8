@@ -1237,7 +1237,7 @@ struct CheckUnrelated {
 
 // Checks that given |map| is NOT deprecated, and |new_map| is a result of
 // copy-generalize-all-representations.
-struct CheckCopyGeneralizeAllRepresentations {
+struct CheckCopyGeneralizeAllFields {
   void Check(Handle<Map> map, Handle<Map> new_map, Expectations& expectations) {
     CHECK(!map->is_deprecated());
     CHECK_NE(*map, *new_map);
@@ -1509,11 +1509,11 @@ TEST(ReconfigureDataFieldAttribute_AccConstantToAccFieldAfterTargetMap) {
 
   TestConfig config;
   if (IS_ACCESSOR_FIELD_SUPPORTED) {
-    CheckCopyGeneralizeAllRepresentations checker;
+    CheckCopyGeneralizeAllFields checker;
     TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
   } else {
     // Currently we have a copy-generalize-all-representations case.
-    CheckCopyGeneralizeAllRepresentations checker;
+    CheckCopyGeneralizeAllFields checker;
     TestReconfigureProperty_CustomPropertyAfterTargetMap(config, checker);
   }
 }

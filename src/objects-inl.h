@@ -3075,15 +3075,6 @@ void DescriptorArray::SetSortedKey(int descriptor_index, int pointer) {
 }
 
 
-void DescriptorArray::SetRepresentation(int descriptor_index,
-                                        Representation representation) {
-  DCHECK(!representation.IsNone());
-  PropertyDetails details = GetDetails(descriptor_index);
-  set(ToDetailsIndex(descriptor_index),
-      details.CopyWithRepresentation(representation).AsSmi());
-}
-
-
 Object** DescriptorArray::GetValueSlot(int descriptor_number) {
   DCHECK(descriptor_number < number_of_descriptors());
   return RawFieldOfElementAt(ToValueIndex(descriptor_number));

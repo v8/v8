@@ -3244,8 +3244,6 @@ class DescriptorArray: public FixedArray {
   inline Name* GetSortedKey(int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
   inline void SetSortedKey(int pointer, int descriptor_number);
-  inline void SetRepresentation(int descriptor_number,
-                                Representation representation);
 
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
@@ -3253,6 +3251,9 @@ class DescriptorArray: public FixedArray {
   inline void Set(int descriptor_number, Name* key, Object* value,
                   PropertyDetails details);
   void Replace(int descriptor_number, Descriptor* descriptor);
+
+  // Generalizes representation and field type of all field descriptors.
+  void GeneralizeAllFields();
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -6037,7 +6038,7 @@ class Map: public HeapObject {
                               int target_inobject, int target_unused,
                               int* old_number_of_fields);
   // TODO(ishell): moveit!
-  static Handle<Map> GeneralizeAllFieldRepresentations(Handle<Map> map);
+  static Handle<Map> GeneralizeAllFields(Handle<Map> map);
   MUST_USE_RESULT static Handle<FieldType> GeneralizeFieldType(
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);
@@ -6496,7 +6497,7 @@ class Map: public HeapObject {
                                     PropertyNormalizationMode mode);
 
   // TODO(ishell): Move to MapUpdater.
-  static Handle<Map> CopyGeneralizeAllRepresentations(
+  static Handle<Map> CopyGeneralizeAllFields(
       Handle<Map> map, ElementsKind elements_kind, int modify_index,
       StoreMode store_mode, PropertyKind kind, PropertyAttributes attributes,
       const char* reason);
