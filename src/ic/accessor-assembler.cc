@@ -690,14 +690,13 @@ void AccessorAssemblerImpl::HandleStoreFieldAndReturn(
   Node* prepared_value = PrepareValueForStore(
       handler_word, holder, representation, transition, value, miss);
 
-  Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
   Label if_inobject(this), if_out_of_object(this);
   Branch(IsSetWord<StoreHandler::IsInobjectBits>(handler_word), &if_inobject,
          &if_out_of_object);
 
   Bind(&if_inobject);
   {
-    StoreNamedField(holder, offset, true, representation, prepared_value,
+    StoreNamedField(handler_word, holder, true, representation, prepared_value,
                     transition_to_field);
     if (transition_to_field) {
       StoreMap(holder, transition);
@@ -719,7 +718,7 @@ void AccessorAssemblerImpl::HandleStoreFieldAndReturn(
       Bind(&storage_extended);
     }
 
-    StoreNamedField(holder, offset, false, representation, prepared_value,
+    StoreNamedField(handler_word, holder, false, representation, prepared_value,
                     transition_to_field);
     if (transition_to_field) {
       StoreMap(holder, transition);
@@ -799,7 +798,7 @@ void AccessorAssemblerImpl::ExtendPropertiesBackingStore(Node* object) {
   StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
 }
 
-void AccessorAssemblerImpl::StoreNamedField(Node* object, Node* offset,
+void AccessorAssemblerImpl::StoreNamedField(Node* handler_word, Node* object,
                                             bool is_inobject,
                                             Representation representation,
                                             Node* value,
@@ -810,6 +809,7 @@ void AccessorAssemblerImpl::StoreNamedField(Node* object, Node* offset,
     property_storage = LoadProperties(object);
   }
 
+  Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
   if (representation.IsDouble()) {
     if (!FLAG_unbox_double_fields || !is_inobject) {
       if (transition_to_field) {

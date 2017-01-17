@@ -167,7 +167,7 @@ class AccessorAssemblerImpl : public CodeStubAssembler {
   // Extends properties backing store by JSObject::kFieldsAdded elements.
   void ExtendPropertiesBackingStore(Node* object);
 
-  void StoreNamedField(Node* object, Node* offset, bool is_inobject,
+  void StoreNamedField(Node* handler_word, Node* object, bool is_inobject,
                        Representation representation, Node* value,
                        bool transition_to_field);
 
