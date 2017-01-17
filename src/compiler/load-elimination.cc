@@ -535,7 +535,7 @@ LoadElimination::AbstractState::KillFields(Node* object, Zone* zone) const {
       AbstractField const* that_field = this_field->Kill(object, zone);
       if (that_field != this_field) {
         AbstractState* that = new (zone) AbstractState(*this);
-        that->fields_[i] = this_field;
+        that->fields_[i] = that_field;
         while (++i < arraysize(fields_)) {
           if (this->fields_[i] != nullptr) {
             that->fields_[i] = this->fields_[i]->Kill(object, zone);

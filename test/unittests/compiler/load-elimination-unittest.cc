@@ -174,6 +174,46 @@ TEST_F(LoadEliminationTest, StoreFieldAndLoadField) {
   EXPECT_EQ(value, r.replacement());
 }
 
+TEST_F(LoadEliminationTest, StoreFieldAndKillFields) {
+  Node* object = Parameter(Type::Any(), 0);
+  Node* value = Parameter(Type::Any(), 1);
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+
+  FieldAccess access1 = {kTaggedBase,         kPointerSize,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::Any(),         MachineType::AnyTagged(),
+                        kNoWriteBarrier};
+
+  // Offset that out of field cache size.
+  FieldAccess access2 = {kTaggedBase,         2048 * kPointerSize,
+                        MaybeHandle<Name>(), MaybeHandle<Map>(),
+                        Type::Any(),         MachineType::AnyTagged(),
+                        kNoWriteBarrier};
+
+  StrictMock<MockAdvancedReducerEditor> editor;
+  LoadElimination load_elimination(&editor, jsgraph(), zone());
+
+  load_elimination.Reduce(graph()->start());
+
+  Node* store1 = effect = graph()->NewNode(simplified()->StoreField(access1),
+                                          object, value, effect, control);
+  load_elimination.Reduce(store1);
+
+  // Invalidate caches of object.
+  Node* store2 = effect = graph()->NewNode(simplified()->StoreField(access2),
+                                         object, value, effect, control);
+  load_elimination.Reduce(store2);
+
+  Node* store3 = graph()->NewNode(simplified()->StoreField(access1),
+                                          object, value, effect, control);
+
+  Reduction r = load_elimination.Reduce(store3);
+
+  // store3 shall not be replaced, since caches were invalidated.
+  EXPECT_EQ(store3, r.replacement());
+}
+
 TEST_F(LoadEliminationTest, StoreFieldAndStoreElementAndLoadField) {
   Node* object = Parameter(Type::Any(), 0);
   Node* value = Parameter(Type::Any(), 1);
