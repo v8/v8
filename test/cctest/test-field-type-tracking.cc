@@ -455,7 +455,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*map));
 
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::None(), none_type, FORCE_FIELD);
+      map, 0, kData, NONE, Representation::None(), none_type);
   // |map| did not change except marked unstable.
   CHECK(!map->is_deprecated());
   CHECK(!map->is_stable());
@@ -468,7 +468,7 @@ TEST(ReconfigureAccessorToNonExistingDataField) {
   CHECK(expectations.Check(*new_map));
 
   Handle<Map> new_map2 = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::None(), none_type, FORCE_FIELD);
+      map, 0, kData, NONE, Representation::None(), none_type);
   CHECK_EQ(*new_map, *new_map2);
 
   Handle<Object> value(Smi::kZero, isolate);
@@ -592,7 +592,7 @@ static void TestGeneralizeRepresentation(
   if (is_detached_map) {
     detach_point_map = Map::ReconfigureProperty(
         detach_point_map, detach_property_at_index, kData, NONE,
-        Representation::Tagged(), any_type, FORCE_FIELD);
+        Representation::Tagged(), any_type);
     expectations.SetDataField(detach_property_at_index,
                               Representation::Tagged(), any_type);
     CHECK(map->is_deprecated());
@@ -607,9 +607,8 @@ static void TestGeneralizeRepresentation(
 
   dependencies.AssumeFieldOwner(field_owner);
 
-  Handle<Map> new_map =
-      Map::ReconfigureProperty(map, property_index, kData, NONE,
-                               to_representation, to_type, FORCE_FIELD);
+  Handle<Map> new_map = Map::ReconfigureProperty(
+      map, property_index, kData, NONE, to_representation, to_type);
 
   expectations.SetDataField(property_index, expected_representation,
                             expected_type);
@@ -900,7 +899,7 @@ TEST(GeneralizeRepresentationWithAccessorProperties) {
       continue;
     }
     Handle<Map> new_map = Map::ReconfigureProperty(
-        map, i, kData, NONE, Representation::Double(), any_type, FORCE_FIELD);
+        map, i, kData, NONE, Representation::Double(), any_type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, Representation::Double(), any_type);
@@ -1854,8 +1853,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
     }
 
     map2 = Map::ReconfigureProperty(map2, kSplitProp, kData, NONE,
-                                    Representation::Double(), any_type,
-                                    FORCE_FIELD);
+                                    Representation::Double(), any_type);
     expectations.SetDataField(kSplitProp, Representation::Double(), any_type);
 
     CHECK(expectations.Check(*split_map, kSplitProp));
@@ -1954,8 +1952,8 @@ static void TestGeneralizeRepresentationWithSpecialTransition(
   // Create new maps by generalizing representation of propX field.
   Handle<Map> maps[kPropCount];
   for (int i = 0; i < kPropCount; i++) {
-    Handle<Map> new_map = Map::ReconfigureProperty(
-        map, i, kData, NONE, to_representation, to_type, FORCE_FIELD);
+    Handle<Map> new_map = Map::ReconfigureProperty(map, i, kData, NONE,
+                                                   to_representation, to_type);
     maps[i] = new_map;
 
     expectations.SetDataField(i, expected_representation, expected_type);

@@ -1534,7 +1534,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
 
   // Shift fields right by turning constant property to a field.
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::Tagged(), any_type, FORCE_FIELD);
+      map, 0, kData, NONE, Representation::Tagged(), any_type);
 
   if (write_barrier_kind == OLD_TO_NEW_WRITE_BARRIER) {
     TestWriteBarrier(map, new_map, 2, 1);

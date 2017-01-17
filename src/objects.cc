@@ -3907,8 +3907,7 @@ void DescriptorArray::GeneralizeAllFields() {
 
 Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
                                          ElementsKind elements_kind,
-                                         int modify_index, StoreMode store_mode,
-                                         PropertyKind kind,
+                                         int modify_index, PropertyKind kind,
                                          PropertyAttributes attributes,
                                          const char* reason) {
   Isolate* isolate = map->GetIsolate();
@@ -3927,8 +3926,7 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
   // Unless the instance is being migrated, ensure that modify_index is a field.
   if (modify_index >= 0) {
     PropertyDetails details = descriptors->GetDetails(modify_index);
-    if (store_mode == FORCE_FIELD &&
-        (details.location() != kField || details.attributes() != attributes)) {
+    if (details.location() != kField || details.attributes() != attributes) {
       int field_index = details.location() == kField
                             ? details.field_index()
                             : new_map->NumberOfFields();
@@ -3955,8 +3953,7 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
       }
       map->PrintGeneralization(
           stdout, reason, modify_index, new_map->NumberOfOwnDescriptors(),
-          new_map->NumberOfOwnDescriptors(),
-          details.location() == kDescriptor && store_mode == FORCE_FIELD,
+          new_map->NumberOfOwnDescriptors(), details.location() == kDescriptor,
           details.representation(), Representation::Tagged(), field_type,
           MaybeHandle<Object>(), FieldType::Any(isolate),
           MaybeHandle<Object>());
@@ -4161,8 +4158,7 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
                                      PropertyKind new_kind,
                                      PropertyAttributes new_attributes,
                                      Representation new_representation,
-                                     Handle<FieldType> new_field_type,
-                                     StoreMode store_mode) {
+                                     Handle<FieldType> new_field_type) {
   DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
   MapUpdater mu(map->GetIsolate(), map);
   return mu.ReconfigureToDataField(modify_index, new_attributes,
@@ -9258,8 +9254,8 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   if (!map->GetBackPointer()->IsMap()) {
     // There is no benefit from reconstructing transition tree for maps without
     // back pointers.
-    return CopyGeneralizeAllFields(map, map->elements_kind(), descriptor,
-                                   FORCE_FIELD, kind, attributes,
+    return CopyGeneralizeAllFields(map, map->elements_kind(), descriptor, kind,
+                                   attributes,
                                    "GenAll_AttributesMismatchProtoMap");
   }
 

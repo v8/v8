@@ -241,10 +241,6 @@ enum WriteBarrierMode {
 };
 
 
-// Indicates whether a value can be loaded as a constant.
-enum StoreMode { ALLOW_IN_DESCRIPTOR, FORCE_FIELD };
-
-
 // PropertyNormalizationMode is used to specify whether to keep
 // inobject properties when normalizing properties of a JSObject.
 enum PropertyNormalizationMode {
@@ -6050,8 +6046,7 @@ class Map: public HeapObject {
                                          PropertyKind new_kind,
                                          PropertyAttributes new_attributes,
                                          Representation new_representation,
-                                         Handle<FieldType> new_field_type,
-                                         StoreMode store_mode);
+                                         Handle<FieldType> new_field_type);
 
   static Handle<Map> ReconfigureElementsKind(Handle<Map> map,
                                              ElementsKind new_elements_kind);
@@ -6499,8 +6494,7 @@ class Map: public HeapObject {
   // TODO(ishell): Move to MapUpdater.
   static Handle<Map> CopyGeneralizeAllFields(
       Handle<Map> map, ElementsKind elements_kind, int modify_index,
-      StoreMode store_mode, PropertyKind kind, PropertyAttributes attributes,
-      const char* reason);
+      PropertyKind kind, PropertyAttributes attributes, const char* reason);
 
   // Fires when the layout of an object with a leaf map changes.
   // This includes adding transitions to the leaf map or changing

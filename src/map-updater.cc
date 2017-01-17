@@ -150,11 +150,9 @@ Handle<Map> MapUpdater::Update() {
 }
 
 MapUpdater::State MapUpdater::CopyGeneralizeAllFields(const char* reason) {
-  StoreMode store_mode =
-      modified_descriptor_ >= 0 ? FORCE_FIELD : ALLOW_IN_DESCRIPTOR;
-  result_map_ = Map::CopyGeneralizeAllFields(
-      old_map_, new_elements_kind_, modified_descriptor_, store_mode, new_kind_,
-      new_attributes_, reason);
+  result_map_ = Map::CopyGeneralizeAllFields(old_map_, new_elements_kind_,
+                                             modified_descriptor_, new_kind_,
+                                             new_attributes_, reason);
   state_ = kEnd;
   return state_;  // Done.
 }
