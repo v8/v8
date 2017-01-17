@@ -2160,8 +2160,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ Branch(&create_arguments, eq, arguments_list_map, Operand(at));
 
     // Check if argumentsList is a fast JSArray.
-    __ ld(v0, FieldMemOperand(a2, HeapObject::kMapOffset));
-    __ lbu(v0, FieldMemOperand(v0, Map::kInstanceTypeOffset));
+    __ lbu(v0, FieldMemOperand(a2, Map::kInstanceTypeOffset));
     __ Branch(&create_array, eq, v0, Operand(JS_ARRAY_TYPE));
 
     // Ask the runtime to create the list (actually a FixedArray).
@@ -2191,7 +2190,8 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     // protector is intact and our prototype is the Array.prototype actually.
     __ bind(&create_holey_array);
     __ ld(a2, FieldMemOperand(a2, Map::kPrototypeOffset));
-    __ ld(at, ContextMemOperand(t0, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+    __ ld(at, ContextMemOperand(native_context,
+                                Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
     __ Branch(&create_runtime, ne, a2, Operand(at));
     __ LoadRoot(at, Heap::kArrayProtectorRootIndex);
     __ lw(a2, UntagSmiFieldMemOperand(at, PropertyCell::kValueOffset));
@@ -2203,16 +2203,14 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
 
     // Try to create the list from a JSArray object.
     __ bind(&create_array);
-    __ ld(a2, FieldMemOperand(a2, Map::kBitField2Offset));
-    __ DecodeField<Map::ElementsKindBits>(a2);
+    __ lbu(t1, FieldMemOperand(a2, Map::kBitField2Offset));
+    __ DecodeField<Map::ElementsKindBits>(t1);
     STATIC_ASSERT(FAST_SMI_ELEMENTS == 0);
     STATIC_ASSERT(FAST_ELEMENTS == 2);
     STATIC_ASSERT(FAST_HOLEY_ELEMENTS == 3);
-    __ Branch(&create_holey_array, eq, a2, Operand(FAST_HOLEY_SMI_ELEMENTS));
-    __ Branch(&create_holey_array, eq, a2, Operand(FAST_HOLEY_ELEMENTS));
-    __ andi(a2, a2, uint16_t(~FAST_ELEMENTS));  // works if enum ElementsKind
-    // has less than 2^16 elements
-    __ Branch(&create_runtime, ne, a2, Operand(int64_t(0)));
+    __ Branch(&create_holey_array, eq, t1, Operand(FAST_HOLEY_SMI_ELEMENTS));
+    __ Branch(&create_holey_array, eq, t1, Operand(FAST_HOLEY_ELEMENTS));
+    __ Branch(&create_runtime, hi, t1, Operand(FAST_ELEMENTS));
     __ lw(a2, UntagSmiFieldMemOperand(arguments_list, JSArray::kLengthOffset));
     __ ld(a0, FieldMemOperand(arguments_list, JSArray::kElementsOffset));
 
