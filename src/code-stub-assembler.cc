@@ -2012,7 +2012,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
                                              allocation_site, size);
 
   Node* elements = InnerAllocate(array, elements_offset);
-  StoreObjectField(array, JSObject::kElementsOffset, elements);
+  StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset, elements);
 
   return {array, elements};
 }
@@ -2043,23 +2043,32 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                          Node* capacity, Node* length,
                                          Node* allocation_site,
                                          ParameterMode capacity_mode) {
-  // Allocate both array and elements object, and initialize the JSArray.
-  Node *array, *elements;
-  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-      kind, array_map, length, allocation_site, capacity, capacity_mode);
-  // Setup elements object.
-  Heap::RootListIndex elements_map_index =
-      IsFastDoubleElementsKind(kind) ? Heap::kFixedDoubleArrayMapRootIndex
-                                     : Heap::kFixedArrayMapRootIndex;
-  DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
-  StoreMapNoWriteBarrier(elements, elements_map_index);
-  StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                 ParameterToTagged(capacity, capacity_mode));
-
-  // Fill in the elements with holes.
-  FillFixedArrayWithValue(kind, elements, IntPtrOrSmiConstant(0, capacity_mode),
-                          capacity, Heap::kTheHoleValueRootIndex,
-                          capacity_mode);
+  Node *array = nullptr, *elements = nullptr;
+  int32_t constant_capacity;
+  if (ToInt32Constant(capacity, constant_capacity) && constant_capacity == 0) {
+    // Array is empty. Use the shared empty fixed array instead of allocating a
+    // new one.
+    array = AllocateUninitializedJSArrayWithoutElements(kind, array_map, length,
+                                                        nullptr);
+    StoreObjectFieldRoot(array, JSArray::kElementsOffset,
+                         Heap::kEmptyFixedArrayRootIndex);
+  } else {
+    // Allocate both array and elements object, and initialize the JSArray.
+    std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+        kind, array_map, length, allocation_site, capacity, capacity_mode);
+    // Setup elements object.
+    Heap::RootListIndex elements_map_index =
+        IsFastDoubleElementsKind(kind) ? Heap::kFixedDoubleArrayMapRootIndex
+                                       : Heap::kFixedArrayMapRootIndex;
+    DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
+    StoreMapNoWriteBarrier(elements, elements_map_index);
+    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
+                                   ParameterToTagged(capacity, capacity_mode));
+    // Fill in the elements with holes.
+    FillFixedArrayWithValue(kind, elements,
+                            IntPtrOrSmiConstant(0, capacity_mode), capacity,
+                            Heap::kTheHoleValueRootIndex, capacity_mode);
+  }
 
   return array;
 }
