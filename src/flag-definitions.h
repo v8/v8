@@ -255,10 +255,16 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
+// Flags for future configurations.
 DEFINE_BOOL(future, false,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 DEFINE_IMPLICATION(future, ignition_staging)
+
+DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
+DEFINE_IMPLICATION(ignition_staging, ignition)
+DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
+DEFINE_IMPLICATION(ignition_staging, validate_asm)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -300,9 +306,6 @@ DEFINE_BOOL(string_slices, true, "use string slices")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition, false, "use ignition interpreter")
-DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
-DEFINE_IMPLICATION(ignition_staging, ignition)
-DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
 DEFINE_STRING(ignition_filter, "*", "filter for ignition interpreter")
 DEFINE_BOOL(ignition_deadcode, true,
             "use ignition dead code elimination optimizer")
@@ -520,7 +523,6 @@ DEFINE_BOOL(wasm_loop_assignment_analysis, true,
             "perform loop assignment analysis for WASM")
 
 DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
-DEFINE_IMPLICATION(ignition_staging, validate_asm)
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")

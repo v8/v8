@@ -8,10 +8,13 @@
 #include "src/base/platform/semaphore.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
+#include "src/compiler.h"
 #include "src/flags.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
+#include "src/parsing/parse-info.h"
 #include "src/v8.h"
+#include "src/zone/zone.h"
 #include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -800,6 +803,98 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
   platform.ClearIdleTask();
   ASSERT_TRUE(platform.BackgroundTasksPending());
   platform.ClearBackgroundTasks();
+}
+
+TEST_F(CompilerDispatcherTest, EnqueueParsed) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f17(x) { return x * y }; return f17; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared);
+  ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_TRUE(dispatcher.Enqueue(shared, parse_info.literal()));
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kAnalyzed);
+
+  ASSERT_TRUE(platform.IdleTaskPending());
+  platform.ClearIdleTask();
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+}
+
+TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script[] =
+      "function g() { var y = 1; function f18(x) { return x * y }; return f18; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared);
+  ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(shared, parse_info.literal()));
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+  platform.ClearIdleTask();
+  platform.ClearBackgroundTasks();
+}
+
+TEST_F(CompilerDispatcherTest, FinishAllNow) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script1[] =
+      "function g() { var y = 1; function f19(x) { return x + y }; return f19; "
+      "} g();";
+  Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
+  Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
+
+  const char script2[] =
+      "function g() { var y = 1; function f20(x) { return x * y }; return f20; "
+      "} g();";
+  Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
+  Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
+
+  ASSERT_FALSE(shared1->is_compiled());
+  ASSERT_FALSE(shared2->is_compiled());
+
+  // Enqueue shared1 as already parsed.
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared1);
+  ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
+  ASSERT_TRUE(dispatcher.Enqueue(shared1, parse_info.literal()));
+
+  // Enqueue shared2 for parsing and compiling
+  ASSERT_TRUE(dispatcher.Enqueue(shared2));
+
+  ASSERT_TRUE(dispatcher.FinishAllNow());
+
+  // Finishing removes the SFI from the queue.
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared1));
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared2));
+  ASSERT_TRUE(shared1->is_compiled());
+  ASSERT_TRUE(shared2->is_compiled());
+  ASSERT_TRUE(platform.IdleTaskPending());
+  platform.ClearIdleTask();
 }
 
 }  // namespace internal
