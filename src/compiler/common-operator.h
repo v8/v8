@@ -49,6 +49,9 @@ V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
 // Deoptimize reason for Deoptimize, DeoptimizeIf and DeoptimizeUnless.
 DeoptimizeReason DeoptimizeReasonOf(Operator const* const);
 
+// Helper function for return nodes, because returns have a hidden value input.
+int ValueInputCountOfReturn(Operator const* const op);
+
 // Deoptimize bailout kind.
 enum class DeoptimizeKind : uint8_t { kEager, kSoft };
 

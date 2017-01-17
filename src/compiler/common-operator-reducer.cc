@@ -287,7 +287,6 @@ Reduction CommonOperatorReducer::ReducePhi(Node* node) {
 
 Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
   DCHECK_EQ(IrOpcode::kReturn, node->opcode());
-  Node* const value = node->InputAt(1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* const control = NodeProperties::GetControlInput(node);
   bool changed = false;
@@ -298,6 +297,11 @@ Reduction CommonOperatorReducer::ReduceReturn(Node* node) {
     NodeProperties::ReplaceEffectInput(node, effect);
     changed = true;
   }
+  // TODO(ahaas): Extend the reduction below to multiple return values.
+  if (ValueInputCountOfReturn(node->op()) != 1) {
+    return NoChange();
+  }
+  Node* const value = node->InputAt(1);
   if (value->opcode() == IrOpcode::kPhi &&
       NodeProperties::GetControlInput(value) == control &&
       effect->opcode() == IrOpcode::kEffectPhi &&

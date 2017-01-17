@@ -43,6 +43,13 @@ DeoptimizeReason DeoptimizeReasonOf(Operator const* const op) {
   return OpParameter<DeoptimizeReason>(op);
 }
 
+int ValueInputCountOfReturn(Operator const* const op) {
+  DCHECK(op->opcode() == IrOpcode::kReturn);
+  // Return nodes have a hidden input at index 0 which we ignore in the value
+  // input count.
+  return op->ValueInputCount() - 1;
+}
+
 size_t hash_value(DeoptimizeKind kind) { return static_cast<size_t>(kind); }
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
