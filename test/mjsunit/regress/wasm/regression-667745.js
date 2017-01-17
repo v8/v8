@@ -11,12 +11,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   var builder = new WasmModuleBuilder();
   builder.addFunction("test", kSig_i_iii)
     .addBody([
-kExprI8Const, 0xcb,
+kExprI32Const, 0x0b,
 kExprI32Clz,
 kExprI32Clz,
 kExprI32Clz,
 kExprI32Const, 0x67,
-kExprI8Const, 0x67,
+kExprI32Const, 0x07,
 kExprI32Clz,
 kExprI32Clz,
 kExprI32Clz,
@@ -407,7 +407,7 @@ kExprNop,
 kExprI64DivU,
 kExprUnreachable,
 kExprI32GeS,
-kExprI8Const, 0xcb,
+kExprI32Const, 0x0b,
             ])
             .exportFunc();
   var module = builder.instantiate();

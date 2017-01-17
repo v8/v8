@@ -225,6 +225,15 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
   if (update_length != kDontChangeLength) {
     CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(receiver_map),
                                  Int32Constant(JS_ARRAY_TYPE)));
+    // Check if the length property is writable. The fast check is only
+    // supported for fast properties.
+    GotoIf(IsDictionaryMap(receiver_map), slow);
+    // The length property is non-configurable, so it's guaranteed to always
+    // be the first property.
+    Node* descriptors = LoadMapDescriptors(receiver_map);
+    Node* details =
+        LoadFixedArrayElement(descriptors, DescriptorArray::ToDetailsIndex(0));
+    GotoIf(IsSetSmi(details, PropertyDetails::kAttributesReadOnlyMask), slow);
   }
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
   const int kHeaderSize = FixedArray::kHeaderSize - kHeapObjectTag;
@@ -362,8 +371,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Try to store the value as a double.
     {
       Label non_number_value(this);
-      Node* double_value = PrepareValueForWrite(value, Representation::Double(),
-                                                &non_number_value);
+      Node* double_value = TryTaggedToFloat64(value, &non_number_value);
+
       // Make sure we do not store signalling NaNs into double arrays.
       double_value = Float64SilenceNaN(double_value);
       // If we're about to introduce holes, ensure holey elements.

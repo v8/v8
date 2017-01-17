@@ -1708,6 +1708,60 @@ bool Simulator::ExecuteExt2_10bit(Instruction* instr) {
       break;
     }
 #endif
+    case MODUW: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint32_t ra_val = get_register(ra);
+      uint32_t rb_val = get_register(rb);
+      uint32_t alu_out = (rb_val == 0) ? -1 : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case MODUD: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      uint64_t ra_val = get_register(ra);
+      uint64_t rb_val = get_register(rb);
+      uint64_t alu_out = (rb_val == 0) ? -1 : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#endif
+    case MODSW: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      int32_t ra_val = get_register(ra);
+      int32_t rb_val = get_register(rb);
+      bool overflow = (ra_val == kMinInt && rb_val == -1);
+      // result is undefined if divisor is zero or if operation
+      // is 0x80000000 / -1.
+      int32_t alu_out = (rb_val == 0 || overflow) ? -1 : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#if V8_TARGET_ARCH_PPC64
+    case MODSD: {
+      int rt = instr->RTValue();
+      int ra = instr->RAValue();
+      int rb = instr->RBValue();
+      int64_t ra_val = get_register(ra);
+      int64_t rb_val = get_register(rb);
+      int64_t one = 1;  // work-around gcc
+      int64_t kMinLongLong = (one << 63);
+      // result is undefined if divisor is zero or if operation
+      // is 0x80000000_00000000 / -1.
+      int64_t alu_out =
+          (rb_val == 0 || (ra_val == kMinLongLong && rb_val == -1))
+              ? -1
+              : ra_val % rb_val;
+      set_register(rt, alu_out);
+      break;
+    }
+#endif
     case SRAW: {
       int rs = instr->RSValue();
       int ra = instr->RAValue();
@@ -3295,6 +3349,51 @@ void Simulator::ExecuteExt5(Instruction* instr) {
 }
 #endif
 
+void Simulator::ExecuteExt6(Instruction* instr) {
+  switch (instr->Bits(10, 3) << 3) {
+    case XSADDDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val + frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case XSSUBDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val - frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case XSMULDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val * frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+    case XSDIVDP: {
+      int frt = instr->RTValue();
+      int fra = instr->RAValue();
+      int frb = instr->RBValue();
+      double fra_val = get_double_from_d_register(fra);
+      double frb_val = get_double_from_d_register(frb);
+      double frt_val = fra_val / frb_val;
+      set_d_register_from_double(frt, frt_val);
+      return;
+    }
+  }
+  UNIMPLEMENTED();  // Not used by V8.
+}
 
 void Simulator::ExecuteGeneric(Instruction* instr) {
   int opcode = instr->OpcodeValue() << 26;
@@ -3810,6 +3909,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       break;
     }
 #endif
+    case EXT6: {
+      ExecuteExt6(instr);
+      break;
+    }
 
     default: {
       UNIMPLEMENTED();

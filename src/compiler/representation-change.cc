@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
+#include "src/compiler/node-matchers.h"
 
 namespace v8 {
 namespace internal {
@@ -694,8 +695,12 @@ Node* RepresentationChanger::GetBitRepresentationFor(
   // Eagerly fold representation changes for constants.
   switch (node->opcode()) {
     case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
-      return jsgraph()->Int32Constant(value->BooleanValue() ? 1 : 0);
+      HeapObjectMatcher m(node);
+      if (m.Is(factory()->false_value())) {
+        return jsgraph()->Int32Constant(0);
+      } else if (m.Is(factory()->true_value())) {
+        return jsgraph()->Int32Constant(1);
+      }
     }
     default:
       break;
@@ -806,6 +811,24 @@ const Operator* RepresentationChanger::Int32OverflowOperatorFor(
       return simplified()->CheckedInt32Div();
     case IrOpcode::kSpeculativeNumberModulus:
       return simplified()->CheckedInt32Mod();
+    default:
+      UNREACHABLE();
+      return nullptr;
+  }
+}
+
+const Operator* RepresentationChanger::TaggedSignedOperatorFor(
+    IrOpcode::Value opcode) {
+  switch (opcode) {
+    case IrOpcode::kSpeculativeNumberLessThan:
+      return machine()->Is32() ? machine()->Int32LessThan()
+                               : machine()->Int64LessThan();
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+      return machine()->Is32() ? machine()->Int32LessThanOrEqual()
+                               : machine()->Int64LessThanOrEqual();
+    case IrOpcode::kSpeculativeNumberEqual:
+      return machine()->Is32() ? machine()->Word32Equal()
+                               : machine()->Word64Equal();
     default:
       UNREACHABLE();
       return nullptr;

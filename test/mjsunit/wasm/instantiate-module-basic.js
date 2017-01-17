@@ -7,13 +7,13 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-let kReturnValue = 117;
+let kReturnValue = 17;
 
 let buffer = (() => {
   let builder = new WasmModuleBuilder();
   builder.addMemory(1, 1, true);
   builder.addFunction("main", kSig_i_v)
-    .addBody([kExprI8Const, kReturnValue])
+    .addBody([kExprI32Const, kReturnValue])
     .exportFunc();
 
   return builder.toBuffer();
@@ -29,7 +29,7 @@ function CheckInstance(instance) {
   assertFalse(Object.isExtensible(instance.exports));
   assertTrue(Object.isFrozen(instance.exports));
 
-  // Check the memory is an ArrayBuffer.
+  // Check the memory is WebAssembly.Memory.
   var mem = instance.exports.memory;
   assertFalse(mem === undefined);
   assertFalse(mem === null);
@@ -57,11 +57,20 @@ function CheckInstance(instance) {
 }
 
 // Official API
-let module = new WebAssembly.Module(buffer);
-CheckInstance(new WebAssembly.Instance(module));
+(function BasicJSAPITest() {
+  print("sync module compile...");
+  let module = new WebAssembly.Module(buffer);
+  print("sync module instantiate...");
+  CheckInstance(new WebAssembly.Instance(module));
 
-let promise = WebAssembly.compile(buffer);
-promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
+  print("async module compile...");
+  let promise = WebAssembly.compile(buffer);
+  promise.then(module => CheckInstance(new WebAssembly.Instance(module)));
+
+  print("async instantiate...");
+  let instance_promise = WebAssembly.instantiate(buffer);
+  instance_promise.then(CheckInstance);
+})();
 
 // Check that validate works correctly for a module.
 assertTrue(WebAssembly.validate(buffer));
@@ -117,7 +126,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function InstancesAreIsolatedFromEachother() {
   print("InstancesAreIsolatedFromEachother...");
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1,1, true);
+  builder.addImportedMemory("", "memory", 1,1);
   var kSig_v_i = makeSig([kWasmI32], []);
   var signature = builder.addType(kSig_v_i);
   builder.addImport("m", "some_value", kSig_i_v);
@@ -156,11 +165,12 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   var outval_1;
   var outval_2;
   var i1 = new WebAssembly.Instance(module, {m: {some_value: () => 1,
-                                                 writer: (x)=>outval_1 = x }},
-                                    mem_1);
+                                                 writer: (x)=>outval_1 = x },
+                                             "": {memory: mem_1}});
+
   var i2 = new WebAssembly.Instance(module, {m: {some_value: () => 2,
-                                                 writer: (x)=>outval_2 = x }},
-                                    mem_2);
+                                                 writer: (x)=>outval_2 = x },
+                                             "": {memory: mem_2}});
 
   assertEquals(43, i1.exports.main(0));
   assertEquals(1002, i2.exports.main(0));
@@ -197,7 +207,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function InstanceMemoryIsIsolated() {
   print("InstanceMemoryIsIsolated...");
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1,1, true);
+  builder.addImportedMemory("", "memory", 1,1);
 
   builder.addFunction("f", kSig_i_v)
     .addBody([
@@ -213,8 +223,8 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   view_2[0] = 1000;
 
   var module = new WebAssembly.Module(builder.toBuffer());
-  var i1 = new WebAssembly.Instance(module, null, mem_1);
-  var i2 = new WebAssembly.Instance(module, null, mem_2);
+  var i1 = new WebAssembly.Instance(module, {"":{memory:mem_1}});
+  var i2 = new WebAssembly.Instance(module, {"":{memory:mem_2}});
 
   assertEquals(1, i1.exports.f());
   assertEquals(1000, i2.exports.f());
@@ -223,6 +233,17 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function MustBeMemory() {
   print("MustBeMemory...");
   var memory = new ArrayBuffer(65536);
-  var module = new WebAssembly.Module(buffer);
-  assertThrows(() => new WebAssembly.Instance(module, null, memory), TypeError);
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("", "memory");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+
+
+  assertThrows(() => new WebAssembly.Instance(module, {"":{memory:memory}}), WebAssembly.LinkError);
+})();
+
+(function TestNoMemoryToExport() {
+  let builder = new WasmModuleBuilder();
+  builder.exportMemoryAs('memory');
+  assertThrows(() => builder.instantiate(), WebAssembly.CompileError);
 })();

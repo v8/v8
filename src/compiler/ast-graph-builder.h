@@ -309,14 +309,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
 
   // Builders for error reporting at runtime.
   Node* BuildThrowError(Node* exception, BailoutId bailout_id);
-  Node* BuildThrowReferenceError(Variable* var, BailoutId bailout_id);
   Node* BuildThrowConstAssignError(BailoutId bailout_id);
-
-  // Builders for dynamic hole-checks at runtime.
-  Node* BuildHoleCheckThenThrow(Node* value, Variable* var, Node* not_hole,
-                                BailoutId bailout_id);
-  Node* BuildHoleCheckElseThrow(Node* value, Variable* var, Node* for_hole,
-                                BailoutId bailout_id);
 
   // Builders for non-local control flow.
   Node* BuildReturn(Node* return_value);

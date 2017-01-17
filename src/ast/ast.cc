@@ -73,6 +73,10 @@ bool Expression::IsSmiLiteral() const {
   return IsLiteral() && AsLiteral()->raw_value()->IsSmi();
 }
 
+bool Expression::IsNumberLiteral() const {
+  return IsLiteral() && AsLiteral()->raw_value()->IsNumber();
+}
+
 bool Expression::IsStringLiteral() const {
   return IsLiteral() && AsLiteral()->raw_value()->IsString();
 }
@@ -200,9 +204,7 @@ void VariableProxy::BindTo(Variable* var) {
   var->set_is_used();
 }
 
-
-void VariableProxy::AssignFeedbackVectorSlots(Isolate* isolate,
-                                              FeedbackVectorSpec* spec,
+void VariableProxy::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                               FeedbackVectorSlotCache* cache) {
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
@@ -238,8 +240,7 @@ static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
   }
 }
 
-void ForInStatement::AssignFeedbackVectorSlots(Isolate* isolate,
-                                               FeedbackVectorSpec* spec,
+void ForInStatement::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                                FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(each(), spec, &each_slot_);
   for_in_feedback_slot_ = spec->AddGeneralSlot();
@@ -256,15 +257,12 @@ Assignment::Assignment(Token::Value op, Expression* target, Expression* value,
                 StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op);
 }
 
-void Assignment::AssignFeedbackVectorSlots(Isolate* isolate,
-                                           FeedbackVectorSpec* spec,
+void Assignment::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                            FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(target(), spec, &slot_);
 }
 
-
-void CountOperation::AssignFeedbackVectorSlots(Isolate* isolate,
-                                               FeedbackVectorSpec* spec,
+void CountOperation::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                                FeedbackVectorSlotCache* cache) {
   AssignVectorSlots(expression(), spec, &slot_);
   // Assign a slot to collect feedback about binary operations. Used only in
@@ -352,6 +350,16 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
   }
 }
 
+FeedbackVectorSlot LiteralProperty::GetStoreDataPropertySlot() const {
+  int offset = FunctionLiteral::NeedsHomeObject(value_) ? 1 : 0;
+  return GetSlot(offset);
+}
+
+void LiteralProperty::SetStoreDataPropertySlot(FeedbackVectorSlot slot) {
+  int offset = FunctionLiteral::NeedsHomeObject(value_) ? 1 : 0;
+  return SetSlot(slot, offset);
+}
+
 bool LiteralProperty::NeedsSetFunctionName() const {
   return is_computed_name_ &&
          (value_->IsAnonymousFunctionDefinition() ||
@@ -366,12 +374,14 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
       kind_(kind),
       is_static_(is_static) {}
 
-void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
-                                             FeedbackVectorSpec* spec,
+void ClassLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
   // This logic that computes the number of slots needed for vector store
-  // ICs must mirror FullCodeGenerator::VisitClassLiteral.
-  prototype_slot_ = spec->AddLoadICSlot();
+  // ICs must mirror BytecodeGenerator::VisitClassLiteral.
+  if (FunctionLiteral::NeedsHomeObject(constructor())) {
+    home_object_slot_ = spec->AddStoreICSlot();
+  }
+
   if (NeedsProxySlot()) {
     proxy_slot_ = spec->AddStoreICSlot();
   }
@@ -382,6 +392,8 @@ void ClassLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
     if (FunctionLiteral::NeedsHomeObject(value)) {
       property->SetSlot(spec->AddStoreICSlot());
     }
+    property->SetStoreDataPropertySlot(
+        spec->AddStoreDataPropertyInLiteralICSlot());
   }
 }
 
@@ -398,8 +410,7 @@ void ObjectLiteral::Property::set_emit_store(bool emit_store) {
 
 bool ObjectLiteral::Property::emit_store() const { return emit_store_; }
 
-void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
-                                              FeedbackVectorSpec* spec,
+void ObjectLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                               FeedbackVectorSlotCache* cache) {
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitObjectLiteral.
@@ -412,6 +423,7 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
     Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
     switch (property->kind()) {
+      case ObjectLiteral::Property::SPREAD:
       case ObjectLiteral::Property::CONSTANT:
         UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
@@ -419,7 +431,7 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
       case ObjectLiteral::Property::COMPUTED:
         // It is safe to use [[Put]] here because the boilerplate already
         // contains computed properties with an uninitialized value.
-        if (key->value()->IsInternalizedString()) {
+        if (key->IsStringLiteral()) {
           if (property->emit_store()) {
             property->SetSlot(spec->AddStoreICSlot());
             if (FunctionLiteral::NeedsHomeObject(value)) {
@@ -456,6 +468,8 @@ void ObjectLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
         property->SetSlot(spec->AddStoreICSlot());
       }
     }
+    property->SetStoreDataPropertySlot(
+        spec->AddStoreDataPropertyInLiteralICSlot());
   }
 }
 
@@ -497,13 +511,8 @@ bool ObjectLiteral::IsBoilerplateProperty(ObjectLiteral::Property* property) {
          property->kind() != ObjectLiteral::Property::PROTOTYPE;
 }
 
-
-void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
-  if (!constant_properties_.is_null()) return;
-
-  // Allocate a fixed array to hold all the constant properties.
-  Handle<FixedArray> constant_properties = isolate->factory()->NewFixedArray(
-      boilerplate_properties_ * 2, TENURED);
+void ObjectLiteral::InitDepthAndFlags() {
+  if (depth_ > 0) return;
 
   int position = 0;
   // Accumulate the value in local variables and store it at the end.
@@ -527,50 +536,43 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 
     MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
     if (m_literal != NULL) {
-      m_literal->BuildConstants(isolate);
+      m_literal->InitDepthAndFlags();
       if (m_literal->depth() >= depth_acc) depth_acc = m_literal->depth() + 1;
     }
 
-    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
-    // value for COMPUTED properties, the real value is filled in at
-    // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->AsLiteral()->value();
-    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
+    const AstValue* key = property->key()->AsLiteral()->raw_value();
+    Expression* value = property->value();
+
+    bool is_compile_time_value = CompileTimeValue::IsCompileTimeValue(value);
 
     // Ensure objects that may, at any point in time, contain fields with double
     // representation are always treated as nested objects. This is true for
-    // computed fields (value is undefined), and smi and double literals
-    // (value->IsNumber()).
+    // computed fields, and smi and double literals.
     // TODO(verwaest): Remove once we can store them inline.
     if (FLAG_track_double_fields &&
-        (value->IsNumber() || value->IsUninitialized(isolate))) {
+        (value->IsNumberLiteral() || !is_compile_time_value)) {
       bit_field_ = MayStoreDoublesField::update(bit_field_, true);
     }
 
-    is_simple = is_simple && !value->IsUninitialized(isolate);
+    is_simple = is_simple && is_compile_time_value;
 
     // Keep track of the number of elements in the object literal and
     // the largest element index.  If the largest element index is
     // much larger than the number of elements, creating an object
     // literal with fast elements will be a waste of space.
     uint32_t element_index = 0;
-    if (key->IsString() && String::cast(*key)->AsArrayIndex(&element_index)) {
+    if (key->IsString() && key->AsString()->AsArrayIndex(&element_index)) {
       max_element_index = Max(element_index, max_element_index);
       elements++;
-      key = isolate->factory()->NewNumberFromUint(element_index);
-    } else if (key->ToArrayIndex(&element_index)) {
+    } else if (key->ToUint32(&element_index) && element_index != kMaxUInt32) {
       max_element_index = Max(element_index, max_element_index);
       elements++;
-    } else if (key->IsNumber()) {
-      key = isolate->factory()->NumberToString(key);
     }
 
-    // Add name, value pair to the fixed array.
-    constant_properties->set(position++, *key);
-    constant_properties->set(position++, *value);
+    // Increment the position for the key and the value.
+    position += 2;
   }
 
-  constant_properties_ = constant_properties;
   bit_field_ = FastElementsField::update(
       bit_field_,
       (max_element_index <= 32) || ((2 * elements) >= max_element_index));
@@ -580,6 +582,52 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   set_depth(depth_acc);
 }
 
+void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
+  if (!constant_properties_.is_null()) return;
+
+  // Allocate a fixed array to hold all the constant properties.
+  Handle<FixedArray> constant_properties =
+      isolate->factory()->NewFixedArray(boilerplate_properties_ * 2, TENURED);
+
+  int position = 0;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    if (!IsBoilerplateProperty(property)) {
+      continue;
+    }
+
+    if (static_cast<uint32_t>(position) == boilerplate_properties_ * 2) {
+      DCHECK(property->is_computed_name());
+      break;
+    }
+    DCHECK(!property->is_computed_name());
+
+    MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
+    if (m_literal != NULL) {
+      m_literal->BuildConstants(isolate);
+    }
+
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
+    // value for COMPUTED properties, the real value is filled in at
+    // runtime. The enumeration order is maintained.
+    Handle<Object> key = property->key()->AsLiteral()->value();
+    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
+
+    uint32_t element_index = 0;
+    if (key->IsString() && String::cast(*key)->AsArrayIndex(&element_index)) {
+      key = isolate->factory()->NewNumberFromUint(element_index);
+    } else if (key->IsNumber() && !key->ToArrayIndex(&element_index)) {
+      key = isolate->factory()->NumberToString(key);
+    }
+
+    // Add name, value pair to the fixed array.
+    constant_properties->set(position++, *key);
+    constant_properties->set(position++, *value);
+  }
+
+  constant_properties_ = constant_properties;
+}
+
 bool ObjectLiteral::IsFastCloningSupported() const {
   // The FastCloneShallowObject builtin doesn't copy elements, and object
   // literals don't support copy-on-write (COW) elements for now.
@@ -587,6 +635,37 @@ bool ObjectLiteral::IsFastCloningSupported() const {
   return fast_elements() && has_shallow_properties() &&
          properties_count() <= ConstructorBuiltinsAssembler::
                                    kMaximumClonedShallowObjectProperties;
+}
+
+void ArrayLiteral::InitDepthAndFlags() {
+  DCHECK_LT(first_spread_index_, 0);
+
+  if (depth_ > 0) return;
+
+  int constants_length = values()->length();
+
+  // Fill in the literals.
+  bool is_simple = true;
+  int depth_acc = 1;
+  int array_index = 0;
+  for (; array_index < constants_length; array_index++) {
+    Expression* element = values()->at(array_index);
+    DCHECK(!element->IsSpread());
+    MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
+    if (m_literal != NULL) {
+      m_literal->InitDepthAndFlags();
+      if (m_literal->depth() + 1 > depth_acc) {
+        depth_acc = m_literal->depth() + 1;
+      }
+    }
+
+    if (!CompileTimeValue::IsCompileTimeValue(element)) {
+      is_simple = false;
+    }
+  }
+
+  set_is_simple(is_simple);
+  set_depth(depth_acc);
 }
 
 void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
@@ -600,8 +679,6 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       isolate->factory()->NewFixedArrayWithHoles(constants_length);
 
   // Fill in the literals.
-  bool is_simple = true;
-  int depth_acc = 1;
   bool is_holey = false;
   int array_index = 0;
   for (; array_index < constants_length; array_index++) {
@@ -610,9 +687,6 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
     if (m_literal != NULL) {
       m_literal->BuildConstants(isolate);
-      if (m_literal->depth() + 1 > depth_acc) {
-        depth_acc = m_literal->depth() + 1;
-      }
     }
 
     // New handle scope here, needs to be after BuildContants().
@@ -625,7 +699,6 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 
     if (boilerplate_value->IsUninitialized(isolate)) {
       boilerplate_value = handle(Smi::kZero, isolate);
-      is_simple = false;
     }
 
     kind = GetMoreGeneralElementsKind(kind,
@@ -637,7 +710,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
-  if (is_simple && depth_acc == 1 && array_index > 0 &&
+  if (is_simple() && depth() == 1 && array_index > 0 &&
       IsFastSmiOrObjectElementsKind(kind)) {
     fixed_array->set_map(isolate->heap()->fixed_cow_array_map());
   }
@@ -656,8 +729,6 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
       isolate->factory()->NewConstantElementsPair(kind, elements);
 
   constant_elements_ = literals;
-  set_is_simple(is_simple);
-  set_depth(depth_acc);
 }
 
 bool ArrayLiteral::IsFastCloningSupported() const {
@@ -666,8 +737,7 @@ bool ArrayLiteral::IsFastCloningSupported() const {
              ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements;
 }
 
-void ArrayLiteral::AssignFeedbackVectorSlots(Isolate* isolate,
-                                             FeedbackVectorSpec* spec,
+void ArrayLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitArrayLiteral.
@@ -695,6 +765,16 @@ Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
   return isolate->factory()->uninitialized_value();
 }
 
+void MaterializedLiteral::InitDepthAndFlags() {
+  if (IsArrayLiteral()) {
+    return AsArrayLiteral()->InitDepthAndFlags();
+  }
+  if (IsObjectLiteral()) {
+    return AsObjectLiteral()->InitDepthAndFlags();
+  }
+  DCHECK(IsRegExpLiteral());
+  DCHECK_LE(1, depth());  // Depth should be initialized.
+}
 
 void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   if (IsArrayLiteral()) {
@@ -704,7 +784,6 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
     return AsObjectLiteral()->BuildConstantProperties(isolate);
   }
   DCHECK(IsRegExpLiteral());
-  DCHECK(depth() >= 1);  // Depth should be initialized.
 }
 
 
@@ -728,8 +807,7 @@ void BinaryOperation::RecordToBooleanTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 void BinaryOperation::AssignFeedbackVectorSlots(
-    Isolate* isolate, FeedbackVectorSpec* spec,
-    FeedbackVectorSlotCache* cache) {
+    FeedbackVectorSpec* spec, FeedbackVectorSlotCache* cache) {
   // Feedback vector slot is only used by interpreter for binary operations.
   // Full-codegen uses AstId to record type feedback.
   switch (op()) {
@@ -750,8 +828,7 @@ static bool IsTypeof(Expression* expr) {
 }
 
 void CompareOperation::AssignFeedbackVectorSlots(
-    Isolate* isolate, FeedbackVectorSpec* spec,
-    FeedbackVectorSlotCache* cache_) {
+    FeedbackVectorSpec* spec, FeedbackVectorSlotCache* cache_) {
   // Feedback vector slot is only used by interpreter for binary operations.
   // Full-codegen uses AstId to record type feedback.
   switch (op()) {
@@ -909,7 +986,7 @@ bool Expression::IsMonomorphic() const {
   }
 }
 
-void Call::AssignFeedbackVectorSlots(Isolate* isolate, FeedbackVectorSpec* spec,
+void Call::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                      FeedbackVectorSlotCache* cache) {
   ic_slot_ = spec->AddCallICSlot();
 }
@@ -948,8 +1025,7 @@ CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements,
       statements_(statements),
       compare_type_(AstType::None()) {}
 
-void CaseClause::AssignFeedbackVectorSlots(Isolate* isolate,
-                                           FeedbackVectorSpec* spec,
+void CaseClause::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                            FeedbackVectorSlotCache* cache) {
   type_feedback_slot_ = spec->AddInterpreterCompareICSlot();
 }

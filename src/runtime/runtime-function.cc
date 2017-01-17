@@ -17,7 +17,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_FunctionGetName) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, function, 0);
   if (function->IsJSBoundFunction()) {
@@ -32,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetName) {
 
 RUNTIME_FUNCTION(Runtime_FunctionSetName) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, f, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 1);
@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetName) {
 
 RUNTIME_FUNCTION(Runtime_FunctionRemovePrototype) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
   CHECK(f->RemovePrototype());
@@ -99,7 +99,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
 
 RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   int pos = fun->shared()->start_position();
@@ -108,7 +108,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
 
 RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   FixedArray* array = fun->native_context()->embedder_data();
@@ -117,7 +117,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
 
 RUNTIME_FUNCTION(Runtime_FunctionSetInstanceClassName) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
@@ -128,7 +128,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetInstanceClassName) {
 
 RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
   CONVERT_SMI_ARG_CHECKED(length, 1);
@@ -140,7 +140,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 
 RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
@@ -153,7 +153,7 @@ RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
 
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, f, 0);
   return isolate->heap()->ToBoolean(f->shared()->IsApiFunction());
@@ -162,7 +162,7 @@ RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
 
 RUNTIME_FUNCTION(Runtime_SetCode) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, source, 1);
@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_Call) {
 // ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
 RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
 }

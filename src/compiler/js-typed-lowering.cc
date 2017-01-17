@@ -70,8 +70,19 @@ class JSBinopReduction final {
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
         case CompareOperationHint::kString:
+        case CompareOperationHint::kInternalizedString:
           break;
       }
+    }
+    return false;
+  }
+
+  bool IsInternalizedStringCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kInternalizedString) &&
+             BothInputsMaybe(Type::InternalizedString());
     }
     return false;
   }
@@ -102,6 +113,25 @@ class JSBinopReduction final {
       }
     }
     return false;
+  }
+
+  // Checks that both inputs are InternalizedString, and if we don't know
+  // statically that one side is already an InternalizedString, insert a
+  // CheckInternalizedString node.
+  void CheckInputsToInternalizedString() {
+    if (!left_type()->Is(Type::UniqueName())) {
+      Node* left_input = graph()->NewNode(
+          simplified()->CheckInternalizedString(), left(), effect(), control());
+      node_->ReplaceInput(0, left_input);
+      update_effect(left_input);
+    }
+    if (!right_type()->Is(Type::UniqueName())) {
+      Node* right_input =
+          graph()->NewNode(simplified()->CheckInternalizedString(), right(),
+                           effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
   }
 
   void ConvertInputsToNumber() {
@@ -317,6 +347,10 @@ class JSBinopReduction final {
 
   bool BothInputsAre(Type* t) { return LeftInputIs(t) && RightInputIs(t); }
 
+  bool BothInputsMaybe(Type* t) {
+    return left_type()->Maybe(t) && right_type()->Maybe(t);
+  }
+
   bool OneInputCannotBe(Type* t) {
     return !left_type()->Maybe(t) || !right_type()->Maybe(t);
   }
@@ -460,8 +494,6 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
-      the_hole_type_(
-          Type::HeapConstant(factory()->the_hole_value(), graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -851,6 +883,13 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
 
   JSBinopReduction r(this, node);
 
+  if (r.BothInputsAre(Type::UniqueName())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
+  if (r.IsInternalizedStringCompareOperation()) {
+    r.CheckInputsToInternalizedString();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
   if (r.BothInputsAre(Type::String())) {
     return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
   }
@@ -913,25 +952,14 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
   if (reduction.Changed()) return reduction;
 
-  if (r.OneInputIs(the_hole_type_)) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Undefined())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Null())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Boolean())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Object())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
-  if (r.OneInputIs(Type::Receiver())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
-  }
   if (r.BothInputsAre(Type::Unique())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
+  if (r.OneInputIs(Type::NonStringUniqueOrHole())) {
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+  }
+  if (r.IsInternalizedStringCompareOperation()) {
+    r.CheckInputsToInternalizedString();
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.BothInputsAre(Type::String())) {

@@ -152,6 +152,7 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case JS_GENERATOR_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:
+    case JS_PROMISE_CAPABILITY_TYPE:
       JSObject::cast(this)->JSObjectPrint(os);
       break;
     case JS_PROMISE_TYPE:
@@ -326,43 +327,39 @@ void FixedTypedArray<Traits>::FixedTypedArrayPrint(
   os << "fixed " << Traits::Designator();
 }
 
-
-void JSObject::PrintProperties(std::ostream& os) {  // NOLINT
+bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
-    for (int i = 0; i < map()->NumberOfOwnDescriptors(); i++) {
-      os << "\n   ";
+    int i = 0;
+    for (; i < map()->NumberOfOwnDescriptors(); i++) {
+      os << "\n    ";
       descs->GetKey(i)->NamePrint(os);
       os << ": ";
-      switch (descs->GetType(i)) {
-        case DATA: {
-          FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-          if (IsUnboxedDoubleField(index)) {
-            os << "<unboxed double> " << RawFastDoublePropertyAt(index);
+      PropertyDetails details = descs->GetDetails(i);
+      switch (details.location()) {
+        case kField: {
+          FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
+          if (IsUnboxedDoubleField(field_index)) {
+            os << "<unboxed double> " << RawFastDoublePropertyAt(field_index);
           } else {
-            os << Brief(RawFastPropertyAt(index));
+            os << Brief(RawFastPropertyAt(field_index));
           }
-          os << " (data field at offset " << index.property_index() << ")";
           break;
         }
-        case ACCESSOR: {
-          FieldIndex index = FieldIndex::ForDescriptor(map(), i);
-          os << " (accessor field at offset " << index.property_index() << ")";
-          break;
-        }
-        case DATA_CONSTANT:
-          os << Brief(descs->GetConstant(i)) << " (data constant)";
-          break;
-        case ACCESSOR_CONSTANT:
-          os << Brief(descs->GetCallbacksObject(i)) << " (accessor constant)";
+        case kDescriptor:
+          os << Brief(descs->GetValue(i));
           break;
       }
+      os << " ";
+      details.PrintAsFastTo(os, PropertyDetails::kForProperties);
     }
+    return i > 0;
   } else if (IsJSGlobalObject()) {
     global_dictionary()->Print(os);
   } else {
     property_dictionary()->Print(os);
   }
+  return true;
 }
 
 namespace {
@@ -381,10 +378,8 @@ bool is_the_hole(double maybe_hole) {
   return bit_cast<uint64_t>(maybe_hole) == kHoleNanInt64;
 }
 
-}  // namespace
-
 template <class T, bool print_the_hole>
-static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
+void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   T* array = T::cast(object);
   if (array->length() == 0) return;
   int previous_index = 0;
@@ -415,38 +410,42 @@ static void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   }
 }
 
+void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
+  // Print in array notation for non-sparse arrays.
+  Object* previous_value = array->get(0);
+  Object* value = nullptr;
+  int previous_index = 0;
+  int i;
+  for (i = 1; i <= array->length(); i++) {
+    if (i < array->length()) value = array->get(i);
+    if (previous_value == value && i != array->length()) {
+      continue;
+    }
+    os << "\n";
+    std::stringstream ss;
+    ss << previous_index;
+    if (previous_index != i - 1) {
+      ss << '-' << (i - 1);
+    }
+    os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
+    previous_index = i;
+    previous_value = value;
+  }
+}
 
-void JSObject::PrintElements(std::ostream& os) {  // NOLINT
+}  // namespace
+
+bool JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  if (elements()->length() == 0) return;
+  if (elements()->length() == 0) return false;
   switch (map()->elements_kind()) {
     case FAST_HOLEY_SMI_ELEMENTS:
     case FAST_SMI_ELEMENTS:
     case FAST_HOLEY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS: {
-      // Print in array notation for non-sparse arrays.
-      FixedArray* array = FixedArray::cast(elements());
-      Object* previous_value = array->get(0);
-      Object* value = nullptr;
-      int previous_index = 0;
-      int i;
-      for (i = 1; i <= array->length(); i++) {
-        if (i < array->length()) value = array->get(i);
-        if (previous_value == value && i != array->length()) {
-          continue;
-        }
-        os << "\n";
-        std::stringstream ss;
-        ss << previous_index;
-        if (previous_index != i - 1) {
-          ss << '-' << (i - 1);
-        }
-        os << std::setw(12) << ss.str() << ": " << Brief(previous_value);
-        previous_index = i;
-        previous_value = value;
-      }
+      PrintFixedArrayElements(os, FixedArray::cast(elements()));
       break;
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
@@ -481,6 +480,7 @@ void JSObject::PrintElements(std::ostream& os) {  // NOLINT
     case NO_ELEMENTS:
       break;
   }
+  return true;
 }
 
 
@@ -512,12 +512,12 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
   os << "\n - properties = " << Brief(obj->properties()) << " {";
-  obj->PrintProperties(os);
-  os << "\n }\n";
+  if (obj->PrintProperties(os)) os << "\n ";
+  os << "}\n";
   if (print_elements && obj->elements()->length() > 0) {
-    os << " - elements = {";
-    obj->PrintElements(os);
-    os << "\n }\n";
+    os << " - elements = " << Brief(obj->elements()) << " {";
+    if (obj->PrintElements(os)) os << "\n ";
+    os << "}\n";
   }
   int internal_fields = obj->GetInternalFieldCount();
   if (internal_fields > 0) {
@@ -643,25 +643,18 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedArray");
+  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  for (int i = 0; i < length(); i++) {
-    os << "\n  [" << i << "]: " << Brief(get(i));
-  }
+  PrintFixedArrayElements(os, this);
   os << "\n";
 }
 
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");
+  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  for (int i = 0; i < length(); i++) {
-    os << "\n  [" << i << "]: ";
-    if (is_the_hole(i)) {
-      os << "<the hole>";
-    } else {
-      os << get_scalar(i);
-    }
-  }
+  DoPrintElements<FixedDoubleArray, true>(os, this);
   os << "\n";
 }
 
@@ -726,10 +719,15 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
   os << "\n - slot_count: " << slot_count();
 
   TypeFeedbackMetadataIterator iter(this);
+  int parameter_index = 0;
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
+    if (TypeFeedbackMetadata::SlotRequiresParameter(kind)) {
+      int parameter_value = this->GetParameter(parameter_index++);
+      os << " [" << parameter_value << "]";
+    }
   }
   os << "\n";
 }
@@ -750,6 +748,7 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
+  int parameter_index = 0;
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
@@ -796,6 +795,17 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
       case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
         CompareICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+        StoreDataPropertyInLiteralICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
+      case FeedbackVectorSlotKind::CREATE_CLOSURE: {
+        // TODO(mvstanton): Integrate this into the iterator.
+        int parameter_value = metadata()->GetParameter(parameter_index++);
+        os << "[" << parameter_value << "]";
         break;
       }
       case FeedbackVectorSlotKind::GENERAL:
@@ -1125,7 +1135,8 @@ void Cell::CellPrint(std::ostream& os) {  // NOLINT
 void PropertyCell::PropertyCellPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyCell");
   os << "\n - value: " << Brief(value());
-  os << "\n - details: " << property_details();
+  os << "\n - details: ";
+  property_details().PrintAsSlowTo(os);
   PropertyCellType cell_type = property_details().cell_type();
   os << "\n - cell_type: ";
   if (value()->IsTheHole(GetIsolate())) {
@@ -1223,8 +1234,7 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
   os << "\n - then: " << Brief(then());
   os << "\n - resolve: " << Brief(resolve());
   os << "\n - reject: " << Brief(reject());
-  os << "\n - debug id: " << Brief(debug_id());
-  os << "\n - debug name: " << Brief(debug_name());
+  os << "\n - debug id: " << debug_id();
   os << "\n - context: " << Brief(context());
   os << "\n";
 }
@@ -1232,14 +1242,12 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
 void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PromiseReactionJobInfo");
-  os << "\n - promise: " << Brief(promise());
   os << "\n - value: " << Brief(value());
   os << "\n - tasks: " << Brief(tasks());
   os << "\n - deferred_promise: " << Brief(deferred_promise());
   os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
   os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
-  os << "\n - debug id: " << Brief(debug_id());
-  os << "\n - debug name: " << Brief(debug_name());
+  os << "\n - debug id: " << debug_id();
   os << "\n - reaction context: " << Brief(context());
   os << "\n";
 }
@@ -1266,9 +1274,9 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
 }
 
 void JSModuleNamespace::JSModuleNamespacePrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "JSModuleNamespace");
+  JSObjectPrintHeader(os, this, "JSModuleNamespace");
   os << "\n - module: " << Brief(module());
-  os << "\n";
+  JSObjectPrintBody(os, this);
 }
 
 void PrototypeInfo::PrototypeInfoPrint(std::ostream& os) {  // NOLINT
@@ -1405,7 +1413,7 @@ void AllocationSite::AllocationSitePrint(std::ostream& os) {  // NOLINT
   } else if (transition_info()->IsJSArray()) {
     os << "Array literal " << Brief(transition_info());
   } else {
-    os << "unknown transition_info" << Brief(transition_info());
+    os << "unknown transition_info " << Brief(transition_info());
   }
   os << "\n";
 }
@@ -1567,15 +1575,43 @@ void DescriptorArray::Print() {
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
   HandleScope scope(GetIsolate());
-  os << "Descriptor array #" << number_of_descriptors();
+  os << "Descriptor array #" << number_of_descriptors() << ":";
   for (int i = 0; i < number_of_descriptors(); i++) {
-    Descriptor desc;
-    Get(i, &desc);
-    os << "\n " << i << ": " << desc;
+    Name* key = GetKey(i);
+    os << "\n  [" << i << "]: ";
+#ifdef OBJECT_PRINT
+    key->NamePrint(os);
+#else
+    key->ShortPrint(os);
+#endif
+    os << " ";
+    PrintDescriptorDetails(os, i, PropertyDetails::kPrintFull);
   }
   os << "\n";
 }
 
+void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
+                                             PropertyDetails::PrintMode mode) {
+  PropertyDetails details = GetDetails(descriptor);
+  details.PrintAsFastTo(os, mode);
+  os << " @ ";
+  Object* value = GetValue(descriptor);
+  switch (details.location()) {
+    case kField: {
+      FieldType* field_type = Map::UnwrapFieldType(value);
+      field_type->PrintTo(os);
+      break;
+    }
+    case kDescriptor:
+      os << Brief(value);
+      if (value->IsAccessorPair()) {
+        AccessorPair* pair = AccessorPair::cast(value);
+        os << "(get: " << Brief(pair->getter())
+           << ", set: " << Brief(pair->setter()) << ")";
+      }
+      break;
+  }
+}
 
 void TransitionArray::Print() {
   OFStream os(stdout);
@@ -1613,18 +1649,13 @@ void TransitionArray::PrintTransitions(std::ostream& os, Object* transitions,
     } else if (key == heap->strict_function_transition_symbol()) {
       os << " (transition to strict function)";
     } else {
-      PropertyDetails details = GetTargetDetails(key, target);
+      DCHECK(!IsSpecialTransition(key));
       os << "(transition to ";
-      if (details.location() == kDescriptor) {
-        os << "immutable ";
-      }
-      os << (details.kind() == kData ? "data" : "accessor");
-      if (details.location() == kDescriptor) {
-        Object* value =
-            target->instance_descriptors()->GetValue(target->LastAdded());
-        os << " " << Brief(value);
-      }
-      os << "), attrs: " << details.attributes();
+      int descriptor = target->LastAdded();
+      DescriptorArray* descriptors = target->instance_descriptors();
+      descriptors->PrintDescriptorDetails(os, descriptor,
+                                          PropertyDetails::kForTransitions);
+      os << ")";
     }
     os << " -> " << Brief(target);
   }

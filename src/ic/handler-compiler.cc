@@ -24,60 +24,6 @@ Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
   return handle(code);
 }
 
-
-Handle<Code> NamedLoadHandlerCompiler::ComputeLoadNonexistent(
-    Handle<Name> name, Handle<Map> receiver_map) {
-  Isolate* isolate = name->GetIsolate();
-  if (receiver_map->prototype()->IsNull(isolate)) {
-    // TODO(jkummerow/verwaest): If there is no prototype and the property
-    // is nonexistent, introduce a builtin to handle this (fast properties
-    // -> return undefined, dictionary properties -> do negative lookup).
-    return Handle<Code>();
-  }
-  CacheHolderFlag flag;
-  Handle<Map> stub_holder_map =
-      IC::GetHandlerCacheHolder(receiver_map, false, isolate, &flag);
-
-  // If no dictionary mode objects are present in the prototype chain, the load
-  // nonexistent IC stub can be shared for all names for a given map and we use
-  // the empty string for the map cache in that case. If there are dictionary
-  // mode objects involved, we need to do negative lookups in the stub and
-  // therefore the stub will be specific to the name.
-  Handle<Name> cache_name =
-      receiver_map->is_dictionary_map()
-          ? name
-          : Handle<Name>::cast(isolate->factory()->nonexistent_symbol());
-  Handle<Map> current_map = stub_holder_map;
-  Handle<JSObject> last(JSObject::cast(receiver_map->prototype()));
-  while (true) {
-    if (current_map->is_dictionary_map()) cache_name = name;
-    if (current_map->prototype()->IsNull(isolate)) break;
-    if (name->IsPrivate()) {
-      // TODO(verwaest): Use nonexistent_private_symbol.
-      cache_name = name;
-      if (!current_map->has_hidden_prototype()) break;
-    }
-
-    last = handle(JSObject::cast(current_map->prototype()));
-    current_map = handle(last->map());
-  }
-  // Compile the stub that is either shared for all names or
-  // name specific if there are global objects involved.
-  Handle<Code> handler = PropertyHandlerCompiler::Find(
-      cache_name, stub_holder_map, Code::LOAD_IC, flag);
-  if (!handler.is_null()) {
-    TRACE_HANDLER_STATS(isolate, LoadIC_HandlerCacheHit_NonExistent);
-    return handler;
-  }
-
-  TRACE_HANDLER_STATS(isolate, LoadIC_LoadNonexistent);
-  NamedLoadHandlerCompiler compiler(isolate, receiver_map, last, flag);
-  handler = compiler.CompileLoadNonexistent(cache_name);
-  Map::UpdateCodeCache(stub_holder_map, cache_name, handler);
-  return handler;
-}
-
-
 Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
                                               Handle<Name> name) {
   Code::Flags flags = Code::ComputeHandlerFlags(kind, cache_holder());
@@ -149,66 +95,6 @@ Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   return reg;
 }
 
-
-void PropertyHandlerCompiler::NonexistentFrontendHeader(Handle<Name> name,
-                                                        Label* miss,
-                                                        Register scratch1,
-                                                        Register scratch2) {
-  Register holder_reg;
-  Handle<Map> last_map;
-  if (holder().is_null()) {
-    holder_reg = receiver();
-    last_map = map();
-    // If |type| has null as its prototype, |holder()| is
-    // Handle<JSObject>::null().
-    DCHECK(last_map->prototype() == isolate()->heap()->null_value());
-  } else {
-    last_map = handle(holder()->map());
-    // This condition matches the branches below.
-    bool need_holder =
-        last_map->is_dictionary_map() && !last_map->IsJSGlobalObjectMap();
-    holder_reg =
-        FrontendHeader(receiver(), name, miss,
-                       need_holder ? RETURN_HOLDER : DONT_RETURN_ANYTHING);
-  }
-
-  if (last_map->is_dictionary_map()) {
-    if (last_map->IsJSGlobalObjectMap()) {
-      Handle<JSGlobalObject> global =
-          holder().is_null()
-              ? Handle<JSGlobalObject>::cast(isolate()->global_object())
-              : Handle<JSGlobalObject>::cast(holder());
-      GenerateCheckPropertyCell(masm(), global, name, scratch1, miss);
-    } else {
-      if (!name->IsUniqueName()) {
-        DCHECK(name->IsString());
-        name = factory()->InternalizeString(Handle<String>::cast(name));
-      }
-      DCHECK(holder().is_null() ||
-             holder()->property_dictionary()->FindEntry(name) ==
-                 NameDictionary::kNotFound);
-      GenerateDictionaryNegativeLookup(masm(), miss, holder_reg, name, scratch1,
-                                       scratch2);
-    }
-  }
-}
-
-Handle<Code> NamedLoadHandlerCompiler::CompileLoadNonexistent(
-    Handle<Name> name) {
-  Label miss;
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    DCHECK(kind() == Code::LOAD_IC);
-    PushVectorAndSlot();
-  }
-  NonexistentFrontendHeader(name, &miss, scratch2(), scratch3());
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    DiscardVectorAndSlot();
-  }
-  GenerateLoadConstant(isolate()->factory()->undefined_value());
-  FrontendFooter(name, &miss);
-  return GetCode(kind(), name);
-}
-
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, Handle<AccessorInfo> callback, Handle<Code> slow_stub) {
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
@@ -277,10 +163,13 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadInterceptor(
     case LookupIterator::NOT_FOUND:
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
       break;
-    case LookupIterator::DATA:
-      inline_followup =
-          it->property_details().type() == DATA && !it->is_dictionary_holder();
+    case LookupIterator::DATA: {
+      PropertyDetails details = it->property_details();
+      inline_followup = details.kind() == kData &&
+                        details.location() == kField &&
+                        !it->is_dictionary_holder();
       break;
+    }
     case LookupIterator::ACCESSOR: {
       Handle<Object> accessors = it->GetAccessors();
       if (accessors->IsAccessorInfo()) {
@@ -388,7 +277,8 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
     case LookupIterator::TRANSITION:
       UNREACHABLE();
     case LookupIterator::DATA: {
-      DCHECK_EQ(DATA, it->property_details().type());
+      DCHECK_EQ(kData, it->property_details().kind());
+      DCHECK_EQ(kField, it->property_details().location());
       __ Move(LoadFieldDescriptor::ReceiverRegister(), reg);
       Handle<Object> smi_handler =
           LoadIC::SimpleFieldLoad(isolate(), it->GetFieldIndex());
@@ -420,11 +310,6 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadViaGetter(
   GenerateLoadViaGetter(masm(), map(), receiver(), holder, accessor_index,
                         expected_arguments, scratch2());
   return GetCode(kind(), name);
-}
-
-bool NamedStoreHandlerCompiler::RequiresFieldTypeChecks(
-    FieldType* field_type) const {
-  return field_type->IsClass();
 }
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(

@@ -71,16 +71,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Create a new PromiseReactionJobInfo struct.
   Handle<PromiseReactionJobInfo> NewPromiseReactionJobInfo(
-      Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
+      Handle<Object> value, Handle<Object> tasks,
       Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
       Handle<Object> deferred_on_reject, Handle<Context> context);
-
-  // Create a new PromiseResolveThenableJobInfo struct.
-  Handle<PromiseResolveThenableJobInfo> NewPromiseResolveThenableJobInfo(
-      Handle<JSReceiver> thenable, Handle<JSReceiver> then,
-      Handle<JSFunction> resolve, Handle<JSFunction> reject,
-      Handle<Object> debug_id, Handle<Object> debug_name,
-      Handle<Context> context);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
@@ -443,6 +436,12 @@ class V8_EXPORT_PRIVATE Factory final {
                                    MutableMode mode = IMMUTABLE,
                                    PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<HeapNumber> NewMutableHeapNumber(
+      PretenureFlag pretenure = NOT_TENURED) {
+    double hole_nan = bit_cast<double>(kHoleNanInt64);
+    return NewHeapNumber(hole_nan, MUTABLE, pretenure);
+  }
+
 #define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
   Handle<Type> New##Type(lane_type lanes[lane_count],             \
                          PretenureFlag pretenure = NOT_TENURED);
@@ -577,6 +576,15 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<JSFunction> NewFunctionWithoutPrototype(Handle<String> name,
                                                  Handle<Code> code,
                                                  bool is_strict = false);
+
+  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
+      Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
+      Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+      PretenureFlag pretenure = TENURED);
+
+  Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
+      Handle<SharedFunctionInfo> function_info, Handle<Context> context,
+      Handle<LiteralsArray> literals, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,

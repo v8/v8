@@ -102,6 +102,12 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate,
                                     const wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index);
 
+// Compiles a stub that redirects a call to a wasm function to the wasm
+// interpreter. It's ABI compatible with the compiled wasm function.
+Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
+                                         wasm::FunctionSig* sig,
+                                         Handle<WasmInstanceObject> instance);
+
 // Abstracts details of building TurboFan graph nodes for WASM to separate
 // the WASM decoder from the internal details of TurboFan.
 class WasmTrapHelper;
@@ -109,7 +115,7 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   WasmGraphBuilder(
-      Zone* z, JSGraph* g, wasm::FunctionSig* sig,
+      wasm::ModuleEnv* module_env, Zone* z, JSGraph* g, wasm::FunctionSig* sig,
       compiler::SourcePositionTable* source_position_table = nullptr);
 
   Node** Buffer(size_t count) {
@@ -182,6 +188,8 @@ class WasmGraphBuilder {
 
   void BuildJSToWasmWrapper(Handle<Code> wasm_code, wasm::FunctionSig* sig);
   void BuildWasmToJSWrapper(Handle<JSReceiver> target, wasm::FunctionSig* sig);
+  void BuildWasmInterpreterEntry(uint32_t func_index, wasm::FunctionSig* sig,
+                                 Handle<WasmInstanceObject> instance);
 
   Node* ToJS(Node* node, wasm::ValueType type);
   Node* FromJS(Node* node, Node* context, wasm::ValueType type);
@@ -206,8 +214,6 @@ class WasmGraphBuilder {
   Node* Control() { return *control_; }
   Node* Effect() { return *effect_; }
 
-  void set_module(wasm::ModuleEnv* module) { this->module_ = module; }
-
   void set_control_ptr(Node** control) { this->control_ = control; }
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
@@ -229,6 +235,8 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
+  wasm::ModuleEnv* module_env() const { return module_; }
+
  private:
   static const int kDefaultBufferSize = 16;
   friend class WasmTrapHelper;
@@ -238,6 +246,7 @@ class WasmGraphBuilder {
   wasm::ModuleEnv* module_ = nullptr;
   Node* mem_buffer_ = nullptr;
   Node* mem_size_ = nullptr;
+  NodeVector signature_tables_;
   NodeVector function_tables_;
   NodeVector function_table_sizes_;
   Node** control_ = nullptr;

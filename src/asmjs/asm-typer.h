@@ -86,6 +86,10 @@ class AsmTyper final {
   AsmType* TypeOf(Variable* v) const;
   StandardMember VariableAsStandardMember(Variable* var);
 
+  // Allow the asm-wasm-builder to trigger failures (for interleaved
+  // validating).
+  AsmType* FailWithMessage(const char* text);
+
   typedef std::unordered_set<StandardMember, std::hash<int> > StdlibSet;
 
   StdlibSet StdlibUses() const { return stdlib_uses_; }

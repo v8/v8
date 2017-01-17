@@ -26,6 +26,68 @@ Handle<String> Scanner::LiteralBuffer::Internalize(Isolate* isolate) const {
   return isolate->factory()->InternalizeTwoByteString(two_byte_literal());
 }
 
+int Scanner::LiteralBuffer::NewCapacity(int min_capacity) {
+  int capacity = Max(min_capacity, backing_store_.length());
+  int new_capacity = Min(capacity * kGrowthFactory, capacity + kMaxGrowth);
+  return new_capacity;
+}
+
+void Scanner::LiteralBuffer::ExpandBuffer() {
+  Vector<byte> new_store = Vector<byte>::New(NewCapacity(kInitialCapacity));
+  MemCopy(new_store.start(), backing_store_.start(), position_);
+  backing_store_.Dispose();
+  backing_store_ = new_store;
+}
+
+void Scanner::LiteralBuffer::ConvertToTwoByte() {
+  DCHECK(is_one_byte_);
+  Vector<byte> new_store;
+  int new_content_size = position_ * kUC16Size;
+  if (new_content_size >= backing_store_.length()) {
+    // Ensure room for all currently read code units as UC16 as well
+    // as the code unit about to be stored.
+    new_store = Vector<byte>::New(NewCapacity(new_content_size));
+  } else {
+    new_store = backing_store_;
+  }
+  uint8_t* src = backing_store_.start();
+  uint16_t* dst = reinterpret_cast<uint16_t*>(new_store.start());
+  for (int i = position_ - 1; i >= 0; i--) {
+    dst[i] = src[i];
+  }
+  if (new_store.start() != backing_store_.start()) {
+    backing_store_.Dispose();
+    backing_store_ = new_store;
+  }
+  position_ = new_content_size;
+  is_one_byte_ = false;
+}
+
+void Scanner::LiteralBuffer::AddCharSlow(uc32 code_unit) {
+  if (position_ >= backing_store_.length()) ExpandBuffer();
+  if (is_one_byte_) {
+    if (code_unit <= static_cast<uc32>(unibrow::Latin1::kMaxChar)) {
+      backing_store_[position_] = static_cast<byte>(code_unit);
+      position_ += kOneByteSize;
+      return;
+    }
+    ConvertToTwoByte();
+  }
+  if (code_unit <=
+      static_cast<uc32>(unibrow::Utf16::kMaxNonSurrogateCharCode)) {
+    *reinterpret_cast<uint16_t*>(&backing_store_[position_]) = code_unit;
+    position_ += kUC16Size;
+  } else {
+    *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
+        unibrow::Utf16::LeadSurrogate(code_unit);
+    position_ += kUC16Size;
+    if (position_ >= backing_store_.length()) ExpandBuffer();
+    *reinterpret_cast<uint16_t*>(&backing_store_[position_]) =
+        unibrow::Utf16::TrailSurrogate(code_unit);
+    position_ += kUC16Size;
+  }
+}
+
 // ----------------------------------------------------------------------------
 // Scanner::BookmarkScope
 

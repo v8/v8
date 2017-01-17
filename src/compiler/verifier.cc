@@ -151,7 +151,7 @@ void Verifier::Visitor::Check(Node* node) {
                   "control");
     }
 
-    // Verify that no-no-throw nodes only have IfSuccess/IfException control
+    // Verify that nodes that can throw only have IfSuccess/IfException control
     // uses.
     if (!node->op()->HasProperty(Operator::kNoThrow)) {
       int count_success = 0, count_exception = 0;
@@ -956,8 +956,6 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kTransitionElementsKind:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, Type::Internal());
-      CheckValueInputIs(node, 2, Type::Internal());
       CheckNotTyped(node);
       break;
 
@@ -1086,6 +1084,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckIf:
       CheckValueInputIs(node, 0, Type::Boolean());
       CheckNotTyped(node);
+      break;
+    case IrOpcode::kCheckInternalizedString:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::InternalizedString());
       break;
     case IrOpcode::kCheckMaps:
       // (Any, Internal, ..., Internal) -> Any

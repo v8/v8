@@ -670,25 +670,9 @@ void AccessorAssemblerImpl::HandleStoreICSmiHandlerCase(Node* handler_word,
   Bind(&if_heap_object_field);
   {
     Comment("store heap object field");
-    // Generate full field type check here and then store value as Tagged.
-    Node* prepared_value =
-        PrepareValueForWrite(value, Representation::HeapObject(), miss);
-    Node* value_index_in_descriptor =
-        DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
-    Node* descriptors =
-        LoadMapDescriptors(transition ? transition : LoadMap(holder));
-    Node* maybe_field_type =
-        LoadFixedArrayElement(descriptors, value_index_in_descriptor);
-    Label do_store(this);
-    GotoIf(TaggedIsSmi(maybe_field_type), &do_store);
-    // Check that value type matches the field type.
-    {
-      Node* field_type = LoadWeakCellValue(maybe_field_type, miss);
-      Branch(WordEqual(LoadMap(prepared_value), field_type), &do_store, miss);
-    }
-    Bind(&do_store);
-    HandleStoreFieldAndReturn(handler_word, holder, Representation::Tagged(),
-                              prepared_value, transition, miss);
+    HandleStoreFieldAndReturn(handler_word, holder,
+                              Representation::HeapObject(), value, transition,
+                              miss);
   }
 
   Bind(&if_smi_field);
@@ -703,19 +687,8 @@ void AccessorAssemblerImpl::HandleStoreFieldAndReturn(
     Node* handler_word, Node* holder, Representation representation,
     Node* value, Node* transition, Label* miss) {
   bool transition_to_field = transition != nullptr;
-  Node* prepared_value = PrepareValueForWrite(value, representation, miss);
-
-  if (transition_to_field) {
-    Label storage_extended(this);
-    GotoUnless(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
-               &storage_extended);
-    Comment("[ Extend storage");
-    ExtendPropertiesBackingStore(holder);
-    Comment("] Extend storage");
-    Goto(&storage_extended);
-
-    Bind(&storage_extended);
-  }
+  Node* prepared_value = PrepareValueForStore(
+      handler_word, holder, representation, transition, value, miss);
 
   Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
   Label if_inobject(this), if_out_of_object(this);
@@ -734,12 +707,132 @@ void AccessorAssemblerImpl::HandleStoreFieldAndReturn(
 
   Bind(&if_out_of_object);
   {
+    if (transition_to_field) {
+      Label storage_extended(this);
+      GotoUnless(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
+                 &storage_extended);
+      Comment("[ Extend storage");
+      ExtendPropertiesBackingStore(holder);
+      Comment("] Extend storage");
+      Goto(&storage_extended);
+
+      Bind(&storage_extended);
+    }
+
     StoreNamedField(holder, offset, false, representation, prepared_value,
                     transition_to_field);
     if (transition_to_field) {
       StoreMap(holder, transition);
     }
     Return(value);
+  }
+}
+
+Node* AccessorAssemblerImpl::PrepareValueForStore(Node* handler_word,
+                                                  Node* holder,
+                                                  Representation representation,
+                                                  Node* transition, Node* value,
+                                                  Label* bailout) {
+  if (representation.IsDouble()) {
+    value = TryTaggedToFloat64(value, bailout);
+
+  } else if (representation.IsHeapObject()) {
+    GotoIf(TaggedIsSmi(value), bailout);
+    Node* value_index_in_descriptor =
+        DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
+    Node* descriptors =
+        LoadMapDescriptors(transition ? transition : LoadMap(holder));
+    Node* maybe_field_type =
+        LoadFixedArrayElement(descriptors, value_index_in_descriptor);
+
+    Label done(this);
+    GotoIf(TaggedIsSmi(maybe_field_type), &done);
+    // Check that value type matches the field type.
+    {
+      Node* field_type = LoadWeakCellValue(maybe_field_type, bailout);
+      Branch(WordEqual(LoadMap(value), field_type), &done, bailout);
+    }
+    Bind(&done);
+
+  } else if (representation.IsSmi()) {
+    GotoUnless(TaggedIsSmi(value), bailout);
+
+  } else {
+    DCHECK(representation.IsTagged());
+  }
+  return value;
+}
+
+void AccessorAssemblerImpl::ExtendPropertiesBackingStore(Node* object) {
+  Node* properties = LoadProperties(object);
+  Node* length = LoadFixedArrayBaseLength(properties);
+
+  ParameterMode mode = OptimalParameterMode();
+  length = TaggedToParameter(length, mode);
+
+  Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
+  Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
+
+  // Grow properties array.
+  ElementsKind kind = FAST_ELEMENTS;
+  DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
+         FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
+  // The size of a new properties backing store is guaranteed to be small
+  // enough that the new backing store will be allocated in new space.
+  CSA_ASSERT(this,
+             UintPtrOrSmiLessThan(
+                 new_capacity,
+                 IntPtrOrSmiConstant(
+                     kMaxNumberOfDescriptors + JSObject::kFieldsAdded, mode),
+                 mode));
+
+  Node* new_properties = AllocateFixedArray(kind, new_capacity, mode);
+
+  FillFixedArrayWithValue(kind, new_properties, length, new_capacity,
+                          Heap::kUndefinedValueRootIndex, mode);
+
+  // |new_properties| is guaranteed to be in new space, so we can skip
+  // the write barrier.
+  CopyFixedArrayElements(kind, properties, new_properties, length,
+                         SKIP_WRITE_BARRIER, mode);
+
+  StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
+}
+
+void AccessorAssemblerImpl::StoreNamedField(Node* object, Node* offset,
+                                            bool is_inobject,
+                                            Representation representation,
+                                            Node* value,
+                                            bool transition_to_field) {
+  bool store_value_as_double = representation.IsDouble();
+  Node* property_storage = object;
+  if (!is_inobject) {
+    property_storage = LoadProperties(object);
+  }
+
+  if (representation.IsDouble()) {
+    if (!FLAG_unbox_double_fields || !is_inobject) {
+      if (transition_to_field) {
+        Node* heap_number = AllocateHeapNumberWithValue(value, MUTABLE);
+        // Store the new mutable heap number into the object.
+        value = heap_number;
+        store_value_as_double = false;
+      } else {
+        // Load the heap number.
+        property_storage = LoadObjectField(property_storage, offset);
+        // Store the double value into it.
+        offset = IntPtrConstant(HeapNumber::kValueOffset);
+      }
+    }
+  }
+
+  if (store_value_as_double) {
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
+                                   MachineRepresentation::kFloat64);
+  } else if (representation.IsSmi()) {
+    StoreObjectFieldNoWriteBarrier(property_storage, offset, value);
+  } else {
+    StoreObjectField(property_storage, offset, value);
   }
 }
 

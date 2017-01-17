@@ -122,10 +122,10 @@ void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
 }
 
 void WasmFunctionBuilder::EmitI32Const(int32_t value) {
-  // TODO(titzer): variable-length signed and unsigned i32 constants.
-  if (-128 <= value && value <= 127) {
-    EmitWithU8(kExprI8Const, static_cast<byte>(value));
+  if (-64 <= value && value <= 63) {
+    EmitWithU8(kExprI32Const, static_cast<byte>(value & 0x7F));
   } else {
+    // TODO(titzer): variable-length signed and unsigned i32 constants.
     byte code[] = {WASM_I32V_5(value)};
     EmitCode(code, sizeof(code));
   }
@@ -152,7 +152,7 @@ void WasmFunctionBuilder::SetName(Vector<const char> name) {
 
 void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
                                            int to_number_position) {
-  // We only want to emit one mapping per byte offset:
+  // We only want to emit one mapping per byte offset.
   DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
 
   DCHECK_LE(body_.size(), kMaxUInt32);
@@ -166,6 +166,15 @@ void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
   DCHECK_GE(to_number_position, 0);
   asm_offsets_.write_i32v(to_number_position - call_position);
   last_asm_source_position_ = to_number_position;
+}
+
+void WasmFunctionBuilder::SetAsmFunctionStartPosition(int position) {
+  DCHECK_EQ(0, asm_func_start_source_position_);
+  DCHECK_LE(0, position);
+  // Must be called before emitting any asm.js source position.
+  DCHECK_EQ(0, asm_offsets_.size());
+  asm_func_start_source_position_ = position;
+  last_asm_source_position_ = position;
 }
 
 void WasmFunctionBuilder::WriteSignature(ZoneBuffer& buffer) const {
@@ -201,14 +210,19 @@ void WasmFunctionBuilder::WriteBody(ZoneBuffer& buffer) const {
 }
 
 void WasmFunctionBuilder::WriteAsmWasmOffsetTable(ZoneBuffer& buffer) const {
-  if (asm_offsets_.size() == 0) {
+  if (asm_func_start_source_position_ == 0 && asm_offsets_.size() == 0) {
     buffer.write_size(0);
     return;
   }
-  buffer.write_size(asm_offsets_.size() + kInt32Size);
+  size_t locals_enc_size = LEBHelper::sizeof_u32v(locals_.Size());
+  size_t func_start_size =
+      LEBHelper::sizeof_u32v(asm_func_start_source_position_);
+  buffer.write_size(asm_offsets_.size() + locals_enc_size + func_start_size);
   // Offset of the recorded byte offsets.
   DCHECK_GE(kMaxUInt32, locals_.Size());
-  buffer.write_u32(static_cast<uint32_t>(locals_.Size()));
+  buffer.write_u32v(static_cast<uint32_t>(locals_.Size()));
+  // Start position of the function.
+  buffer.write_u32v(asm_func_start_source_position_);
   buffer.write(asm_offsets_.begin(), asm_offsets_.size());
 }
 

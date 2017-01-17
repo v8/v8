@@ -333,7 +333,7 @@ Matcher<Node*> IsUnalignedStore(
     const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
     const Matcher<Node*>& value_matcher, const Matcher<Node*>& effect_matcher,
     const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsStackSlot(const Matcher<MachineRepresentation>& rep_matcher);
+Matcher<Node*> IsStackSlot(const Matcher<int>& size_matcher);
 Matcher<Node*> IsWord32And(const Matcher<Node*>& lhs_matcher,
                            const Matcher<Node*>& rhs_matcher);
 Matcher<Node*> IsWord32Or(const Matcher<Node*>& lhs_matcher,

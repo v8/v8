@@ -40,8 +40,6 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   // Frontend loads from receiver(), returns holder register which may be
   // different.
   Register Frontend(Handle<Name> name);
-  void NonexistentFrontendHeader(Handle<Name> name, Label* miss,
-                                 Register scratch1, Register scratch2);
 
   // When FLAG_vector_ics is true, handlers that have the possibility of missing
   // will need to save and pass these to miss handlers.
@@ -51,9 +49,6 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
   void PopVectorAndSlot(Register vector, Register slot);
 
   void DiscardVectorAndSlot();
-
-  void PushReturnAddress(Register tmp);
-  void PopReturnAddress(Register tmp);
 
   // TODO(verwaest): Make non-static.
   static void GenerateApiAccessorCall(MacroAssembler* masm,
@@ -153,10 +148,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileLoadGlobal(Handle<PropertyCell> cell, Handle<Name> name,
                                  bool is_configurable);
 
-  // Static interface
-  static Handle<Code> ComputeLoadNonexistent(Handle<Name> name,
-                                             Handle<Map> map);
-
   static void GenerateLoadViaGetter(MacroAssembler* masm, Handle<Map> map,
                                     Register receiver, Register holder,
                                     int accessor_index, int expected_arguments,
@@ -189,11 +180,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   virtual void FrontendFooter(Handle<Name> name, Label* miss);
 
  private:
-  Handle<Code> CompileLoadNonexistent(Handle<Name> name);
-  void GenerateLoadConstant(Handle<Object> value);
   void GenerateLoadCallback(Register reg, Handle<AccessorInfo> callback);
-  void GenerateLoadCallback(const CallOptimization& call_optimization,
-                            Handle<Map> receiver_map);
 
   // Helper emits no code if vector-ics are disabled.
   void InterceptorVectorSlotPush(Register holder_reg);
@@ -204,17 +191,6 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateLoadInterceptorWithFollowup(LookupIterator* it,
                                            Register holder_reg);
   void GenerateLoadPostInterceptor(LookupIterator* it, Register reg);
-
-  // Generates prototype loading code that uses the objects from the
-  // context we were in when this function was called. If the context
-  // has changed, a jump to miss is performed. This ties the generated
-  // code to a particular context and so must not be used in cases
-  // where the generated code is not allowed to have references to
-  // objects from a context.
-  static void GenerateDirectLoadGlobalFunctionPrototype(MacroAssembler* masm,
-                                                        int index,
-                                                        Register prototype,
-                                                        Label* miss);
 
   Register scratch3() { return registers_[4]; }
 };
@@ -268,18 +244,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   void GenerateRestoreName(Label* label, Handle<Name> name);
 
  private:
-  void GenerateRestoreName(Handle<Name> name);
-  void GenerateRestoreMap(Handle<Map> transition, Register map_reg,
-                          Register scratch, Label* miss);
-
-  void GenerateConstantCheck(Register map_reg, int descriptor,
-                             Register value_reg, Register scratch,
-                             Label* miss_label);
-
-  bool RequiresFieldTypeChecks(FieldType* field_type) const;
-  void GenerateFieldTypeChecks(FieldType* field_type, Register value_reg,
-                               Label* miss_label);
-
   static Register value();
 };
 

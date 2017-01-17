@@ -570,8 +570,7 @@ TEST_F(Int64LoweringTest, F64ReinterpretI64) {
              MachineRepresentation::kFloat64);
 
   Capture<Node*> stack_slot_capture;
-  Matcher<Node*> stack_slot_matcher =
-      IsStackSlot(MachineRepresentation::kWord64);
+  Matcher<Node*> stack_slot_matcher = IsStackSlot(sizeof(int64_t));
 
   Capture<Node*> store_capture;
   Matcher<Node*> store_matcher =
@@ -602,8 +601,7 @@ TEST_F(Int64LoweringTest, I64ReinterpretF64) {
              MachineRepresentation::kWord64);
 
   Capture<Node*> stack_slot;
-  Matcher<Node*> stack_slot_matcher =
-      IsStackSlot(MachineRepresentation::kWord64);
+  Matcher<Node*> stack_slot_matcher = IsStackSlot(sizeof(int64_t));
 
   Capture<Node*> store;
   Matcher<Node*> store_matcher = IsStore(

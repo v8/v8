@@ -16,10 +16,27 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* AllocateAndInitPromise(Node* context, Node* parent);
+  // These allocate and initialize a promise with pending state and
+  // undefined fields.
+  //
+  // This uses undefined as the parent promise for the promise init
+  // hook.
+  Node* AllocateAndInitJSPromise(Node* context);
+  // This uses the given parent as the parent promise for the promise
+  // init hook.
+  Node* AllocateAndInitJSPromise(Node* context, Node* parent);
+
+  // This allocates and initializes a promise with the given state and
+  // fields.
+  Node* AllocateAndSetJSPromise(Node* context, Node* status, Node* result);
+
+  Node* AllocatePromiseResolveThenableJobInfo(Node* result, Node* then,
+                                              Node* resolve, Node* reject,
+                                              Node* context);
 
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
-                             MessageTemplate::Template msg_template);
+                             MessageTemplate::Template msg_template,
+                             const char* method_name = nullptr);
 
   Node* SpeciesConstructor(Node* context, Node* object,
                            Node* default_constructor);
@@ -45,11 +62,34 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
                         Label* if_ismodified);
 
+  void BranchIfFastPath(Node* native_context, Node* promise_fun, Node* promise,
+                        Label* if_isunmodified, Label* if_ismodified);
+
+  Node* CreatePromiseContext(Node* native_context, int slots);
   Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
                                                Node* native_context);
 
   std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
       Node* promise, Node* native_context, Node* promise_context);
+
+  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
+                                                    Node* promise_capability);
+
+  void PromiseFulfill(Node* context, Node* promise, Node* result,
+                      v8::Promise::PromiseState status);
+
+  Node* NewPromiseCapability(Node* context, Node* constructor,
+                             Node* debug_event = nullptr);
+
+  void BranchIfAccessCheckFailed(Node* context, Node* native_context,
+                                 Node* promise_constructor, Node* executor,
+                                 Label* if_noaccess);
+
+ protected:
+  void PromiseInit(Node* promise);
+
+ private:
+  Node* AllocateJSPromise(Node* context);
 };
 
 }  // namespace internal

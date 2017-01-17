@@ -28,6 +28,7 @@
 #include "src/counters-inl.h"
 #include "src/counters.h"
 #include "src/date.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
@@ -49,6 +50,7 @@
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
+#include "src/map-updater.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
 #include "src/property-descriptor.h"
@@ -444,7 +446,7 @@ bool Object::BooleanValue() {
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (IsBoolean()) return IsTrue(isolate);
-  if (IsUndefined(isolate) || IsNull(isolate)) return false;
+  if (IsNullOrUndefined(isolate)) return false;
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
   if (IsHeapNumber()) return HeapNumber::cast(this)->HeapNumberBooleanValue();
@@ -887,7 +889,7 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
   Isolate* isolate = receiver->GetIsolate();
   ASSIGN_RETURN_ON_EXCEPTION(isolate, func,
                              JSReceiver::GetProperty(receiver, name), Object);
-  if (func->IsNull(isolate) || func->IsUndefined(isolate)) {
+  if (func->IsNullOrUndefined(isolate)) {
     return isolate->factory()->undefined_value();
   }
   if (!func->IsCallable()) {
@@ -1999,6 +2001,155 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
   }
 }
 
+namespace {
+
+MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> target,
+                                       Handle<Object> source, bool use_set) {
+  // Non-empty strings are the only non-JSReceivers that need to be handled
+  // explicitly by Object.assign.
+  if (!source->IsJSReceiver()) {
+    return Just(!source->IsString() || String::cast(*source)->length() == 0);
+  }
+
+  // If the target is deprecated, the object will be updated on first store. If
+  // the source for that store equals the target, this will invalidate the
+  // cached representation of the source. Preventively upgrade the target.
+  // Do this on each iteration since any property load could cause deprecation.
+  if (target->map()->is_deprecated()) {
+    JSObject::MigrateInstance(Handle<JSObject>::cast(target));
+  }
+
+  Isolate* isolate = target->GetIsolate();
+  Handle<Map> map(JSReceiver::cast(*source)->map(), isolate);
+
+  if (!map->IsJSObjectMap()) return Just(false);
+  if (!map->OnlyHasSimpleProperties()) return Just(false);
+
+  Handle<JSObject> from = Handle<JSObject>::cast(source);
+  if (from->elements() != isolate->heap()->empty_fixed_array()) {
+    return Just(false);
+  }
+
+  Handle<DescriptorArray> descriptors(map->instance_descriptors(), isolate);
+  int length = map->NumberOfOwnDescriptors();
+
+  bool stable = true;
+
+  for (int i = 0; i < length; i++) {
+    Handle<Name> next_key(descriptors->GetKey(i), isolate);
+    Handle<Object> prop_value;
+    // Directly decode from the descriptor array if |from| did not change shape.
+    if (stable) {
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (!details.IsEnumerable()) continue;
+      if (details.kind() == kData) {
+        if (details.location() == kDescriptor) {
+          prop_value = handle(descriptors->GetValue(i), isolate);
+        } else {
+          Representation representation = details.representation();
+          FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+          prop_value = JSObject::FastPropertyAt(from, representation, index);
+        }
+      } else {
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, prop_value, JSReceiver::GetProperty(from, next_key),
+            Nothing<bool>());
+        stable = from->map() == *map;
+      }
+    } else {
+      // If the map did change, do a slower lookup. We are still guaranteed that
+      // the object has a simple shape, and that the key is a name.
+      LookupIterator it(from, next_key, from,
+                        LookupIterator::OWN_SKIP_INTERCEPTOR);
+      if (!it.IsFound()) continue;
+      DCHECK(it.state() == LookupIterator::DATA ||
+             it.state() == LookupIterator::ACCESSOR);
+      if (!it.IsEnumerable()) continue;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, prop_value, Object::GetProperty(&it), Nothing<bool>());
+    }
+
+    if (use_set) {
+      LookupIterator it(target, next_key, target);
+      bool call_to_js = it.IsFound() && it.state() != LookupIterator::DATA;
+      Maybe<bool> result = Object::SetProperty(
+          &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
+      if (result.IsNothing()) return result;
+      if (stable && call_to_js) stable = from->map() == *map;
+    } else {
+      // 4a ii 2. Perform ? CreateDataProperty(target, nextKey, propValue).
+      bool success;
+      LookupIterator it = LookupIterator::PropertyOrElement(
+          isolate, target, next_key, &success, LookupIterator::OWN);
+      CHECK(success);
+      CHECK(
+          JSObject::CreateDataProperty(&it, prop_value, Object::THROW_ON_ERROR)
+              .FromJust());
+    }
+  }
+
+  return Just(true);
+}
+
+}  // namespace
+
+// static
+Maybe<bool> JSReceiver::SetOrCopyDataProperties(Isolate* isolate,
+                                                Handle<JSReceiver> target,
+                                                Handle<Object> source,
+                                                bool use_set) {
+  Maybe<bool> fast_assign = FastAssign(target, source, use_set);
+  if (fast_assign.IsNothing()) return Nothing<bool>();
+  if (fast_assign.FromJust()) return Just(true);
+
+  Handle<JSReceiver> from = Object::ToObject(isolate, source).ToHandleChecked();
+  // 3b. Let keys be ? from.[[OwnPropertyKeys]]().
+  Handle<FixedArray> keys;
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+      isolate, keys,
+      KeyAccumulator::GetKeys(from, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
+                              GetKeysConversion::kKeepNumbers),
+      Nothing<bool>());
+
+  // 4. Repeat for each element nextKey of keys in List order,
+  for (int j = 0; j < keys->length(); ++j) {
+    Handle<Object> next_key(keys->get(j), isolate);
+    // 4a i. Let desc be ? from.[[GetOwnProperty]](nextKey).
+    PropertyDescriptor desc;
+    Maybe<bool> found =
+        JSReceiver::GetOwnPropertyDescriptor(isolate, from, next_key, &desc);
+    if (found.IsNothing()) return Nothing<bool>();
+    // 4a ii. If desc is not undefined and desc.[[Enumerable]] is true, then
+    if (found.FromJust() && desc.enumerable()) {
+      // 4a ii 1. Let propValue be ? Get(from, nextKey).
+      Handle<Object> prop_value;
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+          isolate, prop_value,
+          Runtime::GetObjectProperty(isolate, from, next_key), Nothing<bool>());
+
+      if (use_set) {
+        // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
+        Handle<Object> status;
+        ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+            isolate, status, Runtime::SetObjectProperty(
+                                 isolate, target, next_key, prop_value, STRICT),
+            Nothing<bool>());
+      } else {
+        // 4a ii 2. Perform ! CreateDataProperty(target, nextKey, propValue).
+        bool success;
+        LookupIterator it = LookupIterator::PropertyOrElement(
+            isolate, target, next_key, &success, LookupIterator::OWN);
+        CHECK(success);
+        CHECK(JSObject::CreateDataProperty(&it, prop_value,
+                                           Object::THROW_ON_ERROR)
+                  .FromJust());
+      }
+    }
+  }
+
+  return Just(true);
+}
+
 Map* Object::GetPrototypeChainRootMap(Isolate* isolate) {
   DisallowHeapAllocation no_alloc;
   if (IsSmi()) {
@@ -2712,10 +2863,10 @@ void Map::PrintReconfiguration(FILE* file, int modify_index, PropertyKind kind,
 
 void Map::PrintGeneralization(
     FILE* file, const char* reason, int modify_index, int split,
-    int descriptors, bool constant_to_field, Representation old_representation,
-    Representation new_representation, MaybeHandle<FieldType> old_field_type,
-    MaybeHandle<Object> old_value, MaybeHandle<FieldType> new_field_type,
-    MaybeHandle<Object> new_value) {
+    int descriptors, bool descriptor_to_field,
+    Representation old_representation, Representation new_representation,
+    MaybeHandle<FieldType> old_field_type, MaybeHandle<Object> old_value,
+    MaybeHandle<FieldType> new_field_type, MaybeHandle<Object> new_value) {
   OFStream os(file);
   os << "[generalizing]";
   Name* name = instance_descriptors()->GetKey(modify_index);
@@ -2725,7 +2876,7 @@ void Map::PrintGeneralization(
     os << "{symbol " << static_cast<void*>(name) << "}";
   }
   os << ":";
-  if (constant_to_field) {
+  if (descriptor_to_field) {
     os << "c";
   } else {
     os << old_representation.Mnemonic() << "{";
@@ -2766,8 +2917,8 @@ void JSObject::PrintInstanceMigration(FILE* file,
     if (!o_r.Equals(n_r)) {
       String::cast(o->GetKey(i))->PrintOn(file);
       PrintF(file, ":%s->%s ", o_r.Mnemonic(), n_r.Mnemonic());
-    } else if (o->GetDetails(i).type() == DATA_CONSTANT &&
-               n->GetDetails(i).type() == DATA) {
+    } else if (o->GetDetails(i).location() == kDescriptor &&
+               n->GetDetails(i).location() == kField) {
       Name* name = o->GetKey(i);
       if (name->IsString()) {
         String::cast(name)->PrintOn(file);
@@ -3177,9 +3328,18 @@ Context* JSReceiver::GetCreationContext() {
   return function->context()->native_context();
 }
 
-static Handle<Object> WrapType(Handle<FieldType> type) {
+Handle<Object> Map::WrapFieldType(Handle<FieldType> type) {
   if (type->IsClass()) return Map::WeakCellForMap(type->AsClass());
   return type;
+}
+
+FieldType* Map::UnwrapFieldType(Object* wrapped_type) {
+  Object* value = wrapped_type;
+  if (value->IsWeakCell()) {
+    if (WeakCell::cast(value)->cleared()) return FieldType::None();
+    value = WeakCell::cast(value)->value();
+  }
+  return FieldType::cast(value);
 }
 
 MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
@@ -3206,7 +3366,7 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
     type = FieldType::Any(isolate);
   }
 
-  Handle<Object> wrapped_type(WrapType(type));
+  Handle<Object> wrapped_type(WrapFieldType(type));
 
   Descriptor d = Descriptor::DataField(name, index, wrapped_type, attributes,
                                        representation);
@@ -3369,7 +3529,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
           FieldIndex::ForDescriptor(*new_map, new_map->LastAdded());
       DCHECK(details.representation().IsDouble());
       DCHECK(!new_map->IsUnboxedDoubleField(index));
-      Handle<Object> value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      Handle<Object> value = isolate->factory()->NewMutableHeapNumber();
       object->RawFastPropertyAtPut(index, *value);
       object->synchronized_set_map(*new_map);
       return;
@@ -3385,11 +3545,12 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     // Properly initialize newly added property.
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      value = isolate->factory()->NewMutableHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
-    DCHECK_EQ(DATA, details.type());
+    DCHECK_EQ(kField, details.location());
+    DCHECK_EQ(kData, details.kind());
     int target_index = details.field_index() - new_map->GetInObjectProperties();
     DCHECK(target_index >= 0);  // Must be a backing store index.
     new_storage->set(target_index, *value);
@@ -3432,24 +3593,29 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
   for (int i = 0; i < old_nof; i++) {
     PropertyDetails details = new_descriptors->GetDetails(i);
-    if (details.type() != DATA) continue;
+    if (details.location() != kField) continue;
+    DCHECK_EQ(kData, details.kind());
     PropertyDetails old_details = old_descriptors->GetDetails(i);
     Representation old_representation = old_details.representation();
     Representation representation = details.representation();
     Handle<Object> value;
-    if (old_details.type() == ACCESSOR_CONSTANT) {
-      // In case of kAccessor -> kData property reconfiguration, the property
-      // must already be prepared for data or certain type.
-      DCHECK(!details.representation().IsNone());
-      if (details.representation().IsDouble()) {
-        value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+    if (old_details.location() == kDescriptor) {
+      if (old_details.kind() == kAccessor) {
+        // In case of kAccessor -> kData property reconfiguration, the property
+        // must already be prepared for data of certain type.
+        DCHECK(!details.representation().IsNone());
+        if (details.representation().IsDouble()) {
+          value = isolate->factory()->NewMutableHeapNumber();
+        } else {
+          value = isolate->factory()->uninitialized_value();
+        }
       } else {
-        value = isolate->factory()->uninitialized_value();
+        DCHECK_EQ(kData, old_details.kind());
+        value = handle(old_descriptors->GetValue(i), isolate);
+        DCHECK(!old_representation.IsDouble() && !representation.IsDouble());
       }
-    } else if (old_details.type() == DATA_CONSTANT) {
-      value = handle(old_descriptors->GetValue(i), isolate);
-      DCHECK(!old_representation.IsDouble() && !representation.IsDouble());
     } else {
+      DCHECK_EQ(kField, old_details.location());
       FieldIndex index = FieldIndex::ForDescriptor(*old_map, i);
       if (object->IsUnboxedDoubleField(index)) {
         double old = object->RawFastDoublePropertyAt(index);
@@ -3459,9 +3625,8 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       } else {
         value = handle(object->RawFastPropertyAt(index), isolate);
         if (!old_representation.IsDouble() && representation.IsDouble()) {
-          if (old_representation.IsNone()) {
-            value = handle(Smi::kZero, isolate);
-          }
+          DCHECK_IMPLIES(old_representation.IsNone(),
+                         value->IsUninitialized(isolate));
           value = Object::NewStorageFor(isolate, value, representation);
         } else if (old_representation.IsDouble() &&
                    !representation.IsDouble()) {
@@ -3477,10 +3642,11 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
   for (int i = old_nof; i < new_nof; i++) {
     PropertyDetails details = new_descriptors->GetDetails(i);
-    if (details.type() != DATA) continue;
+    if (details.location() != kField) continue;
+    DCHECK_EQ(kData, details.kind());
     Handle<Object> value;
     if (details.representation().IsDouble()) {
-      value = isolate->factory()->NewHeapNumber(0, MUTABLE);
+      value = isolate->factory()->NewMutableHeapNumber();
     } else {
       value = isolate->factory()->uninitialized_value();
     }
@@ -3571,17 +3737,10 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Name> key(descs->GetKey(i));
-    switch (details.type()) {
-      case DATA_CONSTANT: {
-        Handle<Object> value(descs->GetConstant(i), isolate);
-        PropertyDetails d(details.attributes(), DATA, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
-      case DATA: {
-        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-        Handle<Object> value;
+    Handle<Object> value;
+    if (details.location() == kField) {
+      FieldIndex index = FieldIndex::ForDescriptor(*map, i);
+      if (details.kind() == kData) {
         if (object->IsUnboxedDoubleField(index)) {
           double old_value = object->RawFastDoublePropertyAt(index);
           value = isolate->factory()->NewHeapNumber(old_value);
@@ -3593,27 +3752,19 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
             value = isolate->factory()->NewHeapNumber(old->value());
           }
         }
-        PropertyDetails d(details.attributes(), DATA, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
+      } else {
+        DCHECK_EQ(kAccessor, details.kind());
+        value = handle(object->RawFastPropertyAt(index), isolate);
       }
-      case ACCESSOR: {
-        FieldIndex index = FieldIndex::ForDescriptor(*map, i);
-        Handle<Object> value(object->RawFastPropertyAt(index), isolate);
-        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
-      case ACCESSOR_CONSTANT: {
-        Handle<Object> value(descs->GetCallbacksObject(i), isolate);
-        PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
-                          PropertyCellType::kNoCell);
-        dictionary = NameDictionary::Add(dictionary, key, value, d);
-        break;
-      }
+
+    } else {
+      DCHECK_EQ(kDescriptor, details.location());
+      value = handle(descs->GetValue(i), isolate);
     }
+    DCHECK(!value.is_null());
+    PropertyDetails d(details.kind(), details.attributes(), i + 1,
+                      PropertyCellType::kNoCell);
+    dictionary = NameDictionary::Add(dictionary, key, value, d);
   }
 
   // Copy the next enumeration index from instance descriptor.
@@ -3753,7 +3904,8 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(
 
   for (int i = 0; i < number_of_own_descriptors; i++) {
     descriptors->SetRepresentation(i, Representation::Tagged());
-    if (descriptors->GetDetails(i).type() == DATA) {
+    if (descriptors->GetDetails(i).location() == kField) {
+      DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
       descriptors->SetValue(i, FieldType::Any());
     }
   }
@@ -3768,14 +3920,15 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(
   if (modify_index >= 0) {
     PropertyDetails details = descriptors->GetDetails(modify_index);
     if (store_mode == FORCE_FIELD &&
-        (details.type() != DATA || details.attributes() != attributes)) {
-      int field_index = details.type() == DATA ? details.field_index()
-                                               : new_map->NumberOfFields();
+        (details.location() != kField || details.attributes() != attributes)) {
+      int field_index = details.location() == kField
+                            ? details.field_index()
+                            : new_map->NumberOfFields();
       Descriptor d = Descriptor::DataField(
           handle(descriptors->GetKey(modify_index), isolate), field_index,
           attributes, Representation::Tagged());
       descriptors->Replace(modify_index, &d);
-      if (details.type() != DATA) {
+      if (details.location() != kField) {
         int unused_property_fields = new_map->unused_property_fields() - 1;
         if (unused_property_fields < 0) {
           unused_property_fields += JSObject::kFieldsAdded;
@@ -3788,14 +3941,14 @@ Handle<Map> Map::CopyGeneralizeAllRepresentations(
 
     if (FLAG_trace_generalization) {
       MaybeHandle<FieldType> field_type = FieldType::None(isolate);
-      if (details.type() == DATA) {
+      if (details.location() == kField) {
         field_type = handle(
             map->instance_descriptors()->GetFieldType(modify_index), isolate);
       }
       map->PrintGeneralization(
           stdout, reason, modify_index, new_map->NumberOfOwnDescriptors(),
           new_map->NumberOfOwnDescriptors(),
-          details.type() == DATA_CONSTANT && store_mode == FORCE_FIELD,
+          details.location() == kDescriptor && store_mode == FORCE_FIELD,
           details.representation(), Representation::Tagged(), field_type,
           MaybeHandle<Object>(), FieldType::Any(isolate),
           MaybeHandle<Object>());
@@ -3817,13 +3970,6 @@ void Map::DeprecateTransitionTree() {
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(), DependentCode::kTransitionGroup);
   NotifyLeafMapLayoutChange();
-}
-
-
-static inline bool EqualImmutableValues(Object* obj1, Object* obj2) {
-  if (obj1 == obj2) return true;  // Valid for both kData and kAccessor kinds.
-  // TODO(ishell): compare AccessorPairs.
-  return false;
 }
 
 
@@ -3869,50 +4015,9 @@ Map* Map::FindRootMap() {
 }
 
 
-Map* Map::FindLastMatchMap(int verbatim,
-                           int length,
-                           DescriptorArray* descriptors) {
-  DisallowHeapAllocation no_allocation;
-
-  // This can only be called on roots of transition trees.
-  DCHECK_EQ(verbatim, NumberOfOwnDescriptors());
-
-  Map* current = this;
-
-  for (int i = verbatim; i < length; i++) {
-    Name* name = descriptors->GetKey(i);
-    PropertyDetails details = descriptors->GetDetails(i);
-    Map* next = TransitionArray::SearchTransition(current, details.kind(), name,
-                                                  details.attributes());
-    if (next == NULL) break;
-    DescriptorArray* next_descriptors = next->instance_descriptors();
-
-    PropertyDetails next_details = next_descriptors->GetDetails(i);
-    DCHECK_EQ(details.kind(), next_details.kind());
-    DCHECK_EQ(details.attributes(), next_details.attributes());
-    if (details.location() != next_details.location()) break;
-    if (!details.representation().Equals(next_details.representation())) break;
-
-    if (next_details.location() == kField) {
-      FieldType* next_field_type = next_descriptors->GetFieldType(i);
-      if (!descriptors->GetFieldType(i)->NowIs(next_field_type)) {
-        break;
-      }
-    } else {
-      if (!EqualImmutableValues(descriptors->GetValue(i),
-                                next_descriptors->GetValue(i))) {
-        break;
-      }
-    }
-    current = next;
-  }
-  return current;
-}
-
-
 Map* Map::FindFieldOwner(int descriptor) {
   DisallowHeapAllocation no_allocation;
-  DCHECK_EQ(DATA, instance_descriptors()->GetDetails(descriptor).type());
+  DCHECK_EQ(kField, instance_descriptors()->GetDetails(descriptor).location());
   Map* result = this;
   Isolate* isolate = GetIsolate();
   while (true) {
@@ -3933,7 +4038,8 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
   // We store raw pointers in the queue, so no allocations are allowed.
   DisallowHeapAllocation no_allocation;
   PropertyDetails details = instance_descriptors()->GetDetails(descriptor);
-  if (details.type() != DATA) return;
+  if (details.location() != kField) return;
+  DCHECK_EQ(kData, details.kind());
 
   Zone zone(GetIsolate()->allocator(), ZONE_NAME);
   ZoneQueue<Map*> backlog(&zone);
@@ -3990,9 +4096,9 @@ Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
 
 
 // static
-void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
-                              Representation new_representation,
-                              Handle<FieldType> new_field_type) {
+void Map::GeneralizeField(Handle<Map> map, int modify_index,
+                          Representation new_representation,
+                          Handle<FieldType> new_field_type) {
   Isolate* isolate = map->GetIsolate();
 
   // Check if we actually need to generalize the field type at all.
@@ -4007,8 +4113,8 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
       // Checking old_field_type for being cleared is not necessary because
       // the NowIs check below would fail anyway in that case.
       new_field_type->NowIs(old_field_type)) {
-    DCHECK(Map::GeneralizeFieldType(old_representation, old_field_type,
-                                    new_representation, new_field_type, isolate)
+    DCHECK(GeneralizeFieldType(old_representation, old_field_type,
+                               new_representation, new_field_type, isolate)
                ->NowIs(old_field_type));
     return;
   }
@@ -4026,7 +4132,7 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
   PropertyDetails details = descriptors->GetDetails(modify_index);
   Handle<Name> name(descriptors->GetKey(modify_index));
 
-  Handle<Object> wrapped_type(WrapType(new_field_type));
+  Handle<Object> wrapped_type(WrapFieldType(new_field_type));
   field_owner->UpdateFieldType(modify_index, name, new_representation,
                                wrapped_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
@@ -4041,579 +4147,42 @@ void Map::GeneralizeFieldType(Handle<Map> map, int modify_index,
   }
 }
 
-static inline Handle<FieldType> GetFieldType(
-    Isolate* isolate, Handle<DescriptorArray> descriptors, int descriptor,
-    PropertyLocation location, Representation representation) {
-#ifdef DEBUG
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-  DCHECK_EQ(kData, details.kind());
-  DCHECK_EQ(details.location(), location);
-#endif
-  if (location == kField) {
-    return handle(descriptors->GetFieldType(descriptor), isolate);
-  } else {
-    return descriptors->GetValue(descriptor)
-        ->OptimalType(isolate, representation);
-  }
+// TODO(ishell): remove.
+// static
+Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
+                                     PropertyKind new_kind,
+                                     PropertyAttributes new_attributes,
+                                     Representation new_representation,
+                                     Handle<FieldType> new_field_type,
+                                     StoreMode store_mode) {
+  DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
+  MapUpdater mu(map->GetIsolate(), map);
+  return mu.ReconfigureToDataField(modify_index, new_attributes,
+                                   new_representation, new_field_type);
 }
 
-// Reconfigures elements kind to |new_elements_kind| and/or property at
-// |modify_index| with |new_kind|, |new_attributes|, |store_mode| and/or
-// |new_representation|/|new_field_type|.
-// If |modify_index| is negative then no properties are reconfigured but the
-// map is migrated to the up-to-date non-deprecated state.
-//
-// This method rewrites or completes the transition tree to reflect the new
-// change. To avoid high degrees over polymorphism, and to stabilize quickly,
-// on every rewrite the new type is deduced by merging the current type with
-// any potential new (partial) version of the type in the transition tree.
-// To do this, on each rewrite:
-// - Search the root of the transition tree using FindRootMap.
-// - Find/create a |root_map| with requested |new_elements_kind|.
-// - Find |target_map|, the newest matching version of this map using the
-//   virtually "enhanced" |old_map|'s descriptor array (i.e. whose entry at
-//   |modify_index| is considered to be of |new_kind| and having
-//   |new_attributes|) to walk the transition tree.
-// - Merge/generalize the "enhanced" descriptor array of the |old_map| and
-//   descriptor array of the |target_map|.
-// - Generalize the |modify_index| descriptor using |new_representation| and
-//   |new_field_type|.
-// - Walk the tree again starting from the root towards |target_map|. Stop at
-//   |split_map|, the first map who's descriptor array does not match the merged
-//   descriptor array.
-// - If |target_map| == |split_map|, |target_map| is in the expected state.
-//   Return it.
-// - Otherwise, invalidate the outdated transition target from |target_map|, and
-//   replace its transition tree with a new branch for the updated descriptors.
-Handle<Map> Map::Reconfigure(Handle<Map> old_map,
-                             ElementsKind new_elements_kind, int modify_index,
-                             PropertyKind new_kind,
-                             PropertyAttributes new_attributes,
-                             Representation new_representation,
-                             Handle<FieldType> new_field_type,
-                             StoreMode store_mode) {
-  DCHECK_NE(kAccessor, new_kind);  // TODO(ishell): not supported yet.
-  DCHECK(store_mode != FORCE_FIELD || modify_index >= 0);
-  Isolate* isolate = old_map->GetIsolate();
-
-  Handle<DescriptorArray> old_descriptors(
-      old_map->instance_descriptors(), isolate);
-  int old_nof = old_map->NumberOfOwnDescriptors();
-
-  // If it's just a representation generalization case (i.e. property kind and
-  // attributes stays unchanged) it's fine to transition from None to anything
-  // but double without any modification to the object, because the default
-  // uninitialized value for representation None can be overwritten by both
-  // smi and tagged values. Doubles, however, would require a box allocation.
-  if (modify_index >= 0 && !new_representation.IsNone() &&
-      !new_representation.IsDouble() &&
-      old_map->elements_kind() == new_elements_kind) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    Representation old_representation = old_details.representation();
-
-    if (old_representation.IsNone()) {
-      DCHECK_EQ(new_kind, old_details.kind());
-      DCHECK_EQ(new_attributes, old_details.attributes());
-      DCHECK_EQ(DATA, old_details.type());
-      if (FLAG_trace_generalization) {
-        old_map->PrintGeneralization(
-            stdout, "uninitialized field", modify_index,
-            old_map->NumberOfOwnDescriptors(),
-            old_map->NumberOfOwnDescriptors(), false, old_representation,
-            new_representation,
-            handle(old_descriptors->GetFieldType(modify_index), isolate),
-            MaybeHandle<Object>(), new_field_type, MaybeHandle<Object>());
-      }
-      Handle<Map> field_owner(old_map->FindFieldOwner(modify_index), isolate);
-
-      GeneralizeFieldType(field_owner, modify_index, new_representation,
-                          new_field_type);
-      DCHECK(old_descriptors->GetDetails(modify_index)
-                 .representation()
-                 .Equals(new_representation));
-      DCHECK(
-          old_descriptors->GetFieldType(modify_index)->NowIs(new_field_type));
-      return old_map;
-    }
-  }
-
-  // Check the state of the root map.
-  Handle<Map> root_map(old_map->FindRootMap(), isolate);
-  if (!old_map->EquivalentToForTransition(*root_map)) {
-    return CopyGeneralizeAllRepresentations(
-        old_map, new_elements_kind, modify_index, store_mode, new_kind,
-        new_attributes, "GenAll_NotEquivalent");
-  }
-
-  ElementsKind from_kind = root_map->elements_kind();
-  ElementsKind to_kind = new_elements_kind;
-  // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
-  if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
-      to_kind != SLOW_STRING_WRAPPER_ELEMENTS &&
-      to_kind != SLOW_SLOPPY_ARGUMENTS_ELEMENTS &&
-      !(IsTransitionableFastElementsKind(from_kind) &&
-        IsMoreGeneralElementsKindTransition(from_kind, to_kind))) {
-    return CopyGeneralizeAllRepresentations(
-        old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-        "GenAll_InvalidElementsTransition");
-  }
-  int root_nof = root_map->NumberOfOwnDescriptors();
-  if (modify_index >= 0 && modify_index < root_nof) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    if (old_details.kind() != new_kind ||
-        old_details.attributes() != new_attributes) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_RootModification1");
-    }
-    if ((old_details.type() != DATA && store_mode == FORCE_FIELD) ||
-        (old_details.type() == DATA &&
-         (!new_field_type->NowIs(old_descriptors->GetFieldType(modify_index)) ||
-          !new_representation.fits_into(old_details.representation())))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_RootModification2");
-    }
-  }
-
-  // From here on, use the map with correct elements kind as root map.
-  if (from_kind != to_kind) {
-    root_map = Map::AsElementsKind(root_map, to_kind);
-  }
-
-  Handle<Map> target_map = root_map;
-  for (int i = root_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyKind next_kind;
-    PropertyLocation next_location;
-    PropertyAttributes next_attributes;
-    Representation next_representation;
-    bool property_kind_reconfiguration = false;
-
-    if (modify_index == i) {
-      DCHECK_EQ(FORCE_FIELD, store_mode);
-      property_kind_reconfiguration = old_details.kind() != new_kind;
-
-      next_kind = new_kind;
-      next_location = kField;
-      next_attributes = new_attributes;
-      // If property kind is not reconfigured merge the result with
-      // representation/field type from the old descriptor.
-      next_representation = new_representation;
-      if (!property_kind_reconfiguration) {
-        next_representation =
-            next_representation.generalize(old_details.representation());
-      }
-
-    } else {
-      next_kind = old_details.kind();
-      next_location = old_details.location();
-      next_attributes = old_details.attributes();
-      next_representation = old_details.representation();
-    }
-    Map* transition = TransitionArray::SearchTransition(
-        *target_map, next_kind, old_descriptors->GetKey(i), next_attributes);
-    if (transition == NULL) break;
-    Handle<Map> tmp_map(transition, isolate);
-
-    Handle<DescriptorArray> tmp_descriptors = handle(
-        tmp_map->instance_descriptors(), isolate);
-
-    // Check if target map is incompatible.
-    PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    DCHECK_EQ(next_kind, tmp_details.kind());
-    DCHECK_EQ(next_attributes, tmp_details.attributes());
-    if (next_kind == kAccessor &&
-        !EqualImmutableValues(old_descriptors->GetValue(i),
-                              tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_Incompatible");
-    }
-    if (next_location == kField && tmp_details.location() == kDescriptor) break;
-
-    Representation tmp_representation = tmp_details.representation();
-    if (!next_representation.fits_into(tmp_representation)) break;
-
-    PropertyLocation old_location = old_details.location();
-    PropertyLocation tmp_location = tmp_details.location();
-    if (tmp_location == kField) {
-      if (next_kind == kData) {
-        Handle<FieldType> next_field_type;
-        if (modify_index == i) {
-          next_field_type = new_field_type;
-          if (!property_kind_reconfiguration) {
-            Handle<FieldType> old_field_type =
-                GetFieldType(isolate, old_descriptors, i,
-                             old_details.location(), tmp_representation);
-            Representation old_representation = old_details.representation();
-            next_field_type = GeneralizeFieldType(
-                old_representation, old_field_type, new_representation,
-                next_field_type, isolate);
-          }
-        } else {
-          Handle<FieldType> old_field_type =
-              GetFieldType(isolate, old_descriptors, i, old_details.location(),
-                           tmp_representation);
-          next_field_type = old_field_type;
-        }
-        GeneralizeFieldType(tmp_map, i, tmp_representation, next_field_type);
-      }
-    } else if (old_location == kField ||
-               !EqualImmutableValues(old_descriptors->GetValue(i),
-                                     tmp_descriptors->GetValue(i))) {
-      break;
-    }
-    DCHECK(!tmp_map->is_deprecated());
-    target_map = tmp_map;
-  }
-
-  // Directly change the map if the target map is more general.
-  Handle<DescriptorArray> target_descriptors(
-      target_map->instance_descriptors(), isolate);
-  int target_nof = target_map->NumberOfOwnDescriptors();
-  if (target_nof == old_nof &&
-      (store_mode != FORCE_FIELD ||
-       (modify_index >= 0 &&
-        target_descriptors->GetDetails(modify_index).location() == kField))) {
-#ifdef DEBUG
-    if (modify_index >= 0) {
-      PropertyDetails details = target_descriptors->GetDetails(modify_index);
-      DCHECK_EQ(new_kind, details.kind());
-      DCHECK_EQ(new_attributes, details.attributes());
-      DCHECK(new_representation.fits_into(details.representation()));
-      DCHECK(details.location() != kField ||
-             new_field_type->NowIs(
-                 target_descriptors->GetFieldType(modify_index)));
-    }
-#endif
-    if (*target_map != *old_map) {
-      old_map->NotifyLeafMapLayoutChange();
-    }
-    return target_map;
-  }
-
-  // Find the last compatible target map in the transition tree.
-  for (int i = target_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyKind next_kind;
-    PropertyAttributes next_attributes;
-    if (modify_index == i) {
-      next_kind = new_kind;
-      next_attributes = new_attributes;
-    } else {
-      next_kind = old_details.kind();
-      next_attributes = old_details.attributes();
-    }
-    Map* transition = TransitionArray::SearchTransition(
-        *target_map, next_kind, old_descriptors->GetKey(i), next_attributes);
-    if (transition == NULL) break;
-    Handle<Map> tmp_map(transition, isolate);
-    Handle<DescriptorArray> tmp_descriptors(
-        tmp_map->instance_descriptors(), isolate);
-
-    // Check if target map is compatible.
-#ifdef DEBUG
-    PropertyDetails tmp_details = tmp_descriptors->GetDetails(i);
-    DCHECK_EQ(next_kind, tmp_details.kind());
-    DCHECK_EQ(next_attributes, tmp_details.attributes());
-#endif
-    if (next_kind == kAccessor &&
-        !EqualImmutableValues(old_descriptors->GetValue(i),
-                              tmp_descriptors->GetValue(i))) {
-      return CopyGeneralizeAllRepresentations(
-          old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-          "GenAll_Incompatible");
-    }
-    DCHECK(!tmp_map->is_deprecated());
-    target_map = tmp_map;
-  }
-  target_nof = target_map->NumberOfOwnDescriptors();
-  target_descriptors = handle(target_map->instance_descriptors(), isolate);
-
-  // Allocate a new descriptor array large enough to hold the required
-  // descriptors, with minimally the exact same size as the old descriptor
-  // array.
-  int new_slack = Max(
-      old_nof, old_descriptors->number_of_descriptors()) - old_nof;
-  Handle<DescriptorArray> new_descriptors = DescriptorArray::Allocate(
-      isolate, old_nof, new_slack);
-  DCHECK(new_descriptors->length() > target_descriptors->length() ||
-         new_descriptors->NumberOfSlackDescriptors() > 0 ||
-         new_descriptors->number_of_descriptors() ==
-         old_descriptors->number_of_descriptors());
-  DCHECK(new_descriptors->number_of_descriptors() == old_nof);
-
-  // 0 -> |root_nof|
-  int current_offset = 0;
-  for (int i = 0; i < root_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    if (old_details.location() == kField) {
-      current_offset += old_details.field_width_in_words();
-    }
-    Descriptor d(handle(old_descriptors->GetKey(i), isolate),
-                 handle(old_descriptors->GetValue(i), isolate),
-                 old_details);
-    new_descriptors->Set(i, &d);
-  }
-
-  // |root_nof| -> |target_nof|
-  for (int i = root_nof; i < target_nof; ++i) {
-    Handle<Name> target_key(target_descriptors->GetKey(i), isolate);
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    PropertyDetails target_details = target_descriptors->GetDetails(i);
-
-    PropertyKind next_kind;
-    PropertyAttributes next_attributes;
-    PropertyLocation next_location;
-    Representation next_representation;
-    bool property_kind_reconfiguration = false;
-
-    if (modify_index == i) {
-      DCHECK_EQ(FORCE_FIELD, store_mode);
-      property_kind_reconfiguration = old_details.kind() != new_kind;
-
-      next_kind = new_kind;
-      next_attributes = new_attributes;
-      next_location = kField;
-
-      // Merge new representation/field type with ones from the target
-      // descriptor. If property kind is not reconfigured merge the result with
-      // representation/field type from the old descriptor.
-      next_representation =
-          new_representation.generalize(target_details.representation());
-      if (!property_kind_reconfiguration) {
-        next_representation =
-            next_representation.generalize(old_details.representation());
-      }
-    } else {
-      // Merge old_descriptor and target_descriptor entries.
-      DCHECK_EQ(target_details.kind(), old_details.kind());
-      next_kind = target_details.kind();
-      next_attributes = target_details.attributes();
-      next_location =
-          old_details.location() == kField ||
-                  target_details.location() == kField ||
-                  !EqualImmutableValues(target_descriptors->GetValue(i),
-                                        old_descriptors->GetValue(i))
-              ? kField
-              : kDescriptor;
-
-      next_representation = old_details.representation().generalize(
-          target_details.representation());
-    }
-    DCHECK_EQ(next_kind, target_details.kind());
-    DCHECK_EQ(next_attributes, target_details.attributes());
-
-    if (next_location == kField) {
-      if (next_kind == kData) {
-        Handle<FieldType> target_field_type =
-            GetFieldType(isolate, target_descriptors, i,
-                         target_details.location(), next_representation);
-
-        Handle<FieldType> next_field_type;
-        if (modify_index == i) {
-          next_field_type = GeneralizeFieldType(
-              target_details.representation(), target_field_type,
-              new_representation, new_field_type, isolate);
-          if (!property_kind_reconfiguration) {
-            Handle<FieldType> old_field_type =
-                GetFieldType(isolate, old_descriptors, i,
-                             old_details.location(), next_representation);
-            next_field_type = GeneralizeFieldType(
-                old_details.representation(), old_field_type,
-                next_representation, next_field_type, isolate);
-          }
-        } else {
-          Handle<FieldType> old_field_type =
-              GetFieldType(isolate, old_descriptors, i, old_details.location(),
-                           next_representation);
-          next_field_type = GeneralizeFieldType(
-              old_details.representation(), old_field_type, next_representation,
-              target_field_type, isolate);
-        }
-        Handle<Object> wrapped_type(WrapType(next_field_type));
-        Descriptor d =
-            Descriptor::DataField(target_key, current_offset, wrapped_type,
-                                  next_attributes, next_representation);
-        current_offset += d.GetDetails().field_width_in_words();
-        new_descriptors->Set(i, &d);
-      } else {
-        UNIMPLEMENTED();  // TODO(ishell): implement.
-      }
-    } else {
-      PropertyDetails details(next_attributes, next_kind, next_location,
-                              next_representation);
-      Descriptor d(target_key, handle(target_descriptors->GetValue(i), isolate),
-                   details);
-      new_descriptors->Set(i, &d);
-    }
-  }
-
-  // |target_nof| -> |old_nof|
-  for (int i = target_nof; i < old_nof; ++i) {
-    PropertyDetails old_details = old_descriptors->GetDetails(i);
-    Handle<Name> old_key(old_descriptors->GetKey(i), isolate);
-
-    // Merge old_descriptor entry and modified details together.
-    PropertyKind next_kind;
-    PropertyAttributes next_attributes;
-    PropertyLocation next_location;
-    Representation next_representation;
-    bool property_kind_reconfiguration = false;
-
-    if (modify_index == i) {
-      DCHECK_EQ(FORCE_FIELD, store_mode);
-      // In case of property kind reconfiguration it is not necessary to
-      // take into account representation/field type of the old descriptor.
-      property_kind_reconfiguration = old_details.kind() != new_kind;
-
-      next_kind = new_kind;
-      next_attributes = new_attributes;
-      next_location = kField;
-      next_representation = new_representation;
-      if (!property_kind_reconfiguration) {
-        next_representation =
-            next_representation.generalize(old_details.representation());
-      }
-    } else {
-      next_kind = old_details.kind();
-      next_attributes = old_details.attributes();
-      next_location = old_details.location();
-      next_representation = old_details.representation();
-    }
-
-    if (next_location == kField) {
-      if (next_kind == kData) {
-        Handle<FieldType> next_field_type;
-        if (modify_index == i) {
-          next_field_type = new_field_type;
-          if (!property_kind_reconfiguration) {
-            Handle<FieldType> old_field_type =
-                GetFieldType(isolate, old_descriptors, i,
-                             old_details.location(), next_representation);
-            next_field_type = GeneralizeFieldType(
-                old_details.representation(), old_field_type,
-                next_representation, next_field_type, isolate);
-          }
-        } else {
-          Handle<FieldType> old_field_type =
-              GetFieldType(isolate, old_descriptors, i, old_details.location(),
-                           next_representation);
-          next_field_type = old_field_type;
-        }
-
-        Handle<Object> wrapped_type(WrapType(next_field_type));
-
-        Descriptor d =
-            Descriptor::DataField(old_key, current_offset, wrapped_type,
-                                  next_attributes, next_representation);
-        current_offset += d.GetDetails().field_width_in_words();
-        new_descriptors->Set(i, &d);
-      } else {
-        UNIMPLEMENTED();  // TODO(ishell): implement.
-      }
-    } else {
-      PropertyDetails details(next_attributes, next_kind, next_location,
-                              next_representation);
-      Descriptor d(old_key, handle(old_descriptors->GetValue(i), isolate),
-                   details);
-      new_descriptors->Set(i, &d);
-    }
-  }
-
-  new_descriptors->Sort();
-
-  DCHECK(store_mode != FORCE_FIELD ||
-         new_descriptors->GetDetails(modify_index).location() == kField);
-
-  Handle<Map> split_map(root_map->FindLastMatchMap(
-          root_nof, old_nof, *new_descriptors), isolate);
-  int split_nof = split_map->NumberOfOwnDescriptors();
-  DCHECK_NE(old_nof, split_nof);
-
-  PropertyKind split_kind;
-  PropertyAttributes split_attributes;
-  if (modify_index == split_nof) {
-    split_kind = new_kind;
-    split_attributes = new_attributes;
-  } else {
-    PropertyDetails split_prop_details = old_descriptors->GetDetails(split_nof);
-    split_kind = split_prop_details.kind();
-    split_attributes = split_prop_details.attributes();
-  }
-
-  // Invalidate a transition target at |key|.
-  Map* maybe_transition = TransitionArray::SearchTransition(
-      *split_map, split_kind, old_descriptors->GetKey(split_nof),
-      split_attributes);
-  if (maybe_transition != NULL) {
-    maybe_transition->DeprecateTransitionTree();
-  }
-
-  // If |maybe_transition| is not NULL then the transition array already
-  // contains entry for given descriptor. This means that the transition
-  // could be inserted regardless of whether transitions array is full or not.
-  if (maybe_transition == NULL &&
-      !TransitionArray::CanHaveMoreTransitions(split_map)) {
-    return CopyGeneralizeAllRepresentations(
-        old_map, to_kind, modify_index, store_mode, new_kind, new_attributes,
-        "GenAll_CantHaveMoreTransitions");
-  }
-
-  old_map->NotifyLeafMapLayoutChange();
-
-  if (FLAG_trace_generalization && modify_index >= 0) {
-    PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
-    PropertyDetails new_details = new_descriptors->GetDetails(modify_index);
-    MaybeHandle<FieldType> old_field_type;
-    MaybeHandle<FieldType> new_field_type;
-    MaybeHandle<Object> old_value;
-    MaybeHandle<Object> new_value;
-    if (old_details.type() == DATA) {
-      old_field_type =
-          handle(old_descriptors->GetFieldType(modify_index), isolate);
-    } else {
-      old_value = handle(old_descriptors->GetValue(modify_index), isolate);
-    }
-    if (new_details.type() == DATA) {
-      new_field_type =
-          handle(new_descriptors->GetFieldType(modify_index), isolate);
-    } else {
-      new_value = handle(new_descriptors->GetValue(modify_index), isolate);
-    }
-
-    old_map->PrintGeneralization(
-        stdout, "", modify_index, split_nof, old_nof,
-        old_details.location() == kDescriptor && store_mode == FORCE_FIELD,
-        old_details.representation(), new_details.representation(),
-        old_field_type, old_value, new_field_type, new_value);
-  }
-
-  Handle<LayoutDescriptor> new_layout_descriptor =
-      LayoutDescriptor::New(split_map, new_descriptors, old_nof);
-
-  Handle<Map> new_map =
-      AddMissingTransitions(split_map, new_descriptors, new_layout_descriptor);
-
-  // Deprecated part of the transition tree is no longer reachable, so replace
-  // current instance descriptors in the "survived" part of the tree with
-  // the new descriptors to maintain descriptors sharing invariant.
-  split_map->ReplaceDescriptors(*new_descriptors, *new_layout_descriptor);
-  return new_map;
+// TODO(ishell): remove.
+// static
+Handle<Map> Map::ReconfigureElementsKind(Handle<Map> map,
+                                         ElementsKind new_elements_kind) {
+  MapUpdater mu(map->GetIsolate(), map);
+  return mu.ReconfigureElementsKind(new_elements_kind);
 }
-
 
 // Generalize the representation of all DATA descriptors.
 Handle<Map> Map::GeneralizeAllFieldRepresentations(
     Handle<Map> map) {
+  Isolate* isolate = map->GetIsolate();
+  Handle<FieldType> any_type = FieldType::Any(isolate);
+
   Handle<DescriptorArray> descriptors(map->instance_descriptors());
   for (int i = 0; i < map->NumberOfOwnDescriptors(); ++i) {
     PropertyDetails details = descriptors->GetDetails(i);
-    if (details.type() == DATA) {
-      map = ReconfigureProperty(map, i, kData, details.attributes(),
-                                Representation::Tagged(),
-                                FieldType::Any(map->GetIsolate()), FORCE_FIELD);
+    if (details.location() == kField) {
+      DCHECK_EQ(kData, details.kind());
+      MapUpdater mu(isolate, map);
+      map = mu.ReconfigureToDataField(i, details.attributes(),
+                                      Representation::Tagged(), any_type);
     }
   }
   return map;
@@ -4669,46 +4238,43 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
     if (!old_details.representation().fits_into(new_details.representation())) {
       return nullptr;
     }
-    switch (new_details.type()) {
-      case DATA: {
+    if (new_details.location() == kField) {
+      if (new_details.kind() == kData) {
         FieldType* new_type = new_descriptors->GetFieldType(i);
         // Cleared field types need special treatment. They represent lost
         // knowledge, so we must first generalize the new_type to "Any".
         if (FieldTypeIsCleared(new_details.representation(), new_type)) {
           return nullptr;
         }
-        PropertyType old_property_type = old_details.type();
-        if (old_property_type == DATA) {
+        DCHECK_EQ(kData, old_details.kind());
+        if (old_details.location() == kField) {
           FieldType* old_type = old_descriptors->GetFieldType(i);
           if (FieldTypeIsCleared(old_details.representation(), old_type) ||
               !old_type->NowIs(new_type)) {
             return nullptr;
           }
         } else {
-          DCHECK(old_property_type == DATA_CONSTANT);
+          DCHECK_EQ(kDescriptor, old_details.location());
           Object* old_value = old_descriptors->GetValue(i);
           if (!new_type->NowContains(old_value)) {
             return nullptr;
           }
         }
-        break;
-      }
-      case ACCESSOR: {
+
+      } else {
+        DCHECK_EQ(kAccessor, new_details.kind());
 #ifdef DEBUG
         FieldType* new_type = new_descriptors->GetFieldType(i);
         DCHECK(new_type->IsAny());
 #endif
-        break;
+        UNREACHABLE();
       }
-
-      case DATA_CONSTANT:
-      case ACCESSOR_CONSTANT: {
-        Object* old_value = old_descriptors->GetValue(i);
-        Object* new_value = new_descriptors->GetValue(i);
-        if (old_details.location() == kField || old_value != new_value) {
-          return nullptr;
-        }
-        break;
+    } else {
+      DCHECK_EQ(kDescriptor, new_details.location());
+      Object* old_value = old_descriptors->GetValue(i);
+      Object* new_value = new_descriptors->GetValue(i);
+      if (old_details.location() == kField || old_value != new_value) {
+        return nullptr;
       }
     }
   }
@@ -4720,9 +4286,8 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
 // static
 Handle<Map> Map::Update(Handle<Map> map) {
   if (!map->is_deprecated()) return map;
-  return ReconfigureProperty(map, -1, kData, NONE, Representation::None(),
-                             FieldType::None(map->GetIsolate()),
-                             ALLOW_IN_DESCRIPTOR);
+  MapUpdater mu(map->GetIsolate(), map);
+  return mu.Update();
 }
 
 Maybe<bool> JSObject::SetPropertyWithInterceptor(LookupIterator* it,
@@ -4774,21 +4339,10 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
                                     value, it->GetReceiver(), language_mode);
 
       case LookupIterator::INTERCEPTOR: {
-        Handle<Map> store_target_map;
-        if (it->GetReceiver()->IsJSObject()) {
-          store_target_map = handle(it->GetStoreTarget()->map(), it->isolate());
-        }
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           Maybe<bool> result =
               JSObject::SetPropertyWithInterceptor(it, should_throw, value);
           if (result.IsNothing() || result.FromJust()) return result;
-          // Interceptor modified the store target but failed to set the
-          // property.
-          Utils::ApiCheck(store_target_map.is_null() ||
-                              *store_target_map == it->GetStoreTarget()->map(),
-                          it->IsElement() ? "v8::IndexedPropertySetterCallback"
-                                          : "v8::NamedPropertySetterCallback",
-                          "Interceptor silently changed store target.");
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
@@ -4796,13 +4350,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, should_throw);
           }
-          // Interceptor modified the store target but failed to set the
-          // property.
-          Utils::ApiCheck(store_target_map.is_null() ||
-                              *store_target_map == it->GetStoreTarget()->map(),
-                          it->IsElement() ? "v8::IndexedPropertySetterCallback"
-                                          : "v8::NamedPropertySetterCallback",
-                          "Interceptor silently changed store target.");
           if (maybe_attributes.FromJust() == ABSENT) break;
           *found = false;
           return Nothing<bool>();
@@ -5158,6 +4705,36 @@ void Map::EnsureDescriptorSlack(Handle<Map> map, int slack) {
     current = Map::cast(next);
   }
   map->UpdateDescriptors(*new_descriptors, layout_descriptor);
+}
+
+// static
+Handle<Map> Map::GetObjectCreateMap(Handle<HeapObject> prototype) {
+  Isolate* isolate = prototype->GetIsolate();
+  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
+                  isolate);
+  if (map->prototype() == *prototype) return map;
+  if (prototype->IsNull(isolate)) {
+    return isolate->slow_object_with_null_prototype_map();
+  }
+  if (prototype->IsJSObject()) {
+    Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+    if (!js_prototype->map()->is_prototype_map()) {
+      JSObject::OptimizeAsPrototype(js_prototype, FAST_PROTOTYPE);
+    }
+    Handle<PrototypeInfo> info =
+        Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+    // TODO(verwaest): Use inobject slack tracking for this map.
+    if (info->HasObjectCreateMap()) {
+      map = handle(info->ObjectCreateMap(), isolate);
+    } else {
+      map = Map::CopyInitialMap(map);
+      Map::SetPrototype(map, prototype, FAST_PROTOTYPE);
+      PrototypeInfo::SetObjectCreateMap(info, map);
+    }
+    return map;
+  }
+
+  return Map::TransitionToPrototype(map, prototype, REGULAR_PROTOTYPE);
 }
 
 template <class T>
@@ -6106,10 +5683,12 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     int index = Smi::cast(iteration_order->get(i))->value();
     DCHECK(dictionary->IsKey(isolate, dictionary->KeyAt(index)));
 
-    Object* value = dictionary->ValueAt(index);
-    PropertyType type = dictionary->DetailsAt(index).type();
-    if (type == DATA && !value->IsJSFunction()) {
-      number_of_fields += 1;
+    PropertyKind kind = dictionary->DetailsAt(index).kind();
+    if (kind == kData) {
+      Object* value = dictionary->ValueAt(index);
+      if (!value->IsJSFunction()) {
+        number_of_fields += 1;
+      }
     }
   }
 
@@ -6174,13 +5753,25 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     PropertyDetails details = dictionary->DetailsAt(index);
     int enumeration_index = details.dictionary_index();
-    PropertyType type = details.type();
 
-    if (value->IsJSFunction()) {
-      Descriptor d = Descriptor::DataConstant(key, handle(value, isolate),
-                                              details.attributes());
-      descriptors->Set(enumeration_index - 1, &d);
-    } else if (type == DATA) {
+    Descriptor d;
+    if (details.kind() == kData) {
+      if (value->IsJSFunction()) {
+        d = Descriptor::DataConstant(key, handle(value, isolate),
+                                     details.attributes());
+      } else {
+        d = Descriptor::DataField(
+            key, current_offset, details.attributes(),
+            // TODO(verwaest): value->OptimalRepresentation();
+            Representation::Tagged());
+      }
+    } else {
+      DCHECK_EQ(kAccessor, details.kind());
+      d = Descriptor::AccessorConstant(key, handle(value, isolate),
+                                       details.attributes());
+    }
+    details = d.GetDetails();
+    if (details.location() == kField) {
       if (current_offset < inobject_props) {
         object->InObjectPropertyAtPut(current_offset, value,
                                       UPDATE_WRITE_BARRIER);
@@ -6188,19 +5779,9 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
         int offset = current_offset - inobject_props;
         fields->set(offset, value);
       }
-      Descriptor d = Descriptor::DataField(
-          key, current_offset, details.attributes(),
-          // TODO(verwaest): value->OptimalRepresentation();
-          Representation::Tagged());
-      current_offset += d.GetDetails().field_width_in_words();
-      descriptors->Set(enumeration_index - 1, &d);
-    } else if (type == ACCESSOR_CONSTANT) {
-      Descriptor d = Descriptor::AccessorConstant(key, handle(value, isolate),
-                                                  details.attributes());
-      descriptors->Set(enumeration_index - 1, &d);
-    } else {
-      UNREACHABLE();
+      current_offset += details.field_width_in_words();
     }
+    descriptors->Set(enumeration_index - 1, &d);
   }
   DCHECK(current_offset == number_of_fields);
 
@@ -6692,29 +6273,12 @@ Maybe<bool> JSReceiver::OrdinaryDefineOwnProperty(Isolate* isolate,
 
   // Handle interceptor
   if (it.state() == LookupIterator::INTERCEPTOR) {
-    Handle<Map> store_target_map;
-    if (it.GetReceiver()->IsJSObject()) {
-      store_target_map = handle(it.GetStoreTarget()->map(), it.isolate());
-    }
     if (it.HolderIsReceiverOrHiddenPrototype()) {
       Maybe<bool> result = DefinePropertyWithInterceptorInternal(
           &it, it.GetInterceptor(), should_throw, *desc);
       if (result.IsNothing() || result.FromJust()) {
         return result;
       }
-      // Interceptor modified the store target but failed to set the
-      // property.
-      if (!store_target_map.is_null() &&
-          *store_target_map != it.GetStoreTarget()->map()) {
-        it.isolate()->PushStackTraceAndDie(
-            0xabababaa, v8::ToCData<void*>(it.GetInterceptor()->definer()),
-            nullptr, 0xabababab);
-      }
-      Utils::ApiCheck(store_target_map.is_null() ||
-                          *store_target_map == it.GetStoreTarget()->map(),
-                      it.IsElement() ? "v8::IndexedPropertyDefinerCallback"
-                                     : "v8::NamedPropertyDefinerCallback",
-                      "Interceptor silently changed store target.");
     }
   }
 
@@ -7416,7 +6980,7 @@ Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
   }
 
   Handle<NameDictionary> dict(proxy->property_dictionary());
-  PropertyDetails details(DONT_ENUM, DATA, 0, PropertyCellType::kNoCell);
+  PropertyDetails details(kData, DONT_ENUM, 0, PropertyCellType::kNoCell);
   Handle<NameDictionary> result =
       NameDictionary::Add(dict, private_name, value, details);
   if (!dict.is_identical_to(result)) proxy->set_properties(*result);
@@ -8109,7 +7673,7 @@ void ApplyAttributesToDictionary(Isolate* isolate,
       PropertyDetails details = dictionary->DetailsAt(i);
       int attrs = attributes;
       // READ_ONLY is an invalid attribute for JS setters/getters.
-      if ((attributes & READ_ONLY) && details.type() == ACCESSOR_CONSTANT) {
+      if ((attributes & READ_ONLY) && details.kind() == kAccessor) {
         Object* v = dictionary->ValueAt(i);
         if (v->IsPropertyCell()) v = PropertyCell::cast(v)->value();
         if (v->IsAccessorPair()) attrs &= ~READ_ONLY;
@@ -8349,7 +7913,8 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       int limit = copy->map()->NumberOfOwnDescriptors();
       for (int i = 0; i < limit; i++) {
         PropertyDetails details = descriptors->GetDetails(i);
-        if (details.type() != DATA) continue;
+        if (details.location() != kField) continue;
+        DCHECK_EQ(kData, details.kind());
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (object->IsUnboxedDoubleField(index)) {
           if (copying) {
@@ -8674,8 +8239,8 @@ bool Map::OnlyHasSimpleProperties() {
   // Wrapped string elements aren't explicitly stored in the elements backing
   // store, but are loaded indirectly from the underlying string.
   return !IsStringWrapperElementsKind(elements_kind()) &&
-         instance_type() > LAST_SPECIAL_RECEIVER_TYPE &&
-         !has_hidden_prototype() && !is_dictionary_map();
+         !IsSpecialReceiverMap() && !has_hidden_prototype() &&
+         !is_dictionary_map();
 }
 
 MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
@@ -8943,7 +8508,9 @@ Object* JSObject::SlowReverseLookup(Object* value) {
     DescriptorArray* descs = map()->instance_descriptors();
     bool value_is_number = value->IsNumber();
     for (int i = 0; i < number_of_own_descriptors; i++) {
-      if (descs->GetType(i) == DATA) {
+      PropertyDetails details = descs->GetDetails(i);
+      if (details.location() == kField) {
+        DCHECK_EQ(kData, details.kind());
         FieldIndex field_index = FieldIndex::ForDescriptor(map(), i);
         if (IsUnboxedDoubleField(field_index)) {
           if (value_is_number) {
@@ -8963,9 +8530,12 @@ Object* JSObject::SlowReverseLookup(Object* value) {
             return descs->GetKey(i);
           }
         }
-      } else if (descs->GetType(i) == DATA_CONSTANT) {
-        if (descs->GetConstant(i) == value) {
-          return descs->GetKey(i);
+      } else {
+        DCHECK_EQ(kDescriptor, details.location());
+        if (details.kind() == kData) {
+          if (descs->GetValue(i) == value) {
+            return descs->GetKey(i);
+          }
         }
       }
     }
@@ -9111,12 +8681,13 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   Isolate* isolate = map->GetIsolate();
   // Strict function maps have Function as a constructor but the
   // Function's initial map is a sloppy function map. Same holds for
-  // GeneratorFunction and its initial map.
+  // GeneratorFunction / AsyncFunction and its initial map.
   Object* constructor = map->GetConstructor();
   DCHECK(constructor->IsJSFunction());
   DCHECK(*map == JSFunction::cast(constructor)->initial_map() ||
          *map == *isolate->strict_function_map() ||
-         *map == *isolate->strict_generator_function_map());
+         *map == *isolate->generator_function_map() ||
+         *map == *isolate->async_function_map());
 #endif
   // Initial maps must always own their descriptors and it's descriptor array
   // does not contain descriptors that do not belong to the map.
@@ -9275,7 +8846,8 @@ Handle<Map> Map::CopyReplaceDescriptors(
       int length = descriptors->number_of_descriptors();
       for (int i = 0; i < length; i++) {
         descriptors->SetRepresentation(i, Representation::Tagged());
-        if (descriptors->GetDetails(i).type() == DATA) {
+        if (descriptors->GetDetails(i).location() == kField) {
+          DCHECK_EQ(kData, descriptors->GetDetails(i).kind());
           descriptors->SetValue(i, FieldType::Any());
         }
       }
@@ -9560,35 +9132,31 @@ Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
   return new_map;
 }
 
-FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).location() == kField);
-  Object* value = GetValue(descriptor_number);
-  if (value->IsWeakCell()) {
-    if (WeakCell::cast(value)->cleared()) return FieldType::None();
-    value = WeakCell::cast(value)->value();
-  }
-  return FieldType::cast(value);
-}
-
 namespace {
 
 bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
   PropertyDetails details = descriptors->GetDetails(descriptor);
-  switch (details.type()) {
-    case DATA:
+  if (details.location() == kField) {
+    if (details.kind() == kData) {
       return value->FitsRepresentation(details.representation()) &&
              descriptors->GetFieldType(descriptor)->NowContains(value);
-
-    case DATA_CONSTANT:
-      DCHECK(descriptors->GetConstant(descriptor) != value ||
-             value->FitsRepresentation(details.representation()));
-      return descriptors->GetConstant(descriptor) == value;
-
-    case ACCESSOR:
-    case ACCESSOR_CONSTANT:
+    } else {
+      DCHECK_EQ(kAccessor, details.kind());
+      UNREACHABLE();
       return false;
-  }
+    }
 
+  } else {
+    DCHECK_EQ(kDescriptor, details.location());
+    if (details.kind() == kData) {
+      DCHECK(descriptors->GetValue(descriptor) != value ||
+             value->FitsRepresentation(details.representation()));
+      return descriptors->GetValue(descriptor) == value;
+    } else {
+      DCHECK_EQ(kAccessor, details.kind());
+      return false;
+    }
+  }
   UNREACHABLE();
   return false;
 }
@@ -9603,8 +9171,11 @@ Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
   Representation representation = value->OptimalRepresentation();
   Handle<FieldType> type = value->OptimalType(isolate, representation);
 
-  return Map::ReconfigureProperty(map, descriptor, kData, attributes,
-                                  representation, type, FORCE_FIELD);
+  MapUpdater mu(isolate, map);
+  Handle<Map> new_map =
+      mu.ReconfigureToDataField(descriptor, attributes, representation, type);
+  new_map->set_migration_target(true);
+  return new_map;
 }
 
 }  // namespace
@@ -9697,9 +9268,11 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   }
 
   Isolate* isolate = map->GetIsolate();
-  Handle<Map> new_map = ReconfigureProperty(
-      map, descriptor, kind, attributes, Representation::None(),
-      FieldType::None(isolate), FORCE_FIELD);
+
+  MapUpdater mu(isolate, map);
+  DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
+  Handle<Map> new_map = mu.ReconfigureToDataField(
+      descriptor, attributes, Representation::None(), FieldType::None(isolate));
   return new_map;
 }
 
@@ -9759,7 +9332,7 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
       return Map::Normalize(map, mode, "AccessorsOverwritingNonLast");
     }
     PropertyDetails old_details = old_descriptors->GetDetails(descriptor);
-    if (old_details.type() != ACCESSOR_CONSTANT) {
+    if (old_details.kind() != kAccessor) {
       return Map::Normalize(map, mode, "AccessorsOverwritingNonAccessors");
     }
 
@@ -9881,15 +9454,13 @@ Handle<DescriptorArray> DescriptorArray::CopyUpToAddAttributes(
       if (!key->IsPrivate()) {
         int mask = DONT_DELETE | DONT_ENUM;
         // READ_ONLY is an invalid attribute for JS setters/getters.
-        if (details.type() != ACCESSOR_CONSTANT || !value->IsAccessorPair()) {
+        if (details.kind() != kAccessor || !value->IsAccessorPair()) {
           mask |= READ_ONLY;
         }
         details = details.CopyAddAttributes(
             static_cast<PropertyAttributes>(attributes & mask));
       }
-      Descriptor inner_desc(
-          handle(key), handle(value, desc->GetIsolate()), details);
-      descriptors->SetDescriptor(i, &inner_desc);
+      descriptors->Set(i, key, value, details);
     }
   } else {
     for (int i = 0; i < size; ++i) {
@@ -9910,7 +9481,8 @@ bool DescriptorArray::IsEqualUpTo(DescriptorArray* desc, int nof_descriptors) {
     }
     PropertyDetails details = GetDetails(i);
     PropertyDetails other_details = desc->GetDetails(i);
-    if (details.type() != other_details.type() ||
+    if (details.kind() != other_details.kind() ||
+        details.location() != other_details.location() ||
         !details.representation().Equals(other_details.representation())) {
       return false;
     }
@@ -10552,16 +10124,10 @@ void DescriptorArray::SetEnumCache(Handle<DescriptorArray> descriptors,
   }
 }
 
-
 void DescriptorArray::CopyFrom(int index, DescriptorArray* src) {
-  Object* value = src->GetValue(index);
   PropertyDetails details = src->GetDetails(index);
-  Descriptor desc(handle(src->GetKey(index)),
-                  handle(value, src->GetIsolate()),
-                  details);
-  SetDescriptor(index, &desc);
+  Set(index, src->GetKey(index), src->GetValue(index), details);
 }
-
 
 void DescriptorArray::Sort() {
   // In-place heap sort.
@@ -10782,7 +10348,6 @@ bool String::LooksValid() {
   if (!GetIsolate()->heap()->Contains(this)) return false;
   return true;
 }
-
 
 // static
 MaybeHandle<String> Name::ToFunctionName(Handle<Name> name) {
@@ -11740,7 +11305,7 @@ ComparisonResult String::Compare(Handle<String> x, Handle<String> y) {
 
 Object* String::IndexOf(Isolate* isolate, Handle<Object> receiver,
                         Handle<Object> search, Handle<Object> position) {
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+  if (receiver->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -11941,7 +11506,7 @@ int StringMatchBackwards(Vector<const schar> subject,
 
 Object* String::LastIndexOf(Isolate* isolate, Handle<Object> receiver,
                             Handle<Object> search, Handle<Object> position) {
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate)) {
+  if (receiver->IsNullOrUndefined(isolate)) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined,
                               isolate->factory()->NewStringFromAsciiChecked(
@@ -12389,47 +11954,19 @@ void JSFunction::AttemptConcurrentOptimization() {
 }
 
 // static
-Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
-    Handle<SharedFunctionInfo> shared, Handle<Context> native_context) {
-  Isolate* isolate = shared->GetIsolate();
-  CodeAndLiterals result =
-      shared->SearchOptimizedCodeMap(*native_context, BailoutId::None());
-  if (result.literals != nullptr) {
-    DCHECK(shared->feedback_metadata()->is_empty() ||
-           !result.literals->feedback_vector()->is_empty());
-    return handle(result.literals, isolate);
-  }
-
-  Handle<TypeFeedbackVector> feedback_vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> literals =
-      LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
-  Handle<Code> code;
-  if (result.code != nullptr) {
-    code = Handle<Code>(result.code, isolate);
-  }
-  AddToOptimizedCodeMap(shared, native_context, code, literals,
-                        BailoutId::None());
-  return literals;
-}
-
-// static
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    MaybeHandle<Code> code, Handle<LiteralsArray> literals,
-    BailoutId osr_ast_id) {
+    Handle<Code> code, BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
   if (isolate->serializer_enabled()) return;
-  DCHECK(code.is_null() ||
-         code.ToHandleChecked()->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(native_context->IsNativeContext());
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(kEntryLength == 2);
   Handle<FixedArray> new_code_map;
   int entry;
 
   if (!osr_ast_id.IsNone()) {
-    Context::AddToOptimizedCodeMap(
-        native_context, shared, code.ToHandleChecked(), literals, osr_ast_id);
+    Context::AddToOptimizedCodeMap(native_context, shared, code, osr_ast_id);
     return;
   }
 
@@ -12441,15 +11978,9 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context);
     if (entry >= kEntriesStart) {
-      // Just set the code and literals of the entry.
-      if (!code.is_null()) {
-        Handle<WeakCell> code_cell =
-            isolate->factory()->NewWeakCell(code.ToHandleChecked());
-        old_code_map->set(entry + kCachedCodeOffset, *code_cell);
-      }
-      Handle<WeakCell> literals_cell =
-          isolate->factory()->NewWeakCell(literals);
-      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
+      // Just set the code of the entry.
+      Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+      old_code_map->set(entry + kCachedCodeOffset, *code_cell);
       return;
     }
 
@@ -12477,15 +12008,11 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     }
   }
 
-  Handle<WeakCell> code_cell =
-      code.is_null() ? isolate->factory()->empty_weak_cell()
-                     : isolate->factory()->NewWeakCell(code.ToHandleChecked());
-  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
   WeakCell* context_cell = native_context->self_weak_cell();
 
   new_code_map->set(entry + kContextOffset, context_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
-  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
 
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
@@ -12495,8 +12022,6 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
-    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
-    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
   }
 #endif
 
@@ -12534,7 +12059,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
           ShortPrint();
           PrintF("]\n");
         }
-        // Just clear the code in order to continue sharing literals.
+        // Just clear the code.
         code_map->set(src + kCachedCodeOffset, heap->empty_weak_cell(),
                       SKIP_WRITE_BARRIER);
       }
@@ -12551,12 +12076,45 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
 void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<Context> native_context(function->context()->native_context());
-  if (function->literals() ==
-      function->GetIsolate()->heap()->empty_literals_array()) {
-    Handle<LiteralsArray> literals =
-        SharedFunctionInfo::FindOrCreateLiterals(shared, native_context);
-    function->set_literals(*literals);
+  Isolate* isolate = shared->GetIsolate();
+
+  if (!function->has_literals_array()) {
+    if (FLAG_trace_strong_rooted_literals) {
+      PrintF("EnsureLiterals: Installing literals array in %s %p\n",
+             shared->DebugName()->ToCString().get(),
+             reinterpret_cast<void*>(*function));
+    }
+    // Top level code didn't get it's literals installed.
+    Handle<TypeFeedbackVector> feedback_vector =
+        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+    Handle<LiteralsArray> new_literals =
+        LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
+    function->set_literals(*new_literals);
+  } else if (!function->literals()->has_feedback_vector()) {
+    if (FLAG_trace_strong_rooted_literals) {
+      PrintF("EnsureLiterals: Installing feedback vector in %s %p\n",
+             shared->DebugName()->ToCString().get(),
+             reinterpret_cast<void*>(*function));
+    }
+    // If the feedback vector hasn't been installed, do that.
+    Handle<TypeFeedbackVector> feedback_vector = TypeFeedbackVector::New(
+        shared->GetIsolate(), handle(shared->feedback_metadata()));
+    function->literals()->set_feedback_vector(*feedback_vector);
+  } else {
+    if (FLAG_trace_strong_rooted_literals) {
+      PrintF("EnsureLiterals: did nothing for %s %p\n",
+             shared->DebugName()->ToCString().get(),
+             reinterpret_cast<void*>(*function));
+    }
   }
+
+  // No matter what, ensure some post-conditions.
+  DCHECK(shared->feedback_metadata()->slot_count() != 0 ||
+         function->feedback_vector() ==
+             shared->GetIsolate()->heap()->empty_type_feedback_vector());
+  DCHECK(shared->num_literals() == 0 ||
+         function->literals() !=
+             shared->GetIsolate()->heap()->empty_literals_array());
 }
 
 static void GetMinInobjectSlack(Map* map, void* data) {
@@ -13208,7 +12766,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
     // Link initial map and constructor function if the new.target is actually a
     // subclass constructor.
-    if (IsSubclassConstructor(function->shared()->kind())) {
+    if (IsDerivedConstructor(function->shared()->kind())) {
       Handle<Object> prototype(function->instance_prototype(), isolate);
       InstanceType instance_type = constructor_initial_map->instance_type();
       DCHECK(CanSubclassHaveInobjectProperties(instance_type));
@@ -13432,7 +12990,7 @@ void Script::SetEvalOrigin(Handle<Script> script,
     StackTraceFrameIterator it(script->GetIsolate());
     if (!it.done() && it.is_javascript()) {
       FrameSummary summary = FrameSummary::GetFirst(it.javascript_frame());
-      script->set_eval_from_shared(summary.function()->shared());
+      script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
       script->set_eval_from_position(-summary.code_offset());
       return;
     }
@@ -13790,6 +13348,16 @@ String* SharedFunctionInfo::DebugName() {
   return String::cast(n);
 }
 
+bool SharedFunctionInfo::HasNoSideEffect() {
+  if (!computed_has_no_side_effect()) {
+    DisallowHeapAllocation not_handlified;
+    Handle<SharedFunctionInfo> info(this);
+    set_has_no_side_effect(DebugEvaluate::FunctionHasNoSideEffect(info));
+    set_computed_has_no_side_effect(true);
+  }
+  return has_no_side_effect();
+}
+
 // The filter is a pattern that matches function names in this way:
 //   "*"      all; the default
 //   "-"      all but the top-level function
@@ -13892,7 +13460,7 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
     JSFunction* func = JSFunction::cast(current);
     SharedFunctionInfo* shared = func->shared();
     expected_nof_properties += shared->expected_nof_properties();
-    if (!IsSubclassConstructor(shared->kind())) {
+    if (!IsDerivedConstructor(shared->kind())) {
       break;
     }
   }
@@ -14036,7 +13604,6 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_typed(lit->typed());
   shared_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   shared_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
-  shared_info->set_is_function(lit->is_function());
   shared_info->set_kind(lit->kind());
   if (!IsConstructable(lit->kind(), lit->language_mode())) {
     shared_info->SetConstructStub(
@@ -14127,15 +13694,11 @@ void SharedFunctionInfo::ClearCodeFromOptimizedCodeMap() {
   }
 }
 
-CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
-    Context* native_context, BailoutId osr_ast_id) {
-  CodeAndLiterals result = {nullptr, nullptr};
+Code* SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
+                                                 BailoutId osr_ast_id) {
+  Code* result = nullptr;
   if (!osr_ast_id.IsNone()) {
-    Code* code;
-    LiteralsArray* literals;
-    native_context->SearchOptimizedCodeMap(this, osr_ast_id, &code, &literals);
-    result = {code, literals};
-    return result;
+    return native_context->SearchOptimizedCodeMap(this, osr_ast_id);
   }
 
   DCHECK(osr_ast_id.IsNone());
@@ -14144,12 +13707,8 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
     FixedArray* code_map = optimized_code_map();
     DCHECK_LE(entry + kEntryLength, code_map->length());
     WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
-    WeakCell* literals_cell =
-        WeakCell::cast(code_map->get(entry + kLiteralsOffset));
 
-    result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
-              literals_cell->cleared() ? nullptr : LiteralsArray::cast(
-                                                       literals_cell->value())};
+    result = cell->cleared() ? nullptr : Code::cast(cell->value());
   }
   return result;
 }
@@ -16206,7 +15765,8 @@ void Dictionary<Derived, Shape, Key>::Print(std::ostream& os) {  // NOLINT
       } else {
         os << Brief(k);
       }
-      os << ": " << Brief(this->ValueAt(i)) << " " << this->DetailsAt(i);
+      os << ": " << Brief(this->ValueAt(i)) << " ";
+      this->DetailsAt(i).PrintAsSlowTo(os);
     }
   }
 }
@@ -17199,7 +16759,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
     HandleScope scope(isolate);
     Handle<Object> value(dict->ValueAt(i), isolate);
     PropertyDetails details = dict->DetailsAt(i);
-    if (details.type() == ACCESSOR_CONSTANT || details.IsReadOnly()) {
+    if (details.kind() == kAccessor || details.IsReadOnly()) {
       // Bail out and do the sorting of undefineds and array holes in JS.
       // Also bail out if the element is not supposed to be moved.
       return bailout;
@@ -17547,12 +17107,12 @@ Handle<PropertyCell> JSGlobalObject::EnsureEmptyPropertyCell(
     if (original_cell_type == PropertyCellType::kInvalidated) {
       cell = PropertyCell::InvalidateEntry(dictionary, entry);
     }
-    PropertyDetails details(NONE, DATA, 0, cell_type);
+    PropertyDetails details(kData, NONE, 0, cell_type);
     cell->set_property_details(details);
     return cell;
   }
   cell = isolate->factory()->NewPropertyCell();
-  PropertyDetails details(NONE, DATA, 0, cell_type);
+  PropertyDetails details(kData, NONE, 0, cell_type);
   dictionary =
       GlobalDictionary::Add(dictionary, name, cell, details, entry_out);
   // {*entry_out} is initialized inside GlobalDictionary::Add().
@@ -18073,7 +17633,7 @@ bool SeededNumberDictionary::HasComplexElements() {
     if (!this->IsKey(isolate, k)) continue;
     DCHECK(!IsDeleted(i));
     PropertyDetails details = this->DetailsAt(i);
-    if (details.type() == ACCESSOR_CONSTANT) return true;
+    if (details.kind() == kAccessor) return true;
     PropertyAttributes attr = details.attributes();
     if (attr & ALL_ATTRIBUTES_MASK) return true;
   }
@@ -19333,27 +18893,6 @@ void JSDate::SetValue(Object* value, bool is_value_nan) {
   } else {
     set_cache_stamp(Smi::FromInt(DateCache::kInvalidStamp), SKIP_WRITE_BARRIER);
   }
-}
-
-
-// static
-MaybeHandle<Object> JSDate::ToPrimitive(Handle<JSReceiver> receiver,
-                                        Handle<Object> hint) {
-  Isolate* const isolate = receiver->GetIsolate();
-  if (hint->IsString()) {
-    Handle<String> hint_string = Handle<String>::cast(hint);
-    if (hint_string->Equals(isolate->heap()->number_string())) {
-      return JSReceiver::OrdinaryToPrimitive(receiver,
-                                             OrdinaryToPrimitiveHint::kNumber);
-    }
-    if (hint_string->Equals(isolate->heap()->default_string()) ||
-        hint_string->Equals(isolate->heap()->string_string())) {
-      return JSReceiver::OrdinaryToPrimitive(receiver,
-                                             OrdinaryToPrimitiveHint::kString);
-    }
-  }
-  THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kInvalidHint, hint),
-                  Object);
 }
 
 

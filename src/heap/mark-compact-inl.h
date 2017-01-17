@@ -195,12 +195,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
           object = black_object;
         }
       } else if ((T == kGreyObjects || T == kAllLiveObjects)) {
+        map = base::NoBarrierAtomicValue<Map*>::FromAddress(addr)->Value();
         object = HeapObject::FromAddress(addr);
       }
 
       // We found a live object.
       if (object != nullptr) {
-        if (map != nullptr && map == heap()->one_pointer_filler_map()) {
+        if (map == heap()->one_pointer_filler_map()) {
           // Black areas together with slack tracking may result in black one
           // word filler objects. We filter these objects out in the iterator.
           object = nullptr;

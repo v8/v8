@@ -60,9 +60,7 @@ class X87OperandConverter : public InstructionOperandConverter {
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
     if (constant.type() == Constant::kInt32 &&
-        (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-         constant.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE ||
-         constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE)) {
+        RelocInfo::IsWasmReference(constant.rmode())) {
       return Immediate(reinterpret_cast<Address>(constant.ToInt32()),
                        constant.rmode());
     }

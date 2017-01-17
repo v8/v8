@@ -353,7 +353,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
   // Find frame containing arguments passed to the caller.
   JavaScriptFrameIterator it(isolate);
   JavaScriptFrame* frame = it.frame();
-  List<JSFunction*> functions(2);
+  List<SharedFunctionInfo*> functions(2);
   frame->GetFunctions(&functions);
   if (functions.length() > 1) {
     int inlined_jsframe_index = functions.length() - 1;
@@ -410,7 +410,7 @@ std::unique_ptr<Handle<Object>[]> GetCallerArguments(Isolate* isolate,
 template <typename T>
 Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
                                     T parameters, int argument_count) {
-  CHECK(!IsSubclassConstructor(callee->shared()->kind()));
+  CHECK(!IsDerivedConstructor(callee->shared()->kind()));
   DCHECK(callee->shared()->has_simple_parameters());
   Handle<JSObject> result =
       isolate->factory()->NewArgumentsObject(callee, argument_count);
@@ -520,7 +520,7 @@ class ParameterArguments BASE_EMBEDDED {
 
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments_Generic) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   // This generic runtime function can also be used when the caller has been
   // inlined, we use the slow but accurate {GetCallerArguments}.
@@ -585,7 +585,7 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
 
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
   Object** parameters = reinterpret_cast<Object**>(args[1]);
   CONVERT_SMI_ARG_CHECKED(argument_count, 2);
@@ -611,23 +611,37 @@ RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {
 
 RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                NOT_TENURED);
+  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
+  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
+                                 isolate);
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, context, literals, NOT_TENURED);
+  return *function;
 }
 
 
 RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
+  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
+  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
+  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
+  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
+                                 isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
-  return *isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                                TENURED);
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
+                                                            literals, TENURED);
+  return *function;
 }
 
 static Object* FindNameClash(Handle<ScopeInfo> scope_info,
@@ -672,7 +686,7 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
 
 RUNTIME_FUNCTION(Runtime_NewScriptContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_ARG_HANDLE_CHECKED(ScopeInfo, scope_info, 1);
@@ -705,7 +719,7 @@ RUNTIME_FUNCTION(Runtime_NewScriptContext) {
 
 RUNTIME_FUNCTION(Runtime_NewFunctionContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CONVERT_SMI_ARG_CHECKED(scope_type, 1);

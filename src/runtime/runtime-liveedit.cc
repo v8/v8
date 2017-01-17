@@ -21,7 +21,7 @@ namespace internal {
 RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_CHECKED(JSValue, script_value, 0);
 
   CHECK(script_value->value()->IsScript());
@@ -63,7 +63,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
 RUNTIME_FUNCTION(Runtime_LiveEditGatherCompileInfo) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_CHECKED(JSValue, script, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
 
@@ -81,7 +81,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditGatherCompileInfo) {
 RUNTIME_FUNCTION(Runtime_LiveEditReplaceScript) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_CHECKED(JSValue, original_script_value, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, new_source, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, old_script_name, 2);
@@ -133,7 +133,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFunctionSourceUpdated) {
 RUNTIME_FUNCTION(Runtime_LiveEditReplaceFunctionCode) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, new_compile_info, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_info, 1);
   CHECK(SharedInfoWrapper::IsInstance(shared_info));
@@ -147,7 +147,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceFunctionCode) {
 RUNTIME_FUNCTION(Runtime_LiveEditFunctionSetScript) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, function_object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, script_object, 1);
 
@@ -174,7 +174,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFunctionSetScript) {
 RUNTIME_FUNCTION(Runtime_LiveEditReplaceRefToNestedFunction) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(JSValue, parent_wrapper, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSValue, orig_wrapper, 1);
@@ -197,7 +197,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditReplaceRefToNestedFunction) {
 RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, shared_array, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, position_change_array, 1);
   CHECK(SharedInfoWrapper::IsInstance(shared_array));
@@ -214,7 +214,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditPatchFunctionPositions) {
 RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, old_shared_array, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSArray, new_shared_array, 1);
   CONVERT_BOOLEAN_ARG_CHECKED(do_drop, 2);
@@ -252,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCheckAndDropActivations) {
 RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, s1, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, s2, 1);
 
@@ -272,7 +272,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditCompareStrings) {
 RUNTIME_FUNCTION(Runtime_LiveEditRestartFrame) {
   HandleScope scope(isolate);
   CHECK(isolate->debug()->live_edit_enabled());
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 

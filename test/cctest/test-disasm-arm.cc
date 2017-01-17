@@ -1025,6 +1025,20 @@ TEST(Neon) {
               "f3020154       veor q0, q1, q2");
       COMPARE(veor(q15, q0, q8),
               "f340e170       veor q15, q0, q8");
+      COMPARE(vand(q15, q0, q8),
+              "f240e170       vand q15, q0, q8");
+      COMPARE(vorr(q15, q0, q8),
+              "f260e170       vorr q15, q0, q8");
+      COMPARE(vmin(q15, q0, q8),
+              "f260ef60       vmin.f32 q15, q0, q8");
+      COMPARE(vmax(q15, q0, q8),
+              "f240ef60       vmax.f32 q15, q0, q8");
+      COMPARE(vmax(NeonS8, q0, q1, q2),
+              "f2020644       vmax.s8 q0, q1, q2");
+      COMPARE(vmin(NeonU16, q1, q2, q8),
+              "f3142670       vmin.u16 q1, q2, q8");
+      COMPARE(vmax(NeonS32, q15, q0, q8),
+              "f260e660       vmax.s32 q15, q0, q8");
       COMPARE(vadd(q15, q0, q8),
               "f240ed60       vadd.f32 q15, q0, q8");
       COMPARE(vadd(Neon8, q0, q1, q2),
@@ -1049,6 +1063,14 @@ TEST(Neon) {
               "f2142970       vmul.i16 q1, q2, q8");
       COMPARE(vmul(Neon32, q15, q0, q8),
               "f260e970       vmul.i32 q15, q0, q8");
+      COMPARE(vrecpe(q15, q0),
+              "f3fbe540       vrecpe.f32 q15, q0");
+      COMPARE(vrecps(q15, q0, q8),
+              "f240ef70       vrecps.f32 q15, q0, q8");
+      COMPARE(vrsqrte(q15, q0),
+              "f3fbe5c0       vrsqrte.f32 q15, q0");
+      COMPARE(vrsqrts(q15, q0, q8),
+              "f260ef70       vrsqrts.f32 q15, q0, q8");
       COMPARE(vtst(Neon8, q0, q1, q2),
               "f2020854       vtst.i8 q0, q1, q2");
       COMPARE(vtst(Neon16, q1, q2, q8),
@@ -1057,12 +1079,28 @@ TEST(Neon) {
               "f260e870       vtst.i32 q15, q0, q8");
       COMPARE(vceq(q0, q1, q2),
               "f2020e44       vceq.f32 q0, q1, q2");
+      COMPARE(vcge(q0, q1, q2),
+              "f3020e44       vcge.f32 q0, q1, q2");
+      COMPARE(vcgt(q0, q1, q2),
+              "f3220e44       vcgt.f32 q0, q1, q2");
       COMPARE(vceq(Neon8, q0, q1, q2),
               "f3020854       vceq.i8 q0, q1, q2");
       COMPARE(vceq(Neon16, q1, q2, q8),
               "f3142870       vceq.i16 q1, q2, q8");
       COMPARE(vceq(Neon32, q15, q0, q8),
               "f360e870       vceq.i32 q15, q0, q8");
+      COMPARE(vcge(NeonS8, q0, q1, q2),
+              "f2020354       vcge.s8 q0, q1, q2");
+      COMPARE(vcge(NeonU16, q1, q2, q8),
+              "f3142370       vcge.u16 q1, q2, q8");
+      COMPARE(vcge(NeonS32, q15, q0, q8),
+              "f260e370       vcge.s32 q15, q0, q8");
+      COMPARE(vcgt(NeonS8, q0, q1, q2),
+              "f2020344       vcgt.s8 q0, q1, q2");
+      COMPARE(vcgt(NeonU16, q1, q2, q8),
+              "f3142360       vcgt.u16 q1, q2, q8");
+      COMPARE(vcgt(NeonS32, q15, q0, q8),
+              "f260e360       vcgt.s32 q15, q0, q8");
       COMPARE(vbsl(q0, q1, q2),
               "f3120154       vbsl q0, q1, q2");
       COMPARE(vbsl(q15, q0, q8),

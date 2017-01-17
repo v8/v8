@@ -41,7 +41,7 @@ bool LocalEmbedderHeapTracer::Trace(
     double deadline, EmbedderHeapTracer::AdvanceTracingActions actions) {
   if (!InUse()) return false;
 
-  RegisterWrappersWithRemoteTracer();
+  DCHECK_EQ(0, NumberOfCachedWrappersToTrace());
   return remote_tracer_->AdvanceTracing(deadline, actions);
 }
 

@@ -1047,9 +1047,11 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cc == equal) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(edx);
-      __ Push(eax);
-      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
+      __ Push(esi);
+      __ Call(strict() ? isolate()->builtins()->StrictEqual()
+                       : isolate()->builtins()->Equal(),
+              RelocInfo::CODE_TARGET);
+      __ Pop(esi);
     }
     // Turn true into 0 and false into some non-zero value.
     STATIC_ASSERT(EQUAL == 0);
@@ -1460,7 +1462,6 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   if (!save_doubles.FindCodeInCache(&save_doubles_code)) {
     save_doubles_code = *(save_doubles.GetCode());
   }
-  isolate->set_fp_stubs_generated(true);
 }
 
 
@@ -2452,67 +2453,6 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   __ jmp(done);
 }
 
-
-// Probe the name dictionary in the |elements| register. Jump to the
-// |done| label if a property with the given name is found leaving the
-// index into the dictionary in |r0|. Jump to the |miss| label
-// otherwise.
-void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
-                                                      Label* miss,
-                                                      Label* done,
-                                                      Register elements,
-                                                      Register name,
-                                                      Register r0,
-                                                      Register r1) {
-  DCHECK(!elements.is(r0));
-  DCHECK(!elements.is(r1));
-  DCHECK(!name.is(r0));
-  DCHECK(!name.is(r1));
-
-  __ AssertName(name);
-
-  __ mov(r1, FieldOperand(elements, kCapacityOffset));
-  __ shr(r1, kSmiTagSize);  // convert smi to int
-  __ dec(r1);
-
-  // Generate an unrolled loop that performs a few probes before
-  // giving up. Measurements done on Gmail indicate that 2 probes
-  // cover ~93% of loads from dictionaries.
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    __ mov(r0, FieldOperand(name, Name::kHashFieldOffset));
-    __ shr(r0, Name::kHashShift);
-    if (i > 0) {
-      __ add(r0, Immediate(NameDictionary::GetProbeOffset(i)));
-    }
-    __ and_(r0, r1);
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ lea(r0, Operand(r0, r0, times_2, 0));  // r0 = r0 * 3
-
-    // Check if the key is identical to the name.
-    __ cmp(name, Operand(elements,
-                         r0,
-                         times_4,
-                         kElementsStartOffset - kHeapObjectTag));
-    __ j(equal, done);
-  }
-
-  NameDictionaryLookupStub stub(masm->isolate(), elements, r1, r0,
-                                POSITIVE_LOOKUP);
-  __ push(name);
-  __ mov(r0, FieldOperand(name, Name::kHashFieldOffset));
-  __ shr(r0, Name::kHashShift);
-  __ push(r0);
-  __ CallStub(&stub);
-
-  __ test(r1, r1);
-  __ j(zero, miss);
-  __ jmp(done);
-}
-
-
 void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // This stub overrides SometimesSetsUpAFrame() to return false.  That means
   // we cannot call anything that could cause a GC from this stub.
@@ -3128,134 +3068,6 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
   __ bind(&fast_elements_case);
   GenerateCase(masm, FAST_ELEMENTS);
-}
-
-void FastNewObjectStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- edi    : target
-  //  -- edx    : new target
-  //  -- esi    : context
-  //  -- esp[0] : return address
-  // -----------------------------------
-  __ AssertFunction(edi);
-  __ AssertReceiver(edx);
-
-  // Verify that the new target is a JSFunction.
-  Label new_object;
-  __ CmpObjectType(edx, JS_FUNCTION_TYPE, ebx);
-  __ j(not_equal, &new_object);
-
-  // Load the initial map and verify that it's in fact a map.
-  __ mov(ecx, FieldOperand(edx, JSFunction::kPrototypeOrInitialMapOffset));
-  __ JumpIfSmi(ecx, &new_object);
-  __ CmpObjectType(ecx, MAP_TYPE, ebx);
-  __ j(not_equal, &new_object);
-
-  // Fall back to runtime if the target differs from the new target's
-  // initial map constructor.
-  __ cmp(edi, FieldOperand(ecx, Map::kConstructorOrBackPointerOffset));
-  __ j(not_equal, &new_object);
-
-  // Allocate the JSObject on the heap.
-  Label allocate, done_allocate;
-  __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceSizeOffset));
-  __ lea(ebx, Operand(ebx, times_pointer_size, 0));
-  __ Allocate(ebx, eax, edi, no_reg, &allocate, NO_ALLOCATION_FLAGS);
-  __ bind(&done_allocate);
-
-  // Initialize the JSObject fields.
-  __ mov(FieldOperand(eax, JSObject::kMapOffset), ecx);
-  __ mov(FieldOperand(eax, JSObject::kPropertiesOffset),
-         masm->isolate()->factory()->empty_fixed_array());
-  __ mov(FieldOperand(eax, JSObject::kElementsOffset),
-         masm->isolate()->factory()->empty_fixed_array());
-  STATIC_ASSERT(JSObject::kHeaderSize == 3 * kPointerSize);
-  __ lea(ebx, FieldOperand(eax, JSObject::kHeaderSize));
-
-  // ----------- S t a t e -------------
-  //  -- eax    : result (tagged)
-  //  -- ebx    : result fields (untagged)
-  //  -- edi    : result end (untagged)
-  //  -- ecx    : initial map
-  //  -- esi    : context
-  //  -- esp[0] : return address
-  // -----------------------------------
-
-  // Perform in-object slack tracking if requested.
-  Label slack_tracking;
-  STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  __ test(FieldOperand(ecx, Map::kBitField3Offset),
-          Immediate(Map::ConstructionCounter::kMask));
-  __ j(not_zero, &slack_tracking, Label::kNear);
-  {
-    // Initialize all in-object fields with undefined.
-    __ LoadRoot(edx, Heap::kUndefinedValueRootIndex);
-    __ InitializeFieldsWithFiller(ebx, edi, edx);
-    __ Ret();
-  }
-  __ bind(&slack_tracking);
-  {
-    // Decrease generous allocation count.
-    STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
-    __ sub(FieldOperand(ecx, Map::kBitField3Offset),
-           Immediate(1 << Map::ConstructionCounter::kShift));
-
-    // Initialize the in-object fields with undefined.
-    __ movzx_b(edx, FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset));
-    __ neg(edx);
-    __ lea(edx, Operand(edi, edx, times_pointer_size, 0));
-    __ LoadRoot(edi, Heap::kUndefinedValueRootIndex);
-    __ InitializeFieldsWithFiller(ebx, edx, edi);
-
-    // Initialize the remaining (reserved) fields with one pointer filler map.
-    __ movzx_b(edx, FieldOperand(ecx, Map::kUnusedPropertyFieldsOffset));
-    __ lea(edx, Operand(ebx, edx, times_pointer_size, 0));
-    __ LoadRoot(edi, Heap::kOnePointerFillerMapRootIndex);
-    __ InitializeFieldsWithFiller(ebx, edx, edi);
-
-    // Check if we can finalize the instance size.
-    Label finalize;
-    STATIC_ASSERT(Map::kSlackTrackingCounterEnd == 1);
-    __ test(FieldOperand(ecx, Map::kBitField3Offset),
-            Immediate(Map::ConstructionCounter::kMask));
-    __ j(zero, &finalize, Label::kNear);
-    __ Ret();
-
-    // Finalize the instance size.
-    __ bind(&finalize);
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(eax);
-      __ Push(ecx);
-      __ CallRuntime(Runtime::kFinalizeInstanceSize);
-      __ Pop(eax);
-    }
-    __ Ret();
-  }
-
-  // Fall back to %AllocateInNewSpace.
-  __ bind(&allocate);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ SmiTag(ebx);
-    __ Push(ecx);
-    __ Push(ebx);
-    __ CallRuntime(Runtime::kAllocateInNewSpace);
-    __ Pop(ecx);
-  }
-  __ movzx_b(ebx, FieldOperand(ecx, Map::kInstanceSizeOffset));
-  __ lea(edi, Operand(eax, ebx, times_pointer_size, 0));
-  STATIC_ASSERT(kHeapObjectTag == 1);
-  __ dec(edi);
-  __ jmp(&done_allocate);
-
-  // Fall back to %NewObject.
-  __ bind(&new_object);
-  __ PopReturnAddressTo(ecx);
-  __ Push(edi);
-  __ Push(edx);
-  __ PushReturnAddressFrom(ecx);
-  __ TailCallRuntime(Runtime::kNewObject);
 }
 
 void FastNewRestParameterStub::Generate(MacroAssembler* masm) {

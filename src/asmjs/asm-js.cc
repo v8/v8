@@ -170,9 +170,11 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   auto asm_wasm_result = builder.Run(&foreign_globals);
   if (!asm_wasm_result.success) {
     DCHECK(!info->isolate()->has_pending_exception());
-    MessageHandler::ReportMessage(info->isolate(),
-                                  builder.typer()->message_location(),
-                                  builder.typer()->error_message());
+    if (!FLAG_suppress_asm_messages) {
+      MessageHandler::ReportMessage(info->isolate(),
+                                    builder.typer()->message_location(),
+                                    builder.typer()->error_message());
+    }
     return MaybeHandle<FixedArray>();
   }
   double asm_wasm_time = asm_wasm_timer.Elapsed().InMillisecondsF();
@@ -211,13 +213,13 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
                            info->literal()->position());
   char text[100];
   int length;
-  if (FLAG_trace_asm_time) {
+  if (FLAG_predictable) {
+    length = base::OS::SNPrintF(text, arraysize(text), "success");
+  } else {
     length =
         base::OS::SNPrintF(text, arraysize(text),
                            "success, asm->wasm: %0.3f ms, compile: %0.3f ms",
                            asm_wasm_time, compile_time);
-  } else {
-    length = base::OS::SNPrintF(text, arraysize(text), "success");
   }
   DCHECK_NE(-1, length);
   USE(length);
@@ -226,7 +228,9 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
       info->isolate(), MessageTemplate::kAsmJsCompiled, &location, stext,
       Handle<JSArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
-  MessageHandler::ReportMessage(info->isolate(), &location, message);
+  if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
+    MessageHandler::ReportMessage(info->isolate(), &location, message);
+  }
 
   return result;
 }
@@ -250,8 +254,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                                               Handle<JSReceiver> foreign) {
   base::ElapsedTimer instantiate_timer;
   instantiate_timer.Start();
-  i::Handle<i::JSObject> module(
-      i::JSObject::cast(wasm_data->get(kWasmDataCompiledModule)));
+  i::Handle<i::WasmModuleObject> module(
+      i::WasmModuleObject::cast(wasm_data->get(kWasmDataCompiledModule)));
   i::Handle<i::FixedArray> foreign_globals(
       i::FixedArray::cast(wasm_data->get(kWasmDataForeignGlobals)));
 
@@ -324,11 +328,11 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   MessageLocation location(script, position, position);
   char text[50];
   int length;
-  if (FLAG_trace_asm_time) {
+  if (FLAG_predictable) {
+    length = base::OS::SNPrintF(text, arraysize(text), "success");
+  } else {
     length = base::OS::SNPrintF(text, arraysize(text), "success, %0.3f ms",
                                 instantiate_timer.Elapsed().InMillisecondsF());
-  } else {
-    length = base::OS::SNPrintF(text, arraysize(text), "success");
   }
   DCHECK_NE(-1, length);
   USE(length);
@@ -337,7 +341,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
       isolate, MessageTemplate::kAsmJsInstantiated, &location, stext,
       Handle<JSArray>::null());
   message->set_error_level(v8::Isolate::kMessageInfo);
-  MessageHandler::ReportMessage(isolate, &location, message);
+  if (!FLAG_suppress_asm_messages && FLAG_trace_asm_time) {
+    MessageHandler::ReportMessage(isolate, &location, message);
+  }
 
   return module_object;
 }

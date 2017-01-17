@@ -59,6 +59,16 @@ struct WasmDisassembly {
   OffsetTable offset_table;
 };
 
+enum PromiseDebugActionType {
+  kDebugEnqueueAsyncFunction,
+  kDebugEnqueuePromiseResolve,
+  kDebugEnqueuePromiseReject,
+  kDebugEnqueuePromiseResolveThenableJob,
+  kDebugPromiseCollected,
+  kDebugWillHandle,
+  kDebugDidHandle,
+};
+
 }  // namespace debug
 }  // namespace v8
 

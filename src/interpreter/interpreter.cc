@@ -33,7 +33,7 @@ typedef CodeStubAssembler::Variable Variable;
 
 class InterpreterCompilationJob final : public CompilationJob {
  public:
-  InterpreterCompilationJob(CompilationInfo* info, LazyCompilationMode mode);
+  explicit InterpreterCompilationJob(CompilationInfo* info);
 
  protected:
   Status PrepareJobImpl() final;
@@ -41,9 +41,41 @@ class InterpreterCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
+  class TimerScope final {
+   public:
+    TimerScope(RuntimeCallStats* stats, RuntimeCallStats::CounterId counter_id)
+        : stats_(stats) {
+      if (V8_UNLIKELY(FLAG_runtime_stats)) {
+        RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+      }
+    }
+
+    explicit TimerScope(RuntimeCallCounter* counter) : stats_(nullptr) {
+      if (V8_UNLIKELY(FLAG_runtime_stats)) {
+        timer_.Start(counter, nullptr);
+      }
+    }
+
+    ~TimerScope() {
+      if (V8_UNLIKELY(FLAG_runtime_stats)) {
+        if (stats_) {
+          RuntimeCallStats::Leave(stats_, &timer_);
+        } else {
+          timer_.Stop();
+        }
+      }
+    }
+
+   private:
+    RuntimeCallStats* stats_;
+    RuntimeCallTimer timer_;
+  };
+
   BytecodeGenerator* generator() { return &generator_; }
 
   BytecodeGenerator generator_;
+  RuntimeCallStats* runtime_call_stats_;
+  RuntimeCallCounter background_execute_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
@@ -159,10 +191,11 @@ int Interpreter::InterruptBudget() {
   return FLAG_interrupt_budget * kCodeSizeMultiplier;
 }
 
-InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info,
-                                                     LazyCompilationMode mode)
+InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
     : CompilationJob(info->isolate(), info, "Ignition"),
-      generator_(info, mode) {}
+      generator_(info),
+      runtime_call_stats_(info->isolate()->counters()->runtime_call_stats()),
+      background_execute_counter_("CompileBackgroundIgnition") {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
   CodeGenerator::MakeCodePrologue(info(), "interpreter");
@@ -178,11 +211,11 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  // TODO(5203): These timers aren't thread safe, move to using the CompilerJob
-  // timers.
-  RuntimeCallTimerScope runtimeTimer(info()->isolate(),
-                                     &RuntimeCallStats::CompileIgnition);
-  TimerEventScope<TimerEventCompileIgnition> timer(info()->isolate());
+  TimerScope runtimeTimer =
+      executed_on_background_thread()
+          ? TimerScope(&background_execute_counter_)
+          : TimerScope(runtime_call_stats_, &RuntimeCallStats::CompileIgnition);
+  // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   generator()->GenerateBytecode(stack_limit());
@@ -194,6 +227,15 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
+  // Add background runtime call stats.
+  if (V8_UNLIKELY(FLAG_runtime_stats && executed_on_background_thread())) {
+    runtime_call_stats_->CompileBackgroundIgnition.Add(
+        &background_execute_counter_);
+  }
+
+  RuntimeCallTimerScope runtimeTimer(
+      runtime_call_stats_, &RuntimeCallStats::CompileIgnitionFinalization);
+
   Handle<BytecodeArray> bytecodes = generator()->FinalizeBytecode(isolate());
   if (generator()->HasStackOverflow()) {
     return FAILED;
@@ -210,9 +252,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
   return SUCCEEDED;
 }
 
-CompilationJob* Interpreter::NewCompilationJob(CompilationInfo* info,
-                                               LazyCompilationMode mode) {
-  return new InterpreterCompilationJob(info, mode);
+CompilationJob* Interpreter::NewCompilationJob(CompilationInfo* info) {
+  return new InterpreterCompilationJob(info);
 }
 
 bool Interpreter::IsDispatchTableInitialized() {
@@ -818,27 +859,26 @@ void Interpreter::DoStaKeyedPropertyStrict(InterpreterAssembler* assembler) {
   DoKeyedStoreIC(ic, assembler);
 }
 
-// StaDataPropertyInLiteral <object> <name> <value> <flags>
+// StaDataPropertyInLiteral <object> <name> <flags>
 //
-// Define a property <name> with value <value> in <object>. Property attributes
-// and whether set_function_name are stored in DataPropertyInLiteralFlags
-// <flags>.
+// Define a property <name> with value from the accumulator in <object>.
+// Property attributes and whether set_function_name are stored in
+// DataPropertyInLiteralFlags <flags>.
 //
 // This definition is not observable and is used only for definitions
 // in object or class literals.
 void Interpreter::DoStaDataPropertyInLiteral(InterpreterAssembler* assembler) {
-  Node* object_reg_index = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(object_reg_index);
-  Node* name_reg_index = __ BytecodeOperandReg(1);
-  Node* name = __ LoadRegister(name_reg_index);
-  Node* value_reg_index = __ BytecodeOperandReg(2);
-  Node* value = __ LoadRegister(value_reg_index);
-  Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(3));
+  Node* object = __ LoadRegister(__ BytecodeOperandReg(0));
+  Node* name = __ LoadRegister(__ BytecodeOperandReg(1));
+  Node* value = __ GetAccumulator();
+  Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(2));
+  Node* vector_index = __ SmiTag(__ BytecodeOperandIdx(3));
 
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
 
   __ CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
-                 value, flags);
+                 value, flags, type_feedback_vector, vector_index);
   __ Dispatch();
 }
 
@@ -1002,7 +1042,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
 
   __ Bind(&gather_type_feedback);
   {
-    Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+    Variable var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
     Label lhs_is_not_smi(assembler), lhs_is_not_number(assembler),
         lhs_is_not_string(assembler), gather_rhs_type(assembler),
         update_feedback(assembler);
@@ -1010,7 +1050,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
     __ GotoUnless(__ TaggedIsSmi(lhs), &lhs_is_not_smi);
 
     var_type_feedback.Bind(
-        __ Int32Constant(CompareOperationFeedback::kSignedSmall));
+        __ SmiConstant(CompareOperationFeedback::kSignedSmall));
     __ Goto(&gather_rhs_type);
 
     __ Bind(&lhs_is_not_smi);
@@ -1018,8 +1058,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
       Node* lhs_map = __ LoadMap(lhs);
       __ GotoUnless(__ IsHeapNumberMap(lhs_map), &lhs_is_not_number);
 
-      var_type_feedback.Bind(
-          __ Int32Constant(CompareOperationFeedback::kNumber));
+      var_type_feedback.Bind(__ SmiConstant(CompareOperationFeedback::kNumber));
       __ Goto(&gather_rhs_type);
 
       __ Bind(&lhs_is_not_number);
@@ -1032,15 +1071,32 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
               &lhs_is_not_oddball);
 
           var_type_feedback.Bind(
-              __ Int32Constant(CompareOperationFeedback::kNumberOrOddball));
+              __ SmiConstant(CompareOperationFeedback::kNumberOrOddball));
           __ Goto(&gather_rhs_type);
 
           __ Bind(&lhs_is_not_oddball);
         }
 
-        var_type_feedback.Bind(__ SelectInt32Constant(
-            __ IsStringInstanceType(lhs_instance_type),
-            CompareOperationFeedback::kString, CompareOperationFeedback::kAny));
+        Label lhs_is_not_string(assembler);
+        __ GotoUnless(__ IsStringInstanceType(lhs_instance_type),
+                      &lhs_is_not_string);
+
+        if (Token::IsOrderedRelationalCompareOp(compare_op)) {
+          var_type_feedback.Bind(
+              __ SmiConstant(CompareOperationFeedback::kString));
+        } else {
+          var_type_feedback.Bind(__ SelectSmiConstant(
+              __ Word32Equal(
+                  __ Word32And(lhs_instance_type,
+                               __ Int32Constant(kIsNotInternalizedMask)),
+                  __ Int32Constant(kInternalizedTag)),
+              CompareOperationFeedback::kInternalizedString,
+              CompareOperationFeedback::kString));
+        }
+        __ Goto(&gather_rhs_type);
+
+        __ Bind(&lhs_is_not_string);
+        var_type_feedback.Bind(__ SmiConstant(CompareOperationFeedback::kAny));
         __ Goto(&gather_rhs_type);
       }
     }
@@ -1051,9 +1107,9 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
 
       __ GotoUnless(__ TaggedIsSmi(rhs), &rhs_is_not_smi);
 
-      var_type_feedback.Bind(__ Word32Or(
-          var_type_feedback.value(),
-          __ Int32Constant(CompareOperationFeedback::kSignedSmall)));
+      var_type_feedback.Bind(
+          __ SmiOr(var_type_feedback.value(),
+                   __ SmiConstant(CompareOperationFeedback::kSignedSmall)));
       __ Goto(&update_feedback);
 
       __ Bind(&rhs_is_not_smi);
@@ -1062,8 +1118,8 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         __ GotoUnless(__ IsHeapNumberMap(rhs_map), &rhs_is_not_number);
 
         var_type_feedback.Bind(
-            __ Word32Or(var_type_feedback.value(),
-                        __ Int32Constant(CompareOperationFeedback::kNumber)));
+            __ SmiOr(var_type_feedback.value(),
+                     __ SmiConstant(CompareOperationFeedback::kNumber)));
         __ Goto(&update_feedback);
 
         __ Bind(&rhs_is_not_number);
@@ -1075,19 +1131,38 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
                                          __ Int32Constant(ODDBALL_TYPE)),
                           &rhs_is_not_oddball);
 
-            var_type_feedback.Bind(__ Word32Or(
+            var_type_feedback.Bind(__ SmiOr(
                 var_type_feedback.value(),
-                __ Int32Constant(CompareOperationFeedback::kNumberOrOddball)));
+                __ SmiConstant(CompareOperationFeedback::kNumberOrOddball)));
             __ Goto(&update_feedback);
 
             __ Bind(&rhs_is_not_oddball);
           }
 
-          var_type_feedback.Bind(__ Word32Or(
-              var_type_feedback.value(),
-              __ SelectInt32Constant(__ IsStringInstanceType(rhs_instance_type),
-                                     CompareOperationFeedback::kString,
-                                     CompareOperationFeedback::kAny)));
+          Label rhs_is_not_string(assembler);
+          __ GotoUnless(__ IsStringInstanceType(rhs_instance_type),
+                        &rhs_is_not_string);
+
+          if (Token::IsOrderedRelationalCompareOp(compare_op)) {
+            var_type_feedback.Bind(
+                __ SmiOr(var_type_feedback.value(),
+                         __ SmiConstant(CompareOperationFeedback::kString)));
+          } else {
+            var_type_feedback.Bind(__ SmiOr(
+                var_type_feedback.value(),
+                __ SelectSmiConstant(
+                    __ Word32Equal(
+                        __ Word32And(rhs_instance_type,
+                                     __ Int32Constant(kIsNotInternalizedMask)),
+                        __ Int32Constant(kInternalizedTag)),
+                    CompareOperationFeedback::kInternalizedString,
+                    CompareOperationFeedback::kString)));
+          }
+          __ Goto(&update_feedback);
+
+          __ Bind(&rhs_is_not_string);
+          var_type_feedback.Bind(
+              __ SmiConstant(CompareOperationFeedback::kAny));
           __ Goto(&update_feedback);
         }
       }
@@ -1183,8 +1258,9 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
   Node* slot_index = __ BytecodeOperandIdx(1);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
 
-  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32),
-      var_rhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned),
+      var_rhs_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
       context, lhs, &var_lhs_type_feedback);
   Node* rhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1223,7 +1299,7 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
       UNREACHABLE();
   }
 
-  Node* result_type = __ SelectInt32Constant(
+  Node* result_type = __ SelectSmiConstant(
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
 
@@ -1238,9 +1314,9 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
   }
 
   Node* input_feedback =
-      __ Word32Or(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
-  __ UpdateFeedback(__ Word32Or(result_type, input_feedback),
-                    type_feedback_vector, slot_index);
+      __ SmiOr(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
+  __ UpdateFeedback(__ SmiOr(result_type, input_feedback), type_feedback_vector,
+                    slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1326,7 +1402,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
     __ Branch(overflow, &slowpath, &if_notoverflow);
     __ Bind(&if_notoverflow);
     {
-      __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+      __ UpdateFeedback(__ SmiConstant(BinaryOperationFeedback::kSignedSmall),
                         type_feedback_vector, slot_index);
       var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
@@ -1380,7 +1456,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
     __ Branch(overflow, &slowpath, &if_notoverflow);
     __ Bind(&if_notoverflow);
     {
-      __ UpdateFeedback(__ Int32Constant(BinaryOperationFeedback::kSignedSmall),
+      __ UpdateFeedback(__ SmiConstant(BinaryOperationFeedback::kSignedSmall),
                         type_feedback_vector, slot_index);
       var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
@@ -1415,16 +1491,17 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
       context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* value = __ Word32Or(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type = __ SelectInt32Constant(
+  Node* result_type = __ SelectSmiConstant(
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
-  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+  __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -1441,16 +1518,17 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
       context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* value = __ Word32And(lhs_value, rhs_value);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type = __ SelectInt32Constant(
+  Node* result_type = __ SelectSmiConstant(
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
-  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+  __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -1468,17 +1546,18 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
       context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Shl(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type = __ SelectInt32Constant(
+  Node* result_type = __ SelectSmiConstant(
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
-  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+  __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -1496,17 +1575,18 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Variable var_lhs_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_lhs_type_feedback(assembler,
+                                 MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
       context, left, &var_lhs_type_feedback);
   Node* rhs_value = __ SmiToWord32(right);
   Node* shift_count = __ Word32And(rhs_value, __ Int32Constant(0x1f));
   Node* value = __ Word32Sar(lhs_value, shift_count);
   Node* result = __ ChangeInt32ToTagged(value);
-  Node* result_type = __ SelectInt32Constant(
+  Node* result_type = __ SelectSmiConstant(
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
-  __ UpdateFeedback(__ Word32Or(result_type, var_lhs_type_feedback.value()),
+  __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
                     type_feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -1583,12 +1663,12 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
   // We might need to try again due to ToNumber conversion.
   Variable value_var(assembler, MachineRepresentation::kTagged);
   Variable result_var(assembler, MachineRepresentation::kTagged);
-  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
   Variable* loop_vars[] = {&value_var, &var_type_feedback};
   Label start(assembler, 2, loop_vars);
   value_var.Bind(value);
   var_type_feedback.Bind(
-      assembler->Int32Constant(BinaryOperationFeedback::kNone));
+      assembler->SmiConstant(BinaryOperationFeedback::kNone));
   assembler->Goto(&start);
   assembler->Bind(&start);
   {
@@ -1611,9 +1691,9 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
       assembler->Bind(&if_notoverflow);
-      var_type_feedback.Bind(assembler->Word32Or(
+      var_type_feedback.Bind(assembler->SmiOr(
           var_type_feedback.value(),
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall)));
+          assembler->SmiConstant(BinaryOperationFeedback::kSignedSmall)));
       result_var.Bind(
           assembler->BitcastWordToTaggedSigned(assembler->Projection(0, pair)));
       assembler->Goto(&end);
@@ -1647,9 +1727,9 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
         CSA_ASSERT(assembler,
-                   assembler->Word32Equal(var_type_feedback.value(),
-                                          assembler->Int32Constant(
-                                              BinaryOperationFeedback::kNone)));
+                   assembler->SmiEqual(
+                       var_type_feedback.value(),
+                       assembler->SmiConstant(BinaryOperationFeedback::kNone)));
 
         Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
         Node* instance_type = assembler->LoadMapInstanceType(value_map);
@@ -1662,7 +1742,7 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
           // Convert Oddball to Number and check again.
           value_var.Bind(
               assembler->LoadObjectField(value, Oddball::kToNumberOffset));
-          var_type_feedback.Bind(assembler->Int32Constant(
+          var_type_feedback.Bind(assembler->SmiConstant(
               BinaryOperationFeedback::kNumberOrOddball));
           assembler->Goto(&start);
         }
@@ -1673,7 +1753,7 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
           Callable callable =
               CodeFactory::NonNumberToNumber(assembler->isolate());
           var_type_feedback.Bind(
-              assembler->Int32Constant(BinaryOperationFeedback::kAny));
+              assembler->SmiConstant(BinaryOperationFeedback::kAny));
           value_var.Bind(assembler->CallStub(callable, context, value));
           assembler->Goto(&start);
         }
@@ -1686,9 +1766,9 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
     Node* finc_value = var_finc_value.value();
     Node* one = assembler->Float64Constant(1.0);
     Node* finc_result = assembler->Float64Add(finc_value, one);
-    var_type_feedback.Bind(assembler->Word32Or(
+    var_type_feedback.Bind(assembler->SmiOr(
         var_type_feedback.value(),
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber)));
     result_var.Bind(assembler->AllocateHeapNumberWithValue(finc_result));
     assembler->Goto(&end);
   }
@@ -1721,11 +1801,11 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
   // We might need to try again due to ToNumber conversion.
   Variable value_var(assembler, MachineRepresentation::kTagged);
   Variable result_var(assembler, MachineRepresentation::kTagged);
-  Variable var_type_feedback(assembler, MachineRepresentation::kWord32);
+  Variable var_type_feedback(assembler, MachineRepresentation::kTaggedSigned);
   Variable* loop_vars[] = {&value_var, &var_type_feedback};
   Label start(assembler, 2, loop_vars);
   var_type_feedback.Bind(
-      assembler->Int32Constant(BinaryOperationFeedback::kNone));
+      assembler->SmiConstant(BinaryOperationFeedback::kNone));
   value_var.Bind(value);
   assembler->Goto(&start);
   assembler->Bind(&start);
@@ -1749,9 +1829,9 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
       assembler->Branch(overflow, &if_overflow, &if_notoverflow);
 
       assembler->Bind(&if_notoverflow);
-      var_type_feedback.Bind(assembler->Word32Or(
+      var_type_feedback.Bind(assembler->SmiOr(
           var_type_feedback.value(),
-          assembler->Int32Constant(BinaryOperationFeedback::kSignedSmall)));
+          assembler->SmiConstant(BinaryOperationFeedback::kSignedSmall)));
       result_var.Bind(
           assembler->BitcastWordToTaggedSigned(assembler->Projection(0, pair)));
       assembler->Goto(&end);
@@ -1785,9 +1865,9 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
         // convert the value to a number, we cannot reach this path. We can
         // only reach this path on the first pass when the feedback is kNone.
         CSA_ASSERT(assembler,
-                   assembler->Word32Equal(var_type_feedback.value(),
-                                          assembler->Int32Constant(
-                                              BinaryOperationFeedback::kNone)));
+                   assembler->SmiEqual(
+                       var_type_feedback.value(),
+                       assembler->SmiConstant(BinaryOperationFeedback::kNone)));
 
         Label if_valueisoddball(assembler), if_valuenotoddball(assembler);
         Node* instance_type = assembler->LoadMapInstanceType(value_map);
@@ -1800,7 +1880,7 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
           // Convert Oddball to Number and check again.
           value_var.Bind(
               assembler->LoadObjectField(value, Oddball::kToNumberOffset));
-          var_type_feedback.Bind(assembler->Int32Constant(
+          var_type_feedback.Bind(assembler->SmiConstant(
               BinaryOperationFeedback::kNumberOrOddball));
           assembler->Goto(&start);
         }
@@ -1811,7 +1891,7 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
           Callable callable =
               CodeFactory::NonNumberToNumber(assembler->isolate());
           var_type_feedback.Bind(
-              assembler->Int32Constant(BinaryOperationFeedback::kAny));
+              assembler->SmiConstant(BinaryOperationFeedback::kAny));
           value_var.Bind(assembler->CallStub(callable, context, value));
           assembler->Goto(&start);
         }
@@ -1824,9 +1904,9 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
     Node* fdec_value = var_fdec_value.value();
     Node* one = assembler->Float64Constant(1.0);
     Node* fdec_result = assembler->Float64Sub(fdec_value, one);
-    var_type_feedback.Bind(assembler->Word32Or(
+    var_type_feedback.Bind(assembler->SmiOr(
         var_type_feedback.value(),
-        assembler->Int32Constant(BinaryOperationFeedback::kNumber)));
+        assembler->SmiConstant(BinaryOperationFeedback::kNumber)));
     result_var.Bind(assembler->AllocateHeapNumberWithValue(fdec_result));
     assembler->Goto(&end);
   }
@@ -2106,7 +2186,6 @@ void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
 // registers. The new.target is in the accumulator.
 //
 void Interpreter::DoNew(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::InterpreterPushArgsAndConstruct(isolate_);
   Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
   Node* constructor = __ LoadRegister(constructor_reg);
@@ -2649,21 +2728,25 @@ void Interpreter::DoCreateObjectLiteral(InterpreterAssembler* assembler) {
   }
 }
 
-// CreateClosure <index> <tenured>
+// CreateClosure <index> <slot> <tenured>
 //
 // Creates a new closure for SharedFunctionInfo at position |index| in the
 // constant pool and with the PretenureFlag <tenured>.
 void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   Node* index = __ BytecodeOperandIdx(0);
   Node* shared = __ LoadConstantPoolEntry(index);
-  Node* flags = __ BytecodeOperandFlag(1);
+  Node* flags = __ BytecodeOperandFlag(2);
   Node* context = __ GetContext();
 
   Label call_runtime(assembler, Label::kDeferred);
   __ GotoUnless(__ IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags),
                 &call_runtime);
   ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
-  __ SetAccumulator(constructor_assembler.EmitFastNewClosure(shared, context));
+  Node* vector_index = __ BytecodeOperandIdx(1);
+  vector_index = __ SmiTag(vector_index);
+  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  __ SetAccumulator(constructor_assembler.EmitFastNewClosure(
+      shared, type_feedback_vector, vector_index, context));
   __ Dispatch();
 
   __ Bind(&call_runtime);
@@ -2671,8 +2754,12 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
     Node* tenured_raw =
         __ DecodeWordFromWord32<CreateClosureFlags::PretenuredBit>(flags);
     Node* tenured = __ SmiTag(tenured_raw);
-    Node* result = __ CallRuntime(Runtime::kInterpreterNewClosure, context,
-                                  shared, tenured);
+    type_feedback_vector = __ LoadTypeFeedbackVector();
+    vector_index = __ BytecodeOperandIdx(1);
+    vector_index = __ SmiTag(vector_index);
+    Node* result =
+        __ CallRuntime(Runtime::kInterpreterNewClosure, context, shared,
+                       type_feedback_vector, vector_index, tenured);
     __ SetAccumulator(result);
     __ Dispatch();
   }

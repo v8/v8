@@ -7,6 +7,8 @@
 #include <memory>
 
 #include "src/handles-inl.h"
+#include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/prototype.h"
 
 namespace v8 {
@@ -302,7 +304,8 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < real_size; i++) {
     PropertyDetails details = descs->GetDetails(i);
-    if (details.type() == DATA) {
+    if (details.location() == kField) {
+      DCHECK_EQ(kData, details.kind());
       Object* key = descs->GetKey(i);
       if (key->IsString() || key->IsNumber()) {
         int len = 3;
@@ -481,8 +484,8 @@ void StringStream::PrintPrototype(JSFunction* fun, Object* receiver) {
   Object* name = fun->shared()->name();
   bool print_name = false;
   Isolate* isolate = fun->GetIsolate();
-  if (receiver->IsNull(isolate) || receiver->IsUndefined(isolate) ||
-      receiver->IsTheHole(isolate) || receiver->IsJSProxy()) {
+  if (receiver->IsNullOrUndefined(isolate) || receiver->IsTheHole(isolate) ||
+      receiver->IsJSProxy()) {
     print_name = true;
   } else if (isolate->context() != nullptr) {
     if (!receiver->IsJSObject()) {

@@ -67,6 +67,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         script_(script),
         typer_(typer),
         typer_failed_(false),
+        typer_finished_(false),
         breakable_blocks_(zone),
         foreign_variables_(zone),
         init_function_(nullptr),
@@ -100,6 +101,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       uint32_t index = LookupOrInsertGlobal(fv->var, fv->type);
       foreign_init_function_->EmitWithVarInt(kExprSetGlobal, index);
     }
+    foreign_init_function_->Emit(kExprEnd);
   }
 
   Handle<FixedArray> GetForeignArgs() {
@@ -122,10 +124,15 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (HasStackOverflow()) {
       return false;
     }
+    if (!typer_finished_ && !typer_failed_) {
+      typer_->FailWithMessage("Module missing export section.");
+      typer_failed_ = true;
+    }
     if (typer_failed_) {
       return false;
     }
     BuildForeignInitFunction();
+    init_function_->Emit(kExprEnd);  // finish init function.
     return true;
   }
 
@@ -140,8 +147,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (decl->fun()->body() == nullptr) {
       // TODO(titzer/bradnelson): Reuse SharedFunctionInfos used here when
       // compiling the wasm module.
-      Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfo(
-          decl->fun(), script_, info_, LazyCompilationMode::kAlways);
+      Handle<SharedFunctionInfo> shared =
+          Compiler::GetSharedFunctionInfo(decl->fun(), script_, info_);
       shared->set_is_toplevel(false);
       ParseInfo info(&zone, script_);
       info.set_shared_info(shared);
@@ -176,6 +183,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     }
     current_function_builder_ = LookupOrInsertFunction(decl->proxy()->var());
     scope_ = kFuncScope;
+
+    // Record start of the function, used as position for the stack check.
+    current_function_builder_->SetAsmFunctionStartPosition(
+        decl->fun()->start_position());
+
     RECURSE(Visit(decl->fun()));
     decl->set_fun(old_func);
     if (new_func_scope != nullptr) {
@@ -317,10 +329,16 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitReturnStatement(ReturnStatement* stmt) {
     if (scope_ == kModuleScope) {
+      if (typer_finished_) {
+        typer_->FailWithMessage("Module has multiple returns.");
+        typer_failed_ = true;
+        return;
+      }
       if (!typer_->ValidateAfterFunctionsPhase()) {
         typer_failed_ = true;
         return;
       }
+      typer_finished_ = true;
       scope_ = kExportScope;
       RECURSE(Visit(stmt->expression()));
       scope_ = kModuleScope;
@@ -527,6 +545,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     RECURSE(VisitDeclarations(scope->declarations()));
     if (typer_failed_) return;
     RECURSE(VisitStatements(expr->body()));
+    if (scope_ == kFuncScope) {
+      // Finish the function-body scope block.
+      current_function_builder_->Emit(kExprEnd);
+    }
   }
 
   void VisitNativeFunctionLiteral(NativeFunctionLiteral* expr) {
@@ -1062,7 +1084,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitPropertyAndEmitIndex(Property* expr, AsmType** atype) {
     Expression* obj = expr->obj();
     *atype = typer_->TypeOf(obj);
-    int size = (*atype)->ElementSizeInBytes();
+    int32_t size = (*atype)->ElementSizeInBytes();
     if (size == 1) {
       // Allow more general expression in byte arrays than the spec
       // strictly permits.
@@ -1090,9 +1112,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
                 1 << static_cast<int>(
                     binop->right()->AsLiteral()->raw_value()->AsNumber()));
       // Mask bottom bits to match asm.js behavior.
-      byte mask = static_cast<byte>(~(size - 1));
       RECURSE(Visit(binop->left()));
-      current_function_builder_->EmitWithU8(kExprI8Const, mask);
+      current_function_builder_->EmitI32Const(~(size - 1));
       current_function_builder_->Emit(kExprI32And);
       return;
     }
@@ -1231,7 +1252,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           // if set_local(tmp, x) < 0
           Visit(call->arguments()->at(0));
           current_function_builder_->EmitTeeLocal(tmp.index());
-          byte code[] = {WASM_I8(0)};
+          byte code[] = {WASM_ZERO};
           current_function_builder_->EmitCode(code, sizeof(code));
           current_function_builder_->Emit(kExprI32LtS);
           current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
@@ -1943,6 +1964,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   Handle<Script> script_;
   AsmTyper* typer_;
   bool typer_failed_;
+  bool typer_finished_;
   ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
   ZoneVector<ForeignVariable> foreign_variables_;
   WasmFunctionBuilder* init_function_;

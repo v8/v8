@@ -152,5 +152,28 @@ RUNTIME_FUNCTION(Runtime_WasmGetCaughtExceptionValue) {
   return exception;
 }
 
+RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
+  DCHECK(args.length() == 3);
+  HandleScope scope(isolate);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, instance_obj, 0);
+  CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[1]);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 2);
+  CHECK(WasmInstanceObject::IsWasmInstanceObject(*instance_obj));
+
+  // The arg buffer is the raw pointer to the caller's stack. It looks like a
+  // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just
+  // cast it back to the raw pointer.
+  CHECK(!arg_buffer_obj->IsHeapObject());
+  CHECK(arg_buffer_obj->IsSmi());
+  uint8_t* arg_buffer = reinterpret_cast<uint8_t*>(*arg_buffer_obj);
+
+  Handle<WasmInstanceObject> instance =
+      Handle<WasmInstanceObject>::cast(instance_obj);
+  Handle<WasmDebugInfo> debug_info =
+      WasmInstanceObject::GetOrCreateDebugInfo(instance);
+  WasmDebugInfo::RunInterpreter(debug_info, func_index, arg_buffer);
+  return isolate->heap()->undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

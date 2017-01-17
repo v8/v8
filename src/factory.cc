@@ -13,6 +13,8 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/module-info.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {
@@ -453,7 +455,6 @@ Handle<String> Factory::NewInternalizedStringImpl(
       String);
 }
 
-
 MaybeHandle<Map> Factory::InternalizedStringMapForString(
     Handle<String> string) {
   // If the string is in new space it cannot be used as internalized.
@@ -461,10 +462,12 @@ MaybeHandle<Map> Factory::InternalizedStringMapForString(
 
   // Find the corresponding internalized string map for strings.
   switch (string->map()->instance_type()) {
-    case STRING_TYPE: return internalized_string_map();
+    case STRING_TYPE:
+      return internalized_string_map();
     case ONE_BYTE_STRING_TYPE:
       return one_byte_internalized_string_map();
-    case EXTERNAL_STRING_TYPE: return external_internalized_string_map();
+    case EXTERNAL_STRING_TYPE:
+      return external_internalized_string_map();
     case EXTERNAL_ONE_BYTE_STRING_TYPE:
       return external_one_byte_internalized_string_map();
     case EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
@@ -1011,38 +1014,18 @@ Handle<Struct> Factory::NewStruct(InstanceType type) {
       Struct);
 }
 
-Handle<PromiseResolveThenableJobInfo> Factory::NewPromiseResolveThenableJobInfo(
-    Handle<JSReceiver> thenable, Handle<JSReceiver> then,
-    Handle<JSFunction> resolve, Handle<JSFunction> reject,
-    Handle<Object> debug_id, Handle<Object> debug_name,
-    Handle<Context> context) {
-  Handle<PromiseResolveThenableJobInfo> result =
-      Handle<PromiseResolveThenableJobInfo>::cast(
-          NewStruct(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE));
-  result->set_thenable(*thenable);
-  result->set_then(*then);
-  result->set_resolve(*resolve);
-  result->set_reject(*reject);
-  result->set_debug_id(*debug_id);
-  result->set_debug_name(*debug_name);
-  result->set_context(*context);
-  return result;
-}
-
 Handle<PromiseReactionJobInfo> Factory::NewPromiseReactionJobInfo(
-    Handle<JSPromise> promise, Handle<Object> value, Handle<Object> tasks,
-    Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
-    Handle<Object> deferred_on_reject, Handle<Context> context) {
+    Handle<Object> value, Handle<Object> tasks, Handle<Object> deferred_promise,
+    Handle<Object> deferred_on_resolve, Handle<Object> deferred_on_reject,
+    Handle<Context> context) {
   Handle<PromiseReactionJobInfo> result = Handle<PromiseReactionJobInfo>::cast(
       NewStruct(PROMISE_REACTION_JOB_INFO_TYPE));
-  result->set_promise(*promise);
   result->set_value(*value);
   result->set_tasks(*tasks);
   result->set_deferred_promise(*deferred_promise);
   result->set_deferred_on_resolve(*deferred_on_resolve);
   result->set_deferred_on_reject(*deferred_on_reject);
-  result->set_debug_id(isolate()->heap()->undefined_value());
-  result->set_debug_name(isolate()->heap()->undefined_value());
+  result->set_debug_id(kDebugPromiseFirstID);
   result->set_context(*context);
   return result;
 }
@@ -1533,6 +1516,17 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 }
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info, Handle<Context> context,
+    Handle<LiteralsArray> literals, PretenureFlag pretenure) {
+  int map_index =
+      Context::FunctionMapIndex(info->language_mode(), info->kind());
+  Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
+
+  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, literals,
+                                           pretenure);
+}
+
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
     Handle<Object> context_or_undefined, PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
@@ -1551,6 +1545,26 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   return result;
 }
 
+Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
+    Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
+    Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+    PretenureFlag pretenure) {
+  DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
+  Handle<JSFunction> result =
+      NewFunction(initial_map, info, context_or_undefined, pretenure);
+
+  result->set_literals(*literals);
+  if (info->ic_age() != isolate()->heap()->global_ic_age()) {
+    info->ResetForNewContext(isolate()->heap()->global_ic_age());
+  }
+
+  if (context_or_undefined->IsContext()) {
+    // Give compiler a chance to pre-initialize.
+    Compiler::PostInstantiation(result, pretenure);
+  }
+
+  return result;
+}
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   Handle<FixedArray> array = NewFixedArray(length, TENURED);
@@ -1721,12 +1735,12 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
     PropertyDetails details = descs->GetDetails(i);
     // Only accessors are expected.
-    DCHECK_EQ(ACCESSOR_CONSTANT, details.type());
-    PropertyDetails d(details.attributes(), ACCESSOR_CONSTANT, i + 1,
+    DCHECK_EQ(kAccessor, details.kind());
+    PropertyDetails d(kAccessor, details.attributes(), i + 1,
                       PropertyCellType::kMutable);
     Handle<Name> name(descs->GetKey(i));
     Handle<PropertyCell> cell = NewPropertyCell();
-    cell->set_value(descs->GetCallbacksObject(i));
+    cell->set_value(descs->GetValue(i));
     // |dictionary| already contains enough space for all properties.
     USE(GlobalDictionary::Add(dictionary, name, cell, d));
   }
@@ -1835,7 +1849,13 @@ void Factory::NewJSArrayStorage(Handle<JSArray> array,
 
 Handle<JSModuleNamespace> Factory::NewJSModuleNamespace() {
   Handle<Map> map = isolate()->js_module_namespace_map();
-  return Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map));
+  Handle<JSModuleNamespace> module_namespace(
+      Handle<JSModuleNamespace>::cast(NewJSObjectFromMap(map)));
+  FieldIndex index = FieldIndex::ForDescriptor(
+      *map, JSModuleNamespace::kToStringTagFieldIndex);
+  Handle<String> to_string_value = NewStringFromAsciiChecked("Module");
+  module_namespace->FastPropertyAtPut(index, *to_string_value);
+  return module_namespace;
 }
 
 Handle<JSGeneratorObject> Factory::NewJSGeneratorObject(
@@ -2665,7 +2685,7 @@ void Factory::SetFunctionInstanceDescriptor(Handle<Map> map,
 
   STATIC_ASSERT(JSFunction::kNameDescriptorIndex == 1);
   Handle<AccessorInfo> name =
-      Accessors::FunctionNameInfo(isolate(), ro_attribs);
+      Accessors::FunctionNameInfo(isolate(), roc_attribs);
   {  // Add name.
     Descriptor d = Descriptor::AccessorConstant(
         Handle<Name>(Name::cast(name->name())), name, roc_attribs);

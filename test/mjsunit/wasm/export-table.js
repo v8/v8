@@ -9,12 +9,12 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExportedMain() {
   print("TestExportedMain...");
-  var kReturnValue = 88;
+  var kReturnValue = 44;
   var builder = new WasmModuleBuilder();
 
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprI8Const,
+      kExprI32Const,
       kReturnValue,
       kExprReturn
     ])
@@ -30,13 +30,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testExportedTwice() {
   print("TestExportedTwice...");
-  var kReturnValue = 99;
+  var kReturnValue = 45;
 
   var builder = new WasmModuleBuilder();
 
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprI8Const,
+      kExprI32Const,
       kReturnValue,
       kExprReturn
     ])
@@ -56,13 +56,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testEmptyName() {
   print("TestEmptyName...");
-  var kReturnValue = 93;
+  var kReturnValue = 46;
 
   var builder = new WasmModuleBuilder();
 
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprI8Const,
+      kExprI32Const,
       kReturnValue,
       kExprReturn
     ])
@@ -78,13 +78,13 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function testNumericName() {
   print("TestNumericName...");
-  var kReturnValue = 93;
+  var kReturnValue = 47;
 
   var builder = new WasmModuleBuilder();
 
   builder.addFunction("main", kSig_i_v)
     .addBody([
-      kExprI8Const,
+      kExprI32Const,
       kReturnValue,
       kExprReturn
     ])

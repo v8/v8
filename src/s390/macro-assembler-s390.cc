@@ -1306,17 +1306,16 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   }
 }
 
-void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
-                                             const ParameterCount& expected,
-                                             const ParameterCount& actual) {
-  Label skip_flooding;
-  ExternalReference last_step_action =
-      ExternalReference::debug_last_step_action_address(isolate());
-  STATIC_ASSERT(StepFrame > StepIn);
-  mov(r6, Operand(last_step_action));
+void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
+                                    const ParameterCount& expected,
+                                    const ParameterCount& actual) {
+  Label skip_hook;
+  ExternalReference debug_hook_avtive =
+      ExternalReference::debug_hook_on_function_call_address(isolate());
+  mov(r6, Operand(debug_hook_avtive));
   LoadB(r6, MemOperand(r6));
-  CmpP(r6, Operand(StepIn));
-  blt(&skip_flooding);
+  CmpP(r6, Operand::Zero());
+  beq(&skip_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
@@ -1332,7 +1331,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
       Push(new_target);
     }
     Push(fun, fun);
-    CallRuntime(Runtime::kDebugPrepareStepInIfStepping);
+    CallRuntime(Runtime::kDebugOnFunctionCall);
     Pop(fun);
     if (new_target.is_valid()) {
       Pop(new_target);
@@ -1346,7 +1345,7 @@ void MacroAssembler::FloodFunctionIfStepping(Register fun, Register new_target,
       SmiUntag(expected.reg());
     }
   }
-  bind(&skip_flooding);
+  bind(&skip_hook);
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
@@ -1360,8 +1359,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   DCHECK(function.is(r3));
   DCHECK_IMPLIES(new_target.is_valid(), new_target.is(r5));
 
-  if (call_wrapper.NeedsDebugStepCheck()) {
-    FloodFunctionIfStepping(function, new_target, expected, actual);
+  if (call_wrapper.NeedsDebugHookCheck()) {
+    CheckDebugHook(function, new_target, expected, actual);
   }
 
   // Clear the new.target register if not given.
@@ -3132,12 +3131,10 @@ void MacroAssembler::LoadRepresentation(Register dst, const MemOperand& mem,
   DCHECK(!r.IsDouble());
   if (r.IsInteger8()) {
     LoadB(dst, mem);
-    lgbr(dst, dst);
   } else if (r.IsUInteger8()) {
     LoadlB(dst, mem);
   } else if (r.IsInteger16()) {
     LoadHalfWordP(dst, mem, scratch);
-    lghr(dst, dst);
   } else if (r.IsUInteger16()) {
     LoadHalfWordP(dst, mem, scratch);
 #if V8_TARGET_ARCH_S390X
@@ -3342,6 +3339,17 @@ void MacroAssembler::MulP(Register dst, const MemOperand& opnd) {
 #endif
 }
 
+void MacroAssembler::Sqrt(DoubleRegister result, DoubleRegister input) {
+  sqdbr(result, input);
+}
+void MacroAssembler::Sqrt(DoubleRegister result, const MemOperand& input) {
+  if (is_uint12(input.offset())) {
+    sqdb(result, input);
+  } else {
+    ldy(result, input);
+    sqdbr(result, result);
+  }
+}
 //----------------------------------------------------------------------------
 //  Add Instructions
 //----------------------------------------------------------------------------
@@ -4334,9 +4342,16 @@ void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, uint64_t value,
   uint32_t lo_32 = static_cast<uint32_t>(value);
 
   // Load the 64-bit value into a GPR, then transfer it to FPR via LDGR
-  iihf(scratch, Operand(hi_32));
-  iilf(scratch, Operand(lo_32));
-  ldgr(result, scratch);
+  if (value == 0) {
+    lzdr(result);
+  } else if (lo_32 == 0) {
+    llihf(scratch, Operand(hi_32));
+    ldgr(result, scratch);
+  } else {
+    iihf(scratch, Operand(hi_32));
+    iilf(scratch, Operand(lo_32));
+    ldgr(result, scratch);
+  }
 }
 
 void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
@@ -4347,13 +4362,9 @@ void MacroAssembler::LoadDoubleLiteral(DoubleRegister result, double value,
 
 void MacroAssembler::LoadFloat32Literal(DoubleRegister result, float value,
                                         Register scratch) {
-  uint32_t hi_32 = bit_cast<uint32_t>(value);
-  uint32_t lo_32 = 0;
-
-  // Load the 64-bit value into a GPR, then transfer it to FPR via LDGR
-  iihf(scratch, Operand(hi_32));
-  iilf(scratch, Operand(lo_32));
-  ldgr(result, scratch);
+  uint64_t int_val = static_cast<uint64_t>(bit_cast<uint32_t, float>(value))
+                     << 32;
+  LoadDoubleLiteral(result, int_val, scratch);
 }
 
 void MacroAssembler::CmpSmiLiteral(Register src1, Smi* smi, Register scratch) {

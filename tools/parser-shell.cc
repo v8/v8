@@ -36,6 +36,7 @@
 #include "include/libplatform/libplatform.h"
 #include "src/api.h"
 #include "src/compiler.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/preparse-data-format.h"

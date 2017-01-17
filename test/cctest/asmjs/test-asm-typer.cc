@@ -14,6 +14,7 @@
 #include "src/ast/scopes.h"
 #include "src/base/platform/platform.h"
 #include "src/compiler.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
 #include "src/v8.h"
@@ -99,6 +100,9 @@ class AsmTyperHarnessBuilder {
     CHECK(validation_type_ == ValidateStatement ||
           validation_type_ == ValidateExpression);
     auto* var = DeclareVariable(var_name);
+    if (var->IsUnallocated()) {
+      var->AllocateTo(VariableLocation::LOCAL, -1);
+    }
     auto* var_info = new (zone_) AsmTyper::VariableInfo(type);
     var_info->set_mutability(AsmTyper::VariableInfo::kLocal);
     CHECK(typer_->AddLocal(var, var_info));
@@ -107,9 +111,14 @@ class AsmTyperHarnessBuilder {
 
   AsmTyperHarnessBuilder* WithGlobal(VariableName var_name, AsmType* type) {
     auto* var = DeclareVariable(var_name);
-    auto* var_info = new (zone_) AsmTyper::VariableInfo(type);
-    var_info->set_mutability(AsmTyper::VariableInfo::kMutableGlobal);
-    CHECK(typer_->AddGlobal(var, var_info));
+    if (var->IsUnallocated()) {
+      var->AllocateTo(VariableLocation::MODULE, -1);
+    }
+    if (type != nullptr) {
+      auto* var_info = new (zone_) AsmTyper::VariableInfo(type);
+      var_info->set_mutability(AsmTyper::VariableInfo::kMutableGlobal);
+      CHECK(typer_->AddGlobal(var, var_info));
+    }
     return this;
   }
 
@@ -134,6 +143,9 @@ class AsmTyperHarnessBuilder {
   AsmTyperHarnessBuilder* WithImport(VariableName var_name,
                                      AsmTyper::StandardMember standard_member) {
     auto* var = DeclareVariable(var_name);
+    if (var->IsUnallocated()) {
+      var->AllocateTo(VariableLocation::LOCAL, -1);
+    }
     AsmTyper::VariableInfo* var_info = nullptr;
     auto* stdlib_map = &typer_->stdlib_math_types_;
     switch (standard_member) {
@@ -218,7 +230,9 @@ class AsmTyperHarnessBuilder {
       return true;
     }
 
-    std::cerr << "Asm validation failed: " << typer_->error_message() << "\n";
+    std::unique_ptr<char[]> msg = i::MessageHandler::GetLocalizedMessage(
+        isolate_, typer_->error_message());
+    std::cerr << "Asm validation failed: " << msg.get() << "\n";
     return false;
   }
 
@@ -226,7 +240,9 @@ class AsmTyperHarnessBuilder {
     CHECK(validation_type_ == ValidateExpression);
     auto* validated_as = ValidateExpressionStatment(fun_decl_);
     if (validated_as == AsmType::None()) {
-      std::cerr << "Validation failure: " << typer_->error_message() << "\n";
+      std::unique_ptr<char[]> msg = i::MessageHandler::GetLocalizedMessage(
+          isolate_, typer_->error_message());
+      std::cerr << "Validation failure: " << msg.get() << "\n";
       return false;
     } else if (validated_as != type) {
       std::cerr << "Validation succeeded with wrong type "
@@ -674,7 +690,8 @@ TEST(ErrorsInModuleExport) {
       {"return {'a': ffi}", "cannot export foreign functions"},
       {"return {'a': f()}", "must be an asm.js function name"},
       {"return {'a': f}", "Undefined identifier in asm.js module export"},
-      {"function v() { a(); } return {b: d2s}", "Missing definition for forw"},
+      {"function v() { a(); } return {b: d2s}",
+       "Invalid call of existing global function"},
       {"function v() {} return {b: v, 'a': d2s_tbl}",
        "cannot export function tables"},
       {"function v() {} return {b: v, 'a': min}",
@@ -911,6 +928,7 @@ TEST(ErrorsInStatement) {
              ->WithImport(DynamicGlobal("fround"), iw::AsmTyper::kMathFround)
              ->WithLocal(DynamicGlobal("flocal"), iw::AsmType::Float())
              ->WithLocal(DynamicGlobal("slocal"), iw::AsmType::Signed())
+             ->WithGlobal(DynamicGlobal("d"), nullptr)
              ->FailsWithMessage(test->error_message)) {
       std::cerr << "Test:\n" << test->statement;
       CHECK(false);
@@ -1041,6 +1059,7 @@ TEST(ErrorsInExpression) {
              ->WithGlobal(DynamicGlobal("d2s_tbl"), d2s_tbl)
              ->WithGlobal(DynamicGlobal("HEAP32"), iw::AsmType::Int32Array())
              ->WithGlobal(DynamicGlobal("HEAP8"), iw::AsmType::Int8Array())
+             ->WithGlobal(DynamicGlobal("a"), nullptr)
              ->FailsWithMessage(test->error_message)) {
       std::cerr << "Test:\n" << test->expression;
       CHECK(false);
@@ -1368,6 +1387,8 @@ TEST(ValidateAssignmentExpression) {
              ->WithGlobal(DynamicGlobal("U32"), iw::AsmType::Uint32Array())
              ->WithGlobal(DynamicGlobal("F32"), iw::AsmType::Float32Array())
              ->WithGlobal(DynamicGlobal("F64"), iw::AsmType::Float64Array())
+             ->WithGlobal(DynamicGlobal("make_float"), nullptr)
+             ->WithGlobal(DynamicGlobal("make_double"), nullptr)
              ->SucceedsWithExactType(test->load_type)) {
       std::cerr << "Test:\n" << test->expression;
       CHECK(false);
@@ -1423,6 +1444,7 @@ TEST(ValidateUnaryExpression) {
              ->WithLocal(DynamicGlobal("ulocal"), iw::AsmType::Unsigned())
              ->WithLocal(DynamicGlobal("ilocal"), iw::AsmType::Int())
              ->WithGlobal(DynamicGlobal("dglobal"), iw::AsmType::Double())
+             ->WithGlobal(DynamicGlobal("make_double"), nullptr)
              ->WithGlobal(DynamicGlobal("dbl"), v2d)
              ->SucceedsWithExactType(test->load_type)) {
       std::cerr << "Test:\n" << test->expression;
@@ -1672,6 +1694,7 @@ TEST(ValidateBitwiseExpression) {
              ->WithLocal(DynamicGlobal("iish1"), iw::AsmType::Intish())
              ->WithLocal(DynamicGlobal("iish0"), iw::AsmType::Intish())
              ->WithGlobal(DynamicGlobal("signed"), v2s)
+             ->WithGlobal(DynamicGlobal("make_signed"), nullptr)
              ->SucceedsWithExactType(test->load_type)) {
       std::cerr << "Test:\n" << test->expression;
       CHECK(false);
@@ -1719,7 +1742,7 @@ TEST(ValidateCall) {
   //
   // ifd2_(&iw::AsmType::Float)
   //
-  // returns an AsmType representing an asm.j function with the following
+  // returns an AsmType representing an asm.js function with the following
   // signature:
   //
   // float(int, float, double)
@@ -1796,6 +1819,9 @@ TEST(ValidateCall) {
              ->WithLocal(DynamicGlobal("u"), iw::AsmType::Unsigned())
              ->WithLocal(DynamicGlobal("iish"), iw::AsmType::Intish())
              ->WithGlobal(DynamicGlobal("v2f"), v2f)
+             ->WithGlobal(DynamicGlobal("ifd2f"), nullptr)
+             ->WithGlobal(DynamicGlobal("ifd2d"), nullptr)
+             ->WithGlobal(DynamicGlobal("ifd2i"), nullptr)
              ->WithGlobal(DynamicGlobal("ifd2f_tbl"), ifd2f_tbl)
              ->WithGlobal(DynamicGlobal("ifd2d_tbl"), ifd2d_tbl)
              ->WithGlobal(DynamicGlobal("ifd2i_tbl"), ifd2i_tbl)

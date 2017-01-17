@@ -20,16 +20,9 @@ namespace v8 {
 namespace internal {
 
 
-RUNTIME_FUNCTION(Runtime_ThrowNonMethodError) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewReferenceError(MessageTemplate::kNonMethod));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kUnsupportedSuper));
 }
@@ -37,7 +30,7 @@ RUNTIME_FUNCTION(Runtime_ThrowUnsupportedSuperError) {
 
 RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   Handle<Object> name(constructor->shared()->name(), isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(
@@ -45,18 +38,18 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorNonCallableError) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ThrowArrayNotSubclassableError) {
-  HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kArrayNotSubclassable));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowStaticPrototypeError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kStaticPrototype));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowSuperAlreadyCalledError) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewReferenceError(MessageTemplate::kSuperAlreadyCalled));
 }
 
 namespace {
@@ -94,14 +87,14 @@ Object* ThrowNotSuperConstructor(Isolate* isolate, Handle<Object> constructor,
 
 RUNTIME_FUNCTION(Runtime_ThrowNotSuperConstructor) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, constructor, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 1);
   return ThrowNotSuperConstructor(isolate, constructor, function);
 }
 
 RUNTIME_FUNCTION(Runtime_HomeObjectSymbol) {
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->heap()->home_object_symbol();
 }
 
@@ -167,13 +160,6 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
                           prototype, attribs),
                       Object);
 
-  // TODO(arv): Only do this conditionally.
-  Handle<Symbol> home_object_symbol(isolate->heap()->home_object_symbol());
-  RETURN_ON_EXCEPTION(
-      isolate, JSObject::SetOwnPropertyIgnoreAttributes(
-                   constructor, home_object_symbol, prototype, DONT_ENUM),
-      Object);
-
   if (!constructor_parent.is_null()) {
     MAYBE_RETURN_NULL(JSObject::SetPrototype(constructor, constructor_parent,
                                              false, Object::THROW_ON_ERROR));
@@ -195,13 +181,14 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
                    handle(Smi::FromInt(end_position), isolate), STRICT),
       Object);
 
-  return constructor;
+  // Caller already has access to constructor, so return the prototype.
+  return prototype;
 }
 
 
 RUNTIME_FUNCTION(Runtime_DefineClass) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, super_class, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 1);
   CONVERT_SMI_ARG_CHECKED(start_position, 2);
@@ -226,7 +213,7 @@ void InstallClassNameAccessor(Isolate* isolate, Handle<JSObject> object) {
 
 RUNTIME_FUNCTION(Runtime_InstallClassNameAccessor) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   InstallClassNameAccessor(isolate, object);
   return *object;
@@ -234,7 +221,7 @@ RUNTIME_FUNCTION(Runtime_InstallClassNameAccessor) {
 
 RUNTIME_FUNCTION(Runtime_InstallClassNameAccessorWithCheck) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
 
   // If a property named "name" is already defined, exit.
@@ -386,7 +373,7 @@ MaybeHandle<Object> StoreElementToSuper(Isolate* isolate,
 
 RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
@@ -399,7 +386,7 @@ RUNTIME_FUNCTION(Runtime_StoreToSuper_Strict) {
 
 RUNTIME_FUNCTION(Runtime_StoreToSuper_Sloppy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 2);
@@ -433,7 +420,7 @@ static MaybeHandle<Object> StoreKeyedToSuper(
 
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);
@@ -447,7 +434,7 @@ RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Strict) {
 
 RUNTIME_FUNCTION(Runtime_StoreKeyedToSuper_Sloppy) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 4);
+  DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSObject, home_object, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 2);

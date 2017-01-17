@@ -21,11 +21,11 @@ MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
                                  int end_pos)
     : script_(script), start_pos_(start_pos), end_pos_(end_pos) {}
 MessageLocation::MessageLocation(Handle<Script> script, int start_pos,
-                                 int end_pos, Handle<JSFunction> function)
+                                 int end_pos, Handle<SharedFunctionInfo> shared)
     : script_(script),
       start_pos_(start_pos),
       end_pos_(end_pos),
-      function_(function) {}
+      shared_(shared) {}
 MessageLocation::MessageLocation() : start_pos_(-1), end_pos_(-1) {}
 
 // If no message listeners have been registered this one is called
@@ -371,7 +371,7 @@ Handle<Object> JSStackFrame::GetScriptNameOrSourceUrl() {
 }
 
 Handle<Object> JSStackFrame::GetMethodName() {
-  if (receiver_->IsNull(isolate_) || receiver_->IsUndefined(isolate_)) {
+  if (receiver_->IsNullOrUndefined(isolate_)) {
     return isolate_->factory()->null_value();
   }
 
@@ -428,7 +428,7 @@ Handle<Object> JSStackFrame::GetTypeName() {
   // TODO(jgruber): Check for strict/constructor here as in
   // CallSitePrototypeGetThis.
 
-  if (receiver_->IsNull(isolate_) || receiver_->IsUndefined(isolate_))
+  if (receiver_->IsNullOrUndefined(isolate_))
     return isolate_->factory()->null_value();
 
   if (receiver_->IsJSProxy()) return isolate_->factory()->Proxy_string();
@@ -457,8 +457,7 @@ bool JSStackFrame::IsNative() {
 }
 
 bool JSStackFrame::IsToplevel() {
-  return receiver_->IsJSGlobalProxy() || receiver_->IsNull(isolate_) ||
-         receiver_->IsUndefined(isolate_);
+  return receiver_->IsJSGlobalProxy() || receiver_->IsNullOrUndefined(isolate_);
 }
 
 bool JSStackFrame::IsConstructor() {

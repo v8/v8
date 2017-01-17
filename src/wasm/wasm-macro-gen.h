@@ -59,6 +59,7 @@
 // Control.
 //------------------------------------------------------------------------------
 #define WASM_NOP kExprNop
+#define WASM_END kExprEnd
 
 #define ARITY_0 0
 #define ARITY_1 1
@@ -140,9 +141,8 @@
 // Misc expressions.
 //------------------------------------------------------------------------------
 #define WASM_ID(...) __VA_ARGS__
-#define WASM_ZERO kExprI8Const, 0
-#define WASM_ONE kExprI8Const, 1
-#define WASM_I8(val) kExprI8Const, static_cast<byte>(val)
+#define WASM_ZERO kExprI32Const, 0
+#define WASM_ONE kExprI32Const, 1
 
 #define I32V_MIN(length) -(1 << (6 + (7 * ((length) - 1))))
 #define I32V_MAX(length) ((1 << (6 + (7 * ((length) - 1)))) - 1)
@@ -447,15 +447,15 @@ class LocalDeclEncoder {
 #define WASM_WHILE(x, y)                                              \
   kExprLoop, kLocalVoid, x, kExprIf, kLocalVoid, y, kExprBr, DEPTH_1, \
       kExprEnd, kExprEnd
-#define WASM_INC_LOCAL(index)                                            \
-  kExprGetLocal, static_cast<byte>(index), kExprI8Const, 1, kExprI32Add, \
+#define WASM_INC_LOCAL(index)                                             \
+  kExprGetLocal, static_cast<byte>(index), kExprI32Const, 1, kExprI32Add, \
       kExprTeeLocal, static_cast<byte>(index)
 #define WASM_INC_LOCAL_BYV(index, count)                    \
-  kExprGetLocal, static_cast<byte>(index), kExprI8Const,    \
+  kExprGetLocal, static_cast<byte>(index), kExprI32Const,   \
       static_cast<byte>(count), kExprI32Add, kExprTeeLocal, \
       static_cast<byte>(index)
 #define WASM_INC_LOCAL_BY(index, count)                     \
-  kExprGetLocal, static_cast<byte>(index), kExprI8Const,    \
+  kExprGetLocal, static_cast<byte>(index), kExprI32Const,   \
       static_cast<byte>(count), kExprI32Add, kExprSetLocal, \
       static_cast<byte>(index)
 #define WASM_UNOP(opcode, x) x, static_cast<byte>(opcode)

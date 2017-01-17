@@ -190,7 +190,7 @@ function testCallBinopVoid(type, func, check) {
       kExprGetLocal, 0,           // --
       kExprGetLocal, 1,           // --
       kExprCallFunction, 0,       // --
-      kExprI8Const, 99,           // --
+      kExprI32Const, 39,          // --
     ])
     .exportFunc("main");
 
@@ -201,7 +201,7 @@ function testCallBinopVoid(type, func, check) {
   for (var i = 0; i < 100000; i += 10003.1) {
     var a = 22.5 + i, b = 10.5 + i;
     var r = main(a, b);
-    assertEquals(99, r);
+    assertEquals(39, r);
     assertEquals(2, passed_length);
     var expected_a, expected_b;
     switch (type) {
@@ -243,9 +243,9 @@ function testCallPrint() {
   builder.addImport("q", "print", makeSig_r_x(kWasmF64, kWasmF64));
   builder.addFunction("main", makeSig_r_x(kWasmF64, kWasmF64))
     .addBody([
-      kExprI8Const, 97,             // --
+      kExprI32Const, 27,     // --
       kExprCallFunction, 0,  // --
-      kExprGetLocal, 0,             // --
+      kExprGetLocal, 0,      // --
       kExprCallFunction, 1   // --
     ])
     .exportFunc();

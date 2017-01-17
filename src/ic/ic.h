@@ -285,12 +285,6 @@ class LoadIC : public IC {
                NOT_INSIDE_TYPEOF;
   }
 
-  // Code generator routines.
-
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-  static void GenerateNormal(MacroAssembler* masm);
-
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
 
@@ -354,10 +348,6 @@ class KeyedLoadIC : public LoadIC {
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);
 
-  // Code generator routines.
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateRuntimeGetProperty(MacroAssembler* masm);
-
   static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 
  protected:
@@ -379,11 +369,6 @@ class StoreIC : public IC {
   LanguageMode language_mode() const {
     return StoreICState::GetLanguageMode(extra_ic_state());
   }
-
-  // Code generators for stub routines. Only called once at startup.
-  static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateNormal(MacroAssembler* masm);
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
       Handle<Object> object, Handle<Name> name, Handle<Object> value,

@@ -1584,7 +1584,6 @@ THREADED_TEST(IsGeneratorFunctionOrObject) {
 }
 
 THREADED_TEST(IsAsyncFunction) {
-  i::FLAG_harmony_async_await = true;
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
   v8::HandleScope scope(isolate);
@@ -4483,335 +4482,6 @@ static void WeakPointerCallback(
   data.GetParameter()->counter->increment();
   data.GetParameter()->handle.Reset();
 }
-
-
-template <typename T>
-static UniqueId MakeUniqueId(const Persistent<T>& p) {
-  return UniqueId(reinterpret_cast<uintptr_t>(*v8::Utils::OpenPersistent(p)));
-}
-
-
-THREADED_TEST(ApiObjectGroups) {
-  LocalContext env;
-  v8::Isolate* iso = env->GetIsolate();
-  HandleScope scope(iso);
-
-  WeakCallCounter counter(1234);
-
-  WeakCallCounterAndPersistent<Value> g1s1(&counter);
-  WeakCallCounterAndPersistent<Value> g1s2(&counter);
-  WeakCallCounterAndPersistent<Value> g1c1(&counter);
-  WeakCallCounterAndPersistent<Value> g2s1(&counter);
-  WeakCallCounterAndPersistent<Value> g2s2(&counter);
-  WeakCallCounterAndPersistent<Value> g2c1(&counter);
-
-  {
-    HandleScope scope(iso);
-    g1s1.handle.Reset(iso, Object::New(iso));
-    g1s2.handle.Reset(iso, Object::New(iso));
-    g1c1.handle.Reset(iso, Object::New(iso));
-    g1s1.handle.SetWeak(&g1s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g1s2.handle.SetWeak(&g1s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g1c1.handle.SetWeak(&g1c1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-
-    g2s1.handle.Reset(iso, Object::New(iso));
-    g2s2.handle.Reset(iso, Object::New(iso));
-    g2c1.handle.Reset(iso, Object::New(iso));
-    g2s1.handle.SetWeak(&g2s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g2s2.handle.SetWeak(&g2s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g2c1.handle.SetWeak(&g2c1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-  }
-
-  WeakCallCounterAndPersistent<Value> root(&counter);
-  root.handle.Reset(iso, g1s1.handle);  // make a root.
-
-  // Connect group 1 and 2, make a cycle.
-  {
-    HandleScope scope(iso);
-    CHECK(Local<Object>::New(iso, g1s2.handle.As<Object>())
-              ->Set(env.local(), 0, Local<Value>::New(iso, g2s2.handle))
-              .FromJust());
-    CHECK(Local<Object>::New(iso, g2s1.handle.As<Object>())
-              ->Set(env.local(), 0, Local<Value>::New(iso, g1s1.handle))
-              .FromJust());
-  }
-
-  {
-    UniqueId id1 = MakeUniqueId(g1s1.handle);
-    UniqueId id2 = MakeUniqueId(g2s2.handle);
-    iso->SetObjectGroupId(g1s1.handle, id1);
-    iso->SetObjectGroupId(g1s2.handle, id1);
-    iso->SetReferenceFromGroup(id1, g1c1.handle);
-    iso->SetObjectGroupId(g2s1.handle, id2);
-    iso->SetObjectGroupId(g2s2.handle, id2);
-    iso->SetReferenceFromGroup(id2, g2c1.handle);
-  }
-  // Do a single full GC, ensure incremental marking is stopped.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // All object should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
-
-  // Weaken the root.
-  root.handle.SetWeak(&root, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-  // But make children strong roots---all the objects (except for children)
-  // should be collectable now.
-  g1c1.handle.ClearWeak();
-  g2c1.handle.ClearWeak();
-
-  // Groups are deleted, rebuild groups.
-  {
-    UniqueId id1 = MakeUniqueId(g1s1.handle);
-    UniqueId id2 = MakeUniqueId(g2s2.handle);
-    iso->SetObjectGroupId(g1s1.handle, id1);
-    iso->SetObjectGroupId(g1s2.handle, id1);
-    iso->SetReferenceFromGroup(id1, g1c1.handle);
-    iso->SetObjectGroupId(g2s1.handle, id2);
-    iso->SetObjectGroupId(g2s2.handle, id2);
-    iso->SetReferenceFromGroup(id2, g2c1.handle);
-  }
-
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // All objects should be gone. 5 global handles in total.
-  CHECK_EQ(5, counter.NumberOfWeakCalls());
-
-  // And now make children weak again and collect them.
-  g1c1.handle.SetWeak(&g1c1, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-  g2c1.handle.SetWeak(&g2c1, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CHECK_EQ(7, counter.NumberOfWeakCalls());
-}
-
-
-THREADED_TEST(ApiObjectGroupsForSubtypes) {
-  LocalContext env;
-  v8::Isolate* iso = env->GetIsolate();
-  HandleScope scope(iso);
-
-  WeakCallCounter counter(1234);
-
-  WeakCallCounterAndPersistent<Object> g1s1(&counter);
-  WeakCallCounterAndPersistent<String> g1s2(&counter);
-  WeakCallCounterAndPersistent<String> g1c1(&counter);
-  WeakCallCounterAndPersistent<Object> g2s1(&counter);
-  WeakCallCounterAndPersistent<String> g2s2(&counter);
-  WeakCallCounterAndPersistent<String> g2c1(&counter);
-
-  {
-    HandleScope scope(iso);
-    g1s1.handle.Reset(iso, Object::New(iso));
-    g1s2.handle.Reset(iso, v8_str("foo1"));
-    g1c1.handle.Reset(iso, v8_str("foo2"));
-    g1s1.handle.SetWeak(&g1s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g1s2.handle.SetWeak(&g1s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g1c1.handle.SetWeak(&g1c1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-
-    g2s1.handle.Reset(iso, Object::New(iso));
-    g2s2.handle.Reset(iso, v8_str("foo3"));
-    g2c1.handle.Reset(iso, v8_str("foo4"));
-    g2s1.handle.SetWeak(&g2s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g2s2.handle.SetWeak(&g2s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g2c1.handle.SetWeak(&g2c1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-  }
-
-  WeakCallCounterAndPersistent<Value> root(&counter);
-  root.handle.Reset(iso, g1s1.handle);  // make a root.
-
-  // Connect group 1 and 2, make a cycle.
-  {
-    HandleScope scope(iso);
-    CHECK(Local<Object>::New(iso, g1s1.handle)
-              ->Set(env.local(), 0, Local<Object>::New(iso, g2s1.handle))
-              .FromJust());
-    CHECK(Local<Object>::New(iso, g2s1.handle)
-              ->Set(env.local(), 0, Local<Object>::New(iso, g1s1.handle))
-              .FromJust());
-  }
-
-  {
-    UniqueId id1 = MakeUniqueId(g1s1.handle);
-    UniqueId id2 = MakeUniqueId(g2s2.handle);
-    iso->SetObjectGroupId(g1s1.handle, id1);
-    iso->SetObjectGroupId(g1s2.handle, id1);
-    iso->SetReference(g1s1.handle, g1c1.handle);
-    iso->SetObjectGroupId(g2s1.handle, id2);
-    iso->SetObjectGroupId(g2s2.handle, id2);
-    iso->SetReferenceFromGroup(id2, g2c1.handle);
-  }
-  // Do a single full GC, ensure incremental marking is stopped.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // All object should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
-
-  // Weaken the root.
-  root.handle.SetWeak(&root, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-  // But make children strong roots---all the objects (except for children)
-  // should be collectable now.
-  g1c1.handle.ClearWeak();
-  g2c1.handle.ClearWeak();
-
-  // Groups are deleted, rebuild groups.
-  {
-    UniqueId id1 = MakeUniqueId(g1s1.handle);
-    UniqueId id2 = MakeUniqueId(g2s2.handle);
-    iso->SetObjectGroupId(g1s1.handle, id1);
-    iso->SetObjectGroupId(g1s2.handle, id1);
-    iso->SetReference(g1s1.handle, g1c1.handle);
-    iso->SetObjectGroupId(g2s1.handle, id2);
-    iso->SetObjectGroupId(g2s2.handle, id2);
-    iso->SetReferenceFromGroup(id2, g2c1.handle);
-  }
-
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // All objects should be gone. 5 global handles in total.
-  CHECK_EQ(5, counter.NumberOfWeakCalls());
-
-  // And now make children weak again and collect them.
-  g1c1.handle.SetWeak(&g1c1, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-  g2c1.handle.SetWeak(&g2c1, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-  CHECK_EQ(7, counter.NumberOfWeakCalls());
-}
-
-
-THREADED_TEST(ApiObjectGroupsCycle) {
-  LocalContext env;
-  v8::Isolate* iso = env->GetIsolate();
-  HandleScope scope(iso);
-
-  WeakCallCounter counter(1234);
-
-  WeakCallCounterAndPersistent<Value> g1s1(&counter);
-  WeakCallCounterAndPersistent<Value> g1s2(&counter);
-  WeakCallCounterAndPersistent<Value> g2s1(&counter);
-  WeakCallCounterAndPersistent<Value> g2s2(&counter);
-  WeakCallCounterAndPersistent<Value> g3s1(&counter);
-  WeakCallCounterAndPersistent<Value> g3s2(&counter);
-  WeakCallCounterAndPersistent<Value> g4s1(&counter);
-  WeakCallCounterAndPersistent<Value> g4s2(&counter);
-
-  {
-    HandleScope scope(iso);
-    g1s1.handle.Reset(iso, Object::New(iso));
-    g1s2.handle.Reset(iso, Object::New(iso));
-    g1s1.handle.SetWeak(&g1s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g1s2.handle.SetWeak(&g1s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    CHECK(g1s1.handle.IsWeak());
-    CHECK(g1s2.handle.IsWeak());
-
-    g2s1.handle.Reset(iso, Object::New(iso));
-    g2s2.handle.Reset(iso, Object::New(iso));
-    g2s1.handle.SetWeak(&g2s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g2s2.handle.SetWeak(&g2s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    CHECK(g2s1.handle.IsWeak());
-    CHECK(g2s2.handle.IsWeak());
-
-    g3s1.handle.Reset(iso, Object::New(iso));
-    g3s2.handle.Reset(iso, Object::New(iso));
-    g3s1.handle.SetWeak(&g3s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g3s2.handle.SetWeak(&g3s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    CHECK(g3s1.handle.IsWeak());
-    CHECK(g3s2.handle.IsWeak());
-
-    g4s1.handle.Reset(iso, Object::New(iso));
-    g4s2.handle.Reset(iso, Object::New(iso));
-    g4s1.handle.SetWeak(&g4s1, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    g4s2.handle.SetWeak(&g4s2, &WeakPointerCallback,
-                        v8::WeakCallbackType::kParameter);
-    CHECK(g4s1.handle.IsWeak());
-    CHECK(g4s2.handle.IsWeak());
-  }
-
-  WeakCallCounterAndPersistent<Value> root(&counter);
-  root.handle.Reset(iso, g1s1.handle);  // make a root.
-
-  // Connect groups.  We're building the following cycle:
-  // G1: { g1s1, g2s1 }, g1s1 implicitly references g2s1, ditto for other
-  // groups.
-  {
-    UniqueId id1 = MakeUniqueId(g1s1.handle);
-    UniqueId id2 = MakeUniqueId(g2s1.handle);
-    UniqueId id3 = MakeUniqueId(g3s1.handle);
-    UniqueId id4 = MakeUniqueId(g4s1.handle);
-    iso->SetObjectGroupId(g1s1.handle, id1);
-    iso->SetObjectGroupId(g1s2.handle, id1);
-    iso->SetReferenceFromGroup(id1, g2s1.handle);
-    iso->SetObjectGroupId(g2s1.handle, id2);
-    iso->SetObjectGroupId(g2s2.handle, id2);
-    iso->SetReferenceFromGroup(id2, g3s1.handle);
-    iso->SetObjectGroupId(g3s1.handle, id3);
-    iso->SetObjectGroupId(g3s2.handle, id3);
-    iso->SetReferenceFromGroup(id3, g4s1.handle);
-    iso->SetObjectGroupId(g4s1.handle, id4);
-    iso->SetObjectGroupId(g4s2.handle, id4);
-    iso->SetReferenceFromGroup(id4, g1s1.handle);
-  }
-  // Do a single full GC
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // All object should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
-
-  // Weaken the root.
-  root.handle.SetWeak(&root, &WeakPointerCallback,
-                      v8::WeakCallbackType::kParameter);
-
-  // Groups are deleted, rebuild groups.
-  {
-    UniqueId id1 = MakeUniqueId(g1s1.handle);
-    UniqueId id2 = MakeUniqueId(g2s1.handle);
-    UniqueId id3 = MakeUniqueId(g3s1.handle);
-    UniqueId id4 = MakeUniqueId(g4s1.handle);
-    iso->SetObjectGroupId(g1s1.handle, id1);
-    iso->SetObjectGroupId(g1s2.handle, id1);
-    iso->SetReferenceFromGroup(id1, g2s1.handle);
-    iso->SetObjectGroupId(g2s1.handle, id2);
-    iso->SetObjectGroupId(g2s2.handle, id2);
-    iso->SetReferenceFromGroup(id2, g3s1.handle);
-    iso->SetObjectGroupId(g3s1.handle, id3);
-    iso->SetObjectGroupId(g3s2.handle, id3);
-    iso->SetReferenceFromGroup(id3, g4s1.handle);
-    iso->SetObjectGroupId(g4s1.handle, id4);
-    iso->SetObjectGroupId(g4s2.handle, id4);
-    iso->SetReferenceFromGroup(id4, g1s1.handle);
-  }
-
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // All objects should be gone. 9 global handles in total.
-  CHECK_EQ(9, counter.NumberOfWeakCalls());
-}
-
 
 THREADED_TEST(ScriptException) {
   LocalContext env;
@@ -18263,10 +17933,23 @@ TEST(PromiseHook) {
       global->Get(context, v8_str("resolve")).ToLocalChecked();
   auto before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
   auto after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
+
+  CompileRun("value = ''; var p2 = p1.then(() => { value = 'fulfilled' }); \n");
+  init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
+  parent_promise = global->Get(context, v8_str("parent")).ToLocalChecked();
+  resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
+  before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
+  after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
+  CHECK(GetPromise("p2")->Equals(env.local(), init_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), parent_promise).FromJust());
+  CHECK(GetPromise("p2")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p2")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p2")->Equals(env.local(), resolve_promise).FromJust());
+  CHECK_EQ(10, promise_hook_data->promise_hook_count);
 
   promise_hook_data->Reset();
   promise_hook_data->promise_hook_value = "rejected";
@@ -18292,8 +17975,8 @@ TEST(PromiseHook) {
   resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
   before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
   after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
 
@@ -18321,8 +18004,8 @@ TEST(PromiseHook) {
   CHECK(GetPromise("p1")->Equals(env.local(), init_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   CHECK(GetPromise("p")->Equals(env.local(), parent_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
   CHECK_EQ(1, promise_hook_data->parent_promise_count);
 
@@ -18461,8 +18144,8 @@ TEST(PromiseHook) {
   resolve_promise = global->Get(context, v8_str("resolve")).ToLocalChecked();
   before_promise = global->Get(context, v8_str("before")).ToLocalChecked();
   after_promise = global->Get(context, v8_str("after")).ToLocalChecked();
-  CHECK(GetPromise("p")->Equals(env.local(), before_promise).FromJust());
-  CHECK(GetPromise("p")->Equals(env.local(), after_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), before_promise).FromJust());
+  CHECK(GetPromise("p1")->Equals(env.local(), after_promise).FromJust());
   CHECK(GetPromise("p1")->Equals(env.local(), resolve_promise).FromJust());
   // 3) resolve hook (p)
   // 4) before hook (p)
@@ -23619,20 +23302,15 @@ THREADED_TEST(FunctionNew) {
   CHECK(env->Global()->Set(env.local(), v8_str("func"), func).FromJust());
   Local<Value> result = CompileRun("func();");
   CHECK(v8::Integer::New(isolate, 17)->Equals(env.local(), result).FromJust());
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  // Verify function not cached
-  auto serial_number = handle(
+  // Serial number should be invalid => should not be cached.
+  auto serial_number =
       i::Smi::cast(i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*func))
                        ->shared()
                        ->get_api_func_data()
-                       ->serial_number()),
-      i_isolate);
-  auto slow_cache = i_isolate->slow_template_instantiations_cache();
-  CHECK(slow_cache->FindEntry(static_cast<uint32_t>(serial_number->value())) ==
-        i::UnseededNumberDictionary::kNotFound);
-  auto fast_cache = i_isolate->fast_template_instantiations_cache();
-  CHECK(fast_cache->get(static_cast<uint32_t>(serial_number->value()))
-            ->IsUndefined(i_isolate));
+                       ->serial_number())
+          ->value();
+  CHECK_EQ(i::FunctionTemplateInfo::kInvalidSerialNumber, serial_number);
+
   // Verify that each Function::New creates a new function instance
   Local<Object> data2 = v8::Object::New(isolate);
   function_new_expected_env = data2;
@@ -26628,10 +26306,13 @@ UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
   {
     size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
     CHECK_EQ(16 * MB, limit_before);
+    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     isolate->IncreaseHeapLimitForDebugging();
+    CHECK(isolate->IsHeapLimitIncreasedForDebugging());
     size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
     CHECK_EQ(4 * 16 * MB, limit_after);
     isolate->RestoreOriginalHeapLimit();
+    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
   }
   isolate->Dispose();

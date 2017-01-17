@@ -4,6 +4,7 @@
 
 #include "src/ast/ast.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parameter-initializer-rewriter.h"
 #include "src/parsing/parser.h"
 
@@ -308,7 +309,7 @@ void Parser::PatternRewriter::VisitRewritableExpression(
     block_->statements()->Add(factory()->NewExpressionStatement(expr, pos),
                               zone());
   }
-  return set_context(old_context);
+  set_context(old_context);
 }
 
 // When an extra declaration scope needs to be inserted to account for

@@ -152,13 +152,29 @@ class PreParserExpression {
 
   static PreParserExpression BinaryOperation(PreParserExpression left,
                                              Token::Value op,
-                                             PreParserExpression right) {
+                                             PreParserExpression right,
+                                             Zone* zone) {
+    if (op == Token::COMMA) {
+      // Possibly an arrow function parameter list.
+      if (left.variables_ == nullptr) {
+        return PreParserExpression(TypeField::encode(kExpression),
+                                   right.variables_);
+      }
+      if (right.variables_ != nullptr) {
+        for (auto variable : *right.variables_) {
+          left.variables_->Add(variable, zone);
+        }
+      }
+      return PreParserExpression(TypeField::encode(kExpression),
+                                 left.variables_);
+    }
     return PreParserExpression(TypeField::encode(kExpression));
   }
 
-  static PreParserExpression Assignment() {
+  static PreParserExpression Assignment(ZoneList<VariableProxy*>* variables) {
     return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kAssignment));
+                                   ExpressionTypeField::encode(kAssignment),
+                               variables);
   }
 
   static PreParserExpression ObjectLiteral(
@@ -787,7 +803,7 @@ class PreParserFactory {
   PreParserExpression NewBinaryOperation(Token::Value op,
                                          PreParserExpression left,
                                          PreParserExpression right, int pos) {
-    return PreParserExpression::BinaryOperation(left, op, right);
+    return PreParserExpression::BinaryOperation(left, op, right, zone_);
   }
   PreParserExpression NewCompareOperation(Token::Value op,
                                           PreParserExpression left,
@@ -801,7 +817,9 @@ class PreParserFactory {
                                     PreParserExpression left,
                                     PreParserExpression right,
                                     int pos) {
-    return PreParserExpression::Assignment();
+    // Identifiers need to be tracked since this might be a parameter with a
+    // default value inside an arrow function parameter list.
+    return PreParserExpression::Assignment(left.variables_);
   }
   PreParserExpression NewYield(PreParserExpression generator_object,
                                PreParserExpression expression, int pos,
@@ -1172,6 +1190,9 @@ class PreParser : public ParserBase<PreParser> {
                                  bool is_module = false) {
     DCHECK_NULL(scope_state_);
     DeclarationScope* scope = NewScriptScope();
+#ifdef DEBUG
+    scope->set_is_being_lazily_parsed(true);
+#endif
 
     // ModuleDeclarationInstantiation for Source Text Module Records creates a
     // new Module Environment Record whose outer lexical environment record is
@@ -1341,7 +1362,22 @@ class PreParser : public ParserBase<PreParser> {
       PreParserStatementList cases, Scope* scope) {
     return PreParserStatement::Default();
   }
-  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {}
+
+  V8_INLINE void RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {
+    if (track_unresolved_variables_) {
+      if (catch_info->name.string_ != nullptr) {
+        // Unlike in the parser, we need to declare the catch variable as LET
+        // variable, so that it won't get hoisted out of the scope.
+        catch_info->scope->DeclareVariableName(catch_info->name.string_, LET);
+      }
+      if (catch_info->pattern.variables_ != nullptr) {
+        for (auto variable : *catch_info->pattern.variables_) {
+          scope()->DeclareVariableName(variable->raw_name(), LET);
+        }
+      }
+    }
+  }
+
   V8_INLINE void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok) {}
   V8_INLINE PreParserStatement RewriteTryStatement(
       PreParserStatement try_block, PreParserStatement catch_block,
@@ -1366,9 +1402,19 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatement DeclareFunction(
-      PreParserIdentifier variable_name, PreParserExpression function, int pos,
-      bool is_generator, bool is_async, ZoneList<const AstRawString*>* names,
+      PreParserIdentifier variable_name, PreParserExpression function,
+      VariableMode mode, int pos, bool is_generator, bool is_async,
+      bool is_sloppy_block_function, ZoneList<const AstRawString*>* names,
       bool* ok) {
+    DCHECK_NULL(names);
+    if (variable_name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(variable_name.string_, mode);
+      if (is_sloppy_block_function) {
+        GetDeclarationScope()->DeclareSloppyBlockFunction(variable_name.string_,
+                                                          scope());
+      }
+    }
     return Statement::Default();
   }
 
@@ -1376,6 +1422,12 @@ class PreParser : public ParserBase<PreParser> {
   DeclareClass(PreParserIdentifier variable_name, PreParserExpression value,
                ZoneList<const AstRawString*>* names, int class_token_pos,
                int end_pos, bool* ok) {
+    // Preparser shouldn't be used in contexts where we need to track the names.
+    DCHECK_NULL(names);
+    if (variable_name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(variable_name.string_, LET);
+    }
     return PreParserStatement::Default();
   }
   V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
@@ -1546,6 +1598,11 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement
   BuildInitializationBlock(DeclarationParsingResult* parsing_result,
                            ZoneList<const AstRawString*>* names, bool* ok) {
+    for (auto declaration : parsing_result->declarations) {
+      DeclareAndInitializeVariables(PreParserStatement::Default(),
+                                    &(parsing_result->descriptor), &declaration,
+                                    names, ok);
+    }
     return PreParserStatement::Default();
   }
 
@@ -1560,9 +1617,18 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserStatement RewriteForVarInLegacy(const ForInfo& for_info) {
     return PreParserStatement::Null();
   }
+
   V8_INLINE void DesugarBindingInForEachStatement(
       ForInfo* for_info, PreParserStatement* body_block,
-      PreParserExpression* each_variable, bool* ok) {}
+      PreParserExpression* each_variable, bool* ok) {
+    if (track_unresolved_variables_) {
+      DCHECK(for_info->parsing_result.declarations.length() == 1);
+      DeclareAndInitializeVariables(
+          PreParserStatement::Default(), &for_info->parsing_result.descriptor,
+          &for_info->parsing_result.declarations[0], nullptr, ok);
+    }
+  }
+
   V8_INLINE PreParserStatement CreateForEachStatementTDZ(
       PreParserStatement init_block, const ForInfo& for_info, bool* ok) {
     return init_block;
@@ -1845,8 +1911,14 @@ class PreParser : public ParserBase<PreParser> {
       bool* ok) {
     // TODO(wingo): Detect duplicated identifiers in paramlists.  Detect
     // parameter lists that are too long.
-    // FIXME(marja): Add code to declare arrow function parameters to allocate
-    // less pessimistically.
+    if (track_unresolved_variables_) {
+      DCHECK(FLAG_lazy_inner_functions);
+      if (params.variables_ != nullptr) {
+        for (auto variable : *params.variables_) {
+          parameters->scope->DeclareVariableName(variable->raw_name(), VAR);
+        }
+      }
+    }
   }
 
   V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}
@@ -1917,8 +1989,8 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
     FunctionLiteral::FunctionType function_type, bool* ok) {
   PreParserStatementList result;
 
-  Scope* inner_scope = scope();
-  if (!parameters.is_simple) inner_scope = NewScope(BLOCK_SCOPE);
+  DeclarationScope* inner_scope = scope()->AsDeclarationScope();
+  if (!parameters.is_simple) inner_scope = NewVarblockScope();
 
   {
     BlockState block_state(&scope_state_, inner_scope);
@@ -1927,6 +1999,10 @@ PreParserStatementList PreParser::ParseEagerFunctionBody(
   }
 
   Expect(Token::RBRACE, ok);
+
+  if (is_sloppy(inner_scope->language_mode())) {
+    inner_scope->HoistSloppyBlockFunctions(nullptr);
+  }
   return result;
 }
 

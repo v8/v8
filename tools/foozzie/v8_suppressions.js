@@ -16,6 +16,3 @@ Math.pow = function(a, b){
     return __real_Math_pow(a, b);
   }
 }
-
-// Suppress http://crbug.com/663750
-Object.freeze = function(o){ print (__PrettyPrint(o)); }

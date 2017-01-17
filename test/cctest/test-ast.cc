@@ -30,6 +30,7 @@
 #include "src/v8.h"
 
 #include "src/ast/ast.h"
+#include "src/objects-inl.h"
 #include "src/zone/accounting-allocator.h"
 #include "test/cctest/cctest.h"
 

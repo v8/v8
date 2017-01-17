@@ -2,8 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/ast/ast.h"
 #include "src/ast/ast-expression-rewriter.h"
+#include "src/ast/ast.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

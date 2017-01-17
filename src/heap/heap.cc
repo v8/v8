@@ -95,6 +95,8 @@ Heap::Heap()
       survived_last_scavenge_(0),
       always_allocate_scope_count_(0),
       memory_pressure_level_(MemoryPressureLevel::kNone),
+      out_of_memory_callback_(nullptr),
+      out_of_memory_callback_data_(nullptr),
       contexts_disposed_(0),
       number_of_disposed_maps_(0),
       global_ic_age_(0),
@@ -867,6 +869,9 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // Note: as weak callbacks can execute arbitrary code, we cannot
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
+  if (gc_reason == GarbageCollectionReason::kLastResort) {
+    InvokeOutOfMemoryCallback();
+  }
   RuntimeCallTimerScope(isolate(), &RuntimeCallStats::GC_AllAvailableGarbage);
   if (isolate()->concurrent_recompilation_enabled()) {
     // The optimizing compiler may be unnecessarily holding on to memory.
@@ -1610,8 +1615,6 @@ void Heap::Scavenge() {
 
   scavenge_collector_->SelectScavengingVisitorsTable();
 
-  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
-
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_->Flip();
@@ -1718,6 +1721,10 @@ void Heap::Scavenge() {
   DCHECK_GE(PromotedSpaceSizeOfObjects(), survived_watermark);
   IncrementYoungSurvivorsCounter(PromotedSpaceSizeOfObjects() +
                                  new_space_->Size() - survived_watermark);
+
+  // Scavenger may find new wrappers by iterating objects promoted onto a black
+  // page.
+  local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
@@ -2245,6 +2252,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, type_feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
@@ -2267,6 +2275,9 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, termination_exception);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, optimized_out);
     ALLOCATE_MAP(ODDBALL_TYPE, Oddball::kSize, stale_register);
+
+    ALLOCATE_MAP(JS_PROMISE_CAPABILITY_TYPE, JSPromiseCapability::kSize,
+                 js_promise_capability);
 
     for (unsigned i = 0; i < arraysize(string_type_table); i++) {
       const StringTypeTable& entry = string_type_table[i];
@@ -2770,6 +2781,7 @@ void Heap::CreateInitialObjects() {
                                     empty_fixed_array());
     empty_type_feedback_vector->set(TypeFeedbackVector::kInvocationCountIndex,
                                     Smi::kZero);
+    empty_type_feedback_vector->set_map(type_feedback_vector_map());
     set_empty_type_feedback_vector(*empty_type_feedback_vector);
 
     // We use a canonical empty LiteralsArray for all functions that neither
@@ -2874,6 +2886,42 @@ void Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+
+  // Finish creating JSPromiseCapabilityMap
+  {
+    // TODO(caitp): This initialization can be removed once PromiseCapability
+    // object is no longer used by builtins implemented in javascript.
+    Handle<Map> map = factory->js_promise_capability_map();
+    map->set_inobject_properties_or_constructor_function_index(3);
+
+    Map::EnsureDescriptorSlack(map, 3);
+
+    PropertyAttributes attrs =
+        static_cast<PropertyAttributes>(READ_ONLY | DONT_DELETE);
+    {  // promise
+      Descriptor d = Descriptor::DataField(factory->promise_string(),
+                                           JSPromiseCapability::kPromiseIndex,
+                                           attrs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+
+    {  // resolve
+      Descriptor d = Descriptor::DataField(factory->resolve_string(),
+                                           JSPromiseCapability::kResolveIndex,
+                                           attrs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+
+    {  // reject
+      Descriptor d = Descriptor::DataField(factory->reject_string(),
+                                           JSPromiseCapability::kRejectIndex,
+                                           attrs, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+
+    map->set_is_extensible(false);
+    set_js_promise_capability_map(*map);
+  }
 }
 
 bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
@@ -4488,6 +4536,18 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
           reinterpret_cast<v8::Isolate*>(isolate()),
           new MemoryPressureInterruptTask(this));
     }
+  }
+}
+
+void Heap::SetOutOfMemoryCallback(v8::debug::OutOfMemoryCallback callback,
+                                  void* data) {
+  out_of_memory_callback_ = callback;
+  out_of_memory_callback_data_ = data;
+}
+
+void Heap::InvokeOutOfMemoryCallback() {
+  if (out_of_memory_callback_) {
+    out_of_memory_callback_(out_of_memory_callback_data_);
   }
 }
 

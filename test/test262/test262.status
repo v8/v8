@@ -28,13 +28,6 @@
 [
 
 [ALWAYS, {
-  ###################### NEEDS INVESTIGATION #######################
-
-  # Date tests that fail in CE(S)T timezone.
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
-  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
-  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
-
   ###################### MISSING ES6 FEATURES #######################
 
   # https://code.google.com/p/v8/issues/detail?id=4248
@@ -99,10 +92,6 @@
   'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
 
   ###### END REGEXP SUBCLASSING SECTION ######
-
-  # https://code.google.com/p/v8/issues/detail?id=4360
-  'intl402/DateTimeFormat/12.1.1_1': [FAIL],
-  'intl402/NumberFormat/11.1.1_1': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4895
   'built-ins/TypedArrays/internals/DefineOwnProperty/detached-buffer': [FAIL],
@@ -352,6 +341,58 @@
   'built-ins/Number/S9.3.1_A3_T1_U180E': [FAIL],
   'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5051
+  'language/expressions/arrow-function/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/arrow-function/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/expressions/call/trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/function/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/function/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/expressions/function/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/expressions/generators/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/generators/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/expressions/generators/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/expressions/object/method-definition/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/expressions/object/method-definition/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/expressions/object/method-definition/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/statements/class/definition/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/statements/class/definition/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/statements/class/definition/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/statements/function/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/statements/function/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
+  'language/statements/function/params-trailing-comma-length': ['--harmony-trailing-commas'],
+  'language/statements/generators/params-trailing-comma': ['--harmony-trailing-commas'],
+  'language/statements/generators/params-trailing-comma-length': ['--harmony-trailing-commas'],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=4698
+  'language/expressions/call/tco-call-args': ['--harmony-tailcalls'],
+  'language/expressions/call/tco-member-args': ['--harmony-tailcalls'],
+  'language/expressions/comma/tco-final': ['--harmony-tailcalls'],
+  'language/expressions/conditional/tco-cond': ['--harmony-tailcalls'],
+  'language/expressions/conditional/tco-pos': ['--harmony-tailcalls'],
+  'language/expressions/logical-and/tco-right': ['--harmony-tailcalls'],
+  'language/expressions/logical-or/tco-right': ['--harmony-tailcalls'],
+  'language/expressions/tagged-template/tco-call': ['--harmony-tailcalls'],
+  'language/expressions/tagged-template/tco-member': ['--harmony-tailcalls'],
+  'language/expressions/tco-pos': ['--harmony-tailcalls'],
+  'language/statements/block/tco-stmt': ['--harmony-tailcalls'],
+  'language/statements/block/tco-stmt-list': ['--harmony-tailcalls'],
+  'language/statements/do-while/tco-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-const-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-let-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-lhs-body': ['--harmony-tailcalls'],
+  'language/statements/for/tco-var-body': ['--harmony-tailcalls'],
+  'language/statements/if/tco-else-body': ['--harmony-tailcalls'],
+  'language/statements/if/tco-if-body': ['--harmony-tailcalls'],
+  'language/statements/labeled/tco': ['--harmony-tailcalls'],
+  'language/statements/return/tco': ['--harmony-tailcalls'],
+  'language/statements/switch/tco-case-body': ['--harmony-tailcalls'],
+  'language/statements/switch/tco-case-body-dflt': ['--harmony-tailcalls'],
+  'language/statements/switch/tco-dftl-body': ['--harmony-tailcalls'],
+  'language/statements/try/tco-catch': ['--harmony-tailcalls'],
+  'language/statements/try/tco-catch-finally': ['--harmony-tailcalls'],
+  'language/statements/try/tco-finally': ['--harmony-tailcalls'],
+  'language/statements/while/tco-body': ['--harmony-tailcalls'],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=5064
   'language/expressions/arrow-function/params-dflt-duplicates': [FAIL],
 
@@ -419,6 +460,31 @@
   'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
   'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
 
+  # Symbol.toString on namespace objects was made non-configurable, tests need
+  # to be updated.
+  'language/module-code/namespace/Symbol.toStringTag': [SKIP],
+
+  # Possible spec bug, see comment in https://github.com/tc39/ecma262/pull/747.
+  'language/module-code/namespace/internals/delete-non-exported': [SKIP],
+
+  # https://code.google.com/p/v8/issues/detail?id=4476
+  'built-ins/String/prototype/toLowerCase/special_casing_conditional': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLowerCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toUpperCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLocaleLowerCase/Final_Sigma_U180E': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLowerCase/Final_Sigma_U180E': ['--icu-case-mapping'],
+
+  # https://code.google.com/p/v8/issues/detail?id=4477
+  'built-ins/String/prototype/toLocaleUpperCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLocaleLowerCase/supplementary_plane': ['--icu-case-mapping'],
+  'built-ins/String/prototype/toLocaleLowerCase/special_casing_conditional': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Azeri': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Lithuanian': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleLowerCase/special_casing_Turkish': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Azeri': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Lithuanian': ['--icu-case-mapping'],
+  'intl402/String/prototype/toLocaleUpperCase/special_casing_Turkish': ['--icu-case-mapping'],
+
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation
@@ -426,18 +492,15 @@
   # incompatibilities if the test cases turn out to be broken or ambiguous.
   # Some of these are related to v8:4361 in being visible side effects from Intl.
   'intl402/6.2.3': [FAIL],
-  'intl402/Collator/10.1.2.1_4': [FAIL],
   'intl402/Collator/10.1.2_a': [PASS, FAIL],
   'intl402/Collator/10.2.3_b': [PASS, FAIL],
   'intl402/Collator/prototype/10.3_a': [FAIL],
   'intl402/DateTimeFormat/12.1.2': [PASS, FAIL],
-  'intl402/DateTimeFormat/12.1.2.1_4': [FAIL],
   'intl402/DateTimeFormat/12.2.3_b': [FAIL],
   'intl402/DateTimeFormat/prototype/12.3_a': [FAIL],
   'intl402/Number/prototype/toLocaleString/13.2.1_5': [PASS, FAIL],
   'intl402/NumberFormat/11.1.1_20_c': [FAIL],
   'intl402/NumberFormat/11.1.2': [PASS, FAIL],
-  'intl402/NumberFormat/11.1.2.1_4': [FAIL],
   'intl402/NumberFormat/11.2.3_b': [FAIL],
   'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
@@ -488,6 +551,11 @@
 
   # https://github.com/tc39/test262/commit/c779cba592fcb39051fd1d467e472ea71aa2b1d6#commitcomment-20276482
   'language/statements/class/strict-mode/arguments-caller': [FAIL],
+
+  # Date tests that fail in CE(S)T timezone.
+  # https://bugs.chromium.org/p/v8/issues/detail?id=5449
+  'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
+  'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
 
   ############################ SKIPPED TESTS #############################
 

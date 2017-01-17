@@ -80,7 +80,8 @@ Node* GraphTest::UndefinedConstant() {
 
 
 Node* GraphTest::EmptyFrameState() {
-  Node* state_values = graph()->NewNode(common()->StateValues(0));
+  Node* state_values =
+      graph()->NewNode(common()->StateValues(0, SparseInputMask::Dense()));
   return graph()->NewNode(
       common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
                            nullptr),

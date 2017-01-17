@@ -1789,16 +1789,15 @@ TEST(IsPromiseHookEnabled) {
   CHECK_EQ(isolate->heap()->false_value(), *result);
 }
 
-TEST(AllocateJSPromise) {
+TEST(AllocateAndInitJSPromise) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
   CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  PromiseBuiltinsAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
+  Node* const promise = m.AllocateAndInitJSPromise(context);
   m.Return(promise);
 
   Handle<Code> code = data.GenerateCode();
@@ -1810,41 +1809,16 @@ TEST(AllocateJSPromise) {
   CHECK(result->IsJSPromise());
 }
 
-TEST(PromiseInit) {
+TEST(AllocateAndSetJSPromise) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 1;
   CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
+  PromiseBuiltinsAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
-  m.Return(promise);
-
-  Handle<Code> code = data.GenerateCode();
-  CHECK(!code.is_null());
-
-  FunctionTester ft(code, kNumParams);
-  Handle<Object> result =
-      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result->IsJSPromise());
-  Handle<JSPromise> js_promise = Handle<JSPromise>::cast(result);
-  CHECK_EQ(v8::Promise::kPending, js_promise->status());
-  CHECK_EQ(isolate->heap()->undefined_value(), js_promise->result());
-  CHECK(!js_promise->has_handler());
-}
-
-TEST(PromiseSet) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
-
-  Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise = m.AllocateAndSetJSPromise(
+      context, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
   m.Return(promise);
 
   Handle<Code> code = data.GenerateCode();
@@ -1866,17 +1840,16 @@ TEST(AllocatePromiseReactionJobInfo) {
   const int kNumParams = 1;
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
+  PromiseBuiltinsAssembler p(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
   Node* const tasks = m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
   Node* const deferred_promise =
       m.AllocateFixedArray(FAST_ELEMENTS, m.IntPtrConstant(1));
   m.StoreFixedArrayElement(deferred_promise, 0, m.UndefinedConstant());
   Node* const info = m.AllocatePromiseReactionJobInfo(
-      promise, m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
+      m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
       m.UndefinedConstant(), context);
   m.Return(info);
 
@@ -1890,14 +1863,52 @@ TEST(AllocatePromiseReactionJobInfo) {
   Handle<PromiseReactionJobInfo> promise_info =
       Handle<PromiseReactionJobInfo>::cast(result);
   CHECK_EQ(Smi::FromInt(1), promise_info->value());
-  CHECK(promise_info->promise()->IsJSPromise());
   CHECK(promise_info->tasks()->IsFixedArray());
   CHECK(promise_info->deferred_promise()->IsFixedArray());
   CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
   CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
   CHECK(promise_info->context()->IsContext());
-  CHECK(promise_info->debug_id()->IsUndefined(isolate));
-  CHECK(promise_info->debug_name()->IsUndefined(isolate));
+  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
+}
+
+TEST(AllocatePromiseResolveThenableJobInfo) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler p(data.state());
+
+  Node* const context = p.Parameter(kNumParams + 2);
+  Node* const native_context = p.LoadNativeContext(context);
+  Node* const thenable = p.AllocateAndInitJSPromise(context);
+  Node* const then_str = p.HeapConstant(isolate->factory()->then_string());
+  Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+  Node* const then =
+      p.CallStub(getproperty_callable, context, thenable, then_str);
+  Node* resolve = nullptr;
+  Node* reject = nullptr;
+  std::tie(resolve, reject) = p.CreatePromiseResolvingFunctions(
+      thenable, p.FalseConstant(), native_context);
+
+  Node* const info = p.AllocatePromiseResolveThenableJobInfo(
+      thenable, then, resolve, reject, context);
+  p.Return(info);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result->IsPromiseResolveThenableJobInfo());
+  Handle<PromiseResolveThenableJobInfo> promise_info =
+      Handle<PromiseResolveThenableJobInfo>::cast(result);
+  CHECK(promise_info->thenable()->IsJSPromise());
+  CHECK(promise_info->then()->IsJSFunction());
+  CHECK(promise_info->resolve()->IsJSFunction());
+  CHECK(promise_info->reject()->IsJSFunction());
+  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
+  CHECK(promise_info->context()->IsContext());
 }
 
 TEST(IsSymbol) {
@@ -1955,8 +1966,8 @@ TEST(PromiseHasHandler) {
   PromiseBuiltinsAssembler m(data.state());
 
   Node* const context = m.Parameter(kNumParams + 2);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseInit(promise);
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   m.Return(m.SelectBooleanConstant(m.PromiseHasHandler(promise)));
 
   Handle<Code> code = data.GenerateCode();
@@ -1977,8 +1988,8 @@ TEST(CreatePromiseResolvingFunctionsContext) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* const promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   m.Return(promise_context);
@@ -2009,8 +2020,8 @@ TEST(CreatePromiseResolvingFunctions) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node *resolve, *reject;
   std::tie(resolve, reject) = m.CreatePromiseResolvingFunctions(
       promise, m.BooleanConstant(false), native_context);
@@ -2032,6 +2043,70 @@ TEST(CreatePromiseResolvingFunctions) {
   CHECK(result_arr->get(1)->IsJSFunction());
 }
 
+TEST(NewElementsCapacity) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester data(isolate, 1);
+  CodeStubAssembler m(data.state());
+  m.Return(m.SmiTag(m.CalculateNewElementsCapacity(
+      m.SmiUntag(m.Parameter(0)), CodeStubAssembler::INTPTR_PARAMETERS)));
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, 1);
+  Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
+  Handle<Smi> result_obj =
+      Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(2), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+}
+
+TEST(NewElementsCapacitySmi) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  CodeAssemblerTester data(isolate, 1);
+  CodeStubAssembler m(data.state());
+  m.Return(m.CalculateNewElementsCapacity(m.Parameter(0),
+                                          CodeStubAssembler::SMI_PARAMETERS));
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, 1);
+  Handle<Smi> test_value = Handle<Smi>(Smi::FromInt(0), isolate);
+  Handle<Smi> result_obj =
+      Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(2), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+  test_value = Handle<Smi>(Smi::FromInt(1025), isolate);
+  result_obj = Handle<Smi>::cast(ft.Call(test_value).ToHandleChecked());
+  CHECK_EQ(
+      result_obj->value(),
+      static_cast<int>(JSObject::NewElementsCapacity(test_value->value())));
+}
+
 TEST(AllocateFunctionWithMapAndContext) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
@@ -2041,8 +2116,8 @@ TEST(AllocateFunctionWithMapAndContext) {
 
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
-  Node* const promise = m.AllocateJSPromise(context);
-  m.PromiseSet(promise, m.SmiConstant(v8::Promise::kPending), m.SmiConstant(1));
+  Node* const promise =
+      m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
   Node* resolve_info =
@@ -2068,6 +2143,340 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
   CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());
   CHECK_EQ(isolate->heap()->undefined_value(), fun->next_function_link());
+}
+
+TEST(CreatePromiseGetCapabilitiesExecutorContext) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester data(isolate, kNumParams);
+  PromiseBuiltinsAssembler m(data.state());
+
+  Node* const context = m.Parameter(kNumParams + 2);
+  Node* const native_context = m.LoadNativeContext(context);
+
+  Node* const map = m.LoadRoot(Heap::kJSPromiseCapabilityMapRootIndex);
+  Node* const capability = m.AllocateJSObjectFromMap(map);
+  m.StoreObjectFieldNoWriteBarrier(
+      capability, JSPromiseCapability::kPromiseOffset, m.UndefinedConstant());
+  m.StoreObjectFieldNoWriteBarrier(
+      capability, JSPromiseCapability::kResolveOffset, m.UndefinedConstant());
+  m.StoreObjectFieldNoWriteBarrier(
+      capability, JSPromiseCapability::kRejectOffset, m.UndefinedConstant());
+  Node* const executor_context =
+      m.CreatePromiseGetCapabilitiesExecutorContext(capability, native_context);
+  m.Return(executor_context);
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+
+  FunctionTester ft(code, kNumParams);
+  Handle<Object> result_obj =
+      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+  CHECK(result_obj->IsContext());
+  Handle<Context> context_js = Handle<Context>::cast(result_obj);
+  CHECK_EQ(GetPromiseCapabilityExecutor::kContextLength, context_js->length());
+  CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
+  CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
+  CHECK_EQ(*isolate->native_context(), context_js->native_context());
+  CHECK(context_js->get(GetPromiseCapabilityExecutor::kCapabilitySlot)
+            ->IsJSPromiseCapability());
+}
+
+TEST(NewPromiseCapability) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  {  // Builtin Promise
+    const int kNumParams = 1;
+    CodeAssemblerTester data(isolate, kNumParams);
+    PromiseBuiltinsAssembler m(data.state());
+
+    Node* const context = m.Parameter(kNumParams + 2);
+    Node* const native_context = m.LoadNativeContext(context);
+    Node* const promise_constructor =
+        m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+
+    Node* const capability =
+        m.NewPromiseCapability(context, promise_constructor);
+    m.Return(capability);
+
+    Handle<Code> code = data.GenerateCode();
+    FunctionTester ft(code, kNumParams);
+
+    Handle<Object> result_obj =
+        ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
+    CHECK(result_obj->IsJSPromiseCapability());
+    Handle<JSPromiseCapability> result =
+        Handle<JSPromiseCapability>::cast(result_obj);
+
+    CHECK(result->promise()->IsJSPromise());
+    CHECK(result->resolve()->IsJSFunction());
+    CHECK(result->reject()->IsJSFunction());
+    CHECK_EQ(isolate->native_context()->promise_resolve_shared_fun(),
+             JSFunction::cast(result->resolve())->shared());
+    CHECK_EQ(isolate->native_context()->promise_reject_shared_fun(),
+             JSFunction::cast(result->reject())->shared());
+
+    Handle<JSFunction> callbacks[] = {
+        handle(JSFunction::cast(result->resolve())),
+        handle(JSFunction::cast(result->reject()))};
+
+    for (auto&& callback : callbacks) {
+      Handle<Context> context(Context::cast(callback->context()));
+      CHECK_EQ(isolate->native_context()->closure(), context->closure());
+      CHECK_EQ(isolate->heap()->the_hole_value(), context->extension());
+      CHECK_EQ(*isolate->native_context(), context->native_context());
+      CHECK_EQ(PromiseUtils::kPromiseContextLength, context->length());
+      CHECK_EQ(context->get(PromiseUtils::kPromiseSlot), result->promise());
+    }
+  }
+
+  {  // Custom Promise
+    const int kNumParams = 2;
+    CodeAssemblerTester data(isolate, kNumParams);
+    PromiseBuiltinsAssembler m(data.state());
+
+    Node* const context = m.Parameter(kNumParams + 2);
+
+    Node* const constructor = m.Parameter(1);
+    Node* const capability = m.NewPromiseCapability(context, constructor);
+    m.Return(capability);
+
+    Handle<Code> code = data.GenerateCode();
+    FunctionTester ft(code, kNumParams);
+
+    Handle<JSFunction> constructor_fn =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*CompileRun(
+            "(function FakePromise(executor) {"
+            "  var self = this;"
+            "  function resolve(value) { self.resolvedValue = value; }"
+            "  function reject(reason) { self.rejectedReason = reason; }"
+            "  executor(resolve, reject);"
+            "})")));
+
+    Handle<Object> result_obj =
+        ft.Call(isolate->factory()->undefined_value(), constructor_fn)
+            .ToHandleChecked();
+    CHECK(result_obj->IsJSPromiseCapability());
+    Handle<JSPromiseCapability> result =
+        Handle<JSPromiseCapability>::cast(result_obj);
+
+    CHECK(result->promise()->IsJSObject());
+    Handle<JSObject> promise(JSObject::cast(result->promise()));
+    CHECK_EQ(constructor_fn->prototype_or_initial_map(), promise->map());
+    CHECK(result->resolve()->IsJSFunction());
+    CHECK(result->reject()->IsJSFunction());
+
+    Handle<String> resolved_str =
+        isolate->factory()->NewStringFromAsciiChecked("resolvedStr");
+    Handle<String> rejected_str =
+        isolate->factory()->NewStringFromAsciiChecked("rejectedStr");
+
+    Handle<Object> argv1[] = {resolved_str};
+    Handle<Object> ret =
+        Execution::Call(isolate, handle(result->resolve(), isolate),
+                        isolate->factory()->undefined_value(), 1, argv1)
+            .ToHandleChecked();
+
+    Handle<Object> prop1 =
+        JSReceiver::GetProperty(isolate, promise, "resolvedValue")
+            .ToHandleChecked();
+    CHECK_EQ(*resolved_str, *prop1);
+
+    Handle<Object> argv2[] = {rejected_str};
+    ret = Execution::Call(isolate, handle(result->reject(), isolate),
+                          isolate->factory()->undefined_value(), 1, argv2)
+              .ToHandleChecked();
+    Handle<Object> prop2 =
+        JSReceiver::GetProperty(isolate, promise, "rejectedReason")
+            .ToHandleChecked();
+    CHECK_EQ(*rejected_str, *prop2);
+  }
+}
+
+TEST(DirectMemoryTest8BitWord32Immediate) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int8_t buffer[] = {1, 2, 4, 8, 17, 33, 65, 127};
+  const int element_count = 8;
+  Label bad(&m);
+
+  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
+                                        MachineType::Uint8());
+      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
+}
+
+TEST(DirectMemoryTest16BitWord32Immediate) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int16_t buffer[] = {156, 2234, 4544, 8444, 1723, 3888, 658, 1278};
+  const int element_count = 8;
+  Label bad(&m);
+
+  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded =
+          m.LoadBufferObject(buffer_node, static_cast<int>(i * sizeof(int16_t)),
+                             MachineType::Uint16());
+      Node* masked = m.Word32And(loaded, m.Int32Constant(buffer[j]));
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
+}
+
+TEST(DirectMemoryTest8BitWord32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int8_t buffer[] = {1, 2, 4, 8, 17, 33, 65, 127, 67, 38};
+  const int element_count = 10;
+  Label bad(&m);
+  Node* constants[element_count];
+
+  Node* buffer_node = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    constants[i] = m.LoadBufferObject(buffer_node, static_cast<int>(i),
+                                      MachineType::Uint8());
+  }
+
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded = m.LoadBufferObject(buffer_node, static_cast<int>(i),
+                                        MachineType::Uint8());
+      Node* masked = m.Word32And(loaded, constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+
+      masked = m.Word32And(constants[i], constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
+}
+
+TEST(DirectMemoryTest16BitWord32) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  typedef CodeAssemblerLabel Label;
+
+  const int kNumParams = 0;
+  CodeAssemblerTester data(isolate, kNumParams);
+  CodeStubAssembler m(data.state());
+  int16_t buffer[] = {1, 2, 4, 8, 12345, 33, 65, 255, 67, 3823};
+  const int element_count = 10;
+  Label bad(&m);
+  Node* constants[element_count];
+
+  Node* buffer_node1 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+  for (size_t i = 0; i < element_count; ++i) {
+    constants[i] =
+        m.LoadBufferObject(buffer_node1, static_cast<int>(i * sizeof(int16_t)),
+                           MachineType::Uint16());
+  }
+  Node* buffer_node2 = m.IntPtrConstant(reinterpret_cast<intptr_t>(buffer));
+
+  for (size_t i = 0; i < element_count; ++i) {
+    for (size_t j = 0; j < element_count; ++j) {
+      Node* loaded = m.LoadBufferObject(buffer_node1,
+                                        static_cast<int>(i * sizeof(int16_t)),
+                                        MachineType::Uint16());
+      Node* masked = m.Word32And(loaded, constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+
+      // Force a memory access relative to a high-number register.
+      loaded = m.LoadBufferObject(buffer_node2,
+                                  static_cast<int>(i * sizeof(int16_t)),
+                                  MachineType::Uint16());
+      masked = m.Word32And(loaded, constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+
+      masked = m.Word32And(constants[i], constants[j]);
+      if ((buffer[j] & buffer[i]) != 0) {
+        m.GotoIf(m.Word32Equal(masked, m.Int32Constant(0)), &bad);
+      } else {
+        m.GotoIf(m.Word32NotEqual(masked, m.Int32Constant(0)), &bad);
+      }
+    }
+  }
+
+  m.Return(m.SmiConstant(1));
+
+  m.Bind(&bad);
+  m.Return(m.SmiConstant(0));
+
+  Handle<Code> code = data.GenerateCode();
+  CHECK(!code.is_null());
+  FunctionTester ft(code, kNumParams);
+  CHECK_EQ(1, Handle<Smi>::cast(ft.Call().ToHandleChecked())->value());
 }
 
 }  // namespace internal

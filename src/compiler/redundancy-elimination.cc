@@ -22,6 +22,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckFloat64Hole:
     case IrOpcode::kCheckHeapObject:
     case IrOpcode::kCheckIf:
+    case IrOpcode::kCheckInternalizedString:
     case IrOpcode::kCheckNumber:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
@@ -120,7 +121,14 @@ RedundancyElimination::EffectPathChecks::AddCheck(Zone* zone,
 namespace {
 
 bool IsCompatibleCheck(Node const* a, Node const* b) {
-  if (a->op() != b->op()) return false;
+  if (a->op() != b->op()) {
+    if (a->opcode() == IrOpcode::kCheckInternalizedString &&
+        b->opcode() == IrOpcode::kCheckString) {
+      // CheckInternalizedString(node) implies CheckString(node)
+    } else {
+      return false;
+    }
+  }
   for (int i = a->op()->ValueInputCount(); --i >= 0;) {
     if (a->InputAt(i) != b->InputAt(i)) return false;
   }

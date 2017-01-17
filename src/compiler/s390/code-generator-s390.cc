@@ -1233,25 +1233,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Not64:
       __ Not64(i.OutputRegister(), i.InputRegister(0));
       break;
-    case kS390_RotLeftAndMask32:
-      if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
-        int shiftAmount = i.InputInt32(1);
-        int endBit = 63 - i.InputInt32(3);
-        int startBit = 63 - i.InputInt32(2);
-        __ rll(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ risbg(i.OutputRegister(), i.OutputRegister(), Operand(startBit),
-                 Operand(endBit), Operand::Zero(), true);
-      } else {
-        int shiftAmount = i.InputInt32(1);
-        int clearBitLeft = 63 - i.InputInt32(2);
-        int clearBitRight = i.InputInt32(3);
-        __ rll(i.OutputRegister(), i.InputRegister(0), Operand(shiftAmount));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBitLeft));
-        __ srlg(i.OutputRegister(), i.OutputRegister(),
-                Operand((clearBitLeft + clearBitRight)));
-        __ sllg(i.OutputRegister(), i.OutputRegister(), Operand(clearBitRight));
-      }
-      break;
 #if V8_TARGET_ARCH_S390X
     case kS390_RotLeftAndClear64:
       if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
@@ -1675,21 +1656,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_Tst32:
       if (HasRegisterInput(instr, 1)) {
-        __ AndP(r0, i.InputRegister(0), i.InputRegister(1));
+        __ lr(r0, i.InputRegister(0));
+        __ nr(r0, i.InputRegister(1));
       } else {
-        __ AndP(r0, i.InputRegister(0), i.InputImmediate(1));
+        Operand opnd = i.InputImmediate(1);
+        if (is_uint16(opnd.immediate())) {
+          __ tmll(i.InputRegister(0), opnd);
+        } else {
+          __ lr(r0, i.InputRegister(0));
+          __ nilf(r0, opnd);
+        }
       }
-      __ LoadAndTestP_ExtendSrc(r0, r0);
       break;
-#if V8_TARGET_ARCH_S390X
     case kS390_Tst64:
       if (HasRegisterInput(instr, 1)) {
         __ AndP(r0, i.InputRegister(0), i.InputRegister(1));
       } else {
-        __ AndP(r0, i.InputRegister(0), i.InputImmediate(1));
+        Operand opnd = i.InputImmediate(1);
+        if (is_uint16(opnd.immediate())) {
+          __ tmll(i.InputRegister(0), opnd);
+        } else {
+          __ AndP(r0, i.InputRegister(0), opnd);
+        }
       }
       break;
-#endif
     case kS390_Float64SilenceNaN: {
       DoubleRegister value = i.InputDoubleRegister(0);
       DoubleRegister result = i.OutputDoubleRegister();
@@ -2365,11 +2355,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       switch (src.type()) {
         case Constant::kInt32:
 #if V8_TARGET_ARCH_S390X
-          if (src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+          if (RelocInfo::IsWasmSizeReference(src.rmode())) {
 #else
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+          if (RelocInfo::IsWasmReference(src.rmode())) {
 #endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           } else {
@@ -2378,11 +2366,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         case Constant::kInt64:
 #if V8_TARGET_ARCH_S390X
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
+          if (RelocInfo::IsWasmPtrReference(src.rmode())) {
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
-            DCHECK(src.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+            DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
             __ mov(dst, Operand(src.ToInt64()));
           }
 #else

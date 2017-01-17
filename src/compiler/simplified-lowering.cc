@@ -697,6 +697,11 @@ class RepresentationSelector {
            GetUpperBound(node->InputAt(1))->Is(type);
   }
 
+  bool IsNodeRepresentationTagged(Node* node) {
+    MachineRepresentation representation = GetInfo(node)->representation();
+    return IsAnyTagged(representation);
+  }
+
   bool OneInputCannotBe(Node* node, Type* type) {
     DCHECK_EQ(2, node->op()->ValueInputCount());
     return !GetUpperBound(node->InputAt(0))->Maybe(type) ||
@@ -1010,8 +1015,9 @@ class RepresentationSelector {
                machine_type.semantic() == MachineSemantic::kUint32);
         (*types)[i] = machine_type;
       }
-      NodeProperties::ChangeOp(node,
-                               jsgraph_->common()->TypedStateValues(types));
+      SparseInputMask mask = SparseInputMaskOf(node->op());
+      NodeProperties::ChangeOp(
+          node, jsgraph_->common()->TypedStateValues(types, mask));
     }
     SetOutput(node, MachineRepresentation::kTagged);
   }
@@ -1109,17 +1115,14 @@ class RepresentationSelector {
         return kNoWriteBarrier;
       }
       if (value_type->IsHeapConstant()) {
-        Handle<HeapObject> value_object = value_type->AsHeapConstant()->Value();
-        RootIndexMap root_index_map(jsgraph_->isolate());
-        int root_index = root_index_map.Lookup(*value_object);
-        if (root_index != RootIndexMap::kInvalidRootIndex &&
-            jsgraph_->isolate()->heap()->RootIsImmortalImmovable(root_index)) {
-          // Write barriers are unnecessary for immortal immovable roots.
-          return kNoWriteBarrier;
-        }
-        if (value_object->IsMap()) {
-          // Write barriers for storing maps are cheaper.
-          return kMapWriteBarrier;
+        Heap::RootListIndex root_index;
+        Heap* heap = jsgraph_->isolate()->heap();
+        if (heap->IsRootHandle(value_type->AsHeapConstant()->Value(),
+                               &root_index)) {
+          if (heap->RootIsImmortalImmovable(root_index)) {
+            // Write barriers are unnecessary for immortal immovable roots.
+            return kNoWriteBarrier;
+          }
         }
       }
       if (field_representation == MachineRepresentation::kTaggedPointer ||
@@ -1585,15 +1588,35 @@ class RepresentationSelector {
         NumberOperationHint hint = NumberOperationHintOf(node->op());
         switch (hint) {
           case NumberOperationHint::kSignedSmall:
-          case NumberOperationHint::kSigned32:
-            VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
-                       MachineRepresentation::kBit);
-            if (lower()) ChangeToPureOp(node, Int32Op(node));
+          case NumberOperationHint::kSigned32: {
+            if (propagate()) {
+              VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                         MachineRepresentation::kBit);
+            } else if (retype()) {
+              SetOutput(node, MachineRepresentation::kBit, Type::Any());
+            } else {
+              DCHECK(lower());
+              Node* lhs = node->InputAt(0);
+              Node* rhs = node->InputAt(1);
+              if (IsNodeRepresentationTagged(lhs) &&
+                  IsNodeRepresentationTagged(rhs)) {
+                VisitBinop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(
+                    node, changer_->TaggedSignedOperatorFor(node->opcode()));
+
+              } else {
+                VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                           MachineRepresentation::kBit);
+                ChangeToPureOp(node, Int32Op(node));
+              }
+            }
             return;
+          }
           case NumberOperationHint::kNumberOrOddball:
             // Abstract and strict equality don't perform ToNumber conversions
-            // on Oddballs, so make sure we don't accidentially sneak in a hint
-            // with Oddball feedback here.
+            // on Oddballs, so make sure we don't accidentially sneak in a
+            // hint with Oddball feedback here.
             DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
           // Fallthrough
           case NumberOperationHint::kNumber:
@@ -2251,6 +2274,17 @@ class RepresentationSelector {
         ProcessInput(node, 0, UseInfo::Bool());
         ProcessRemainingInputs(node, 1);
         SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
+      case IrOpcode::kCheckInternalizedString: {
+        if (InputIs(node, Type::InternalizedString())) {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+        }
         return;
       }
       case IrOpcode::kCheckNumber: {

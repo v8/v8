@@ -666,7 +666,7 @@ struct CopyablePersistentTraits {
 /**
  * A PersistentBase which allows copy and assignment.
  *
- * Copy, assignment and destructor bevavior is controlled by the traits
+ * Copy, assignment and destructor behavior is controlled by the traits
  * class M.
  *
  * Note: Persistent class hierarchy is subject to future changes.
@@ -1710,6 +1710,19 @@ class V8_EXPORT ValueSerializer {
     virtual Maybe<bool> WriteHostObject(Isolate* isolate, Local<Object> object);
 
     /*
+     * Called when the ValueSerializer is going to serialize a
+     * SharedArrayBuffer object. The embedder must return an ID for the
+     * object, using the same ID if this SharedArrayBuffer has already been
+     * serialized in this buffer. When deserializing, this ID will be passed to
+     * ValueDeserializer::TransferSharedArrayBuffer as |transfer_id|.
+     *
+     * If the object cannot be serialized, an
+     * exception should be thrown and Nothing<uint32_t>() returned.
+     */
+    virtual Maybe<uint32_t> GetSharedArrayBufferId(
+        Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer);
+
+    /*
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
      * buffer has been allocated yet, nullptr will be provided.
@@ -1763,8 +1776,10 @@ class V8_EXPORT ValueSerializer {
   /*
    * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
    */
-  void TransferSharedArrayBuffer(uint32_t transfer_id,
-                                 Local<SharedArrayBuffer> shared_array_buffer);
+  V8_DEPRECATE_SOON("Use Delegate::GetSharedArrayBufferId",
+                    void TransferSharedArrayBuffer(
+                        uint32_t transfer_id,
+                        Local<SharedArrayBuffer> shared_array_buffer));
 
   /*
    * Write raw data in various common formats to the buffer.
@@ -1831,9 +1846,10 @@ class V8_EXPORT ValueDeserializer {
 
   /*
    * Similar to TransferArrayBuffer, but for SharedArrayBuffer.
-   * transfer_id exists in the same namespace as unshared ArrayBuffer objects.
+   * The id is not necessarily in the same namespace as unshared ArrayBuffer
+   * objects.
    */
-  void TransferSharedArrayBuffer(uint32_t transfer_id,
+  void TransferSharedArrayBuffer(uint32_t id,
                                  Local<SharedArrayBuffer> shared_array_buffer);
 
   /*
@@ -1905,9 +1921,16 @@ class V8_EXPORT Value : public Data {
    */
   V8_INLINE bool IsNull() const;
 
-   /**
-   * Returns true if this value is true.
+  /**
+   * Returns true if this value is either the null or the undefined value.
+   * See ECMA-262
+   * 4.3.11. and 4.3.12
    */
+  V8_INLINE bool IsNullOrUndefined() const;
+
+  /**
+  * Returns true if this value is true.
+  */
   bool IsTrue() const;
 
   /**
@@ -2222,11 +2245,12 @@ class V8_EXPORT Value : public Data {
 
   template <class T> V8_INLINE static Value* Cast(T* value);
 
-  Local<String> TypeOf(v8::Isolate*);
+  Local<String> TypeOf(Isolate*);
 
  private:
   V8_INLINE bool QuickIsUndefined() const;
   V8_INLINE bool QuickIsNull() const;
+  V8_INLINE bool QuickIsNullOrUndefined() const;
   V8_INLINE bool QuickIsString() const;
   bool FullIsUndefined() const;
   bool FullIsNull() const;
@@ -2269,9 +2293,10 @@ class V8_EXPORT Name : public Primitive {
    */
   int GetIdentityHash();
 
-  V8_INLINE static Name* Cast(v8::Value* obj);
+  V8_INLINE static Name* Cast(Value* obj);
+
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -2369,7 +2394,7 @@ class V8_EXPORT String : public Name {
   /**
    * A zero length string.
    */
-  V8_INLINE static v8::Local<v8::String> Empty(Isolate* isolate);
+  V8_INLINE static Local<String> Empty(Isolate* isolate);
 
   /**
    * Returns true if the string is external
@@ -2403,7 +2428,7 @@ class V8_EXPORT String : public Name {
     void operator=(const ExternalStringResourceBase&) = delete;
 
    private:
-    friend class v8::internal::Heap;
+    friend class internal::Heap;
   };
 
   /**
@@ -2674,11 +2699,11 @@ class V8_EXPORT Symbol : public Name {
   static Local<Symbol> GetToStringTag(Isolate* isolate);
   static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
 
-  V8_INLINE static Symbol* Cast(v8::Value* obj);
+  V8_INLINE static Symbol* Cast(Value* obj);
 
  private:
   Symbol();
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -4422,7 +4447,7 @@ class V8_EXPORT Date : public Object {
    */
   double ValueOf() const;
 
-  V8_INLINE static Date* Cast(v8::Value* obj);
+  V8_INLINE static Date* Cast(Value* obj);
 
   /**
    * Notification that the embedder has changed the time zone,
@@ -4439,7 +4464,7 @@ class V8_EXPORT Date : public Object {
   static void DateTimeConfigurationChangeNotification(Isolate* isolate);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -4452,10 +4477,10 @@ class V8_EXPORT NumberObject : public Object {
 
   double ValueOf() const;
 
-  V8_INLINE static NumberObject* Cast(v8::Value* obj);
+  V8_INLINE static NumberObject* Cast(Value* obj);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -4469,10 +4494,10 @@ class V8_EXPORT BooleanObject : public Object {
 
   bool ValueOf() const;
 
-  V8_INLINE static BooleanObject* Cast(v8::Value* obj);
+  V8_INLINE static BooleanObject* Cast(Value* obj);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -4485,10 +4510,10 @@ class V8_EXPORT StringObject : public Object {
 
   Local<String> ValueOf() const;
 
-  V8_INLINE static StringObject* Cast(v8::Value* obj);
+  V8_INLINE static StringObject* Cast(Value* obj);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -4501,10 +4526,10 @@ class V8_EXPORT SymbolObject : public Object {
 
   Local<Symbol> ValueOf() const;
 
-  V8_INLINE static SymbolObject* Cast(v8::Value* obj);
+  V8_INLINE static SymbolObject* Cast(Value* obj);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -4554,10 +4579,10 @@ class V8_EXPORT RegExp : public Object {
    */
   Flags GetFlags() const;
 
-  V8_INLINE static RegExp* Cast(v8::Value* obj);
+  V8_INLINE static RegExp* Cast(Value* obj);
 
  private:
-  static void CheckCast(v8::Value* obj);
+  static void CheckCast(Value* obj);
 };
 
 
@@ -5597,9 +5622,9 @@ class V8_EXPORT Extension {  // NOLINT
             const char** deps = 0,
             int source_length = -1);
   virtual ~Extension() { }
-  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
-      v8::Isolate* isolate, v8::Local<v8::String> name) {
-    return v8::Local<v8::FunctionTemplate>();
+  virtual Local<FunctionTemplate> GetNativeFunctionTemplate(
+      Isolate* isolate, Local<String> name) {
+    return Local<FunctionTemplate>();
   }
 
   const char* name() const { return name_; }
@@ -5704,7 +5729,7 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
 typedef void (*OOMErrorCallback)(const char* location, bool is_heap_oom);
 
-typedef void (*MessageCallback)(Local<Message> message, Local<Value> error);
+typedef void (*MessageCallback)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
 
@@ -6256,17 +6281,33 @@ class V8_EXPORT EmbedderHeapTracer {
 };
 
 /**
- * Callback to the embedder used in SnapshotCreator to handle internal fields.
+ * Callback and supporting data used in SnapshotCreator to implement embedder
+ * logic to serialize internal fields.
  */
-typedef StartupData (*SerializeInternalFieldsCallback)(Local<Object> holder,
-                                                       int index);
+struct SerializeInternalFieldsCallback {
+  typedef StartupData (*CallbackFunction)(Local<Object> holder, int index,
+                                          void* data);
+  SerializeInternalFieldsCallback(CallbackFunction function = nullptr,
+                                  void* data_arg = nullptr)
+      : callback(function), data(data_arg) {}
+  CallbackFunction callback;
+  void* data;
+};
 
 /**
- * Callback to the embedder used to deserialize internal fields.
+ * Callback and supporting data used to implement embedder logic to deserialize
+ * internal fields.
  */
-typedef void (*DeserializeInternalFieldsCallback)(Local<Object> holder,
-                                                  int index,
-                                                  StartupData payload);
+struct DeserializeInternalFieldsCallback {
+  typedef void (*CallbackFunction)(Local<Object> holder, int index,
+                                   StartupData payload, void* data);
+  DeserializeInternalFieldsCallback(CallbackFunction function = nullptr,
+                                    void* data_arg = nullptr)
+      : callback(function), data(data_arg) {}
+  void (*callback)(Local<Object> holder, int index, StartupData payload,
+                   void* data);
+  void* data;
+};
 
 /**
  * Isolate represents an isolated instance of the V8 engine.  V8 isolates have
@@ -6290,8 +6331,7 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          external_references(nullptr),
-          deserialize_internal_fields_callback(nullptr) {}
+          external_references(nullptr) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6347,12 +6387,6 @@ class V8_EXPORT Isolate {
      * entire lifetime of the isolate.
      */
     intptr_t* external_references;
-
-    /**
-     * Specifies an optional callback to deserialize internal fields. It
-     * should match the SerializeInternalFieldCallback used to serialize.
-     */
-    DeserializeInternalFieldsCallback deserialize_internal_fields_callback;
   };
 
 
@@ -6490,6 +6524,7 @@ class V8_EXPORT Isolate {
     kFunctionConstructorReturnedUndefined = 35,
     kAssigmentExpressionLHSIsCallInSloppy = 36,
     kAssigmentExpressionLHSIsCallInStrict = 37,
+    kPromiseConstructorReturnedUndefined = 38,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
@@ -6744,8 +6779,10 @@ class V8_EXPORT Isolate {
    * garbage collection types it is sufficient to provide object groups
    * for partially dependent handles only.
    */
-  template<typename T> void SetObjectGroupId(const Persistent<T>& object,
-                                             UniqueId id);
+  template <typename T>
+  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
+                    void SetObjectGroupId(const Persistent<T>& object,
+                                          UniqueId id));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6754,8 +6791,10 @@ class V8_EXPORT Isolate {
    * are removed. It is intended to be used in the before-garbage-collection
    * callback function.
    */
-  template<typename T> void SetReferenceFromGroup(UniqueId id,
-                                                  const Persistent<T>& child);
+  template <typename T>
+  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
+                    void SetReferenceFromGroup(UniqueId id,
+                                               const Persistent<T>& child));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6763,8 +6802,10 @@ class V8_EXPORT Isolate {
    * too. After each garbage collection, all implicit references are removed. It
    * is intended to be used in the before-garbage-collection callback function.
    */
-  template<typename T, typename S>
-  void SetReference(const Persistent<T>& parent, const Persistent<S>& child);
+  template <typename T, typename S>
+  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
+                    void SetReference(const Persistent<T>& parent,
+                                      const Persistent<S>& child));
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);
@@ -7055,6 +7096,12 @@ class V8_EXPORT Isolate {
    * Restores the original heap limit after IncreaseHeapLimitForDebugging().
    */
   void RestoreOriginalHeapLimit();
+
+  /**
+   * Returns true if the heap limit was increased for debugging and the
+   * original heap limit was not restored yet.
+   */
+  bool IsHeapLimitIncreasedForDebugging();
 
   /**
    * Allows the host application to provide the address of a function that is
@@ -7659,9 +7706,13 @@ class V8_EXPORT SnapshotCreator {
    * Add additional context to be included in the snapshot blob.
    * The snapshot will include the global proxy.
    *
+   * \param callback optional callback to serialize internal fields.
+   *
    * \returns the index of the context in the snapshot blob.
    */
-  size_t AddContext(Local<Context> context);
+  size_t AddContext(Local<Context> context,
+                    SerializeInternalFieldsCallback callback =
+                        SerializeInternalFieldsCallback());
 
   /**
    * Add a template to be included in the snapshot blob.
@@ -7674,12 +7725,10 @@ class V8_EXPORT SnapshotCreator {
    * This must not be called from within a handle scope.
    * \param function_code_handling whether to include compiled function code
    *        in the snapshot.
-   * \param callback to serialize embedder-set internal fields.
    * \returns { nullptr, 0 } on failure, and a startup snapshot on success. The
    *        caller acquires ownership of the data array in the return value.
    */
-  StartupData CreateBlob(FunctionCodeHandling function_code_handling,
-                         SerializeInternalFieldsCallback callback = nullptr);
+  StartupData CreateBlob(FunctionCodeHandling function_code_handling);
 
   // Disallow copying and assigning.
   SnapshotCreator(const SnapshotCreator&) = delete;
@@ -7885,7 +7934,7 @@ class V8_EXPORT TryCatch {
    * UseAfterReturn is enabled, then the address returned will be the address
    * of the C++ try catch handler itself.
    */
-  static void* JSStackComparableAddress(v8::TryCatch* handler) {
+  static void* JSStackComparableAddress(TryCatch* handler) {
     if (handler == NULL) return NULL;
     return handler->js_stack_comparable_address_;
   }
@@ -7898,8 +7947,8 @@ class V8_EXPORT TryCatch {
  private:
   void ResetInternal();
 
-  v8::internal::Isolate* isolate_;
-  v8::TryCatch* next_;
+  internal::Isolate* isolate_;
+  TryCatch* next_;
   void* exception_;
   void* message_obj_;
   void* js_stack_comparable_address_;
@@ -7909,7 +7958,7 @@ class V8_EXPORT TryCatch {
   bool rethrow_ : 1;
   bool has_terminated_ : 1;
 
-  friend class v8::internal::Isolate;
+  friend class internal::Isolate;
 };
 
 
@@ -7992,6 +8041,10 @@ class V8_EXPORT Context {
    * \param context_snapshot_index The index of the context snapshot to
    * deserialize from. Use v8::Context::New for the default snapshot.
    *
+   * \param internal_fields_deserializer Optional callback to deserialize
+   * internal fields. It should match the SerializeInternalFieldCallback used
+   * to serialize.
+   *
    * \param extensions See v8::Context::New.
    *
    * \param global_object See v8::Context::New.
@@ -7999,6 +8052,8 @@ class V8_EXPORT Context {
 
   static MaybeLocal<Context> FromSnapshot(
       Isolate* isolate, size_t context_snapshot_index,
+      DeserializeInternalFieldsCallback internal_fields_deserializer =
+          DeserializeInternalFieldsCallback(),
       ExtensionConfiguration* extensions = nullptr,
       MaybeLocal<Value> global_object = MaybeLocal<Value>());
 
@@ -8050,7 +8105,7 @@ class V8_EXPORT Context {
   void Exit();
 
   /** Returns an isolate associated with a current context. */
-  v8::Isolate* GetIsolate();
+  Isolate* GetIsolate();
 
   /**
    * The field at kDebugIdIndex is reserved for V8 debugger implementation.
@@ -8993,9 +9048,8 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);
 }
 
-
-void Template::Set(Isolate* isolate, const char* name, v8::Local<Data> value) {
-  Set(v8::String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
+  Set(String::NewFromUtf8(isolate, name, NewStringType::kNormal)
           .ToLocalChecked(),
       value);
 }
@@ -9129,6 +9183,23 @@ bool Value::QuickIsNull() const {
   return (I::GetOddballKind(obj) == I::kNullOddballKind);
 }
 
+bool Value::IsNullOrUndefined() const {
+#ifdef V8_ENABLE_CHECKS
+  return FullIsNull() || FullIsUndefined();
+#else
+  return QuickIsNullOrUndefined();
+#endif
+}
+
+bool Value::QuickIsNullOrUndefined() const {
+  typedef internal::Object O;
+  typedef internal::Internals I;
+  O* obj = *reinterpret_cast<O* const*>(this);
+  if (!I::HasHeapObjectTag(obj)) return false;
+  if (I::GetInstanceType(obj) != I::kOddballType) return false;
+  int kind = I::GetOddballKind(obj);
+  return kind == I::kNullOddballKind || kind == I::kUndefinedOddballKind;
+}
 
 bool Value::IsString() const {
 #ifdef V8_ENABLE_CHECKS
@@ -9604,7 +9675,7 @@ template<typename T>
 void Isolate::SetObjectGroupId(const Persistent<T>& object,
                                UniqueId id) {
   TYPE_CHECK(Value, T);
-  SetObjectGroupId(reinterpret_cast<v8::internal::Object**>(object.val_), id);
+  SetObjectGroupId(reinterpret_cast<internal::Object**>(object.val_), id);
 }
 
 
@@ -9612,8 +9683,7 @@ template<typename T>
 void Isolate::SetReferenceFromGroup(UniqueId id,
                                     const Persistent<T>& object) {
   TYPE_CHECK(Value, T);
-  SetReferenceFromGroup(id,
-                        reinterpret_cast<v8::internal::Object**>(object.val_));
+  SetReferenceFromGroup(id, reinterpret_cast<internal::Object**>(object.val_));
 }
 
 
@@ -9622,8 +9692,8 @@ void Isolate::SetReference(const Persistent<T>& parent,
                            const Persistent<S>& child) {
   TYPE_CHECK(Object, T);
   TYPE_CHECK(Value, S);
-  SetReference(reinterpret_cast<v8::internal::Object**>(parent.val_),
-               reinterpret_cast<v8::internal::Object**>(child.val_));
+  SetReference(reinterpret_cast<internal::Object**>(parent.val_),
+               reinterpret_cast<internal::Object**>(child.val_));
 }
 
 
@@ -9700,14 +9770,14 @@ void V8::SetFatalErrorHandler(FatalErrorCallback callback) {
 void V8::RemoveGCPrologueCallback(GCCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->RemoveGCPrologueCallback(
-      reinterpret_cast<v8::Isolate::GCCallback>(callback));
+      reinterpret_cast<Isolate::GCCallback>(callback));
 }
 
 
 void V8::RemoveGCEpilogueCallback(GCCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->RemoveGCEpilogueCallback(
-      reinterpret_cast<v8::Isolate::GCCallback>(callback));
+      reinterpret_cast<Isolate::GCCallback>(callback));
 }
 
 void V8::TerminateExecution(Isolate* isolate) { isolate->TerminateExecution(); }

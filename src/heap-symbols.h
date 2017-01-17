@@ -203,7 +203,6 @@
   V(frozen_symbol)                     \
   V(hash_code_symbol)                  \
   V(home_object_symbol)                \
-  V(intl_impl_object_symbol)           \
   V(intl_initialized_marker_symbol)    \
   V(intl_pattern_symbol)               \
   V(intl_resolved_symbol)              \
@@ -218,6 +217,7 @@
   V(promise_debug_marker_symbol)       \
   V(promise_forwarding_handler_symbol) \
   V(promise_handled_by_symbol)         \
+  V(promise_async_id_symbol)           \
   V(sealed_symbol)                     \
   V(stack_trace_symbol)                \
   V(strict_function_transition_symbol) \

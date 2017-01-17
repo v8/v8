@@ -95,6 +95,22 @@ TEST(VectorStructure) {
                          FeedbackVectorSlotKind::CALL_IC),
              vector->length());
   }
+
+  {
+    FeedbackVectorSpec spec(&zone);
+    spec.AddGeneralSlot();
+    spec.AddCreateClosureSlot(5);
+    spec.AddGeneralSlot();
+    vector = NewTypeFeedbackVector(isolate, &spec);
+    FeedbackVectorHelper helper(vector);
+    CHECK_EQ(1, TypeFeedbackMetadata::GetSlotSize(
+                    FeedbackVectorSlotKind::CREATE_CLOSURE));
+    FeedbackVectorSlot slot = helper.slot(1);
+    FixedArray* array = FixedArray::cast(vector->Get(slot));
+    CHECK_EQ(5, array->length());
+    CHECK_EQ(5, vector->GetParameter(slot));
+    CHECK_EQ(array->get(0), *factory->undefined_value());
+  }
 }
 
 

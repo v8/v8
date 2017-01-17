@@ -352,6 +352,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return CallStub(callable, context, function, arity, receiver, args...);
   }
 
+  template <class... TArgs>
+  Node* ConstructJS(Callable const& callable, Node* context, Node* new_target,
+                    TArgs... args) {
+    int argc = static_cast<int>(sizeof...(args));
+    Node* arity = Int32Constant(argc);
+    Node* receiver = LoadRoot(Heap::kUndefinedValueRootIndex);
+
+    // Construct(target, new_target, arity, receiver, arguments...)
+    return CallStub(callable, context, new_target, new_target, arity, receiver,
+                    args...);
+  }
+
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
@@ -469,6 +481,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   ~CodeAssemblerState();
 
   const char* name() const { return name_; }
+  int parameter_count() const;
 
  private:
   friend class CodeAssembler;

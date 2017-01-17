@@ -16,9 +16,6 @@
 
 namespace v8 {
 namespace internal {
-
-class CompilationInfo;
-
 namespace compiler {
 
 class SourcePositionTable;
@@ -27,8 +24,10 @@ class SourcePositionTable;
 // interpreter bytecodes.
 class BytecodeGraphBuilder {
  public:
-  BytecodeGraphBuilder(Zone* local_zone, CompilationInfo* info,
-                       JSGraph* jsgraph, float invocation_frequency,
+  BytecodeGraphBuilder(Zone* local_zone, Handle<SharedFunctionInfo> shared,
+                       Handle<TypeFeedbackVector> feedback_vector,
+                       BailoutId osr_ast_id, JSGraph* jsgraph,
+                       float invocation_frequency,
                        SourcePositionTable* source_positions,
                        int inlining_id = SourcePosition::kNotInlined);
 

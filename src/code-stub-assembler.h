@@ -28,6 +28,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
   V(EmptyFixedArray, EmptyFixedArray)                 \
+  V(EmptyLiteralsArray, EmptyLiteralsArray)           \
   V(FalseValue, False)                                \
   V(FixedArrayMap, FixedArrayMap)                     \
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
@@ -171,18 +172,35 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   SMI_ARITHMETIC_BINOP(SmiSub, IntPtrSub)
   SMI_ARITHMETIC_BINOP(SmiAnd, WordAnd)
   SMI_ARITHMETIC_BINOP(SmiOr, WordOr)
-
-#define SMI_SHIFT_OP(SmiOpName, IntPtrOpName)         \
-  Node* SmiOpName(Node* a, int shift) {               \
-    return BitcastWordToTaggedSigned(                 \
-        IntPtrOpName(BitcastTaggedToWord(a), shift)); \
-  }                                                   \
-  SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)
-
-  SMI_SHIFT_OP(SmiShl, WordShl)
-  SMI_SHIFT_OP(SmiShr, WordShr)
-#undef SMI_SHIFT_OP
 #undef SMI_ARITHMETIC_BINOP
+
+  Node* SmiShl(Node* a, int shift) {
+    return BitcastWordToTaggedSigned(WordShl(BitcastTaggedToWord(a), shift));
+  }
+
+  Node* SmiShr(Node* a, int shift) {
+    return BitcastWordToTaggedSigned(
+        WordAnd(WordShr(BitcastTaggedToWord(a), shift),
+                BitcastTaggedToWord(SmiConstant(-1))));
+  }
+
+  Node* WordOrSmiShl(Node* a, int shift, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) {
+      return SmiShl(a, shift);
+    } else {
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);
+      return WordShl(a, shift);
+    }
+  }
+
+  Node* WordOrSmiShr(Node* a, int shift, ParameterMode mode) {
+    if (mode == SMI_PARAMETERS) {
+      return SmiShr(a, shift);
+    } else {
+      DCHECK_EQ(INTPTR_PARAMETERS, mode);
+      return WordShr(a, shift);
+    }
+  }
 
 #define SMI_COMPARISON_OP(SmiOpName, IntPtrOpName)                       \
   Node* SmiOpName(Node* a, Node* b) {                                    \
@@ -232,6 +250,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* SelectBooleanConstant(Node* condition);
   Node* SelectTaggedConstant(Node* condition, Node* true_value,
                              Node* false_value);
+  Node* SelectSmiConstant(Node* condition, Smi* true_value, Smi* false_value);
+  Node* SelectSmiConstant(Node* condition, int true_value, Smi* false_value) {
+    return SelectSmiConstant(condition, Smi::FromInt(true_value), false_value);
+  }
+  Node* SelectSmiConstant(Node* condition, Smi* true_value, int false_value) {
+    return SelectSmiConstant(condition, true_value, Smi::FromInt(false_value));
+  }
+  Node* SelectSmiConstant(Node* condition, int true_value, int false_value) {
+    return SelectSmiConstant(condition, Smi::FromInt(true_value),
+                             Smi::FromInt(false_value));
+  }
 
   Node* TruncateWordToWord32(Node* value);
 
@@ -638,6 +667,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
+  Node* InstanceTypeEqual(Node* instance_type, int type);
   Node* IsSpecialReceiverMap(Node* map);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);
   Node* IsStringInstanceType(Node* instance_type);
@@ -778,6 +808,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Returns true if any of the mask's bits in given |word| are set.
   Node* IsSetWord(Node* word, uint32_t mask) {
     return WordNotEqual(WordAnd(word, IntPtrConstant(mask)), IntPtrConstant(0));
+  }
+
+  // Returns true if any of the mask's bit are set in the given Smi.
+  // Smi-encoding of the mask is performed implicitly!
+  Node* IsSetSmi(Node* smi, int untagged_mask) {
+    intptr_t mask_word = bit_cast<intptr_t>(Smi::FromInt(untagged_mask));
+    return WordNotEqual(
+        WordAnd(BitcastTaggedToWord(smi), IntPtrConstant(mask_word)),
+        IntPtrConstant(0));
   }
 
   // Returns true if all of the |T|'s bits in given |word32| are clear.
@@ -957,20 +996,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* LoadReceiverMap(Node* receiver);
 
-  // Extends properties backing store by JSObject::kFieldsAdded elements.
-  void ExtendPropertiesBackingStore(Node* object);
-
-  Node* PrepareValueForWrite(Node* value, Representation representation,
-                             Label* bailout);
-
-  void StoreNamedField(Node* object, FieldIndex index,
-                       Representation representation, Node* value,
-                       bool transition_to_field);
-
-  void StoreNamedField(Node* object, Node* offset, bool is_inobject,
-                       Representation representation, Node* value,
-                       bool transition_to_field);
-
   // Emits keyed sloppy arguments load. Returns either the loaded value.
   Node* LoadKeyedSloppyArguments(Node* receiver, Node* key, Label* bailout) {
     return EmitKeyedSloppyArguments(receiver, key, nullptr, bailout);
@@ -1127,14 +1152,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Promise helpers
   Node* IsPromiseHookEnabled();
 
-  Node* AllocateJSPromise(Node* context);
-  void PromiseInit(Node* promise);
-
-  // Other promise fields may also be need to set/reset. This only
-  // provides a helper for certain init patterns.
-  void PromiseSet(Node* promise, Node* status, Node* result);
-
-  Node* AllocatePromiseReactionJobInfo(Node* promise, Node* value, Node* tasks,
+  Node* AllocatePromiseReactionJobInfo(Node* value, Node* tasks,
                                        Node* deferred_promise,
                                        Node* deferred_on_resolve,
                                        Node* deferred_on_reject, Node* context);
@@ -1232,8 +1250,23 @@ class CodeStubArguments {
 #ifdef DEBUG
 #define CSA_ASSERT(csa, x) \
   (csa)->Assert([&] { return (x); }, #x, __FILE__, __LINE__)
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)               \
+  (csa)->Assert(                                                   \
+      [&] {                                                        \
+        const CodeAssemblerState* state = (csa)->state();          \
+        /* See Linkage::GetJSCallDescriptor(). */                  \
+        int argc_index = state->parameter_count() - 2;             \
+        compiler::Node* const argc = (csa)->Parameter(argc_index); \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));    \
+      },                                                           \
+      "argc " #op " " #expected, __FILE__, __LINE__)
+
+#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \
+  CSA_ASSERT_JS_ARGC_OP(csa, Word32Equal, ==, expected)
+
 #else
 #define CSA_ASSERT(csa, x) ((void)0)
+#define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
 #endif
 
 #ifdef ENABLE_SLOW_DCHECKS

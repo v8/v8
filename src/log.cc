@@ -1329,6 +1329,17 @@ void Logger::LogFailure() {
   StopProfiler();
 }
 
+static void AddFunctionAndCode(SharedFunctionInfo* sfi,
+                               AbstractCode* code_object,
+                               Handle<SharedFunctionInfo>* sfis,
+                               Handle<AbstractCode>* code_objects, int offset) {
+  if (sfis != NULL) {
+    sfis[offset] = Handle<SharedFunctionInfo>(sfi);
+  }
+  if (code_objects != NULL) {
+    code_objects[offset] = Handle<AbstractCode>(code_object);
+  }
+}
 
 class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
  public:
@@ -1345,14 +1356,11 @@ class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
     Object* maybe_script = sfi->script();
     if (maybe_script->IsScript()
         && !Script::cast(maybe_script)->HasValidSource()) return;
-    if (sfis_ != NULL) {
-      sfis_[*count_] = Handle<SharedFunctionInfo>(sfi);
-    }
-    if (code_objects_ != NULL) {
-      DCHECK(function->abstract_code()->kind() ==
-             AbstractCode::OPTIMIZED_FUNCTION);
-      code_objects_[*count_] = Handle<AbstractCode>(function->abstract_code());
-    }
+
+    DCHECK(function->abstract_code()->kind() ==
+           AbstractCode::OPTIMIZED_FUNCTION);
+    AddFunctionAndCode(sfi, function->abstract_code(), sfis_, code_objects_,
+                       *count_);
     *count_ = *count_ + 1;
   }
 
@@ -1377,14 +1385,19 @@ static int EnumerateCompiledFunctions(Heap* heap,
     if (sfi->is_compiled()
         && (!sfi->script()->IsScript()
             || Script::cast(sfi->script())->HasValidSource())) {
-      if (sfis != NULL) {
-        sfis[compiled_funcs_count] = Handle<SharedFunctionInfo>(sfi);
+      // In some cases, an SFI might have (and have executing!) both bytecode
+      // and baseline code, so check for both and add them both if needed.
+      if (sfi->HasBytecodeArray()) {
+        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->bytecode_array()), sfis,
+                           code_objects, compiled_funcs_count);
+        ++compiled_funcs_count;
       }
-      if (code_objects != NULL) {
-        code_objects[compiled_funcs_count] =
-            Handle<AbstractCode>(sfi->abstract_code());
+
+      if (!sfi->IsInterpreted()) {
+        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->code()), sfis,
+                           code_objects, compiled_funcs_count);
+        ++compiled_funcs_count;
       }
-      ++compiled_funcs_count;
     }
   }
 
@@ -1467,6 +1480,10 @@ void Logger::LogCodeObject(Object* object) {
       break;
     case AbstractCode::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
+      tag = CodeEventListener::STUB_TAG;
+      break;
+    case AbstractCode::WASM_INTERPRETER_ENTRY:
+      description = "A Wasm to Interpreter adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
     case AbstractCode::NUMBER_OF_KINDS:

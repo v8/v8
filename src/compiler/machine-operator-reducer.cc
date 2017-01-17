@@ -664,6 +664,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kFloat64LessThan:
     case IrOpcode::kFloat64LessThanOrEqual:
       return ReduceFloat64Compare(node);
+    case IrOpcode::kFloat64RoundDown:
+      return ReduceFloat64RoundDown(node);
     default:
       break;
   }
@@ -1391,6 +1393,14 @@ Reduction MachineOperatorReducer::ReduceFloat64Compare(Node* node) {
   return NoChange();
 }
 
+Reduction MachineOperatorReducer::ReduceFloat64RoundDown(Node* node) {
+  DCHECK_EQ(IrOpcode::kFloat64RoundDown, node->opcode());
+  Float64Matcher m(node->InputAt(0));
+  if (m.HasValue()) {
+    return ReplaceFloat64(Floor(m.Value()));
+  }
+  return NoChange();
+}
 
 CommonOperatorBuilder* MachineOperatorReducer::common() const {
   return jsgraph()->common();

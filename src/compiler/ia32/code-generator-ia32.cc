@@ -66,9 +66,7 @@ class IA32OperandConverter : public InstructionOperandConverter {
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
     if (constant.type() == Constant::kInt32 &&
-        (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-         constant.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE ||
-         constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE)) {
+        RelocInfo::IsWasmReference(constant.rmode())) {
       return Immediate(reinterpret_cast<Address>(constant.ToInt32()),
                        constant.rmode());
     }
@@ -1695,7 +1693,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       bool old_has_frame = __ has_frame();
       if (frame_elided_) {
         __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM);
+        __ EnterFrame(StackFrame::WASM_COMPILED);
       }
       GenerateCallToTrap(trap_id);
       if (frame_elided_) {

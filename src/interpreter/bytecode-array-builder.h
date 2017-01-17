@@ -125,8 +125,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.
   BytecodeArrayBuilder& StoreDataPropertyInLiteral(
-      Register object, Register name, Register value,
-      DataPropertyInLiteralFlags flags);
+      Register object, Register name, DataPropertyInLiteralFlags flags,
+      int feedback_slot);
 
   // Store properties. The value to be stored should be in the accumulator.
   BytecodeArrayBuilder& StoreNamedProperty(Register object,
@@ -160,8 +160,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                         LanguageMode language_mode);
 
   // Create a new closure for a SharedFunctionInfo which will be inserted at
-  // constant pool index |entry|.
-  BytecodeArrayBuilder& CreateClosure(size_t entry, int flags);
+  // constant pool index |shared_function_info_entry|.
+  BytecodeArrayBuilder& CreateClosure(size_t shared_function_info_entry,
+                                      int slot, int flags);
 
   // Create a new local context for a |scope_info| and a closure which should be
   // in the accumulator.
@@ -190,12 +191,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Literals creation.  Constant elements should be in the accumulator.
   BytecodeArrayBuilder& CreateRegExpLiteral(Handle<String> pattern,
                                             int literal_index, int flags);
-  BytecodeArrayBuilder& CreateArrayLiteral(
-      Handle<ConstantElementsPair> constant_elements, int literal_index,
-      int flags);
-  BytecodeArrayBuilder& CreateObjectLiteral(
-      Handle<FixedArray> constant_properties, int literal_index, int flags,
-      Register output);
+  BytecodeArrayBuilder& CreateArrayLiteral(size_t constant_elements_entry,
+                                           int literal_index, int flags);
+  BytecodeArrayBuilder& CreateObjectLiteral(size_t constant_properties_entry,
+                                            int literal_index, int flags,
+                                            Register output);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.
@@ -328,6 +328,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // entry, so that it can be referenced by above exception handling support.
   int NewHandlerEntry() { return handler_table_builder()->NewHandlerEntry(); }
 
+  // Gets a constant pool entry for the |object|.
+  size_t GetConstantPoolEntry(Handle<Object> object);
   // Allocates a slot in the constant pool which can later be inserted.
   size_t AllocateConstantPoolEntry();
   // Inserts a entry into an allocated constant pool entry.
@@ -393,9 +395,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Set position for return.
   void SetReturnPosition();
-
-  // Gets a constant pool entry for the |object|.
-  size_t GetConstantPoolEntry(Handle<Object> object);
 
   // Not implemented as the illegal bytecode is used inside internally
   // to indicate a bytecode field is not valid or an error has occured

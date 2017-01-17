@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/dateparser-inl.h"
 
@@ -824,22 +825,6 @@ BUILTIN(DatePrototypeToUTCString) {
   return *isolate->factory()->NewStringFromAsciiChecked(buffer);
 }
 
-// ES6 section 20.3.4.44 Date.prototype.valueOf ( )
-BUILTIN(DatePrototypeValueOf) {
-  HandleScope scope(isolate);
-  CHECK_RECEIVER(JSDate, date, "Date.prototype.valueOf");
-  return date->value();
-}
-
-// ES6 section 20.3.4.45 Date.prototype [ @@toPrimitive ] ( hint )
-BUILTIN(DatePrototypeToPrimitive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CHECK_RECEIVER(JSReceiver, receiver, "Date.prototype [ @@toPrimitive ]");
-  Handle<Object> hint = args.at(1);
-  RETURN_RESULT_OR_FAILURE(isolate, JSDate::ToPrimitive(receiver, hint));
-}
-
 // ES6 section B.2.4.1 Date.prototype.getYear ( )
 BUILTIN(DatePrototypeGetYear) {
   HandleScope scope(isolate);
@@ -1091,6 +1076,97 @@ void Builtins::Generate_DatePrototypeGetUTCSeconds(
     compiler::CodeAssemblerState* state) {
   CodeStubAssembler assembler(state);
   Generate_DatePrototype_GetField(&assembler, JSDate::kSecondUTC);
+}
+
+// static
+void Builtins::Generate_DatePrototypeValueOf(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler assembler(state);
+  Generate_DatePrototype_GetField(&assembler, JSDate::kDateValue);
+}
+
+// static
+void Builtins::Generate_DatePrototypeToPrimitive(
+    compiler::CodeAssemblerState* state) {
+  CodeStubAssembler assembler(state);
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+
+  Node* receiver = assembler.Parameter(0);
+  Node* hint = assembler.Parameter(1);
+  Node* context = assembler.Parameter(4);
+
+  // Check if the {receiver} is actually a JSReceiver.
+  Label receiver_is_invalid(&assembler, Label::kDeferred);
+  assembler.GotoIf(assembler.TaggedIsSmi(receiver), &receiver_is_invalid);
+  assembler.GotoUnless(assembler.IsJSReceiver(receiver), &receiver_is_invalid);
+
+  // Dispatch to the appropriate OrdinaryToPrimitive builtin.
+  Label hint_is_number(&assembler), hint_is_string(&assembler),
+      hint_is_invalid(&assembler, Label::kDeferred);
+
+  // Fast cases for internalized strings.
+  Node* number_string = assembler.LoadRoot(Heap::knumber_stringRootIndex);
+  assembler.GotoIf(assembler.WordEqual(hint, number_string), &hint_is_number);
+  Node* default_string = assembler.LoadRoot(Heap::kdefault_stringRootIndex);
+  assembler.GotoIf(assembler.WordEqual(hint, default_string), &hint_is_string);
+  Node* string_string = assembler.LoadRoot(Heap::kstring_stringRootIndex);
+  assembler.GotoIf(assembler.WordEqual(hint, string_string), &hint_is_string);
+
+  // Slow-case with actual string comparisons.
+  Callable string_equal = CodeFactory::StringEqual(assembler.isolate());
+  assembler.GotoIf(assembler.TaggedIsSmi(hint), &hint_is_invalid);
+  assembler.GotoUnless(assembler.IsString(hint), &hint_is_invalid);
+  assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
+                                                          hint, number_string),
+                                       assembler.TrueConstant()),
+                   &hint_is_number);
+  assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
+                                                          hint, default_string),
+                                       assembler.TrueConstant()),
+                   &hint_is_string);
+  assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
+                                                          hint, string_string),
+                                       assembler.TrueConstant()),
+                   &hint_is_string);
+  assembler.Goto(&hint_is_invalid);
+
+  // Use the OrdinaryToPrimitive builtin to convert to a Number.
+  assembler.Bind(&hint_is_number);
+  {
+    Callable callable = CodeFactory::OrdinaryToPrimitive(
+        assembler.isolate(), OrdinaryToPrimitiveHint::kNumber);
+    Node* result = assembler.CallStub(callable, context, receiver);
+    assembler.Return(result);
+  }
+
+  // Use the OrdinaryToPrimitive builtin to convert to a String.
+  assembler.Bind(&hint_is_string);
+  {
+    Callable callable = CodeFactory::OrdinaryToPrimitive(
+        assembler.isolate(), OrdinaryToPrimitiveHint::kString);
+    Node* result = assembler.CallStub(callable, context, receiver);
+    assembler.Return(result);
+  }
+
+  // Raise a TypeError if the {hint} is invalid.
+  assembler.Bind(&hint_is_invalid);
+  {
+    Node* result =
+        assembler.CallRuntime(Runtime::kThrowInvalidHint, context, hint);
+    assembler.Return(result);
+  }
+
+  // Raise a TypeError if the {receiver} is not a JSReceiver instance.
+  assembler.Bind(&receiver_is_invalid);
+  {
+    Node* result = assembler.CallRuntime(
+        Runtime::kThrowIncompatibleMethodReceiver, context,
+        assembler.HeapConstant(assembler.factory()->NewStringFromAsciiChecked(
+            "Date.prototype [ @@toPrimitive ]", TENURED)),
+        receiver);
+    assembler.Return(result);
+  }
 }
 
 }  // namespace internal

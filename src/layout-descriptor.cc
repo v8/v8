@@ -8,6 +8,7 @@
 
 #include "src/base/bits.h"
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 
 using v8::base::bits::CountTrailingZeros32;
 

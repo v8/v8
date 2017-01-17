@@ -9,6 +9,7 @@
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/constant-array-builder.h"
 #include "src/log.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -40,6 +40,7 @@
 #include "src/execution.h"
 #include "src/flags.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parser.h"
@@ -48,6 +49,7 @@
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/token.h"
+#include "src/unicode-cache.h"
 #include "src/utils.h"
 
 #include "test/cctest/cctest.h"
@@ -1268,15 +1270,14 @@ const char* ReadString(unsigned* start) {
   return result;
 }
 
-
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyFunctionSent,
-  kAllowHarmonyAsyncAwait,
   kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyTrailingCommas,
   kAllowHarmonyClassFields,
+  kAllowHarmonyObjectSpread,
   kAllowTypes
 };
 
@@ -1289,11 +1290,11 @@ enum ParserSyncTestResult {
 void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
-  i::FLAG_harmony_async_await = flags.Contains(kAllowHarmonyAsyncAwait);
   i::FLAG_harmony_restrictive_generators =
       flags.Contains(kAllowHarmonyRestrictiveGenerators);
   i::FLAG_harmony_trailing_commas = flags.Contains(kAllowHarmonyTrailingCommas);
   i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
+  i::FLAG_harmony_object_spread = flags.Contains(kAllowHarmonyObjectSpread);
   i::FLAG_harmony_types = flags.Contains(kAllowTypes);
 }
 
@@ -1301,14 +1302,14 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
-  parser->set_allow_harmony_async_await(
-      flags.Contains(kAllowHarmonyAsyncAwait));
   parser->set_allow_harmony_restrictive_generators(
       flags.Contains(kAllowHarmonyRestrictiveGenerators));
   parser->set_allow_harmony_trailing_commas(
       flags.Contains(kAllowHarmonyTrailingCommas));
   parser->set_allow_harmony_class_fields(
       flags.Contains(kAllowHarmonyClassFields));
+  parser->set_allow_harmony_object_spread(
+      flags.Contains(kAllowHarmonyObjectSpread));
   parser->set_allow_harmony_types(flags.Contains(kAllowTypes));
 }
 
@@ -2725,16 +2726,6 @@ TEST(ErrorsObjectLiteralChecking) {
     "x = 0",
     "* *x(){}",
     "x*(){}",
-    // This should fail without --harmony-async-await
-    "async x(){}",
-    NULL
-  };
-  // clang-format on
-
-  RunParserSyncTest(context_data, statement_data, kError);
-
-  // clang-format off
-  const char* async_data[] = {
     "static async x(){}",
     "static async x : 0",
     "static async get x : 0",
@@ -2752,9 +2743,7 @@ TEST(ErrorsObjectLiteralChecking) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
@@ -2828,14 +2817,6 @@ TEST(NoErrorsObjectLiteralChecking) {
     "super: 6",
     "eval: 7",
     "arguments: 8",
-    NULL
-  };
-  // clang-format on
-
-  RunParserSyncTest(context_data, statement_data, kSuccess);
-
-  // clang-format off
-  const char* async_data[] = {
     "async x(){}",
     "async 0(){}",
     "async get(){}",
@@ -2849,9 +2830,7 @@ TEST(NoErrorsObjectLiteralChecking) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
@@ -3456,6 +3435,8 @@ TEST(MaybeAssignedParameters) {
       {false,
        "function f(arg, arguments=[]) {g(arg); arguments[0] = 42; g(arg)}"},
       {false, "function f(...arg) {g(arg); arguments[0] = 42; g(arg)}"},
+      {false,
+       "function f(arg) {g(arg); g(function() {arguments[0] = 42}); g(arg)}"},
 
       // strict arguments object
       {false, "function f(arg, x=1) {g(arg); arguments[0] = 42; g(arg)}"},
@@ -3474,9 +3455,11 @@ TEST(MaybeAssignedParameters) {
       {true, "function f(arg=1) {g(arg); arg = 42; g(arg)}"},
       {true, "function f(arg) {'use strict'; g(arg); arg = 42; g(arg)}"},
       {true, "function f(arg, {a=(g(arg), arg=42)}) {g(arg)}"},
+      {true, "function f(arg) {g(arg); g(function() {arg = 42}); g(arg)}"},
+      {true,
+       "function f(arg) {g(arg); g(function() {eval('arg = 42')}); g(arg)}"},
       {true, "function f(arg) {g(arg); g(() => arg = 42); g(arg)}"},
       {true, "function f(arg) {g(arg); g(() => eval('arg = 42')); g(arg)}"},
-      {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
       {true, "function f(...arg) {g(arg); eval('arg = 42'); g(arg)}"},
 
       // sloppy arguments object
@@ -3486,6 +3469,7 @@ TEST(MaybeAssignedParameters) {
        "function f(arg) {((args) => {arguments[0] = 42})(arguments); "
        "g(arg)}"},
       {true, "function f(arg) {g(arg); eval('arguments[0] = 42'); g(arg)}"},
+      {true, "function f(arg) {g(arg); g(() => arguments[0] = 42); g(arg)}"},
   };
 
   const char* suffix = "; f";
@@ -4504,13 +4488,7 @@ TEST(ClassBodyNoErrors) {
     "static set st\\u0061tic(v) {}",
     "*st\\u0061tic() {}",
     "static *st\\u0061tic() {}",
-    NULL};
-  // clang-format on
 
-  RunParserSyncTest(context_data, class_body_data, kSuccess);
-
-  // clang-format off
-  const char* async_data[] = {
     "static async x(){}",
     "static async(){}",
     "static *async(){}",
@@ -4522,13 +4500,10 @@ TEST(ClassBodyNoErrors) {
     "async async(){}",
     "async(){}",
     "*async(){}",
-    NULL
-  };
+    NULL};
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 
@@ -4656,16 +4631,6 @@ TEST(ClassFieldsNoErrors) {
     "yield",
     "yield = 0",
     "yield\n a",
-    NULL
-  };
-  // clang-format on
-
-  static const ParserFlag without_async[] = {kAllowHarmonyClassFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
-                    without_async, arraysize(without_async));
-
-  // clang-format off
-  const char* async_data[] = {
     "async;",
     "async = 0;",
     "static async;"
@@ -4681,10 +4646,9 @@ TEST(ClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag with_async[] = {kAllowHarmonyClassFields,
-                                          kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kSuccess, NULL, 0, with_async,
-                    arraysize(with_async));
+  static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 TEST(ClassFieldsErrors) {
@@ -4708,6 +4672,8 @@ TEST(ClassFieldsErrors) {
     "*a;",
     "get a;",
     "yield a;",
+    "async a = 0",
+    "async a",
 
     // ASI requires a linebreak
     "a b",
@@ -4721,22 +4687,9 @@ TEST(ClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag without_async[] = {kAllowHarmonyClassFields};
+  static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
   RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
-                    without_async, arraysize(without_async));
-
-  // clang-format off
-  const char* async_data[] = {
-    "async a = 0",
-    "async a",
-    NULL
-  };
-  // clang-format on
-
-  static const ParserFlag with_async[] = {kAllowHarmonyClassFields,
-                                          kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kError, NULL, 0, with_async,
-                    arraysize(with_async));
+                    always_flags, arraysize(always_flags));
 }
 
 TEST(ClassExpressionErrors) {
@@ -4825,13 +4778,7 @@ TEST(ClassAsyncErrors) {
   };
   // clang-format on
 
-  // All of these are illegal whether or not async functions are permitted,
-  // although for different reasons.
   RunParserSyncTest(context_data, async_data, kError);
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, async_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
 }
 
 TEST(ClassNameErrors) {
@@ -6567,6 +6514,94 @@ TEST(ArrowFunctionASIErrors) {
   RunParserSyncTest(context_data, data, kError);
 }
 
+TEST(ObjectSpreadPositiveTests) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"x = ", ""},
+    {"'use strict'; x = ", ""},
+    {NULL, NULL}};
+
+  // clang-format off
+  const char* data[] = {
+    "{ ...y }",
+    "{ a: 1, ...y }",
+    "{ b: 1, ...y }",
+    "{ y, ...y}",
+    "{ ...z = y}",
+    "{ ...y, y }",
+    "{ ...y, ...y}",
+    "{ a: 1, ...y, b: 1}",
+    "{ ...y, b: 1}",
+    "{ ...1}",
+    "{ ...null}",
+    "{ ...undefined}",
+    "{ ...1 in {}}",
+    "{ ...[]}",
+    "{ ...async function() { }}",
+    "{ ...async () => { }}",
+    "{ ...new Foo()}",
+    NULL};
+
+  static const ParserFlag flags[] = {kAllowHarmonyObjectSpread};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                    arraysize(flags));
+}
+
+TEST(ObjectSpreadNegativeTests) {
+  {
+    const char* context_data[][2] = {{"x = ", ""},
+                                     {"'use strict'; x = ", ""},
+                                     {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "{ ...var z = y}",
+      "{ ...var}",
+      "{ ...foo bar}",
+      NULL};
+
+    static const ParserFlag flags[] = {kAllowHarmonyObjectSpread};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                      arraysize(flags));
+  }
+
+  // Destructuring tests
+  {
+    const char* context_data[][2] = {
+      {"var ", " = {};"},
+      {"( ", " = {});"},
+      {"'use strict'; const ", " = {};"},
+      {"function f(", ") {}"},
+      {"function f(argument1, ", ") {}"},
+      {"var f = (", ") => {};"},
+      {"var f = (argument1,", ") => {};"},
+      {"try {} catch(", ") {}"},
+      {NULL, NULL}};
+
+    // clang-format off
+    const char* data[] = {
+      "{ ...y }",
+      "{ a: 1, ...y }",
+      "{ b: 1, ...y }",
+      "{ y, ...y}",
+      "{ ...z = y}",
+      "{ ...y, y }",
+      "{ ...y, ...y}",
+      "{ a: 1, ...y, b: 1}",
+      "{ ...y, b: 1}",
+      "{ ...1}",
+      "{ ...null}",
+      "{ ...undefined}",
+      "{ ...unknown}",
+      "{ ...var z = y}",
+      "({ ...z = {})",
+      NULL};
+
+    static const ParserFlag flags[] = {kAllowHarmonyObjectSpread};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                      arraysize(flags));
+  }
+}
 
 TEST(DestructuringPositiveTests) {
   const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
@@ -8007,9 +8042,7 @@ TEST(AsyncAwait) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kSuccess);
 
   // clang-format off
   const char* async_body_context_data[][2] = {
@@ -8063,10 +8096,8 @@ TEST(AsyncAwait) {
   };
   // clang-format on
 
-  RunParserSyncTest(async_body_context_data, body_data, kSuccess, NULL, 0,
-                    always_flags, arraysize(always_flags));
-  RunParserSyncTest(body_context_data, body_data, kSuccess, NULL, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(async_body_context_data, body_data, kSuccess);
+  RunParserSyncTest(body_context_data, body_data, kSuccess);
 }
 
 TEST(AsyncAwaitErrors) {
@@ -8203,14 +8234,9 @@ TEST(AsyncAwaitErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunParserSyncTest(context_data, error_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(strict_context_data, strict_error_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags));
-
-  RunParserSyncTest(context_data, formal_parameters_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, error_data, kError);
+  RunParserSyncTest(strict_context_data, strict_error_data, kError);
+  RunParserSyncTest(context_data, formal_parameters_data, kError);
 
   // clang-format off
   const char* async_body_context_data[][2] = {
@@ -8251,8 +8277,7 @@ TEST(AsyncAwaitErrors) {
   };
   // clang-format on
 
-  RunParserSyncTest(async_body_context_data, async_body_error_data, kError,
-                    NULL, 0, always_flags, arraysize(always_flags));
+  RunParserSyncTest(async_body_context_data, async_body_error_data, kError);
 }
 
 TEST(AsyncAwaitModule) {
@@ -8270,9 +8295,8 @@ TEST(AsyncAwaitModule) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, always_flags,
-                          arraysize(always_flags), NULL, 0, false);
+  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0, NULL,
+                          0, false);
 }
 
 TEST(AsyncAwaitModuleErrors) {
@@ -8292,10 +8316,8 @@ TEST(AsyncAwaitModuleErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
-  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0,
-                          always_flags, arraysize(always_flags), NULL, 0,
-                          false);
+  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0,
+                          NULL, 0, false);
 }
 
 TEST(RestrictiveForInErrors) {
@@ -8372,14 +8394,11 @@ TEST(NoDuplicateAsyncFunctionInBlock) {
                               "async function x() {} function* x() {}",
                               "function* x() {} async function x() {}",
                               NULL};
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncAwait};
   // The preparser doesn't enforce the restriction, so turn it off.
   bool test_preparser = false;
-  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags), NULL, 0, false,
-                    test_preparser);
-  RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0, NULL, 0,
+                    NULL, 0, false, test_preparser);
+  RunParserSyncTest(top_level_context_data, error_data, kSuccess);
 }
 
 TEST(TrailingCommasInParameters) {
@@ -8553,6 +8572,7 @@ TEST(NoPessimisticContextAllocation) {
   } inners[] = {
       // Context allocating because we need to:
       {"function inner() { my_var; }", true},
+      {"function inner() { if (true) { let my_var; } my_var; }", true},
       {"function inner() { eval(\"foo\"); }", true},
       {"function inner() { function inner2() { my_var; } }", true},
       {"function inner() { function inner2() { eval(\"foo\"); } }", true},
@@ -8561,15 +8581,66 @@ TEST(NoPessimisticContextAllocation) {
       {"function inner() { const {my_var : a} = {my_var}; }", true},
       {"function inner(a = my_var) { }", true},
       {"function inner() { function inner2(a = my_var) { } }", true},
+      {"function inner() { (a = my_var) => { } }", true},
       {"function inner({a} = {a: my_var}) { }", true},
       {"function inner() { function inner2({a} = {a: my_var}) { } }", true},
+      {"function inner() { ({a} = {a: my_var}) => { } }", true},
       {"function inner([a] = [my_var]) { }", true},
       {"function inner() { function inner2([a] = [my_var]) { } }", true},
+      {"function inner() { ([a] = [my_var]) => { } }", true},
+      {"function inner() { try { } catch (my_var) { } my_var; }", true},
+      {"function inner() { for (my_var in {}) { my_var; } }", true},
+      {"function inner() { for (my_var in {}) { } }", true},
+      {"function inner() { for (my_var of []) { my_var; } }", true},
+      {"function inner() { for (my_var of []) { } }", true},
+      {"function inner() { for ([a, my_var, b] in {}) { my_var; } }", true},
+      {"function inner() { for ([a, my_var, b] of []) { my_var; } }", true},
+      {"function inner() { for ({x: my_var} in {}) { my_var; } }", true},
+      {"function inner() { for ({x: my_var} of []) { my_var; } }", true},
+      {"function inner() { for ({my_var} in {}) { my_var; } }", true},
+      {"function inner() { for ({my_var} of []) { my_var; } }", true},
+      {"function inner() { for ({y, x: my_var} in {}) { my_var; } }", true},
+      {"function inner() { for ({y, x: my_var} of []) { my_var; } }", true},
+      {"function inner() { for ({a, my_var} in {}) { my_var; } }", true},
+      {"function inner() { for ({a, my_var} of []) { my_var; } }", true},
+      {"function inner() { for (let my_var in {}) { } my_var; }", true},
+      {"function inner() { for (let my_var of []) { } my_var; }", true},
+      {"function inner() { for (let [a, my_var, b] in {}) { } my_var; }", true},
+      {"function inner() { for (let [a, my_var, b] of []) { } my_var; }", true},
+      {"function inner() { for (let {x: my_var} in {}) { } my_var; }", true},
+      {"function inner() { for (let {x: my_var} of []) { } my_var; }", true},
+      {"function inner() { for (let {my_var} in {}) { } my_var; }", true},
+      {"function inner() { for (let {my_var} of []) { } my_var; }", true},
+      {"function inner() { for (let {y, x: my_var} in {}) { } my_var; }", true},
+      {"function inner() { for (let {y, x: my_var} of []) { } my_var; }", true},
+      {"function inner() { for (let {a, my_var} in {}) { } my_var; }", true},
+      {"function inner() { for (let {a, my_var} of []) { } my_var; }", true},
+      {"function inner() { for (let my_var = 0; my_var < 1; ++my_var) { } "
+       "my_var }",
+       true},
+      {"function inner() { 'use strict'; if (true) { function my_var() {} }  "
+       "my_var; }",
+       true},
+      {"function inner() { 'use strict'; function inner2() { if (true) { "
+       "function my_var() {} }  my_var; } }",
+       true},
+      {"function inner() { function inner2() { 'use strict'; if (true) { "
+       "function my_var() {} }  my_var; } }",
+       true},
+      {"function inner() { () => { 'use strict'; if (true) { function my_var() "
+       "{} }  my_var; } }",
+       true},
+      {"function inner() { if (true) { let my_var; if (true) { function "
+       "my_var() {} } }  my_var; }",
+       true},
       // No pessimistic context allocation:
       {"function inner() { var my_var; my_var; }", false},
       {"function inner() { var my_var; }", false},
+      {"function inner() { var my_var = 0; }", false},
+      {"function inner() { if (true) { var my_var; } my_var; }", false},
       {"function inner() { let my_var; my_var; }", false},
       {"function inner() { let my_var; }", false},
+      {"function inner() { let my_var = 0; }", false},
       {"function inner() { const my_var = 0; my_var; }", false},
       {"function inner() { const my_var = 0; }", false},
       {"function inner() { var [a, my_var] = [1, 2]; my_var; }", false},
@@ -8643,36 +8714,128 @@ TEST(NoPessimisticContextAllocation) {
       {"({my_var}) => { }", false},
       {"({my_var} = {my_var: 5}) => my_var;", false},
       {"({my_var} = {my_var: 5}) => { }", false},
-      {"function inner() { try { } catch (my_var) { } }", false},
-      {"function inner() { class my_var {}; }", false},
-      // In the following cases we still context allocate pessimistically:
-      {"function inner() { function my_var() {} my_var; }", true},
+      {"({a, my_var}) => my_var;", false},
+      {"({a, my_var}) => { }", false},
+      {"({a, my_var} = {a: 0, my_var: 5}) => my_var;", false},
+      {"({a, my_var} = {a: 0, my_var: 5}) => { }", false},
+      {"({y, x: my_var}) => my_var;", false},
+      {"({y, x: my_var}) => { }", false},
+      {"({y, x: my_var} = {y: 0, x: 0}) => my_var;", false},
+      {"({y, x: my_var} = {y: 0, x: 0}) => { }", false},
+      {"function inner() { my_var => my_var; }", false},
+      {"function inner() { my_var => { }}", false},
+      {"function inner() { (my_var = 5) => my_var; }", false},
+      {"function inner() { (my_var = 5) => { }}", false},
+      {"function inner() { (...my_var) => my_var;}", false},
+      {"function inner() { (...my_var) => { }}", false},
+      {"function inner() { ([a, my_var, b]) => my_var;}", false},
+      {"function inner() { ([a, my_var, b]) => { }}", false},
+      {"function inner() { ([a, my_var, b] = [1, 2, 3]) => my_var;}", false},
+      {"function inner() { ([a, my_var, b] = [1, 2, 3]) => { }}", false},
+      {"function inner() { ({x: my_var}) => my_var;}", false},
+      {"function inner() { ({x: my_var}) => { }}", false},
+      {"function inner() { ({x: my_var} = {x: 0}) => my_var;}", false},
+      {"function inner() { ({x: my_var} = {x: 0}) => { }}", false},
+      {"function inner() { ({my_var}) => my_var;}", false},
+      {"function inner() { ({my_var}) => { }}", false},
+      {"function inner() { ({my_var} = {my_var: 5}) => my_var;}", false},
+      {"function inner() { ({my_var} = {my_var: 5}) => { }}", false},
+      {"function inner() { ({a, my_var}) => my_var;}", false},
+      {"function inner() { ({a, my_var}) => { }}", false},
+      {"function inner() { ({a, my_var} = {a: 0, my_var: 5}) => my_var;}",
+       false},
+      {"function inner() { ({a, my_var} = {a: 0, my_var: 5}) => { }}", false},
+      {"function inner() { ({y, x: my_var}) => my_var;}", false},
+      {"function inner() { ({y, x: my_var}) => { }}", false},
+      {"function inner() { ({y, x: my_var} = {y: 0, x: 0}) => my_var;}", false},
+      {"function inner() { ({y, x: my_var} = {y: 0, x: 0}) => { }}", false},
+      {"function inner() { try { } catch (my_var) { my_var; } }", false},
+      {"function inner() { try { } catch ([a, my_var, b]) { my_var; } }",
+       false},
+      {"function inner() { try { } catch ({x: my_var}) { my_var; } }", false},
+      {"function inner() { try { } catch ({y, x: my_var}) { my_var; } }",
+       false},
+      {"function inner() { try { } catch ({my_var}) { my_var; } }", false},
+      {"function inner() { for (let my_var in {}) { my_var; } }", false},
+      {"function inner() { for (let my_var in {}) { } }", false},
+      {"function inner() { for (let my_var of []) { my_var; } }", false},
+      {"function inner() { for (let my_var of []) { } }", false},
+      {"function inner() { for (let [a, my_var, b] in {}) { my_var; } }",
+       false},
+      {"function inner() { for (let [a, my_var, b] of []) { my_var; } }",
+       false},
+      {"function inner() { for (let {x: my_var} in {}) { my_var; } }", false},
+      {"function inner() { for (let {x: my_var} of []) { my_var; } }", false},
+      {"function inner() { for (let {my_var} in {}) { my_var; } }", false},
+      {"function inner() { for (let {my_var} of []) { my_var; } }", false},
+      {"function inner() { for (let {y, x: my_var} in {}) { my_var; } }",
+       false},
+      {"function inner() { for (let {y, x: my_var} of []) { my_var; } }",
+       false},
+      {"function inner() { for (let {a, my_var} in {}) { my_var; } }", false},
+      {"function inner() { for (let {a, my_var} of []) { my_var; } }", false},
+      {"function inner() { for (var my_var in {}) { my_var; } }", false},
+      {"function inner() { for (var my_var in {}) { } }", false},
+      {"function inner() { for (var my_var of []) { my_var; } }", false},
+      {"function inner() { for (var my_var of []) { } }", false},
+      {"function inner() { for (var [a, my_var, b] in {}) { my_var; } }",
+       false},
+      {"function inner() { for (var [a, my_var, b] of []) { my_var; } }",
+       false},
+      {"function inner() { for (var {x: my_var} in {}) { my_var; } }", false},
+      {"function inner() { for (var {x: my_var} of []) { my_var; } }", false},
+      {"function inner() { for (var {my_var} in {}) { my_var; } }", false},
+      {"function inner() { for (var {my_var} of []) { my_var; } }", false},
+      {"function inner() { for (var {y, x: my_var} in {}) { my_var; } }",
+       false},
+      {"function inner() { for (var {y, x: my_var} of []) { my_var; } }",
+       false},
+      {"function inner() { for (var {a, my_var} in {}) { my_var; } }", false},
+      {"function inner() { for (var {a, my_var} of []) { my_var; } }", false},
+      {"function inner() { for (var my_var in {}) { } my_var; }", false},
+      {"function inner() { for (var my_var of []) { } my_var; }", false},
+      {"function inner() { for (var [a, my_var, b] in {}) { } my_var; }",
+       false},
+      {"function inner() { for (var [a, my_var, b] of []) { } my_var; }",
+       false},
+      {"function inner() { for (var {x: my_var} in {}) { } my_var; }", false},
+      {"function inner() { for (var {x: my_var} of []) { } my_var; }", false},
+      {"function inner() { for (var {my_var} in {}) { } my_var; }", false},
+      {"function inner() { for (var {my_var} of []) { } my_var; }", false},
+      {"function inner() { for (var {y, x: my_var} in {}) { } my_var; }",
+       false},
+      {"function inner() { for (var {y, x: my_var} of []) { } my_var; }",
+       false},
+      {"function inner() { for (var {a, my_var} in {}) { } my_var; }", false},
+      {"function inner() { for (var {a, my_var} of []) { } my_var; }", false},
+      {"function inner() { for (let my_var = 0; my_var < 1; ++my_var) { my_var "
+       "} }",
+       false},
+      {"function inner() { for (var my_var = 0; my_var < 1; ++my_var) { my_var "
+       "} }",
+       false},
+      {"function inner() { for (var my_var = 0; my_var < 1; ++my_var) { } "
+       "my_var }",
+       false},
+      {"function inner() { for (let a = 0, my_var = 0; my_var < 1; ++my_var) { "
+       "my_var } }",
+       false},
+      {"function inner() { for (var a = 0, my_var = 0; my_var < 1; ++my_var) { "
+       "my_var } }",
+       false},
+      {"function inner() { class my_var {}; my_var }", false},
+      {"function inner() { function my_var() {} my_var; }", false},
       {"function inner() { if (true) { function my_var() {} }  my_var; }",
-       true},
-      {"function inner() { try { } catch (my_var) { my_var; } }", true},
-      {"function inner() { for (my_var of {}) { my_var; } }", true},
-      {"function inner() { for (my_var of {}) { } }", true},
-      {"function inner() { for (my_var in []) { my_var; } }", true},
-      {"function inner() { for (my_var in []) { } }", true},
-      {"function inner() { my_var => my_var; }", true},
-      {"function inner() { my_var => { }}", true},
-      {"function inner() { (my_var = 5) => my_var; }", true},
-      {"function inner() { (my_var = 5) => { }}", true},
-      {"function inner() { (...my_var) => my_var;}", true},
-      {"function inner() { (...my_var) => { }}", true},
-      {"function inner() { ([a, my_var, b]) => my_var;}", true},
-      {"function inner() { ([a, my_var, b]) => { }}", true},
-      {"function inner() { ([a, my_var, b] = [1, 2, 3]) => my_var;}", true},
-      {"function inner() { ([a, my_var, b] = [1, 2, 3]) => { }}", true},
-      {"function inner() { ({x: my_var}) => my_var;}", true},
-      {"function inner() { ({x: my_var}) => { }}", true},
-      {"function inner() { ({x: my_var} = {x: 0}) => my_var;}", true},
-      {"function inner() { ({x: my_var} = {x: 0}) => { }}", true},
-      {"function inner() { ({my_var}) => my_var;}", true},
-      {"function inner() { ({my_var}) => { }}", true},
-      {"function inner() { ({my_var} = {my_var: 5}) => my_var;}", true},
-      {"function inner() { ({my_var} = {my_var: 5}) => { }}", true},
-      {"function inner() { class my_var {}; my_var }", true},
+       false},
+      {"function inner() { function inner2() { if (true) { function my_var() "
+       "{} }  my_var; } }",
+       false},
+      {"function inner() { () => { if (true) { function my_var() {} }  my_var; "
+       "} }",
+       false},
+      {"function inner() { if (true) { var my_var; if (true) { function "
+       "my_var() {} } }  my_var; }",
+       false},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {

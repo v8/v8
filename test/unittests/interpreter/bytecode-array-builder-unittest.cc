@@ -8,6 +8,7 @@
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
+#include "src/objects-inl.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -115,7 +116,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadLookupGlobalSlot(name, TypeofMode::INSIDE_TYPEOF, 1, 0);
 
   // Emit closure operations.
-  builder.CreateClosure(0, NOT_TENURED);
+  builder.CreateClosure(0, 1, NOT_TENURED);
 
   // Emit create context operation.
   builder.CreateBlockContext(factory->NewScopeInfo(1));
@@ -125,11 +126,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateWithContext(reg, factory->NewScopeInfo(1));
 
   // Emit literal creation operations.
-  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0)
-      .CreateArrayLiteral(factory->NewConstantElementsPair(
-                              FAST_ELEMENTS, factory->empty_fixed_array()),
-                          0, 0)
-      .CreateObjectLiteral(factory->NewFixedArray(1), 0, 0, reg);
+  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0);
+  builder.CreateArrayLiteral(0, 0, 0);
+  builder.CreateObjectLiteral(0, 0, 0, reg);
 
   // Call operations.
   builder.Call(reg, reg_list, 1, Call::GLOBAL_CALL)
@@ -324,8 +323,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
       .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT);
 
-  builder.StoreDataPropertyInLiteral(reg, reg, reg,
-                                     DataPropertyInLiteralFlag::kNoFlags);
+  builder.StoreDataPropertyInLiteral(reg, reg,
+                                     DataPropertyInLiteralFlag::kNoFlags, 0);
 
   // Emit wide context operations.
   builder.LoadContextSlot(reg, 1024, 0).StoreContextSlot(reg, 1024, 0);
@@ -337,16 +336,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreLookupSlot(wide_name, LanguageMode::STRICT);
 
   // CreateClosureWide
-  builder.CreateClosure(1000, NOT_TENURED);
+  builder.CreateClosure(1000, 321, NOT_TENURED);
 
   // Emit wide variant of literal creation operations.
   builder
       .CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"), 0,
                            0)
-      .CreateArrayLiteral(factory->NewConstantElementsPair(
-                              FAST_ELEMENTS, factory->empty_fixed_array()),
-                          0, 0)
-      .CreateObjectLiteral(factory->NewFixedArray(2), 0, 0, reg);
+      .CreateArrayLiteral(0, 0, 0)
+      .CreateObjectLiteral(0, 0, 0, reg);
 
   // Emit load and store operations for module variables.
   builder.LoadModuleVariable(-1, 42)

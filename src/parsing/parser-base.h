@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/base/hashmap.h"
+#include "src/counters.h"
 #include "src/globals.h"
 #include "src/messages.h"
 #include "src/parsing/expression-classifier.h"
@@ -250,10 +251,10 @@ class ParserBase {
         allow_tailcalls_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
-        allow_harmony_async_await_(false),
         allow_harmony_restrictive_generators_(false),
         allow_harmony_trailing_commas_(false),
         allow_harmony_class_fields_(false),
+        allow_harmony_object_spread_(false),
         allow_harmony_types_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
@@ -264,10 +265,10 @@ class ParserBase {
   ALLOW_ACCESSORS(tailcalls);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
-  ALLOW_ACCESSORS(harmony_async_await);
   ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_trailing_commas);
   ALLOW_ACCESSORS(harmony_class_fields);
+  ALLOW_ACCESSORS(harmony_object_spread);
   ALLOW_ACCESSORS(harmony_types);
 
 #undef ALLOW_ACCESSORS
@@ -1198,6 +1199,7 @@ class ParserBase {
     kShorthandProperty,
     kMethodProperty,
     kClassField,
+    kSpreadProperty,
     kNotSet
   };
 
@@ -1547,10 +1549,10 @@ class ParserBase {
   bool allow_tailcalls_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
-  bool allow_harmony_async_await_;
   bool allow_harmony_restrictive_generators_;
   bool allow_harmony_trailing_commas_;
   bool allow_harmony_class_fields_;
+  bool allow_harmony_object_spread_;
   bool allow_harmony_types_;
 
   friend class DiscardableZoneScope;
@@ -1834,8 +1836,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       return impl()->ExpressionFromLiteral(Next(), beg_pos);
 
     case Token::ASYNC:
-      if (allow_harmony_async_await() &&
-          !scanner()->HasAnyLineTerminatorAfterNext() &&
+      if (!scanner()->HasAnyLineTerminatorAfterNext() &&
           PeekAhead() == Token::FUNCTION) {
         Consume(Token::ASYNC);
         return ParseAsyncFunctionLiteral(CHECK_OK);
@@ -2146,7 +2147,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
   Token::Value token = peek();
   int pos = peek_position();
 
-  if (allow_harmony_async_await() && !*is_generator && token == Token::ASYNC &&
+  if (!*is_generator && token == Token::ASYNC &&
       !scanner()->HasAnyLineTerminatorAfterNext()) {
     Consume(Token::ASYNC);
     token = peek();
@@ -2217,6 +2218,23 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       Expect(Token::RBRACK, CHECK_OK);
       break;
     }
+
+    case Token::ELLIPSIS:
+      if (allow_harmony_object_spread()) {
+        // TODO(gsathya): Implement destructuring/rest
+        classifier()->RecordPatternError(scanner()->location(),
+                                         MessageTemplate::kUnexpectedToken);
+
+        *name = impl()->EmptyIdentifier();
+        Consume(Token::ELLIPSIS);
+        ExpressionClassifier spread_classifier(this);
+        expression =
+            ParseAssignmentExpression(true, typesystem::kNoCover, CHECK_OK);
+        impl()->RewriteNonPattern(CHECK_OK);
+        impl()->AccumulateFormalParameterContainmentErrors();
+        *kind = PropertyKind::kSpreadProperty;
+        return expression;
+      }
 
     default:
       *name = ParseIdentifierName(CHECK_OK);
@@ -2438,7 +2456,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       if (!*is_static && impl()->IsConstructor(name)) {
         *has_seen_constructor = true;
-        kind = has_extends ? FunctionKind::kSubclassConstructor
+        kind = has_extends ? FunctionKind::kDerivedConstructor
                            : FunctionKind::kBaseConstructor;
         type_flags |= typesystem::kConstructorTypes;
       }
@@ -2504,6 +2522,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                                 *property_kind, *is_static,
                                                 *is_computed_name);
     }
+    case PropertyKind::kSpreadProperty:
+      UNREACHABLE();
   }
   UNREACHABLE();
   return impl()->EmptyClassLiteralProperty();
@@ -2565,6 +2585,18 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       is_computed_name, CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
   switch (kind) {
+    case PropertyKind::kSpreadProperty:
+      DCHECK(allow_harmony_object_spread());
+      DCHECK(!is_get && !is_set && !is_generator && !is_async &&
+             !*is_computed_name);
+      DCHECK(name_token == Token::ELLIPSIS);
+
+      *is_computed_name = true;
+
+      return factory()->NewObjectLiteralProperty(
+          impl()->GetLiteralTheHole(kNoSourcePosition), name_expression,
+          ObjectLiteralProperty::SPREAD, true);
+
     case PropertyKind::kValueProperty: {
       DCHECK(!is_get && !is_set && !is_generator && !is_async);
 
@@ -2878,7 +2910,7 @@ ParserBase<Impl>::ParseAssignmentExpression(
 
   Scope::Snapshot scope_snapshot(scope());
 
-  bool is_async = allow_harmony_async_await() && peek() == Token::ASYNC &&
+  bool is_async = peek() == Token::ASYNC &&
                   !scanner()->HasAnyLineTerminatorAfterNext() &&
                   IsValidArrowFormalParametersStart(PeekAhead());
   bool maybe_arrow_formals =
@@ -3680,7 +3712,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseSuperExpression(
     }
     // new super() is never allowed.
     // super() is only allowed in derived constructor
-    if (!is_new && peek() == Token::LPAREN && IsSubclassConstructor(kind)) {
+    if (!is_new && peek() == Token::LPAREN && IsDerivedConstructor(kind)) {
       // TODO(rossberg): This might not be the correct FunctionState for the
       // method here.
       return impl()->NewSuperCallReference(pos);
@@ -4130,8 +4162,23 @@ ParserBase<Impl>::ParseHoistableDeclaration(
     return factory()->NewEmptyStatement(kNoSourcePosition);
   }
 
-  return impl()->DeclareFunction(variable_name, function, pos, is_generator,
-                                 is_async, names, ok);
+  // In ES6, a function behaves as a lexical binding, except in
+  // a script scope, or the initial scope of eval or another function.
+  VariableMode mode =
+      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
+                                                                       : VAR;
+  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
+  // allow duplicates in a block. Both are represented by the
+  // sloppy_block_function_map. Don't add them to the map for async functions.
+  // Generators are also supposed to be prohibited; currently doing this behind
+  // a flag and UseCounting violations to assess web compatibility.
+  bool is_sloppy_block_function =
+      is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
+      !is_async && !(allow_harmony_restrictive_generators() && is_generator);
+
+  return impl()->DeclareFunction(variable_name, function, mode, pos,
+                                 is_generator, is_async,
+                                 is_sloppy_block_function, names, ok);
 }
 
 template <typename Impl>
@@ -4983,7 +5030,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
       break;
     }
     case Token::ASYNC:
-      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+      if (PeekAhead() == Token::FUNCTION &&
           !scanner()->HasAnyLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         return ParseAsyncFunctionDeclaration(nullptr, false, ambient, ok);
@@ -5382,13 +5429,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   ExpressionT return_value = impl()->EmptyExpression();
   if (scanner()->HasAnyLineTerminatorBeforeNext() || tok == Token::SEMICOLON ||
       tok == Token::RBRACE || tok == Token::EOS) {
-    if (IsSubclassConstructor(function_state_->kind())) {
+    if (IsDerivedConstructor(function_state_->kind())) {
       return_value = impl()->ThisExpression(loc.beg_pos);
     } else {
       return_value = impl()->GetLiteralUndefined(position());
     }
   } else {
-    if (IsSubclassConstructor(function_state_->kind())) {
+    if (IsDerivedConstructor(function_state_->kind())) {
       // Because of the return code rewriting that happens in case of a subclass
       // constructor we don't want to accept tail calls, therefore we don't set
       // ReturnExprScope to kInsideValidReturnStatement here.

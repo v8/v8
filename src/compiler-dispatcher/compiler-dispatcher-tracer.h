@@ -52,7 +52,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
     ScopeID scope_id_;
     size_t num_;
     double start_time_;
-    RuntimeCallTimer timer_;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
@@ -73,6 +72,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherTracer {
   double EstimatePrepareToCompileInMs() const;
   double EstimateCompileInMs(size_t ast_size_in_bytes) const;
   double EstimateFinalizeCompilingInMs() const;
+
+  void DumpStatistics() const;
 
  private:
   static double Average(const base::RingBuffer<double>& buffer);

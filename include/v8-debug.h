@@ -248,7 +248,8 @@ class V8_EXPORT Debug {
    * to change. The Context exists only when the debugger is active, i.e. at
    * least one DebugEventListener or MessageHandler is set.
    */
-  static Local<Context> GetDebugContext(Isolate* isolate);
+  V8_DEPRECATED("Use v8-inspector",
+                static Local<Context> GetDebugContext(Isolate* isolate));
 
   /**
    * While in the debug context, this method returns the top-most non-debug

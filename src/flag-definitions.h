@@ -208,7 +208,8 @@ DEFINE_IMPLICATION(use_types, use_strict)
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
-  V(harmony_class_fields, "harmony public fields in class literals")
+  V(harmony_class_fields, "harmony public fields in class literals")    \
+  V(harmony_object_spread, "harmony object spread")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                              \
@@ -228,9 +229,7 @@ DEFINE_IMPLICATION(use_types, use_strict)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                \
-  V(harmony_async_await, "harmony async-await") \
-  V(harmony_string_padding, "harmony String-padding methods")
+#define HARMONY_SHIPPING_BASE(V)
 
 #ifdef V8_I18N_SUPPORT
 #define HARMONY_SHIPPING(V) \
@@ -292,6 +291,9 @@ DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(mark_shared_functions_for_tier_up, false,
             "mark shared functions for tier up")
 
+// Flags for strongly rooting literal arrays in the feedback vector.
+DEFINE_BOOL(trace_strong_rooted_literals, false, "trace literal rooting")
+
 // Flags for optimization types.
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "
@@ -307,6 +309,7 @@ DEFINE_BOOL(string_slices, true, "use string slices")
 DEFINE_BOOL(ignition, false, "use ignition interpreter")
 DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
 DEFINE_IMPLICATION(ignition_staging, ignition)
+DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
 DEFINE_STRING(ignition_filter, "*", "filter for ignition interpreter")
 DEFINE_BOOL(ignition_deadcode, true,
             "use ignition dead code elimination optimizer")
@@ -483,14 +486,15 @@ DEFINE_BOOL(turbo_loop_peeling, true, "Turbofan loop peeling")
 DEFINE_BOOL(turbo_loop_variable, true, "Turbofan loop variable optimization")
 DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
 DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
-DEFINE_BOOL(turbo_escape, false, "enable escape analysis")
-DEFINE_IMPLICATION(turbo, turbo_escape)
+DEFINE_BOOL(turbo_escape, true, "enable escape analysis")
 DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
 DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
 DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
+DEFINE_BOOL(turbo_lower_create_closure, false,
+            "enable inline allocation for closure instantiation")
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,
@@ -501,7 +505,7 @@ DEFINE_NEG_IMPLICATION(minimal, crankshaft)
 DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
-DEFINE_BOOL(expose_wasm, false, "expose WASM interface to JavaScript")
+DEFINE_BOOL(expose_wasm, true, "expose WASM interface to JavaScript")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
 DEFINE_BOOL(trace_wasm_encoder, false, "trace encoding of wasm code")
@@ -522,8 +526,10 @@ DEFINE_BOOL(wasm_break_on_decoder_error, false,
 DEFINE_BOOL(wasm_loop_assignment_analysis, true,
             "perform loop assignment analysis for WASM")
 
-DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
+DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
 DEFINE_IMPLICATION(ignition_staging, validate_asm)
+DEFINE_BOOL(suppress_asm_messages, false,
+            "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")
 
 DEFINE_BOOL(dump_wasm_module, false, "dump WASM module bytes")
@@ -673,6 +679,16 @@ DEFINE_BOOL(compilation_cache, true, "enable compilation cache")
 
 DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 
+// compiler-dispatcher.cc
+DEFINE_BOOL(compiler_dispatcher, false, "enable compiler dispatcher")
+DEFINE_BOOL(trace_compiler_dispatcher, false,
+            "trace compiler dispatcher activity")
+
+// compiler-dispatcher-job.cc
+DEFINE_BOOL(
+    trace_compiler_dispatcher_jobs, false,
+    "trace progress of individual jobs managed by the compiler dispatcher")
+
 // cpu-profiler.cc
 DEFINE_INT(cpu_profiler_sampling_interval, 1000,
            "CPU profiler sampling interval in microseconds")
@@ -690,6 +706,11 @@ DEFINE_IMPLICATION(trace_array_abuse, trace_external_array_abuse)
 // debugger
 DEFINE_BOOL(trace_debug_json, false, "trace debugging JSON request/response")
 DEFINE_BOOL(enable_liveedit, true, "enable liveedit experimental feature")
+DEFINE_BOOL(side_effect_free_debug_evaluate, false,
+            "use side-effect-free debug-evaluate for testing")
+DEFINE_BOOL(
+    trace_side_effect_free_debug_evaluate, false,
+    "print debug messages for side-effect-free debug-evaluate for testing")
 DEFINE_BOOL(hard_abort, true, "abort by crashing")
 
 // execution.cc

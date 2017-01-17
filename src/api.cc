@@ -29,6 +29,7 @@
 #include "src/bootstrapper.h"
 #include "src/char-predicates-inl.h"
 #include "src/code-stubs.h"
+#include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler.h"
 #include "src/context-measure.h"
 #include "src/contexts.h"
@@ -475,6 +476,7 @@ struct SnapshotCreatorData {
   Persistent<Context> default_context_;
   PersistentValueVector<Context> contexts_;
   PersistentValueVector<Template> templates_;
+  std::vector<SerializeInternalFieldsCallback> internal_fields_serializers_;
   bool created_;
 };
 
@@ -521,7 +523,8 @@ void SnapshotCreator::SetDefaultContext(Local<Context> context) {
   data->default_context_.Reset(isolate, context);
 }
 
-size_t SnapshotCreator::AddContext(Local<Context> context) {
+size_t SnapshotCreator::AddContext(Local<Context> context,
+                                   SerializeInternalFieldsCallback callback) {
   DCHECK(!context.IsEmpty());
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   DCHECK(!data->created_);
@@ -529,6 +532,7 @@ size_t SnapshotCreator::AddContext(Local<Context> context) {
   CHECK_EQ(isolate, context->GetIsolate());
   size_t index = static_cast<int>(data->contexts_.Size());
   data->contexts_.Append(context);
+  data->internal_fields_serializers_.push_back(callback);
   return index;
 }
 
@@ -544,8 +548,7 @@ size_t SnapshotCreator::AddTemplate(Local<Template> template_obj) {
 }
 
 StartupData SnapshotCreator::CreateBlob(
-    SnapshotCreator::FunctionCodeHandling function_code_handling,
-    SerializeInternalFieldsCallback callback) {
+    SnapshotCreator::FunctionCodeHandling function_code_handling) {
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
   DCHECK(!data->created_);
@@ -611,15 +614,16 @@ StartupData SnapshotCreator::CreateBlob(
   i::List<i::SnapshotData*> context_snapshots(num_additional_contexts + 1);
 
   {
-    i::PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                            callback);
+    // The default snapshot does not support internal fields.
+    i::PartialSerializer partial_serializer(
+        isolate, &startup_serializer, v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&default_context, false);
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
 
   for (int i = 0; i < num_additional_contexts; i++) {
-    i::PartialSerializer partial_serializer(isolate, &startup_serializer,
-                                            callback);
+    i::PartialSerializer partial_serializer(
+        isolate, &startup_serializer, data->internal_fields_serializers_[i]);
     partial_serializer.Serialize(&contexts[i], true);
     context_snapshots.Add(new i::SnapshotData(&partial_serializer));
   }
@@ -1272,7 +1276,7 @@ static Local<FunctionTemplate> FunctionTemplateNew(
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
   obj->set_do_not_cache(do_not_cache);
-  int next_serial_number = 0;
+  int next_serial_number = i::FunctionTemplateInfo::kInvalidSerialNumber;
   if (!do_not_cache) {
     next_serial_number = isolate->heap()->GetNextTemplateSerialNumber();
   }
@@ -3069,6 +3073,15 @@ Maybe<bool> ValueSerializer::Delegate::WriteHostObject(Isolate* v8_isolate,
       isolate->error_function(), i::MessageTemplate::kDataCloneError,
       Utils::OpenHandle(*object)));
   return Nothing<bool>();
+}
+
+Maybe<uint32_t> ValueSerializer::Delegate::GetSharedArrayBufferId(
+    Isolate* v8_isolate, Local<SharedArrayBuffer> shared_array_buffer) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->ScheduleThrow(*isolate->factory()->NewError(
+      isolate->error_function(), i::MessageTemplate::kDataCloneError,
+      Utils::OpenHandle(*shared_array_buffer)));
+  return Nothing<uint32_t>();
 }
 
 void* ValueSerializer::Delegate::ReallocateBufferMemory(void* old_buffer,
@@ -6160,10 +6173,11 @@ struct InvokeBootstrapper<i::Context> {
   i::Handle<i::Context> Invoke(
       i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
-      v8::ExtensionConfiguration* extensions, size_t context_snapshot_index) {
+      v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
+      v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
     return isolate->bootstrapper()->CreateEnvironment(
         maybe_global_proxy, global_object_template, extensions,
-        context_snapshot_index);
+        context_snapshot_index, internal_fields_deserializer);
   }
 };
 
@@ -6172,7 +6186,8 @@ struct InvokeBootstrapper<i::JSGlobalProxy> {
   i::Handle<i::JSGlobalProxy> Invoke(
       i::Isolate* isolate, i::MaybeHandle<i::JSGlobalProxy> maybe_global_proxy,
       v8::Local<v8::ObjectTemplate> global_object_template,
-      v8::ExtensionConfiguration* extensions, size_t context_snapshot_index) {
+      v8::ExtensionConfiguration* extensions, size_t context_snapshot_index,
+      v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
     USE(extensions);
     USE(context_snapshot_index);
     return isolate->bootstrapper()->NewRemoteContext(maybe_global_proxy,
@@ -6184,7 +6199,8 @@ template <typename ObjectType>
 static i::Handle<ObjectType> CreateEnvironment(
     i::Isolate* isolate, v8::ExtensionConfiguration* extensions,
     v8::MaybeLocal<ObjectTemplate> maybe_global_template,
-    v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index) {
+    v8::MaybeLocal<Value> maybe_global_proxy, size_t context_snapshot_index,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
   i::Handle<ObjectType> result;
 
   // Enter V8 via an ENTER_V8 scope.
@@ -6234,8 +6250,9 @@ static i::Handle<ObjectType> CreateEnvironment(
     }
     // Create the environment.
     InvokeBootstrapper<ObjectType> invoke;
-    result = invoke.Invoke(isolate, maybe_proxy, proxy_template, extensions,
-                           context_snapshot_index);
+    result =
+        invoke.Invoke(isolate, maybe_proxy, proxy_template, extensions,
+                      context_snapshot_index, internal_fields_deserializer);
 
     // Restore the access check info on the global template.
     if (!maybe_global_template.IsEmpty()) {
@@ -6252,20 +6269,20 @@ static i::Handle<ObjectType> CreateEnvironment(
   return result;
 }
 
-Local<Context> NewContext(v8::Isolate* external_isolate,
-                          v8::ExtensionConfiguration* extensions,
-                          v8::MaybeLocal<ObjectTemplate> global_template,
-                          v8::MaybeLocal<Value> global_object,
-                          size_t context_snapshot_index) {
+Local<Context> NewContext(
+    v8::Isolate* external_isolate, v8::ExtensionConfiguration* extensions,
+    v8::MaybeLocal<ObjectTemplate> global_template,
+    v8::MaybeLocal<Value> global_object, size_t context_snapshot_index,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.NewContext");
   LOG_API(isolate, Context, New);
   i::HandleScope scope(isolate);
   ExtensionConfiguration no_extensions;
   if (extensions == NULL) extensions = &no_extensions;
-  i::Handle<i::Context> env =
-      CreateEnvironment<i::Context>(isolate, extensions, global_template,
-                                    global_object, context_snapshot_index);
+  i::Handle<i::Context> env = CreateEnvironment<i::Context>(
+      isolate, extensions, global_template, global_object,
+      context_snapshot_index, internal_fields_deserializer);
   if (env.is_null()) {
     if (isolate->has_pending_exception()) {
       isolate->OptionalRescheduleException(true);
@@ -6280,11 +6297,12 @@ Local<Context> v8::Context::New(v8::Isolate* external_isolate,
                                 v8::MaybeLocal<ObjectTemplate> global_template,
                                 v8::MaybeLocal<Value> global_object) {
   return NewContext(external_isolate, extensions, global_template,
-                    global_object, 0);
+                    global_object, 0, DeserializeInternalFieldsCallback());
 }
 
 MaybeLocal<Context> v8::Context::FromSnapshot(
     v8::Isolate* external_isolate, size_t context_snapshot_index,
+    v8::DeserializeInternalFieldsCallback internal_fields_deserializer,
     v8::ExtensionConfiguration* extensions, MaybeLocal<Value> global_object) {
   size_t index_including_default_context = context_snapshot_index + 1;
   if (!i::Snapshot::HasContextSnapshot(
@@ -6293,7 +6311,8 @@ MaybeLocal<Context> v8::Context::FromSnapshot(
     return MaybeLocal<Context>();
   }
   return NewContext(external_isolate, extensions, MaybeLocal<ObjectTemplate>(),
-                    global_object, index_including_default_context);
+                    global_object, index_including_default_context,
+                    internal_fields_deserializer);
 }
 
 MaybeLocal<Object> v8::Context::NewRemoteContext(
@@ -6315,7 +6334,8 @@ MaybeLocal<Object> v8::Context::NewRemoteContext(
                   "Global template needs to have access check handlers.");
   i::Handle<i::JSGlobalProxy> global_proxy =
       CreateEnvironment<i::JSGlobalProxy>(isolate, nullptr, global_template,
-                                          global_object, 0);
+                                          global_object, 0,
+                                          DeserializeInternalFieldsCallback());
   if (global_proxy.is_null()) {
     if (isolate->has_pending_exception()) {
       isolate->OptionalRescheduleException(true);
@@ -7202,7 +7222,7 @@ MaybeLocal<Promise::Resolver> Promise::Resolver::New(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, Promise_Resolver, New, Resolver);
   i::Handle<i::Object> result;
   has_pending_exception =
-      !i::Execution::Call(isolate, isolate->promise_create(),
+      !i::Execution::Call(isolate, isolate->promise_internal_constructor(),
                           isolate->factory()->undefined_value(), 0, NULL)
            .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION(Promise::Resolver);
@@ -8047,8 +8067,6 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   }
 
   isolate->set_api_external_references(params.external_references);
-  isolate->set_deserialize_internal_fields_callback(
-      params.deserialize_internal_fields_callback);
   SetResourceConstraints(isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);
@@ -8460,6 +8478,8 @@ void Isolate::MemoryPressureNotification(MemoryPressureLevel level) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->MemoryPressureNotification(level, Locker::IsLocked(this));
   isolate->allocator()->MemoryPressureNotification(level);
+  isolate->compiler_dispatcher()->MemoryPressureNotification(
+      level, Locker::IsLocked(this));
 }
 
 void Isolate::SetRAILMode(RAILMode rail_mode) {
@@ -8475,6 +8495,11 @@ void Isolate::IncreaseHeapLimitForDebugging() {
 void Isolate::RestoreOriginalHeapLimit() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->RestoreOriginalHeapLimit();
+}
+
+bool Isolate::IsHeapLimitIncreasedForDebugging() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->heap()->IsHeapLimitIncreasedForDebugging();
 }
 
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
@@ -8800,7 +8825,6 @@ bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
   return true;
 }
 
-
 void Debug::DebugBreak(Isolate* isolate) {
   reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->RequestDebugBreak();
 }
@@ -8881,9 +8905,7 @@ void Debug::ProcessDebugMessages(Isolate* isolate) {
 
 
 Local<Context> Debug::GetDebugContext(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
+  return debug::GetDebugContext(isolate);
 }
 
 
@@ -8936,7 +8958,9 @@ bool debug::SetDebugEventListener(Isolate* isolate, debug::EventCallback that,
 }
 
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
-  return Debug::GetDebugContext(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  return Utils::ToLocal(i_isolate->debug()->GetDebugContext());
 }
 
 MaybeLocal<Value> debug::Call(Local<Context> context,
@@ -8966,6 +8990,13 @@ void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
       i::BreakException, type == BreakOnAnyException);
   internal_isolate->debug()->ChangeBreakOnException(i::BreakUncaughtException,
                                                     type != NoBreakOnException);
+}
+
+void debug::SetOutOfMemoryCallback(Isolate* isolate,
+                                   OutOfMemoryCallback callback, void* data) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i_isolate->heap()->SetOutOfMemoryCallback(callback, data);
 }
 
 void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {
@@ -9277,6 +9308,14 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
+void debug::SetAsyncTaskListener(Isolate* v8_isolate,
+                                 debug::AsyncTaskListener listener,
+                                 void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  isolate->debug()->SetAsyncTaskListener(listener, data);
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();
@@ -9549,13 +9588,12 @@ size_t HeapGraphNode::GetShallowSize() const {
 
 
 int HeapGraphNode::GetChildrenCount() const {
-  return ToInternal(this)->children().length();
+  return ToInternal(this)->children_count();
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
-  return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->children()[index]);
+  return reinterpret_cast<const HeapGraphEdge*>(ToInternal(this)->child(index));
 }
 
 

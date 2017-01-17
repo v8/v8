@@ -124,7 +124,11 @@ class V8_EXPORT_PRIVATE ControlEquivalence final
   void DetermineParticipation(Node* exit);
 
  private:
-  NodeData* GetData(Node* node) { return &node_data_[node->id()]; }
+  NodeData* GetData(Node* node) {
+    size_t const index = node->id();
+    if (index >= node_data_.size()) node_data_.resize(index + 1, EmptyData());
+    return &node_data_[index];
+  }
   int NewClassNumber() { return class_number_++; }
   int NewDFSNumber() { return dfs_number_++; }
 

@@ -6,6 +6,7 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -92,15 +93,6 @@ DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 bool ParseInfo::is_declaration() const {
   return (compiler_hints_ & (1 << SharedFunctionInfo::kIsDeclaration)) != 0;
-}
-
-bool ParseInfo::requires_class_field_init() const {
-  return (compiler_hints_ &
-          (1 << SharedFunctionInfo::kRequiresClassFieldInit)) != 0;
-}
-bool ParseInfo::is_class_field_initializer() const {
-  return (compiler_hints_ &
-          (1 << SharedFunctionInfo::kIsClassFieldInitializer)) != 0;
 }
 
 FunctionKind ParseInfo::function_kind() const {

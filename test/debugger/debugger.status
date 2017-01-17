@@ -57,11 +57,11 @@
 
   # Async function tests taking too long
   # https://bugs.chromium.org/p/v8/issues/detail?id=5411
-  'debug/harmony/async-debug-caught-exception-cases0': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases1': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases2': [SKIP],
-  'debug/harmony/async-debug-caught-exception-cases3': [SKIP],
-  'debug/harmony/async-function-debug-scopes': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases0': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases1': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases2': [SKIP],
+  'debug/es8/async-debug-caught-exception-cases3': [SKIP],
+  'debug/es8/async-function-debug-scopes': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################

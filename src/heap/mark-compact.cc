@@ -104,7 +104,9 @@ static void VerifyMarking(Heap* heap, Address bottom, Address top) {
   Address next_object_must_be_here_or_later = bottom;
   for (Address current = bottom; current < top;) {
     object = HeapObject::FromAddress(current);
-    if (MarkCompactCollector::IsMarked(object)) {
+    // One word fillers at the end of a black area can be grey.
+    if (MarkCompactCollector::IsMarked(object) &&
+        object->map() != heap->one_pointer_filler_map()) {
       CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(object)));
       CHECK(current >= next_object_must_be_here_or_later);
       object->Iterate(&visitor);
@@ -805,8 +807,6 @@ void MarkCompactCollector::Prepare() {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();
   }
-
-  heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
   // Don't start compaction if we are in the middle of incremental
   // marking cycle. We did not collect any slots.
@@ -2136,6 +2136,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     if (!only_process_harmony_weak_collections) {
       if (heap_->local_embedder_heap_tracer()->InUse()) {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
+        heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
         heap_->local_embedder_heap_tracer()->Trace(
             0,
             EmbedderHeapTracer::AdvanceTracingActions(
@@ -2438,6 +2439,8 @@ void MarkCompactCollector::MarkLiveObjects() {
 #endif
 
   marking_deque()->StartUsing();
+
+  heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_PREPARE_CODE_FLUSH);

@@ -8,6 +8,7 @@
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 
@@ -162,8 +163,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   // Getters for individual compiler hints.
   bool is_declaration() const;
-  bool requires_class_field_init() const;
-  bool is_class_field_initializer() const;
   FunctionKind function_kind() const;
 
   //--------------------------------------------------------------------------

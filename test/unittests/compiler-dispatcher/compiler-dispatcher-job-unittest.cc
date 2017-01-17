@@ -29,21 +29,9 @@ class CompilerDispatcherJobTest : public TestWithContext {
 
   CompilerDispatcherTracer* tracer() { return &tracer_; }
 
- private:
-  CompilerDispatcherTracer tracer_;
-
-  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJobTest);
-};
-
-class IgnitionCompilerDispatcherJobTest : public CompilerDispatcherJobTest {
- public:
-  IgnitionCompilerDispatcherJobTest() {}
-  ~IgnitionCompilerDispatcherJobTest() override {}
-
   static void SetUpTestCase() {
     old_flag_ = i::FLAG_ignition;
     i::FLAG_ignition = true;
-    i::FLAG_never_compact = true;
     TestWithContext::SetUpTestCase();
   }
 
@@ -53,11 +41,13 @@ class IgnitionCompilerDispatcherJobTest : public CompilerDispatcherJobTest {
   }
 
  private:
+  CompilerDispatcherTracer tracer_;
   static bool old_flag_;
-  DISALLOW_COPY_AND_ASSIGN(IgnitionCompilerDispatcherJobTest);
+
+  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherJobTest);
 };
 
-bool IgnitionCompilerDispatcherJobTest::old_flag_;
+bool CompilerDispatcherJobTest::old_flag_;
 
 namespace {
 
@@ -109,22 +99,6 @@ TEST_F(CompilerDispatcherJobTest, Construct) {
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
       i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), nullptr),
       FLAG_stack_size));
-}
-
-TEST_F(CompilerDispatcherJobTest, CanParseOnBackgroundThread) {
-  {
-    std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-        i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), nullptr),
-        FLAG_stack_size));
-    ASSERT_FALSE(job->can_parse_on_background_thread());
-  }
-  {
-    ScriptResource script(test_script, strlen(test_script));
-    std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-        i_isolate(), tracer(), CreateSharedFunctionInfo(i_isolate(), &script),
-        FLAG_stack_size));
-    ASSERT_TRUE(job->can_parse_on_background_thread());
-  }
 }
 
 TEST_F(CompilerDispatcherJobTest, StateTransitions) {
@@ -292,7 +266,7 @@ class CompileTask : public Task {
   DISALLOW_COPY_AND_ASSIGN(CompileTask);
 };
 
-TEST_F(IgnitionCompilerDispatcherJobTest, CompileOnBackgroundThread) {
+TEST_F(CompilerDispatcherJobTest, CompileOnBackgroundThread) {
   const char* raw_script =
       "(a, b) {\n"
       "  var c = a + b;\n"
@@ -309,7 +283,6 @@ TEST_F(IgnitionCompilerDispatcherJobTest, CompileOnBackgroundThread) {
   job->Parse();
   job->FinalizeParsingOnMainThread();
   job->PrepareToCompileOnMainThread();
-  ASSERT_TRUE(job->can_compile_on_background_thread());
 
   base::Semaphore semaphore(0);
   CompileTask* background_task = new CompileTask(job.get(), &semaphore);

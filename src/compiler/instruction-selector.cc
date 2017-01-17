@@ -501,6 +501,11 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
     StateValueList* values, InstructionOperandVector* inputs,
     OperandGenerator* g, StateObjectDeduplicator* deduplicator, Node* input,
     MachineType type, FrameStateInputKind kind, Zone* zone) {
+  if (input == nullptr) {
+    values->PushOptimizedOut();
+    return 0;
+  }
+
   switch (input->opcode()) {
     case IrOpcode::kObjectState: {
       UNREACHABLE();
@@ -1627,7 +1632,7 @@ void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
 }
 
 void InstructionSelector::VisitStackSlot(Node* node) {
-  int size = 1 << ElementSizeLog2Of(StackSlotRepresentationOf(node->op()));
+  int size = StackSlotSizeOf(node->op());
   int slot = frame_->AllocateSpillSlot(size);
   OperandGenerator g(this);
 

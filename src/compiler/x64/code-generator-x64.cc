@@ -43,9 +43,7 @@ class X64OperandConverter : public InstructionOperandConverter {
       DCHECK_EQ(0, bit_cast<int64_t>(constant.ToFloat64()));
       return Immediate(0);
     }
-    if (constant.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-        constant.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE ||
-        constant.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
+    if (RelocInfo::IsWasmReference(constant.rmode())) {
       return Immediate(constant.ToInt32(), constant.rmode());
     }
     return Immediate(constant.ToInt32());
@@ -287,7 +285,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     gen_->AddProtectedInstruction(pc_, current_pc);
 
     if (frame_elided_) {
-      __ EnterFrame(StackFrame::WASM);
+      __ EnterFrame(StackFrame::WASM_COMPILED);
     }
 
     wasm::TrapReason trap_id = wasm::kTrapMemOutOfBounds;
@@ -2323,7 +2321,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       bool old_has_frame = __ has_frame();
       if (frame_elided_) {
         __ set_has_frame(true);
-        __ EnterFrame(StackFrame::WASM);
+        __ EnterFrame(StackFrame::WASM_COMPILED);
       }
       GenerateCallToTrap(trap_id);
       if (frame_elided_) {
@@ -2636,8 +2634,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                                                : kScratchRegister;
       switch (src.type()) {
         case Constant::kInt32: {
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
+          if (RelocInfo::IsWasmPtrReference(src.rmode())) {
             __ movq(dst, src.ToInt64(), src.rmode());
           } else {
             // TODO(dcarney): don't need scratch in this case.
@@ -2645,7 +2642,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
             if (value == 0) {
               __ xorl(dst, dst);
             } else {
-              if (src.rmode() == RelocInfo::WASM_MEMORY_SIZE_REFERENCE) {
+              if (RelocInfo::IsWasmSizeReference(src.rmode())) {
                 __ movl(dst, Immediate(value, src.rmode()));
               } else {
                 __ movl(dst, Immediate(value));
@@ -2655,11 +2652,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           break;
         }
         case Constant::kInt64:
-          if (src.rmode() == RelocInfo::WASM_MEMORY_REFERENCE ||
-              src.rmode() == RelocInfo::WASM_GLOBAL_REFERENCE) {
+          if (RelocInfo::IsWasmPtrReference(src.rmode())) {
             __ movq(dst, src.ToInt64(), src.rmode());
           } else {
-            DCHECK(src.rmode() != RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+            DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
             __ Set(dst, src.ToInt64());
           }
           break;

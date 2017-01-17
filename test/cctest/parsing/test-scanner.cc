@@ -6,6 +6,7 @@
 // Scanner are in cctest/test-parsing.cc, rather than here.
 
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 #include "src/unicode-cache.h"

@@ -148,22 +148,23 @@ DEFINE_OBJ_GETTER(WasmTableObject, dispatch_tables, kDispatchTables, FixedArray)
 Handle<FixedArray> WasmTableObject::AddDispatchTable(
     Isolate* isolate, Handle<WasmTableObject> table_obj,
     Handle<WasmInstanceObject> instance, int table_index,
-    Handle<FixedArray> dispatch_table) {
+    Handle<FixedArray> function_table, Handle<FixedArray> signature_table) {
   Handle<FixedArray> dispatch_tables(
       FixedArray::cast(table_obj->GetInternalField(kDispatchTables)), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % 3);
+  DCHECK_EQ(0, dispatch_tables->length() % 4);
 
   if (instance.is_null()) return dispatch_tables;
   // TODO(titzer): use weak cells here to avoid leaking instances.
 
   // Grow the dispatch table and add a new triple at the end.
   Handle<FixedArray> new_dispatch_tables =
-      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 3);
+      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 4);
 
   new_dispatch_tables->set(dispatch_tables->length() + 0, *instance);
   new_dispatch_tables->set(dispatch_tables->length() + 1,
                            Smi::FromInt(table_index));
-  new_dispatch_tables->set(dispatch_tables->length() + 2, *dispatch_table);
+  new_dispatch_tables->set(dispatch_tables->length() + 2, *function_table);
+  new_dispatch_tables->set(dispatch_tables->length() + 3, *signature_table);
 
   table_obj->SetInternalField(WasmTableObject::kDispatchTables,
                               *new_dispatch_tables);
@@ -183,6 +184,13 @@ WasmTableObject* WasmTableObject::cast(Object* object) {
   DCHECK(object && object->IsJSObject());
   // TODO(titzer): brand check for WasmTableObject.
   return reinterpret_cast<WasmTableObject*>(object);
+}
+
+void WasmTableObject::Grow(Isolate* isolate, Handle<WasmTableObject> table,
+                           uint32_t count) {
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables());
+  wasm::GrowDispatchTables(isolate, dispatch_tables,
+                           table->functions()->length(), count);
 }
 
 Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
@@ -291,12 +299,15 @@ bool WasmInstanceObject::IsWasmInstanceObject(Object* object) {
 
 Handle<WasmInstanceObject> WasmInstanceObject::New(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  Handle<Map> map = isolate->factory()->NewMap(
-      JS_OBJECT_TYPE, JSObject::kHeaderSize + kFieldCount * kPointerSize);
+  Handle<JSFunction> instance_cons(
+      isolate->native_context()->wasm_instance_constructor());
+  Handle<JSObject> instance_object =
+      isolate->factory()->NewJSObject(instance_cons, TENURED);
+  Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
+  Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
+      .Check();
   Handle<WasmInstanceObject> instance(
-      reinterpret_cast<WasmInstanceObject*>(
-          *isolate->factory()->NewJSObjectFromMap(map, TENURED)),
-      isolate);
+      reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
   instance->SetInternalField(kCompiledModule, *compiled_module);
   instance->SetInternalField(kMemoryObject, isolate->heap()->undefined_value());
@@ -449,6 +460,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
   compiled_module->InitId();
   compiled_module->set_shared(shared);
+  compiled_module->set_native_context(isolate->native_context());
   return compiled_module;
 }
 
@@ -798,7 +810,7 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
     BodyLocalDecls locals(&tmp);
     BytecodeIterator iterator(module_start + func.code_start_offset,
                               module_start + func.code_end_offset, &locals);
-    DCHECK_LT(0u, locals.decls_encoded_size);
+    DCHECK_LT(0u, locals.encoded_size);
     for (uint32_t offset : iterator.offsets()) {
       uint32_t total_offset = func.code_start_offset + offset;
       if (total_offset >= end_offset) {

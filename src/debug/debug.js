@@ -435,7 +435,7 @@ Debug.setListener = function(listener, opt_data) {
 Debug.findScript = function(func_or_script_name) {
   if (IS_FUNCTION(func_or_script_name)) {
     return %FunctionGetScript(func_or_script_name);
-  } else if (IS_REGEXP(func_or_script_name)) {
+  } else if (%IsRegExp(func_or_script_name)) {
     var scripts = this.scripts();
     var last_result = null;
     var result_count = 0;
@@ -1088,25 +1088,19 @@ function MakeScriptObject_(script, include_source) {
 }
 
 
-function MakeAsyncTaskEvent(type, id, name) {
-  return new AsyncTaskEvent(type, id, name);
+function MakeAsyncTaskEvent(type, id) {
+  return new AsyncTaskEvent(type, id);
 }
 
 
-function AsyncTaskEvent(type, id, name) {
+function AsyncTaskEvent(type, id) {
   this.type_ = type;
   this.id_ = id;
-  this.name_ = name;
 }
 
 
 AsyncTaskEvent.prototype.type = function() {
   return this.type_;
-}
-
-
-AsyncTaskEvent.prototype.name = function() {
-  return this.name_;
 }
 
 

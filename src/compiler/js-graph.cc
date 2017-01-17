@@ -66,11 +66,6 @@ Node* JSGraph::EmptyFixedArrayConstant() {
                 HeapConstant(factory()->empty_fixed_array()));
 }
 
-Node* JSGraph::EmptyLiteralsArrayConstant() {
-  return CACHED(kEmptyLiteralsArrayConstant,
-                HeapConstant(factory()->empty_literals_array()));
-}
-
 Node* JSGraph::EmptyStringConstant() {
   return CACHED(kEmptyStringConstant, HeapConstant(factory()->empty_string()));
 }
@@ -279,7 +274,8 @@ Node* JSGraph::ExternalConstant(Runtime::FunctionId function_id) {
 }
 
 Node* JSGraph::EmptyStateValues() {
-  return CACHED(kEmptyStateValues, graph()->NewNode(common()->StateValues(0)));
+  return CACHED(kEmptyStateValues, graph()->NewNode(common()->StateValues(
+                                       0, SparseInputMask::Dense())));
 }
 
 Node* JSGraph::Dead() {

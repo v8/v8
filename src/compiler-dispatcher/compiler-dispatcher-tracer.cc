@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
 
 #include "src/isolate.h"
+#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -24,11 +25,6 @@ CompilerDispatcherTracer::Scope::Scope(CompilerDispatcherTracer* tracer,
                                        ScopeID scope_id, size_t num)
     : tracer_(tracer), scope_id_(scope_id), num_(num) {
   start_time_ = MonotonicallyIncreasingTimeInMs();
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Enter(tracer_->runtime_call_stats_, &timer_,
-                            &RuntimeCallStats::CompilerDispatcher);
-  }
 }
 
 CompilerDispatcherTracer::Scope::~Scope() {
@@ -52,10 +48,6 @@ CompilerDispatcherTracer::Scope::~Scope() {
     case ScopeID::kFinalizeCompiling:
       tracer_->RecordFinalizeCompiling(elapsed);
       break;
-  }
-  // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Leave(tracer_->runtime_call_stats_, &timer_);
   }
 }
 
@@ -150,6 +142,17 @@ double CompilerDispatcherTracer::EstimateCompileInMs(
 double CompilerDispatcherTracer::EstimateFinalizeCompilingInMs() const {
   base::LockGuard<base::Mutex> lock(&mutex_);
   return Average(finalize_compiling_events_);
+}
+
+void CompilerDispatcherTracer::DumpStatistics() const {
+  PrintF(
+      "CompilerDispatcherTracer: "
+      "prepare_parsing=%.2lfms parsing=%.2lfms/kb finalize_parsing=%.2lfms "
+      "prepare_compiling=%.2lfms compiling=%.2lfms/kb "
+      "finalize_compilig=%.2lfms\n",
+      EstimatePrepareToParseInMs(), EstimateParseInMs(1 * KB),
+      EstimateFinalizeParsingInMs(), EstimatePrepareToCompileInMs(),
+      EstimateCompileInMs(1 * KB), EstimateFinalizeCompilingInMs());
 }
 
 double CompilerDispatcherTracer::Average(

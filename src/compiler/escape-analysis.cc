@@ -168,7 +168,7 @@ class VirtualObject : public ZoneObject {
 
   void SetField(size_t offset, Node* node, bool created_phi = false) {
     fields_[offset] = node;
-    phi_[offset] = phi_[offset] || created_phi;
+    phi_[offset] = created_phi;
   }
   bool IsTracked() const { return status_ & kTracked; }
   bool IsInitialized() const { return status_ & kInitialized; }
@@ -201,7 +201,7 @@ class VirtualObject : public ZoneObject {
   }
   bool UpdateFrom(const VirtualObject& other);
   bool MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                 CommonOperatorBuilder* common);
+                 CommonOperatorBuilder* common, bool initialMerge);
   void SetObjectState(Node* node) { object_state_ = node; }
   Node* GetObjectState() const { return object_state_; }
   bool IsCopyRequired() const { return status_ & kCopyRequired; }
@@ -431,7 +431,6 @@ bool IsEquivalentPhi(Node* phi, ZoneVector<Node*>& inputs) {
   }
   return true;
 }
-
 }  // namespace
 
 bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
@@ -440,12 +439,21 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
   int value_input_count = static_cast<int>(cache->fields().size());
   Node* rep = GetField(i);
   if (!rep || !IsCreatedPhi(i)) {
+    Type* phi_type = Type::None();
+    for (Node* input : cache->fields()) {
+      CHECK_NOT_NULL(input);
+      CHECK(!input->IsDead());
+      Type* input_type = NodeProperties::GetType(input);
+      phi_type = Type::Union(phi_type, input_type, graph->zone());
+    }
     Node* control = NodeProperties::GetControlInput(at);
     cache->fields().push_back(control);
     Node* phi = graph->NewNode(
         common->Phi(MachineRepresentation::kTagged, value_input_count),
         value_input_count + 1, &cache->fields().front());
+    NodeProperties::SetType(phi, phi_type);
     SetField(i, phi, true);
+
 #ifdef DEBUG
     if (FLAG_trace_turbo_escape) {
       PrintF("    Creating Phi #%d as merge of", phi->id());
@@ -471,11 +479,13 @@ bool VirtualObject::MergeFields(size_t i, Node* at, MergeCache* cache,
 }
 
 bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
-                              CommonOperatorBuilder* common) {
+                              CommonOperatorBuilder* common,
+                              bool initialMerge) {
   DCHECK(at->opcode() == IrOpcode::kEffectPhi ||
          at->opcode() == IrOpcode::kPhi);
   bool changed = false;
   for (size_t i = 0; i < field_count(); ++i) {
+    if (!initialMerge && GetField(i) == nullptr) continue;
     Node* field = cache->GetFields(i);
     if (field && !IsCreatedPhi(i)) {
       changed = changed || GetField(i) != field;
@@ -485,8 +495,7 @@ bool VirtualObject::MergeFrom(MergeCache* cache, Node* at, Graph* graph,
       size_t arity = at->opcode() == IrOpcode::kEffectPhi
                          ? at->op()->EffectInputCount()
                          : at->op()->ValueInputCount();
-      if (cache->fields().size() == arity &&
-          (GetField(i) || !IsCreatedPhi(i))) {
+      if (cache->fields().size() == arity) {
         changed = MergeFields(i, at, cache, graph, common) || changed;
       } else {
         if (GetField(i) != nullptr) {
@@ -519,7 +528,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
       }
     }
     if (cache->objects().size() == cache->states().size()) {
+      bool initialMerge = false;
       if (!mergeObject) {
+        initialMerge = true;
         VirtualObject* obj = new (zone)
             VirtualObject(cache->objects().front()->id(), this, zone, fields,
                           cache->objects().front()->IsInitialized());
@@ -544,7 +555,9 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         PrintF("\n");
       }
 #endif  // DEBUG
-      changed = mergeObject->MergeFrom(cache, at, graph, common) || changed;
+      changed =
+          mergeObject->MergeFrom(cache, at, graph, common, initialMerge) ||
+          changed;
     } else {
       if (mergeObject) {
         TRACE("  Alias %d, virtual object removed\n", alias);
@@ -805,6 +818,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToNumber:
       case IrOpcode::kPlainPrimitiveToWord32:
       case IrOpcode::kPlainPrimitiveToFloat64:
+      case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNumber:
@@ -866,7 +880,11 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
       virtual_states_(zone),
       replacements_(zone),
       cycle_detection_(zone),
-      cache_(nullptr) {}
+      cache_(nullptr) {
+  // Type slot_not_analyzed_ manually.
+  double v = OpParameter<double>(slot_not_analyzed_);
+  NodeProperties::SetType(slot_not_analyzed_, Type::Range(v, v, zone));
+}
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
@@ -1399,10 +1417,16 @@ void EscapeAnalysis::ProcessLoadFromPhi(int offset, Node* from, Node* load,
       Node* rep = replacement(load);
       if (!rep || !IsEquivalentPhi(rep, cache_->fields())) {
         int value_input_count = static_cast<int>(cache_->fields().size());
+        Type* phi_type = Type::None();
+        for (Node* input : cache_->fields()) {
+          Type* input_type = NodeProperties::GetType(input);
+          phi_type = Type::Union(phi_type, input_type, graph()->zone());
+        }
         cache_->fields().push_back(NodeProperties::GetControlInput(from));
         Node* phi = graph()->NewNode(
             common()->Phi(MachineRepresentation::kTagged, value_input_count),
             value_input_count + 1, &cache_->fields().front());
+        NodeProperties::SetType(phi, phi_type);
         status_analysis_->ResizeStatusVector();
         SetReplacement(load, phi);
         TRACE(" got phi created.\n");
@@ -1596,6 +1620,7 @@ Node* EscapeAnalysis::GetOrCreateObjectState(Node* effect, Node* node) {
         Node* new_object_state =
             graph()->NewNode(common()->ObjectState(input_count), input_count,
                              &cache_->fields().front());
+        NodeProperties::SetType(new_object_state, Type::OtherInternal());
         vobj->SetObjectState(new_object_state);
         TRACE(
             "Creating object state #%d for vobj %p (from node #%d) at effect "

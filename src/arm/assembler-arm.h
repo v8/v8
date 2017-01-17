@@ -1367,7 +1367,10 @@ class Assembler : public AssemblerBase {
   void vneg(const QwNeonRegister dst, const QwNeonRegister src);
   void vneg(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);
   void veor(DwVfpRegister dst, DwVfpRegister src1, DwVfpRegister src2);
+  void vand(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vbsl(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void veor(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
+  void vorr(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
   void vadd(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
@@ -1380,14 +1383,35 @@ class Assembler : public AssemblerBase {
             const QwNeonRegister src2);
   void vmul(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
+  void vmin(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vmin(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
+  void vmax(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vmax(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
+  // vrecpe and vrsqrte only support floating point lanes.
+  void vrecpe(const QwNeonRegister dst, const QwNeonRegister src);
+  void vrsqrte(const QwNeonRegister dst, const QwNeonRegister src);
+  void vrecps(const QwNeonRegister dst, const QwNeonRegister src1,
+              const QwNeonRegister src2);
+  void vrsqrts(const QwNeonRegister dst, const QwNeonRegister src1,
+               const QwNeonRegister src2);
   void vtst(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
   void vceq(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
   void vceq(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
-  void vbsl(const QwNeonRegister dst, const QwNeonRegister src1,
+  void vcge(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2);
+  void vcge(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
+  void vcgt(const QwNeonRegister dst, const QwNeonRegister src1,
+            const QwNeonRegister src2);
+  void vcgt(NeonDataType dt, const QwNeonRegister dst,
+            const QwNeonRegister src1, const QwNeonRegister src2);
   void vext(const QwNeonRegister dst, const QwNeonRegister src1,
             const QwNeonRegister src2, int bytes);
   void vzip(NeonSize size, const QwNeonRegister dst, const QwNeonRegister src);

@@ -308,11 +308,10 @@ struct MemoryAccessOperand {
 };
 
 typedef compiler::WasmGraphBuilder TFBuilder;
-struct ModuleEnv;  // forward declaration of module interface.
+struct WasmModule;  // forward declaration of module interface.
 
 // All of the various data structures necessary to decode a function body.
 struct FunctionBody {
-  ModuleEnv* module;  // module environment
   FunctionSig* sig;   // function signature
   const byte* base;   // base of the module bytes, for error reporting
   const byte* start;  // start of the function body
@@ -321,7 +320,7 @@ struct FunctionBody {
 
 static inline FunctionBody FunctionBodyForTesting(const byte* start,
                                                   const byte* end) {
-  return {nullptr, nullptr, start, start, end};
+  return {nullptr, start, start, end};
 }
 
 struct DecodeStruct {
@@ -333,47 +332,42 @@ inline std::ostream& operator<<(std::ostream& os, const DecodeStruct& tree) {
 }
 
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
+                                              const wasm::WasmModule* module,
                                               FunctionBody& body);
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
 bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                   std::ostream& os,
+                   const wasm::WasmModule* module, std::ostream& os,
                    std::vector<std::tuple<uint32_t, int, int>>* offset_table);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintWasmCodeForDebugging(const byte* start, const byte* end);
 
 inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
-                                   ModuleEnv* module, FunctionSig* sig,
+                                   const WasmModule* module, FunctionSig* sig,
                                    const byte* start, const byte* end) {
-  FunctionBody body = {module, sig, nullptr, start, end};
-  return VerifyWasmCode(allocator, body);
+  FunctionBody body = {sig, nullptr, start, end};
+  return VerifyWasmCode(allocator, module, body);
 }
 
 inline DecodeResult BuildTFGraph(AccountingAllocator* allocator,
-                                 TFBuilder* builder, ModuleEnv* module,
-                                 FunctionSig* sig, const byte* start,
-                                 const byte* end) {
-  FunctionBody body = {module, sig, nullptr, start, end};
+                                 TFBuilder* builder, FunctionSig* sig,
+                                 const byte* start, const byte* end) {
+  FunctionBody body = {sig, nullptr, start, end};
   return BuildTFGraph(allocator, builder, body);
 }
 
 struct BodyLocalDecls {
   // The size of the encoded declarations.
-  uint32_t decls_encoded_size;  // size of encoded declarations
+  uint32_t encoded_size;  // size of encoded declarations
 
-  // Total number of locals.
-  uint32_t total_local_count;
-
-  // List of {local type, count} pairs.
-  ZoneVector<std::pair<ValueType, uint32_t>> local_types;
+  ZoneVector<ValueType> type_list;
 
   // Constructor initializes the vector.
-  explicit BodyLocalDecls(Zone* zone)
-      : decls_encoded_size(0), total_local_count(0), local_types(zone) {}
+  explicit BodyLocalDecls(Zone* zone) : encoded_size(0), type_list(zone) {}
 };
 
-V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls& decls,
+V8_EXPORT_PRIVATE bool DecodeLocalDecls(BodyLocalDecls* decls,
                                         const byte* start, const byte* end);
 V8_EXPORT_PRIVATE BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone,
                                                              size_t num_locals,

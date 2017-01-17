@@ -312,10 +312,6 @@ class NameDictionaryLookupStub : public PlatformCodeStub {
                                      Register properties, Handle<Name> name,
                                      Register scratch0);
 
-  static void GeneratePositiveLookup(MacroAssembler* masm, Label* miss,
-                                     Label* done, Register elements,
-                                     Register name, Register r0, Register r1);
-
   bool SometimesSetsUpAFrame() override { return false; }
 
  private:

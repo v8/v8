@@ -38,8 +38,6 @@
 namespace v8 {
 namespace internal {
 
-
-
 // A wrapper around a CompilationInfo that detaches the Handles from
 // the underlying DeferredHandleScope and stores them in info_ on
 // destruction.
@@ -70,6 +68,15 @@ struct ScopedTimer {
 // ----------------------------------------------------------------------------
 // Implementation of CompilationJob
 
+CompilationJob::CompilationJob(Isolate* isolate, CompilationInfo* info,
+                               const char* compiler_name, State initial_state)
+    : info_(info),
+      isolate_thread_id_(isolate->thread_id()),
+      compiler_name_(compiler_name),
+      state_(initial_state),
+      stack_limit_(isolate->stack_guard()->real_climit()),
+      executed_on_background_thread_(false) {}
+
 CompilationJob::Status CompilationJob::PrepareJob() {
   DCHECK(ThreadId::Current().Equals(info()->isolate()->thread_id()));
   DisallowJavascriptExecution no_js(isolate());
@@ -98,8 +105,10 @@ CompilationJob::Status CompilationJob::ExecuteJob() {
     no_handles.reset(new DisallowHandleAllocation());
     no_deref.reset(new DisallowHandleDereference());
     no_dependency_change.reset(new DisallowCodeDependencyChange());
+    executed_on_background_thread_ =
+        !ThreadId::Current().Equals(isolate_thread_id_);
   } else {
-    DCHECK(ThreadId::Current().Equals(info()->isolate()->thread_id()));
+    DCHECK(ThreadId::Current().Equals(isolate_thread_id_));
   }
 
   // Delegate to the underlying implementation.
@@ -283,24 +292,9 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
 void EnsureFeedbackMetadata(CompilationInfo* info) {
   DCHECK(info->has_shared_info());
-
-  // If no type feedback metadata exists, we create it now. At this point the
-  // AstNumbering pass has already run. Note the snapshot can contain outdated
-  // vectors for a different configuration, hence we also recreate a new vector
-  // when the function is not compiled (i.e. no code was serialized).
-
-  // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
-  if (info->shared_info()->feedback_metadata()->length() == 0 ||
-      !info->shared_info()->is_compiled()) {
-    Handle<TypeFeedbackMetadata> feedback_metadata = TypeFeedbackMetadata::New(
-        info->isolate(), info->literal()->feedback_vector_spec());
-    info->shared_info()->set_feedback_metadata(*feedback_metadata);
-  }
-
-  // It's very important that recompiles do not alter the structure of the type
-  // feedback vector. Verify that the structure fits the function literal.
-  CHECK(!info->shared_info()->feedback_metadata()->SpecDiffersFrom(
-      info->literal()->feedback_vector_spec()));
+  TypeFeedbackMetadata::EnsureAllocated(
+      info->isolate(), info->shared_info(),
+      info->literal()->feedback_vector_spec());
 }
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
@@ -366,18 +360,18 @@ bool ShouldUseIgnition(CompilationInfo* info) {
   return shared->PassesFilter(FLAG_ignition_filter);
 }
 
-CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info,
-                                             LazyCompilationMode mode) {
+CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   // Function should have been parsed and analyzed before creating a compilation
   // job.
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
 
-  EnsureFeedbackMetadata(info);
   if (ShouldUseIgnition(info)) {
-    return interpreter::Interpreter::NewCompilationJob(info, mode);
+    // The bytecode generator will take care of feedback metadata creation.
+    return interpreter::Interpreter::NewCompilationJob(info);
   } else {
-    return FullCodeGenerator::NewCompilationJob(info, mode);
+    EnsureFeedbackMetadata(info);
+    return FullCodeGenerator::NewCompilationJob(info);
   }
 }
 
@@ -426,6 +420,29 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   return status;
 }
 
+bool Renumber(ParseInfo* parse_info,
+              Compiler::EagerInnerFunctionLiterals* eager_literals) {
+  RuntimeCallTimerScope runtimeTimer(parse_info->isolate(),
+                                     &RuntimeCallStats::CompileRenumber);
+  if (!AstNumbering::Renumber(
+          parse_info->isolate()->stack_guard()->real_climit(),
+          parse_info->zone(), parse_info->literal(), eager_literals)) {
+    return false;
+  }
+  Handle<SharedFunctionInfo> shared_info = parse_info->shared_info();
+  if (!shared_info.is_null()) {
+    FunctionLiteral* lit = parse_info->literal();
+    shared_info->set_ast_node_count(lit->ast_node_count());
+    if (lit->dont_optimize_reason() != kNoReason) {
+      shared_info->DisableOptimization(lit->dont_optimize_reason());
+    }
+    if (lit->flags() & AstProperties::kMustUseIgnitionTurbo) {
+      shared_info->set_must_use_ignition_turbo(true);
+    }
+  }
+  return true;
+}
+
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
   if (FLAG_validate_asm && info->scope()->asm_module() &&
       !info->shared_info()->is_asm_wasm_broken() && !info->is_debug()) {
@@ -440,8 +457,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
     }
   }
 
-  std::unique_ptr<CompilationJob> job(
-      GetUnoptimizedCompilationJob(info, LazyCompilationMode::kIfRequested));
+  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) return false;
   if (job->ExecuteJob() != CompilationJob::SUCCEEDED) return false;
   if (FinalizeUnoptimizedCompilationJob(job.get()) !=
@@ -451,14 +467,77 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
   return true;
 }
 
+bool CompileUnoptimizedInnerFunctionsRecursively(
+    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* literals,
+    CompilationInfo* outer_info) {
+  Isolate* isolate = outer_info->isolate();
+  Handle<Script> script = outer_info->script();
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     &RuntimeCallStats::CompileInnerFunction);
+
+  for (auto it : *literals) {
+    FunctionLiteral* literal = it->value();
+
+    // Find any previously allocated shared function info for the given literal.
+    Handle<SharedFunctionInfo> shared;
+    MaybeHandle<SharedFunctionInfo> maybe_existing =
+        script->FindSharedFunctionInfo(isolate, literal);
+    if (maybe_existing.ToHandle(&shared)) {
+      DCHECK(!shared->is_toplevel());
+      // If we found an existing shared function info with compiled code,
+      // we are done.
+      if (shared->is_compiled()) continue;
+    } else {
+      shared =
+          isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
+      shared->set_is_toplevel(false);
+    }
+
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    ParseInfo parse_info(&zone, script);
+    parse_info.set_literal(literal);
+    parse_info.set_shared_info(shared);
+    parse_info.set_function_literal_id(shared->function_literal_id());
+    parse_info.set_language_mode(literal->scope()->language_mode());
+    parse_info.set_typed(literal->scope()->typed());
+    parse_info.set_ast_value_factory(
+        outer_info->parse_info()->ast_value_factory());
+    parse_info.set_ast_value_factory_owned(false);
+
+    CompilationInfo info(&parse_info, Handle<JSFunction>::null());
+    if (outer_info->will_serialize()) info.PrepareForSerializing();
+    if (outer_info->is_debug()) info.MarkAsDebug();
+
+    Compiler::EagerInnerFunctionLiterals inner_literals;
+    if (!Renumber(&parse_info, &inner_literals) ||
+        !CompileUnoptimizedInnerFunctionsRecursively(&inner_literals,
+                                                     outer_info) ||
+        !GenerateUnoptimizedCode(&info)) {
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+      return false;
+    }
+
+    DCHECK(!info.code().is_null());
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info);
+    if (literal->should_be_used_once_hint()) {
+      info.code()->MarkToBeExecutedOnce(isolate);
+    }
+  }
+  return true;
+}
+
 bool CompileUnoptimizedCode(CompilationInfo* info) {
-  DCHECK(AllowCompilation::IsAllowed(info->isolate()));
-  if (!Compiler::Analyze(info->parse_info()) ||
+  Isolate* isolate = info->isolate();
+  DCHECK(AllowCompilation::IsAllowed(isolate));
+
+  Compiler::EagerInnerFunctionLiterals inner_literals;
+  if (!Compiler::Analyze(info->parse_info(), &inner_literals) ||
+      !CompileUnoptimizedInnerFunctionsRecursively(&inner_literals, info) ||
       !GenerateUnoptimizedCode(info)) {
-    Isolate* isolate = info->isolate();
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
   }
+
   return true;
 }
 
@@ -477,6 +556,8 @@ void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* info) {
 }
 
 MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
+  RuntimeCallTimerScope runtimeTimer(
+      info->isolate(), &RuntimeCallStats::CompileGetUnoptimizedCode);
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
@@ -499,16 +580,18 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(CompilationInfo* info) {
 
 MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
     Handle<JSFunction> function, BailoutId osr_ast_id) {
+  RuntimeCallTimerScope runtimeTimer(
+      function->GetIsolate(),
+      &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
-  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+  Code* code = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), osr_ast_id);
-  if (cached.code != nullptr) {
+  if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    if (cached.literals != nullptr) function->set_literals(cached.literals);
-    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(!code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
-    return Handle<Code>(cached.code);
+    return Handle<Code>(code);
   }
   return MaybeHandle<Code>();
 }
@@ -530,29 +613,9 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Cache optimized context-specific code.
   Handle<JSFunction> function = info->closure();
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<LiteralsArray> literals(function->literals());
   Handle<Context> native_context(function->context()->native_context());
   SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
-                                            literals, info->osr_ast_id());
-}
-
-bool Renumber(ParseInfo* parse_info) {
-  if (!AstNumbering::Renumber(parse_info->isolate(), parse_info->zone(),
-                              parse_info->literal())) {
-    return false;
-  }
-  Handle<SharedFunctionInfo> shared_info = parse_info->shared_info();
-  if (!shared_info.is_null()) {
-    FunctionLiteral* lit = parse_info->literal();
-    shared_info->set_ast_node_count(lit->ast_node_count());
-    if (lit->dont_optimize_reason() != kNoReason) {
-      shared_info->DisableOptimization(lit->dont_optimize_reason());
-    }
-    if (lit->flags() & AstProperties::kMustUseIgnitionTurbo) {
-      shared_info->set_must_use_ignition_turbo(true);
-    }
-  }
-  return true;
+                                            info->osr_ast_id());
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
@@ -788,10 +851,8 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
       RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
-      if (shared
-              ->SearchOptimizedCodeMap(info->context()->native_context(),
-                                       info->osr_ast_id())
-              .code == nullptr) {
+      if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
+                                         info->osr_ast_id()) == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info);
       }
       if (FLAG_trace_opt) {
@@ -821,6 +882,8 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
+
+  DCHECK(function->shared()->is_compiled());
 
   // Function no longer needs to be tiered up
   function->shared()->set_marked_for_tier_up(false);
@@ -883,7 +946,7 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
   DCHECK(!function->is_compiled());
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::CompileCodeLazy);
+                                     &RuntimeCallStats::CompileFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
@@ -971,11 +1034,15 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Isolate* isolate = info->isolate();
   TimerEventScope<TimerEventCompileCode> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::CompileCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   ParseInfo* parse_info = info->parse_info();
+
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
+                                     : &RuntimeCallStats::CompileScript);
+
   Handle<Script> script = parse_info->script();
 
   // TODO(svenpanne) Obscure place for this, perhaps move to OnBeforeCompile?
@@ -992,14 +1059,9 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 
     EnsureSharedFunctionInfosArrayOnScript(parse_info);
 
-    FunctionLiteral* lit = parse_info->literal();
-
     // Measure how long it takes to do the compilation; only take the
     // rest of the function into account to avoid overlap with the
     // parsing statistics.
-    RuntimeCallTimerScope runtimeTimer(
-        isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
-                                       : &RuntimeCallStats::Compile);
     HistogramTimer* rate = parse_info->is_eval()
                                ? info->isolate()->counters()->compile_eval()
                                : info->isolate()->counters()->compile();
@@ -1008,6 +1070,7 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
                  parse_info->is_eval() ? "V8.CompileEval" : "V8.Compile");
 
     // Allocate a shared function info object.
+    FunctionLiteral* lit = parse_info->literal();
     DCHECK_EQ(kNoSourcePosition, lit->function_token_position());
     result = isolate->factory()->NewSharedFunctionInfoForLiteral(lit, script);
     result->set_is_toplevel(true);
@@ -1043,11 +1106,14 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
 // ----------------------------------------------------------------------------
 // Implementation of Compiler
 
-bool Compiler::Analyze(ParseInfo* info) {
+bool Compiler::Analyze(ParseInfo* info,
+                       EagerInnerFunctionLiterals* eager_literals) {
   DCHECK_NOT_NULL(info->literal());
+  RuntimeCallTimerScope runtimeTimer(info->isolate(),
+                                     &RuntimeCallStats::CompileAnalyse);
   if (!Rewriter::Rewrite(info)) return false;
   DeclarationScope::Analyze(info, AnalyzeMode::kRegular);
-  if (!Renumber(info)) return false;
+  if (!Renumber(info, eager_literals)) return false;
   DCHECK_NOT_NULL(info->scope());
   return true;
 }
@@ -1572,7 +1638,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
     FunctionLiteral* literal, Handle<Script> script,
-    CompilationInfo* outer_info, LazyCompilationMode mode) {
+    CompilationInfo* outer_info) {
   // Precondition: code has been parsed and scopes have been analyzed.
   Isolate* isolate = outer_info->isolate();
   MaybeHandle<SharedFunctionInfo> maybe_existing;
@@ -1580,81 +1646,21 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   // Find any previously allocated shared function info for the given literal.
   maybe_existing = script->FindSharedFunctionInfo(isolate, literal);
 
-  // We found an existing shared function info. If it has any sort of code
-  // attached, don't worry about compiling and simply return it. Otherwise,
-  // continue to decide whether to eagerly compile.
-  // Note that we also carry on if we are compiling eager to obtain code for
-  // debugging, unless we already have code with debug break slots.
+  // If we found an existing shared function info, return it.
   Handle<SharedFunctionInfo> existing;
   if (maybe_existing.ToHandle(&existing)) {
     DCHECK(!existing->is_toplevel());
-    if (existing->HasBaselineCode() || existing->HasBytecodeArray()) {
-      if (!outer_info->is_debug() || existing->HasDebugCode()) {
-        return existing;
-      }
-    }
+    return existing;
   }
 
-  // Allocate a shared function info object.
-  Handle<SharedFunctionInfo> result;
-  if (!maybe_existing.ToHandle(&result)) {
-    result =
-        isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
-    result->set_is_toplevel(false);
+  // Allocate a shared function info object which will be compiled lazily.
+  Handle<SharedFunctionInfo> result =
+      isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
+  result->set_is_toplevel(false);
+  Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
+  if (outer_scope) {
+    result->set_outer_scope_info(*outer_scope->scope_info());
   }
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  ParseInfo parse_info(&zone, script);
-  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-  parse_info.set_literal(literal);
-  parse_info.set_shared_info(result);
-  parse_info.set_function_literal_id(result->function_literal_id());
-  parse_info.set_language_mode(literal->scope()->language_mode());
-  parse_info.set_typed(literal->scope()->typed());
-  parse_info.set_ast_value_factory(
-      outer_info->parse_info()->ast_value_factory());
-  parse_info.set_ast_value_factory_owned(false);
-
-  if (outer_info->will_serialize()) info.PrepareForSerializing();
-  if (outer_info->is_debug()) info.MarkAsDebug();
-
-  // If this inner function is already compiled, we don't need to compile
-  // again. When compiling for debug, we are not interested in having debug
-  // break slots in inner functions, neither for setting break points nor
-  // for revealing inner functions.
-  // This is especially important for generators. We must not replace the
-  // code for generators, as there may be suspended generator objects.
-  if (!result->is_compiled()) {
-    if (mode == LazyCompilationMode::kAlways ||
-        !literal->ShouldEagerCompile()) {
-      info.SetCode(isolate->builtins()->CompileLazy());
-      Scope* outer_scope = literal->scope()->GetOuterScopeWithContext();
-      if (outer_scope) {
-        result->set_outer_scope_info(*outer_scope->scope_info());
-      }
-    } else {
-      // Generate code
-      TimerEventScope<TimerEventCompileCode> timer(isolate);
-      RuntimeCallTimerScope runtimeTimer(isolate,
-                                         &RuntimeCallStats::CompileCode);
-      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
-      if (Renumber(info.parse_info()) && GenerateUnoptimizedCode(&info)) {
-        // Code generation will ensure that the feedback vector is present and
-        // appropriately sized.
-        DCHECK(!info.code().is_null());
-        if (literal->should_be_used_once_hint()) {
-          info.code()->MarkToBeExecutedOnce(isolate);
-        }
-      } else {
-        return Handle<SharedFunctionInfo>::null();
-      }
-    }
-  }
-
-  if (maybe_existing.is_null()) {
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info);
-  }
-
   return result;
 }
 
@@ -1699,9 +1705,9 @@ MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
 }
 
 CompilationJob* Compiler::PrepareUnoptimizedCompilationJob(
-    CompilationInfo* info, LazyCompilationMode mode) {
+    CompilationInfo* info) {
   VMState<COMPILER> state(info->isolate());
-  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info, mode));
+  std::unique_ptr<CompilationJob> job(GetUnoptimizedCompilationJob(info));
   if (job->PrepareJob() != CompilationJob::SUCCEEDED) {
     return nullptr;
   }
@@ -1737,19 +1743,16 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     function->MarkForOptimization();
   }
 
-  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+  Code* code = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), BailoutId::None());
-  if (cached.code != nullptr) {
+  if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(!code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
-    function->ReplaceCode(cached.code);
+    function->ReplaceCode(code);
   }
 
-  if (cached.literals != nullptr) {
-    DCHECK(shared->is_compiled());
-    function->set_literals(cached.literals);
-  } else if (shared->is_compiled()) {
+  if (shared->is_compiled()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);
   }

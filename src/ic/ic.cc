@@ -387,7 +387,7 @@ void IC::UpdateState(Handle<Object> receiver, Handle<Object> name) {
   update_receiver_map(receiver);
   if (!name->IsString()) return;
   if (state() != MONOMORPHIC && state() != POLYMORPHIC) return;
-  if (receiver->IsUndefined(isolate()) || receiver->IsNull(isolate())) return;
+  if (receiver->IsNullOrUndefined(isolate())) return;
 
   // Remove the target from the code cache if it became invalid
   // because of changes in the prototype chain to avoid hitting it
@@ -664,7 +664,7 @@ void IC::ConfigureVectorState(MapHandleList* maps,
 MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
-  if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
+  if (object->IsNullOrUndefined(isolate())) {
     if (FLAG_use_ic && state() != UNINITIALIZED && state() != PREMONOMORPHIC) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), LoadIC_NonReceiver);
@@ -1396,6 +1396,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::DATA: {
+      DCHECK_EQ(kData, lookup->property_details().kind());
       if (lookup->is_dictionary_holder()) {
         if (kind() != Code::LOAD_IC && kind() != Code::LOAD_GLOBAL_IC) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
@@ -1417,7 +1418,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       }
 
       // -------------- Fields --------------
-      if (lookup->property_details().type() == DATA) {
+      if (lookup->property_details().location() == kField) {
         FieldIndex field = lookup->GetFieldIndex();
         Handle<Object> smi_handler = SimpleFieldLoad(isolate(), field);
         if (receiver_is_holder) {
@@ -1428,7 +1429,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       }
 
       // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
+      DCHECK_EQ(kDescriptor, lookup->property_details().location());
       Handle<Object> smi_handler =
           LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
       if (receiver_is_holder) {
@@ -1818,7 +1819,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   // If the object is undefined or null it's illegal to try to set any
   // properties on it; throw a TypeError in that case.
-  if (object->IsUndefined(isolate()) || object->IsNull(isolate())) {
+  if (object->IsNullOrUndefined(isolate())) {
     if (FLAG_use_ic && state() != UNINITIALIZED && state() != PREMONOMORPHIC) {
       // Ensure the IC state progresses.
       TRACE_HANDLER_STATS(isolate(), StoreIC_NonReceiver);
@@ -1876,11 +1877,12 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
   DCHECK(!transition->is_access_check_needed());
 
   Handle<Object> smi_handler;
-  if (details.type() == DATA_CONSTANT) {
+  DCHECK_EQ(kData, details.kind());
+  if (details.location() == kDescriptor) {
     smi_handler = StoreHandler::TransitionToConstant(isolate(), descriptor);
 
   } else {
-    DCHECK_EQ(DATA, details.type());
+    DCHECK_EQ(kField, details.location());
     bool extend_storage =
         Map::cast(transition->GetBackPointer())->unused_property_fields() == 0;
 
@@ -2027,6 +2029,7 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::DATA: {
+      DCHECK_EQ(kData, lookup->property_details().kind());
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
           break;  // Custom-compiled handler.
@@ -2037,7 +2040,7 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       }
 
       // -------------- Fields --------------
-      if (lookup->property_details().type() == DATA) {
+      if (lookup->property_details().location() == kField) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
         int descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
@@ -2046,7 +2049,7 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       }
 
       // -------------- Constant properties --------------
-      DCHECK(lookup->property_details().type() == DATA_CONSTANT);
+      DCHECK_EQ(kDescriptor, lookup->property_details().location());
       TRACE_GENERIC_IC(isolate(), "StoreIC", "constant property");
       TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
       return slow_stub();

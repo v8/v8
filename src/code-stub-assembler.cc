@@ -131,6 +131,13 @@ Node* CodeStubAssembler::SelectTaggedConstant(Node* condition, Node* true_value,
                         MachineRepresentation::kTagged);
 }
 
+Node* CodeStubAssembler::SelectSmiConstant(Node* condition, Smi* true_value,
+                                           Smi* false_value) {
+  return SelectConstant(condition, SmiConstant(true_value),
+                        SmiConstant(false_value),
+                        MachineRepresentation::kTaggedSigned);
+}
+
 Node* CodeStubAssembler::NoContextConstant() { return NumberConstant(0); }
 
 #define HEAP_CONSTANT_ACCESSOR(rootName, name)     \
@@ -1491,9 +1498,8 @@ Node* CodeStubAssembler::BuildAppendJSArray(ElementsKind kind, Node* context,
   Node* growth = IntPtrSub(args.GetLength(), first);
   Node* new_length =
       IntPtrOrSmiAdd(WordToParameter(growth, mode), var_length.value(), mode);
-  GotoUnless(IntPtrOrSmiGreaterThanOrEqual(new_length, capacity, mode), &fits);
-  Node* new_capacity = CalculateNewElementsCapacity(
-      IntPtrOrSmiAdd(new_length, IntPtrOrSmiConstant(1, mode), mode), mode);
+  GotoUnless(IntPtrOrSmiGreaterThan(new_length, capacity, mode), &fits);
+  Node* new_capacity = CalculateNewElementsCapacity(new_length, mode);
   var_elements.Bind(GrowElementsCapacity(array, var_elements.value(), kind,
                                          kind, capacity, new_capacity, mode,
                                          &pre_bailout));
@@ -2346,18 +2352,10 @@ Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
 
 Node* CodeStubAssembler::CalculateNewElementsCapacity(Node* old_capacity,
                                                       ParameterMode mode) {
-  if (mode == SMI_PARAMETERS) {
-    old_capacity = BitcastTaggedToWord(old_capacity);
-  }
-  Node* half_old_capacity = WordShr(old_capacity, IntPtrConstant(1));
-  Node* new_capacity = IntPtrAdd(half_old_capacity, old_capacity);
-  Node* unconditioned_result = IntPtrAdd(new_capacity, IntPtrConstant(16));
-  if (mode == SMI_PARAMETERS) {
-    return SmiAnd(BitcastWordToTaggedSigned(unconditioned_result),
-                  SmiConstant(-1));
-  } else {
-    return unconditioned_result;
-  }
+  Node* half_old_capacity = WordOrSmiShr(old_capacity, 1, mode);
+  Node* new_capacity = IntPtrOrSmiAdd(half_old_capacity, old_capacity, mode);
+  Node* padding = IntPtrOrSmiConstant(16, mode);
+  return IntPtrOrSmiAdd(new_capacity, padding, mode);
 }
 
 Node* CodeStubAssembler::TryGrowElementsCapacity(Node* object, Node* elements,
@@ -2850,6 +2848,10 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   Bind(&out);
   return var_value_map.value();
+}
+
+Node* CodeStubAssembler::InstanceTypeEqual(Node* instance_type, int type) {
+  return Word32Equal(instance_type, Int32Constant(type));
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
@@ -4615,7 +4617,7 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   // Prepare details of the new property.
   Variable var_details(this, MachineRepresentation::kTaggedSigned);
   const int kInitialIndex = 0;
-  PropertyDetails d(NONE, DATA, kInitialIndex, PropertyCellType::kNoCell);
+  PropertyDetails d(kData, NONE, kInitialIndex, PropertyCellType::kNoCell);
   enum_index =
       SmiShl(enum_index, PropertyDetails::DictionaryStorageField::kShift);
   STATIC_ASSERT(kInitialIndex == 0);
@@ -5463,11 +5465,9 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback,
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.
-  // TODO(interpreter): Consider passing the feedback as Smi already to avoid
-  // the tagging completely.
   Node* previous_feedback =
       LoadFixedArrayElement(type_feedback_vector, slot_id);
-  Node* combined_feedback = SmiOr(previous_feedback, SmiFromWord32(feedback));
+  Node* combined_feedback = SmiOr(previous_feedback, feedback);
   StoreFixedArrayElement(type_feedback_vector, slot_id, combined_feedback,
                          SKIP_WRITE_BARRIER);
 }
@@ -5514,104 +5514,6 @@ Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
 
   Bind(&done);
   return var_intptr_key.value();
-}
-
-void CodeStubAssembler::ExtendPropertiesBackingStore(Node* object) {
-  Node* properties = LoadProperties(object);
-  Node* length = LoadFixedArrayBaseLength(properties);
-
-  ParameterMode mode = OptimalParameterMode();
-  length = TaggedToParameter(length, mode);
-
-  Node* delta = IntPtrOrSmiConstant(JSObject::kFieldsAdded, mode);
-  Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
-
-  // Grow properties array.
-  ElementsKind kind = FAST_ELEMENTS;
-  DCHECK(kMaxNumberOfDescriptors + JSObject::kFieldsAdded <
-         FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind));
-  // The size of a new properties backing store is guaranteed to be small
-  // enough that the new backing store will be allocated in new space.
-  CSA_ASSERT(this,
-             UintPtrOrSmiLessThan(
-                 new_capacity,
-                 IntPtrOrSmiConstant(
-                     kMaxNumberOfDescriptors + JSObject::kFieldsAdded, mode),
-                 mode));
-
-  Node* new_properties = AllocateFixedArray(kind, new_capacity, mode);
-
-  FillFixedArrayWithValue(kind, new_properties, length, new_capacity,
-                          Heap::kUndefinedValueRootIndex, mode);
-
-  // |new_properties| is guaranteed to be in new space, so we can skip
-  // the write barrier.
-  CopyFixedArrayElements(kind, properties, new_properties, length,
-                         SKIP_WRITE_BARRIER, mode);
-
-  StoreObjectField(object, JSObject::kPropertiesOffset, new_properties);
-}
-
-Node* CodeStubAssembler::PrepareValueForWrite(Node* value,
-                                              Representation representation,
-                                              Label* bailout) {
-  if (representation.IsDouble()) {
-    value = TryTaggedToFloat64(value, bailout);
-  } else if (representation.IsHeapObject()) {
-    // Field type is checked by the handler, here we only check if the value
-    // is a heap object.
-    GotoIf(TaggedIsSmi(value), bailout);
-  } else if (representation.IsSmi()) {
-    GotoUnless(TaggedIsSmi(value), bailout);
-  } else {
-    DCHECK(representation.IsTagged());
-  }
-  return value;
-}
-
-void CodeStubAssembler::StoreNamedField(Node* object, FieldIndex index,
-                                        Representation representation,
-                                        Node* value, bool transition_to_field) {
-  DCHECK_EQ(index.is_double(), representation.IsDouble());
-
-  StoreNamedField(object, IntPtrConstant(index.offset()), index.is_inobject(),
-                  representation, value, transition_to_field);
-}
-
-void CodeStubAssembler::StoreNamedField(Node* object, Node* offset,
-                                        bool is_inobject,
-                                        Representation representation,
-                                        Node* value, bool transition_to_field) {
-  bool store_value_as_double = representation.IsDouble();
-  Node* property_storage = object;
-  if (!is_inobject) {
-    property_storage = LoadProperties(object);
-  }
-
-  if (representation.IsDouble()) {
-    if (!FLAG_unbox_double_fields || !is_inobject) {
-      if (transition_to_field) {
-        Node* heap_number = AllocateHeapNumberWithValue(value, MUTABLE);
-        // Store the new mutable heap number into the object.
-        value = heap_number;
-        store_value_as_double = false;
-      } else {
-        // Load the heap number.
-        property_storage = LoadObjectField(property_storage, offset);
-        // Store the double value into it.
-        offset = IntPtrConstant(HeapNumber::kValueOffset);
-      }
-    }
-  }
-
-  if (store_value_as_double) {
-    StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
-                                   MachineRepresentation::kFloat64);
-  } else if (representation.IsSmi()) {
-    StoreObjectFieldNoWriteBarrier(property_storage, offset, value);
-  } else {
-    StoreObjectField(property_storage, offset, value);
-  }
 }
 
 Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
@@ -8211,6 +8113,11 @@ Node* CodeStubArguments::GetReceiver() const {
 Node* CodeStubArguments::AtIndex(Node* index,
                                  CodeStubAssembler::ParameterMode mode) const {
   typedef compiler::Node Node;
+  CSA_ASSERT(assembler_, assembler_->UintPtrLessThan(
+                             mode == CodeStubAssembler::INTPTR_PARAMETERS
+                                 ? index
+                                 : assembler_->SmiUntag(index),
+                             GetLength()));
   Node* negated_index =
       assembler_->IntPtrSub(assembler_->IntPtrOrSmiConstant(0, mode), index);
   Node* offset =
@@ -8315,39 +8222,13 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
   return fun;
 }
 
-Node* CodeStubAssembler::AllocateJSPromise(Node* context) {
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const initial_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const instance = AllocateJSObjectFromMap(initial_map);
-
-  return instance;
-}
-
-void CodeStubAssembler::PromiseInit(Node* promise) {
-  StoreObjectField(promise, JSPromise::kStatusOffset,
-                   SmiConstant(v8::Promise::kPending));
-  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
-}
-
-void CodeStubAssembler::PromiseSet(Node* promise, Node* status, Node* result) {
-  CSA_ASSERT(this, TaggedIsSmi(status));
-  StoreObjectField(promise, JSPromise::kStatusOffset, status);
-  StoreObjectField(promise, JSPromise::kResultOffset, result);
-  StoreObjectField(promise, JSPromise::kFlagsOffset, SmiConstant(0));
-}
-
 Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
-    Node* promise, Node* value, Node* tasks, Node* deferred_promise,
-    Node* deferred_on_resolve, Node* deferred_on_reject, Node* context) {
+    Node* value, Node* tasks, Node* deferred_promise, Node* deferred_on_resolve,
+    Node* deferred_on_reject, Node* context) {
   Node* const result = Allocate(PromiseReactionJobInfo::kSize);
   StoreMapNoWriteBarrier(result, Heap::kPromiseReactionJobInfoMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kValueOffset,
                                  value);
-  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kPromiseOffset,
-                                 promise);
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kTasksOffset,
                                  tasks);
   StoreObjectFieldNoWriteBarrier(
@@ -8358,10 +8239,8 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
   StoreObjectFieldNoWriteBarrier(
       result, PromiseReactionJobInfo::kDeferredOnRejectOffset,
       deferred_on_reject);
-  StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugIdOffset,
-                       Heap::kUndefinedValueRootIndex);
-  StoreObjectFieldRoot(result, PromiseReactionJobInfo::kDebugNameOffset,
-                       Heap::kUndefinedValueRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kDebugIdOffset,
+                                 SmiConstant(kDebugPromiseNoID));
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kContextOffset,
                                  context);
   return result;

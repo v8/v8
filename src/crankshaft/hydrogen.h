@@ -2156,7 +2156,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(IsSmi)                             \
   F(IsArray)                           \
   F(IsTypedArray)                      \
-  F(IsRegExp)                          \
   F(IsJSProxy)                         \
   F(Call)                              \
   F(ToInteger)                         \
@@ -2457,7 +2456,19 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
           field_type_(HType::Tagged()),
           access_(HObjectAccess::ForMap()),
           lookup_type_(NOT_FOUND),
-          details_(NONE, DATA, Representation::None()) {}
+          details_(PropertyDetails::Empty()),
+          store_mode_(STORE_TO_INITIALIZED_ENTRY) {}
+
+    // Ensure the full store is performed.
+    void MarkAsInitializingStore() {
+      DCHECK_EQ(STORE, access_type_);
+      store_mode_ = INITIALIZING_STORE;
+    }
+
+    StoreFieldOrKeyedMode StoreMode() {
+      DCHECK_EQ(STORE, access_type_);
+      return store_mode_;
+    }
 
     // Checkes whether this PropertyAccessInfo can be handled as a monomorphic
     // load named. It additionally fills in the fields necessary to generate the
@@ -2515,14 +2526,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     bool IsProperty() const { return IsFound() && !IsTransition(); }
     bool IsTransition() const { return lookup_type_ == TRANSITION_TYPE; }
     bool IsData() const {
-      return lookup_type_ == DESCRIPTOR_TYPE && details_.type() == DATA;
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kField;
     }
     bool IsDataConstant() const {
-      return lookup_type_ == DESCRIPTOR_TYPE &&
-             details_.type() == DATA_CONSTANT;
+      return lookup_type_ == DESCRIPTOR_TYPE && details_.kind() == kData &&
+             details_.location() == kDescriptor;
     }
     bool IsAccessorConstant() const {
-      return !IsTransition() && details_.type() == ACCESSOR_CONSTANT;
+      return !IsTransition() && details_.kind() == kAccessor &&
+             details_.location() == kDescriptor;
     }
     bool IsConfigurable() const { return details_.IsConfigurable(); }
     bool IsReadOnly() const { return details_.IsReadOnly(); }
@@ -2571,6 +2584,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       transition_ = handle(target);
       number_ = transition_->LastAdded();
       details_ = transition_->instance_descriptors()->GetDetails(number_);
+      MarkAsInitializingStore();
     }
     void NotFound() {
       lookup_type_ = NOT_FOUND;
@@ -2581,7 +2595,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       return details_.representation();
     }
     bool IsTransitionToData() const {
-      return IsTransition() && details_.type() == DATA;
+      return IsTransition() && details_.kind() == kData &&
+             details_.location() == kField;
     }
 
     Zone* zone() { return builder_->zone(); }
@@ -2616,6 +2631,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
     Handle<Map> transition_;
     int number_;
     PropertyDetails details_;
+    StoreFieldOrKeyedMode store_mode_;
   };
 
   HValue* BuildMonomorphicAccess(PropertyAccessInfo* info, HValue* object,

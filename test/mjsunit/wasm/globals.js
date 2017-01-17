@@ -44,6 +44,17 @@ TestExported(kWasmI32, 455.5, 455);
 TestExported(kWasmF32, -999.34343, Math.fround(-999.34343));
 TestExported(kWasmF64, 87347.66666, 87347.66666);
 
+(function TestI64Exported() {
+  var builder = new WasmModuleBuilder();
+  var sig = makeSig([kWasmI64], []);
+  builder.addGlobal(kWasmI32);  // pad
+  var g = builder.addGlobal(kWasmI64, false)
+      .exportAs("foo");
+  g.init = 1234;
+  builder.addGlobal(kWasmI32);  // pad
+
+  assertThrows(()=> {builder.instantiate()}, WebAssembly.LinkError);
+})();
 
 function TestImportedExported(type, val, expected) {
   print("TestImportedExported " + type + "(" + val +")" + " = " + expected);

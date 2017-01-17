@@ -180,14 +180,14 @@ class ModuleDecoder : public Decoder {
                 ModuleOrigin origin)
       : Decoder(module_start, module_end), module_zone(zone), origin_(origin) {
     result_.start = start_;
-    if (limit_ < start_) {
+    if (end_ < start_) {
       error(start_, "end is less than start");
-      limit_ = start_;
+      end_ = start_;
     }
   }
 
   virtual void onFirstError() {
-    pc_ = limit_;  // On error, terminate section decoding loop.
+    pc_ = end_;  // On error, terminate section decoding loop.
   }
 
   void DumpModule(const ModuleResult& result) {
@@ -200,7 +200,7 @@ class ModuleDecoder : public Decoder {
       }
     }
     // File are named `HASH.{ok,failed}.wasm`.
-    size_t hash = base::hash_range(start_, limit_);
+    size_t hash = base::hash_range(start_, end_);
     char buf[32] = {'\0'};
 #if V8_OS_WIN && _MSC_VER < 1900
 #define snprintf sprintf_s
@@ -209,7 +209,7 @@ class ModuleDecoder : public Decoder {
              result.ok() ? "ok" : "failed");
     std::string name(buf);
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
-      fwrite(start_, limit_ - start_, 1, wasm_file);
+      fwrite(start_, end_ - start_, 1, wasm_file);
       fclose(wasm_file);
     }
   }
@@ -324,7 +324,7 @@ class ModuleDecoder : public Decoder {
                                      &module->min_mem_pages, &has_max,
                                      kSpecMaxWasmMemoryPages,
                                      &module->max_mem_pages);
-            module->has_memory = true;
+            SetHasMemory(module);
             break;
           }
           case kExternalGlobal: {
@@ -399,7 +399,7 @@ class ModuleDecoder : public Decoder {
             "memory", "pages", kV8MaxWasmMemoryPages, &module->min_mem_pages,
             &has_max, kSpecMaxWasmMemoryPages, &module->max_mem_pages);
       }
-      module->has_memory = true;
+      SetHasMemory(module);
       section_iter.advance();
     }
 
@@ -457,7 +457,11 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalMemory: {
             uint32_t index = consume_u32v("memory index");
-            if (index != 0) error("invalid memory index != 0");
+            // TODO(titzer): This should become more regular
+            // once we support multiple memories.
+            if (!module->has_memory || index != 0) {
+              error("invalid memory index != 0");
+            }
             module->mem_export = true;
             break;
           }
@@ -572,7 +576,7 @@ class ModuleDecoder : public Decoder {
         function->code_end_offset = pc_offset() + size;
         if (verify_functions) {
           ModuleBytesEnv module_env(module, nullptr,
-                                    ModuleWireBytes(start_, limit_));
+                                    ModuleWireBytes(start_, end_));
           VerifyFunctionBody(i + module->num_imported_functions, &module_env,
                              function);
         }
@@ -651,7 +655,7 @@ class ModuleDecoder : public Decoder {
     function->name_offset = 0;                // ---- name
     function->name_length = 0;                // ---- name length
     function->code_start_offset = off(pc_);   // ---- code start
-    function->code_end_offset = off(limit_);  // ---- code end
+    function->code_end_offset = off(end_);    // ---- code end
 
     if (ok()) VerifyFunctionBody(0, module_env, function);
 
@@ -679,6 +683,14 @@ class ModuleDecoder : public Decoder {
   ModuleOrigin origin_;
 
   uint32_t off(const byte* ptr) { return static_cast<uint32_t>(ptr - start_); }
+
+  void SetHasMemory(WasmModule* module) {
+    if (module->has_memory) {
+      error("At most one memory object is supported");
+    } else {
+      module->has_memory = true;
+    }
+  }
 
   // Decodes a single global entry inside a module starting at {pc_}.
   void DecodeGlobalInModule(WasmModule* module, uint32_t index,
@@ -729,7 +741,7 @@ class ModuleDecoder : public Decoder {
     segment->source_offset = static_cast<uint32_t>(pc_ - start_);
 
     // Validate the data is in the module.
-    uint32_t module_limit = static_cast<uint32_t>(limit_ - start_);
+    uint32_t module_limit = static_cast<uint32_t>(end_ - start_);
     if (!IsWithinLimit(module_limit, segment->source_offset,
                        segment->source_size)) {
       error(start, "segment out of bounds of module");
@@ -763,10 +775,12 @@ class ModuleDecoder : public Decoder {
       os << "Verifying WASM function " << WasmFunctionName(function, menv)
          << std::endl;
     }
-    FunctionBody body = {menv, function->sig, start_,
+    FunctionBody body = {function->sig, start_,
                          start_ + function->code_start_offset,
                          start_ + function->code_end_offset};
-    DecodeResult result = VerifyWasmCode(module_zone->allocator(), body);
+    DecodeResult result =
+        VerifyWasmCode(module_zone->allocator(),
+                       menv == nullptr ? nullptr : menv->module, body);
     if (result.failed()) {
       // Wrap the error message from the function decoder.
       std::ostringstream str;
@@ -1200,11 +1214,15 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
       decoder.error("illegal asm function offset table size");
     }
     const byte* table_end = decoder.pc() + size;
-    uint32_t locals_size = decoder.consume_u32("locals size");
+    uint32_t locals_size = decoder.consume_u32v("locals size");
+    int function_start_position = decoder.consume_u32v("function start pos");
     int last_byte_offset = locals_size;
-    int last_asm_position = 0;
+    int last_asm_position = function_start_position;
     std::vector<AsmJsOffsetEntry> func_asm_offsets;
     func_asm_offsets.reserve(size / 4);  // conservative estimation
+    // Add an entry for the stack check, associated with position 0.
+    func_asm_offsets.push_back(
+        {0, function_start_position, function_start_position});
     while (decoder.ok() && decoder.pc() < table_end) {
       last_byte_offset += decoder.consume_u32v("byte offset delta");
       int call_position =

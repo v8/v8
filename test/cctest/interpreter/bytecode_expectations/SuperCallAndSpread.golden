@@ -55,7 +55,7 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 66
+bytecode array length: 62
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -74,10 +74,8 @@ bytecodes: [
                 B(Star), R(3),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
-                B(Jump), U8(11),
-                B(LdaConstant), U8(0),
-                B(Star), R(4),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
+                B(Jump), U8(7),
+  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
                 B(Mov), R(3), R(this),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(11),
@@ -107,7 +105,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 96
+bytecode array length: 92
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -137,10 +135,8 @@ bytecodes: [
                 B(Star), R(3),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),
-                B(Jump), U8(11),
-                B(LdaConstant), U8(2),
-                B(Star), R(4),
-  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowReferenceError), R(4), U8(1),
+                B(Jump), U8(7),
+  /*  140 E> */ B(CallRuntime), U16(Runtime::kThrowSuperAlreadyCalledError), R(0), U8(0),
                 B(Mov), R(3), R(this),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(11),

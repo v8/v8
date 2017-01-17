@@ -349,6 +349,7 @@ def read_stats(path, domain, args):
         ('Group-IC', re.compile(".*IC_.*")),
         ('Group-Optimize',
          re.compile("StackGuard|.*Optimize.*|.*Deoptimize.*|Recompile.*")),
+        ('Group-CompileBackground', re.compile("(.*CompileBackground.*)")),
         ('Group-Compile', re.compile("(^Compile.*)|(.*_Compile.*)")),
         ('Group-ParseBackground', re.compile(".*ParseBackground.*")),
         ('Group-Parse', re.compile(".*Parse.*")),
@@ -402,6 +403,13 @@ def read_stats(path, domain, args):
       group_data['time'] += entries[group_name]['time']
       group_data['count'] += entries[group_name]['count']
     entries['Group-Parse-Total'] = group_data
+    # Calculate the Compile-Total group
+    group_data = { 'time': 0, 'count': 0 }
+    for group_name, regexp in groups:
+      if not group_name.startswith('Group-Compile'): continue
+      group_data['time'] += entries[group_name]['time']
+      group_data['count'] += entries[group_name]['count']
+    entries['Group-Compile-Total'] = group_data
     # Append the sums as single entries to domain.
     for key in entries:
       if key not in domain: domain[key] = { 'time_list': [], 'count_list': [] }

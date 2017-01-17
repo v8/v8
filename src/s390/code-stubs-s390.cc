@@ -636,8 +636,11 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cc == eq) {
     {
       FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-      __ Push(lhs, rhs);
-      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
+      __ Push(cp);
+      __ Call(strict() ? isolate()->builtins()->StrictEqual()
+                       : isolate()->builtins()->Equal(),
+              RelocInfo::CODE_TARGET);
+      __ Pop(cp);
     }
     // Turn true into 0 and false into some non-zero value.
     STATIC_ASSERT(EQUAL == 0);
@@ -836,7 +839,6 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   SaveFPRegsMode mode = kSaveFPRegs;
   CEntryStub(isolate, 1, mode).GetCode();
   StoreBufferOverflowStub(isolate, mode).GetCode();
-  isolate->set_fp_stubs_generated(true);
 }
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {
@@ -2741,83 +2743,6 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(
 
   __ beq(done);
   __ bne(miss);
-}
-
-// Probe the name dictionary in the |elements| register. Jump to the
-// |done| label if a property with the given name is found. Jump to
-// the |miss| label otherwise.
-// If lookup was successful |scratch2| will be equal to elements + 4 * index.
-void NameDictionaryLookupStub::GeneratePositiveLookup(
-    MacroAssembler* masm, Label* miss, Label* done, Register elements,
-    Register name, Register scratch1, Register scratch2) {
-  DCHECK(!elements.is(scratch1));
-  DCHECK(!elements.is(scratch2));
-  DCHECK(!name.is(scratch1));
-  DCHECK(!name.is(scratch2));
-
-  __ AssertName(name);
-
-  // Compute the capacity mask.
-  __ LoadP(scratch1, FieldMemOperand(elements, kCapacityOffset));
-  __ SmiUntag(scratch1);  // convert smi to int
-  __ SubP(scratch1, Operand(1));
-
-  // Generate an unrolled loop that performs a few probes before
-  // giving up. Measurements done on Gmail indicate that 2 probes
-  // cover ~93% of loads from dictionaries.
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    __ LoadlW(scratch2, FieldMemOperand(name, String::kHashFieldOffset));
-    if (i > 0) {
-      // Add the probe offset (i + i * i) left shifted to avoid right shifting
-      // the hash in a separate instruction. The value hash + i + i * i is right
-      // shifted in the following and instruction.
-      DCHECK(NameDictionary::GetProbeOffset(i) <
-             1 << (32 - Name::kHashFieldOffset));
-      __ AddP(scratch2,
-              Operand(NameDictionary::GetProbeOffset(i) << Name::kHashShift));
-    }
-    __ srl(scratch2, Operand(String::kHashShift));
-    __ AndP(scratch2, scratch1);
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    // scratch2 = scratch2 * 3.
-    __ ShiftLeftP(ip, scratch2, Operand(1));
-    __ AddP(scratch2, ip);
-
-    // Check if the key is identical to the name.
-    __ ShiftLeftP(ip, scratch2, Operand(kPointerSizeLog2));
-    __ AddP(scratch2, elements, ip);
-    __ LoadP(ip, FieldMemOperand(scratch2, kElementsStartOffset));
-    __ CmpP(name, ip);
-    __ beq(done);
-  }
-
-  const int spill_mask = (r0.bit() | r8.bit() | r7.bit() | r6.bit() | r5.bit() |
-                          r4.bit() | r3.bit() | r2.bit()) &
-                         ~(scratch1.bit() | scratch2.bit());
-
-  __ LoadRR(r0, r14);
-  __ MultiPush(spill_mask);
-  if (name.is(r2)) {
-    DCHECK(!elements.is(r3));
-    __ LoadRR(r3, name);
-    __ LoadRR(r2, elements);
-  } else {
-    __ LoadRR(r2, elements);
-    __ LoadRR(r3, name);
-  }
-  NameDictionaryLookupStub stub(masm->isolate(), POSITIVE_LOOKUP);
-  __ CallStub(&stub);
-  __ LoadRR(r1, r2);
-  __ LoadRR(scratch2, r4);
-  __ MultiPop(spill_mask);
-  __ LoadRR(r14, r0);
-
-  __ CmpP(r1, Operand::Zero());
-  __ bne(done);
-  __ beq(miss);
 }
 
 void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {

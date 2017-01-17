@@ -21,7 +21,6 @@ var MinSimple;
 var ObjectHasOwnProperty;
 var ObjectToString = utils.ImportNow("object_to_string");
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var speciesSymbol = utils.ImportNow("species_symbol");
 var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 
 utils.Import(function(from) {
@@ -1490,12 +1489,6 @@ function ArrayOf(...args) {
   return array;
 }
 
-
-function ArraySpecies() {
-  return this;
-}
-
-
 // -------------------------------------------------------------------
 
 // Set up non-enumerable constructor property on the Array.prototype
@@ -1577,8 +1570,6 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
 ]);
 
 %FunctionSetName(ArrayValues, "values");
-
-utils.InstallGetter(GlobalArray, speciesSymbol, ArraySpecies);
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);
 

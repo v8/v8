@@ -4,7 +4,9 @@
 
 print """
 1
+v8-foozzie source: name/to/a/file.js
 2
+v8-foozzie source: name/to/file.js
   weird other error
 ^
 3

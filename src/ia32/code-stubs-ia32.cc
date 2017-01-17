@@ -1214,9 +1214,11 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
   if (cc == equal) {
     {
       FrameScope scope(masm, StackFrame::INTERNAL);
-      __ Push(edx);
-      __ Push(eax);
-      __ CallRuntime(strict() ? Runtime::kStrictEqual : Runtime::kEqual);
+      __ Push(esi);
+      __ Call(strict() ? isolate()->builtins()->StrictEqual()
+                       : isolate()->builtins()->Equal(),
+              RelocInfo::CODE_TARGET);
+      __ Pop(esi);
     }
     // Turn true into 0 and false into some non-zero value.
     STATIC_ASSERT(EQUAL == 0);
@@ -1620,7 +1622,6 @@ void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
   // Generate if not already in cache.
   CEntryStub(isolate, 1, kSaveFPRegs).GetCode();
-  isolate->set_fp_stubs_generated(true);
 }
 
 
@@ -2633,67 +2634,6 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   __ j(not_zero, miss);
   __ jmp(done);
 }
-
-
-// Probe the name dictionary in the |elements| register. Jump to the
-// |done| label if a property with the given name is found leaving the
-// index into the dictionary in |r0|. Jump to the |miss| label
-// otherwise.
-void NameDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
-                                                      Label* miss,
-                                                      Label* done,
-                                                      Register elements,
-                                                      Register name,
-                                                      Register r0,
-                                                      Register r1) {
-  DCHECK(!elements.is(r0));
-  DCHECK(!elements.is(r1));
-  DCHECK(!name.is(r0));
-  DCHECK(!name.is(r1));
-
-  __ AssertName(name);
-
-  __ mov(r1, FieldOperand(elements, kCapacityOffset));
-  __ shr(r1, kSmiTagSize);  // convert smi to int
-  __ dec(r1);
-
-  // Generate an unrolled loop that performs a few probes before
-  // giving up. Measurements done on Gmail indicate that 2 probes
-  // cover ~93% of loads from dictionaries.
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    __ mov(r0, FieldOperand(name, Name::kHashFieldOffset));
-    __ shr(r0, Name::kHashShift);
-    if (i > 0) {
-      __ add(r0, Immediate(NameDictionary::GetProbeOffset(i)));
-    }
-    __ and_(r0, r1);
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ lea(r0, Operand(r0, r0, times_2, 0));  // r0 = r0 * 3
-
-    // Check if the key is identical to the name.
-    __ cmp(name, Operand(elements,
-                         r0,
-                         times_4,
-                         kElementsStartOffset - kHeapObjectTag));
-    __ j(equal, done);
-  }
-
-  NameDictionaryLookupStub stub(masm->isolate(), elements, r1, r0,
-                                POSITIVE_LOOKUP);
-  __ push(name);
-  __ mov(r0, FieldOperand(name, Name::kHashFieldOffset));
-  __ shr(r0, Name::kHashShift);
-  __ push(r0);
-  __ CallStub(&stub);
-
-  __ test(r1, r1);
-  __ j(zero, miss);
-  __ jmp(done);
-}
-
 
 void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // This stub overrides SometimesSetsUpAFrame() to return false.  That means

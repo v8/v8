@@ -20,6 +20,8 @@ namespace internal {
 // optionally a piece of data.
 class Descriptor final BASE_EMBEDDED {
  public:
+  Descriptor() : details_(Smi::kZero) {}
+
   Handle<Name> GetKey() const { return key_; }
   Handle<Object> GetValue() const { return value_; }
   PropertyDetails GetDetails() const { return details_; }
@@ -35,19 +37,19 @@ class Descriptor final BASE_EMBEDDED {
                               PropertyAttributes attributes,
                               Representation representation) {
     DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeakCell());
-    return Descriptor(key, wrapped_field_type, attributes, DATA, representation,
-                      field_index);
+    return Descriptor(key, wrapped_field_type, kData, attributes, kField,
+                      representation, field_index);
   }
 
   static Descriptor DataConstant(Handle<Name> key, Handle<Object> value,
                                  PropertyAttributes attributes) {
-    return Descriptor(key, value, attributes, DATA_CONSTANT,
+    return Descriptor(key, value, kData, attributes, kDescriptor,
                       value->OptimalRepresentation());
   }
 
   static Descriptor AccessorConstant(Handle<Name> key, Handle<Object> foreign,
                                      PropertyAttributes attributes) {
-    return Descriptor(key, foreign, attributes, ACCESSOR_CONSTANT,
+    return Descriptor(key, foreign, kAccessor, attributes, kDescriptor,
                       Representation::Tagged());
   }
 
@@ -57,8 +59,6 @@ class Descriptor final BASE_EMBEDDED {
   PropertyDetails details_;
 
  protected:
-  Descriptor() : details_(Smi::kZero) {}
-
   void Init(Handle<Name> key, Handle<Object> value, PropertyDetails details) {
     DCHECK(key->IsUniqueName());
     DCHECK_IMPLIES(key->IsPrivate(), !details.IsEnumerable());
@@ -73,21 +73,20 @@ class Descriptor final BASE_EMBEDDED {
     DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
   }
 
-  Descriptor(Handle<Name> key, Handle<Object> value,
-             PropertyAttributes attributes, PropertyType type,
+  Descriptor(Handle<Name> key, Handle<Object> value, PropertyKind kind,
+             PropertyAttributes attributes, PropertyLocation location,
              Representation representation, int field_index = 0)
       : key_(key),
         value_(value),
-        details_(attributes, type, representation, field_index) {
+        details_(kind, attributes, location, representation, field_index) {
     DCHECK(key->IsUniqueName());
     DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
   }
 
   friend class DescriptorArray;
   friend class Map;
+  friend class MapUpdater;
 };
-
-std::ostream& operator<<(std::ostream& os, const Descriptor& d);
 
 }  // namespace internal
 }  // namespace v8

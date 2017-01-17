@@ -268,6 +268,29 @@ std::ostream& operator<<(std::ostream& os,
 CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
     Operator const*);
 
+// Defines the feedback, i.e., vector and index, for storing a data property in
+// an object literal. This is
+// used as a parameter by the JSStoreDataPropertyInLiteral operator.
+class DataPropertyParameters final {
+ public:
+  explicit DataPropertyParameters(VectorSlotPair const& feedback)
+      : feedback_(feedback) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  VectorSlotPair const feedback_;
+};
+
+bool operator==(DataPropertyParameters const&, DataPropertyParameters const&);
+bool operator!=(DataPropertyParameters const&, DataPropertyParameters const&);
+
+size_t hash_value(DataPropertyParameters const&);
+
+std::ostream& operator<<(std::ostream&, DataPropertyParameters const&);
+
+const DataPropertyParameters& DataPropertyParametersOf(const Operator* op);
+
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.
 class NamedAccess final {
@@ -413,14 +436,17 @@ const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
+                          VectorSlotPair const& feedback,
                           PretenureFlag pretenure)
-      : shared_info_(shared_info), pretenure_(pretenure) {}
+      : shared_info_(shared_info), feedback_(feedback), pretenure_(pretenure) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
   const Handle<SharedFunctionInfo> shared_info_;
+  VectorSlotPair const feedback_;
   const PretenureFlag pretenure_;
 };
 
@@ -508,6 +534,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
+                                VectorSlotPair const& feedback,
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
   const Operator* CreateKeyValueArray();
@@ -542,7 +569,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
                              VectorSlotPair const& feedback);
 
-  const Operator* StoreDataPropertyInLiteral();
+  const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
 

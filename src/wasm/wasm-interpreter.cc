@@ -63,6 +63,7 @@ namespace wasm {
   V(I64GtS, int64_t, >)         \
   V(I64GeS, int64_t, >=)        \
   V(F32Add, float, +)           \
+  V(F32Sub, float, -)           \
   V(F32Eq, float, ==)           \
   V(F32Ne, float, !=)           \
   V(F32Lt, float, <)            \
@@ -70,6 +71,7 @@ namespace wasm {
   V(F32Gt, float, >)            \
   V(F32Ge, float, >=)           \
   V(F64Add, double, +)          \
+  V(F64Sub, double, -)          \
   V(F64Eq, double, ==)          \
   V(F64Ne, double, !=)          \
   V(F64Lt, double, <)           \
@@ -102,13 +104,11 @@ namespace wasm {
   V(I32Rol, int32_t)           \
   V(I64Ror, int64_t)           \
   V(I64Rol, int64_t)           \
-  V(F32Sub, float)             \
   V(F32Min, float)             \
   V(F32Max, float)             \
   V(F32CopySign, float)        \
   V(F64Min, double)            \
   V(F64Max, double)            \
-  V(F64Sub, double)            \
   V(F64CopySign, double)       \
   V(I32AsmjsDivS, int32_t)     \
   V(I32AsmjsDivU, uint32_t)    \
@@ -294,41 +294,6 @@ static inline uint64_t ExecuteI64Rol(uint64_t a, uint64_t b, TrapReason* trap) {
   return (a << shift) | (a >> (64 - shift));
 }
 
-static float quiet(float a) {
-  static const uint32_t kSignalingBit = 1 << 22;
-  uint32_t q = bit_cast<uint32_t>(std::numeric_limits<float>::quiet_NaN());
-  if ((q & kSignalingBit) != 0) {
-    // On some machines, the signaling bit set indicates it's a quiet NaN.
-    return bit_cast<float>(bit_cast<uint32_t>(a) | kSignalingBit);
-  } else {
-    // On others, the signaling bit set indicates it's a signaling NaN.
-    return bit_cast<float>(bit_cast<uint32_t>(a) & ~kSignalingBit);
-  }
-}
-
-static double quiet(double a) {
-  static const uint64_t kSignalingBit = 1ULL << 51;
-  uint64_t q = bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN());
-  if ((q & kSignalingBit) != 0) {
-    // On some machines, the signaling bit set indicates it's a quiet NaN.
-    return bit_cast<double>(bit_cast<uint64_t>(a) | kSignalingBit);
-  } else {
-    // On others, the signaling bit set indicates it's a signaling NaN.
-    return bit_cast<double>(bit_cast<uint64_t>(a) & ~kSignalingBit);
-  }
-}
-
-static inline float ExecuteF32Sub(float a, float b, TrapReason* trap) {
-  float result = a - b;
-  // Some architectures (e.g. MIPS) need extra checking to preserve the payload
-  // of a NaN operand.
-  if (result - result != 0) {
-    if (std::isnan(a)) return quiet(a);
-    if (std::isnan(b)) return quiet(b);
-  }
-  return result;
-}
-
 static inline float ExecuteF32Min(float a, float b, TrapReason* trap) {
   return JSMin(a, b);
 }
@@ -339,17 +304,6 @@ static inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
 
 static inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
   return copysignf(a, b);
-}
-
-static inline double ExecuteF64Sub(double a, double b, TrapReason* trap) {
-  double result = a - b;
-  // Some architectures (e.g. MIPS) need extra checking to preserve the payload
-  // of a NaN operand.
-  if (result - result != 0) {
-    if (std::isnan(a)) return quiet(a);
-    if (std::isnan(b)) return quiet(b);
-  }
-  return result;
 }
 
 static inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
@@ -664,7 +618,8 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
                                         WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
-  if (delta_pages > wasm::kV8MaxWasmMemoryPages) {
+  if (delta_pages > wasm::kV8MaxWasmMemoryPages ||
+      delta_pages > instance->module->max_mem_pages) {
     return -1;
   }
   uint32_t old_size = instance->mem_size;
@@ -680,7 +635,9 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   } else {
     DCHECK_NOT_NULL(instance->mem_start);
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
-    if (new_size > wasm::kV8MaxWasmMemoryPages * wasm::WasmModule::kPageSize) {
+    if (new_size / wasm::WasmModule::kPageSize > wasm::kV8MaxWasmMemoryPages ||
+        new_size / wasm::WasmModule::kPageSize >
+            instance->module->max_mem_pages) {
       return -1;
     }
     new_mem_start = static_cast<byte*>(realloc(instance->mem_start, new_size));
@@ -928,7 +885,7 @@ class CodeMap {
   InterpreterCode* Preprocess(InterpreterCode* code) {
     if (code->targets == nullptr && code->start) {
       // Compute the control targets map and the local declarations.
-      CHECK(DecodeLocalDecls(code->locals, code->start, code->end));
+      CHECK(DecodeLocalDecls(&code->locals, code->start, code->end));
       code->targets = new (zone_) ControlTransfers(
           zone_, &code->locals, code->orig_start, code->orig_end);
     }
@@ -1070,7 +1027,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     // Limit of parameters.
     sp_t plimit() { return sp + code->function->sig->parameter_count(); }
     // Limit of locals.
-    sp_t llimit() { return plimit() + code->locals.total_local_count; }
+    sp_t llimit() { return plimit() + code->locals.type_list.size(); }
   };
 
   struct Block {
@@ -1119,9 +1076,9 @@ class ThreadImpl : public WasmInterpreter::Thread {
   }
 
   pc_t InitLocals(InterpreterCode* code) {
-    for (auto p : code->locals.local_types) {
+    for (auto p : code->locals.type_list) {
       WasmVal val;
-      switch (p.first) {
+      switch (p) {
         case kWasmI32:
           val = WasmVal(static_cast<int32_t>(0));
           break;
@@ -1138,9 +1095,9 @@ class ThreadImpl : public WasmInterpreter::Thread {
           UNREACHABLE();
           break;
       }
-      stack_.insert(stack_.end(), p.second, val);
+      stack_.push_back(val);
     }
-    return code->locals.decls_encoded_size;
+    return code->locals.encoded_size;
   }
 
   void CommitPc(pc_t pc) {
@@ -1353,12 +1310,6 @@ class ThreadImpl : public WasmInterpreter::Thread {
         }
         case kExprEnd: {
           blocks_.pop_back();
-          break;
-        }
-        case kExprI8Const: {
-          ImmI8Operand operand(&decoder, code->at(pc));
-          Push(pc, WasmVal(operand.value));
-          len = 1 + operand.length;
           break;
         }
         case kExprI32Const: {
@@ -1800,7 +1751,7 @@ bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
   if (!code) return false;
   size_t size = static_cast<size_t>(code->end - code->start);
   // Check bounds for {pc}.
-  if (pc < code->locals.decls_encoded_size || pc >= size) return false;
+  if (pc < code->locals.encoded_size || pc >= size) return false;
   // Make a copy of the code before enabling a breakpoint.
   if (enabled && code->orig_start == code->start) {
     code->start = reinterpret_cast<byte*>(zone_.New(size));
@@ -1821,7 +1772,7 @@ bool WasmInterpreter::GetBreakpoint(const WasmFunction* function, pc_t pc) {
   if (!code) return false;
   size_t size = static_cast<size_t>(code->end - code->start);
   // Check bounds for {pc}.
-  if (pc < code->locals.decls_encoded_size || pc >= size) return false;
+  if (pc < code->locals.encoded_size || pc >= size) return false;
   // Check if a breakpoint is present at that place in the code.
   return code->start[pc] == kInternalBreakpoint;
 }

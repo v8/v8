@@ -9,6 +9,7 @@
 #include "src/arguments.h"
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/builtins.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/frames-inl.h"
@@ -23,7 +24,7 @@ namespace internal {
 
 RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   CHECK(isolate->bootstrapper()->IsActive());
   return isolate->heap()->undefined_value();
 }
@@ -31,7 +32,7 @@ RUNTIME_FUNCTION(Runtime_CheckIsBootstrapping) {
 
 RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
@@ -44,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
 
 RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
   CHECK(isolate->bootstrapper()->IsActive());
   JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
@@ -57,7 +58,7 @@ RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
 
 RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   CHECK(array->HasFastElements());
   CHECK(isolate->bootstrapper()->IsActive());
@@ -82,14 +83,14 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
 
 RUNTIME_FUNCTION(Runtime_Throw) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->Throw(args[0]);
 }
 
 
 RUNTIME_FUNCTION(Runtime_ReThrow) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->ReThrow(args[0]);
 }
 
@@ -119,21 +120,21 @@ RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->UnwindAndFindHandler();
 }
 
 
 RUNTIME_FUNCTION(Runtime_PromoteScheduledException) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->PromoteScheduledException();
 }
 
 
 RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, name, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
@@ -142,7 +143,7 @@ RUNTIME_FUNCTION(Runtime_ThrowReferenceError) {
 
 RUNTIME_FUNCTION(Runtime_NewTypeError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -153,7 +154,7 @@ RUNTIME_FUNCTION(Runtime_NewTypeError) {
 
 RUNTIME_FUNCTION(Runtime_NewReferenceError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -164,7 +165,7 @@ RUNTIME_FUNCTION(Runtime_NewReferenceError) {
 
 RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_INT32_ARG_CHECKED(template_index, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 1);
   auto message_template =
@@ -180,7 +181,7 @@ RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
 
 RUNTIME_FUNCTION(Runtime_ThrowIllegalInvocation) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kIllegalInvocation));
 }
@@ -195,6 +196,14 @@ RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
       NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowInvalidHint) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, hint, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kInvalidHint, hint));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
@@ -202,7 +211,7 @@ RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
 
 RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
@@ -211,7 +220,7 @@ RUNTIME_FUNCTION(Runtime_ThrowIteratorResultNotAnObject) {
 
 RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
@@ -243,7 +252,7 @@ RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
 
 RUNTIME_FUNCTION(Runtime_StackGuard) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
 
   // First check if this is a real stack overflow.
   StackLimitCheck check(isolate);
@@ -257,14 +266,14 @@ RUNTIME_FUNCTION(Runtime_StackGuard) {
 
 RUNTIME_FUNCTION(Runtime_Interrupt) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   return isolate->stack_guard()->HandleInterrupts();
 }
 
 
 RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
   CHECK(size > 0);
@@ -275,7 +284,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
 
 RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
@@ -323,14 +332,14 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // information to get canonical location information.
     List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
-    FrameSummary& summary = frames.last();
-    Handle<JSFunction> function = summary.function();
-    Handle<Object> script(function->shared()->script(), isolate);
+    auto& summary = frames.last().AsJavaScript();
+    Handle<SharedFunctionInfo> shared(summary.function()->shared());
+    Handle<Object> script(shared->script(), isolate);
     int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
     if (script->IsScript() &&
         !(Handle<Script>::cast(script)->source()->IsUndefined(isolate))) {
       Handle<Script> casted_script = Handle<Script>::cast(script);
-      *target = MessageLocation(casted_script, pos, pos + 1, function);
+      *target = MessageLocation(casted_script, pos, pos + 1, shared);
       return true;
     }
   }
@@ -342,15 +351,9 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
     Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info;
-    if (location.function()->shared()->is_function()) {
-      info.reset(new ParseInfo(&zone, handle(location.function()->shared())));
-    } else {
-      info.reset(new ParseInfo(&zone, location.script()));
-    }
+    std::unique_ptr<ParseInfo> info(new ParseInfo(&zone, location.shared()));
     if (parsing::ParseAny(info.get())) {
-      CallPrinter printer(isolate,
-                          location.function()->shared()->IsUserJavaScript());
+      CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
       if (str->length() > 0) return str;
     } else {
@@ -482,6 +485,15 @@ RUNTIME_FUNCTION(Runtime_Typeof) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   return *Object::TypeOf(isolate, object);
+}
+
+RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, target, 0);
+  Handle<JSObject> global_proxy(target->global_proxy(), isolate);
+  return *isolate->factory()->ToBoolean(
+      Builtins::AllowDynamicFunction(isolate, target, global_proxy));
 }
 
 }  // namespace internal

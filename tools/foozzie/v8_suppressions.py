@@ -33,19 +33,32 @@ MAX_LINE_LENGTH = 512
 # For ignoring lines before carets and to ignore caret positions.
 CARET_RE = re.compile(r'^\s*\^\s*$')
 
+# Ignore by original source files. Map from bug->relative file paths in V8,
+# e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
+# be suppressed if one of the files below was used to mutate the test.
+IGNORE_SOURCES = {
+  # This contains a usage of f.arguments that often fires.
+  'crbug.com/662424': '/v8/test/mjsunit/regress/regress-2989.js',
+
+  # crbug.com/680110
+  'crbug.com/680110': '/v8/test/mjsunit/asm/pointer-masking.js',
+  'crbug.com/680110': '/v8/test/mjsunit/compiler/regress-443744.js',
+  'crbug.com/680110': '/v8/test/mjsunit/regress/wasm/regression-647649.js',
+}
+
 # Ignore by test case pattern. Map from bug->regexp.
 # Regular expressions are assumed to be compiled. We use regexp.match.
+# Make sure the code doesn't match in the preamble portion of the test case
+# (i.e. in the modified inlined mjsunit.js). You can reference the comment
+# between the two parts like so:
+#  'crbug.com/666308':
+#      re.compile(r'.*End stripped down and modified version.*'
+#                 r'\.prototype.*instanceof.*.*', re.S)
+# TODO(machenbach): Insert a JS sentinel between the two parts, because
+# comments are stripped during minimization.
 IGNORE_TEST_CASES = {
-  'crbug.com/662907':
-      re.compile(r'.*new Array.*\[\d+\] =.*'
-                 r'((Array)|(Object)).prototype.__defineSetter__.*', re.S),
-
-  'crbug.com/663340':
-      re.compile(r'.*\.shift\(\).*', re.S),
-
-  'crbug.com/666308':
-      re.compile(r'.*End stripped down and modified version.*'
-                 r'\.prototype.*instanceof.*.*', re.S),
+  'crbug.com/679957':
+      re.compile(r'.*performance\.now.*', re.S),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
@@ -60,9 +73,6 @@ IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
         re.compile(r'RangeError', re.S),
-
-    'crbug.com/669017':
-        re.compile(r'SyntaxError', re.S),
   },
   'validate_asm': {
     'validate_asm':
@@ -93,9 +103,6 @@ ALLOWED_LINE_DIFFS = [
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
 
-  # crbug.com/669017
-  r'^(.*)SyntaxError: .*$',
-
   # Ignore lines of stack traces as character positions might not match.
   r'^    at (?:new )?([^:]*):\d+:\d+(.*)$',
   r'^(.*):\d+:(.*)$',
@@ -103,6 +110,9 @@ ALLOWED_LINE_DIFFS = [
   # crbug.com/662840
   r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
   r"(?: is not defined))$",
+
+  # crbug.com/680064. This subsumes one of the above expressions.
+  r'^(.*)TypeError: .* function$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
@@ -116,6 +126,9 @@ IGNORE_LINES = [
 
   # crbug.com/677032
   r'^.*:\d+:.*asm\.js.*: success$',
+
+  # crbug.com/680064
+  r'^\s*at .* \(<anonymous>\)$',
 ]
 
 
@@ -126,6 +139,7 @@ IGNORE_LINES = [
 ALLOWED_LINE_DIFFS = [re.compile(exp) for exp in ALLOWED_LINE_DIFFS]
 IGNORE_LINES = [re.compile(exp) for exp in IGNORE_LINES]
 
+ORIGINAL_SOURCE_PREFIX = 'v8-foozzie source: '
 
 def line_pairs(lines):
   return itertools.izip_longest(
@@ -163,6 +177,14 @@ def ignore_by_regexp(line1, line2, allowed):
 
 
 def diff_output(output1, output2, allowed, ignore1, ignore2):
+  """Returns a tuple (difference, source).
+
+  The difference is None if there's no difference, otherwise a string
+  with a readable diff.
+
+  The source is the last source output within the test case, or None if no
+  such output existed.
+  """
   def useful_line(ignore):
     def fun(line):
       return all(not e.match(line) for e in ignore)
@@ -170,6 +192,10 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
   lines1 = filter(useful_line(ignore1), output1)
   lines2 = filter(useful_line(ignore2), output2)
+
+  # This keeps track where we are in the original source file of the fuzz
+  # test case.
+  source = None
 
   for ((line1, lookahead1), (line2, lookahead2)) in itertools.izip_longest(
       line_pairs(lines1), line_pairs(lines2), fillvalue=(None, None)):
@@ -179,12 +205,17 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
 
     # One iterator ends earlier.
     if line1 is None:
-      return '+ %s' % short_line_output(line2)
+      return '+ %s' % short_line_output(line2), source
     if line2 is None:
-      return '- %s' % short_line_output(line1)
+      return '- %s' % short_line_output(line1), source
 
     # If lines are equal, no further checks are necessary.
     if line1 == line2:
+      # Instrumented original-source-file output must be equal in both
+      # versions. It only makes sense to update it here when both lines
+      # are equal.
+      if line1.startswith(ORIGINAL_SOURCE_PREFIX):
+        source = line1[len(ORIGINAL_SOURCE_PREFIX):]
       continue
 
     # Look ahead. If next line is a caret, ignore this line.
@@ -196,10 +227,13 @@ def diff_output(output1, output2, allowed, ignore1, ignore2):
       continue
 
     # Lines are different.
-    return '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2))
+    return (
+        '- %s\n+ %s' % (short_line_output(line1), short_line_output(line2)),
+        source,
+    )
 
   # No difference found.
-  return None
+  return None, source
 
 
 def get_suppression(arch1, config1, arch2, config2):
@@ -210,7 +244,10 @@ class Suppression(object):
   def diff(self, output1, output2):
     return None
 
-  def ignore(self, testcase):
+  def ignore_by_metadata(self, metadata):
+    return False
+
+  def ignore_by_content(self, testcase):
     return False
 
   def ignore_by_output1(self, output):
@@ -236,9 +273,15 @@ class V8Suppression(Suppression):
         IGNORE_LINES,
     )
 
-  def ignore(self, testcase):
+  def ignore_by_content(self, testcase):
     for bug, exp in IGNORE_TEST_CASES.iteritems():
       if exp.match(testcase):
+        return bug
+    return False
+
+  def ignore_by_metadata(self, metadata):
+    for bug, source in IGNORE_SOURCES.iteritems():
+      if source in metadata['sources']:
         return bug
     return False
 

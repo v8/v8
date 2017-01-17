@@ -66,9 +66,9 @@ const Handle<WasmInstanceObject> InstantiateModuleForTesting(
     thrower->CompileError("Module pre-validation failed.");
     return Handle<WasmInstanceObject>::null();
   }
-  MaybeHandle<WasmInstanceObject> maybe_instance = WasmModule::Instantiate(
-      isolate, thrower, module_object.ToHandleChecked(),
-      Handle<JSReceiver>::null(), Handle<JSArrayBuffer>::null());
+  MaybeHandle<WasmInstanceObject> maybe_instance =
+      WasmModule::Instantiate(isolate, thrower, module_object.ToHandleChecked(),
+                              Handle<JSReceiver>::null());
   Handle<WasmInstanceObject> instance;
   if (!maybe_instance.ToHandle(&instance)) {
     return Handle<WasmInstanceObject>::null();
@@ -205,9 +205,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 }
 
 void SetupIsolateForWasmModule(Isolate* isolate) {
-  WasmJs::InstallWasmMapsIfNeeded(isolate, isolate->native_context());
-  WasmJs::InstallWasmModuleSymbolIfNeeded(isolate, isolate->global_object(),
-                                          isolate->native_context());
+  WasmJs::Install(isolate);
 }
 }  // namespace testing
 }  // namespace wasm

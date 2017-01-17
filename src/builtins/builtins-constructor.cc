@@ -16,6 +16,8 @@ namespace internal {
 typedef compiler::Node Node;
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
+                                                       Node* feedback_vector,
+                                                       Node* slot,
                                                        Node* context) {
   typedef compiler::CodeAssembler::Label Label;
   typedef compiler::CodeAssembler::Variable Variable;
@@ -84,17 +86,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   Bind(&if_generator);
   {
-    map_index.Bind(SelectIntPtrConstant(
-        is_strict, Context::STRICT_GENERATOR_FUNCTION_MAP_INDEX,
-        Context::SLOPPY_GENERATOR_FUNCTION_MAP_INDEX));
+    map_index.Bind(IntPtrConstant(Context::GENERATOR_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 
   Bind(&if_async);
   {
-    map_index.Bind(SelectIntPtrConstant(
-        is_strict, Context::STRICT_ASYNC_FUNCTION_MAP_INDEX,
-        Context::SLOPPY_ASYNC_FUNCTION_MAP_INDEX));
+    map_index.Bind(IntPtrConstant(Context::ASYNC_FUNCTION_MAP_INDEX));
     Goto(&load_map);
   }
 
@@ -122,13 +120,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  Node* empty_literals_array = HeapConstant(factory->empty_literals_array());
   StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
+  Node* literals_array = LoadFixedArrayElement(
+      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kLiteralsOffset,
-                                 empty_literals_array);
+                                 literals_array);
   StoreObjectFieldNoWriteBarrier(
       result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -152,7 +151,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   Node* shared = Parameter(FastNewClosureDescriptor::kSharedFunctionInfo);
   Node* context = Parameter(FastNewClosureDescriptor::kContext);
-  Return(EmitFastNewClosure(shared, context));
+  Node* vector = Parameter(FastNewClosureDescriptor::kVector);
+  Node* slot = Parameter(FastNewClosureDescriptor::kSlot);
+  Return(EmitFastNewClosure(shared, vector, slot, context));
 }
 
 TF_BUILTIN(FastNewObject, ConstructorBuiltinsAssembler) {

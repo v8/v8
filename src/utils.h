@@ -20,6 +20,7 @@
 #include "src/globals.h"
 #include "src/list.h"
 #include "src/vector.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -1684,6 +1685,21 @@ class ThreadedList final {
   T* head_;
   T** tail_;
   DISALLOW_COPY_AND_ASSIGN(ThreadedList);
+};
+
+// Can be used to create a threaded list of |T|.
+template <typename T>
+class ThreadedListZoneEntry final : public ZoneObject {
+ public:
+  explicit ThreadedListZoneEntry(T value) : value_(value), next_(nullptr) {}
+
+  T value() { return value_; }
+  ThreadedListZoneEntry<T>** next() { return &next_; }
+
+ private:
+  T value_;
+  ThreadedListZoneEntry<T>* next_;
+  DISALLOW_COPY_AND_ASSIGN(ThreadedListZoneEntry);
 };
 
 }  // namespace internal

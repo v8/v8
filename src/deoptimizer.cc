@@ -3617,8 +3617,9 @@ void TranslatedState::Prepare(bool has_adapted_arguments,
 
 Handle<Object> TranslatedState::MaterializeAt(int frame_index,
                                               int* value_index) {
+  CHECK_LT(static_cast<size_t>(frame_index), frames().size());
   TranslatedFrame* frame = &(frames_[frame_index]);
-  CHECK(static_cast<size_t>(*value_index) < frame->values_.size());
+  CHECK_LT(static_cast<size_t>(*value_index), frame->values_.size());
 
   TranslatedValue* slot = &(frame->values_[*value_index]);
   (*value_index)++;
@@ -3664,6 +3665,29 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
     case TranslatedValue::kCapturedObject: {
       int length = slot->GetChildrenCount();
 
+      class FieldMaterializer {
+       public:
+        FieldMaterializer(TranslatedState* state, int frame_index,
+                          int field_count)
+            : state_(state),
+              frame_index_(frame_index),
+              field_count_(field_count) {}
+
+        Handle<Object> At(int* value_index) {
+          CHECK(field_count_ > 0);
+          --field_count_;
+          return state_->MaterializeAt(frame_index_, value_index);
+        }
+
+        ~FieldMaterializer() { CHECK_EQ(0, field_count_); }
+
+       private:
+        TranslatedState* state_;
+        int frame_index_;
+        int field_count_;
+      };
+      FieldMaterializer materializer(this, frame_index, length);
+
       // The map must be a tagged object.
       CHECK(frame->values_[*value_index].kind() == TranslatedValue::kTagged);
 
@@ -3672,13 +3696,13 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
         // This has been previously materialized, return the previous value.
         // We still need to skip all the nested objects.
         for (int i = 0; i < length; i++) {
-          MaterializeAt(frame_index, value_index);
+          materializer.At(value_index);
         }
 
         return result;
       }
 
-      Handle<Object> map_object = MaterializeAt(frame_index, value_index);
+      Handle<Object> map_object = materializer.At(value_index);
       Handle<Map> map =
           Map::GeneralizeAllFieldRepresentations(Handle<Map>::cast(map_object));
       switch (map->instance_type()) {
@@ -3686,14 +3710,14 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
         case HEAP_NUMBER_TYPE: {
           // Reuse the HeapNumber value directly as it is already properly
           // tagged and skip materializing the HeapNumber explicitly.
-          Handle<Object> object = MaterializeAt(frame_index, value_index);
+          Handle<Object> object = materializer.At(value_index);
           slot->value_ = object;
           // On 32-bit architectures, there is an extra slot there because
           // the escape analysis calculates the number of slots as
           // object-size/pointer-size. To account for this, we read out
           // any extra slots.
           for (int i = 0; i < length - 2; i++) {
-            MaterializeAt(frame_index, value_index);
+            materializer.At(value_index);
           }
           return object;
         }
@@ -3703,12 +3727,12 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           Handle<JSObject> object =
               isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED);
           slot->value_ = object;
-          Handle<Object> properties = MaterializeAt(frame_index, value_index);
-          Handle<Object> elements = MaterializeAt(frame_index, value_index);
+          Handle<Object> properties = materializer.At(value_index);
+          Handle<Object> elements = materializer.At(value_index);
           object->set_properties(FixedArray::cast(*properties));
           object->set_elements(FixedArrayBase::cast(*elements));
           for (int i = 0; i < length - 3; ++i) {
-            Handle<Object> value = MaterializeAt(frame_index, value_index);
+            Handle<Object> value = materializer.At(value_index);
             FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
             object->FastPropertyAtPut(index, *value);
           }
@@ -3718,9 +3742,9 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           Handle<JSArray> object = Handle<JSArray>::cast(
               isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
           slot->value_ = object;
-          Handle<Object> properties = MaterializeAt(frame_index, value_index);
-          Handle<Object> elements = MaterializeAt(frame_index, value_index);
-          Handle<Object> length = MaterializeAt(frame_index, value_index);
+          Handle<Object> properties = materializer.At(value_index);
+          Handle<Object> elements = materializer.At(value_index);
+          Handle<Object> length = materializer.At(value_index);
           object->set_properties(FixedArray::cast(*properties));
           object->set_elements(FixedArrayBase::cast(*elements));
           object->set_length(*length);
@@ -3736,14 +3760,14 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
                   map, temporary_shared, isolate_->factory()->undefined_value(),
                   NOT_TENURED);
           slot->value_ = object;
-          Handle<Object> properties = MaterializeAt(frame_index, value_index);
-          Handle<Object> elements = MaterializeAt(frame_index, value_index);
-          Handle<Object> prototype = MaterializeAt(frame_index, value_index);
-          Handle<Object> shared = MaterializeAt(frame_index, value_index);
-          Handle<Object> context = MaterializeAt(frame_index, value_index);
-          Handle<Object> literals = MaterializeAt(frame_index, value_index);
-          Handle<Object> entry = MaterializeAt(frame_index, value_index);
-          Handle<Object> next_link = MaterializeAt(frame_index, value_index);
+          Handle<Object> properties = materializer.At(value_index);
+          Handle<Object> elements = materializer.At(value_index);
+          Handle<Object> prototype = materializer.At(value_index);
+          Handle<Object> shared = materializer.At(value_index);
+          Handle<Object> context = materializer.At(value_index);
+          Handle<Object> literals = materializer.At(value_index);
+          Handle<Object> entry = materializer.At(value_index);
+          Handle<Object> next_link = materializer.At(value_index);
           object->ReplaceCode(*isolate_->builtins()->CompileLazy());
           object->set_map(*map);
           object->set_properties(FixedArray::cast(*properties));
@@ -3763,10 +3787,10 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
                                   isolate_->factory()->undefined_string())
                   .ToHandleChecked());
           slot->value_ = object;
-          Handle<Object> hash = MaterializeAt(frame_index, value_index);
-          Handle<Object> length = MaterializeAt(frame_index, value_index);
-          Handle<Object> first = MaterializeAt(frame_index, value_index);
-          Handle<Object> second = MaterializeAt(frame_index, value_index);
+          Handle<Object> hash = materializer.At(value_index);
+          Handle<Object> length = materializer.At(value_index);
+          Handle<Object> first = materializer.At(value_index);
+          Handle<Object> second = materializer.At(value_index);
           object->set_map(*map);
           object->set_length(Smi::cast(*length)->value());
           object->set_first(String::cast(*first));
@@ -3780,14 +3804,14 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
                   isolate_->factory()->NewScopeInfo(1),
                   isolate_->factory()->undefined_value());
           slot->value_ = object;
-          Handle<Object> scope_info = MaterializeAt(frame_index, value_index);
-          Handle<Object> extension = MaterializeAt(frame_index, value_index);
+          Handle<Object> scope_info = materializer.At(value_index);
+          Handle<Object> extension = materializer.At(value_index);
           object->set_scope_info(ScopeInfo::cast(*scope_info));
           object->set_extension(*extension);
           return object;
         }
         case FIXED_ARRAY_TYPE: {
-          Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
+          Handle<Object> lengthObject = materializer.At(value_index);
           int32_t length = 0;
           CHECK(lengthObject->ToInt32(&length));
           Handle<FixedArray> object =
@@ -3798,14 +3822,14 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
           object->set_map(*map);
           slot->value_ = object;
           for (int i = 0; i < length; ++i) {
-            Handle<Object> value = MaterializeAt(frame_index, value_index);
+            Handle<Object> value = materializer.At(value_index);
             object->set(i, *value);
           }
           return object;
         }
         case FIXED_DOUBLE_ARRAY_TYPE: {
           DCHECK_EQ(*map, isolate_->heap()->fixed_double_array_map());
-          Handle<Object> lengthObject = MaterializeAt(frame_index, value_index);
+          Handle<Object> lengthObject = materializer.At(value_index);
           int32_t length = 0;
           CHECK(lengthObject->ToInt32(&length));
           Handle<FixedArrayBase> object =
@@ -3815,7 +3839,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
             Handle<FixedDoubleArray> double_array =
                 Handle<FixedDoubleArray>::cast(object);
             for (int i = 0; i < length; ++i) {
-              Handle<Object> value = MaterializeAt(frame_index, value_index);
+              Handle<Object> value = materializer.At(value_index);
               CHECK(value->IsNumber());
               double_array->set(i, value->Number());
             }
@@ -3863,6 +3887,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
 
 
 Handle<Object> TranslatedState::MaterializeObjectAt(int object_index) {
+  CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
   TranslatedState::ObjectPosition pos = object_positions_[object_index];
   return MaterializeAt(pos.frame_index_, &(pos.value_index_));
 }

@@ -15,7 +15,6 @@ namespace v8 {
 namespace internal {
 
 class CompilationInfo;
-enum class LazyCompilationMode;
 
 namespace interpreter {
 
@@ -23,7 +22,7 @@ class LoopBuilder;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
-  BytecodeGenerator(CompilationInfo* info, LazyCompilationMode mode);
+  explicit BytecodeGenerator(CompilationInfo* info);
 
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate);
@@ -54,7 +53,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   enum class TestFallthrough { kThen, kElse, kNone };
 
   void GenerateBytecodeBody();
-  void AllocateDeferredConstants();
+  void AllocateDeferredConstants(Isolate* isolate);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 
@@ -110,7 +109,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildReThrow();
   void BuildAbort(BailoutReason bailout_reason);
   void BuildThrowIfHole(Handle<String> name);
-  void BuildThrowIfNotHole(Handle<String> name);
   void BuildThrowReferenceError(Handle<String> name);
   void BuildHoleCheckForVariableAssignment(Variable* variable, Token::Value op);
 
@@ -130,10 +128,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitArgumentsObject(Variable* variable);
   void VisitRestArgumentsArray(Variable* rest);
   void VisitCallSuper(Call* call);
-  void VisitClassLiteralForRuntimeDefinition(ClassLiteral* expr);
-  void VisitClassLiteralProperties(ClassLiteral* expr, Register literal,
+  void VisitClassLiteralProperties(ClassLiteral* expr, Register constructor,
                                    Register prototype);
-  void BuildClassLiteralNameProperty(ClassLiteral* expr, Register literal);
+  void BuildClassLiteralNameProperty(ClassLiteral* expr, Register constructor);
   void VisitThisFunctionVariable(Variable* variable);
   void VisitNewTargetVariable(Variable* variable);
   void VisitBlockDeclarationsAndStatements(Block* stmt);
@@ -207,13 +204,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   BytecodeArrayBuilder* builder_;
   CompilationInfo* info_;
   DeclarationScope* scope_;
-  LazyCompilationMode compilation_mode_;
 
   GlobalDeclarationsBuilder* globals_builder_;
   ZoneVector<GlobalDeclarationsBuilder*> global_declarations_;
   ZoneVector<std::pair<FunctionLiteral*, size_t>> function_literals_;
   ZoneVector<std::pair<NativeFunctionLiteral*, size_t>>
       native_function_literals_;
+  ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
+  ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;

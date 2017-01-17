@@ -4,6 +4,8 @@
 
 #include "test/cctest/interpreter/interpreter-tester.h"
 
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace interpreter {

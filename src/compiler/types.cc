@@ -7,6 +7,7 @@
 #include "src/compiler/types.h"
 
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {
@@ -263,6 +264,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
+    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
       DCHECK(!map->is_callable());
       DCHECK(!map->is_undetectable());

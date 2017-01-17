@@ -30,20 +30,21 @@ TEST(Run_WasmInt8Const_i) {
   WasmRunner<int32_t> r(kExecuteInterpreted);
   const byte kExpectedValue = 109;
   // return(kExpectedValue)
-  BUILD(r, WASM_I8(kExpectedValue));
+  BUILD(r, WASM_I32V_2(kExpectedValue));
   CHECK_EQ(kExpectedValue, r.Call());
 }
 
 TEST(Run_WasmIfElse) {
   WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
-  BUILD(r, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I8(9), WASM_I8(10)));
+  BUILD(r, WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_I32V_1(9), WASM_I32V_1(10)));
   CHECK_EQ(10, r.Call(0));
   CHECK_EQ(9, r.Call(1));
 }
 
 TEST(Run_WasmIfReturn) {
   WasmRunner<int32_t, int32_t> r(kExecuteInterpreted);
-  BUILD(r, WASM_IF(WASM_GET_LOCAL(0), WASM_RETURN1(WASM_I8(77))), WASM_I8(65));
+  BUILD(r, WASM_IF(WASM_GET_LOCAL(0), WASM_RETURN1(WASM_I32V_2(77))),
+        WASM_I32V_2(65));
   CHECK_EQ(65, r.Call(0));
   CHECK_EQ(77, r.Call(1));
 }
@@ -54,7 +55,7 @@ TEST(Run_WasmNopsN) {
   for (int nops = 0; nops < kMaxNops; nops++) {
     byte expected = static_cast<byte>(20 + nops);
     memset(code, kExprNop, sizeof(code));
-    code[nops] = kExprI8Const;
+    code[nops] = kExprI32Const;
     code[nops + 1] = expected;
 
     WasmRunner<int32_t> r(kExecuteInterpreted);
@@ -64,13 +65,13 @@ TEST(Run_WasmNopsN) {
 }
 
 TEST(Run_WasmConstsN) {
-  const int kMaxConsts = 10;
+  const int kMaxConsts = 5;
   byte code[kMaxConsts * 3];
   int32_t expected = 0;
   for (int count = 1; count < kMaxConsts; count++) {
     for (int i = 0; i < count; i++) {
       byte val = static_cast<byte>(count * 10 + i);
-      code[i * 3] = kExprI8Const;
+      code[i * 3] = kExprI32Const;
       code[i * 3 + 1] = val;
       if (i == (count - 1)) {
         code[i * 3 + 2] = kExprNop;
@@ -95,7 +96,7 @@ TEST(Run_WasmBlocksN) {
     memset(code, kExprNop, sizeof(code));
     code[0] = kExprBlock;
     code[1] = kLocalI32;
-    code[2 + nops] = kExprI8Const;
+    code[2 + nops] = kExprI32Const;
     code[2 + nops + 1] = expected;
     code[2 + nops + 2] = kExprEnd;
 
@@ -108,6 +109,7 @@ TEST(Run_WasmBlocksN) {
 TEST(Run_WasmBlockBreakN) {
   const int kMaxNops = 10;
   const int kExtra = 6;
+  int run = 0;
   byte code[kMaxNops + kExtra];
   for (int nops = 0; nops < kMaxNops; nops++) {
     // Place the break anywhere within the block.
@@ -117,8 +119,8 @@ TEST(Run_WasmBlockBreakN) {
       code[1] = kLocalI32;
       code[sizeof(code) - 1] = kExprEnd;
 
-      int expected = nops * 11 + index;
-      code[2 + index + 0] = kExprI8Const;
+      int expected = run++;
+      code[2 + index + 0] = kExprI32Const;
       code[2 + index + 1] = static_cast<byte>(expected);
       code[2 + index + 2] = kExprBr;
       code[2 + index + 3] = 0;
@@ -133,10 +135,12 @@ TEST(Run_WasmBlockBreakN) {
 TEST(Run_Wasm_nested_ifs_i) {
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteInterpreted);
 
-  BUILD(r, WASM_IF_ELSE_I(
-               WASM_GET_LOCAL(0),
-               WASM_IF_ELSE_I(WASM_GET_LOCAL(1), WASM_I8(11), WASM_I8(12)),
-               WASM_IF_ELSE_I(WASM_GET_LOCAL(1), WASM_I8(13), WASM_I8(14))));
+  BUILD(
+      r,
+      WASM_IF_ELSE_I(
+          WASM_GET_LOCAL(0),
+          WASM_IF_ELSE_I(WASM_GET_LOCAL(1), WASM_I32V_1(11), WASM_I32V_1(12)),
+          WASM_IF_ELSE_I(WASM_GET_LOCAL(1), WASM_I32V_1(13), WASM_I32V_1(14))));
 
   CHECK_EQ(11, r.Call(1, 1));
   CHECK_EQ(12, r.Call(1, 0));
@@ -215,7 +219,7 @@ TEST(Breakpoint_I32Add) {
 }
 
 TEST(Step_I32Mul) {
-  static const int kTraceLength = 4;
+  static const int kTraceLength = 5;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
 
   WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteInterpreted);
@@ -293,10 +297,20 @@ TEST(Breakpoint_I32And_disable) {
 }
 
 TEST(GrowMemory) {
-  WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
-  r.module().AddMemory(WasmModule::kPageSize);
-  BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
-  CHECK_EQ(1, r.Call(1));
+  {
+    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
+    r.module().SetMaxMemPages(10);
+    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+    CHECK_EQ(1, r.Call(1));
+  }
+  {
+    WasmRunner<int32_t, uint32_t> r(kExecuteInterpreted);
+    r.module().AddMemory(WasmModule::kPageSize);
+    r.module().SetMaxMemPages(10);
+    BUILD(r, WASM_GROW_MEMORY(WASM_GET_LOCAL(0)));
+    CHECK_EQ(-1, r.Call(11));
+  }
 }
 
 TEST(GrowMemoryPreservesData) {

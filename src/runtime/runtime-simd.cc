@@ -160,7 +160,7 @@ inline float MaxNumber(float a, float b) {
 
 RUNTIME_FUNCTION(Runtime_IsSimdValue) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   return isolate->heap()->ToBoolean(args[0]->IsSimd128Value());
 }
 
@@ -194,7 +194,7 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 #define SIMD_UNARY_OP(type, lane_type, lane_count, op, result) \
   static const int kLaneCount = lane_count;                    \
-  DCHECK(args.length() == 1);                                  \
+  DCHECK_EQ(1, args.length());                                 \
   CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                   \
   lane_type lanes[kLaneCount];                                 \
   for (int i = 0; i < kLaneCount; i++) {                       \
@@ -204,7 +204,7 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 #define SIMD_BINARY_OP(type, lane_type, lane_count, op, result) \
   static const int kLaneCount = lane_count;                     \
-  DCHECK(args.length() == 2);                                   \
+  DCHECK_EQ(2, args.length());                                  \
   CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
   CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 1);                    \
   lane_type lanes[kLaneCount];                                  \
@@ -215,7 +215,7 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 
 #define SIMD_RELATIONAL_OP(type, bool_type, lane_count, a, b, op, result) \
   static const int kLaneCount = lane_count;                               \
-  DCHECK(args.length() == 2);                                             \
+  DCHECK_EQ(2, args.length());                                            \
   CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                              \
   CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 1);                              \
   bool lanes[kLaneCount];                                                 \
@@ -264,7 +264,7 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
 #define SIMD_EXTRACT_FUNCTION(type, lane_type, lane_count, extract, replace) \
   RUNTIME_FUNCTION(Runtime_##type##ExtractLane) {                            \
     HandleScope scope(isolate);                                              \
-    DCHECK(args.length() == 2);                                              \
+    DCHECK_EQ(2, args.length());                                             \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                               \
     CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, lane_count);                      \
     return *isolate->factory()->extract(a->get_lane(lane));                  \
@@ -274,7 +274,7 @@ RUNTIME_FUNCTION(Runtime_IsSimdValue) {
   RUNTIME_FUNCTION(Runtime_##type##ReplaceLane) {                            \
     static const int kLaneCount = lane_count;                                \
     HandleScope scope(isolate);                                              \
-    DCHECK(args.length() == 3);                                              \
+    DCHECK_EQ(3, args.length());                                             \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, simd, 0);                            \
     CONVERT_SIMD_LANE_ARG_CHECKED(lane, 1, kLaneCount);                      \
     lane_type lanes[kLaneCount];                                             \
@@ -422,7 +422,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   RUNTIME_FUNCTION(Runtime_##type##ShiftLeftByScalar) {           \
     static const int kLaneCount = lane_count;                     \
     HandleScope scope(isolate);                                   \
-    DCHECK(args.length() == 2);                                   \
+    DCHECK_EQ(2, args.length());                                  \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                    \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                          \
     lane_type lanes[kLaneCount] = {0};                            \
@@ -438,7 +438,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   RUNTIME_FUNCTION(Runtime_##type##ShiftRightByScalar) {                       \
     static const int kLaneCount = lane_count;                                  \
     HandleScope scope(isolate);                                                \
-    DCHECK(args.length() == 2);                                                \
+    DCHECK_EQ(2, args.length());                                               \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                                 \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                                       \
     lane_type lanes[kLaneCount] = {0};                                         \
@@ -455,7 +455,7 @@ SIMD_MAXNUM_FUNCTION(Float32x4, float, 4)
   RUNTIME_FUNCTION(Runtime_##type##ShiftRightByScalar) {               \
     static const int kLaneCount = lane_count;                          \
     HandleScope scope(isolate);                                        \
-    DCHECK(args.length() == 2);                                        \
+    DCHECK_EQ(2, args.length());                                       \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0);                         \
     CONVERT_SHIFT_ARG_CHECKED(shift, 1);                               \
     shift &= lane_bits - 1;                                            \
@@ -485,7 +485,7 @@ SIMD_UINT_TYPES(SIMD_LSR_FUNCTION)
 #define SIMD_ANY_FUNCTION(type, lane_count)    \
   RUNTIME_FUNCTION(Runtime_##type##AnyTrue) {  \
     HandleScope scope(isolate);                \
-    DCHECK(args.length() == 1);                \
+    DCHECK_EQ(1, args.length());               \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0); \
     bool result = false;                       \
     for (int i = 0; i < lane_count; i++) {     \
@@ -500,7 +500,7 @@ SIMD_UINT_TYPES(SIMD_LSR_FUNCTION)
 #define SIMD_ALL_FUNCTION(type, lane_count)    \
   RUNTIME_FUNCTION(Runtime_##type##AllTrue) {  \
     HandleScope scope(isolate);                \
-    DCHECK(args.length() == 1);                \
+    DCHECK_EQ(1, args.length());               \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 0); \
     bool result = true;                        \
     for (int i = 0; i < lane_count; i++) {     \
@@ -742,7 +742,7 @@ SIMD_LOGICAL_TYPES(SIMD_NOT_FUNCTION)
   RUNTIME_FUNCTION(Runtime_##type##Select) {                          \
     static const int kLaneCount = lane_count;                         \
     HandleScope scope(isolate);                                       \
-    DCHECK(args.length() == 3);                                       \
+    DCHECK_EQ(3, args.length());                                      \
     CONVERT_SIMD_ARG_HANDLE_THROW(bool_type, mask, 0);                \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 1);                        \
     CONVERT_SIMD_ARG_HANDLE_THROW(type, b, 2);                        \
@@ -795,7 +795,7 @@ SIMD_SIGNED_TYPES(SIMD_NEG_FUNCTION)
   RUNTIME_FUNCTION(Runtime_##type##From##from_type) {                          \
     static const int kLaneCount = lane_count;                                  \
     HandleScope scope(isolate);                                                \
-    DCHECK(args.length() == 1);                                                \
+    DCHECK_EQ(1, args.length());                                               \
     CONVERT_SIMD_ARG_HANDLE_THROW(from_type, a, 0);                            \
     lane_type lanes[kLaneCount];                                               \
     for (int i = 0; i < kLaneCount; i++) {                                     \
@@ -860,7 +860,7 @@ SIMD_FROM_TYPES(SIMD_FROM_FUNCTION)
   RUNTIME_FUNCTION(Runtime_##type##From##from_type##Bits) {             \
     static const int kLaneCount = lane_count;                           \
     HandleScope scope(isolate);                                         \
-    DCHECK(args.length() == 1);                                         \
+    DCHECK_EQ(1, args.length());                                        \
     CONVERT_SIMD_ARG_HANDLE_THROW(from_type, a, 0);                     \
     lane_type lanes[kLaneCount];                                        \
     a->CopyBits(lanes);                                                 \
@@ -896,7 +896,7 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 
 #define SIMD_LOAD(type, lane_type, lane_count, count, result)        \
   static const int kLaneCount = lane_count;                          \
-  DCHECK(args.length() == 2);                                        \
+  DCHECK_EQ(2, args.length());                                       \
   CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);            \
   SIMD_COERCE_INDEX(index, 1);                                       \
   size_t bpe = tarray->element_size();                               \
@@ -916,7 +916,7 @@ SIMD_FROM_BITS_TYPES(SIMD_FROM_BITS_FUNCTION)
 
 #define SIMD_STORE(type, lane_type, lane_count, count, a)            \
   static const int kLaneCount = lane_count;                          \
-  DCHECK(args.length() == 3);                                        \
+  DCHECK_EQ(3, args.length());                                       \
   CONVERT_SIMD_ARG_HANDLE_THROW(JSTypedArray, tarray, 0);            \
   CONVERT_SIMD_ARG_HANDLE_THROW(type, a, 2);                         \
   SIMD_COERCE_INDEX(index, 1);                                       \

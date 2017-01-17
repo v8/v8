@@ -25,6 +25,23 @@ function instance(bytes, imports = {}) {
   return new WebAssembly.Instance(module(bytes), imports);
 }
 
+// instantiate should succeed but run should fail.
+function instantiateAndFailAtRuntime(bytes, imports = {}) {
+  var instance = undefined;
+  try {
+    instance = new WebAssembly.Instance(module(bytes), imports);
+  } catch(e) {
+    // If we fail at startup.
+    if (e instanceof WebAssembly.RuntimeError) {
+      throw e;
+    }
+    // Swallow other instantiation errors because we expect instantiation
+    // to succeed but runtime to fail.
+    return;
+  }
+  instance.exports.run();
+}
+
 function builder() {
   return new WasmModuleBuilder;
 }
@@ -33,21 +50,23 @@ function assertCompileError(bytes) {
   assertThrows(() => module(bytes), WebAssembly.CompileError);
 }
 
+// default imports to {} so we get LinkError by default, thus allowing us to
+// distinguish the TypeError we want to catch
 function assertTypeError(bytes, imports = {}) {
   assertThrows(() => instance(bytes, imports), TypeError);
 }
 
-function assertLinkError(bytes, imports = {}) {
+function assertLinkError(bytes, imports) {
   assertThrows(() => instance(bytes, imports), WebAssembly.LinkError);
 }
 
-function assertRuntimeError(bytes, imports = {}) {
-  assertThrows(() => instance(bytes, imports).exports.run(),
+function assertRuntimeError(bytes, imports) {
+  assertThrows(() => instantiateAndFailAtRuntime(bytes, imports),
     WebAssembly.RuntimeError);
 }
 
-function assertConversionError(bytes, imports = {}) {
-  assertThrows(() => instance(bytes, imports).exports.run(), TypeError);
+function assertConversionError(bytes, imports) {
+  assertThrows(() => instantiateAndFailAtRuntime(bytes, imports), TypeError);
 }
 
 (function TestDecodingError() {
@@ -72,7 +91,7 @@ function assertConversionError(bytes, imports = {}) {
 
   b = builder();
   b.addImport("foo", "bar", kSig_v_v);
-  assertTypeError(b.toBuffer(), {});
+  assertLinkError(b.toBuffer(), {});
   b = builder();
   b.addImport("foo", "bar", kSig_v_v);
   assertLinkError(b.toBuffer(), {foo: {}});
@@ -82,7 +101,7 @@ function assertConversionError(bytes, imports = {}) {
 
   b = builder();
   b.addImportedGlobal("foo", "bar", kWasmI32);
-  assertTypeError(b.toBuffer(), {});
+  assertLinkError(b.toBuffer(), {});
   b = builder();
   b.addImportedGlobal("foo", "bar", kWasmI32);
   assertLinkError(b.toBuffer(), {foo: {}});
@@ -95,7 +114,7 @@ function assertConversionError(bytes, imports = {}) {
 
   b = builder();
   b.addImportedMemory("foo", "bar");
-  assertTypeError(b.toBuffer(), {});
+  assertLinkError(b.toBuffer(), {});
   b = builder();
   b.addImportedMemory("foo", "bar");
   assertLinkError(b.toBuffer(), {foo: {}});
@@ -105,7 +124,7 @@ function assertConversionError(bytes, imports = {}) {
       {foo: {bar: () => new WebAssembly.Memory({initial: 0})}});
 
   b = builder();
-  b.addFunction("f", kSig_v_v).addBody([
+  b.addFunction("startup", kSig_v_v).addBody([
     kExprUnreachable,
   ]).end().addStart(0);
   assertRuntimeError(b.toBuffer());
@@ -135,8 +154,9 @@ function assertConversionError(bytes, imports = {}) {
   b.addImport("foo", "bar", kSig_v_l);
   assertConversionError(b.addFunction("run", kSig_v_v).addBody([
     kExprI64Const, 0, kExprCallFunction, 0
-  ]).exportFunc().end().toBuffer());
+  ]).exportFunc().end().toBuffer(), {foo:{bar: (l)=>{}}});
 
+  b = builder()
   assertConversionError(builder().addFunction("run", kSig_l_v).addBody([
     kExprI64Const, 0
   ]).exportFunc().end().toBuffer());

@@ -28,8 +28,8 @@ namespace internal {
 
 class FullCodegenCompilationJob final : public CompilationJob {
  public:
-  FullCodegenCompilationJob(CompilationInfo* info, LazyCompilationMode mode)
-      : CompilationJob(info->isolate(), info, "Full-Codegen"), mode_(mode) {}
+  explicit FullCodegenCompilationJob(CompilationInfo* info)
+      : CompilationJob(info->isolate(), info, "Full-Codegen") {}
 
   bool can_execute_on_background_thread() const override { return false; }
 
@@ -37,26 +37,22 @@ class FullCodegenCompilationJob final : public CompilationJob {
 
   CompilationJob::Status ExecuteJobImpl() final {
     DCHECK(ThreadId::Current().Equals(isolate()->thread_id()));
-    return FullCodeGenerator::MakeCode(info(), stack_limit(), mode_) ? SUCCEEDED
-                                                                     : FAILED;
+    return FullCodeGenerator::MakeCode(info(), stack_limit()) ? SUCCEEDED
+                                                              : FAILED;
   }
 
   CompilationJob::Status FinalizeJobImpl() final { return SUCCEEDED; }
 
  private:
-  LazyCompilationMode mode_;
-
   DISALLOW_COPY_AND_ASSIGN(FullCodegenCompilationJob);
 };
 
 FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
                                      CompilationInfo* info,
-                                     uintptr_t stack_limit,
-                                     LazyCompilationMode mode)
+                                     uintptr_t stack_limit)
     : masm_(masm),
       info_(info),
       isolate_(info->isolate()),
-      compilation_mode_(mode),
       zone_(info->zone()),
       scope_(info->scope()),
       nesting_stack_(NULL),
@@ -77,20 +73,17 @@ FullCodeGenerator::FullCodeGenerator(MacroAssembler* masm,
 }
 
 // static
-CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info,
-                                                     LazyCompilationMode mode) {
-  return new FullCodegenCompilationJob(info, mode);
+CompilationJob* FullCodeGenerator::NewCompilationJob(CompilationInfo* info) {
+  return new FullCodegenCompilationJob(info);
 }
 
 // static
 bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
-  return MakeCode(info, info->isolate()->stack_guard()->real_climit(),
-                  LazyCompilationMode::kIfRequested);
+  return MakeCode(info, info->isolate()->stack_guard()->real_climit());
 }
 
 // static
-bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit,
-                                 LazyCompilationMode mode) {
+bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit) {
   Isolate* isolate = info->isolate();
 
   DCHECK(!info->shared_info()->must_use_ignition_turbo());
@@ -112,7 +105,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info, uintptr_t stack_limit,
                       CodeObjectRequired::kYes);
   if (info->will_serialize()) masm.enable_serializer();
 
-  FullCodeGenerator cgen(&masm, info, stack_limit, mode);
+  FullCodeGenerator cgen(&masm, info, stack_limit);
   cgen.Generate();
   if (cgen.HasStackOverflow()) {
     DCHECK(!isolate->has_pending_exception());
@@ -1023,7 +1016,11 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
 }
 
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
+                                       FeedbackVectorSlot slot,
                                        bool pretenure) {
+  // If slot is invalid, then it's a native function literal and we
+  // can pass the empty array or empty literal array, something like that...
+
   // If we're running with the --always-opt or the --prepare-always-opt
   // flag, we need to use the runtime function so that the new function
   // we are creating here gets a chance to have its code optimized and
@@ -1032,9 +1029,15 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       scope()->is_function_scope()) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
     __ Move(callable.descriptor().GetRegisterParameter(0), info);
+    __ EmitLoadTypeFeedbackVector(
+        callable.descriptor().GetRegisterParameter(1));
+    __ Move(callable.descriptor().GetRegisterParameter(2), SmiFromSlot(slot));
     __ Call(callable.code(), RelocInfo::CODE_TARGET);
   } else {
     __ Push(info);
+    __ EmitLoadTypeFeedbackVector(result_register());
+    __ Push(result_register());
+    __ Push(SmiFromSlot(slot));
     __ CallRuntime(pretenure ? Runtime::kNewClosure_Tenured
                              : Runtime::kNewClosure);
   }
@@ -1058,14 +1061,6 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   Handle<Code> code = CodeFactory::KeyedLoadIC(isolate()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
-}
-
-void FullCodeGenerator::EmitPropertyKey(LiteralProperty* property,
-                                        BailoutId bailout_id) {
-  VisitForStackValue(property->key());
-  CallRuntimeWithOperands(Runtime::kToName);
-  PrepareForBailoutForId(bailout_id, BailoutState::TOS_REGISTER);
-  PushOperand(result_register());
 }
 
 void FullCodeGenerator::EmitLoadSlot(Register destination,
@@ -1291,12 +1286,12 @@ void FullCodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 
   // Build the function boilerplate and instantiate it.
   Handle<SharedFunctionInfo> function_info =
-      Compiler::GetSharedFunctionInfo(expr, script(), info_, compilation_mode_);
+      Compiler::GetSharedFunctionInfo(expr, script(), info_);
   if (function_info.is_null()) {
     SetStackOverflow();
     return;
   }
-  EmitNewClosure(function_info, expr->pretenure());
+  EmitNewClosure(function_info, expr->LiteralFeedbackSlot(), expr->pretenure());
 }
 
 
@@ -1329,7 +1324,7 @@ void FullCodeGenerator::VisitNativeFunctionLiteral(
   Comment cmnt(masm_, "[ NativeFunctionLiteral");
   Handle<SharedFunctionInfo> shared =
       Compiler::GetSharedFunctionInfoForNative(expr->extension(), expr->name());
-  EmitNewClosure(shared, false);
+  EmitNewClosure(shared, expr->LiteralFeedbackSlot(), false);
 }
 
 

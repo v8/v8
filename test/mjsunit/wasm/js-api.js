@@ -22,8 +22,6 @@ function assertErrorMessage(func, type, msg) {
   assertThrows(func, type);
 }
 
-let PROP_FLAGS = false;  // property flags are implemented correctly
-
 let emptyModuleBinary = (() => {
   var builder = new WasmModuleBuilder();
   return new Int8Array(builder.toBuffer());
@@ -43,6 +41,26 @@ let importingModuleBinary = (() => {
   return new Int8Array(builder.toBuffer());
 })();
 
+let memoryImportingModuleBinary = (() => {
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("", "my_memory");
+  return new Int8Array(builder.toBuffer());
+})();
+
+let moduleBinaryImporting2Memories = (() => {
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("", "memory1");
+  builder.addImportedMemory("", "memory2");
+  return new Int8Array(builder.toBuffer());
+})();
+
+let moduleBinaryWithMemSectionAndMemImport = (() => {
+  var builder = new WasmModuleBuilder();
+  builder.addMemory(1, 1, false);
+  builder.addImportedMemory("", "memory1");
+  return new Int8Array(builder.toBuffer());
+})();
+
 // 'WebAssembly' data property on global object
 let wasmDesc = Object.getOwnPropertyDescriptor(this, 'WebAssembly');
 assertEq(typeof wasmDesc.value, "object");
@@ -52,7 +70,7 @@ assertEq(wasmDesc.configurable, true);
 
 // 'WebAssembly' object
 assertEq(WebAssembly, wasmDesc.value);
-//TODO assertEq(String(WebAssembly), "[object WebAssembly]");
+assertEq(String(WebAssembly), "[object WebAssembly]");
 
 // 'WebAssembly.CompileError'
 let compileErrorDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'CompileError');
@@ -122,22 +140,22 @@ assertErrorMessage(() => new Module(), TypeError, /requires more than 0 argument
 assertErrorMessage(() => new Module(undefined), TypeError, "first argument must be an ArrayBuffer or typed array object");
 assertErrorMessage(() => new Module(1), TypeError, "first argument must be an ArrayBuffer or typed array object");
 assertErrorMessage(() => new Module({}), TypeError, "first argument must be an ArrayBuffer or typed array object");
-//TODO assertErrorMessage(() => new Module(new Uint8Array()), CompileError, /failed to match magic number/);
-//TODO assertErrorMessage(() => new Module(new ArrayBuffer()), CompileError, /failed to match magic number/);
+assertErrorMessage(() => new Module(new Uint8Array()), CompileError, /failed to match magic number/);
+assertErrorMessage(() => new Module(new ArrayBuffer()), CompileError, /failed to match magic number/);
 assertEq(new Module(emptyModuleBinary) instanceof Module, true);
 assertEq(new Module(emptyModuleBinary.buffer) instanceof Module, true);
 
 // 'WebAssembly.Module.prototype' data property
 let moduleProtoDesc = Object.getOwnPropertyDescriptor(Module, 'prototype');
 assertEq(typeof moduleProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(moduleProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(moduleProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(moduleProtoDesc.configurable, false);
+assertEq(moduleProtoDesc.writable, false);
+assertEq(moduleProtoDesc.enumerable, false);
+assertEq(moduleProtoDesc.configurable, false);
 
 // 'WebAssembly.Module.prototype' object
 let moduleProto = Module.prototype;
 assertEq(moduleProto, moduleProtoDesc.value);
-assertEq(String(moduleProto), "[object Object]");
+assertEq(String(moduleProto), "[object WebAssembly.Module]");
 assertEq(Object.getPrototypeOf(moduleProto), Object.prototype);
 
 // 'WebAssembly.Module' instance objects
@@ -145,10 +163,9 @@ let emptyModule = new Module(emptyModuleBinary);
 let importingModule = new Module(importingModuleBinary);
 let exportingModule = new Module(exportingModuleBinary);
 assertEq(typeof emptyModule, "object");
-//TODO assertEq(String(emptyModule), "[object WebAssembly.Module]");
+assertEq(String(emptyModule), "[object WebAssembly.Module]");
 assertEq(Object.getPrototypeOf(emptyModule), moduleProto);
 
-if (false) { // TODO: Module.imports support
 // 'WebAssembly.Module.imports' data property
 let moduleImportsDesc = Object.getOwnPropertyDescriptor(Module, 'imports');
 assertEq(typeof moduleImportsDesc.value, "function");
@@ -162,10 +179,19 @@ assertEq(moduleImports.length, 1);
 assertErrorMessage(() => moduleImports(), TypeError, /requires more than 0 arguments/);
 assertErrorMessage(() => moduleImports(undefined), TypeError, /first argument must be a WebAssembly.Module/);
 assertErrorMessage(() => moduleImports({}), TypeError, /first argument must be a WebAssembly.Module/);
-var arr = moduleImports(new Module(wasmTextToBinary('(module)')));
+var arr = moduleImports(new Module(emptyModuleBinary));
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
-var arr = moduleImports(new Module(wasmTextToBinary('(module (func (import "a" "b")) (memory (import "c" "d") 1) (table (import "e" "f") 1 anyfunc) (global (import "g" "⚡") i32))')));
+let importingModuleBinary2 = (() => {
+  var text = '(module (func (import "a" "b")) (memory (import "c" "d") 1) (table (import "e" "f") 1 anyfunc) (global (import "g" "⚡") i32))'
+  let builder = new WasmModuleBuilder();
+  builder.addImport("a", "b", kSig_i_i);
+  builder.addImportedMemory("c", "d");
+  builder.addImportedTable("e", "f");
+  builder.addImportedGlobal("g", "x", kWasmI32);
+  return new Int8Array(builder.toBuffer());
+})();
+var arr = moduleImports(new Module(importingModuleBinary2));
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 4);
 assertEq(arr[0].kind, "function");
@@ -179,10 +205,8 @@ assertEq(arr[2].module, "e");
 assertEq(arr[2].name, "f");
 assertEq(arr[3].kind, "global");
 assertEq(arr[3].module, "g");
-assertEq(arr[3].name, "⚡");
-}
+assertEq(arr[3].name, "x");
 
-if (false) { // TODO: Module.exports property
 // 'WebAssembly.Module.exports' data property
 let moduleExportsDesc = Object.getOwnPropertyDescriptor(Module, 'exports');
 assertEq(typeof moduleExportsDesc.value, "function");
@@ -199,7 +223,22 @@ assertErrorMessage(() => moduleExports({}), TypeError, /first argument must be a
 var arr = moduleExports(emptyModule);
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 0);
-var arr = moduleExports(new Module(wasmTextToBinary('(module (func (export "a")) (memory (export "b") 1) (table (export "c") 1 anyfunc) (global (export "⚡") i32 (i32.const 0)))')));
+let exportingModuleBinary2 = (() => {
+  var text =
+  '(module (func (export "a")) (memory (export "b") 1) (table (export "c") 1 anyfunc) (global (export "⚡") i32 (i32.const 0)))';
+  let builder = new WasmModuleBuilder();
+  builder.addFunction("foo", kSig_v_v)
+    .addBody([])
+    .exportAs("a");
+  builder.addMemory(1, 1, false);
+  builder.exportMemoryAs("b");
+  builder.setFunctionTableLength(1);
+  builder.addExportOfKind("c", kExternalTable, 0);
+  var o = builder.addGlobal(kWasmI32, false)
+      .exportAs("x");
+  return new Int8Array(builder.toBuffer());
+})();
+var arr = moduleExports(new Module(exportingModuleBinary2));
 assertEq(arr instanceof Array, true);
 assertEq(arr.length, 4);
 assertEq(arr[0].kind, "function");
@@ -209,8 +248,7 @@ assertEq(arr[1].name, "b");
 assertEq(arr[2].kind, "table");
 assertEq(arr[2].name, "c");
 assertEq(arr[3].kind, "global");
-assertEq(arr[3].name, "⚡");
-}
+assertEq(arr[3].name, "x");
 
 // 'WebAssembly.Instance' data property
 let instanceDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Instance');
@@ -224,31 +262,37 @@ let Instance = WebAssembly.Instance;
 assertEq(Instance, instanceDesc.value);
 assertEq(Instance.length, 1);
 assertEq(Instance.name, "Instance");
+
 assertErrorMessage(() => Instance(), TypeError, /constructor without new is forbidden/);
 assertErrorMessage(() => new Instance(1), TypeError, "first argument must be a WebAssembly.Module");
 assertErrorMessage(() => new Instance({}), TypeError, "first argument must be a WebAssembly.Module");
-//TODO assertErrorMessage(() => new Instance(emptyModule, null), TypeError, "second argument must be an object");
-//TODO assertEq(new Instance(emptyModule) instanceof Instance, true);
-//TODO assertEq(new Instance(emptyModule, {}) instanceof Instance, true);
+assertErrorMessage(() => new Instance(emptyModule, null), TypeError, "second argument must be an object");
+assertErrorMessage(() => new Instance(importingModule, null), TypeError, "");
+assertErrorMessage(() => new Instance(importingModule, undefined), TypeError, "");
+assertErrorMessage(() => new Instance(importingModule, {"":{g:()=>{}}}), LinkError, "");
+assertErrorMessage(() => new Instance(importingModule, {t:{f:()=>{}}}), LinkError, "");
+
+assertEq(new Instance(emptyModule) instanceof Instance, true);
+assertEq(new Instance(emptyModule, {}) instanceof Instance, true);
 
 // 'WebAssembly.Instance.prototype' data property
 let instanceProtoDesc = Object.getOwnPropertyDescriptor(Instance, 'prototype');
 assertEq(typeof instanceProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(instanceProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(instanceProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(instanceProtoDesc.configurable, false);
+assertEq(instanceProtoDesc.writable, false);
+assertEq(instanceProtoDesc.enumerable, false);
+assertEq(instanceProtoDesc.configurable, false);
 
 // 'WebAssembly.Instance.prototype' object
 let instanceProto = Instance.prototype;
 assertEq(instanceProto, instanceProtoDesc.value);
-assertEq(String(instanceProto), "[object Object]");
+assertEq(String(instanceProto), "[object WebAssembly.Instance]");
 assertEq(Object.getPrototypeOf(instanceProto), Object.prototype);
 
 // 'WebAssembly.Instance' instance objects
 let exportingInstance = new Instance(exportingModule);
 assertEq(typeof exportingInstance, "object");
-//TODO:name assertEq(String(exportingInstance), "[object WebAssembly.Instance]");
-//TODO assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
+assertEq(String(exportingInstance), "[object WebAssembly.Instance]");
+assertEq(Object.getPrototypeOf(exportingInstance), instanceProto);
 
 // 'WebAssembly.Instance' 'exports' data property
 let instanceExportsDesc = Object.getOwnPropertyDescriptor(exportingInstance, 'exports');
@@ -291,20 +335,20 @@ assertEq(new Memory({initial:1.5}).buffer.byteLength, kPageSize);
 // 'WebAssembly.Memory.prototype' data property
 let memoryProtoDesc = Object.getOwnPropertyDescriptor(Memory, 'prototype');
 assertEq(typeof memoryProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(memoryProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(memoryProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(memoryProtoDesc.configurable, false);
+assertEq(memoryProtoDesc.writable, false);
+assertEq(memoryProtoDesc.enumerable, false);
+assertEq(memoryProtoDesc.configurable, false);
 
 // 'WebAssembly.Memory.prototype' object
 let memoryProto = Memory.prototype;
 assertEq(memoryProto, memoryProtoDesc.value);
-assertEq(String(memoryProto), "[object Object]");
+assertEq(String(memoryProto), "[object WebAssembly.Memory]");
 assertEq(Object.getPrototypeOf(memoryProto), Object.prototype);
 
 // 'WebAssembly.Memory' instance objects
 let mem1 = new Memory({initial:1});
 assertEq(typeof mem1, "object");
-//TODO assertEq(String(mem1), "[object WebAssembly.Memory]");
+assertEq(String(mem1), "[object WebAssembly.Memory]");
 assertEq(Object.getPrototypeOf(mem1), memoryProto);
 
 // 'WebAssembly.Memory.prototype.buffer' accessor property
@@ -383,20 +427,20 @@ assertEq(new Table({initial:1, maximum:1.5, element:"anyfunc"}) instanceof Table
 // 'WebAssembly.Table.prototype' data property
 let tableProtoDesc = Object.getOwnPropertyDescriptor(Table, 'prototype');
 assertEq(typeof tableProtoDesc.value, "object");
-if (PROP_FLAGS) assertEq(tableProtoDesc.writable, false);
-if (PROP_FLAGS) assertEq(tableProtoDesc.enumerable, false);
-if (PROP_FLAGS) assertEq(tableProtoDesc.configurable, false);
+assertEq(tableProtoDesc.writable, false);
+assertEq(tableProtoDesc.enumerable, false);
+assertEq(tableProtoDesc.configurable, false);
 
 // 'WebAssembly.Table.prototype' object
 let tableProto = Table.prototype;
 assertEq(tableProto, tableProtoDesc.value);
-assertEq(String(tableProto), "[object Object]");
+assertEq(String(tableProto), "[object WebAssembly.Table]");
 assertEq(Object.getPrototypeOf(tableProto), Object.prototype);
 
 // 'WebAssembly.Table' instance objects
 let tbl1 = new Table({initial:2, element:"anyfunc"});
 assertEq(typeof tbl1, "object");
-//TODO:name assertEq(String(tbl1), "[object WebAssembly.Table]");
+assertEq(String(tbl1), "[object WebAssembly.Table]");
 assertEq(Object.getPrototypeOf(tbl1), tableProto);
 
 // 'WebAssembly.Table.prototype.length' accessor data property
@@ -464,7 +508,6 @@ assertEq(tblGrowDesc.enumerable, false);
 assertEq(tblGrowDesc.configurable, true);
 
 // 'WebAssembly.Table.prototype.grow' method
-if (false) { // TODO: Table.grow
 let tblGrow = tblGrowDesc.value;
 assertEq(tblGrow.length, 1);
 assertErrorMessage(() => tblGrow.call(), TypeError, /called on incompatible undefined/);
@@ -478,7 +521,14 @@ assertEq(tbl.length, 1);
 assertEq(tbl.grow(1), 1);
 assertEq(tbl.length, 2);
 assertErrorMessage(() => tbl.grow(1), Error, /failed to grow table/);
-}
+
+// 'WebAssembly.validate' function
+assertErrorMessage(() => WebAssembly.validate(), TypeError);
+assertErrorMessage(() => WebAssembly.validate("hi"), TypeError);
+assertEq(WebAssembly.validate(emptyModuleBinary), true);
+// TODO: other ways for validate to return false.
+assertEq(WebAssembly.validate(moduleBinaryImporting2Memories), false);
+assertEq(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport), false);
 
 // 'WebAssembly.compile' data property
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');
@@ -506,11 +556,14 @@ function assertCompileError(args, err, msg) {
 //TODO  assertEq(Boolean(error.message.match(msg)), true);
 }
 assertCompileError([], TypeError, /requires more than 0 arguments/);
-//TODO assertCompileError([undefined], TypeError, /first argument must be an ArrayBuffer or typed array object/);
-//TODO assertCompileError([1], TypeError, /first argument must be an ArrayBuffer or typed array object/);
-//TODO assertCompileError([{}], TypeError, /first argument must be an ArrayBuffer or typed array object/);
-//TODO assertCompileError([new Uint8Array()], CompileError, /failed to match magic number/);
-//TODO assertCompileError([new ArrayBuffer()], CompileError, /failed to match magic number/);
+assertCompileError([undefined], TypeError, /first argument must be an ArrayBuffer or typed array object/);
+assertCompileError([1], TypeError, /first argument must be an ArrayBuffer or typed array object/);
+assertCompileError([{}], TypeError, /first argument must be an ArrayBuffer or typed array object/);
+assertCompileError([new Uint8Array()], CompileError, /BufferSource argument is empty/);
+assertCompileError([new ArrayBuffer()], CompileError, /BufferSource argument is empty/);
+assertCompileError([new Uint8Array("hi!")], CompileError, /failed to match magic number/);
+assertCompileError([new ArrayBuffer("hi!")], CompileError, /failed to match magic number/);
+
 function assertCompileSuccess(bytes) {
     var module = null;
     compile(bytes).then(m => module = m);
@@ -520,55 +573,59 @@ function assertCompileSuccess(bytes) {
 assertCompileSuccess(emptyModuleBinary);
 assertCompileSuccess(emptyModuleBinary.buffer);
 
-if (false) {  // TODO: implement WebAssembly.instantiate
-  // 'WebAssembly.instantiate' data property
-  let instantiateDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'instantiate');
-  assertEq(typeof instantiateDesc.value, "function");
-  assertEq(instantiateDesc.writable, true);
-  assertEq(instantiateDesc.enumerable, false);
-  assertEq(instantiateDesc.configurable, true);
+// 'WebAssembly.instantiate' data property
+let instantiateDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'instantiate');
+assertEq(typeof instantiateDesc.value, "function");
+assertEq(instantiateDesc.writable, true);
+assertEq(instantiateDesc.enumerable, false);
+assertEq(instantiateDesc.configurable, true);
 
-  // 'WebAssembly.instantiate' function
-  let instantiate = WebAssembly.instantiate;
-  assertEq(instantiate, instantiateDesc.value);
-  assertEq(instantiate.length, 2);
-  assertEq(instantiate.name, "instantiate");
-  function assertInstantiateError(args, err, msg) {
-    var error = null;
-    try {
-      instantiate(...args).catch(e => error = e);
-    } catch(e) {
-      error = e;
-    }
-    drainJobQueue();
-    assertEq(error instanceof err, true);
-    assertEq(Boolean(error.stack.match("jsapi.js")), true);
-    assertEq(Boolean(error.message.match(msg)), true);
-  }
-  assertInstantiateError([], TypeError, /requires more than 0 arguments/);
-  assertInstantiateError([undefined], TypeError, /first argument must be a WebAssembly.Module, ArrayBuffer or typed array object/);
-  assertInstantiateError([1], TypeError, /first argument must be a WebAssembly.Module, ArrayBuffer or typed array object/);
-  assertInstantiateError([{}], TypeError, /first argument must be a WebAssembly.Module, ArrayBuffer or typed array object/);
-  assertInstantiateError([new Uint8Array()], CompileError, /failed to match magic number/);
-  assertInstantiateError([new ArrayBuffer()], CompileError, /failed to match magic number/);
-  assertInstantiateError([importingModule], TypeError, /second argument must be an object/);
-  assertInstantiateError([importingModule, null], TypeError, /second argument must be an object/);
-  assertInstantiateError([importingModuleBinary, null], TypeError, /second argument must be an object/);
-  function assertInstantiateSuccess(module, imports) {
-    var result = null;
-    instantiate(module, imports).then(r => result = r);
-    drainJobQueue();
-    if (module instanceof Module) {
-      assertEq(result instanceof Instance, true);
-    } else {
-      assertEq(result.module instanceof Module, true);
-      assertEq(result.instance instanceof Instance, true);
-    }
-  }
-  assertInstantiateSuccess(emptyModule);
-  assertInstantiateSuccess(emptyModuleBinary);
-  assertInstantiateSuccess(emptyModuleBinary.buffer);
-  assertInstantiateSuccess(importingModule, {"":{f:()=>{}}});
-  assertInstantiateSuccess(importingModuleBinary, {"":{f:()=>{}}});
-  assertInstantiateSuccess(importingModuleBinary.buffer, {"":{f:()=>{}}});
+// 'WebAssembly.instantiate' function
+let instantiate = WebAssembly.instantiate;
+assertEq(instantiate, instantiateDesc.value);
+assertEq(instantiate.length, 1);
+assertEq(instantiate.name, "instantiate");
+function assertInstantiateError(args, err, msg) {
+  var error = null;
+  instantiate(...args).catch(e => error = e);
+  drainJobQueue();
+  assertEq(error instanceof err, true);
+  assertEq(Boolean(error.stack.match("js-api.js")), true);
+  //TODO assertEq(Boolean(error.message.match(msg)), true);
 }
+var scratch_memory = new WebAssembly.Memory(new ArrayBuffer(10));
+assertInstantiateError([], TypeError, /requires more than 0 arguments/);
+assertInstantiateError([undefined], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([1], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([{}], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([new Uint8Array()], CompileError, /failed to match magic number/);
+assertInstantiateError([new ArrayBuffer()], CompileError, /failed to match magic number/);
+assertInstantiateError([new Uint8Array("hi!")], CompileError, /failed to match magic number/);
+assertInstantiateError([new ArrayBuffer("hi!")], CompileError, /failed to match magic number/);
+assertInstantiateError([importingModule], TypeError, /second argument must be an object/);
+assertInstantiateError([importingModule, null], TypeError, /second argument must be an object/);
+assertInstantiateError([importingModuleBinary, null], TypeError, /second argument must be an object/);
+assertInstantiateError([emptyModule, null], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([importingModule, {"":{f:()=>{}}}], TypeError, /first argument must be a BufferSource/);
+assertInstantiateError([importingModuleBinary, null], TypeError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, undefined], TypeError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, {}], LinkError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, {"":{g:()=>{}}}], LinkError, /TODO: error messages?/);
+assertInstantiateError([importingModuleBinary, {t:{f:()=>{}}}], LinkError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, null], TypeError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, undefined], TypeError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, {}], LinkError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, {"mod": {"my_memory": scratch_memory}}], LinkError, /TODO: error messages?/);
+assertInstantiateError([memoryImportingModuleBinary, {"": {"memory": scratch_memory}}], LinkError, /TODO: error messages?/);
+
+function assertInstantiateSuccess(module_bytes, imports) {
+  var result = null;
+  instantiate(module_bytes, imports).then(r => result = r).catch(e => print(e));
+  drainJobQueue();
+  assertEq(result instanceof Instance, true);
+}
+assertInstantiateSuccess(emptyModuleBinary);
+assertInstantiateSuccess(emptyModuleBinary.buffer);
+assertInstantiateSuccess(importingModuleBinary, {"":{f:()=>{}}});
+assertInstantiateSuccess(importingModuleBinary.buffer, {"":{f:()=>{}}});
+assertInstantiateSuccess(memoryImportingModuleBinary, {"": {"my_memory": scratch_memory}});

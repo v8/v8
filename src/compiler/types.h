@@ -173,6 +173,8 @@ namespace compiler {
   V(StringOrReceiver,           kString | kReceiver) \
   V(Unique,                     kBoolean | kUniqueName | kNull | kUndefined | \
                                 kReceiver) \
+  V(NonStringUniqueOrHole,      kBoolean | kHole | kNull | kReceiver | \
+                                kSymbol | kUndefined) \
   V(Internal,                   kHole | kExternalPointer | kOtherInternal) \
   V(NonInternal,                kPrimitive | kReceiver) \
   V(NonNumber,                  kUnique | kString | kInternal) \

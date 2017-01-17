@@ -231,14 +231,14 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
 
   const Operator* op = common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
-  const Operator* op0 = common()->StateValues(0);
+  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   NodeVector params(local_zone_);
   for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
     params.push_back(node->InputAt(1 + parameter));
   }
-  const Operator* op_param =
-      common()->StateValues(static_cast<int>(params.size()));
+  const Operator* op_param = common()->StateValues(
+      static_cast<int>(params.size()), SparseInputMask::Dense());
   Node* params_node = graph()->NewNode(
       op_param, static_cast<int>(params.size()), &params.front());
   return graph()->NewNode(op, params_node, node0, node0,
@@ -269,7 +269,7 @@ Node* JSInliner::CreateTailCallerFrameState(Node* node, Node* frame_state) {
 
   const Operator* op = common()->FrameState(
       BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
-  const Operator* op0 = common()->StateValues(0);
+  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   return graph()->NewNode(op, node0, node0, node0,
                           jsgraph()->UndefinedConstant(), function,
@@ -307,11 +307,10 @@ bool NeedsConvertReceiver(Node* receiver, Node* effect) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
         IsSame(dominator->InputAt(0), receiver)) {
       // Check if all maps have the given {instance_type}.
-      for (int i = 1; i < dominator->op()->ValueInputCount(); ++i) {
-        HeapObjectMatcher m(NodeProperties::GetValueInput(dominator, i));
-        if (!m.HasValue()) return true;
-        Handle<Map> const map = Handle<Map>::cast(m.Value());
-        if (!map->IsJSReceiverMap()) return true;
+      ZoneHandleSet<Map> const& maps =
+          CheckMapsParametersOf(dominator->op()).maps();
+      for (size_t i = 0; i < maps.size(); ++i) {
+        if (!maps[i]->IsJSReceiverMap()) return true;
       }
       return false;
     }
@@ -490,7 +489,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   Zone zone(info_->isolate()->allocator(), ZONE_NAME);
   ParseInfo parse_info(&zone, shared_info);
-  CompilationInfo info(&parse_info, function);
+  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
 
@@ -527,9 +526,10 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
-    BytecodeGraphBuilder graph_builder(&zone, &info, jsgraph(),
-                                       call.frequency(), source_positions_,
-                                       inlining_id);
+    BytecodeGraphBuilder graph_builder(
+        &zone, shared_info, handle(function->feedback_vector()),
+        BailoutId::None(), jsgraph(), call.frequency(), source_positions_,
+        inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.

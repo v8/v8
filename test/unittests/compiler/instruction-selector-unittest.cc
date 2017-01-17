@@ -364,10 +364,13 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       zone(), false, 1, CallDescriptor::kNeedsFrameState);
 
   // Build frame state for the state before the call.
-  Node* parameters =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(1));
-  Node* locals = m.AddNode(m.common()->TypedStateValues(&empty_types));
-  Node* stack = m.AddNode(m.common()->TypedStateValues(&empty_types));
+  Node* parameters = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(1));
+  Node* locals = m.AddNode(
+      m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
+  Node* stack = m.AddNode(
+      m.common()->TypedStateValues(&empty_types, SparseInputMask::Dense()));
   Node* context_sentinel = m.Int32Constant(0);
   Node* state_node = m.AddNode(
       m.common()->FrameState(bailout_id, OutputFrameStateCombine::Push(),
@@ -419,12 +422,15 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
   // Build frame state for the state before the call.
-  Node* parameters =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(43));
-  Node* locals = m.AddNode(m.common()->TypedStateValues(&float64_type),
-                           m.Float64Constant(0.5));
-  Node* stack = m.AddNode(m.common()->TypedStateValues(&tagged_type),
-                          m.UndefinedConstant());
+  Node* parameters = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(43));
+  Node* locals = m.AddNode(
+      m.common()->TypedStateValues(&float64_type, SparseInputMask::Dense()),
+      m.Float64Constant(0.5));
+  Node* stack = m.AddNode(
+      m.common()->TypedStateValues(&tagged_type, SparseInputMask::Dense()),
+      m.UndefinedConstant());
   Node* context_sentinel = m.Int32Constant(0);
   Node* state_node = m.AddNode(
       m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
@@ -512,24 +518,30 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
   // Build frame state for the state before the call.
-  Node* parameters =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(63));
-  Node* locals =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(64));
-  Node* stack =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(65));
+  Node* parameters = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(63));
+  Node* locals = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(64));
+  Node* stack = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(65));
   Node* frame_state_parent = m.AddNode(
       m.common()->FrameState(bailout_id_parent,
                              OutputFrameStateCombine::Ignore(),
                              m.GetFrameStateFunctionInfo(1, 1)),
       parameters, locals, stack, context, function_node, m.UndefinedConstant());
 
-  Node* parameters2 =
-      m.AddNode(m.common()->TypedStateValues(&int32_type), m.Int32Constant(43));
-  Node* locals2 = m.AddNode(m.common()->TypedStateValues(&float64_type),
-                            m.Float64Constant(0.25));
-  Node* stack2 = m.AddNode(m.common()->TypedStateValues(&int32x2_type),
-                           m.Int32Constant(44), m.Int32Constant(45));
+  Node* parameters2 = m.AddNode(
+      m.common()->TypedStateValues(&int32_type, SparseInputMask::Dense()),
+      m.Int32Constant(43));
+  Node* locals2 = m.AddNode(
+      m.common()->TypedStateValues(&float64_type, SparseInputMask::Dense()),
+      m.Float64Constant(0.25));
+  Node* stack2 = m.AddNode(
+      m.common()->TypedStateValues(&int32x2_type, SparseInputMask::Dense()),
+      m.Int32Constant(44), m.Int32Constant(45));
   Node* state_node = m.AddNode(
       m.common()->FrameState(bailout_id_before, OutputFrameStateCombine::Push(),
                              m.GetFrameStateFunctionInfo(1, 1)),

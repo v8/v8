@@ -46,6 +46,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
 
   // Provides access to JSObject inobject property fields.
   static FieldAccess ForJSObjectInObjectProperty(Handle<Map> map, int index);
+  static FieldAccess ForJSObjectOffset(
+      int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
@@ -221,7 +223,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForArgumentsCallee();
 
   // Provides access to FixedArray slots.
-  static FieldAccess ForFixedArraySlot(size_t index);
+  static FieldAccess ForFixedArraySlot(
+      size_t index, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
   // Provides access to Context slots.
   static FieldAccess ForContextSlot(size_t index);
@@ -240,6 +243,15 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,
                                             bool is_external);
+
+  // Provides access to HashTable fields.
+  static FieldAccess ForHashTableBaseNumberOfElements();
+  static FieldAccess ForHashTableBaseNumberOfDeletedElement();
+  static FieldAccess ForHashTableBaseCapacity();
+
+  // Provides access to Dictionary fields.
+  static FieldAccess ForDictionaryMaxNumberKey();
+  static FieldAccess ForDictionaryNextEnumerationIndex();
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessBuilder);

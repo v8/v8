@@ -264,6 +264,10 @@ void JSGenericLowering::LowerJSStoreGlobal(Node* node) {
 }
 
 void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
+  DataPropertyParameters const& p = DataPropertyParametersOf(node->op());
+  node->InsertInputs(zone(), 4, 2);
+  node->ReplaceInput(4, jsgraph()->HeapConstant(p.feedback().vector()));
+  node->ReplaceInput(5, jsgraph()->SmiConstant(p.feedback().index()));
   ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
 }
 
@@ -349,8 +353,14 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   // space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable = CodeFactory::FastNewClosure(isolate());
+    node->InsertInput(zone(), 1,
+                      jsgraph()->HeapConstant(p.feedback().vector()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
     ReplaceWithStubCall(node, callable, flags);
   } else {
+    node->InsertInput(zone(), 1,
+                      jsgraph()->HeapConstant(p.feedback().vector()));
+    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
     ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
                                      ? Runtime::kNewClosure_Tenured
                                      : Runtime::kNewClosure);

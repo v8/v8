@@ -145,5 +145,13 @@ Error.prepareStackTrace = function(error, frames) {
     fail("expected wasm exception");
   } catch (e) {
     assertEquals("Maximum call stack size exceeded", e.message, "trap reason");
+    assertTrue(e.stack.length >= 4, "expected at least 4 stack entries");
+    verifyStack(e.stack.splice(0, 4), [
+        // isWasm     function  line  pos  file
+        [    true, "recursion",    0,   0, null],
+        [    true, "recursion",    0,   3, null],
+        [    true, "recursion",    0,   3, null],
+        [    true, "recursion",    0,   3, null]
+    ]);
   }
 })();

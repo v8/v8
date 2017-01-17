@@ -16,6 +16,7 @@
 #include "src/base/platform/platform.h"
 #include "src/char-predicates-inl.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/parsing/duplicate-finder.h"
 #include "src/parsing/parameter-initializer-rewriter.h"
 #include "src/parsing/parse-info.h"
@@ -172,7 +173,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   const int parameter_count = 0;
   if (name == nullptr) name = ast_value_factory()->empty_string();
 
-  FunctionKind kind = call_super ? FunctionKind::kDefaultSubclassConstructor
+  FunctionKind kind = call_super ? FunctionKind::kDefaultDerivedConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
   DeclarationScope* function_scope = NewFunctionScope(kind);
   SetLanguageMode(function_scope, STRICT);
@@ -548,10 +549,10 @@ Parser::Parser(ParseInfo* info)
                       info->isolate()->is_tail_call_elimination_enabled());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
-  set_allow_harmony_async_await(FLAG_harmony_async_await);
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
+  set_allow_harmony_object_spread(FLAG_harmony_object_spread);
   set_allow_harmony_types(FLAG_harmony_types);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -854,7 +855,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
     bool ok = true;
 
     if (IsArrowFunction(kind)) {
-      if (allow_harmony_async_await() && IsAsyncFunction(kind)) {
+      if (IsAsyncFunction(kind)) {
         DCHECK(!scanner()->HasAnyLineTerminatorAfterNext());
         if (!Check(Token::ASYNC)) {
           CHECK(stack_overflow());
@@ -942,8 +943,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       }
     } else if (IsDefaultConstructor(kind)) {
       DCHECK_EQ(scope(), outer);
-      bool is_subclass_constructor = IsSubclassConstructor(kind);
-      result = DefaultConstructor(raw_name, is_subclass_constructor,
+      result = DefaultConstructor(raw_name, IsDerivedConstructor(kind),
                                   info->start_position(), info->end_position());
     } else {
       result = ParseFunctionLiteral(
@@ -1278,7 +1278,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       break;
 
     case Token::ASYNC:
-      if (allow_harmony_async_await() && PeekAhead() == Token::FUNCTION &&
+      if (PeekAhead() == Token::FUNCTION &&
           !scanner()->HasAnyLineTerminatorAfterNext()) {
         Consume(Token::ASYNC);
         result = ParseAsyncFunctionDeclaration(&local_names, true, ambient,
@@ -1433,15 +1433,11 @@ Statement* Parser::ParseExportDeclaration(bool* ok) {
       break;
 
     case Token::ASYNC:
-      if (allow_harmony_async_await()) {
-        // TODO(neis): Why don't we have the same check here as in
-        // ParseStatementListItem?
-        Consume(Token::ASYNC);
-        result =
-            ParseAsyncFunctionDeclaration(&names, false, ambient, CHECK_OK);
-        break;
-      }
-    /* falls through */
+      // TODO(neis): Why don't we have the same check here as in
+      // ParseStatementListItem?
+      Consume(Token::ASYNC);
+      result = ParseAsyncFunctionDeclaration(&names, false, ambient, CHECK_OK);
+      break;
 
     default:
       *ok = false;
@@ -1547,15 +1543,11 @@ void Parser::DeclareAndInitializeVariables(
 }
 
 Statement* Parser::DeclareFunction(const AstRawString* variable_name,
-                                   FunctionLiteral* function, int pos,
-                                   bool is_generator, bool is_async,
+                                   FunctionLiteral* function, VariableMode mode,
+                                   int pos, bool is_generator, bool is_async,
+                                   bool is_sloppy_block_function,
                                    ZoneList<const AstRawString*>* names,
                                    bool* ok) {
-  // In ES6, a function behaves as a lexical binding, except in
-  // a script scope, or the initial scope of eval or another function.
-  VariableMode mode =
-      (!scope()->is_declaration_scope() || scope()->is_module_scope()) ? LET
-                                                                       : VAR;
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
   Declaration* declaration =
@@ -1563,18 +1555,12 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
           CHECK_OK);
   if (names) names->Add(variable_name, zone());
-  // Async functions don't undergo sloppy mode block scoped hoisting, and don't
-  // allow duplicates in a block. Both are represented by the
-  // sloppy_block_function_map. Don't add them to the map for async functions.
-  // Generators are also supposed to be prohibited; currently doing this behind
-  // a flag and UseCounting violations to assess web compatibility.
-  if (is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
-      !is_async && !(allow_harmony_restrictive_generators() && is_generator)) {
-    SloppyBlockFunctionStatement* delegate =
-        factory()->NewSloppyBlockFunctionStatement(scope());
+  if (is_sloppy_block_function) {
+    SloppyBlockFunctionStatement* statement =
+        factory()->NewSloppyBlockFunctionStatement();
     DeclarationScope* target_scope = GetDeclarationScope();
-    target_scope->DeclareSloppyBlockFunction(variable_name, delegate);
-    return delegate;
+    target_scope->DeclareSloppyBlockFunction(variable_name, scope(), statement);
+    return statement;
   }
   return factory()->NewEmptyStatement(kNoSourcePosition);
 }
@@ -1650,7 +1636,7 @@ bool Parser::ContainsLabel(ZoneList<const AstRawString*>* labels,
 }
 
 Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
-  if (IsSubclassConstructor(function_state_->kind())) {
+  if (IsDerivedConstructor(function_state_->kind())) {
     // For subclass constructors we need to return this in case of undefined
     // return a Smi (transformed into an exception in the ConstructStub)
     // for a non object.
@@ -1964,6 +1950,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
                                               Block** body_block,
                                               Expression** each_variable,
                                               bool* ok) {
+  DCHECK(for_info->parsing_result.declarations.length() == 1);
   DeclarationParsingResult::Declaration& decl =
       for_info->parsing_result.declarations[0];
   Variable* temp = NewTemporary(ast_value_factory()->dot_for_string());
@@ -2845,9 +2832,9 @@ Parser::LazyParsingResult Parser::SkipFunction(
     SET_ALLOW(natives);
     SET_ALLOW(harmony_do_expressions);
     SET_ALLOW(harmony_function_sent);
-    SET_ALLOW(harmony_async_await);
     SET_ALLOW(harmony_trailing_commas);
     SET_ALLOW(harmony_class_fields);
+    SET_ALLOW(harmony_object_spread);
     SET_ALLOW(harmony_types);
 #undef SET_ALLOW
   }
@@ -2940,6 +2927,7 @@ class InitializerRewriter final
     if (to_rewrite->is_rewritten()) return;
     Parser::PatternRewriter::RewriteDestructuringAssignment(parser_, to_rewrite,
                                                             scope_);
+    AstTraversalVisitor::VisitRewritableExpression(to_rewrite);
   }
 
   // Code in function literals does not need to be eagerly rewritten, it will be
@@ -3314,7 +3302,7 @@ ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
       ParseStatementList(body, Token::RBRACE, CHECK_OK);
     }
 
-    if (IsSubclassConstructor(kind)) {
+    if (IsDerivedConstructor(kind)) {
       body->Add(factory()->NewReturnStatement(ThisExpression(kNoSourcePosition),
                                               kNoSourcePosition),
                 zone());

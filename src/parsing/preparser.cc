@@ -164,6 +164,10 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
   DCHECK_NE(result, kLazyParsingSignature);
 
+  if (is_sloppy(function_scope->language_mode())) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
   use_counts_ = nullptr;
   track_unresolved_variables_ = false;
 
@@ -276,6 +280,10 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
 
+  if (is_sloppy(language_mode)) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
   // Validate name and parameter names. We can do this only after parsing the
   // function, since the function can declare itself strict.
   CheckFunctionName(language_mode, function_name, function_name_validity,
@@ -341,26 +349,12 @@ void PreParser::DeclareAndInitializeVariables(
     ZoneList<const AstRawString*>* names, bool* ok) {
   if (declaration->pattern.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
-    /* Mimic what Parser does when declaring variables (see
-       Parser::PatternRewriter::VisitVariableProxy).
-
-       var + no initializer -> RemoveUnresolved
-       let / const + no initializer -> RemoveUnresolved
-       var + initializer -> RemoveUnresolved followed by NewUnresolved
-       let / const + initializer -> RemoveUnresolved
-    */
     Scope* scope = declaration_descriptor->hoist_scope;
     if (scope == nullptr) {
       scope = this->scope();
     }
-    if (declaration->initializer.IsEmpty() ||
-        (declaration_descriptor->mode == VariableMode::LET ||
-         declaration_descriptor->mode == VariableMode::CONST)) {
-      for (auto variable : *(declaration->pattern.variables_)) {
-        declaration_descriptor->scope->RemoveUnresolved(variable);
-      }
-    }
     for (auto variable : *(declaration->pattern.variables_)) {
+      declaration_descriptor->scope->RemoveUnresolved(variable);
       scope->DeclareVariableName(variable->raw_name(),
                                  declaration_descriptor->mode);
     }

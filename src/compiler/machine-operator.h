@@ -93,7 +93,7 @@ typedef MachineRepresentation CheckedStoreRepresentation;
 
 CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
 
-MachineRepresentation StackSlotRepresentationOf(Operator const* op);
+int StackSlotSizeOf(Operator const* op);
 
 MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
 
@@ -619,6 +619,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);
 
+  const Operator* StackSlot(int size);
   const Operator* StackSlot(MachineRepresentation rep);
 
   // Access to the machine stack.

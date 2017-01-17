@@ -2634,17 +2634,6 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ LoadP(result, ContextMemOperand(context, instr->slot_index()));
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
-    if (instr->hydrogen()->DeoptimizesOnHole()) {
-      DeoptimizeIf(eq, instr, DeoptimizeReason::kHole);
-    } else {
-      Label skip;
-      __ bne(&skip, Label::kNear);
-      __ mov(result, Operand(factory()->undefined_value()));
-      __ bind(&skip);
-    }
-  }
 }
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
@@ -2652,18 +2641,6 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register value = ToRegister(instr->value());
   Register scratch = scratch0();
   MemOperand target = ContextMemOperand(context, instr->slot_index());
-
-  Label skip_assignment;
-
-  if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ LoadP(scratch, target);
-    __ CompareRoot(scratch, Heap::kTheHoleValueRootIndex);
-    if (instr->hydrogen()->DeoptimizesOnHole()) {
-      DeoptimizeIf(eq, instr, DeoptimizeReason::kHole);
-    } else {
-      __ bne(&skip_assignment);
-    }
-  }
 
   __ StoreP(value, target);
   if (instr->hydrogen()->NeedsWriteBarrier()) {
@@ -2674,8 +2651,6 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               GetLinkRegisterState(), kSaveFPRegs,
                               EMIT_REMEMBERED_SET, check_needed);
   }
-
-  __ bind(&skip_assignment);
 }
 
 void LCodeGen::DoLoadNamedField(LLoadNamedField* instr) {
@@ -3521,9 +3496,13 @@ void LCodeGen::DoMathFround(LMathFround* instr) {
 }
 
 void LCodeGen::DoMathSqrt(LMathSqrt* instr) {
-  DoubleRegister input = ToDoubleRegister(instr->value());
   DoubleRegister result = ToDoubleRegister(instr->result());
-  __ sqdbr(result, input);
+  LOperand* input = instr->value();
+  if (input->IsDoubleRegister()) {
+    __ Sqrt(result, ToDoubleRegister(instr->value()));
+  } else {
+    __ Sqrt(result, ToMemOperand(input));
+  }
 }
 
 void LCodeGen::DoMathPowHalf(LMathPowHalf* instr) {
@@ -3907,13 +3886,14 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   Representation representation = instr->hydrogen()->length()->representation();
   DCHECK(representation.Equals(instr->hydrogen()->index()->representation()));
   DCHECK(representation.IsSmiOrInteger32());
+  Register temp = scratch0();
 
   Condition cc = instr->hydrogen()->allow_equality() ? lt : le;
   if (instr->length()->IsConstantOperand()) {
     int32_t length = ToInteger32(LConstantOperand::cast(instr->length()));
     Register index = ToRegister(instr->index());
     if (representation.IsSmi()) {
-      __ CmpLogicalP(index, Operand(Smi::FromInt(length)));
+      __ CmpLogicalSmiLiteral(index, Smi::FromInt(length), temp);
     } else {
       __ CmpLogical32(index, Operand(length));
     }
@@ -3922,7 +3902,7 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
     int32_t index = ToInteger32(LConstantOperand::cast(instr->index()));
     Register length = ToRegister(instr->length());
     if (representation.IsSmi()) {
-      __ CmpLogicalP(length, Operand(Smi::FromInt(index)));
+      __ CmpLogicalSmiLiteral(length, Smi::FromInt(index), temp);
     } else {
       __ CmpLogical32(length, Operand(index));
     }

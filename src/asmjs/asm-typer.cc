@@ -20,24 +20,30 @@
 #include "src/globals.h"
 #include "src/messages.h"
 #include "src/utils.h"
+#include "src/vector.h"
 
-#define FAIL_LOCATION(location, msg)                                      \
-  do {                                                                    \
-    Handle<String> message(isolate_->factory()->InternalizeOneByteString( \
-        STATIC_CHAR_VECTOR(msg)));                                        \
-    error_message_ = MessageHandler::MakeMessageObject(                   \
-        isolate_, MessageTemplate::kAsmJsInvalid, (location), message,    \
-        Handle<JSArray>::null());                                         \
-    error_message_->set_error_level(v8::Isolate::kMessageWarning);        \
-    message_location_ = *(location);                                      \
-    return AsmType::None();                                               \
+#define FAIL_LOCATION_RAW(location, msg)                               \
+  do {                                                                 \
+    Handle<String> message(                                            \
+        isolate_->factory()->InternalizeOneByteString(msg));           \
+    error_message_ = MessageHandler::MakeMessageObject(                \
+        isolate_, MessageTemplate::kAsmJsInvalid, (location), message, \
+        Handle<JSArray>::null());                                      \
+    error_message_->set_error_level(v8::Isolate::kMessageWarning);     \
+    message_location_ = *(location);                                   \
+    return AsmType::None();                                            \
   } while (false)
 
-#define FAIL(node, msg)                                                    \
+#define FAIL_RAW(node, msg)                                                \
   do {                                                                     \
     MessageLocation location(script_, node->position(), node->position()); \
-    FAIL_LOCATION(&location, msg);                                         \
+    FAIL_LOCATION_RAW(&location, msg);                                     \
   } while (false)
+
+#define FAIL_LOCATION(location, msg) \
+  FAIL_LOCATION_RAW(location, STATIC_CHAR_VECTOR(msg))
+
+#define FAIL(node, msg) FAIL_RAW(node, STATIC_CHAR_VECTOR(msg))
 
 #define RECURSE(call)                                             \
   do {                                                            \
@@ -528,6 +534,10 @@ AsmTyper::StandardMember AsmTyper::VariableAsStandardMember(Variable* var) {
   }
   StandardMember member = var_info->standard_member();
   return member;
+}
+
+AsmType* AsmTyper::FailWithMessage(const char* text) {
+  FAIL_RAW(root_, OneByteVector(text));
 }
 
 bool AsmTyper::Validate() {
@@ -1153,6 +1163,7 @@ AsmType* AsmTyper::ValidateFunction(FunctionDeclaration* fun_decl) {
     parameter_types.push_back(type);
     SetTypeOf(proxy, type);
     SetTypeOf(expr, type);
+    SetTypeOf(expr->value(), type);
   }
 
   if (static_cast<int>(annotated_parameters) != fun->parameter_count()) {
@@ -2389,6 +2400,9 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
         DCHECK(false);
         FAIL(call, "Redeclared global identifier.");
       }
+      if (call->GetCallType() != Call::OTHER_CALL) {
+        FAIL(call, "Invalid call of existing global function.");
+      }
       SetTypeOf(call_var_proxy, reinterpret_cast<AsmType*>(call_type));
       SetTypeOf(call, return_type);
       return return_type;
@@ -2417,6 +2431,10 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
 
     if (!callee_type->CanBeInvokedWith(return_type, args)) {
       FAIL(call, "Function invocation does not match function type.");
+    }
+
+    if (call->GetCallType() != Call::OTHER_CALL) {
+      FAIL(call, "Invalid forward call of global function.");
     }
 
     SetTypeOf(call_var_proxy, call_var_info->type());
@@ -2477,6 +2495,9 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
         DCHECK(false);
         FAIL(call, "Redeclared global identifier.");
       }
+      if (call->GetCallType() != Call::KEYED_PROPERTY_CALL) {
+        FAIL(call, "Invalid call of existing function table.");
+      }
       SetTypeOf(call_property, reinterpret_cast<AsmType*>(call_type));
       SetTypeOf(call, return_type);
       return return_type;
@@ -2501,6 +2522,9 @@ AsmType* AsmTyper::ValidateCall(AsmType* return_type, Call* call) {
            "signature.");
     }
 
+    if (call->GetCallType() != Call::KEYED_PROPERTY_CALL) {
+      FAIL(call, "Invalid forward call of function table.");
+    }
     SetTypeOf(call_property, previous_type->signature());
     SetTypeOf(call, return_type);
     return return_type;

@@ -7,6 +7,9 @@ import("//build/config/v8_target_cpu.gni")
 import("//build_overrides/v8.gni")
 
 declare_args() {
+  # Includes files needed for correctness fuzzing.
+  v8_correctness_fuzzer = false
+
   # Indicate if valgrind was fetched as a custom deps to make it available on
   # swarming.
   v8_has_valgrind = false

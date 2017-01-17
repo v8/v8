@@ -61,7 +61,7 @@ MaybeHandle<String> StringReplaceOneCharWithString(
 
 RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, search, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, replace, 2);
@@ -91,7 +91,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceOneCharWithString) {
 // String.prototype.indexOf(searchString [, position])
 RUNTIME_FUNCTION(Runtime_StringIndexOf) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   return String::IndexOf(isolate, args.at(0), args.at(1), args.at(2));
 }
 
@@ -101,7 +101,7 @@ RUNTIME_FUNCTION(Runtime_StringIndexOf) {
 // arguments.
 RUNTIME_FUNCTION(Runtime_StringIndexOfUnchecked) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   Handle<String> receiver_string = args.at<String>(0);
   Handle<String> search_string = args.at<String>(1);
   int index = std::min(std::max(args.smi_at(2), 0), receiver_string->length());
@@ -118,7 +118,7 @@ RUNTIME_FUNCTION(Runtime_StringLastIndexOf) {
 
 RUNTIME_FUNCTION(Runtime_SubString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   int start, end;
@@ -150,7 +150,7 @@ RUNTIME_FUNCTION(Runtime_SubString) {
 
 RUNTIME_FUNCTION(Runtime_StringAdd) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, obj1, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, obj2, 1);
   isolate->counters()->string_add_runtime()->Increment();
@@ -167,7 +167,7 @@ RUNTIME_FUNCTION(Runtime_StringAdd) {
 
 RUNTIME_FUNCTION(Runtime_InternalizeString) {
   HandleScope handles(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, string, 0);
   return *isolate->factory()->InternalizeString(string);
 }
@@ -175,7 +175,7 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
   HandleScope handle_scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
 
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, i, Uint32, args[1]);
@@ -216,7 +216,7 @@ RUNTIME_FUNCTION(Runtime_StringCompare) {
 
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   int32_t array_length;
   if (!args[1]->ToInt32(&array_length)) {
@@ -286,7 +286,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 
 RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
   int32_t array_length;
   if (!args[1]->ToInt32(&array_length)) {
@@ -427,7 +427,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
 
 RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSArray, elements_array, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, array_length, Uint32, args[1]);
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
@@ -545,7 +545,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
 // For example, "foo" => ["f", "o", "o"].
 RUNTIME_FUNCTION(Runtime_StringToArray) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, s, 0);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[1]);
 
@@ -855,7 +855,7 @@ RUNTIME_FUNCTION(Runtime_StringNotEqual) {
 
 RUNTIME_FUNCTION(Runtime_FlattenString) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, str, 0);
   return *String::Flatten(str);
 }
@@ -882,7 +882,7 @@ RUNTIME_FUNCTION(Runtime_ExternalStringGetChar) {
 
 RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   SealHandleScope shs(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   if (!args[0]->IsString()) return isolate->heap()->undefined_value();
   if (!args[1]->IsNumber()) return isolate->heap()->undefined_value();
   if (std::isinf(args.number_at(1))) return isolate->heap()->nan_value();

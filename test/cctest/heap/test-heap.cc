@@ -4296,10 +4296,6 @@ TEST(Regress513507) {
     if (!code->is_optimized_code()) return;
   }
 
-  Handle<TypeFeedbackVector> vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> lit =
-      LiteralsArray::New(isolate, vector, shared->num_literals());
   Handle<Context> context(isolate->context());
 
   // Add the new code several times to the optimized code map and also set an
@@ -4308,211 +4304,10 @@ TEST(Regress513507) {
   FLAG_gc_interval = 1000;
   for (int i = 0; i < 10; ++i) {
     BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, id);
   }
 }
 #endif  // DEBUG
-
-
-TEST(Regress514122) {
-  if (!i::FLAG_incremental_marking) return;
-  i::FLAG_allow_natives_syntax = true;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-  LocalContext env;
-  Heap* heap = isolate->heap();
-  HandleScope scope(isolate);
-
-  // Perfrom one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  // Prepare function whose optimized code map we can use.
-  Handle<SharedFunctionInfo> shared;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function f() { return 1 }"
-               "f(); %OptimizeFunctionOnNextCall(f); f();");
-
-    Handle<JSFunction> f = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("f")).ToLocalChecked())));
-    shared = inner_scope.CloseAndEscape(handle(f->shared(), isolate));
-    CompileRun("f = null");
-  }
-
-  // Prepare optimized code that we can use.
-  Handle<Code> code;
-  {
-    HandleScope inner_scope(isolate);
-    CompileRun("function g() { return 2 }"
-               "g(); %OptimizeFunctionOnNextCall(g); g();");
-
-    Handle<JSFunction> g = Handle<JSFunction>::cast(
-        v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-            CcTest::global()->Get(env.local(), v8_str("g")).ToLocalChecked())));
-    code = inner_scope.CloseAndEscape(handle(g->code(), isolate));
-    if (!code->is_optimized_code()) return;
-  }
-
-  Handle<TypeFeedbackVector> vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> lit =
-      LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
-  Handle<Context> context(isolate->context());
-
-  // Add the code several times to the optimized code map.
-  for (int i = 0; i < 3; ++i) {
-    HandleScope inner_scope(isolate);
-    BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
-  }
-  shared->optimized_code_map()->Print();
-
-  // Add the code with a literals array to be evacuated.
-  Page* evac_page;
-  {
-    HandleScope inner_scope(isolate);
-    AlwaysAllocateScope always_allocate(isolate);
-    // Make sure literal is placed on an old-space evacuation candidate.
-    heap::SimulateFullSpace(heap->old_space());
-
-    // Make sure there the number of literals is > 0.
-    Handle<LiteralsArray> lit = LiteralsArray::New(isolate, vector, 23);
-
-    evac_page = Page::FromAddress(lit->address());
-    BailoutId id = BailoutId(100);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
-  }
-
-  // Heap is ready, force {lit_page} to become an evacuation candidate and
-  // simulate incremental marking to enqueue optimized code map.
-  FLAG_manual_evacuation_candidates_selection = true;
-  heap::ForceEvacuationCandidate(evac_page);
-  heap::SimulateIncrementalMarking(heap);
-
-  // No matter whether reachable or not, {boomer} is doomed.
-  Handle<Object> boomer(shared->optimized_code_map(), isolate);
-
-  // Add the code several times to the optimized code map. This will leave old
-  // copies of the optimized code map unreachable but still marked.
-  for (int i = 3; i < 6; ++i) {
-    HandleScope inner_scope(isolate);
-    BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
-  }
-
-  // Trigger a GC to flush out the bug.
-  CcTest::CollectGarbage(i::OLD_SPACE);
-  boomer->Print();
-}
-
-
-TEST(OptimizedCodeMapReuseEntries) {
-  i::FLAG_allow_natives_syntax = true;
-  // BUG(v8:4598): Since TurboFan doesn't treat maps in code weakly, we can't
-  // run this test.
-  if (i::FLAG_turbo) return;
-  CcTest::InitializeVM();
-  v8::Isolate* v8_isolate = CcTest::isolate();
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  // Create 3 contexts, allow the 2nd one to be disposed, and verify that
-  // a 4th context will re-use the weak slots in the optimized code map
-  // to hold data, rather than expanding the map.
-  v8::Local<v8::Context> c1 = v8::Context::New(v8_isolate);
-  const char* source = "function foo(x) { var l = [1]; return x+l[0]; }";
-  v8::ScriptCompiler::Source script_source(
-      v8::String::NewFromUtf8(v8_isolate, source, v8::NewStringType::kNormal)
-          .ToLocalChecked());
-  v8::Local<v8::UnboundScript> indep =
-      v8::ScriptCompiler::CompileUnboundScript(v8_isolate, &script_source)
-          .ToLocalChecked();
-  const char* toplevel = "foo(3); %OptimizeFunctionOnNextCall(foo); foo(3);";
-  // Perfrom one initial GC to enable code flushing.
-  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-
-  c1->Enter();
-  indep->BindToCurrentContext()->Run(c1).ToLocalChecked();
-  CompileRun(toplevel);
-
-  Handle<SharedFunctionInfo> shared;
-  Handle<JSFunction> foo = Handle<JSFunction>::cast(
-      v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(
-          CcTest::global()->Get(c1, v8_str("foo")).ToLocalChecked())));
-  CHECK(foo->shared()->is_compiled());
-  shared = handle(foo->shared());
-  c1->Exit();
-
-  {
-    HandleScope scope(isolate);
-    v8::Local<v8::Context> c2 = v8::Context::New(v8_isolate);
-    c2->Enter();
-    indep->BindToCurrentContext()->Run(c2).ToLocalChecked();
-    CompileRun(toplevel);
-    c2->Exit();
-  }
-
-  {
-    HandleScope scope(isolate);
-    v8::Local<v8::Context> c3 = v8::Context::New(v8_isolate);
-    c3->Enter();
-    indep->BindToCurrentContext()->Run(c3).ToLocalChecked();
-    CompileRun(toplevel);
-    c3->Exit();
-
-    // Now, collect garbage. Context c2 should have no roots to it, and it's
-    // entry in the optimized code map should be free for a new context.
-    for (int i = 0; i < 4; i++) {
-      CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
-    }
-
-    Handle<FixedArray> optimized_code_map =
-        handle(shared->optimized_code_map());
-    // There should be 3 entries in the map.
-    CHECK_EQ(
-        3, ((optimized_code_map->length() - SharedFunctionInfo::kEntriesStart) /
-            SharedFunctionInfo::kEntryLength));
-    // But one of them (formerly for c2) should be cleared.
-    int cleared_count = 0;
-    for (int i = SharedFunctionInfo::kEntriesStart;
-         i < optimized_code_map->length();
-         i += SharedFunctionInfo::kEntryLength) {
-      cleared_count +=
-          WeakCell::cast(
-              optimized_code_map->get(i + SharedFunctionInfo::kContextOffset))
-                  ->cleared()
-              ? 1
-              : 0;
-    }
-    CHECK_EQ(1, cleared_count);
-
-    // Verify that a new context uses the cleared entry rather than creating a
-    // new
-    // optimized code map array.
-    v8::Local<v8::Context> c4 = v8::Context::New(v8_isolate);
-    c4->Enter();
-    indep->BindToCurrentContext()->Run(c4).ToLocalChecked();
-    CompileRun(toplevel);
-    c4->Exit();
-    CHECK_EQ(*optimized_code_map, shared->optimized_code_map());
-
-    // Now each entry is in use.
-    cleared_count = 0;
-    for (int i = SharedFunctionInfo::kEntriesStart;
-         i < optimized_code_map->length();
-         i += SharedFunctionInfo::kEntryLength) {
-      cleared_count +=
-          WeakCell::cast(
-              optimized_code_map->get(i + SharedFunctionInfo::kContextOffset))
-                  ->cleared()
-              ? 1
-              : 0;
-    }
-    CHECK_EQ(0, cleared_count);
-  }
-}
-
 
 TEST(Regress513496) {
   i::FLAG_allow_natives_syntax = true;
@@ -4559,9 +4354,9 @@ TEST(Regress513496) {
   }
 
   // Lookup the optimized code and keep it alive.
-  CodeAndLiterals result = shared->SearchOptimizedCodeMap(
+  Code* result = shared->SearchOptimizedCodeMap(
       isolate->context()->native_context(), BailoutId::None());
-  Handle<Code> optimized_code(result.code, isolate);
+  Handle<Code> optimized_code(result, isolate);
 
   // Finish a full GC cycle so that the unoptimized code of 'g' is flushed even
   // though the optimized code for 'f' is reachable via the optimized code map.
@@ -6404,44 +6199,6 @@ TEST(SharedFunctionInfoIterator) {
 
   CHECK_EQ(0, sfi_count);
 }
-
-
-template <typename T>
-static UniqueId MakeUniqueId(const Persistent<T>& p) {
-  return UniqueId(reinterpret_cast<uintptr_t>(*v8::Utils::OpenPersistent(p)));
-}
-
-
-TEST(Regress519319) {
-  if (!FLAG_incremental_marking) return;
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  Heap* heap = CcTest::heap();
-  LocalContext context;
-
-  v8::Persistent<Value> parent;
-  v8::Persistent<Value> child;
-
-  parent.Reset(isolate, v8::Object::New(isolate));
-  child.Reset(isolate, v8::Object::New(isolate));
-
-  heap::SimulateFullSpace(heap->old_space());
-  CcTest::CollectGarbage(OLD_SPACE);
-  {
-    UniqueId id = MakeUniqueId(parent);
-    isolate->SetObjectGroupId(parent, id);
-    isolate->SetReferenceFromGroup(id, child);
-  }
-  // The CollectGarbage call above starts sweeper threads.
-  // The crash will happen if the following two functions
-  // are called before sweeping finishes.
-  heap->StartIncrementalMarking(i::Heap::kNoGCFlags,
-                                i::GarbageCollectionReason::kTesting);
-  heap->FinalizeIncrementalMarkingIfComplete(
-      i::GarbageCollectionReason::kTesting);
-}
-
 
 HEAP_TEST(Regress587004) {
   FLAG_concurrent_sweeping = false;

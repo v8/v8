@@ -50,8 +50,7 @@ v8::Local<v8::String> toV8String(v8::Isolate* isolate,
 }
 
 String16 toProtocolString(v8::Local<v8::String> value) {
-  if (value.IsEmpty() || value->IsNull() || value->IsUndefined())
-    return String16();
+  if (value.IsEmpty() || value->IsNullOrUndefined()) return String16();
   std::unique_ptr<UChar[]> buffer(new UChar[value->Length()]);
   value->Write(reinterpret_cast<uint16_t*>(buffer.get()), 0, value->Length());
   return String16(buffer.get(), value->Length());

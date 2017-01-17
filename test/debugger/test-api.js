@@ -657,8 +657,13 @@ class DebugWrapper {
         isUndefined = true;
         break;
       }
+      case "number": {
+        if (obj.description === "NaN") {
+          value = NaN;
+        }
+        break;
+      }
       case "string":
-      case "number":
       case "boolean": {
         break;
       }

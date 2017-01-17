@@ -14,6 +14,7 @@
 #include "src/compilation-cache.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
@@ -42,6 +43,7 @@ Debug::Debug(Isolate* isolate)
       command_received_(0),
       command_queue_(isolate->logger(), kQueueInitialSize),
       is_active_(false),
+      hook_on_function_call_(false),
       is_suppressed_(false),
       live_edit_enabled_(true),  // TODO(yangguo): set to false by default.
       break_disabled_(false),
@@ -49,18 +51,22 @@ Debug::Debug(Isolate* isolate)
       in_debug_event_listener_(false),
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
+      side_effect_check_failed_(false),
       debug_info_list_(NULL),
       feature_tracker_(isolate),
       isolate_(isolate) {
   ThreadInit();
 }
 
-BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
-                                       JavaScriptFrame* frame) {
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+BreakLocation BreakLocation::FromFrame(StandardFrame* frame) {
+  // TODO(clemensh): Handle Wasm frames.
+  DCHECK(!frame->is_wasm());
+
+  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   if (abstract_code->IsCode()) offset = offset - 1;
+  Handle<DebugInfo> debug_info(summary.function()->shared()->GetDebugInfo());
   auto it = BreakIterator::GetIterator(debug_info, abstract_code);
   it->SkipTo(BreakIndexFromCodeOffset(debug_info, abstract_code, offset));
   return it->GetBreakLocation();
@@ -69,7 +75,7 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
 void BreakLocation::AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                           JavaScriptFrame* frame,
                                           List<BreakLocation>* result_out) {
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   if (abstract_code->IsCode()) offset = offset - 1;
@@ -401,10 +407,12 @@ void Debug::ThreadInit() {
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
   thread_local_.return_value_ = Handle<Object>();
+  thread_local_.async_task_count_ = 0;
   clear_suspended_generator();
   // TODO(isolates): frames_are_dropped_?
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
+  UpdateHookOnFunctionCall();
 }
 
 
@@ -465,7 +473,8 @@ bool Debug::Load() {
   static const int kFirstContextSnapshotIndex = 0;
   Handle<Context> context = isolate_->bootstrapper()->CreateEnvironment(
       MaybeHandle<JSGlobalProxy>(), v8::Local<ObjectTemplate>(), &no_extensions,
-      kFirstContextSnapshotIndex, DEBUG_CONTEXT);
+      kFirstContextSnapshotIndex, v8::DeserializeInternalFieldsCallback(),
+      DEBUG_CONTEXT);
 
   // Fail if no context could be created.
   if (context.is_null()) return false;
@@ -507,25 +516,41 @@ void Debug::Break(JavaScriptFrame* frame) {
   // Postpone interrupt during breakpoint processing.
   PostponeInterruptsScope postpone(isolate_);
 
-  // Get the debug info (create it if it does not exist).
-  Handle<JSFunction> function(frame->function());
-  Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureDebugInfo(shared, function)) {
-    // Return if we failed to retrieve the debug info.
-    return;
-  }
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
+  // Return if we fail to retrieve debug info for javascript frames.
+  if (frame->is_java_script()) {
+    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
 
-  // Find the break location where execution has stopped.
-  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
+    // Get the debug info (create it if it does not exist).
+    Handle<JSFunction> function(js_frame->function());
+    Handle<SharedFunctionInfo> shared(function->shared());
+    if (!EnsureDebugInfo(shared, function)) return;
+  }
+
+  BreakLocation location = BreakLocation::FromFrame(frame);
 
   // Find actual break points, if any, and trigger debug break event.
-  Handle<Object> break_points_hit = CheckBreakPoints(debug_info, &location);
-  if (!break_points_hit->IsUndefined(isolate_)) {
+  MaybeHandle<FixedArray> break_points_hit;
+  if (!break_points_active()) {
+    // Don't try to find hit breakpoints.
+  } else if (frame->is_wasm_interpreter_entry()) {
+    // TODO(clemensh): Find hit breakpoints for wasm.
+    UNIMPLEMENTED();
+  } else {
+    // Get the debug info, which must exist if we reach here.
+    Handle<DebugInfo> debug_info(
+        JavaScriptFrame::cast(frame)->function()->shared()->GetDebugInfo(),
+        isolate_);
+
+    break_points_hit = CheckBreakPoints(debug_info, &location);
+  }
+
+  if (!break_points_hit.is_null()) {
     // Clear all current stepping setup.
     ClearStepping();
     // Notify the debug event listeners.
-    OnDebugBreak(break_points_hit, false);
+    Handle<JSArray> jsarr = isolate_->factory()->NewJSArrayWithElements(
+        break_points_hit.ToHandleChecked());
+    OnDebugBreak(jsarr, false);
     return;
   }
 
@@ -552,11 +577,9 @@ void Debug::Break(JavaScriptFrame* frame) {
     // Fall through.
     case StepIn: {
       FrameSummary summary = FrameSummary::GetFirst(frame);
-      int offset = summary.code_offset();
-      step_break = step_break || location.IsReturn() ||
-                   (current_fp != last_fp) ||
-                   (thread_local_.last_statement_position_ !=
-                    summary.abstract_code()->SourceStatementPosition(offset));
+      step_break = step_break || location.IsReturn() || current_fp != last_fp ||
+                   thread_local_.last_statement_position_ !=
+                       summary.SourceStatementPosition();
       break;
     }
     case StepFrame:
@@ -578,42 +601,19 @@ void Debug::Break(JavaScriptFrame* frame) {
 
 
 // Find break point objects for this location, if any, and evaluate them.
-// Return an array of break point objects that evaluated true.
-Handle<Object> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
-                                       BreakLocation* location,
-                                       bool* has_break_points) {
-  Factory* factory = isolate_->factory();
+// Return an array of break point objects that evaluated true, or an empty
+// handle if none evaluated true.
+MaybeHandle<FixedArray> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
+                                                BreakLocation* location,
+                                                bool* has_break_points) {
   bool has_break_points_to_check =
       break_points_active_ && location->HasBreakPoint(debug_info);
   if (has_break_points) *has_break_points = has_break_points_to_check;
-  if (!has_break_points_to_check) return factory->undefined_value();
+  if (!has_break_points_to_check) return {};
 
   Handle<Object> break_point_objects =
       debug_info->GetBreakPointObjects(location->position());
-  // Count the number of break points hit. If there are multiple break points
-  // they are in a FixedArray.
-  Handle<FixedArray> break_points_hit;
-  int break_points_hit_count = 0;
-  DCHECK(!break_point_objects->IsUndefined(isolate_));
-  if (break_point_objects->IsFixedArray()) {
-    Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
-    break_points_hit = factory->NewFixedArray(array->length());
-    for (int i = 0; i < array->length(); i++) {
-      Handle<Object> break_point_object(array->get(i), isolate_);
-      if (CheckBreakPoint(break_point_object)) {
-        break_points_hit->set(break_points_hit_count++, *break_point_object);
-      }
-    }
-  } else {
-    break_points_hit = factory->NewFixedArray(1);
-    if (CheckBreakPoint(break_point_objects)) {
-      break_points_hit->set(break_points_hit_count++, *break_point_objects);
-    }
-  }
-  if (break_points_hit_count == 0) return factory->undefined_value();
-  Handle<JSArray> result = factory->NewJSArrayWithElements(break_points_hit);
-  result->set_length(Smi::FromInt(break_points_hit_count));
-  return result;
+  return Debug::GetHitBreakPointObjects(break_point_objects);
 }
 
 
@@ -637,10 +637,10 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   bool has_break_points_at_all = false;
   for (int i = 0; i < break_locations.length(); i++) {
     bool has_break_points;
-    Handle<Object> check_result =
+    MaybeHandle<FixedArray> check_result =
         CheckBreakPoints(debug_info, &break_locations[i], &has_break_points);
     has_break_points_at_all |= has_break_points;
-    if (has_break_points && !check_result->IsUndefined(isolate_)) return false;
+    if (has_break_points && !check_result.is_null()) return false;
   }
   return has_break_points_at_all;
 }
@@ -901,19 +901,47 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   }
 }
 
+MaybeHandle<FixedArray> Debug::GetHitBreakPointObjects(
+    Handle<Object> break_point_objects) {
+  DCHECK(!break_point_objects->IsUndefined(isolate_));
+  if (!break_point_objects->IsFixedArray()) {
+    if (!CheckBreakPoint(break_point_objects)) return {};
+    Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(1);
+    break_points_hit->set(0, *break_point_objects);
+    return break_points_hit;
+  }
+
+  Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
+  int num_objects = array->length();
+  Handle<FixedArray> break_points_hit =
+      isolate_->factory()->NewFixedArray(num_objects);
+  int break_points_hit_count = 0;
+  for (int i = 0; i < num_objects; ++i) {
+    Handle<Object> break_point_object(array->get(i), isolate_);
+    if (CheckBreakPoint(break_point_object)) {
+      break_points_hit->set(break_points_hit_count++, *break_point_object);
+    }
+  }
+  if (break_points_hit_count == 0) return {};
+  break_points_hit->Shrink(break_points_hit_count);
+  return break_points_hit;
+}
 
 void Debug::PrepareStepIn(Handle<JSFunction> function) {
   CHECK(last_step_action() >= StepIn);
-  if (!is_active()) return;
+  if (ignore_events()) return;
   if (in_debug_scope()) return;
+  if (break_disabled()) return;
   FloodWithOneShot(function);
 }
 
 void Debug::PrepareStepInSuspendedGenerator() {
   CHECK(has_suspended_generator());
-  if (!is_active()) return;
+  if (ignore_events()) return;
   if (in_debug_scope()) return;
+  if (break_disabled()) return;
   thread_local_.last_step_action_ = StepIn;
+  UpdateHookOnFunctionCall();
   Handle<JSFunction> function(
       JSGeneratorObject::cast(thread_local_.suspended_generator_)->function());
   FloodWithOneShot(function);
@@ -921,9 +949,10 @@ void Debug::PrepareStepInSuspendedGenerator() {
 }
 
 void Debug::PrepareStepOnThrow() {
-  if (!is_active()) return;
   if (last_step_action() == StepNone) return;
+  if (ignore_events()) return;
   if (in_debug_scope()) return;
+  if (break_disabled()) return;
 
   ClearOneShot();
 
@@ -974,6 +1003,7 @@ void Debug::PrepareStep(StepAction step_action) {
   feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   thread_local_.last_step_action_ = step_action;
+  UpdateHookOnFunctionCall();
 
   // If the function on the top frame is unresolved perform step out. This will
   // be the case when calling unknown function and having the debugger stopped
@@ -989,7 +1019,7 @@ void Debug::PrepareStep(StepAction step_action) {
   }
 
   // Get the debug info (create it if it does not exist).
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
@@ -997,8 +1027,7 @@ void Debug::PrepareStep(StepAction step_action) {
     return;
   }
 
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
+  BreakLocation location = BreakLocation::FromFrame(frame);
 
   // Any step at a return is a step-out.
   if (location.IsReturn()) step_action = StepOut;
@@ -1104,6 +1133,7 @@ void Debug::ClearStepping() {
   thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
+  UpdateHookOnFunctionCall();
 }
 
 
@@ -1564,15 +1594,11 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
-  // Get the executing function in which the debug break occurred.
-  Handle<SharedFunctionInfo> shared(frame->function()->shared());
-
   // With no debug info there are no break points, so we can't be at a return.
-  if (!shared->HasDebugInfo()) return false;
+  if (!frame->function()->shared()->HasDebugInfo()) return false;
 
   DCHECK(!frame->is_optimized());
-  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
+  BreakLocation location = BreakLocation::FromFrame(frame);
   return location.IsReturn() || location.IsTailCall();
 }
 
@@ -1656,12 +1682,11 @@ MaybeHandle<Object> Debug::MakeCompileEvent(Handle<Script> script,
   return CallFunction("MakeCompileEvent", arraysize(argv), argv);
 }
 
-MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<String> type,
-                                              Handle<Object> id,
-                                              Handle<String> name) {
+MaybeHandle<Object> Debug::MakeAsyncTaskEvent(Handle<Smi> type,
+                                              Handle<Smi> id) {
   DCHECK(id->IsNumber());
   // Create the async task event object.
-  Handle<Object> argv[] = {type, id, name};
+  Handle<Object> argv[] = {type, id};
   return CallFunction("MakeAsyncTaskEvent", arraysize(argv), argv);
 }
 
@@ -1779,10 +1804,85 @@ void Debug::OnAfterCompile(Handle<Script> script) {
   ProcessCompileEvent(v8::AfterCompile, script);
 }
 
-void Debug::OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
-                             Handle<String> name) {
-  DCHECK(id->IsNumber());
+namespace {
+struct CollectedCallbackData {
+  Object** location;
+  int id;
+  Debug* debug;
+  Isolate* isolate;
+
+  CollectedCallbackData(Object** location, int id, Debug* debug,
+                        Isolate* isolate)
+      : location(location), id(id), debug(debug), isolate(isolate) {}
+};
+
+void SendAsyncTaskEventCancel(const v8::WeakCallbackInfo<void>& info) {
+  std::unique_ptr<CollectedCallbackData> data(
+      reinterpret_cast<CollectedCallbackData*>(info.GetParameter()));
+  if (!data->debug->is_active()) return;
+  HandleScope scope(data->isolate);
+  data->debug->OnAsyncTaskEvent(debug::kDebugPromiseCollected, data->id);
+}
+
+void ResetPromiseHandle(const v8::WeakCallbackInfo<void>& info) {
+  CollectedCallbackData* data =
+      reinterpret_cast<CollectedCallbackData*>(info.GetParameter());
+  GlobalHandles::Destroy(data->location);
+  info.SetSecondPassCallback(&SendAsyncTaskEventCancel);
+}
+}  //  namespace
+
+int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
+  LookupIterator it(promise, isolate_->factory()->promise_async_id_symbol());
+  Maybe<bool> maybe = JSReceiver::HasProperty(&it);
+  if (maybe.ToChecked()) {
+    MaybeHandle<Object> result = Object::GetProperty(&it);
+    return Handle<Smi>::cast(result.ToHandleChecked())->value();
+  }
+  Handle<Smi> async_id =
+      handle(Smi::FromInt(++thread_local_.async_task_count_), isolate_);
+  Object::SetProperty(&it, async_id, SLOPPY, Object::MAY_BE_STORE_FROM_KEYED)
+      .ToChecked();
+  Handle<Object> global_handle = isolate_->global_handles()->Create(*promise);
+  // We send EnqueueRecurring async task event when promise is fulfilled or
+  // rejected, WillHandle and DidHandle for every scheduled microtask for this
+  // promise.
+  // We need to send a cancel event when no other microtasks can be
+  // started for this promise and all current microtasks are finished.
+  // Since we holding promise when at least one microtask is scheduled (inside
+  // PromiseReactionJobInfo), we can send cancel event in weak callback.
+  GlobalHandles::MakeWeak(
+      global_handle.location(),
+      new CollectedCallbackData(global_handle.location(), async_id->value(),
+                                this, isolate_),
+      &ResetPromiseHandle, v8::WeakCallbackType::kParameter);
+  return async_id->value();
+}
+
+void Debug::SetAsyncTaskListener(debug::AsyncTaskListener listener,
+                                 void* data) {
+  async_task_listener_ = listener;
+  async_task_listener_data_ = data;
+  UpdateState();
+}
+
+void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
   if (in_debug_scope() || ignore_events()) return;
+
+  if (async_task_listener_) {
+    async_task_listener_(type, id, async_task_listener_data_);
+    // There are three types of event listeners: C++ message_handler,
+    // JavaScript event listener and C++ event listener.
+    // Currently inspector still uses C++ event listener and installs
+    // more specific event listeners for part of events. Calling of
+    // C++ event listener is redundant when more specific event listener
+    // is presented. Other clients can install JavaScript event listener
+    // (e.g. some of NodeJS module).
+    bool non_inspector_listener_exists =
+        message_handler_ != nullptr ||
+        (event_listener_.is_null() && !event_listener_->IsForeign());
+    if (!non_inspector_listener_exists) return;
+  }
 
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
@@ -1791,7 +1891,10 @@ void Debug::OnAsyncTaskEvent(Handle<String> type, Handle<Object> id,
   // Create the script collected state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
-  if (!MakeAsyncTaskEvent(type, id, name).ToHandle(&event_data)) return;
+  if (!MakeAsyncTaskEvent(handle(Smi::FromInt(type), isolate_),
+                          handle(Smi::FromInt(id), isolate_))
+           .ToHandle(&event_data))
+    return;
 
   // Process debug event.
   ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data),
@@ -2043,7 +2146,7 @@ void Debug::SetEventListener(Handle<Object> callback,
   event_listener_data_ = Handle<Object>();
 
   // Set new entry.
-  if (!callback->IsUndefined(isolate_) && !callback->IsNull(isolate_)) {
+  if (!callback->IsNullOrUndefined(isolate_)) {
     event_listener_ = global_handles->Create(*callback);
     if (data.is_null()) data = isolate_->factory()->undefined_value();
     event_listener_data_ = global_handles->Create(*data);
@@ -2063,7 +2166,8 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
 }
 
 void Debug::UpdateState() {
-  bool is_active = message_handler_ != NULL || !event_listener_.is_null();
+  bool is_active = message_handler_ != nullptr || !event_listener_.is_null() ||
+                   async_task_listener_ != nullptr;
   if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
@@ -2074,6 +2178,13 @@ void Debug::UpdateState() {
     Unload();
   }
   is_active_ = is_active;
+}
+
+void Debug::UpdateHookOnFunctionCall() {
+  STATIC_ASSERT(StepFrame > StepIn);
+  STATIC_ASSERT(LastStepAction == StepFrame);
+  hook_on_function_call_ = thread_local_.last_step_action_ >= StepIn ||
+                           isolate_->needs_side_effect_check();
 }
 
 // Calls the registered debug message handler. This callback is part of the
@@ -2182,11 +2293,10 @@ void Debug::PrintBreakLocation() {
   if (iterator.done()) return;
   JavaScriptFrame* frame = iterator.frame();
   FrameSummary summary = FrameSummary::GetFirst(frame);
-  int source_position =
-      summary.abstract_code()->SourcePosition(summary.code_offset());
-  Handle<Object> script_obj(summary.function()->shared()->script(), isolate_);
+  int source_position = summary.SourcePosition();
+  Handle<Object> script_obj = summary.script();
   PrintF("[debug] break in function '");
-  summary.function()->PrintName();
+  summary.FunctionName()->PrintOn(stdout);
   PrintF("'.\n");
   if (script_obj->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_obj);
@@ -2271,6 +2381,50 @@ DebugScope::~DebugScope() {
   debug_->thread_local_.return_value_ = return_value_;
 
   debug_->UpdateState();
+}
+
+bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {
+  DCHECK(isolate_->needs_side_effect_check());
+  DisallowJavascriptExecution no_js(isolate_);
+  if (!Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) return false;
+  Deoptimizer::DeoptimizeFunction(*function);
+  if (!function->shared()->HasNoSideEffect()) {
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      PrintF("[debug-evaluate] Function %s failed side effect check.\n",
+             function->shared()->DebugName()->ToCString().get());
+    }
+    side_effect_check_failed_ = true;
+    // Throw an uncatchable termination exception.
+    isolate_->TerminateExecution();
+    return false;
+  }
+  return true;
+}
+
+bool Debug::PerformSideEffectCheckForCallback(Address function) {
+  DCHECK(isolate_->needs_side_effect_check());
+  if (DebugEvaluate::CallbackHasNoSideEffect(function)) return true;
+  side_effect_check_failed_ = true;
+  // Throw an uncatchable termination exception.
+  isolate_->TerminateExecution();
+  isolate_->OptionalRescheduleException(false);
+  return false;
+}
+
+NoSideEffectScope::~NoSideEffectScope() {
+  if (isolate_->needs_side_effect_check() &&
+      isolate_->debug()->side_effect_check_failed_) {
+    DCHECK(isolate_->has_pending_exception());
+    DCHECK_EQ(isolate_->heap()->termination_exception(),
+              isolate_->pending_exception());
+    // Convert the termination exception into a regular exception.
+    isolate_->CancelTerminateExecution();
+    isolate_->Throw(*isolate_->factory()->NewEvalError(
+        MessageTemplate::kNoSideEffectDebugEvaluate));
+  }
+  isolate_->set_needs_side_effect_check(old_needs_side_effect_check_);
+  isolate_->debug()->UpdateHookOnFunctionCall();
+  isolate_->debug()->side_effect_check_failed_ = false;
 }
 
 MessageImpl MessageImpl::NewEvent(DebugEvent event, bool running,

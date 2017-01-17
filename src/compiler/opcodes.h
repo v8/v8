@@ -307,6 +307,7 @@
   V(CheckIf)                        \
   V(CheckMaps)                      \
   V(CheckNumber)                    \
+  V(CheckInternalizedString)        \
   V(CheckString)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \
@@ -798,6 +799,10 @@ class V8_EXPORT_PRIVATE IrOpcode {
     return (kJSEqual <= value && value <= kJSGreaterThanOrEqual) ||
            (kNumberEqual <= value && value <= kStringLessThanOrEqual) ||
            (kWord32Equal <= value && value <= kFloat64LessThanOrEqual);
+  }
+
+  static bool IsContextChainExtendingOpcode(Value value) {
+    return kJSCreateFunctionContext <= value && value <= kJSCreateScriptContext;
   }
 };
 

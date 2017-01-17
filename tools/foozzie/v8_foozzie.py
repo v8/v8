@@ -22,7 +22,7 @@ import v8_suppressions
 CONFIGS = dict(
   default=[],
   validate_asm=['--validate-asm'], # Maybe add , '--disable-asm-warnings'
-  fullcode=['--nocrankshaft', '--turbo-filter=~'],
+  fullcode=['--nocrankshaft', '--turbo-filter=~', '--novalidate-asm'],
   noturbo=['--turbo-filter=~', '--noturbo-asm'],
   noturbo_opt=['--always-opt', '--turbo-filter=~', '--noturbo-asm'],
   ignition_staging=['--ignition-staging'],
@@ -52,7 +52,7 @@ SUPPORTED_ARCHS = ['ia32', 'x64', 'arm', 'arm64']
 FAILURE_HEADER_TEMPLATE = """#
 # V8 correctness failure
 # V8 correctness configs: %(configs)s
-# V8 correctness sources: %(sources)s
+# V8 correctness sources: %(source_key)s
 # V8 correctness suppression: %(suppression)s
 """
 
@@ -70,6 +70,9 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 # Difference:
 %(difference)s
 #
+# Source file:
+%(source)s
+#
 ### Start of configuration %(first_config_label)s:
 %(first_config_output)s
 ### End of configuration %(first_config_label)s
@@ -79,6 +82,15 @@ FAILURE_TEMPLATE = FAILURE_HEADER_TEMPLATE + """#
 ### End of configuration %(second_config_label)s
 """
 
+FUZZ_TEST_RE = re.compile(r'.*fuzz(-\d+\.js)')
+SOURCE_RE = re.compile(r'print\("v8-foozzie source: (.*)"\);')
+
+# The number of hex digits used from the hash of the original source file path.
+# Keep the number small to avoid duplicate explosion.
+ORIGINAL_SOURCE_HASH_LENGTH = 3
+
+# Placeholder string if no original source file could be determined.
+ORIGINAL_SOURCE_DEFAULT = 'none'
 
 def parse_args():
   parser = argparse.ArgumentParser()
@@ -117,12 +129,6 @@ def parse_args():
           os.path.isfile(options.testcase)), (
       'Test case %s doesn\'t exist' % options.testcase)
 
-  options.meta_data_path = os.path.join(
-      os.path.dirname(options.testcase),
-      'meta' + os.path.basename(options.testcase)[len('fuzz'):])
-  assert os.path.exists(options.meta_data_path), (
-      'Metadata %s doesn\'t exist' % options.meta_data_path)
-
   # Use first d8 as default for second d8.
   options.second_d8 = options.second_d8 or options.first_d8
 
@@ -145,14 +151,23 @@ def parse_args():
   return options
 
 
-def test_pattern_bailout(testcase, ignore_fun):
-  """Print failure state and return if ignore_fun matches testcase."""
-  with open(testcase) as f:
-    bug = (ignore_fun(f.read()) or '').strip()
-    if bug:
-      print FAILURE_HEADER_TEMPLATE % dict(
-          configs='', sources='', suppression=bug)
-      return True
+def get_meta_data(content):
+  """Extracts original-source-file paths from test case content."""
+  sources = []
+  for line in content.splitlines():
+    match = SOURCE_RE.match(line)
+    if match:
+      sources.append(match.group(1))
+  return {'sources': sources}
+
+
+def content_bailout(content, ignore_fun):
+  """Print failure state and return if ignore_fun matches content."""
+  bug = (ignore_fun(content) or '').strip()
+  if bug:
+    print FAILURE_HEADER_TEMPLATE % dict(
+        configs='', source_key='', suppression=bug)
+    return True
   return False
 
 
@@ -174,7 +189,7 @@ def fail_bailout(output, ignore_by_output_fun):
   bug = (ignore_by_output_fun(output.stdout) or '').strip()
   if bug:
     print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', sources='', suppression=bug)
+        configs='', source_key='', suppression=bug)
     return True
   return False
 
@@ -188,13 +203,15 @@ def main():
       options.second_arch, options.second_config,
   )
 
-  if test_pattern_bailout(options.testcase, suppress.ignore):
+  # Static bailout based on test case content or metadata.
+  with open(options.testcase) as f:
+    content = f.read()
+  if content_bailout(get_meta_data(content), suppress.ignore_by_metadata):
+    return RETURN_FAIL
+  if content_bailout(content, suppress.ignore_by_content):
     return RETURN_FAIL
 
-  # Get metadata.
-  with open(options.meta_data_path) as f:
-    metadata = json.load(f)
-
+  # Set up runtime arguments.
   common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
   first_config_flags = common_flags + CONFIGS[options.first_config]
   second_config_flags = common_flags + CONFIGS[options.second_config]
@@ -226,17 +243,23 @@ def main():
   if fail_bailout(second_config_output, suppress.ignore_by_output2):
     return RETURN_FAIL
 
-  difference = suppress.diff(
+  difference, source = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
+
+  if source:
+    source_key = hashlib.sha1(source).hexdigest()[:ORIGINAL_SOURCE_HASH_LENGTH]
+  else:
+    source = ORIGINAL_SOURCE_DEFAULT
+    source_key = ORIGINAL_SOURCE_DEFAULT
+
   if difference:
     # The first three entries will be parsed by clusterfuzz. Format changes
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
-    hsh = lambda x: hashlib.sha1(x).hexdigest()[:8]
     print FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
-        sources=','.join(map(hsh, metadata['sources'])),
+        source_key=source_key,
         suppression='', # We can't tie bugs to differences.
         first_config_label=first_config_label,
         second_config_label=second_config_label,
@@ -244,6 +267,7 @@ def main():
         second_config_flags=' '.join(second_config_flags),
         first_config_output=first_config_output.stdout,
         second_config_output=second_config_output.stdout,
+        source=source,
         difference=difference,
     )
     return RETURN_FAIL
@@ -263,11 +287,11 @@ if __name__ == "__main__":
     # Make sure clusterfuzz reports internal errors and wrong usage.
     # Use one label for all internal and usage errors.
     print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', sources='', suppression='wrong_usage')
+        configs='', source_key='', suppression='wrong_usage')
     result = RETURN_FAIL
   except Exception as e:
     print FAILURE_HEADER_TEMPLATE % dict(
-        configs='', sources='', suppression='internal_error')
+        configs='', source_key='', suppression='internal_error')
     print '# Internal error: %s' % e
     traceback.print_exc(file=sys.stdout)
     result = RETURN_FAIL

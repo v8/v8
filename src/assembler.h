@@ -395,6 +395,7 @@ class RelocInfo {
     WASM_MEMORY_REFERENCE,
     WASM_GLOBAL_REFERENCE,
     WASM_MEMORY_SIZE_REFERENCE,
+    WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     CELL,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
@@ -437,7 +438,7 @@ class RelocInfo {
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
     LAST_CODE_ENUM = DEBUGGER_STATEMENT,
-    LAST_GCED_ENUM = WASM_MEMORY_SIZE_REFERENCE,
+    LAST_GCED_ENUM = WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     FIRST_SHAREABLE_RELOC_MODE = CELL,
   };
 
@@ -530,6 +531,22 @@ class RelocInfo {
   static inline bool IsWasmGlobalReference(Mode mode) {
     return mode == WASM_GLOBAL_REFERENCE;
   }
+  static inline bool IsWasmFunctionTableSizeReference(Mode mode) {
+    return mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
+  }
+  static inline bool IsWasmReference(Mode mode) {
+    return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE ||
+           mode == WASM_MEMORY_SIZE_REFERENCE ||
+           mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
+  }
+  static inline bool IsWasmSizeReference(Mode mode) {
+    return mode == WASM_MEMORY_SIZE_REFERENCE ||
+           mode == WASM_FUNCTION_TABLE_SIZE_REFERENCE;
+  }
+  static inline bool IsWasmPtrReference(Mode mode) {
+    return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE;
+  }
+
   static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
@@ -558,12 +575,16 @@ class RelocInfo {
 
   Address wasm_memory_reference();
   Address wasm_global_reference();
+  uint32_t wasm_function_table_size_reference();
   uint32_t wasm_memory_size_reference();
   void update_wasm_memory_reference(
       Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_global_reference(
       Address old_base, Address new_base,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void update_wasm_function_table_size_reference(
+      uint32_t old_base, uint32_t new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_target_address(
       Address target,
@@ -673,8 +694,7 @@ class RelocInfo {
  private:
   void unchecked_update_wasm_memory_reference(Address address,
                                               ICacheFlushMode flush_mode);
-  void unchecked_update_wasm_memory_size(uint32_t size,
-                                         ICacheFlushMode flush_mode);
+  void unchecked_update_wasm_size(uint32_t size, ICacheFlushMode flush_mode);
 
   Isolate* isolate_;
   // On ARM, note that pc_ is the address of the constant pool entry
@@ -1041,6 +1061,8 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
 
   static ExternalReference debug_is_active_address(Isolate* isolate);
+  static ExternalReference debug_hook_on_function_call_address(
+      Isolate* isolate);
   static ExternalReference debug_after_break_target_address(Isolate* isolate);
 
   static ExternalReference is_profiling_address(Isolate* isolate);
@@ -1147,7 +1169,7 @@ class CallWrapper {
   // Called just after emitting a call, i.e., at the return site for the call.
   virtual void AfterCall() const = 0;
   // Return whether call needs to check for debug stepping.
-  virtual bool NeedsDebugStepCheck() const { return false; }
+  virtual bool NeedsDebugHookCheck() const { return false; }
 };
 
 
@@ -1166,7 +1188,7 @@ class CheckDebugStepCallWrapper : public CallWrapper {
   virtual ~CheckDebugStepCallWrapper() {}
   virtual void BeforeCall(int call_size) const {}
   virtual void AfterCall() const {}
-  virtual bool NeedsDebugStepCheck() const { return true; }
+  virtual bool NeedsDebugHookCheck() const { return true; }
 };
 
 

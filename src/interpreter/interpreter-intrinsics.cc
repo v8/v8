@@ -184,10 +184,6 @@ Node* IntrinsicsHelper::IsJSProxy(Node* input, Node* arg_count, Node* context) {
   return IsInstanceType(input, JS_PROXY_TYPE);
 }
 
-Node* IntrinsicsHelper::IsRegExp(Node* input, Node* arg_count, Node* context) {
-  return IsInstanceType(input, JS_REGEXP_TYPE);
-}
-
 Node* IntrinsicsHelper::IsTypedArray(Node* input, Node* arg_count,
                                      Node* context) {
   return IsInstanceType(input, JS_TYPED_ARRAY_TYPE);
@@ -232,6 +228,12 @@ Node* IntrinsicsHelper::IntrinsicAsStubCall(Node* args_reg, Node* context,
   }
   args[index++] = context;
   return __ CallStubN(callable.descriptor(), 1, input_count, args);
+}
+
+Node* IntrinsicsHelper::CreateIterResultObject(Node* input, Node* arg_count,
+                                               Node* context) {
+  return IntrinsicAsStubCall(input, context,
+                             CodeFactory::CreateIterResultObject(isolate()));
 }
 
 Node* IntrinsicsHelper::HasProperty(Node* input, Node* arg_count,

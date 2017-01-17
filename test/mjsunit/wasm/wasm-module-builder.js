@@ -98,6 +98,8 @@ class WasmFunctionBuilder {
 
   addBody(body) {
     this.body = body;
+    // Automatically add the end for the function block to the body.
+    body.push(kExprEnd);
     return this;
   }
 
@@ -359,7 +361,7 @@ class WasmModuleBuilder {
               break;
             case kWasmI64:
               section.emit_u8(kExprI64Const);
-              section.emit_u8(global.init);
+              section.emit_u32v(global.init);
               break;
             case kWasmF32:
               section.emit_u8(kExprF32Const);
@@ -547,9 +549,9 @@ class WasmModuleBuilder {
     return buffer;
   }
 
-  instantiate(...args) {
+  instantiate(ffi) {
     let module = new WebAssembly.Module(this.toBuffer());
-    let instance = new WebAssembly.Instance(module, ...args);
+    let instance = new WebAssembly.Instance(module, ffi);
     return instance;
   }
 }

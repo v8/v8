@@ -35,6 +35,7 @@
 #include "src/disasm.h"
 #include "src/factory.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
 using namespace v8::internal;

@@ -461,13 +461,14 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
         List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
         js_frame->Summarize(&frames);
         for (int i = frames.length() - 1; i >= 0; i--) {
-          Handle<JSFunction> fun = frames[i].function();
+          const auto& summ = frames[i].AsJavaScript();
+          Handle<JSFunction> fun = summ.function();
 
           // Filter out internal frames that we do not want to show.
           if (!helper.IsVisibleInStackTrace(*fun)) continue;
 
           Handle<Object> recv = frames[i].receiver();
-          Handle<AbstractCode> abstract_code = frames[i].abstract_code();
+          Handle<AbstractCode> abstract_code = summ.abstract_code();
           const int offset = frames[i].code_offset();
 
           bool force_constructor = false;
@@ -510,8 +511,8 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
                                              offset, flags);
       } break;
 
-      case StackFrame::WASM: {
-        WasmFrame* wasm_frame = WasmFrame::cast(frame);
+      case StackFrame::WASM_COMPILED: {
+        WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
         Handle<WasmInstanceObject> instance(wasm_frame->wasm_instance(), this);
         const int wasm_function_index = wasm_frame->function_index();
         Code* code = wasm_frame->unchecked_code();
@@ -533,6 +534,10 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
             FrameArray::AppendWasmFrame(elements, instance, wasm_function_index,
                                         abstract_code, offset, flags);
       } break;
+
+      case StackFrame::WASM_INTERPRETER_ENTRY:
+        // TODO(clemensh): Add frames.
+        break;
 
       default:
         break;
@@ -623,21 +628,22 @@ class CaptureStackTraceHelper {
   }
 
   Handle<JSObject> NewStackFrameObject(FrameSummary& summ) {
-    int position = summ.abstract_code()->SourcePosition(summ.code_offset());
-    return NewStackFrameObject(summ.function(), position,
-                               summ.is_constructor());
+    if (summ.IsJavaScript()) return NewStackFrameObject(summ.AsJavaScript());
+    if (summ.IsWasm()) return NewStackFrameObject(summ.AsWasm());
+    UNREACHABLE();
+    return Handle<JSObject>::null();
   }
 
-  Handle<JSObject> NewStackFrameObject(Handle<JSFunction> fun, int position,
-                                       bool is_constructor) {
+  Handle<JSObject> NewStackFrameObject(
+      const FrameSummary::JavaScriptFrameSummary& summ) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
-    Handle<Script> script(Script::cast(fun->shared()->script()), isolate_);
+    Handle<Script> script = Handle<Script>::cast(summ.script());
 
     if (!line_key_.is_null()) {
       Script::PositionInfo info;
-      bool valid_pos =
-          Script::GetPositionInfo(script, position, &info, Script::WITH_OFFSET);
+      bool valid_pos = Script::GetPositionInfo(script, summ.SourcePosition(),
+                                               &info, Script::WITH_OFFSET);
 
       if (!column_key_.is_null() && valid_pos) {
         JSObject::AddProperty(stack_frame, column_key_,
@@ -672,12 +678,13 @@ class CaptureStackTraceHelper {
     }
 
     if (!function_key_.is_null()) {
-      Handle<Object> fun_name = JSFunction::GetDebugName(fun);
+      Handle<String> fun_name = summ.FunctionName();
       JSObject::AddProperty(stack_frame, function_key_, fun_name, NONE);
     }
 
     if (!constructor_key_.is_null()) {
-      Handle<Object> is_constructor_obj = factory()->ToBoolean(is_constructor);
+      Handle<Object> is_constructor_obj =
+          factory()->ToBoolean(summ.is_constructor());
       JSObject::AddProperty(stack_frame, constructor_key_, is_constructor_obj,
                             NONE);
     }
@@ -699,29 +706,28 @@ class CaptureStackTraceHelper {
     return stack_frame;
   }
 
-  Handle<JSObject> NewStackFrameObject(WasmFrame* frame) {
+  Handle<JSObject> NewStackFrameObject(
+      const FrameSummary::WasmFrameSummary& summ) {
     Handle<JSObject> stack_frame =
         factory()->NewJSObject(isolate_->object_function());
 
     if (!function_key_.is_null()) {
       Handle<WasmCompiledModule> compiled_module(
-          frame->wasm_instance()->compiled_module(), isolate_);
+          summ.wasm_instance()->compiled_module(), isolate_);
       Handle<String> name = WasmCompiledModule::GetFunctionName(
-          isolate_, compiled_module, frame->function_index());
+          isolate_, compiled_module, summ.function_index());
       JSObject::AddProperty(stack_frame, function_key_, name, NONE);
     }
     // Encode the function index as line number (1-based).
     if (!line_key_.is_null()) {
       JSObject::AddProperty(
           stack_frame, line_key_,
-          isolate_->factory()->NewNumberFromInt(frame->function_index() + 1),
+          isolate_->factory()->NewNumberFromInt(summ.function_index() + 1),
           NONE);
     }
     // Encode the byte offset as column (1-based).
     if (!column_key_.is_null()) {
-      Code* code = frame->LookupCode();
-      int offset = static_cast<int>(frame->pc() - code->instruction_start());
-      int position = AbstractCode::cast(code)->SourcePosition(offset);
+      int position = summ.byte_offset();
       // Make position 1-based.
       if (position >= 0) ++position;
       JSObject::AddProperty(stack_frame, column_key_,
@@ -729,7 +735,7 @@ class CaptureStackTraceHelper {
                             NONE);
     }
     if (!script_id_key_.is_null()) {
-      int script_id = frame->script()->id();
+      int script_id = summ.script()->id();
       JSObject::AddProperty(stack_frame, script_id_key_,
                             handle(Smi::FromInt(script_id), isolate_), NONE);
     }
@@ -766,25 +772,16 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
   for (StackTraceFrameIterator it(this); !it.done() && (frames_seen < limit);
        it.Advance()) {
     StandardFrame* frame = it.frame();
-    if (frame->is_java_script()) {
-      // Set initial size to the maximum inlining level + 1 for the outermost
-      // function.
-      List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-      JavaScriptFrame::cast(frame)->Summarize(&frames);
-      for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
-        Handle<JSFunction> fun = frames[i].function();
-        // Filter frames from other security contexts.
-        if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
-            !this->context()->HasSameSecurityTokenAs(fun->context()))
-          continue;
-        Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(frames[i]);
-        stack_trace_elems->set(frames_seen, *new_frame_obj);
-        frames_seen++;
-      }
-    } else {
-      DCHECK(frame->is_wasm());
-      WasmFrame* wasm_frame = WasmFrame::cast(frame);
-      Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(wasm_frame);
+    // Set initial size to the maximum inlining level + 1 for the outermost
+    // function.
+    List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+    frame->Summarize(&frames);
+    for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
+      // Filter frames from other security contexts.
+      if (!(options & StackTrace::kExposeFramesAcrossSecurityOrigins) &&
+          !this->context()->HasSameSecurityTokenAs(*frames[i].native_context()))
+        continue;
+      Handle<JSObject> new_frame_obj = helper.NewStackFrameObject(frames[i]);
       stack_trace_elems->set(frames_seen, *new_frame_obj);
       frames_seen++;
     }
@@ -1220,7 +1217,7 @@ Object* Isolate::UnwindAndFindHandler() {
     if (FLAG_wasm_eh_prototype) {
       if (frame->is_wasm() && is_catchable_by_wasm(exception)) {
         int stack_slots = 0;  // Will contain stack slot count of frame.
-        WasmFrame* wasm_frame = static_cast<WasmFrame*>(frame);
+        WasmCompiledFrame* wasm_frame = static_cast<WasmCompiledFrame*>(frame);
         offset = wasm_frame->LookupExceptionHandlerInTable(&stack_slots);
         if (offset >= 0) {
           // Compute the stack pointer from the frame pointer. This ensures that
@@ -1309,6 +1306,9 @@ Object* Isolate::UnwindAndFindHandler() {
       CHECK_EQ(-1, offset);
     }
 
+    // TODO(clemensh): Handle unwinding interpreted wasm frames (stored in the
+    // WasmInterpreter C++ object).
+
     RemoveMaterializedObjectsOnUnwind(frame);
   }
 
@@ -1338,7 +1338,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
       List<FrameSummary> summaries;
       frame->Summarize(&summaries);
       for (const FrameSummary& summary : summaries) {
-        Handle<AbstractCode> code = summary.abstract_code();
+        Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
         if (code->IsCode() && code->kind() == AbstractCode::BUILTIN) {
           if (code->GetCode()->is_promise_rejection()) {
             return HandlerTable::PROMISE;
@@ -1352,7 +1352,7 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         }
 
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {
-          DCHECK(summary.function()->shared()->asm_function());
+          DCHECK(summary.AsJavaScript().function()->shared()->asm_function());
           // asm code cannot contain try-catch.
           continue;
         }
@@ -1496,23 +1496,29 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   StackTraceFrameIterator it(this);
   if (it.done()) return false;
   StandardFrame* frame = it.frame();
-  // TODO(clemensh): handle wasm frames
-  if (!frame->is_java_script()) return false;
-  JSFunction* fun = JavaScriptFrame::cast(frame)->function();
-  Object* script = fun->shared()->script();
-  if (!script->IsScript() ||
-      (Script::cast(script)->source()->IsUndefined(this))) {
-    return false;
-  }
-  Handle<Script> casted_script(Script::cast(script), this);
   // Compute the location from the function and the relocation info of the
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
-  JavaScriptFrame::cast(frame)->Summarize(&frames);
+  frame->Summarize(&frames);
   FrameSummary& summary = frames.last();
-  int pos = summary.abstract_code()->SourcePosition(summary.code_offset());
-  *target = MessageLocation(casted_script, pos, pos + 1, handle(fun, this));
+  int pos = summary.SourcePosition();
+  Handle<SharedFunctionInfo> shared;
+  Handle<Object> script = summary.script();
+  if (!script->IsScript() ||
+      (Script::cast(*script)->source()->IsUndefined(this))) {
+    return false;
+  }
+
+  // TODO(wasm): Remove this once trap-if is always on.
+  // Background: Without trap-if, the information on the stack trace is
+  // incomplete (see bug v8:5007).
+  if (summary.IsWasmCompiled() && !FLAG_wasm_trap_if) return false;
+
+  if (summary.IsJavaScript()) {
+    shared = handle(summary.AsJavaScript().function()->shared());
+  }
+  *target = MessageLocation(Handle<Script>::cast(script), pos, pos + 1, shared);
   return true;
 }
 
@@ -3258,41 +3264,30 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
 namespace {
 class PromiseDebugEventScope {
  public:
-  PromiseDebugEventScope(Isolate* isolate, Object* id, Object* name)
-      : isolate_(isolate),
-        id_(id, isolate_),
-        name_(name, isolate_),
-        is_debug_active_(isolate_->debug()->is_active() && id_->IsNumber() &&
-                         name_->IsString()) {
-    if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(
-          isolate_->factory()->will_handle_string(), id_,
-          Handle<String>::cast(name_));
+  PromiseDebugEventScope(Isolate* isolate, int id)
+      : isolate_(isolate), id_(id) {
+    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
+      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_);
     }
   }
 
   ~PromiseDebugEventScope() {
-    if (is_debug_active_) {
-      isolate_->debug()->OnAsyncTaskEvent(
-          isolate_->factory()->did_handle_string(), id_,
-          Handle<String>::cast(name_));
+    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
+      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_);
     }
   }
 
  private:
   Isolate* isolate_;
-  Handle<Object> id_;
-  Handle<Object> name_;
-  bool is_debug_active_;
+  int id_;
 };
 }  // namespace
 
 void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
+  PromiseDebugEventScope helper(this, info->debug_id());
 
-  Handle<JSPromise> promise(info->promise(), this);
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
@@ -3309,9 +3304,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
         FixedArray::cast(info->deferred_on_reject()), this);
     Handle<FixedArray> tasks_arr = Handle<FixedArray>::cast(tasks);
     for (int i = 0; i < deferred_promise_arr->length(); i++) {
-      Handle<Object> argv[] = {promise,
-                               value,
-                               handle(tasks_arr->get(i), this),
+      Handle<Object> argv[] = {value, handle(tasks_arr->get(i), this),
                                handle(deferred_promise_arr->get(i), this),
                                handle(deferred_on_resolve_arr->get(i), this),
                                handle(deferred_on_reject_arr->get(i), this)};
@@ -3323,10 +3316,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
       }
     }
   } else {
-    Handle<Object> argv[] = {promise,
-                             value,
-                             tasks,
-                             deferred_promise,
+    Handle<Object> argv[] = {value, tasks, deferred_promise,
                              handle(info->deferred_on_resolve(), this),
                              handle(info->deferred_on_reject(), this)};
     *result = Execution::TryCall(this, promise_handle_fn, undefined,
@@ -3337,7 +3327,7 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
 void Isolate::PromiseResolveThenableJob(
     Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
     MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id(), info->debug_name());
+  PromiseDebugEventScope helper(this, info->debug_id());
 
   Handle<JSReceiver> thenable(info->thenable(), this);
   Handle<JSFunction> resolve(info->resolve(), this);
@@ -3391,6 +3381,7 @@ void Isolate::RunMicrotasks() {
 void Isolate::RunMicrotasksInternal() {
   if (!pending_microtask_count()) return;
   TRACE_EVENT0("v8.execute", "RunMicrotasks");
+  TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
   while (pending_microtask_count() > 0) {
     HandleScope scope(this);
     int num_tasks = pending_microtask_count();

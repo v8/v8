@@ -23,25 +23,26 @@ class AbstractCode;
 class FrameArray;
 class JSMessageObject;
 class LookupIterator;
+class SharedFunctionInfo;
 class SourceInfo;
 
 class MessageLocation {
  public:
   MessageLocation(Handle<Script> script, int start_pos, int end_pos);
   MessageLocation(Handle<Script> script, int start_pos, int end_pos,
-                  Handle<JSFunction> function);
+                  Handle<SharedFunctionInfo> shared);
   MessageLocation();
 
   Handle<Script> script() const { return script_; }
   int start_pos() const { return start_pos_; }
   int end_pos() const { return end_pos_; }
-  Handle<JSFunction> function() const { return function_; }
+  Handle<SharedFunctionInfo> shared() const { return shared_; }
 
  private:
   Handle<Script> script_;
   int start_pos_;
   int end_pos_;
-  Handle<JSFunction> function_;
+  Handle<SharedFunctionInfo> shared_;
 };
 
 class StackFrameBase {
@@ -268,7 +269,6 @@ class ErrorUtils : public AllStatic {
     "ArrayBuffer subclass returned this from species constructor")             \
   T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
-  T(ArrayNotSubclassable, "Subclassing Arrays is not currently supported.")    \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
@@ -486,8 +486,8 @@ class ErrorUtils : public AllStatic {
   T(VarRedeclaration, "Identifier '%' has already been declared")              \
   T(WrongArgs, "%: Arguments list has wrong type")                             \
   /* ReferenceError */                                                         \
-  T(NonMethod, "'super' is referenced from non-method")                        \
   T(NotDefined, "% is not defined")                                            \
+  T(SuperAlreadyCalled, "Super constructor may only be called once")           \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(DateRange, "Provided date is not in valid range.")                         \
@@ -669,6 +669,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidTypeParameter, "Invalid type parameter")                            \
   /* EvalError */                                                              \
   T(CodeGenFromStrings, "%")                                                   \
+  T(NoSideEffectDebugEvaluate, "Possible side-effect in debug-evaluate")       \
   /* URIError */                                                               \
   T(URIMalformed, "URI malformed")                                             \
   /* Wasm errors (currently Error) */                                          \
@@ -690,8 +691,8 @@ class ErrorUtils : public AllStatic {
   T(DataCloneError, "% could not be cloned.")                                  \
   T(DataCloneErrorNeuteredArrayBuffer,                                         \
     "An ArrayBuffer is neutered and could not be cloned.")                     \
-  T(DataCloneErrorSharedArrayBufferNotTransferred,                             \
-    "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must be "      \
+  T(DataCloneErrorSharedArrayBufferTransferred,                                \
+    "A SharedArrayBuffer could not be cloned. SharedArrayBuffer must not be "  \
     "transferred.")                                                            \
   T(DataCloneDeserializationError, "Unable to deserialize cloned data.")       \
   T(DataCloneDeserializationVersionError,                                      \
