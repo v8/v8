@@ -151,6 +151,10 @@ namespace v8 {
   PREPARE_FOR_EXECUTION_WITH_CONTEXT(context, class_name, function_name, \
                                      false, i::HandleScope, false)
 
+#define ENTER_V8_FOR_NEW_CONTEXT(isolate)     \
+  i::VMState<v8::OTHER> __state__((isolate)); \
+  i::DisallowExceptions __no_exceptions__((isolate))
+
 #define EXCEPTION_BAILOUT_CHECK_SCOPED(isolate, value) \
   do {                                                 \
     if (has_pending_exception) {                       \
@@ -6203,12 +6207,15 @@ static i::Handle<ObjectType> CreateEnvironment(
     v8::DeserializeInternalFieldsCallback internal_fields_deserializer) {
   i::Handle<ObjectType> result;
 
-  // Enter V8 via an ENTER_V8 scope.
   {
-    ENTER_V8(isolate);
+    ENTER_V8_FOR_NEW_CONTEXT(isolate);
     v8::Local<ObjectTemplate> proxy_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
+    i::Handle<i::Object> named_interceptor(
+        isolate->factory()->undefined_value());
+    i::Handle<i::Object> indexed_interceptor(
+        isolate->factory()->undefined_value());
 
     if (!maybe_global_template.IsEmpty()) {
       v8::Local<v8::ObjectTemplate> global_template =
@@ -6241,6 +6248,24 @@ static i::Handle<ObjectType> CreateEnvironment(
         global_constructor->set_access_check_info(
             isolate->heap()->undefined_value());
       }
+
+      // Same for other interceptors. If the global constructor has
+      // interceptors, we need to replace them temporarily with noop
+      // interceptors, so the map is correctly marked as having interceptors,
+      // but we don't invoke any.
+      if (!global_constructor->named_property_handler()->IsUndefined(isolate)) {
+        named_interceptor =
+            handle(global_constructor->named_property_handler(), isolate);
+        global_constructor->set_named_property_handler(
+            isolate->heap()->noop_interceptor_info());
+      }
+      if (!global_constructor->indexed_property_handler()->IsUndefined(
+              isolate)) {
+        indexed_interceptor =
+            handle(global_constructor->indexed_property_handler(), isolate);
+        global_constructor->set_indexed_property_handler(
+            isolate->heap()->noop_interceptor_info());
+      }
     }
 
     i::MaybeHandle<i::JSGlobalProxy> maybe_proxy;
@@ -6254,7 +6279,7 @@ static i::Handle<ObjectType> CreateEnvironment(
         invoke.Invoke(isolate, maybe_proxy, proxy_template, extensions,
                       context_snapshot_index, internal_fields_deserializer);
 
-    // Restore the access check info on the global template.
+    // Restore the access check info and interceptors on the global template.
     if (!maybe_global_template.IsEmpty()) {
       DCHECK(!global_constructor.is_null());
       DCHECK(!proxy_constructor.is_null());
@@ -6262,6 +6287,8 @@ static i::Handle<ObjectType> CreateEnvironment(
           proxy_constructor->access_check_info());
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
+      global_constructor->set_named_property_handler(*named_interceptor);
+      global_constructor->set_indexed_property_handler(*indexed_interceptor);
     }
   }
   // Leave V8.

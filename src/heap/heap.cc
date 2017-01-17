@@ -2524,10 +2524,18 @@ AllocationResult Heap::AllocateTransitionArray(int capacity) {
   return array;
 }
 
-
-void Heap::CreateApiObjects() {
+bool Heap::CreateApiObjects() {
   HandleScope scope(isolate());
   set_message_listeners(*TemplateList::New(isolate(), 2));
+  HeapObject* obj = nullptr;
+  {
+    AllocationResult allocation = AllocateStruct(INTERCEPTOR_INFO_TYPE);
+    if (!allocation.To(&obj)) return false;
+  }
+  InterceptorInfo* info = InterceptorInfo::cast(obj);
+  info->set_flags(0);
+  set_noop_interceptor_info(info);
+  return true;
 }
 
 
@@ -5581,7 +5589,7 @@ bool Heap::SetUp() {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  CreateApiObjects();
+  if (!CreateApiObjects()) return false;
 
   // Create initial objects
   CreateInitialObjects();

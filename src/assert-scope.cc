@@ -155,6 +155,8 @@ template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, false>;
 template class PerIsolateAssertScope<DEOPTIMIZATION_ASSERT, true>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, false>;
 template class PerIsolateAssertScope<COMPILATION_ASSERT, true>;
+template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, false>;
+template class PerIsolateAssertScope<NO_EXCEPTION_ASSERT, true>;
 
 }  // namespace internal
 }  // namespace v8

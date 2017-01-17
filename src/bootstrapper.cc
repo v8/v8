@@ -2996,12 +2996,16 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
 
   // For non-extension scripts, run script to get the function wrapper.
   Handle<Object> wrapper;
-  if (!Execution::Call(isolate, fun, receiver, 0, NULL).ToHandle(&wrapper)) {
+  if (!Execution::TryCall(isolate, fun, receiver, 0, nullptr,
+                          Execution::MessageHandling::kKeepPending, nullptr)
+           .ToHandle(&wrapper)) {
     return false;
   }
   // Then run the function wrapper.
-  return !Execution::Call(isolate, Handle<JSFunction>::cast(wrapper), receiver,
-                          argc, argv).is_null();
+  return !Execution::TryCall(isolate, Handle<JSFunction>::cast(wrapper),
+                             receiver, argc, argv,
+                             Execution::MessageHandling::kKeepPending, nullptr)
+              .is_null();
 }
 
 
@@ -3013,7 +3017,9 @@ bool Genesis::CallUtilsFunction(Isolate* isolate, const char* name) {
   Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
   Handle<Object> receiver = isolate->factory()->undefined_value();
   Handle<Object> args[] = {utils};
-  return !Execution::Call(isolate, fun, receiver, 1, args).is_null();
+  return !Execution::TryCall(isolate, fun, receiver, 1, args,
+                             Execution::MessageHandling::kKeepPending, nullptr)
+              .is_null();
 }
 
 
@@ -3055,7 +3061,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver = isolate->global_object();
-  return !Execution::Call(isolate, fun, receiver, 0, NULL).is_null();
+  return !Execution::TryCall(isolate, fun, receiver, 0, nullptr,
+                             Execution::MessageHandling::kKeepPending, nullptr)
+              .is_null();
 }
 
 

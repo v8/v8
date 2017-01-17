@@ -655,7 +655,10 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
   Handle<JSFunction> fun = Handle<JSFunction>::cast(
       JSReceiver::GetProperty(isolate_, holder, name).ToHandleChecked());
   Handle<Object> undefined = isolate_->factory()->undefined_value();
-  return Execution::TryCall(isolate_, fun, undefined, argc, args);
+  MaybeHandle<Object> maybe_exception;
+  return Execution::TryCall(isolate_, fun, undefined, argc, args,
+                            Execution::MessageHandling::kReport,
+                            &maybe_exception);
 }
 
 
@@ -2091,9 +2094,9 @@ void Debug::NotifyMessageHandler(v8::DebugEvent event,
     Handle<Object> answer_value;
     Handle<String> answer;
     MaybeHandle<Object> maybe_exception;
-    MaybeHandle<Object> maybe_result =
-        Execution::TryCall(isolate_, process_debug_request, cmd_processor, 1,
-                           request_args, &maybe_exception);
+    MaybeHandle<Object> maybe_result = Execution::TryCall(
+        isolate_, process_debug_request, cmd_processor, 1, request_args,
+        Execution::MessageHandling::kReport, &maybe_exception);
 
     if (maybe_result.ToHandle(&answer_value)) {
       if (answer_value->IsUndefined(isolate_)) {
@@ -2491,8 +2494,10 @@ v8::Local<v8::String> MessageImpl::GetJSON() const {
       return v8::Local<v8::String>();
     }
 
-    MaybeHandle<Object> maybe_json =
-        Execution::TryCall(isolate, fun, event_data_, 0, NULL);
+    MaybeHandle<Object> maybe_exception;
+    MaybeHandle<Object> maybe_json = Execution::TryCall(
+        isolate, fun, event_data_, 0, nullptr,
+        Execution::MessageHandling::kReport, &maybe_exception);
     Handle<Object> json;
     if (!maybe_json.ToHandle(&json) || !json->IsString()) {
       return v8::Local<v8::String>();

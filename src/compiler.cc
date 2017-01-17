@@ -1615,7 +1615,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     if (result.is_null()) {
-      isolate->ReportPendingMessages();
+      if (natives != EXTENSION_CODE) isolate->ReportPendingMessages();
     } else {
       isolate->debug()->OnAfterCompile(script);
     }

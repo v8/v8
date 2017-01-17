@@ -216,6 +216,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   /* Configured values */                                                      \
   V(TemplateList, message_listeners, MessageListeners)                         \
+  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   /* Oddball maps */                                                           \
@@ -838,7 +839,7 @@ class Heap {
   // Support for the API.
   //
 
-  void CreateApiObjects();
+  bool CreateApiObjects();
 
   // Implements the corresponding V8 API function.
   bool IdleNotification(double deadline_in_seconds);

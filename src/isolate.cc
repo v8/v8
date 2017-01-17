@@ -1694,6 +1694,8 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
 
 
 void Isolate::ReportPendingMessages() {
+  DCHECK(AllowExceptions::IsAllowed(this));
+
   Object* exception = pending_exception();
 
   // Try to propagate the exception to an external v8::TryCatch handler. If
@@ -3317,8 +3319,9 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                handle(deferred_promise_arr->get(i), this),
                                handle(deferred_on_resolve_arr->get(i), this),
                                handle(deferred_on_reject_arr->get(i), this)};
-      *result = Execution::TryCall(this, promise_handle_fn, undefined,
-                                   arraysize(argv), argv, maybe_exception);
+      *result = Execution::TryCall(
+          this, promise_handle_fn, undefined, arraysize(argv), argv,
+          Execution::MessageHandling::kReport, maybe_exception);
       // If execution is terminating, just bail out.
       if (result->is_null() && maybe_exception->is_null()) {
         return;
@@ -3328,8 +3331,9 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
     Handle<Object> argv[] = {value, tasks, deferred_promise,
                              handle(info->deferred_on_resolve(), this),
                              handle(info->deferred_on_reject(), this)};
-    *result = Execution::TryCall(this, promise_handle_fn, undefined,
-                                 arraysize(argv), argv, maybe_exception);
+    *result = Execution::TryCall(
+        this, promise_handle_fn, undefined, arraysize(argv), argv,
+        Execution::MessageHandling::kReport, maybe_exception);
   }
 }
 
@@ -3343,16 +3347,17 @@ void Isolate::PromiseResolveThenableJob(
   Handle<JSFunction> reject(info->reject(), this);
   Handle<JSReceiver> then(info->then(), this);
   Handle<Object> argv[] = {resolve, reject};
-  *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
-                               maybe_exception);
+  *result =
+      Execution::TryCall(this, then, thenable, arraysize(argv), argv,
+                         Execution::MessageHandling::kReport, maybe_exception);
 
   Handle<Object> reason;
   if (maybe_exception->ToHandle(&reason)) {
     DCHECK(result->is_null());
     Handle<Object> reason_arg[] = {reason};
-    *result =
-        Execution::TryCall(this, reject, factory()->undefined_value(),
-                           arraysize(reason_arg), reason_arg, maybe_exception);
+    *result = Execution::TryCall(
+        this, reject, factory()->undefined_value(), arraysize(reason_arg),
+        reason_arg, Execution::MessageHandling::kReport, maybe_exception);
   }
 }
 
@@ -3432,9 +3437,9 @@ void Isolate::RunMicrotasksInternal() {
         if (microtask->IsJSFunction()) {
           Handle<JSFunction> microtask_function =
               Handle<JSFunction>::cast(microtask);
-          result = Execution::TryCall(this, microtask_function,
-                                      factory()->undefined_value(), 0, NULL,
-                                      &maybe_exception);
+          result = Execution::TryCall(
+              this, microtask_function, factory()->undefined_value(), 0,
+              nullptr, Execution::MessageHandling::kReport, &maybe_exception);
         } else if (microtask->IsPromiseResolveThenableJobInfo()) {
           PromiseResolveThenableJob(
               Handle<PromiseResolveThenableJobInfo>::cast(microtask), &result,
