@@ -559,7 +559,8 @@ Parser::Parser(ParseInfo* info)
   }
   if (info->ast_value_factory() == NULL) {
     // info takes ownership of AstValueFactory.
-    info->set_ast_value_factory(new AstValueFactory(zone(), info->hash_seed()));
+    info->set_ast_value_factory(new AstValueFactory(
+        zone(), info->isolate()->ast_string_constants(), info->hash_seed()));
     info->set_ast_value_factory_owned();
     ast_value_factory_ = info->ast_value_factory();
     ast_node_factory_.set_ast_value_factory(ast_value_factory_);

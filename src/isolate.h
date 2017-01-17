@@ -35,6 +35,7 @@ namespace internal {
 
 class AccessCompilerData;
 class AddressToIndexHashMap;
+class AstStringConstants;
 class BasicBlockProfiler;
 class Bootstrapper;
 class CancelableTaskManager;
@@ -1155,6 +1156,10 @@ class Isolate {
     return cancelable_task_manager_;
   }
 
+  AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
+  }
+
   interpreter::Interpreter* interpreter() const { return interpreter_; }
 
   AccountingAllocator* allocator() { return allocator_; }
@@ -1396,6 +1401,8 @@ class Isolate {
   HeapProfiler* heap_profiler_;
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
+
+  AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
 
