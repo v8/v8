@@ -648,14 +648,6 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
         array_literal->GetOrBuildConstantElements(isolate);
     builder()->InsertConstantPoolEntryAt(literal.second, constant_elements);
   }
-
-  // TODO(leszeks): ideally there would be no path to here where feedback
-  // metadata is previously created, and we could create it unconditionally.
-  // We should investigate again once FCG has shuffled off its mortal coil.
-  DCHECK(info()->has_shared_info());
-  TypeFeedbackMetadata::EnsureAllocated(
-      info()->isolate(), info()->shared_info(),
-      info()->literal()->feedback_vector_spec());
 }
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
