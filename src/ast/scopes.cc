@@ -277,8 +277,7 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
   // Cache the catch variable, even though it's also available via the
   // scope_info, as the parser expects that a catch scope always has the catch
   // variable as first and only variable.
-  Variable* variable = Declare(zone, catch_variable_name, VAR, NORMAL_VARIABLE,
-                               kCreatedInitialized);
+  Variable* variable = Declare(zone, catch_variable_name, VAR);
   AllocateHeapSlot(variable);
 }
 
@@ -655,8 +654,7 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
     // Declare 'arguments' variable which exists in all non arrow functions.
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
-    arguments_ = Declare(zone(), ast_value_factory->arguments_string(), VAR,
-                         NORMAL_VARIABLE, kCreatedInitialized);
+    arguments_ = Declare(zone(), ast_value_factory->arguments_string(), VAR);
   } else if (IsLexicalVariableMode(arguments_->mode())) {
     // Check if there's lexically declared variable named arguments to avoid
     // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
@@ -670,13 +668,12 @@ void DeclarationScope::DeclareDefaultFunctionVariables(
   DCHECK(!is_arrow_scope());
 
   DeclareThis(ast_value_factory);
-  new_target_ = Declare(zone(), ast_value_factory->new_target_string(), CONST,
-                        NORMAL_VARIABLE, kCreatedInitialized);
+  new_target_ = Declare(zone(), ast_value_factory->new_target_string(), CONST);
 
   if (IsConciseMethod(function_kind_) || IsClassConstructor(function_kind_) ||
       IsAccessorFunction(function_kind_)) {
-    this_function_ = Declare(zone(), ast_value_factory->this_function_string(),
-                             CONST, NORMAL_VARIABLE, kCreatedInitialized);
+    this_function_ =
+        Declare(zone(), ast_value_factory->this_function_string(), CONST);
   }
 }
 
@@ -931,7 +928,7 @@ Variable* DeclarationScope::DeclareParameter(
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
   } else {
-    var = Declare(zone(), name, mode, NORMAL_VARIABLE, kCreatedInitialized);
+    var = Declare(zone(), name, mode);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
   }
@@ -1108,8 +1105,7 @@ void Scope::AddUnresolved(VariableProxy* proxy) {
 Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
                                                  VariableKind kind) {
   DCHECK(is_script_scope());
-  return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind,
-                            kCreatedInitialized);
+  return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind);
 }
 
 
@@ -1637,8 +1633,7 @@ void Scope::CheckZones() {
 Variable* Scope::NonLocal(const AstRawString* name, VariableMode mode) {
   // Declare a new non-local.
   DCHECK(IsDynamicVariableMode(mode));
-  Variable* var = variables_.Declare(zone(), NULL, name, mode, NORMAL_VARIABLE,
-                                     kCreatedInitialized);
+  Variable* var = variables_.Declare(zone(), nullptr, name, mode);
   // Allocate it by giving it a dynamic lookup.
   var->AllocateTo(VariableLocation::LOOKUP, -1);
   return var;

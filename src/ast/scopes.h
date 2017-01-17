@@ -30,11 +30,12 @@ class VariableMap: public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
-  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, VariableKind kind,
-                    InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                    bool* added = nullptr);
+  Variable* Declare(
+      Zone* zone, Scope* scope, const AstRawString* name, VariableMode mode,
+      VariableKind kind = NORMAL_VARIABLE,
+      InitializationFlag initialization_flag = kCreatedInitialized,
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+      bool* added = nullptr);
 
   // Records that "name" exists (if not recorded yet) but doesn't create a
   // Variable. Useful for preparsing.
@@ -169,7 +170,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag, VariableKind kind,
+                         InitializationFlag init_flag = kCreatedInitialized,
+                         VariableKind kind = NORMAL_VARIABLE,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
@@ -467,9 +469,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   }
 
  private:
-  Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
-                    VariableKind kind, InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+  Variable* Declare(
+      Zone* zone, const AstRawString* name, VariableMode mode,
+      VariableKind kind = NORMAL_VARIABLE,
+      InitializationFlag initialization_flag = kCreatedInitialized,
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
