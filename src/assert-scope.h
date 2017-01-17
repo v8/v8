@@ -42,6 +42,8 @@ class PerThreadAssertScope {
 
   V8_EXPORT_PRIVATE static bool IsAllowed();
 
+  void Release();
+
  private:
   PerThreadAssertData* data_;
   bool old_state_;
@@ -76,6 +78,7 @@ class PerThreadAssertScopeDebugOnly : public
 class PerThreadAssertScopeDebugOnly {
  public:
   PerThreadAssertScopeDebugOnly() { }
+  void Release() {}
 #endif
 };
 
