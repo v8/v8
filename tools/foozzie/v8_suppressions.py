@@ -115,6 +115,9 @@ ALLOWED_LINE_DIFFS = [
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
+
+  # crbug.com/681326
+  r'^(.*<anonymous>):\d+:\d+(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
