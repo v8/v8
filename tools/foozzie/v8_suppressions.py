@@ -40,10 +40,21 @@ IGNORE_SOURCES = {
   # This contains a usage of f.arguments that often fires.
   'crbug.com/662424': '/v8/test/mjsunit/regress/regress-2989.js',
 
-  # crbug.com/680110
-  'crbug.com/680110': '/v8/test/mjsunit/asm/pointer-masking.js',
-  'crbug.com/680110': '/v8/test/mjsunit/compiler/regress-443744.js',
-  'crbug.com/680110': '/v8/test/mjsunit/regress/wasm/regression-647649.js',
+  # crbug.com/681088
+  'crbug.com/681088': '/v8/test/mjsunit/asm/asm-validation.js',
+  'crbug.com/681088': '/v8/test/mjsunit/asm/b5528-comma.js',
+  'crbug.com/681088': '/v8/test/mjsunit/asm/pointer-masking.js',
+  'crbug.com/681088': '/v8/test/mjsunit/compiler/regress-443744.js',
+  'crbug.com/681088': '/v8/test/mjsunit/regress/regress-599719.js',
+  'crbug.com/681088': '/v8/test/mjsunit/regress/wasm/regression-647649.js',
+  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm.js',
+  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-deopt.js',
+  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-heap.js',
+  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-literals.js',
+  'crbug.com/681088': '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
+
+  # crbug.com/681236
+  'crbug.com/681236': '/v8/test/mjsunit/wasm/asm-wasm-switch.js',
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
