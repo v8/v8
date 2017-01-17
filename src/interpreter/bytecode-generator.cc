@@ -788,10 +788,13 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
       ->LoadAccumulatorWithRegister(generator_object)
       .JumpIfUndefined(&regular_call);
 
-  // This is a resume call. Restore registers and perform state dispatch.
-  // (The current context has already been restored by the trampoline.)
+  // This is a resume call. Restore the current context and the registers, then
+  // perform state dispatch.
+  Register dummy = register_allocator()->NewRegister();
   builder()
-      ->ResumeGenerator(generator_object)
+      ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object)
+      .PushContext(dummy)
+      .ResumeGenerator(generator_object)
       .StoreAccumulatorInRegister(generator_state_);
   BuildIndexedJump(generator_state_, 0, generator_resume_points_.size(),
                    generator_resume_points_);

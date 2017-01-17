@@ -744,8 +744,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Str(x2, FieldMemOperand(x1, JSGeneratorObject::kResumeModeOffset));
 
   // Load suspended function and context.
-  __ Ldr(cp, FieldMemOperand(x1, JSGeneratorObject::kContextOffset));
   __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
+  __ Ldr(cp, FieldMemOperand(x4, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
   Label prepare_step_in_if_stepping, prepare_step_in_suspended_generator;
