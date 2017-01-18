@@ -227,12 +227,12 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addFunctionTableInit(base, is_global, array) {
+  addFunctionTableInit(base, is_global, array, is_import = false) {
     this.function_table_inits.push({base: base, is_global: is_global,
                                     array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length) {
+      if (length > this.function_table_length && !is_import) {
         this.function_table_length = length;
       }
     }
