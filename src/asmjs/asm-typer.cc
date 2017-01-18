@@ -573,6 +573,8 @@ bool AsmTyper::ValidateAfterFunctionsPhase() {
 
 void AsmTyper::ClearFunctionNodeTypes() { function_node_types_.clear(); }
 
+AsmType* AsmTyper::TriggerParsingError() { FAIL(root_, "Parsing error"); }
+
 namespace {
 bool IsUseAsmDirective(Statement* first_statement) {
   ExpressionStatement* use_asm = first_statement->AsExpressionStatement();

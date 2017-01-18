@@ -163,6 +163,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           info.zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
       info.set_asm_function_scope(new_func_scope);
       if (!Compiler::ParseAndAnalyze(&info)) {
+        decl->fun()->scope()->outer_scope()->RemoveInnerScope(new_func_scope);
+        if (isolate_->has_pending_exception()) {
+          isolate_->clear_pending_exception();
+        }
+        typer_->TriggerParsingError();
         typer_failed_ = true;
         return;
       }

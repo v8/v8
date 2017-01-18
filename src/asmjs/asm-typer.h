@@ -82,6 +82,8 @@ class AsmTyper final {
   Handle<JSMessageObject> error_message() const { return error_message_; }
   const MessageLocation* message_location() const { return &message_location_; }
 
+  AsmType* TriggerParsingError();
+
   AsmType* TypeOf(AstNode* node) const;
   AsmType* TypeOf(Variable* v) const;
   StandardMember VariableAsStandardMember(Variable* var);
