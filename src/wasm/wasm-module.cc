@@ -2325,20 +2325,12 @@ void UncheckedUpdateInstanceMemory(Isolate* isolate,
                                  old_size, new_size);
 }
 
-int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate, Handle<Object> receiver,
+int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate,
+                                    Handle<WasmMemoryObject> receiver,
                                     uint32_t pages) {
   DCHECK(WasmJs::IsWasmMemoryObject(isolate, receiver));
   Handle<WasmMemoryObject> memory_object =
       handle(WasmMemoryObject::cast(*receiver));
-  Handle<WasmInstanceWrapper> instance_wrapper(memory_object->instances_link());
-  DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
-  DCHECK(instance_wrapper->has_instance());
-  Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
-  DCHECK(IsWasmInstance(*instance));
-  if (pages == 0) return GetInstanceMemorySize(isolate, instance);
-  uint32_t max_pages = GetMaxInstanceMemoryPages(isolate, instance);
-
-  // Grow memory object buffer and update instances associated with it.
   MaybeHandle<JSArrayBuffer> memory_buffer = handle(memory_object->buffer());
   Handle<JSArrayBuffer> old_buffer;
   uint32_t old_size = 0;
@@ -2348,19 +2340,46 @@ int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate, Handle<Object> receiver,
     old_size = old_buffer->byte_length()->Number();
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
   }
-  Handle<JSArrayBuffer> new_buffer =
-      GrowMemoryBuffer(isolate, memory_buffer, pages, max_pages);
-  if (new_buffer.is_null()) return -1;
-  DCHECK(!instance_wrapper->has_previous());
-  SetInstanceMemory(instance, *new_buffer);
-  UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
-  while (instance_wrapper->has_next()) {
-    instance_wrapper = instance_wrapper->next_wrapper();
+  // Return current size if grow by 0
+  if (pages == 0) {
+    DCHECK(old_size % WasmModule::kPageSize == 0);
+    return (old_size / WasmModule::kPageSize);
+  }
+  Handle<JSArrayBuffer> new_buffer;
+  if (!memory_object->has_instances_link()) {
+    // Memory object does not have an instance associated with it, just grow
+    uint32_t max_pages;
+    if (memory_object->has_maximum_pages()) {
+      max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
+      if (kV8MaxWasmMemoryPages < max_pages) return -1;
+    } else {
+      max_pages = kV8MaxWasmMemoryPages;
+    }
+    new_buffer = GrowMemoryBuffer(isolate, memory_buffer, pages, max_pages);
+    if (new_buffer.is_null()) return -1;
+  } else {
+    Handle<WasmInstanceWrapper> instance_wrapper(
+        memory_object->instances_link());
     DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
+    DCHECK(instance_wrapper->has_instance());
     Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
     DCHECK(IsWasmInstance(*instance));
+    uint32_t max_pages = GetMaxInstanceMemoryPages(isolate, instance);
+
+    // Grow memory object buffer and update instances associated with it.
+    new_buffer = GrowMemoryBuffer(isolate, memory_buffer, pages, max_pages);
+    if (new_buffer.is_null()) return -1;
+    DCHECK(!instance_wrapper->has_previous());
     SetInstanceMemory(instance, *new_buffer);
     UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
+    while (instance_wrapper->has_next()) {
+      instance_wrapper = instance_wrapper->next_wrapper();
+      DCHECK(WasmInstanceWrapper::IsWasmInstanceWrapper(*instance_wrapper));
+      Handle<WasmInstanceObject> instance = instance_wrapper->instance_object();
+      DCHECK(IsWasmInstance(*instance));
+      SetInstanceMemory(instance, *new_buffer);
+      UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
+    }
   }
   memory_object->set_buffer(*new_buffer);
   DCHECK(old_size % WasmModule::kPageSize == 0);

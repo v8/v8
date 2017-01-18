@@ -635,20 +635,36 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
                   "Receiver is not a WebAssembly.Memory")) {
     return;
   }
-  if (args.Length() < 1) {
+  int64_t delta_size = 0;
+  if (args.Length() < 1 || !args[0]->IntegerValue(context).To(&delta_size)) {
     v8::Local<v8::Value> e = v8::Exception::TypeError(
         v8_str(isolate, "Argument 0 required, must be numeric value of pages"));
     isolate->ThrowException(e);
     return;
   }
-
-  uint32_t delta = args[0]->Uint32Value(context).FromJust();
+  i::Handle<i::WasmMemoryObject> receiver =
+      i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
+  int64_t max_size64 = receiver->maximum_pages();
+  if (max_size64 < 0 ||
+      max_size64 > static_cast<int64_t>(i::wasm::kV8MaxWasmTableSize)) {
+    max_size64 = i::wasm::kV8MaxWasmMemoryPages;
+  }
+  i::Handle<i::JSArrayBuffer> old_buffer(receiver->buffer());
+  uint32_t old_size =
+      old_buffer->byte_length()->Number() / i::wasm::kSpecMaxWasmMemoryPages;
+  int64_t new_size64 = old_size + delta_size;
+  if (delta_size < 0 || max_size64 < new_size64 || new_size64 < old_size) {
+    v8::Local<v8::Value> e = v8::Exception::RangeError(v8_str(
+        isolate, new_size64 < old_size ? "trying to shrink memory"
+                                       : "maximum memory size exceeded"));
+    isolate->ThrowException(e);
+    return;
+  }
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::Handle<i::Object> receiver =
-      i::Handle<i::Object>::cast(Utils::OpenHandle(*args.This()));
-  int32_t ret = i::wasm::GrowWebAssemblyMemory(i_isolate, receiver, delta);
+  int32_t ret = i::wasm::GrowWebAssemblyMemory(
+      i_isolate, receiver, static_cast<uint32_t>(delta_size));
   if (ret == -1) {
-    v8::Local<v8::Value> e = v8::Exception::Error(
+    v8::Local<v8::Value> e = v8::Exception::RangeError(
         v8_str(isolate, "Unable to grow instance memory."));
     isolate->ThrowException(e);
     return;

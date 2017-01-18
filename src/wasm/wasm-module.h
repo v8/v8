@@ -24,6 +24,7 @@ class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmModuleObject;
 class WasmInstanceObject;
+class WasmMemoryObject;
 
 namespace compiler {
 class CallDescriptor;
@@ -432,7 +433,8 @@ int32_t GrowInstanceMemory(Isolate* isolate,
 Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                                      bool enable_guard_regions);
 
-int32_t GrowWebAssemblyMemory(Isolate* isolate, Handle<Object> receiver,
+int32_t GrowWebAssemblyMemory(Isolate* isolate,
+                              Handle<WasmMemoryObject> receiver,
                               uint32_t pages);
 
 int32_t GrowMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
