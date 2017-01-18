@@ -1682,10 +1682,17 @@ void LCodeGen::DoSubI(LSubI* instr) {
 #endif
 
   if (right->IsConstantOperand()) {
-    if (!isInteger || !checkOverflow)
+    if (!isInteger || !checkOverflow) {
       __ SubP(ToRegister(result), ToRegister(left), ToOperand(right));
-    else
-      __ Sub32(ToRegister(result), ToRegister(left), ToOperand(right));
+    } else {
+      // -(MinInt) will overflow
+      if (ToInteger32(LConstantOperand::cast(right)) == kMinInt) {
+        __ Load(scratch0(), ToOperand(right));
+        __ Sub32(ToRegister(result), ToRegister(left), scratch0());
+      } else {
+        __ Sub32(ToRegister(result), ToRegister(left), ToOperand(right));
+      }
+    }
   } else if (right->IsRegister()) {
     if (!isInteger)
       __ SubP(ToRegister(result), ToRegister(left), ToRegister(right));

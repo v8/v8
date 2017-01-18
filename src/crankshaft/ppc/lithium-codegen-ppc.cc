@@ -1707,12 +1707,15 @@ void LCodeGen::DoSubI(LSubI* instr) {
     } else {
       __ sub(result, left, EmitLoadRegister(right, ip));
     }
-#if V8_TARGET_ARCH_PPC64
     if (can_overflow) {
+#if V8_TARGET_ARCH_PPC64
       __ TestIfInt32(result, r0);
+#else
+      __ TestIfInt32(scratch0(), result, r0);
+#endif
       DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
     }
-#endif
+
   } else {
     if (right->IsConstantOperand()) {
       __ AddAndCheckForOverflow(result, left, -(ToOperand(right).immediate()),
