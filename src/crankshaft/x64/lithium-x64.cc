@@ -1961,7 +1961,12 @@ LInstruction* LChunkBuilder::DoConstant(HConstant* instr) {
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new (zone()) LLoadContextSlot(context));
+  LInstruction* result =
+      DefineAsRegister(new(zone()) LLoadContextSlot(context));
+  if (instr->RequiresHoleCheck() && instr->DeoptimizesOnHole()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 
@@ -1977,7 +1982,11 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     value = UseRegister(instr->value());
     temp = NULL;
   }
-  return new (zone()) LStoreContextSlot(context, value, temp);
+  LInstruction* result = new(zone()) LStoreContextSlot(context, value, temp);
+  if (instr->RequiresHoleCheck() && instr->DeoptimizesOnHole()) {
+    result = AssignEnvironment(result);
+  }
+  return result;
 }
 
 

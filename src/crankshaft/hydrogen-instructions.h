@@ -4947,14 +4947,33 @@ inline PointersToHereCheck PointersToHereCheckForObject(HValue* object,
 
 class HLoadContextSlot final : public HUnaryOperation {
  public:
-  HLoadContextSlot(HValue* context, int slot_index)
-      : HUnaryOperation(context), slot_index_(slot_index) {
+  enum Mode {
+    // Perform a normal load of the context slot without checking its value.
+    kNoCheck,
+    // Load and check the value of the context slot. Deoptimize if it's the
+    // hole value. This is used for checking for loading of uninitialized
+    // harmony bindings where we deoptimize into full-codegen generated code
+    // which will subsequently throw a reference error.
+    kCheckDeoptimize
+  };
+
+  HLoadContextSlot(HValue* context, int slot_index, Mode mode)
+      : HUnaryOperation(context), slot_index_(slot_index), mode_(mode) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetDependsOnFlag(kContextSlots);
   }
 
   int slot_index() const { return slot_index_; }
+  Mode mode() const { return mode_; }
+
+  bool DeoptimizesOnHole() {
+    return mode_ == kCheckDeoptimize;
+  }
+
+  bool RequiresHoleCheck() const {
+    return mode_ != kNoCheck;
+  }
 
   Representation RequiredInputRepresentation(int index) override {
     return Representation::Tagged();
@@ -4971,22 +4990,44 @@ class HLoadContextSlot final : public HUnaryOperation {
   }
 
  private:
-  bool IsDeletable() const override { return true; }
+  bool IsDeletable() const override { return !RequiresHoleCheck(); }
 
   int slot_index_;
+  Mode mode_;
 };
 
 
 class HStoreContextSlot final : public HTemplateInstruction<2> {
  public:
-  DECLARE_INSTRUCTION_FACTORY_P3(HStoreContextSlot, HValue*, int, HValue*);
+  enum Mode {
+    // Perform a normal store to the context slot without checking its previous
+    // value.
+    kNoCheck,
+    // Check the previous value of the context slot and deoptimize if it's the
+    // hole value. This is used for checking for assignments to uninitialized
+    // harmony bindings where we deoptimize into full-codegen generated code
+    // which will subsequently throw a reference error.
+    kCheckDeoptimize
+  };
+
+  DECLARE_INSTRUCTION_FACTORY_P4(HStoreContextSlot, HValue*, int,
+                                 Mode, HValue*);
 
   HValue* context() const { return OperandAt(0); }
   HValue* value() const { return OperandAt(1); }
   int slot_index() const { return slot_index_; }
+  Mode mode() const { return mode_; }
 
   bool NeedsWriteBarrier() {
     return StoringValueNeedsWriteBarrier(value());
+  }
+
+  bool DeoptimizesOnHole() {
+    return mode_ == kCheckDeoptimize;
+  }
+
+  bool RequiresHoleCheck() {
+    return mode_ != kNoCheck;
   }
 
   Representation RequiredInputRepresentation(int index) override {
@@ -4998,14 +5039,15 @@ class HStoreContextSlot final : public HTemplateInstruction<2> {
   DECLARE_CONCRETE_INSTRUCTION(StoreContextSlot)
 
  private:
-  HStoreContextSlot(HValue* context, int slot_index, HValue* value)
-      : slot_index_(slot_index) {
+  HStoreContextSlot(HValue* context, int slot_index, Mode mode, HValue* value)
+      : slot_index_(slot_index), mode_(mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, value);
     SetChangesFlag(kContextSlots);
   }
 
   int slot_index_;
+  Mode mode_;
 };
 
 

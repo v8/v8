@@ -925,9 +925,9 @@ void AstGraphBuilder::Visit(Expression* expr) {
 
 void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
   Variable* variable = decl->proxy()->var();
-  DCHECK(!variable->binding_needs_init());
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
+      DCHECK(!variable->binding_needs_init());
       globals()->push_back(variable->name());
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
@@ -937,7 +937,17 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
+      if (variable->binding_needs_init()) {
+        Node* value = jsgraph()->TheHoleConstant();
+        environment()->Bind(variable, value);
+      }
+      break;
     case VariableLocation::CONTEXT:
+      if (variable->binding_needs_init()) {
+        Node* value = jsgraph()->TheHoleConstant();
+        const Operator* op = javascript()->StoreContext(0, variable->index());
+        NewNode(op, value);
+      }
       break;
     case VariableLocation::LOOKUP:
     case VariableLocation::MODULE:
@@ -2475,12 +2485,47 @@ Node* AstGraphBuilder::BuildArgumentsObject(Variable* arguments) {
   return object;
 }
 
+Node* AstGraphBuilder::BuildHoleCheckThenThrow(Node* value, Variable* variable,
+                                               Node* not_hole,
+                                               BailoutId bailout_id) {
+  IfBuilder hole_check(this);
+  Node* the_hole = jsgraph()->TheHoleConstant();
+  Node* check = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
+                        value, the_hole);
+  hole_check.If(check);
+  hole_check.Then();
+  Node* error = BuildThrowReferenceError(variable, bailout_id);
+  environment()->Push(error);
+  hole_check.Else();
+  environment()->Push(not_hole);
+  hole_check.End();
+  return environment()->Pop();
+}
+
+
+Node* AstGraphBuilder::BuildHoleCheckElseThrow(Node* value, Variable* variable,
+                                               Node* for_hole,
+                                               BailoutId bailout_id) {
+  IfBuilder hole_check(this);
+  Node* the_hole = jsgraph()->TheHoleConstant();
+  Node* check = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
+                        value, the_hole);
+  hole_check.If(check);
+  hole_check.Then();
+  environment()->Push(for_hole);
+  hole_check.Else();
+  Node* error = BuildThrowReferenceError(variable, bailout_id);
+  environment()->Push(error);
+  hole_check.End();
+  return environment()->Pop();
+}
+
 Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                                          BailoutId bailout_id,
                                          const VectorSlotPair& feedback,
                                          OutputFrameStateCombine combine,
                                          TypeofMode typeof_mode) {
-  DCHECK(!variable->binding_needs_init());
+  Node* the_hole = jsgraph()->TheHoleConstant();
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
@@ -2491,9 +2536,19 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
       return value;
     }
     case VariableLocation::PARAMETER:
-    case VariableLocation::LOCAL:
-      // Local variable.
-      return environment()->Lookup(variable);
+    case VariableLocation::LOCAL: {
+      // Local var, const, or let variable.
+      Node* value = environment()->Lookup(variable);
+      if (variable->binding_needs_init()) {
+        // Perform check for uninitialized let/const variables.
+        if (value->op() == the_hole->op()) {
+          value = BuildThrowReferenceError(variable, bailout_id);
+        } else if (value->opcode() == IrOpcode::kPhi) {
+          value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
+        }
+      }
+      return value;
+    }
     case VariableLocation::CONTEXT: {
       // Context variable (potentially up the context chain).
       int depth = current_scope()->ContextChainLength(variable->scope());
@@ -2504,7 +2559,15 @@ Node* AstGraphBuilder::BuildVariableLoad(Variable* variable,
                        info()->is_function_context_specializing();
       const Operator* op =
           javascript()->LoadContext(depth, variable->index(), immutable);
-      return NewNode(op);
+      Node* value = NewNode(op);
+      // TODO(titzer): initialization checks are redundant for already
+      // initialized immutable context loads, but only specialization knows.
+      // Maybe specializer should be a parameter to the graph builder?
+      if (variable->binding_needs_init()) {
+        // Perform check for uninitialized let/const variables.
+        value = BuildHoleCheckThenThrow(value, variable, value, bailout_id);
+      }
+      return value;
     }
     case VariableLocation::LOOKUP:
     case VariableLocation::MODULE:
@@ -2546,7 +2609,8 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     Variable* variable, Node* value, Token::Value op,
     const VectorSlotPair& feedback, BailoutId bailout_id,
     OutputFrameStateCombine combine) {
-  DCHECK(!variable->binding_needs_init());
+  Node* the_hole = jsgraph()->TheHoleConstant();
+  VariableMode mode = variable->mode();
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       // Global var, const, or let variable.
@@ -2557,33 +2621,93 @@ Node* AstGraphBuilder::BuildVariableAssignment(
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
-      DCHECK(!variable->is_this());
-      if (variable->mode() == CONST && op != Token::INIT) {
+      // Local var, const, or let variable.
+      if (mode == LET && op == Token::INIT) {
+        // No initialization check needed because scoping guarantees it. Note
+        // that we still perform a lookup to keep the variable live, because
+        // baseline code might contain debug code that inspects the variable.
+        Node* current = environment()->Lookup(variable);
+        CHECK_NOT_NULL(current);
+      } else if (mode == LET && op != Token::INIT &&
+                 variable->binding_needs_init()) {
+        // Perform an initialization check for let declared variables.
+        Node* current = environment()->Lookup(variable);
+        if (current->op() == the_hole->op()) {
+          return BuildThrowReferenceError(variable, bailout_id);
+        } else if (current->opcode() == IrOpcode::kPhi) {
+          BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+        }
+      } else if (mode == CONST && op == Token::INIT) {
+        // Perform an initialization check for const {this} variables.
+        // Note that the {this} variable is the only const variable being able
+        // to trigger bind operations outside the TDZ, via {super} calls.
+        Node* current = environment()->Lookup(variable);
+        if (current->op() != the_hole->op() && variable->is_this()) {
+          value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
+        }
+      } else if (mode == CONST && op != Token::INIT &&
+                 variable->is_sloppy_function_name()) {
         // Non-initializing assignment to sloppy function names is
         // - exception in strict mode.
         // - ignored in sloppy mode.
-        DCHECK(variable->is_sloppy_function_name());
+        DCHECK(!variable->binding_needs_init());
         if (variable->throw_on_const_assignment(language_mode())) {
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
+      } else if (mode == CONST && op != Token::INIT) {
+        if (variable->binding_needs_init()) {
+          Node* current = environment()->Lookup(variable);
+          if (current->op() == the_hole->op()) {
+            return BuildThrowReferenceError(variable, bailout_id);
+          } else if (current->opcode() == IrOpcode::kPhi) {
+            BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+          }
+        }
+        // Assignment to const is exception in all modes.
+        return BuildThrowConstAssignError(bailout_id);
       }
       environment()->Bind(variable, value);
       return value;
     case VariableLocation::CONTEXT: {
-      DCHECK(!variable->is_this());
       // Context variable (potentially up the context chain).
-      if (variable->mode() == CONST && op != Token::INIT) {
+      int depth = current_scope()->ContextChainLength(variable->scope());
+      if (mode == LET && op != Token::INIT && variable->binding_needs_init()) {
+        // Perform an initialization check for let declared variables.
+        const Operator* op =
+            javascript()->LoadContext(depth, variable->index(), false);
+        Node* current = NewNode(op);
+        value = BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+      } else if (mode == CONST && op == Token::INIT) {
+        // Perform an initialization check for const {this} variables.
+        // Note that the {this} variable is the only const variable being able
+        // to trigger bind operations outside the TDZ, via {super} calls.
+        if (variable->is_this()) {
+          const Operator* op =
+              javascript()->LoadContext(depth, variable->index(), false);
+          Node* current = NewNode(op);
+          value = BuildHoleCheckElseThrow(current, variable, value, bailout_id);
+        }
+      } else if (mode == CONST && op != Token::INIT &&
+                 variable->is_sloppy_function_name()) {
         // Non-initializing assignment to sloppy function names is
         // - exception in strict mode.
         // - ignored in sloppy mode.
-        DCHECK(variable->is_sloppy_function_name());
+        DCHECK(!variable->binding_needs_init());
         if (variable->throw_on_const_assignment(language_mode())) {
           return BuildThrowConstAssignError(bailout_id);
         }
         return value;
+      } else if (mode == CONST && op != Token::INIT) {
+        if (variable->binding_needs_init()) {
+          const Operator* op =
+              javascript()->LoadContext(depth, variable->index(), false);
+          Node* current = NewNode(op);
+          BuildHoleCheckThenThrow(current, variable, value, bailout_id);
+        }
+        // Assignment to const is exception in all modes.
+        return BuildThrowConstAssignError(bailout_id);
       }
-      int depth = current_scope()->ContextChainLength(variable->scope());
       const Operator* op = javascript()->StoreContext(depth, variable->index());
       return NewNode(op, value);
     }
@@ -2693,6 +2817,18 @@ Node* AstGraphBuilder::BuildSetHomeObject(Node* value, Node* home_object,
 Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
   const Operator* op = javascript()->CallRuntime(Runtime::kThrow);
   Node* call = NewNode(op, exception);
+  PrepareFrameState(call, bailout_id);
+  Node* control = NewNode(common()->Throw(), call);
+  UpdateControlDependencyToLeaveFunction(control);
+  return call;
+}
+
+
+Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
+                                                BailoutId bailout_id) {
+  Node* variable_name = jsgraph()->Constant(variable->name());
+  const Operator* op = javascript()->CallRuntime(Runtime::kThrowReferenceError);
+  Node* call = NewNode(op, variable_name);
   PrepareFrameState(call, bailout_id);
   Node* control = NewNode(common()->Throw(), call);
   UpdateControlDependencyToLeaveFunction(control);

@@ -2505,15 +2505,37 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ movp(result, ContextOperand(context, instr->slot_index()));
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ CompareRoot(result, Heap::kTheHoleValueRootIndex);
+    if (instr->hydrogen()->DeoptimizesOnHole()) {
+      DeoptimizeIf(equal, instr, DeoptimizeReason::kHole);
+    } else {
+      Label is_not_hole;
+      __ j(not_equal, &is_not_hole, Label::kNear);
+      __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+      __ bind(&is_not_hole);
+    }
+  }
 }
 
 
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
+
   Operand target = ContextOperand(context, instr->slot_index());
 
+  Label skip_assignment;
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    __ CompareRoot(target, Heap::kTheHoleValueRootIndex);
+    if (instr->hydrogen()->DeoptimizesOnHole()) {
+      DeoptimizeIf(equal, instr, DeoptimizeReason::kHole);
+    } else {
+      __ j(not_equal, &skip_assignment);
+    }
+  }
   __ movp(target, value);
+
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     SmiCheck check_needed =
       instr->hydrogen()->value()->type().IsHeapObject()
@@ -2528,6 +2550,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               EMIT_REMEMBERED_SET,
                               check_needed);
   }
+
+  __ bind(&skip_assignment);
 }
 
 

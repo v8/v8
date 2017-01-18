@@ -472,7 +472,8 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
   void EmitVariableAssignment(Variable* var, Token::Value op,
-                              FeedbackVectorSlot slot);
+                              FeedbackVectorSlot slot,
+                              HoleCheckMode hole_check_mode);
 
   // Helper functions to EmitVariableAssignment
   void EmitStoreToStackLocalOrContextSlot(Variable* var,
