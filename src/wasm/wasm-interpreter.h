@@ -113,13 +113,12 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
   // Representation of a thread in the interpreter.
-  class ThreadImpl;
   class V8_EXPORT_PRIVATE Thread {
-    ThreadImpl* impl_;
+    // Don't instante Threads; they will be allocated as ThreadImpl in the
+    // interpreter implementation.
+    Thread() = delete;
 
    public:
-    explicit Thread(ThreadImpl*);
-
     // Execution control.
     State state();
     void PushFrame(const WasmFunction* function, WasmVal* args);

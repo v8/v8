@@ -918,8 +918,9 @@ class CodeMap {
   }
 };
 
+namespace {
 // Responsible for executing code directly.
-class WasmInterpreter::ThreadImpl : public ZoneObject {
+class ThreadImpl {
  public:
   ThreadImpl(Zone* zone, CodeMap* codemap, WasmInstance* instance)
       : codemap_(codemap),
@@ -931,8 +932,6 @@ class WasmInterpreter::ThreadImpl : public ZoneObject {
         break_pc_(kInvalidPc),
         trap_reason_(kTrapCount),
         possible_nondeterminism_(false) {}
-
-  ~ThreadImpl() {}
 
   //==========================================================================
   // Implementation of public interface for WasmInterpreter::Thread.
@@ -1698,36 +1697,56 @@ class WasmInterpreter::ThreadImpl : public ZoneObject {
   }
 };
 
+// Converters between WasmInterpreter::Thread and WasmInterpreter::ThreadImpl.
+// Thread* is the public interface, without knowledge of the object layout.
+// This cast is potentially risky, but as long as we always cast it back before
+// accessing any data, it should be fine. UBSan is not complaining.
+WasmInterpreter::Thread* ToThread(ThreadImpl* impl) {
+  return reinterpret_cast<WasmInterpreter::Thread*>(impl);
+}
+static ThreadImpl* ToImpl(WasmInterpreter::Thread* thread) {
+  return reinterpret_cast<ThreadImpl*>(thread);
+}
+}  // namespace
+
 //============================================================================
-// Forwarding functions of WasmInterpreter::Thread (pimpl idiom).
+// Implementation of the pimpl idiom for WasmInterpreter::Thread.
+// Instead of placing a pointer to the ThreadImpl inside of the Thread object,
+// we just reinterpret_cast them. ThreadImpls are only allocated inside this
+// translation unit anyway.
 //============================================================================
-WasmInterpreter::Thread::Thread(ThreadImpl* impl) : impl_(impl) {}
 WasmInterpreter::State WasmInterpreter::Thread::state() {
-  return impl_->state();
+  return ToImpl(this)->state();
 }
 void WasmInterpreter::Thread::PushFrame(const WasmFunction* function,
                                         WasmVal* args) {
-  return impl_->PushFrame(function, args);
+  return ToImpl(this)->PushFrame(function, args);
 }
-WasmInterpreter::State WasmInterpreter::Thread::Run() { return impl_->Run(); }
-WasmInterpreter::State WasmInterpreter::Thread::Step() { return impl_->Step(); }
-void WasmInterpreter::Thread::Pause() { return impl_->Pause(); }
-void WasmInterpreter::Thread::Reset() { return impl_->Reset(); }
+WasmInterpreter::State WasmInterpreter::Thread::Run() {
+  return ToImpl(this)->Run();
+}
+WasmInterpreter::State WasmInterpreter::Thread::Step() {
+  return ToImpl(this)->Step();
+}
+void WasmInterpreter::Thread::Pause() { return ToImpl(this)->Pause(); }
+void WasmInterpreter::Thread::Reset() { return ToImpl(this)->Reset(); }
 pc_t WasmInterpreter::Thread::GetBreakpointPc() {
-  return impl_->GetBreakpointPc();
+  return ToImpl(this)->GetBreakpointPc();
 }
-int WasmInterpreter::Thread::GetFrameCount() { return impl_->GetFrameCount(); }
+int WasmInterpreter::Thread::GetFrameCount() {
+  return ToImpl(this)->GetFrameCount();
+}
 const WasmFrame* WasmInterpreter::Thread::GetFrame(int index) {
-  return impl_->GetFrame(index);
+  return ToImpl(this)->GetFrame(index);
 }
 WasmFrame* WasmInterpreter::Thread::GetMutableFrame(int index) {
-  return impl_->GetMutableFrame(index);
+  return ToImpl(this)->GetMutableFrame(index);
 }
 WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
-  return impl_->GetReturnValue(index);
+  return ToImpl(this)->GetReturnValue(index);
 }
 bool WasmInterpreter::Thread::PossibleNondeterminism() {
-  return impl_->PossibleNondeterminism();
+  return ToImpl(this)->PossibleNondeterminism();
 }
 
 //============================================================================
@@ -1740,7 +1759,7 @@ class WasmInterpreterInternals : public ZoneObject {
   // pointer might be invalidated after constructing the interpreter.
   const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
-  ZoneVector<WasmInterpreter::Thread> threads_;
+  ZoneVector<ThreadImpl> threads_;
 
   WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
       : instance_(env.instance),
@@ -1748,8 +1767,7 @@ class WasmInterpreterInternals : public ZoneObject {
         codemap_(env.instance ? env.instance->module : nullptr,
                  module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.push_back(WasmInterpreter::Thread(
-        new (zone) WasmInterpreter::ThreadImpl(zone, &codemap_, env.instance)));
+    threads_.push_back(ThreadImpl(zone, &codemap_, env.instance));
   }
 
   void Delete() { threads_.clear(); }
@@ -1812,7 +1830,7 @@ int WasmInterpreter::GetThreadCount() {
 
 WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
   CHECK_EQ(0, id);  // only one thread for now.
-  return &internals_->threads_[id];
+  return ToThread(&internals_->threads_[id]);
 }
 
 WasmVal WasmInterpreter::GetLocalVal(const WasmFrame* frame, int index) {
