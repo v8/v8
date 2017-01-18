@@ -79,7 +79,12 @@ inline void WasmVal::to() {
 class WasmFrame {
  public:
   const WasmFunction* function() const { return function_; }
-  int pc() const { return pc_; }
+  int pc() const {
+    // TODO(wasm): Remove USE once we actually use them.
+    USE(fp_);
+    USE(sp_);
+    return pc_;
+  }
 
  private:
   friend class WasmInterpreter;
@@ -108,31 +113,36 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
   // Representation of a thread in the interpreter.
-  class Thread {
+  class ThreadImpl;
+  class V8_EXPORT_PRIVATE Thread {
+    ThreadImpl* impl_;
+
    public:
+    explicit Thread(ThreadImpl*);
+
     // Execution control.
-    virtual State state() = 0;
-    virtual void PushFrame(const WasmFunction* function, WasmVal* args) = 0;
-    virtual State Run() = 0;
-    virtual State Step() = 0;
-    virtual void Pause() = 0;
-    virtual void Reset() = 0;
-    virtual ~Thread() {}
+    State state();
+    void PushFrame(const WasmFunction* function, WasmVal* args);
+    State Run();
+    State Step();
+    void Pause();
+    void Reset();
 
     // Stack inspection and modification.
-    virtual pc_t GetBreakpointPc() = 0;
-    virtual int GetFrameCount() = 0;
-    virtual const WasmFrame* GetFrame(int index) = 0;
-    virtual WasmFrame* GetMutableFrame(int index) = 0;
-    virtual WasmVal GetReturnValue(int index = 0) = 0;
+    pc_t GetBreakpointPc();
+    int GetFrameCount();
+    const WasmFrame* GetFrame(int index);
+    WasmFrame* GetMutableFrame(int index);
+    WasmVal GetReturnValue(int index = 0);
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
     // where the sign bit of a NaN is nondeterministic.
-    virtual bool PossibleNondeterminism() = 0;
+    bool PossibleNondeterminism();
 
     // Thread-specific breakpoints.
-    bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
-    bool GetBreakpoint(const WasmFunction* function, int pc);
+    // TODO(wasm): Implement this once we support multiple threads.
+    // bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
+    // bool GetBreakpoint(const WasmFunction* function, int pc);
   };
 
   WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);

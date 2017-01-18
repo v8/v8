@@ -919,7 +919,7 @@ class CodeMap {
 };
 
 // Responsible for executing code directly.
-class ThreadImpl : public WasmInterpreter::Thread {
+class WasmInterpreter::ThreadImpl : public ZoneObject {
  public:
   ThreadImpl(Zone* zone, CodeMap* codemap, WasmInstance* instance)
       : codemap_(codemap),
@@ -932,15 +932,15 @@ class ThreadImpl : public WasmInterpreter::Thread {
         trap_reason_(kTrapCount),
         possible_nondeterminism_(false) {}
 
-  virtual ~ThreadImpl() {}
+  ~ThreadImpl() {}
 
   //==========================================================================
   // Implementation of public interface for WasmInterpreter::Thread.
   //==========================================================================
 
-  virtual WasmInterpreter::State state() { return state_; }
+  WasmInterpreter::State state() { return state_; }
 
-  virtual void PushFrame(const WasmFunction* function, WasmVal* args) {
+  void PushFrame(const WasmFunction* function, WasmVal* args) {
     InterpreterCode* code = codemap()->FindCode(function);
     CHECK_NOT_NULL(code);
     frames_.push_back({code, 0, 0, stack_.size()});
@@ -955,7 +955,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
           frames_.back().ret_pc);
   }
 
-  virtual WasmInterpreter::State Run() {
+  WasmInterpreter::State Run() {
     do {
       TRACE("  => Run()\n");
       if (state_ == WasmInterpreter::STOPPED ||
@@ -967,7 +967,7 @@ class ThreadImpl : public WasmInterpreter::Thread {
     return state_;
   }
 
-  virtual WasmInterpreter::State Step() {
+  WasmInterpreter::State Step() {
     TRACE("  => Step()\n");
     if (state_ == WasmInterpreter::STOPPED ||
         state_ == WasmInterpreter::PAUSED) {
@@ -977,9 +977,9 @@ class ThreadImpl : public WasmInterpreter::Thread {
     return state_;
   }
 
-  virtual void Pause() { UNIMPLEMENTED(); }
+  void Pause() { UNIMPLEMENTED(); }
 
-  virtual void Reset() {
+  void Reset() {
     TRACE("----- RESET -----\n");
     stack_.clear();
     frames_.clear();
@@ -988,33 +988,28 @@ class ThreadImpl : public WasmInterpreter::Thread {
     possible_nondeterminism_ = false;
   }
 
-  virtual int GetFrameCount() { return static_cast<int>(frames_.size()); }
+  int GetFrameCount() { return static_cast<int>(frames_.size()); }
 
-  virtual const WasmFrame* GetFrame(int index) {
+  const WasmFrame* GetFrame(int index) {
     UNIMPLEMENTED();
     return nullptr;
   }
 
-  virtual WasmFrame* GetMutableFrame(int index) {
+  WasmFrame* GetMutableFrame(int index) {
     UNIMPLEMENTED();
     return nullptr;
   }
 
-  virtual WasmVal GetReturnValue(int index) {
+  WasmVal GetReturnValue(int index) {
     if (state_ == WasmInterpreter::TRAPPED) return WasmVal(0xdeadbeef);
     CHECK_EQ(WasmInterpreter::FINISHED, state_);
     CHECK_LT(static_cast<size_t>(index), stack_.size());
     return stack_[index];
   }
 
-  virtual pc_t GetBreakpointPc() { return break_pc_; }
+  pc_t GetBreakpointPc() { return break_pc_; }
 
-  virtual bool PossibleNondeterminism() { return possible_nondeterminism_; }
-
-  bool Terminated() {
-    return state_ == WasmInterpreter::TRAPPED ||
-           state_ == WasmInterpreter::FINISHED;
-  }
+  bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
  private:
   // Entries on the stack of functions being evaluated.
@@ -1704,6 +1699,38 @@ class ThreadImpl : public WasmInterpreter::Thread {
 };
 
 //============================================================================
+// Forwarding functions of WasmInterpreter::Thread (pimpl idiom).
+//============================================================================
+WasmInterpreter::Thread::Thread(ThreadImpl* impl) : impl_(impl) {}
+WasmInterpreter::State WasmInterpreter::Thread::state() {
+  return impl_->state();
+}
+void WasmInterpreter::Thread::PushFrame(const WasmFunction* function,
+                                        WasmVal* args) {
+  return impl_->PushFrame(function, args);
+}
+WasmInterpreter::State WasmInterpreter::Thread::Run() { return impl_->Run(); }
+WasmInterpreter::State WasmInterpreter::Thread::Step() { return impl_->Step(); }
+void WasmInterpreter::Thread::Pause() { return impl_->Pause(); }
+void WasmInterpreter::Thread::Reset() { return impl_->Reset(); }
+pc_t WasmInterpreter::Thread::GetBreakpointPc() {
+  return impl_->GetBreakpointPc();
+}
+int WasmInterpreter::Thread::GetFrameCount() { return impl_->GetFrameCount(); }
+const WasmFrame* WasmInterpreter::Thread::GetFrame(int index) {
+  return impl_->GetFrame(index);
+}
+WasmFrame* WasmInterpreter::Thread::GetMutableFrame(int index) {
+  return impl_->GetMutableFrame(index);
+}
+WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
+  return impl_->GetReturnValue(index);
+}
+bool WasmInterpreter::Thread::PossibleNondeterminism() {
+  return impl_->PossibleNondeterminism();
+}
+
+//============================================================================
 // The implementation details of the interpreter.
 //============================================================================
 class WasmInterpreterInternals : public ZoneObject {
@@ -1713,7 +1740,7 @@ class WasmInterpreterInternals : public ZoneObject {
   // pointer might be invalidated after constructing the interpreter.
   const ZoneVector<uint8_t> module_bytes_;
   CodeMap codemap_;
-  ZoneVector<ThreadImpl*> threads_;
+  ZoneVector<WasmInterpreter::Thread> threads_;
 
   WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
       : instance_(env.instance),
@@ -1721,14 +1748,11 @@ class WasmInterpreterInternals : public ZoneObject {
         codemap_(env.instance ? env.instance->module : nullptr,
                  module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.push_back(new ThreadImpl(zone, &codemap_, env.instance));
+    threads_.push_back(WasmInterpreter::Thread(
+        new (zone) WasmInterpreter::ThreadImpl(zone, &codemap_, env.instance)));
   }
 
-  void Delete() {
-    // TODO(titzer): CFI doesn't like threads in the ZoneVector.
-    for (auto t : threads_) delete t;
-    threads_.resize(0);
-  }
+  void Delete() { threads_.clear(); }
 };
 
 //============================================================================
@@ -1741,9 +1765,9 @@ WasmInterpreter::WasmInterpreter(const ModuleBytesEnv& env,
 
 WasmInterpreter::~WasmInterpreter() { internals_->Delete(); }
 
-void WasmInterpreter::Run() { internals_->threads_[0]->Run(); }
+void WasmInterpreter::Run() { internals_->threads_[0].Run(); }
 
-void WasmInterpreter::Pause() { internals_->threads_[0]->Pause(); }
+void WasmInterpreter::Pause() { internals_->threads_[0].Pause(); }
 
 bool WasmInterpreter::SetBreakpoint(const WasmFunction* function, pc_t pc,
                                     bool enabled) {
@@ -1788,7 +1812,7 @@ int WasmInterpreter::GetThreadCount() {
 
 WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
   CHECK_EQ(0, id);  // only one thread for now.
-  return internals_->threads_[id];
+  return &internals_->threads_[id];
 }
 
 WasmVal WasmInterpreter::GetLocalVal(const WasmFrame* frame, int index) {
