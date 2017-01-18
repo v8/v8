@@ -184,8 +184,8 @@ class WasmSharedModuleData : public FixedArray {
   // Check whether this module was generated from asm.js source.
   bool is_asm_js();
 
-  // Recreate the ModuleWrapper from the module bytes after deserialization.
-  static void RecreateModuleWrapper(Isolate*, Handle<WasmSharedModuleData>);
+  static void ReinitializeAfterDeserialization(Isolate*,
+                                               Handle<WasmSharedModuleData>);
 
   static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
                             Handle<Object> break_point_object);
@@ -323,9 +323,8 @@ class WasmCompiledModule : public FixedArray {
 
   void PrintInstancesChain();
 
-  // Recreate the ModuleWrapper from the module bytes after deserialization.
-  static void RecreateModuleWrapper(Isolate* isolate,
-                                    Handle<WasmCompiledModule> compiled_module);
+  static void ReinitializeAfterDeserialization(Isolate*,
+                                               Handle<WasmCompiledModule>);
 
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid

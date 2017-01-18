@@ -570,9 +570,19 @@ bool WasmSharedModuleData::is_asm_js() {
   return asm_js;
 }
 
-void WasmSharedModuleData::RecreateModuleWrapper(
+void WasmSharedModuleData::ReinitializeAfterDeserialization(
     Isolate* isolate, Handle<WasmSharedModuleData> shared) {
   DCHECK(shared->get(kModuleWrapper)->IsUndefined(isolate));
+#ifdef DEBUG
+  // No BreakpointInfo objects should survive deserialization.
+  if (shared->has_breakpoint_infos()) {
+    for (int i = 0, e = shared->breakpoint_infos()->length(); i < e; ++i) {
+      DCHECK(shared->breakpoint_infos()->get(i)->IsUndefined(isolate));
+    }
+  }
+#endif
+
+  shared->set(kBreakPointInfos, isolate->heap()->undefined_value());
 
   WasmModule* module = nullptr;
   {
@@ -795,7 +805,7 @@ void WasmCompiledModule::PrintInstancesChain() {
 #endif
 }
 
-void WasmCompiledModule::RecreateModuleWrapper(
+void WasmCompiledModule::ReinitializeAfterDeserialization(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   // This method must only be called immediately after deserialization.
   // At this point, no module wrapper exists, so the shared module data is
@@ -804,7 +814,7 @@ void WasmCompiledModule::RecreateModuleWrapper(
       static_cast<WasmSharedModuleData*>(compiled_module->get(kID_shared)),
       isolate);
   DCHECK(!WasmSharedModuleData::IsWasmSharedModuleData(*shared));
-  WasmSharedModuleData::RecreateModuleWrapper(isolate, shared);
+  WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 

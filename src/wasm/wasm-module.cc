@@ -160,14 +160,6 @@ void RelocateTableSizeReferences(Handle<FixedArray> code_table,
   }
 }
 
-Handle<Code> CreatePlaceholder(Factory* factory, Code::Kind kind) {
-  byte buffer[] = {0, 0, 0, 0};  // fake instructions.
-  CodeDesc desc = {
-      buffer, arraysize(buffer), arraysize(buffer), 0, 0, nullptr, 0, nullptr};
-  return factory->NewCode(desc, Code::KindField::encode(kind),
-                          Handle<Object>::null());
-}
-
 void FlushICache(Isolate* isolate, Handle<FixedArray> code_table) {
   for (int i = 0; i < code_table->length(); ++i) {
     Handle<Code> code = code_table->GetValueChecked<Code>(isolate, i);
@@ -412,7 +404,7 @@ void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
                             str.start());
       break;
     }
-      // Install the code into the linker table.
+    // Install the code into the linker table.
     functions[i] = code;
   }
 }
@@ -469,6 +461,15 @@ void PatchDirectCallsAndContext(Handle<FixedArray> new_functions,
   wasm::Decoder decoder(nullptr, nullptr);
   int num_wasm_functions = static_cast<int>(wasm_functions->size());
   int func_index = start;
+  // We patch WASM_FUNCTION and WASM_TO_JS_FUNCTION during re-instantiation,
+  // and illegal builtins initially and after deserialization.
+  auto is_at_wasm_call = [](RelocIterator& it) {
+    Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+    return code->kind() == Code::WASM_FUNCTION ||
+           code->kind() == Code::WASM_TO_JS_FUNCTION ||
+           code->builtin_index() == Builtins::kIllegal;
+  };
+
   // Patch all wasm functions.
   for (; func_index < num_wasm_functions; ++func_index) {
     Code* wasm_function = Code::cast(new_functions->get(func_index));
@@ -489,10 +490,7 @@ void PatchDirectCallsAndContext(Handle<FixedArray> new_functions,
         continue;
       }
       DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
-      Code::Kind kind =
-          Code::GetCodeFromTargetAddress(it.rinfo()->target_address())->kind();
-      if (kind != Code::WASM_FUNCTION && kind != Code::WASM_TO_JS_FUNCTION)
-        continue;
+      if (!is_at_wasm_call(it)) continue;
       size_t offset = it.rinfo()->pc() - wasm_function->instruction_start();
       int byte_pos =
           AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
@@ -516,10 +514,7 @@ void PatchDirectCallsAndContext(Handle<FixedArray> new_functions,
         continue;
       }
       DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
-      Code::Kind kind =
-          Code::GetCodeFromTargetAddress(it.rinfo()->target_address())->kind();
-      if (kind != Code::WASM_FUNCTION && kind != Code::WASM_TO_JS_FUNCTION)
-        continue;
+      if (!is_at_wasm_call(it)) continue;
       ++num_wasm_calls;
       Code* new_code = Code::cast(new_functions->get(exp.index));
       DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
@@ -926,28 +921,21 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   Handle<FixedArray> code_table =
       factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
 
-  // Initialize the code table with placeholders.
-  Handle<Code> code_placeholder =
-      CreatePlaceholder(factory, Code::WASM_FUNCTION);
+  // Initialize the code table with the illegal builtin. All call sites will be
+  // patched at instantiation.
+  Handle<Code> illegal_builtin = isolate->builtins()->Illegal();
   for (uint32_t i = 0; i < functions.size(); ++i) {
-    code_table->set(static_cast<int>(i), *code_placeholder);
-    temp_instance.function_code[i] = code_placeholder;
+    code_table->set(static_cast<int>(i), *illegal_builtin);
+    temp_instance.function_code[i] = illegal_builtin;
   }
 
   isolate->counters()->wasm_functions_per_module()->AddSample(
       static_cast<int>(functions.size()));
   if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0) {
     // Avoid a race condition by collecting results into a second vector.
-    std::vector<Handle<Code>> results;
-    results.reserve(temp_instance.function_code.size());
-    for (size_t i = 0; i < temp_instance.function_code.size(); ++i) {
-      results.push_back(temp_instance.function_code[i]);
-    }
+    std::vector<Handle<Code>> results(temp_instance.function_code);
     CompileInParallel(isolate, &module_env, results, thrower);
-
-    for (size_t i = 0; i < results.size(); ++i) {
-      temp_instance.function_code[i] = results[i];
-    }
+    temp_instance.function_code.swap(results);
   } else {
     CompileSequentially(isolate, &module_env, temp_instance.function_code,
                         thrower);
