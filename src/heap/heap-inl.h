@@ -850,6 +850,8 @@ void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
       HeapObject* object = HeapObject::cast(*current);
       CHECK(object->GetIsolate()->heap()->Contains(object));
       CHECK(object->map()->IsMap());
+    } else {
+      CHECK((*current)->IsSmi());
     }
   }
 }
