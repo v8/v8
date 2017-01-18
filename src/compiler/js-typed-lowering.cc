@@ -2200,6 +2200,28 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceJSLoadMessage(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSLoadMessage, node->opcode());
+  ExternalReference const ref =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
+  NodeProperties::ChangeOp(
+      node, simplified()->LoadField(AccessBuilder::ForExternalTaggedValue()));
+  return Changed(node);
+}
+
+Reduction JSTypedLowering::ReduceJSStoreMessage(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreMessage, node->opcode());
+  ExternalReference const ref =
+      ExternalReference::address_of_pending_message_obj(isolate());
+  Node* value = NodeProperties::GetValueInput(node, 0);
+  node->ReplaceInput(0, jsgraph()->ExternalConstant(ref));
+  node->ReplaceInput(1, value);
+  NodeProperties::ChangeOp(
+      node, simplified()->StoreField(AccessBuilder::ForExternalTaggedValue()));
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   DCHECK_EQ(IrOpcode::kJSGeneratorStore, node->opcode());
   Node* generator = NodeProperties::GetValueInput(node, 0);
@@ -2350,6 +2372,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSCallFunction(node);
     case IrOpcode::kJSForInNext:
       return ReduceJSForInNext(node);
+    case IrOpcode::kJSLoadMessage:
+      return ReduceJSLoadMessage(node);
+    case IrOpcode::kJSStoreMessage:
+      return ReduceJSStoreMessage(node);
     case IrOpcode::kJSGeneratorStore:
       return ReduceJSGeneratorStore(node);
     case IrOpcode::kJSGeneratorRestoreContinuation:

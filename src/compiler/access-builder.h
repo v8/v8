@@ -26,6 +26,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to a double field identified by an external reference.
   static FieldAccess ForExternalDoubleValue();
 
+  // Provides access to a tagged field identified by an external reference.
+  static FieldAccess ForExternalTaggedValue();
+
   // Provides access to an uint8 field identified by an external reference.
   static FieldAccess ForExternalUint8Value();
 

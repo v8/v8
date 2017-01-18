@@ -73,6 +73,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSCallConstruct(Node* node);
   Reduction ReduceJSCallFunction(Node* node);
   Reduction ReduceJSForInNext(Node* node);
+  Reduction ReduceJSLoadMessage(Node* node);
+  Reduction ReduceJSStoreMessage(Node* node);
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
