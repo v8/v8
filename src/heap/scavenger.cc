@@ -185,8 +185,12 @@ class ScavengingVisitor : public StaticVisitorBase {
     if (allocation.To(&target)) {
       MigrateObject(heap, object, target, object_size);
 
-      // Update slot to new target.
-      *slot = target;
+      // Update slot to new target using CAS. A concurrent sweeper thread my
+      // filter the slot concurrently.
+      HeapObject* old = *slot;
+      base::Release_CompareAndSwap(reinterpret_cast<base::AtomicWord*>(slot),
+                                   reinterpret_cast<base::AtomicWord>(old),
+                                   reinterpret_cast<base::AtomicWord>(target));
 
       if (object_contents == POINTER_OBJECT) {
         heap->promotion_queue()->insert(
