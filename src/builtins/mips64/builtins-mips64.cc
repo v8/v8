@@ -2198,7 +2198,7 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
                                 Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
     __ Branch(&create_runtime, ne, a2, Operand(at));
     __ LoadRoot(at, Heap::kArrayProtectorRootIndex);
-    __ lw(a2, UntagSmiFieldMemOperand(at, PropertyCell::kValueOffset));
+    __ lw(a2, FieldMemOperand(at, PropertyCell::kValueOffset));
     __ Branch(&create_runtime, ne, a2,
               Operand(Smi::FromInt(Isolate::kProtectorValid)));
     __ lw(a2, UntagSmiFieldMemOperand(a0, JSArray::kLengthOffset));
