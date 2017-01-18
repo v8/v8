@@ -99,7 +99,7 @@ enum ControlKind { kControlIf, kControlBlock, kControlLoop, kControlTry };
 struct Control {
   const byte* pc;
   ControlKind kind;
-  int stack_depth;         // stack height at the beginning of the construct.
+  size_t stack_depth;      // stack height at the beginning of the construct.
   SsaEnv* end_env;         // end environment for the construct.
   SsaEnv* false_env;       // false environment (only for if).
   TryInfo* try_info;       // Information used for compiling try statements.
@@ -114,25 +114,25 @@ struct Control {
   inline bool is_try() const { return kind == kControlTry; }
 
   // Named constructors.
-  static Control Block(const byte* pc, int stack_depth, SsaEnv* end_env,
+  static Control Block(const byte* pc, size_t stack_depth, SsaEnv* end_env,
                        int32_t previous_catch) {
     return {pc,      kControlBlock, stack_depth,    end_env,
             nullptr, nullptr,       previous_catch, {0, {NO_VALUE}}};
   }
 
-  static Control If(const byte* pc, int stack_depth, SsaEnv* end_env,
+  static Control If(const byte* pc, size_t stack_depth, SsaEnv* end_env,
                     SsaEnv* false_env, int32_t previous_catch) {
     return {pc,        kControlIf, stack_depth,    end_env,
             false_env, nullptr,    previous_catch, {0, {NO_VALUE}}};
   }
 
-  static Control Loop(const byte* pc, int stack_depth, SsaEnv* end_env,
+  static Control Loop(const byte* pc, size_t stack_depth, SsaEnv* end_env,
                       int32_t previous_catch) {
     return {pc,      kControlLoop, stack_depth,    end_env,
             nullptr, nullptr,      previous_catch, {0, {NO_VALUE}}};
   }
 
-  static Control Try(const byte* pc, int stack_depth, SsaEnv* end_env,
+  static Control Try(const byte* pc, size_t stack_depth, SsaEnv* end_env,
                      Zone* zone, SsaEnv* catch_env, int32_t previous_catch) {
     DCHECK_NOT_NULL(catch_env);
     TryInfo* try_info = new (zone) TryInfo(catch_env);
@@ -654,9 +654,7 @@ class WasmFullDecoder : public WasmDecoder {
       }
     }
 
-    if (pc_ >= end_) return;  // Nothing to do.
-
-    while (true) {  // decoding loop.
+    while (pc_ < end_) {  // decoding loop.
       unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
       if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
@@ -811,8 +809,7 @@ class WasmFullDecoder : public WasmDecoder {
               if (c->false_env != nullptr) {
                 // End the true branch of a one-armed if.
                 Goto(c->false_env, c->end_env);
-                if (ssa_env_->go() &&
-                    static_cast<int>(stack_.size()) != c->stack_depth) {
+                if (ssa_env_->go() && stack_.size() != c->stack_depth) {
                   error("end of if expected empty stack");
                   stack_.resize(c->stack_depth);
                 }
@@ -846,12 +843,11 @@ class WasmFullDecoder : public WasmDecoder {
               }
             }
 
-            PopControl();
-
-            if (control_.empty()) {
-              // If the last (implicit) control was popped, check we are at end.
+            if (control_.size() == 1) {
+              // If at the last (implicit) control, check we are at end.
               if (pc_ + 1 != end_) {
                 error(pc_, pc_ + 1, "trailing code after function end");
+                break;
               }
               last_end_found_ = true;
               if (ssa_env_->go()) {
@@ -860,8 +856,8 @@ class WasmFullDecoder : public WasmDecoder {
                 DoReturn();
                 TRACE("\n");
               }
-              return;
             }
+            PopControl();
             break;
           }
           case kExprSelect: {
@@ -1241,12 +1237,8 @@ class WasmFullDecoder : public WasmDecoder {
       }
 #endif
       pc_ += len;
-      if (pc_ >= end_) {
-        // End of code reached or exceeded.
-        if (pc_ > end_ && ok()) error("Beyond end of code");
-        return;
-      }
     }  // end decode loop
+    if (pc_ > end_ && ok()) error("Beyond end of code");
   }
 
   void EndControl() { ssa_env_->Kill(SsaEnv::kControlEnd); }
@@ -1286,26 +1278,22 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   void PushBlock(SsaEnv* end_env) {
-    const int stack_depth = static_cast<int>(stack_.size());
     control_.emplace_back(
-        Control::Block(pc_, stack_depth, end_env, current_catch_));
+        Control::Block(pc_, stack_.size(), end_env, current_catch_));
   }
 
   void PushLoop(SsaEnv* end_env) {
-    const int stack_depth = static_cast<int>(stack_.size());
     control_.emplace_back(
-        Control::Loop(pc_, stack_depth, end_env, current_catch_));
+        Control::Loop(pc_, stack_.size(), end_env, current_catch_));
   }
 
   void PushIf(SsaEnv* end_env, SsaEnv* false_env) {
-    const int stack_depth = static_cast<int>(stack_.size());
     control_.emplace_back(
-        Control::If(pc_, stack_depth, end_env, false_env, current_catch_));
+        Control::If(pc_, stack_.size(), end_env, false_env, current_catch_));
   }
 
   void PushTry(SsaEnv* end_env, SsaEnv* catch_env) {
-    const int stack_depth = static_cast<int>(stack_.size());
-    control_.emplace_back(Control::Try(pc_, stack_depth, end_env, zone_,
+    control_.emplace_back(Control::Try(pc_, stack_.size(), end_env, zone_,
                                        catch_env, current_catch_));
     current_catch_ = static_cast<int32_t>(control_.size() - 1);
   }
@@ -1431,10 +1419,6 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   Value Pop(int index, ValueType expected) {
-    if (!ssa_env_->go()) {
-      // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, expected};
-    }
     Value val = Pop();
     if (val.type != expected) {
       if (val.type != kWasmEnd) {
@@ -1447,35 +1431,18 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   Value Pop() {
-    if (!ssa_env_->go()) {
-      // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, kWasmEnd};
-    }
     size_t limit = control_.empty() ? 0 : control_.back().stack_depth;
     if (stack_.size() <= limit) {
-      Value val = {pc_, nullptr, kWasmStmt};
-      error(pc_, pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
+      Value val = {pc_, nullptr, kWasmEnd};
+      if (ssa_env_->go()) {
+        // Popping past the current control start in reachable code.
+        error(pc_, pc_, "%s found empty stack", SafeOpcodeNameAt(pc_));
+      }
       return val;
     }
     Value val = stack_.back();
     stack_.pop_back();
     return val;
-  }
-
-  Value PopUpTo(int stack_depth) {
-    if (!ssa_env_->go()) {
-      // Unreachable code is essentially not typechecked.
-      return {pc_, nullptr, kWasmEnd};
-    }
-    if (stack_depth == static_cast<int>(stack_.size())) {
-      Value val = {pc_, nullptr, kWasmStmt};
-      return val;
-    } else {
-      DCHECK_LE(stack_depth, stack_.size());
-      Value val = Pop();
-      stack_.resize(stack_depth);
-      return val;
-    }
   }
 
   int baserel(const byte* ptr) {
@@ -1508,7 +1475,7 @@ class WasmFullDecoder : public WasmDecoder {
     if (!ssa_env_->go()) return;
     // Merge the value(s) into the end of the block.
     int arity = static_cast<int>(c->merge.arity);
-    if (c->stack_depth + arity != static_cast<int>(stack_.size())) {
+    if (c->stack_depth + arity != stack_.size()) {
       error(pc_, pc_, "expected %d elements on the stack for fallthru to @%d",
             arity, startrel(c->pc));
       return;
@@ -1524,7 +1491,7 @@ class WasmFullDecoder : public WasmDecoder {
     if (!ssa_env_->go()) return;
     // Fallthru must match arity exactly.
     int arity = static_cast<int>(c->merge.arity);
-    if (c->stack_depth + arity != static_cast<int>(stack_.size())) {
+    if (c->stack_depth + arity != stack_.size()) {
       error(pc_, pc_, "expected %d elements on the stack for fallthru to @%d",
             arity, startrel(c->pc));
       return;
