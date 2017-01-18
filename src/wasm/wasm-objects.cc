@@ -205,7 +205,6 @@ bool IsBreakablePosition(Handle<WasmCompiledModule> compiled_module,
   BytecodeIterator iterator(module_start + func.code_start_offset,
                             module_start + func.code_end_offset, &locals);
   DCHECK_LT(0, locals.encoded_size);
-  uint32_t found_position = 0;
   for (uint32_t offset : iterator.offsets()) {
     if (offset > static_cast<uint32_t>(offset_in_func)) break;
     if (offset == static_cast<uint32_t>(offset_in_func)) return true;
