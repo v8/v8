@@ -248,6 +248,7 @@
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
       'test-run-wasm-relocation-arm.cc',
+      'test-simulator-arm.cc',
       'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###

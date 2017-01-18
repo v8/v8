@@ -207,6 +207,7 @@ v8_executable("cctest") {
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
+      "test-simulator-arm.cc",
       "wasm/test-run-wasm-simd.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
