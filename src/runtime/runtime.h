@@ -91,8 +91,7 @@ namespace internal {
   F(StoreToSuper_Sloppy, 4, 1)               \
   F(StoreKeyedToSuper_Strict, 4, 1)          \
   F(StoreKeyedToSuper_Sloppy, 4, 1)          \
-  F(GetSuperConstructor, 1, 1)               \
-  F(CallWithSpread, -1, 1)
+  F(GetSuperConstructor, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(StringGetRawHashField, 1, 1)          \

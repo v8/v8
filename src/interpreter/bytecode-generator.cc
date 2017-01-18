@@ -2445,27 +2445,12 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     return VisitCallSuper(expr);
   }
 
+  Register callee = register_allocator()->NewRegister();
   // Grow the args list as we visit receiver / arguments to avoid allocating all
   // the registers up-front. Otherwise these registers are unavailable during
   // receiver / argument visiting and we can end up with memory leaks due to
   // registers keeping objects alive.
-  RegisterList args;
-  Register callee;
-  // The CallWithSpread bytecode takes all arguments in a register list so that
-  // it can easily call into a runtime function for its implementation. This
-  // will change once CallWithSpread has an implementation in ASM.
-  // TODO(petermarshall): Remove this special path when CallWithSpread is done.
-  if (expr->only_last_arg_is_spread()) {
-    args = register_allocator()->NewGrowableRegisterList();
-    callee = register_allocator()->GrowRegisterList(&args);
-  } else {
-    callee = register_allocator()->NewRegister();
-    args = register_allocator()->NewGrowableRegisterList();
-  }
-
-  // TODO(petermarshall): We have a lot of call bytecodes that are very similar,
-  // see if we can reduce the number by adding a separate argument which
-  // specifies the call type (e.g., property, spread, tailcall, etc.).
+  RegisterList args = register_allocator()->NewGrowableRegisterList();
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
@@ -2474,7 +2459,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     case Call::KEYED_PROPERTY_CALL: {
       Property* property = callee_expr->AsProperty();
       VisitAndPushIntoRegisterList(property->obj(), &args);
-      VisitPropertyLoadForRegister(args.last_register(), property, callee);
+      VisitPropertyLoadForRegister(args[0], property, callee);
       break;
     }
     case Call::GLOBAL_CALL: {
@@ -2535,11 +2520,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // Evaluate all arguments to the function call and store in sequential args
   // registers.
   VisitArguments(expr->arguments(), &args);
-  // TODO(petermarshall): Check this for spread calls as well when
-  // CallWithSpread is done.
-  if (!expr->only_last_arg_is_spread()) {
-    CHECK_EQ(expr->arguments()->length() + 1, args.register_count());
-  }
+  CHECK_EQ(expr->arguments()->length() + 1, args.register_count());
 
   // Resolve callee for a potential direct eval call. This block will mutate the
   // callee value.
@@ -2569,17 +2550,9 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
 
-  // When a call contains a spread, a Call AST node is only created if there is
-  // exactly one spread, and it is the last argument.
-  if (expr->only_last_arg_is_spread()) {
-    CHECK_EQ(expr->arguments()->length() + 2, args.register_count());
-    DCHECK_EQ(TailCallMode::kDisallow, expr->tail_call_mode());
-    builder()->CallWithSpread(args);
-  } else {
-    int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-    builder()->Call(callee, args, feedback_slot_index, call_type,
-                    expr->tail_call_mode());
-  }
+  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
+  builder()->Call(callee, args, feedback_slot_index, call_type,
+                  expr->tail_call_mode());
 }
 
 void BytecodeGenerator::VisitCallSuper(Call* expr) {
@@ -2601,7 +2574,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
 
   // When a super call contains a spread, a CallSuper AST node is only created
   // if there is exactly one spread, and it is the last argument.
-  if (expr->only_last_arg_is_spread()) {
+  if (!args->is_empty() && args->last()->IsSpread()) {
     // TODO(petermarshall): Collect type on the feedback slot.
     builder()->NewWithSpread(constructor, args_regs);
   } else {
@@ -2622,18 +2595,12 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   RegisterList args = register_allocator()->NewGrowableRegisterList();
   VisitArguments(expr->arguments(), &args);
 
+  builder()->SetExpressionPosition(expr);
   // The accumulator holds new target which is the same as the
   // constructor for CallNew.
-  builder()->SetExpressionPosition(expr);
-  builder()->LoadAccumulatorWithRegister(constructor);
-
-  if (expr->only_last_arg_is_spread()) {
-    // TODO(petermarshall): Collect type on the feedback slot.
-    builder()->NewWithSpread(constructor, args);
-  } else {
-    builder()->New(constructor, args,
-                   feedback_index(expr->CallNewFeedbackSlot()));
-  }
+  builder()
+      ->LoadAccumulatorWithRegister(constructor)
+      .New(constructor, args, feedback_index(expr->CallNewFeedbackSlot()));
 }
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {

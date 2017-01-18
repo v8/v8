@@ -2597,7 +2597,6 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
   bool done = (peek() == Token::RPAREN);
   bool was_unspread = false;
   int unspread_sequences_count = 0;
-  int spread_count = 0;
   while (!done) {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
@@ -2621,7 +2620,6 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
     // are not prefixed with a spread '...' operator.
     if (is_spread) {
       was_unspread = false;
-      spread_count++;
     } else if (!was_unspread) {
       was_unspread = true;
       unspread_sequences_count++;
@@ -2657,11 +2655,7 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
       // Unspread parameter sequences are translated into array literals in the
       // parser. Ensure that the number of materialized literals matches between
       // the parser and preparser
-      if (was_unspread || spread_count > 1) {
-        // There was more than one spread, or the spread was not the final
-        // argument, so the parser will materialize literals.
-        impl()->MaterializeUnspreadArgumentsLiterals(unspread_sequences_count);
-      }
+      impl()->MaterializeUnspreadArgumentsLiterals(unspread_sequences_count);
     }
   }
 
@@ -3203,7 +3197,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
         bool is_super_call = result->IsSuperCallReference();
         if (spread_pos.IsValid()) {
-          result = impl()->SpreadCall(result, args, pos, is_possibly_eval);
+          result = impl()->SpreadCall(result, args, pos);
         } else {
           result = factory()->NewCall(result, args, pos, is_possibly_eval);
         }

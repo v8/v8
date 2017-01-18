@@ -891,11 +891,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(RegisterList args) {
-  OutputCallWithSpread(args, args.register_count());
-  return *this;
-}
-
 BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
                                                 RegisterList args,
                                                 int feedback_slot_id) {

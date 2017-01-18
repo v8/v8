@@ -1900,10 +1900,6 @@ class Call final : public Expression {
   }
   void MarkTail() { bit_field_ = IsTailField::update(bit_field_, true); }
 
-  bool only_last_arg_is_spread() {
-    return !arguments_->is_empty() && arguments_->last()->IsSpread();
-  }
-
   enum CallType {
     GLOBAL_CALL,
     WITH_CALL,
@@ -2001,10 +1997,6 @@ class CallNew final : public Expression {
   void SetKnownGlobalTarget(Handle<JSFunction> target) {
     target_ = target;
     set_is_monomorphic(true);
-  }
-
-  bool only_last_arg_is_spread() {
-    return !arguments_->is_empty() && arguments_->last()->IsSpread();
   }
 
  private:

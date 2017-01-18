@@ -2176,27 +2176,7 @@ void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// CallWithSpread <first_arg> <arg_count>
-//
-// Call a JSfunction or Callable in |first_arg| with the receiver in
-// |first_arg + 1| and |arg_count - 2| arguments in subsequent registers. The
-// final argument is always a spread.
-//
-void Interpreter::DoCallWithSpread(InterpreterAssembler* assembler) {
-  Node* first_arg_reg = __ BytecodeOperandReg(0);
-  Node* first_arg = __ RegisterLocation(first_arg_reg);
-  Node* args_count = __ BytecodeOperandCount(1);
-  Node* context = __ GetContext();
-
-  // Call into Runtime function CallWithSpread which does everything.
-  Node* runtime_function = __ Int32Constant(Runtime::kCallWithSpread);
-  Node* result =
-      __ CallRuntimeN(runtime_function, context, first_arg, args_count);
-  __ SetAccumulator(result);
-  __ Dispatch();
-}
-
-// NewWithSpread <first_arg> <arg_count>
+// NewWithSpread <constructor> <first_arg> <arg_count>
 //
 // Call the constructor in |constructor| with the first argument in register
 // |first_arg| and |arg_count| arguments in subsequent registers. The final

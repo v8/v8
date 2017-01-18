@@ -2343,34 +2343,6 @@ TEST(SuperCallAndSpread) {
                      LoadGolden("SuperCallAndSpread.golden")));
 }
 
-TEST(CallAndSpread) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {"Math.max(...[1, 2, 3]);\n",
-                            "Math.max(0, ...[1, 2, 3]);\n",
-                            "Math.max(0, ...[1, 2, 3], 4);\n"};
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("CallAndSpread.golden")));
-}
-
-TEST(NewAndSpread) {
-  InitializedIgnitionHandleScope scope;
-  BytecodeExpectationsPrinter printer(CcTest::isolate());
-  const char* snippets[] = {
-      "class A { constructor(...args) { this.args = args; } }\n"
-      "new A(...[1, 2, 3]);\n",
-
-      "class A { constructor(...args) { this.args = args; } }\n"
-      "new A(0, ...[1, 2, 3]);\n",
-
-      "class A { constructor(...args) { this.args = args; } }\n"
-      "new A(0, ...[1, 2, 3], 4);\n"};
-
-  CHECK(CompareTexts(BuildActual(printer, snippets),
-                     LoadGolden("NewAndSpread.golden")));
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

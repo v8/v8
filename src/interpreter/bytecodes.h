@@ -151,8 +151,6 @@ namespace interpreter {
     OperandType::kRegCount, OperandType::kIdx)                                 \
   V(CallProperty, AccumulatorUse::kWrite, OperandType::kReg,                   \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
-  V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kRegList,             \
-    OperandType::kRegCount)                                                    \
   V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \

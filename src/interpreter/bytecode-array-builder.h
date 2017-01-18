@@ -213,11 +213,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
       Call::CallType call_type,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
-  // Call a JS function. The JSFunction or Callable to be called should be in
-  // |args[0]|, the receiver in |args[1]| and the arguments in |args[2]|
-  // onwards. The final argument must be a spread.
-  BytecodeArrayBuilder& CallWithSpread(RegisterList args);
-
   // Call the new operator. The accumulator holds the |new_target|.
   // The |constructor| is in a register and arguments are in |args|.
   BytecodeArrayBuilder& New(Register constructor, RegisterList args,

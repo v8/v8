@@ -3682,85 +3682,90 @@ uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
   return running_hash;
 }
 
-namespace {
-
-bool OnlyLastArgIsSpread(ZoneList<Expression*>* args) {
-  for (int i = 0; i < args->length() - 1; i++) {
-    if (args->at(i)->IsSpread()) {
-      return false;
-    }
-  }
-  return args->at(args->length() - 1)->IsSpread();
-}
-
-}  // namespace
-
 ZoneList<Expression*>* Parser::PrepareSpreadArguments(
     ZoneList<Expression*>* list) {
-  // Here we only deal with multiple arguments where the spread is not at the
-  // end, or there are multiple spreads.
-  DCHECK_GT(list->length(), 1);
-  DCHECK(!OnlyLastArgIsSpread(list));
-
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
-  // Spread-call with multiple arguments produces array literals for each
-  // sequences of unspread arguments, and converts each spread iterable to
-  // an Internal array. Finally, all of these produced arrays are flattened
-  // into a single InternalArray, containing the arguments for the call.
-  //
-  // EG: Apply(Func, Flatten([unspread0, unspread1], Spread(spread0),
-  //                         Spread(spread1), [unspread2, unspread3]))
-  int i = 0;
-  int n = list->length();
-  while (i < n) {
-    if (!list->at(i)->IsSpread()) {
-      ZoneList<Expression*>* unspread =
-          new (zone()) ZoneList<Expression*>(1, zone());
-
-      // Push array of unspread parameters
-      while (i < n && !list->at(i)->IsSpread()) {
-        unspread->Add(list->at(i++), zone());
-      }
-      int literal_index = function_state_->NextMaterializedLiteralIndex();
-      args->Add(factory()->NewArrayLiteral(unspread, literal_index,
-                                           kNoSourcePosition),
-                zone());
-
-      if (i == n) break;
-    }
-
-    // Push eagerly spread argument
+  if (list->length() == 1) {
+    // Spread-call with single spread argument produces an InternalArray
+    // containing the values from the array.
+    //
+    // Function is called or constructed with the produced array of arguments
+    //
+    // EG: Apply(Func, Spread(spread0))
     ZoneList<Expression*>* spread_list =
-        new (zone()) ZoneList<Expression*>(1, zone());
-    spread_list->Add(list->at(i++)->AsSpread()->expression(), zone());
-    args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
+        new (zone()) ZoneList<Expression*>(0, zone());
+    spread_list->Add(list->at(0)->AsSpread()->expression(), zone());
+    args->Add(factory()->NewCallRuntime(Runtime::kSpreadIterablePrepare,
                                         spread_list, kNoSourcePosition),
               zone());
-  }
+    return args;
+  } else {
+    // Spread-call with multiple arguments produces array literals for each
+    // sequences of unspread arguments, and converts each spread iterable to
+    // an Internal array. Finally, all of these produced arrays are flattened
+    // into a single InternalArray, containing the arguments for the call.
+    //
+    // EG: Apply(Func, Flatten([unspread0, unspread1], Spread(spread0),
+    //                         Spread(spread1), [unspread2, unspread3]))
+    int i = 0;
+    int n = list->length();
+    while (i < n) {
+      if (!list->at(i)->IsSpread()) {
+        ZoneList<Expression*>* unspread =
+            new (zone()) ZoneList<Expression*>(1, zone());
 
-  list = new (zone()) ZoneList<Expression*>(1, zone());
-  list->Add(factory()->NewCallRuntime(Context::SPREAD_ARGUMENTS_INDEX, args,
-                                      kNoSourcePosition),
-            zone());
-  return list;
+        // Push array of unspread parameters
+        while (i < n && !list->at(i)->IsSpread()) {
+          unspread->Add(list->at(i++), zone());
+        }
+        int literal_index = function_state_->NextMaterializedLiteralIndex();
+        args->Add(factory()->NewArrayLiteral(unspread, literal_index,
+                                             kNoSourcePosition),
+                  zone());
+
+        if (i == n) break;
+      }
+
+      // Push eagerly spread argument
+      ZoneList<Expression*>* spread_list =
+          new (zone()) ZoneList<Expression*>(1, zone());
+      spread_list->Add(list->at(i++)->AsSpread()->expression(), zone());
+      args->Add(factory()->NewCallRuntime(Context::SPREAD_ITERABLE_INDEX,
+                                          spread_list, kNoSourcePosition),
+                zone());
+    }
+
+    list = new (zone()) ZoneList<Expression*>(1, zone());
+    list->Add(factory()->NewCallRuntime(Context::SPREAD_ARGUMENTS_INDEX, args,
+                                        kNoSourcePosition),
+              zone());
+    return list;
+  }
+  UNREACHABLE();
 }
 
 Expression* Parser::SpreadCall(Expression* function,
-                               ZoneList<Expression*>* args, int pos,
-                               Call::PossiblyEval is_possibly_eval) {
-  // Handle these cases in BytecodeGenerator.
-  if (OnlyLastArgIsSpread(args)) {
-    if (function->IsSuperCallReference()) {
-      function = NewSuperCallReference(pos);
-    }
-    return factory()->NewCall(function, args, pos);
-  }
-
+                               ZoneList<Expression*>* args, int pos) {
   if (function->IsSuperCallReference()) {
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
     // %reflect_construct($super_constructor, args, new.target)
 
+    bool only_last_arg_is_spread = false;
+    for (int i = 0; i < args->length(); i++) {
+      if (args->at(i)->IsSpread()) {
+        if (i == args->length() - 1) {
+          only_last_arg_is_spread = true;
+        }
+        break;
+      }
+    }
+
+    if (only_last_arg_is_spread) {
+      // Handle in BytecodeGenerator.
+      Expression* super_call_ref = NewSuperCallReference(pos);
+      return factory()->NewCall(super_call_ref, args, pos);
+    }
     args = PrepareSpreadArguments(args);
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
@@ -3802,10 +3807,6 @@ Expression* Parser::SpreadCall(Expression* function,
 
 Expression* Parser::SpreadCallNew(Expression* function,
                                   ZoneList<Expression*>* args, int pos) {
-  if (OnlyLastArgIsSpread(args)) {
-    // Handle in BytecodeGenerator.
-    return factory()->NewCallNew(function, args, pos);
-  }
   args = PrepareSpreadArguments(args);
   args->InsertAt(0, function, zone());
 
