@@ -591,7 +591,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
-                         int pos);
+                         int pos, Call::PossiblyEval is_possibly_eval);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
                             int pos);
   Expression* RewriteSuperCall(Expression* call_expression);

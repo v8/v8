@@ -988,7 +988,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserExpression SpreadCall(PreParserExpression function,
                                            PreParserExpressionList args,
-                                           int pos);
+                                           int pos,
+                                           Call::PossiblyEval possibly_eval);
   V8_INLINE PreParserExpression SpreadCallNew(PreParserExpression function,
                                               PreParserExpressionList args,
                                               int pos);
@@ -1612,9 +1613,9 @@ class PreParser : public ParserBase<PreParser> {
 };
 
 PreParserExpression PreParser::SpreadCall(PreParserExpression function,
-                                          PreParserExpressionList args,
-                                          int pos) {
-  return factory()->NewCall(function, args, pos);
+                                          PreParserExpressionList args, int pos,
+                                          Call::PossiblyEval possibly_eval) {
+  return factory()->NewCall(function, args, pos, possibly_eval);
 }
 
 PreParserExpression PreParser::SpreadCallNew(PreParserExpression function,

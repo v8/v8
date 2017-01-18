@@ -409,8 +409,8 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 
 void AstNumberingVisitor::VisitSpread(Spread* node) {
   IncrementNodeCount();
-  // We can only get here from super calls currently.
-  DisableFullCodegenAndCrankshaft(kSuperReference);
+  // We can only get here from spread calls currently.
+  DisableFullCodegenAndCrankshaft(kSpreadCall);
   node->set_base_id(ReserveIdRange(Spread::num_ids()));
   Visit(node->expression());
 }
