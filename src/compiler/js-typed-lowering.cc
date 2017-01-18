@@ -872,43 +872,50 @@ Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
 }
 
 Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
+  Node* input;
+  Handle<String> type;
   HeapObjectBinopMatcher m(node);
   if (m.left().IsJSTypeOf() && m.right().HasValue() &&
       m.right().Value()->IsString()) {
-    Node* replacement;
-    Node* input = m.left().InputAt(0);
-    Handle<String> value = Handle<String>::cast(m.right().Value());
-    if (String::Equals(value, factory()->boolean_string())) {
-      replacement =
-          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
-                           graph()->NewNode(simplified()->ReferenceEqual(),
-                                            input, jsgraph()->TrueConstant()),
-                           jsgraph()->TrueConstant(),
-                           graph()->NewNode(simplified()->ReferenceEqual(),
-                                            input, jsgraph()->FalseConstant()));
-    } else if (String::Equals(value, factory()->function_string())) {
-      replacement = graph()->NewNode(simplified()->ObjectIsCallable(), input);
-    } else if (String::Equals(value, factory()->number_string())) {
-      replacement = graph()->NewNode(simplified()->ObjectIsNumber(), input);
-    } else if (String::Equals(value, factory()->string_string())) {
-      replacement = graph()->NewNode(simplified()->ObjectIsString(), input);
-    } else if (String::Equals(value, factory()->undefined_string())) {
-      replacement = graph()->NewNode(
-          common()->Select(MachineRepresentation::kTagged),
-          graph()->NewNode(simplified()->ReferenceEqual(), input,
-                           jsgraph()->NullConstant()),
-          jsgraph()->FalseConstant(),
-          graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
-    } else {
-      return NoChange();
-    }
-    if (invert) {
-      replacement = graph()->NewNode(simplified()->BooleanNot(), replacement);
-    }
-    ReplaceWithValue(node, replacement);
-    return Replace(replacement);
+    input = m.left().InputAt(0);
+    type = Handle<String>::cast(m.right().Value());
+  } else if (m.right().IsJSTypeOf() && m.left().HasValue() &&
+             m.left().Value()->IsString()) {
+    input = m.right().InputAt(0);
+    type = Handle<String>::cast(m.left().Value());
+  } else {
+    return NoChange();
   }
-  return NoChange();
+  Node* value;
+  if (String::Equals(type, factory()->boolean_string())) {
+    value =
+        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                         graph()->NewNode(simplified()->ReferenceEqual(), input,
+                                          jsgraph()->TrueConstant()),
+                         jsgraph()->TrueConstant(),
+                         graph()->NewNode(simplified()->ReferenceEqual(), input,
+                                          jsgraph()->FalseConstant()));
+  } else if (String::Equals(type, factory()->function_string())) {
+    value = graph()->NewNode(simplified()->ObjectIsCallable(), input);
+  } else if (String::Equals(type, factory()->number_string())) {
+    value = graph()->NewNode(simplified()->ObjectIsNumber(), input);
+  } else if (String::Equals(type, factory()->string_string())) {
+    value = graph()->NewNode(simplified()->ObjectIsString(), input);
+  } else if (String::Equals(type, factory()->undefined_string())) {
+    value = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged),
+        graph()->NewNode(simplified()->ReferenceEqual(), input,
+                         jsgraph()->NullConstant()),
+        jsgraph()->FalseConstant(),
+        graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
+  } else {
+    return NoChange();
+  }
+  if (invert) {
+    value = graph()->NewNode(simplified()->BooleanNot(), value);
+  }
+  ReplaceWithValue(node, value);
+  return Replace(value);
 }
 
 Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
