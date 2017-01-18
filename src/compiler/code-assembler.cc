@@ -719,6 +719,8 @@ CodeAssemblerLabel::CodeAssemblerLabel(CodeAssembler* assembler,
   }
 }
 
+CodeAssemblerLabel::~CodeAssemblerLabel() { label_->~RawMachineLabel(); }
+
 void CodeAssemblerLabel::MergeVariables() {
   ++merge_count_;
   for (auto var : state_->variables_) {

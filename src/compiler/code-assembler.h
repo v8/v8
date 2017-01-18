@@ -444,7 +444,7 @@ class CodeAssemblerLabel {
       CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
       : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
-  ~CodeAssemblerLabel() {}
+  ~CodeAssemblerLabel();
 
  private:
   friend class CodeAssembler;
