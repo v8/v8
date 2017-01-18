@@ -307,6 +307,7 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   Node* value = effect = graph()->NewNode(
       simplified()->Allocate(NOT_TENURED),
       jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
+  NodeProperties::SetType(value, Type::OtherObject());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, jsgraph()->Constant(map), effect, control);
   effect = graph()->NewNode(
@@ -1743,6 +1744,7 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     Node* value = effect = graph()->NewNode(
         simplified()->Allocate(NOT_TENURED),
         jsgraph()->Constant(JSStringIterator::kSize), effect, control);
+    NodeProperties::SetType(value, Type::OtherObject());
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
