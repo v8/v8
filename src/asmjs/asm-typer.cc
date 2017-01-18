@@ -385,6 +385,10 @@ AsmTyper::VariableInfo* AsmTyper::ImportLookup(Property* import) {
     return obj_info;
   }
 
+  if (!key->IsPropertyName()) {
+    return nullptr;
+  }
+
   std::unique_ptr<char[]> aname = key->AsPropertyName()->ToCString();
   ObjectTypeMap::iterator i = stdlib->find(std::string(aname.get()));
   if (i == stdlib->end()) {
