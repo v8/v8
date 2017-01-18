@@ -312,6 +312,20 @@ void NodeProperties::CollectControlProjections(Node* node, Node** projections,
 #endif
 }
 
+// static
+bool NodeProperties::IsSame(Node* a, Node* b) {
+  for (;;) {
+    if (a->opcode() == IrOpcode::kCheckHeapObject) {
+      a = GetValueInput(a, 0);
+      continue;
+    }
+    if (b->opcode() == IrOpcode::kCheckHeapObject) {
+      b = GetValueInput(b, 0);
+      continue;
+    }
+    return a == b;
+  }
+}
 
 // static
 MaybeHandle<Context> NodeProperties::GetSpecializationContext(

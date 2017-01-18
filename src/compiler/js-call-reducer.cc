@@ -223,19 +223,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
 
 namespace {
 
-// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
-// alias analyzer?
-bool IsSame(Node* a, Node* b) {
-  if (a == b) {
-    return true;
-  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a->InputAt(0), b);
-  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a, b->InputAt(0));
-  }
-  return false;
-}
-
 // TODO(turbofan): Share with similar functionality in JSInliningHeuristic
 // and JSNativeContextSpecialization, i.e. move to NodeProperties helper?!
 MaybeHandle<Map> InferReceiverMap(Node* node) {
@@ -245,7 +232,7 @@ MaybeHandle<Map> InferReceiverMap(Node* node) {
   // for the {receiver}, and if so use that map for the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       if (dominator->op()->ValueInputCount() == 2) {
         HeapObjectMatcher m(dominator->InputAt(1));
         if (m.HasValue()) return Handle<Map>::cast(m.Value());

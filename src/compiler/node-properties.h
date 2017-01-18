@@ -123,6 +123,9 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   //  - Switch: [ IfValue, ..., IfDefault ]
   static void CollectControlProjections(Node* node, Node** proj, size_t count);
 
+  // Checks if two nodes are the same, looking past {CheckHeapObject}.
+  static bool IsSame(Node* a, Node* b);
+
   // ---------------------------------------------------------------------------
   // Context.
 

@@ -108,19 +108,6 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 
 namespace {
 
-// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
-// alias analyzer?
-bool IsSame(Node* a, Node* b) {
-  if (a == b) {
-    return true;
-  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a->InputAt(0), b);
-  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a, b->InputAt(0));
-  }
-  return false;
-}
-
 MaybeHandle<Map> GetMapWitness(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -128,7 +115,7 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   // for the {receiver}, and if so use that map for the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       ZoneHandleSet<Map> const& maps =
           CheckMapsParametersOf(dominator->op()).maps();
       return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
@@ -914,7 +901,7 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
                             InstanceType instance_type) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       ZoneHandleSet<Map> const& maps =
           CheckMapsParametersOf(dominator->op()).maps();
       // Check if all maps have the given {instance_type}.
@@ -1621,7 +1608,7 @@ Node* GetStringWitness(Node* node) {
   // the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckString &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
     if (dominator->op()->EffectInputCount() != 1) {
