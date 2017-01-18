@@ -2282,7 +2282,7 @@ class RepresentationSelector {
                     MachineRepresentation::kTaggedPointer);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          VisitUnop(node, UseInfo::AnyTagged(),
+          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
                     MachineRepresentation::kTaggedPointer);
         }
         return;
@@ -2323,7 +2323,7 @@ class RepresentationSelector {
                     MachineRepresentation::kTaggedPointer);
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else {
-          VisitUnop(node, UseInfo::AnyTagged(),
+          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
                     MachineRepresentation::kTaggedPointer);
         }
         return;

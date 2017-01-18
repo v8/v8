@@ -1157,17 +1157,13 @@ Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
 Node* EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
 
-  Node* check0 = ObjectIsSmi(value);
-  __ DeoptimizeIf(DeoptimizeReason::kSmi, check0, frame_state);
-
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
-  Node* check1 = __ Uint32LessThan(value_instance_type,
-                                   __ Uint32Constant(FIRST_NONSTRING_TYPE));
-  __ DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType, check1,
-                      frame_state);
+  Node* check = __ Uint32LessThan(value_instance_type,
+                                  __ Uint32Constant(FIRST_NONSTRING_TYPE));
+  __ DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType, check, frame_state);
   return value;
 }
 
@@ -1175,19 +1171,15 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
                                                             Node* frame_state) {
   Node* value = node->InputAt(0);
 
-  Node* check0 = ObjectIsSmi(value);
-  __ DeoptimizeIf(DeoptimizeReason::kSmi, check0, frame_state);
-
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
-  Node* check1 = __ Word32Equal(
+  Node* check = __ Word32Equal(
       __ Word32And(value_instance_type,
                    __ Int32Constant(kIsNotStringMask | kIsNotInternalizedMask)),
       __ Int32Constant(kInternalizedTag));
-  __ DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType, check1,
-                      frame_state);
+  __ DeoptimizeUnless(DeoptimizeReason::kWrongInstanceType, check, frame_state);
 
   return value;
 }
