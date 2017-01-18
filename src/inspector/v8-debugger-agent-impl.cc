@@ -1124,13 +1124,15 @@ void V8DebuggerAgentImpl::didParseSource(
 V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
     v8::Local<v8::Context> context, v8::Local<v8::Value> exception,
     const std::vector<String16>& hitBreakpoints, bool isPromiseRejection,
-    bool isUncaught) {
+    bool isUncaught, bool isOOMBreak) {
   JavaScriptCallFrames callFrames = m_debugger->currentCallFrames(1);
   JavaScriptCallFrame* topCallFrame =
       !callFrames.empty() ? callFrames.begin()->get() : nullptr;
 
   V8DebuggerAgentImpl::SkipPauseRequest result;
-  if (m_skipAllPauses)
+  if (isOOMBreak)
+    result = RequestNoSkip;
+  else if (m_skipAllPauses)
     result = RequestContinue;
   else if (!hitBreakpoints.empty())
     result = RequestNoSkip;  // Don't skip explicit breakpoints even if set in
@@ -1154,7 +1156,10 @@ V8DebuggerAgentImpl::SkipPauseRequest V8DebuggerAgentImpl::didPause(
   m_pausedContext.Reset(m_isolate, context);
   v8::HandleScope handles(m_isolate);
 
-  if (!exception.IsEmpty()) {
+  if (isOOMBreak) {
+    m_breakReason = protocol::Debugger::Paused::ReasonEnum::OOM;
+    m_breakAuxData = nullptr;
+  } else if (!exception.IsEmpty()) {
     InjectedScript* injectedScript = nullptr;
     m_session->findInjectedScript(InspectedContext::contextId(context),
                                   injectedScript);

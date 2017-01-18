@@ -74,6 +74,8 @@ void V8Debugger::enable() {
                                   this);
   v8::debug::SetCompileEventListener(m_isolate,
                                      &V8Debugger::v8CompileEventListener, this);
+  v8::debug::SetOutOfMemoryCallback(m_isolate, &V8Debugger::v8OOMCallback,
+                                    this);
   m_debuggerContext.Reset(m_isolate, v8::debug::GetDebugContext(m_isolate));
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
@@ -91,6 +93,8 @@ void V8Debugger::disable() {
   v8::debug::SetDebugEventListener(m_isolate, nullptr);
   v8::debug::SetAsyncTaskListener(m_isolate, nullptr, nullptr);
   v8::debug::SetCompileEventListener(m_isolate, nullptr, nullptr);
+  v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
+  m_isolate->RestoreOriginalHeapLimit();
 }
 
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
@@ -483,8 +487,9 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;
-  V8DebuggerAgentImpl::SkipPauseRequest result = agent->didPause(
-      pausedContext, exception, breakpointIds, isPromiseRejection, isUncaught);
+  V8DebuggerAgentImpl::SkipPauseRequest result =
+      agent->didPause(pausedContext, exception, breakpointIds,
+                      isPromiseRejection, isUncaught, m_scheduledOOMBreak);
   if (result == V8DebuggerAgentImpl::RequestNoSkip) {
     m_runningNestedMessageLoop = true;
     int groupId = m_inspector->contextGroupId(pausedContext);
@@ -500,6 +505,8 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     if (agent) agent->didContinue();
     m_runningNestedMessageLoop = false;
   }
+  if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
+  m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
   m_executionState.Clear();
 
@@ -510,6 +517,13 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   } else if (result == V8DebuggerAgentImpl::RequestStepOut) {
     v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
   }
+}
+
+void V8Debugger::v8OOMCallback(void* data) {
+  V8Debugger* thisPtr = static_cast<V8Debugger*>(data);
+  thisPtr->m_isolate->IncreaseHeapLimitForDebugging();
+  thisPtr->m_scheduledOOMBreak = true;
+  thisPtr->setPauseOnNextStatement(true);
 }
 
 void V8Debugger::v8DebugEventCallback(

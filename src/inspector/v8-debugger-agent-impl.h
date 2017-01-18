@@ -137,7 +137,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   SkipPauseRequest didPause(v8::Local<v8::Context>,
                             v8::Local<v8::Value> exception,
                             const std::vector<String16>& hitBreakpoints,
-                            bool isPromiseRejection, bool isUncaught);
+                            bool isPromiseRejection, bool isUncaught,
+                            bool isOOMBreak);
   void didContinue();
   void didParseSource(std::unique_ptr<V8DebuggerScript>, bool success);
   void willExecuteScript(int scriptId);

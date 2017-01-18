@@ -103,6 +103,8 @@ class V8Debugger {
   v8::Local<v8::Context> debuggerContext() const;
   void clearBreakpoints();
 
+  static void v8OOMCallback(void* data);
+
   static void breakProgramCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void handleProgramBreak(v8::Local<v8::Context> pausedContext,
                           v8::Local<v8::Object> executionState,
@@ -149,6 +151,7 @@ class V8Debugger {
   v8::Local<v8::Context> m_pausedContext;
   bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
+  bool m_scheduledOOMBreak = false;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
