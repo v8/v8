@@ -890,6 +890,8 @@
         'fast-accessor-assembler.h',
         'fast-dtoa.cc',
         'fast-dtoa.h',
+        'ffi/ffi-compiler.cc',
+        'ffi/ffi-compiler.h',
         'field-index.h',
         'field-index-inl.h',
         'field-type.cc',

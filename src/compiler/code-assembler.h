@@ -227,6 +227,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
 
   Node* Parameter(int value);
+  Node* GetJSContextParameter();
   void Return(Node* value);
   void PopAndReturn(Node* pop, Node* value);
 
@@ -363,6 +364,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return CallStub(callable, context, new_target, new_target, arity, receiver,
                     args...);
   }
+
+  Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
+                       Node* const* inputs);
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,

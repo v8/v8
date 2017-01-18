@@ -81,6 +81,7 @@
       'cctest.cc',
       'cctest.h',
       'expression-type-collector-macros.h',
+      'ffi/test-ffi.cc',
       'interpreter/interpreter-tester.cc',
       'interpreter/interpreter-tester.h',
       'interpreter/source-position-matcher.cc',

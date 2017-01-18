@@ -15,6 +15,7 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
+#include "src/ffi/ffi-compiler.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/snapshot/natives.h"
@@ -4195,6 +4196,8 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   if (FLAG_expose_wasm || FLAG_validate_asm) {
     WasmJs::Install(isolate);
   }
+
+  InstallFFIMap(isolate);
 
   // Expose the debug global object in global if a name for it is specified.
   if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
