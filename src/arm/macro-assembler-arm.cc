@@ -1146,12 +1146,11 @@ void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
 
 void MacroAssembler::ExtractLane(Register dst, QwNeonRegister src,
                                  NeonDataType dt, int lane) {
-  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
-  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
-  int byte = lane << log2_bytes_per_lane;
+  int size = NeonSz(dt);  // 0, 1, 2
+  int byte = lane << size;
   int double_word = byte >> kDoubleSizeLog2;
   int double_byte = byte & (kDoubleSize - 1);
-  int double_lane = double_byte >> log2_bytes_per_lane;
+  int double_lane = double_byte >> size;
   DwVfpRegister double_source =
       DwVfpRegister::from_code(src.code() * 2 + double_word);
   vmov(dt, dst, double_source, double_lane);
@@ -1166,12 +1165,11 @@ void MacroAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
 void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                                  Register src_lane, NeonDataType dt, int lane) {
   Move(dst, src);
-  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
-  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
-  int byte = lane << log2_bytes_per_lane;
+  int size = NeonSz(dt);  // 0, 1, 2
+  int byte = lane << size;
   int double_word = byte >> kDoubleSizeLog2;
   int double_byte = byte & (kDoubleSize - 1);
-  int double_lane = double_byte >> log2_bytes_per_lane;
+  int double_lane = double_byte >> size;
   DwVfpRegister double_dst =
       DwVfpRegister::from_code(dst.code() * 2 + double_word);
   vmov(dt, double_dst, double_lane, src_lane);
