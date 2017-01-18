@@ -9234,26 +9234,6 @@ int debug::Script::GetSourcePosition(const debug::Location& location) const {
   return std::min(prev_line_offset + column + 1, line_offset);
 }
 
-MaybeLocal<debug::Script> debug::Script::Wrap(v8::Isolate* v8_isolate,
-                                              v8::Local<v8::Object> script) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8(isolate);
-  i::HandleScope handle_scope(isolate);
-  i::Handle<i::JSReceiver> script_receiver(Utils::OpenHandle(*script));
-  if (!script_receiver->IsJSValue()) return MaybeLocal<Script>();
-  i::Handle<i::Object> script_value(
-      i::Handle<i::JSValue>::cast(script_receiver)->value(), isolate);
-  if (!script_value->IsScript()) {
-    return MaybeLocal<Script>();
-  }
-  i::Handle<i::Script> script_obj = i::Handle<i::Script>::cast(script_value);
-  if (script_obj->type() != i::Script::TYPE_NORMAL &&
-      script_obj->type() != i::Script::TYPE_WASM) {
-    return MaybeLocal<Script>();
-  }
-  return ToApiHandle<debug::Script>(handle_scope.CloseAndEscape(script_obj));
-}
-
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {
   CHECK(script->IsWasm());
   return static_cast<WasmScript*>(script);
@@ -9357,6 +9337,14 @@ void debug::SetAsyncTaskListener(Isolate* v8_isolate,
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
   isolate->debug()->SetAsyncTaskListener(listener, data);
+}
+
+void debug::SetCompileEventListener(Isolate* v8_isolate,
+                                    debug::CompileEventListener listener,
+                                    void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  isolate->debug()->SetCompileEventListener(listener, data);
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {

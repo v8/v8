@@ -72,6 +72,8 @@ void V8Debugger::enable() {
                                    v8::External::New(m_isolate, this));
   v8::debug::SetAsyncTaskListener(m_isolate, &V8Debugger::v8AsyncTaskListener,
                                   this);
+  v8::debug::SetCompileEventListener(m_isolate,
+                                     &V8Debugger::v8CompileEventListener, this);
   m_debuggerContext.Reset(m_isolate, v8::debug::GetDebugContext(m_isolate));
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
@@ -88,6 +90,7 @@ void V8Debugger::disable() {
   m_wasmTranslation.Clear();
   v8::debug::SetDebugEventListener(m_isolate, nullptr);
   v8::debug::SetAsyncTaskListener(m_isolate, nullptr, nullptr);
+  v8::debug::SetCompileEventListener(m_isolate, nullptr, nullptr);
 }
 
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
@@ -536,9 +539,7 @@ void V8Debugger::handleV8DebugEvent(
   v8::HandleScope scope(m_isolate);
 
   v8::DebugEvent event = eventDetails.GetEvent();
-  if (event != v8::Break && event != v8::Exception &&
-      event != v8::AfterCompile && event != v8::CompileError)
-    return;
+  if (event != v8::Break && event != v8::Exception) return;
 
   v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
   DCHECK(!eventContext.IsEmpty());
@@ -546,28 +547,7 @@ void V8Debugger::handleV8DebugEvent(
       m_inspector->contextGroupId(eventContext));
   if (!agent) return;
 
-  if (event == v8::AfterCompile || event == v8::CompileError) {
-    v8::Context::Scope contextScope(debuggerContext());
-    // Determine if the script is a wasm script.
-    v8::Local<v8::Value> scriptMirror =
-        callInternalGetterFunction(eventDetails.GetEventData(), "script");
-    DCHECK(scriptMirror->IsObject());
-    v8::Local<v8::Value> scriptWrapper =
-        callInternalGetterFunction(scriptMirror.As<v8::Object>(), "value");
-    DCHECK(scriptWrapper->IsObject());
-    v8::Local<v8::debug::Script> script;
-    if (!v8::debug::Script::Wrap(m_isolate, scriptWrapper.As<v8::Object>())
-             .ToLocal(&script)) {
-      return;
-    }
-    if (script->IsWasm()) {
-      m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
-    } else if (m_ignoreScriptParsedEventsCounter == 0) {
-      agent->didParseSource(
-          V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
-          event == v8::AfterCompile);
-    }
-  } else if (event == v8::Exception) {
+  if (event == v8::Exception) {
     v8::Local<v8::Context> context = debuggerContext();
     v8::Local<v8::Object> eventData = eventDetails.GetEventData();
     v8::Local<v8::Value> exception =
@@ -590,6 +570,29 @@ void V8Debugger::handleV8DebugEvent(
     DCHECK(hitBreakpoints->IsArray());
     handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
                        v8::Local<v8::Value>(), hitBreakpoints.As<v8::Array>());
+  }
+}
+
+void V8Debugger::v8CompileEventListener(v8::Local<v8::debug::Script> script,
+                                        bool has_compile_error, void* data) {
+  V8Debugger* debugger = static_cast<V8Debugger*>(data);
+  v8::Local<v8::Value> contextData;
+  if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32()) {
+    return;
+  }
+  int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
+  int contextGroupId = debugger->m_inspector->contextGroupId(contextId);
+  if (!contextGroupId) return;
+  V8DebuggerAgentImpl* agent =
+      debugger->m_inspector->enabledDebuggerAgentForGroup(contextGroupId);
+  if (!agent) return;
+  if (script->IsWasm()) {
+    debugger->m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(),
+                                          agent);
+  } else if (debugger->m_ignoreScriptParsedEventsCounter == 0) {
+    agent->didParseSource(
+        V8DebuggerScript::Create(debugger->m_isolate, script, inLiveEditScope),
+        !has_compile_error);
   }
 }
 

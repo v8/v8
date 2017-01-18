@@ -1866,17 +1866,7 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
 
   if (async_task_listener_) {
     async_task_listener_(type, id, async_task_listener_data_);
-    // There are three types of event listeners: C++ message_handler,
-    // JavaScript event listener and C++ event listener.
-    // Currently inspector still uses C++ event listener and installs
-    // more specific event listeners for part of events. Calling of
-    // C++ event listener is redundant when more specific event listener
-    // is presented. Other clients can install JavaScript event listener
-    // (e.g. some of NodeJS module).
-    bool non_inspector_listener_exists =
-        message_handler_ != nullptr ||
-        (event_listener_.is_null() && !event_listener_->IsForeign());
-    if (!non_inspector_listener_exists) return;
+    if (!non_inspector_listener_exists()) return;
   }
 
   HandleScope scope(isolate_);
@@ -1955,6 +1945,12 @@ void Debug::CallEventCallback(v8::DebugEvent event,
   in_debug_event_listener_ = previous;
 }
 
+void Debug::SetCompileEventListener(debug::CompileEventListener listener,
+                                    void* data) {
+  compile_event_listener_ = listener;
+  compile_event_listener_data_ = data;
+  UpdateState();
+}
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   if (ignore_events()) return;
@@ -1963,12 +1959,18 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
     return;
   }
   SuppressDebug while_processing(this);
-
   bool in_nested_debug_scope = in_debug_scope();
-  HandleScope scope(isolate_);
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
+  if (compile_event_listener_) {
+    compile_event_listener_(ToApiHandle<debug::Script>(script),
+                            event != v8::AfterCompile,
+                            compile_event_listener_data_);
+    if (!non_inspector_listener_exists()) return;
+  }
+
+  HandleScope scope(isolate_);
   // Create the compile state object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
@@ -2162,7 +2164,8 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
 
 void Debug::UpdateState() {
   bool is_active = message_handler_ != nullptr || !event_listener_.is_null() ||
-                   async_task_listener_ != nullptr;
+                   async_task_listener_ != nullptr ||
+                   compile_event_listener_ != nullptr;
   if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.

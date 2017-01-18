@@ -467,6 +467,8 @@ class Debug {
   int NextAsyncTaskId(Handle<JSObject> promise);
 
   void SetAsyncTaskListener(debug::AsyncTaskListener listener, void* data);
+  void SetCompileEventListener(debug::CompileEventListener listener,
+                               void* data);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -595,6 +597,18 @@ class Debug {
     return thread_local_.suspended_generator_ != Smi::kZero;
   }
 
+  // There are three types of event listeners: C++ message_handler,
+  // JavaScript event listener and C++ event listener.
+  // Currently inspector still uses C++ event listener and installs
+  // more specific event listeners for part of events. Calling of
+  // C++ event listener is redundant when more specific event listener
+  // is presented. Other clients can install JavaScript event listener
+  // (e.g. some of NodeJS module).
+  bool non_inspector_listener_exists() const {
+    return message_handler_ != nullptr ||
+           (!event_listener_.is_null() && !event_listener_->IsForeign());
+  }
+
   void OnException(Handle<Object> exception, Handle<Object> promise);
 
   // Constructors for debug event objects.
@@ -667,6 +681,8 @@ class Debug {
 
   debug::AsyncTaskListener async_task_listener_ = nullptr;
   void* async_task_listener_data_ = nullptr;
+  debug::CompileEventListener compile_event_listener_ = nullptr;
+  void* compile_event_listener_data_ = nullptr;
 
   static const int kQueueInitialSize = 4;
   base::Semaphore command_received_;  // Signaled for each command received.

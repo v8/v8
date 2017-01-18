@@ -116,6 +116,8 @@ class V8Debugger {
   void handleV8DebugEvent(const v8::debug::EventDetails&);
   static void v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
                                   int id, void* data);
+  static void v8CompileEventListener(v8::Local<v8::debug::Script> script,
+                                     bool has_compile_error, void* data);
 
   v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>,
                                          v8::Local<v8::Object>);

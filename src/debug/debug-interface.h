@@ -173,17 +173,6 @@ class Script {
                               const debug::Location& end,
                               std::vector<debug::Location>* locations) const;
 
-  /**
-   * script parameter is a wrapper v8::internal::JSObject for
-   * v8::internal::Script.
-   * This function gets v8::internal::Script from v8::internal::JSObject and
-   * wraps it with DebugInterface::Script.
-   * Returns empty local if not called with a valid wrapper of
-   * v8::internal::Script.
-   */
-  static MaybeLocal<Script> Wrap(Isolate* isolate,
-                                 v8::Local<v8::Object> script);
-
  private:
   int GetSourcePosition(const debug::Location& location) const;
 };
@@ -209,6 +198,12 @@ typedef std::function<void(debug::PromiseDebugActionType type, int id,
     AsyncTaskListener;
 void SetAsyncTaskListener(Isolate* isolate, AsyncTaskListener listener,
                           void* data);
+
+typedef std::function<void(v8::Local<Script> script, bool has_compile_error,
+                           void* data)>
+    CompileEventListener;
+void SetCompileEventListener(Isolate* isolate, CompileEventListener listener,
+                             void* data);
 
 }  // namespace debug
 }  // namespace v8

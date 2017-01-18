@@ -725,6 +725,8 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
                                 const ModuleWireBytes& wire_bytes) {
   Handle<Script> script =
       isolate->factory()->NewScript(isolate->factory()->empty_string());
+  FixedArray* array = isolate->native_context()->embedder_data();
+  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
   script->set_type(Script::TYPE_WASM);
 
   int hash = StringHasher::HashSequentialString(
