@@ -480,6 +480,8 @@
         'builtins/builtins-api.cc',
         'builtins/builtins-arraybuffer.cc',
         'builtins/builtins-array.cc',
+        'builtins/builtins-async.cc',
+        'builtins/builtins-async.h',
         'builtins/builtins-boolean.cc',
         'builtins/builtins-call.cc',
         'builtins/builtins-callsite.cc',
