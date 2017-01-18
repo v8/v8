@@ -308,7 +308,10 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   MaybeLocal<Value> instance =
       InstantiateModuleImpl(i_isolate, i_module_obj, args, &thrower);
-  if (instance.IsEmpty()) return;
+  if (instance.IsEmpty()) {
+    DCHECK(thrower.error());
+    return;
+  }
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(instance.ToLocalChecked());

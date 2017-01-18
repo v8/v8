@@ -1808,6 +1808,7 @@ TEST(Build_Wasm_UnreachableIf2) {
 
 WASM_EXEC_TEST(Unreachable_Load) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
+  r.module().AddMemory(0L);
   BUILD(r, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0)),
                         WASM_LOAD_MEM(MachineType::Int8(), WASM_GET_LOCAL(0))));
   CHECK_EQ(11, r.Call(11));

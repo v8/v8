@@ -105,8 +105,10 @@ class TestingModule : public ModuleEnv {
   void ChangeOriginToAsmjs() { module_.origin = kAsmJsOrigin; }
 
   byte* AddMemory(uint32_t size) {
+    CHECK(!module_.has_memory);
     CHECK_NULL(instance->mem_start);
     CHECK_EQ(0, instance->mem_size);
+    module_.has_memory = true;
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
     CHECK(instance->mem_start);
     memset(instance->mem_start, 0, size);

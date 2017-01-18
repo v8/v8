@@ -9,6 +9,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function() {
   var builder = new WasmModuleBuilder();
+  builder.addMemory(0, 0, false);
   builder.addFunction("test", kSig_i_iii)
     .addBody([
 kExprI32Const, 0x0b,
