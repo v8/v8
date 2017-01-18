@@ -27,7 +27,7 @@ CONFIGS = dict(
   noturbo_opt=['--always-opt', '--turbo-filter=~', '--noturbo-asm'],
   ignition=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
             '--novalidate-asm'],
-  ignition_staging=['--ignition-staging'],
+  ignition_staging=['--ignition-staging', '--novalidate-asm'],
   ignition_turbo=['--ignition-staging', '--turbo', '--novalidate-asm'],
   ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt',
                       '--novalidate-asm'],
