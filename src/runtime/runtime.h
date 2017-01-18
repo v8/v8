@@ -56,7 +56,8 @@ namespace internal {
   F(ArraySpeciesConstructor, 1, 1)   \
   F(ArrayIncludes_Slow, 3, 1)        \
   F(ArrayIndexOf, 3, 1)              \
-  F(SpreadIterablePrepare, 1, 1)
+  F(SpreadIterablePrepare, 1, 1)     \
+  F(SpreadIterableFixed, 1, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)           \
   F(ThrowNotIntegerSharedTypedArrayError, 1, 1) \
@@ -90,8 +91,7 @@ namespace internal {
   F(StoreToSuper_Sloppy, 4, 1)               \
   F(StoreKeyedToSuper_Strict, 4, 1)          \
   F(StoreKeyedToSuper_Sloppy, 4, 1)          \
-  F(GetSuperConstructor, 1, 1)               \
-  F(NewWithSpread, -1, 1)
+  F(GetSuperConstructor, 1, 1)
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(StringGetRawHashField, 1, 1)          \

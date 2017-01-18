@@ -815,7 +815,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
-    MacroAssembler* masm, CallableType construct_type) {
+    MacroAssembler* masm, PushArgsConstructMode mode) {
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rdx : the new target (either the same as the constructor or
@@ -844,7 +844,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   __ PushReturnAddressFrom(kScratchRegister);
 
   __ AssertUndefinedOrAllocationSite(rbx);
-  if (construct_type == CallableType::kJSFunction) {
+  if (mode == PushArgsConstructMode::kJSFunction) {
     // Tail call to the function-specific construct stub (still in the caller
     // context at this point).
     __ AssertFunction(rdi);
@@ -854,8 +854,12 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
     // Jump to the constructor function (rax, rbx, rdx passed on).
     __ jmp(rcx);
+  } else if (mode == PushArgsConstructMode::kWithFinalSpread) {
+    // Call the constructor (rax, rdx, rdi passed on).
+    __ Jump(masm->isolate()->builtins()->ConstructWithSpread(),
+            RelocInfo::CODE_TARGET);
   } else {
-    DCHECK_EQ(construct_type, CallableType::kAny);
+    DCHECK_EQ(PushArgsConstructMode::kOther, mode);
     // Call the constructor (rax, rdx, rdi passed on).
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
@@ -2871,6 +2875,138 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_constructor);
   __ Jump(masm->isolate()->builtins()->ConstructedNonConstructable(),
           RelocInfo::CODE_TARGET);
+}
+
+// static
+void Builtins::Generate_ConstructWithSpread(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : the number of arguments (not including the receiver)
+  //  -- rdx : the new target (either the same as the constructor or
+  //           the JSFunction on which new was invoked initially)
+  //  -- rdi : the constructor to call (can be any Object)
+  // -----------------------------------
+
+  // Load the spread argument into rbx.
+  __ movp(rbx, Operand(rsp, kPointerSize));
+  // Load the map of the spread into r15.
+  __ movp(r15, FieldOperand(rbx, HeapObject::kMapOffset));
+  // Load native context into r14.
+  __ movp(r14, NativeContextOperand());
+
+  Label runtime_call, push_args;
+  // Check that the spread is an array.
+  __ CmpInstanceType(r15, JS_ARRAY_TYPE);
+  __ j(not_equal, &runtime_call);
+
+  // Check that we have the original ArrayPrototype.
+  __ movp(rcx, FieldOperand(r15, Map::kPrototypeOffset));
+  __ cmpp(rcx, ContextOperand(r14, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+  __ j(not_equal, &runtime_call);
+
+  // Check that the ArrayPrototype hasn't been modified in a way that would
+  // affect iteration.
+  __ LoadRoot(rcx, Heap::kArrayIteratorProtectorRootIndex);
+  __ Cmp(FieldOperand(rcx, Cell::kValueOffset),
+         Smi::FromInt(Isolate::kProtectorValid));
+  __ j(not_equal, &runtime_call);
+
+  // Check that the map of the initial array iterator hasn't changed.
+  __ movp(rcx,
+          ContextOperand(r14, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX));
+  __ movp(rcx, FieldOperand(rcx, HeapObject::kMapOffset));
+  __ cmpp(rcx, ContextOperand(
+                   r14, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX));
+  __ j(not_equal, &runtime_call);
+
+  // For FastPacked kinds, iteration will have the same effect as simply
+  // accessing each property in order.
+  Label no_protector_check;
+  __ movzxbp(rcx, FieldOperand(r15, Map::kBitField2Offset));
+  __ DecodeField<Map::ElementsKindBits>(rcx);
+  __ cmpp(rcx, Immediate(LAST_FAST_ELEMENTS_KIND));
+  __ j(above, &runtime_call);
+  // For non-FastHoley kinds, we can skip the protector check.
+  __ cmpp(rcx, Immediate(FAST_SMI_ELEMENTS));
+  __ j(equal, &no_protector_check);
+  __ cmpp(rcx, Immediate(FAST_ELEMENTS));
+  __ j(equal, &no_protector_check);
+  __ cmpp(rcx, Immediate(FAST_DOUBLE_ELEMENTS));
+  __ j(equal, &no_protector_check);
+  // Check the ArrayProtector cell.
+  __ LoadRoot(rcx, Heap::kArrayProtectorRootIndex);
+  __ Cmp(FieldOperand(rcx, PropertyCell::kValueOffset),
+         Smi::FromInt(Isolate::kProtectorValid));
+  __ j(not_equal, &runtime_call);
+
+  __ bind(&no_protector_check);
+  // Load the FixedArray backing store.
+  __ movp(rbx, FieldOperand(rbx, JSArray::kElementsOffset));
+  __ jmp(&push_args);
+
+  __ bind(&runtime_call);
+  {
+    // Call the builtin for the result of the spread.
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(rdi);  // target
+    __ Push(rdx);  // new target
+    __ Integer32ToSmi(rax, rax);
+    __ Push(rax);  // nargs
+    __ Push(rbx);
+    __ CallRuntime(Runtime::kSpreadIterableFixed);
+    __ movp(rbx, rax);
+    __ Pop(rax);  // nargs
+    __ SmiToInteger32(rax, rax);
+    __ Pop(rdx);  // new target
+    __ Pop(rdi);  // target
+  }
+
+  __ bind(&push_args);
+  {
+    // Pop the return address and spread argument.
+    __ PopReturnAddressTo(r8);
+    __ Pop(rcx);
+
+    // Calculate the new nargs including the result of the spread.
+    __ SmiToInteger32(r9, FieldOperand(rbx, FixedArray::kLengthOffset));
+    // rax += r9 - 1. Subtract 1 for the spread itself.
+    __ leap(rax, Operand(rax, r9, times_1, -1));
+  }
+
+  // Check for stack overflow.
+  {
+    // Check the stack for overflow. We are not trying to catch interruptions
+    // (i.e. debug break and preemption) here, so check the "real stack limit".
+    Label done;
+    __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
+    __ movp(rcx, rsp);
+    // Make rcx the space we have left. The stack might already be overflowed
+    // here which will cause rcx to become negative.
+    __ subp(rcx, kScratchRegister);
+    __ sarp(rcx, Immediate(kPointerSizeLog2));
+    // Check if the arguments will overflow the stack.
+    __ cmpp(rcx, r9);
+    __ j(greater, &done, Label::kNear);  // Signed comparison.
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    __ bind(&done);
+  }
+
+  // Put the evaluated spread onto the stack as additional arguments.
+  {
+    __ Set(rcx, 0);
+    Label done, loop;
+    __ bind(&loop);
+    __ cmpl(rcx, r9);
+    __ j(equal, &done, Label::kNear);
+    __ movp(kScratchRegister, FieldOperand(rbx, rcx, times_pointer_size,
+                                           FixedArray::kHeaderSize));
+    __ Push(kScratchRegister);
+    __ incl(rcx);
+    __ jmp(&loop);
+    __ bind(&done);
+    __ PushReturnAddressFrom(r8);
+  }
+  // Dispatch.
+  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 static void CompatibleReceiverCheck(MacroAssembler* masm, Register receiver,

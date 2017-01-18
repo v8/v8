@@ -218,6 +218,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& New(Register constructor, RegisterList args,
                             int feedback_slot);
 
+  // Call the new operator for use with a spread. The accumulator holds the
+  // |new_target|. The |constructor| is in a register and arguments are in
+  // |args|. The final argument must be a spread.
+  BytecodeArrayBuilder& NewWithSpread(Register constructor, RegisterList args);
+
   // Call the runtime function with |function_id| and arguments |args|.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
                                     RegisterList args);
@@ -242,11 +247,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Call the JS runtime function with |context_index| and arguments |args|.
   BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
-
-  // Call the constructor in |args[0]| with new_target in |args[1]| and the
-  // arguments starting at |args[2]| onwards. The final argument must be a
-  // spread.
-  BytecodeArrayBuilder& NewWithSpread(RegisterList args);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   // Type feedback will be recorded in the |feedback_slot|

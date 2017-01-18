@@ -51,11 +51,13 @@ void Builtins::Generate_InterpreterPushArgsAndTailCallFunction(
 }
 
 Handle<Code> Builtins::InterpreterPushArgsAndConstruct(
-    CallableType function_type) {
-  switch (function_type) {
-    case CallableType::kJSFunction:
+    PushArgsConstructMode mode) {
+  switch (mode) {
+    case PushArgsConstructMode::kJSFunction:
       return InterpreterPushArgsAndConstructFunction();
-    case CallableType::kAny:
+    case PushArgsConstructMode::kWithFinalSpread:
+      return InterpreterPushArgsAndConstructWithFinalSpread();
+    case PushArgsConstructMode::kOther:
       return InterpreterPushArgsAndConstruct();
   }
   UNREACHABLE();
@@ -63,13 +65,20 @@ Handle<Code> Builtins::InterpreterPushArgsAndConstruct(
 }
 
 void Builtins::Generate_InterpreterPushArgsAndConstruct(MacroAssembler* masm) {
-  return Generate_InterpreterPushArgsAndConstructImpl(masm, CallableType::kAny);
+  return Generate_InterpreterPushArgsAndConstructImpl(
+      masm, PushArgsConstructMode::kOther);
+}
+
+void Builtins::Generate_InterpreterPushArgsAndConstructWithFinalSpread(
+    MacroAssembler* masm) {
+  return Generate_InterpreterPushArgsAndConstructImpl(
+      masm, PushArgsConstructMode::kWithFinalSpread);
 }
 
 void Builtins::Generate_InterpreterPushArgsAndConstructFunction(
     MacroAssembler* masm) {
   return Generate_InterpreterPushArgsAndConstructImpl(
-      masm, CallableType::kJSFunction);
+      masm, PushArgsConstructMode::kJSFunction);
 }
 
 }  // namespace internal

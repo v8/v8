@@ -85,6 +85,7 @@ namespace internal {
   ASM(ConstructProxy)                                                          \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
   ASM(Construct)                                                               \
+  ASM(ConstructWithSpread)                                                     \
   ASM(JSConstructStubApi)                                                      \
   ASM(JSConstructStubGeneric)                                                  \
   ASM(JSBuiltinsConstructStub)                                                 \
@@ -143,6 +144,7 @@ namespace internal {
   ASM(InterpreterPushArgsAndConstruct)                                         \
   ASM(InterpreterPushArgsAndConstructFunction)                                 \
   ASM(InterpreterPushArgsAndConstructArray)                                    \
+  ASM(InterpreterPushArgsAndConstructWithFinalSpread)                          \
   ASM(InterpreterEnterBytecodeAdvance)                                         \
   ASM(InterpreterEnterBytecodeDispatch)                                        \
   ASM(InterpreterOnStackReplacement)                                           \
@@ -792,6 +794,7 @@ namespace internal {
 
 // Forward declarations.
 class ObjectVisitor;
+enum class PushArgsConstructMode : unsigned;
 namespace compiler {
 class CodeAssemblerState;
 }
@@ -836,7 +839,7 @@ class Builtins {
   Handle<Code> InterpreterPushArgsAndCall(
       TailCallMode tail_call_mode,
       CallableType function_type = CallableType::kAny);
-  Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
+  Handle<Code> InterpreterPushArgsAndConstruct(PushArgsConstructMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> NewCloneShallowObject(int length);
@@ -894,7 +897,7 @@ class Builtins {
       CallableType function_type);
 
   static void Generate_InterpreterPushArgsAndConstructImpl(
-      MacroAssembler* masm, CallableType function_type);
+      MacroAssembler* masm, PushArgsConstructMode mode);
 
   enum class MathMaxMinKind { kMax, kMin };
   static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);

@@ -718,7 +718,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
     Comment("call using callConstructFunction");
     IncrementCallCount(type_feedback_vector, slot_id);
     Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), CallableType::kJSFunction);
+        isolate(), PushArgsConstructMode::kJSFunction);
     return_value.Bind(CallStub(callable_function.descriptor(),
                                HeapConstant(callable_function.code()), context,
                                arg_count, new_target, constructor,
@@ -821,7 +821,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   {
     Comment("call using callConstruct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), CallableType::kAny);
+        isolate(), PushArgsConstructMode::kOther);
     Node* code_target = HeapConstant(callable.code());
     return_value.Bind(CallStub(callable.descriptor(), code_target, context,
                                arg_count, new_target, constructor,
@@ -830,6 +830,23 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   }
 
   Bind(&end);
+  return return_value.value();
+}
+
+Node* InterpreterAssembler::CallConstructWithSpread(Node* constructor,
+                                                    Node* context,
+                                                    Node* new_target,
+                                                    Node* first_arg,
+                                                    Node* arg_count) {
+  Variable return_value(this, MachineRepresentation::kTagged);
+  Comment("call using ConstructWithSpread");
+  Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
+      isolate(), PushArgsConstructMode::kWithFinalSpread);
+  Node* code_target = HeapConstant(callable.code());
+  return_value.Bind(CallStub(callable.descriptor(), code_target, context,
+                             arg_count, new_target, constructor,
+                             UndefinedConstant(), first_arg));
+
   return return_value.value();
 }
 

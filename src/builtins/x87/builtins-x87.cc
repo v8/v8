@@ -845,7 +845,7 @@ void Generate_InterpreterPushArgsAndReturnAddress(
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
-    MacroAssembler* masm, CallableType construct_type) {
+    MacroAssembler* masm, PushArgsConstructMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target
@@ -871,7 +871,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   __ Pop(edi);
 
   __ AssertUndefinedOrAllocationSite(ebx);
-  if (construct_type == CallableType::kJSFunction) {
+  if (mode == PushArgsConstructMode::kJSFunction) {
     // Tail call to the function-specific construct stub (still in the caller
     // context at this point).
     __ AssertFunction(edi);
@@ -880,9 +880,12 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
     __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
     __ jmp(ecx);
+  } else if (mode == PushArgsConstructMode::kWithFinalSpread) {
+    // Call the constructor with unmodified eax, edi, edx values.
+    __ Jump(masm->isolate()->builtins()->ConstructWithSpread(),
+            RelocInfo::CODE_TARGET);
   } else {
-    DCHECK_EQ(construct_type, CallableType::kAny);
-
+    DCHECK_EQ(PushArgsConstructMode::kOther, mode);
     // Call the constructor with unmodified eax, edi, edx values.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }

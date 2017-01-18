@@ -2582,30 +2582,20 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   builder()->GetSuperConstructor(constructor);
 
   ZoneList<Expression*>* args = expr->arguments();
+  RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
+  VisitArguments(args, &args_regs);
+  // The new target is loaded into the accumulator from the
+  // {new.target} variable.
+  VisitForAccumulatorValue(super->new_target_var());
+  builder()->SetExpressionPosition(expr);
 
   // When a super call contains a spread, a CallSuper AST node is only created
   // if there is exactly one spread, and it is the last argument.
   if (!args->is_empty() && args->last()->IsSpread()) {
-    RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
-    Register constructor_arg =
-        register_allocator()->GrowRegisterList(&args_regs);
-    builder()->MoveRegister(constructor, constructor_arg);
-    // Reserve argument reg for new.target in correct place for runtime call.
-    // TODO(petermarshall): Remove this when changing bytecode to use the new
-    // stub.
-    Register new_target = register_allocator()->GrowRegisterList(&args_regs);
-    VisitArguments(args, &args_regs);
-    VisitForRegisterValue(super->new_target_var(), new_target);
-    builder()->NewWithSpread(args_regs);
+    // TODO(petermarshall): Collect type on the feedback slot.
+    builder()->NewWithSpread(constructor, args_regs);
   } else {
-    RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
-    VisitArguments(args, &args_regs);
-    // The new target is loaded into the accumulator from the
-    // {new.target} variable.
-    VisitForAccumulatorValue(super->new_target_var());
-
     // Call construct.
-    builder()->SetExpressionPosition(expr);
     // TODO(turbofan): For now we do gather feedback on super constructor
     // calls, utilizing the existing machinery to inline the actual call
     // target and the JSCreate for the implicit receiver allocation. This

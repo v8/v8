@@ -466,6 +466,12 @@ Callable CodeFactory::Construct(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ConstructWithSpread(Isolate* isolate) {
+  return Callable(isolate->builtins()->ConstructWithSpread(),
+                  ConstructTrampolineDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::ConstructFunction(Isolate* isolate) {
   return Callable(isolate->builtins()->ConstructFunction(),
                   ConstructTrampolineDescriptor(isolate));
@@ -482,10 +488,9 @@ Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndConstruct(
-    Isolate* isolate, CallableType function_type) {
-  return Callable(
-      isolate->builtins()->InterpreterPushArgsAndConstruct(function_type),
-      InterpreterPushArgsAndConstructDescriptor(isolate));
+    Isolate* isolate, PushArgsConstructMode mode) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(mode),
+                  InterpreterPushArgsAndConstructDescriptor(isolate));
 }
 
 // static

@@ -844,7 +844,7 @@ void Generate_InterpreterPushArgsAndReturnAddress(
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
-    MacroAssembler* masm, CallableType construct_type) {
+    MacroAssembler* masm, PushArgsConstructMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target
@@ -870,7 +870,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   __ Pop(edi);
 
   __ AssertUndefinedOrAllocationSite(ebx);
-  if (construct_type == CallableType::kJSFunction) {
+  if (mode == PushArgsConstructMode::kJSFunction) {
     // Tail call to the function-specific construct stub (still in the caller
     // context at this point).
     __ AssertFunction(edi);
@@ -879,9 +879,12 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
     __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
     __ jmp(ecx);
+  } else if (mode == PushArgsConstructMode::kWithFinalSpread) {
+    // Call the constructor with unmodified eax, edi, edx values.
+    __ Jump(masm->isolate()->builtins()->ConstructWithSpread(),
+            RelocInfo::CODE_TARGET);
   } else {
-    DCHECK_EQ(construct_type, CallableType::kAny);
-
+    DCHECK_EQ(PushArgsConstructMode::kOther, mode);
     // Call the constructor with unmodified eax, edi, edx values.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
@@ -2780,6 +2783,168 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   __ bind(&non_constructor);
   __ Jump(masm->isolate()->builtins()->ConstructedNonConstructable(),
           RelocInfo::CODE_TARGET);
+}
+
+// static
+void Builtins::Generate_ConstructWithSpread(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : the number of arguments (not including the receiver)
+  //  -- edx : the new target (either the same as the constructor or
+  //           the JSFunction on which new was invoked initially)
+  //  -- edi : the constructor to call (can be any Object)
+  // -----------------------------------
+
+  // Free up some registers.
+  __ movd(xmm0, edx);
+  __ movd(xmm1, edi);
+
+  Register argc = eax;
+
+  Register scratch = ecx;
+  Register scratch2 = edi;
+
+  Register spread = ebx;
+  Register spread_map = edx;
+
+  __ mov(spread, Operand(esp, kPointerSize));
+  __ mov(spread_map, FieldOperand(spread, HeapObject::kMapOffset));
+
+  Label runtime_call, push_args;
+  // Check that the spread is an array.
+  __ CmpInstanceType(spread_map, JS_ARRAY_TYPE);
+  __ j(not_equal, &runtime_call);
+
+  // Check that we have the original ArrayPrototype.
+  __ mov(scratch, FieldOperand(spread_map, Map::kPrototypeOffset));
+  __ mov(scratch2, NativeContextOperand());
+  __ cmp(scratch,
+         ContextOperand(scratch2, Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
+  __ j(not_equal, &runtime_call);
+
+  // Check that the ArrayPrototype hasn't been modified in a way that would
+  // affect iteration.
+  __ LoadRoot(scratch, Heap::kArrayIteratorProtectorRootIndex);
+  __ cmp(FieldOperand(scratch, Cell::kValueOffset),
+         Immediate(Smi::FromInt(Isolate::kProtectorValid)));
+  __ j(not_equal, &runtime_call);
+
+  // Check that the map of the initial array iterator hasn't changed.
+  __ mov(scratch2, NativeContextOperand());
+  __ mov(scratch,
+         ContextOperand(scratch2,
+                        Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX));
+  __ mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
+  __ cmp(scratch,
+         ContextOperand(scratch2,
+                        Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX));
+  __ j(not_equal, &runtime_call);
+
+  // For FastPacked kinds, iteration will have the same effect as simply
+  // accessing each property in order.
+  Label no_protector_check;
+  __ mov(scratch, FieldOperand(spread_map, Map::kBitField2Offset));
+  __ DecodeField<Map::ElementsKindBits>(scratch);
+  __ cmp(scratch, Immediate(LAST_FAST_ELEMENTS_KIND));
+  __ j(above, &runtime_call);
+  // For non-FastHoley kinds, we can skip the protector check.
+  __ cmp(scratch, Immediate(FAST_SMI_ELEMENTS));
+  __ j(equal, &no_protector_check);
+  __ cmp(scratch, Immediate(FAST_ELEMENTS));
+  __ j(equal, &no_protector_check);
+  __ cmp(scratch, Immediate(FAST_DOUBLE_ELEMENTS));
+  __ j(equal, &no_protector_check);
+  // Check the ArrayProtector cell.
+  __ LoadRoot(scratch, Heap::kArrayProtectorRootIndex);
+  __ cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
+         Immediate(Smi::FromInt(Isolate::kProtectorValid)));
+  __ j(not_equal, &runtime_call);
+
+  __ bind(&no_protector_check);
+  // Load the FixedArray backing store.
+  __ mov(spread, FieldOperand(spread, JSArray::kElementsOffset));
+  // Free up some registers.
+  __ jmp(&push_args);
+
+  __ bind(&runtime_call);
+  {
+    // Call the builtin for the result of the spread.
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    // Need to save these on the stack.
+    __ movd(edi, xmm1);
+    __ movd(edx, xmm0);
+    __ Push(edi);
+    __ Push(edx);
+    __ SmiTag(argc);
+    __ Push(argc);
+    __ Push(spread);
+    __ CallRuntime(Runtime::kSpreadIterableFixed);
+    __ mov(spread, eax);
+    __ Pop(argc);
+    __ SmiUntag(argc);
+    __ Pop(edx);
+    __ Pop(edi);
+    // Free up some registers.
+    __ movd(xmm0, edx);
+    __ movd(xmm1, edi);
+  }
+
+  Register spread_len = edx;
+  Register return_address = edi;
+  __ bind(&push_args);
+  {
+    // Pop the return address and spread argument.
+    __ PopReturnAddressTo(return_address);
+    __ Pop(scratch);
+
+    // Calculate the new nargs including the result of the spread.
+    __ mov(spread_len, FieldOperand(spread, FixedArray::kLengthOffset));
+    __ SmiUntag(spread_len);
+    // argc += spread_len - 1. Subtract 1 for the spread itself.
+    __ lea(argc, Operand(argc, spread_len, times_1, -1));
+  }
+
+  // Check for stack overflow.
+  {
+    // Check the stack for overflow. We are not trying to catch interruptions
+    // (i.e. debug break and preemption) here, so check the "real stack limit".
+    Label done;
+    __ LoadRoot(scratch, Heap::kRealStackLimitRootIndex);
+    // Make scratch the space we have left. The stack might already be
+    // overflowed here which will cause scratch to become negative.
+    __ neg(scratch);
+    __ add(scratch, esp);
+    __ sar(scratch, kPointerSizeLog2);
+    // Check if the arguments will overflow the stack.
+    __ cmp(scratch, spread_len);
+    __ j(greater, &done, Label::kNear);  // Signed comparison.
+    __ TailCallRuntime(Runtime::kThrowStackOverflow);
+    __ bind(&done);
+  }
+
+  // Put the evaluated spread onto the stack as additional arguments.
+  {
+    Register scratch2 = esi;
+    __ movd(xmm2, esi);
+
+    __ mov(scratch, Immediate(0));
+    Label done, loop;
+    __ bind(&loop);
+    __ cmp(scratch, spread_len);
+    __ j(equal, &done, Label::kNear);
+    __ mov(scratch2, FieldOperand(spread, scratch, times_pointer_size,
+                                  FixedArray::kHeaderSize));
+    __ Push(scratch2);
+    __ inc(scratch);
+    __ jmp(&loop);
+    __ bind(&done);
+    __ PushReturnAddressFrom(return_address);
+    __ movd(esi, xmm2);
+    __ movd(edi, xmm1);
+    __ movd(edx, xmm0);
+  }
+
+  // Dispatch.
+  __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
 }
 
 // static

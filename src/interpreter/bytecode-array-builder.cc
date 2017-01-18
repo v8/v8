@@ -947,8 +947,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(RegisterList args) {
-  OutputNewWithSpread(args, args.register_count());
+BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(Register constructor,
+                                                          RegisterList args) {
+  OutputNewWithSpread(constructor, args, args.register_count());
   return *this;
 }
 

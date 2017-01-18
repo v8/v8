@@ -1208,7 +1208,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
-    MacroAssembler* masm, CallableType construct_type) {
+    MacroAssembler* masm, PushArgsConstructMode mode) {
   // ----------- S t a t e -------------
   // -- r2 : argument count (not including receiver)
   // -- r5 : new target
@@ -1230,7 +1230,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   __ bind(&skip);
 
   __ AssertUndefinedOrAllocationSite(r4, r7);
-  if (construct_type == CallableType::kJSFunction) {
+  if (mode == PushArgsConstructMode::kJSFunction) {
     __ AssertFunction(r3);
 
     // Tail call to the function-specific construct stub (still in the caller
@@ -1240,9 +1240,12 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     // Jump to the construct function.
     __ AddP(ip, r6, Operand(Code::kHeaderSize - kHeapObjectTag));
     __ Jump(ip);
-
+  } else if (mode == PushArgsConstructMode::kWithFinalSpread) {
+    // Call the constructor with r2, r3, and r5 unmodified.
+    __ Jump(masm->isolate()->builtins()->ConstructWithSpread(),
+            RelocInfo::CODE_TARGET);
   } else {
-    DCHECK_EQ(construct_type, CallableType::kAny);
+    DCHECK_EQ(PushArgsConstructMode::kOther, mode);
     // Call the constructor with r2, r3, and r5 unmodified.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }

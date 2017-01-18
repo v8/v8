@@ -1215,6 +1215,29 @@ inline std::ostream& operator<<(std::ostream& os, CallableType function_type) {
   return os;
 }
 
+enum class PushArgsConstructMode : unsigned {
+  kJSFunction,
+  kWithFinalSpread,
+  kOther
+};
+
+inline size_t hash_value(PushArgsConstructMode mode) {
+  return bit_cast<unsigned>(mode);
+}
+
+inline std::ostream& operator<<(std::ostream& os, PushArgsConstructMode mode) {
+  switch (mode) {
+    case PushArgsConstructMode::kJSFunction:
+      return os << "JSFunction";
+    case PushArgsConstructMode::kWithFinalSpread:
+      return os << "WithFinalSpread";
+    case PushArgsConstructMode::kOther:
+      return os << "Other";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 inline uint32_t ObjectHash(Address address) {
   // All objects are at least pointer aligned, so we can remove the trailing
   // zeros.

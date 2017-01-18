@@ -114,6 +114,10 @@ class BytecodeGraphBuilder {
   Node* ProcessCallNewArguments(const Operator* call_new_op, Node* callee,
                                 Node* new_target,
                                 interpreter::Register first_arg, size_t arity);
+  Node* ProcessCallNewWithSpreadArguments(const Operator* op, Node* callee,
+                                          Node* new_target,
+                                          interpreter::Register first_arg,
+                                          size_t arity);
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
                                     interpreter::Register first_arg,
                                     size_t arity);
