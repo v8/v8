@@ -29,6 +29,7 @@
 #include "src/messages.h"
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects.h"
 
 #include "include/v8-debug.h"
 
@@ -516,30 +517,18 @@ void Debug::Break(JavaScriptFrame* frame) {
   // Postpone interrupt during breakpoint processing.
   PostponeInterruptsScope postpone(isolate_);
 
-  // Return if we fail to retrieve debug info for javascript frames.
-  if (frame->is_java_script()) {
-    JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-
-    // Get the debug info (create it if it does not exist).
-    Handle<JSFunction> function(js_frame->function());
-    Handle<SharedFunctionInfo> shared(function->shared());
-    if (!EnsureDebugInfo(shared, function)) return;
-  }
+  // Return if we fail to retrieve debug info.
+  Handle<JSFunction> function(frame->function());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  if (!EnsureDebugInfo(shared, function)) return;
 
   BreakLocation location = BreakLocation::FromFrame(frame);
 
   // Find actual break points, if any, and trigger debug break event.
   MaybeHandle<FixedArray> break_points_hit;
-  if (!break_points_active()) {
-    // Don't try to find hit breakpoints.
-  } else if (frame->is_wasm_interpreter_entry()) {
-    // TODO(clemensh): Find hit breakpoints for wasm.
-    UNIMPLEMENTED();
-  } else {
+  if (break_points_active()) {
     // Get the debug info, which must exist if we reach here.
-    Handle<DebugInfo> debug_info(
-        JavaScriptFrame::cast(frame)->function()->shared()->GetDebugInfo(),
-        isolate_);
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
 
     break_points_hit = CheckBreakPoints(debug_info, &location);
   }
@@ -722,9 +711,12 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
                                    int* source_position,
                                    BreakPositionAlignment alignment) {
   if (script->type() == Script::TYPE_WASM) {
-    // TODO(clemensh): set breakpoint for wasm.
-    return false;
+    Handle<WasmCompiledModule> compiled_module(
+        WasmCompiledModule::cast(script->wasm_compiled_module()), isolate_);
+    return WasmCompiledModule::SetBreakPoint(compiled_module, source_position,
+                                             break_point_object);
   }
+
   HandleScope scope(isolate_);
 
   // Obtain shared function info for the function.

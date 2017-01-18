@@ -1430,6 +1430,13 @@ class WasmInstanceBuilder {
                                 v8::WeakCallbackType::kFinalizer);
       }
     }
+
+    //--------------------------------------------------------------------------
+    // Set all breakpoints that were set on the shared module.
+    //--------------------------------------------------------------------------
+    WasmSharedModuleData::SetBreakpointsOnNewInstance(
+        compiled_module_->shared(), instance);
+
     //--------------------------------------------------------------------------
     // Run the start function if one was specified.
     //--------------------------------------------------------------------------

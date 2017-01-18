@@ -5,6 +5,7 @@
 #ifndef V8_WASM_OBJECTS_H_
 #define V8_WASM_OBJECTS_H_
 
+#include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
@@ -35,6 +36,10 @@ class WasmInstanceWrapper;
 #define DECLARE_OPTIONAL_ACCESSORS(name, type) \
   bool has_##name();                           \
   DECLARE_ACCESSORS(name, type)
+
+#define DECLARE_OPTIONAL_GETTER(name, type) \
+  bool has_##name();                        \
+  DECLARE_GETTER(name, type)
 
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
@@ -158,6 +163,7 @@ class WasmSharedModuleData : public FixedArray {
     kModuleBytes,
     kScript,
     kAsmJsOffsetTable,
+    kBreakPointInfos,
     kFieldCount
   };
 
@@ -168,6 +174,7 @@ class WasmSharedModuleData : public FixedArray {
   DECLARE_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString);
   DECLARE_GETTER(script, Script);
   DECLARE_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray);
+  DECLARE_OPTIONAL_GETTER(breakpoint_infos, FixedArray);
 
   static Handle<WasmSharedModuleData> New(
       Isolate* isolate, Handle<Foreign> module_wrapper,
@@ -179,6 +186,12 @@ class WasmSharedModuleData : public FixedArray {
 
   // Recreate the ModuleWrapper from the module bytes after deserialization.
   static void RecreateModuleWrapper(Isolate*, Handle<WasmSharedModuleData>);
+
+  static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
+                            Handle<Object> break_point_object);
+
+  static void SetBreakpointsOnNewInstance(Handle<WasmSharedModuleData>,
+                                          Handle<WasmInstanceObject>);
 };
 
 class WasmCompiledModule : public FixedArray {
@@ -373,6 +386,15 @@ class WasmCompiledModule : public FixedArray {
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
                               std::vector<debug::Location>* locations);
+
+  // Set a breakpoint on the given byte position inside the given module.
+  // This will affect all live and future instances of the module.
+  // The passed position might be modified to point to the next breakable
+  // location inside the same function.
+  // If it points outside a function, or behind the last breakable location,
+  // this function returns false and does not set any breakpoint.
+  static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
+                            Handle<Object> break_point_object);
 
  private:
   void InitId();

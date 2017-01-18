@@ -18599,11 +18599,8 @@ void DebugInfo::SetBreakPoint(Handle<DebugInfo> debug_info, int source_position,
   DCHECK(index != kNoBreakPointInfo);
 
   // Allocate new BreakPointInfo object and set the break point.
-  Handle<BreakPointInfo> new_break_point_info = Handle<BreakPointInfo>::cast(
-      isolate->factory()->NewStruct(BREAK_POINT_INFO_TYPE));
-  new_break_point_info->set_source_position(source_position);
-  new_break_point_info->set_break_point_objects(
-      isolate->heap()->undefined_value());
+  Handle<BreakPointInfo> new_break_point_info =
+      isolate->factory()->NewBreakPointInfo(source_position);
   BreakPointInfo::SetBreakPoint(new_break_point_info, break_point_object);
   debug_info->break_points()->set(index, *new_break_point_info);
 }

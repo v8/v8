@@ -2478,6 +2478,13 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   return debug_info;
 }
 
+Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
+  Handle<BreakPointInfo> new_break_point_info =
+      Handle<BreakPointInfo>::cast(NewStruct(BREAK_POINT_INFO_TYPE));
+  new_break_point_info->set_source_position(source_position);
+  new_break_point_info->set_break_point_objects(*undefined_value());
+  return new_break_point_info;
+}
 
 Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
                                              int length) {
