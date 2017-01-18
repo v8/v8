@@ -95,7 +95,7 @@ IGNORE_OUTPUT = {
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
     'crbug.com/681806':
-        re.compile(r'\[object WebAssembly\.Instance\]', re.S),
+        re.compile(r'WebAssembly\.Instance', re.S),
     'crbug.com/681088':
         re.compile(r'TypeError: Cannot read property \w+ of undefined', re.S),
   },
