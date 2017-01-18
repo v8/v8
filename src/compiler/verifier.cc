@@ -1101,6 +1101,10 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kCheckReceiver:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Receiver());
+      break;
     case IrOpcode::kCheckSmi:
       CheckValueInputIs(node, 0, Type::Any());
       break;

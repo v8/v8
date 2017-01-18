@@ -502,6 +502,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(CheckIf, 1, 0)                      \
   V(CheckInternalizedString, 1, 1)      \
   V(CheckNumber, 1, 1)                  \
+  V(CheckReceiver, 1, 1)                \
   V(CheckSmi, 1, 1)                     \
   V(CheckString, 1, 1)                  \
   V(CheckTaggedHole, 1, 1)              \

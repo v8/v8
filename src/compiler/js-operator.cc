@@ -595,23 +595,24 @@ struct JSOperatorGlobalCache final {
   BINARY_OP_LIST(BINARY_OP)
 #undef BINARY_OP
 
-#define COMPARE_OP(Name, properties)                                      \
-  template <CompareOperationHint kHint>                                   \
-  struct Name##Operator final : public Operator1<CompareOperationHint> {  \
-    Name##Operator()                                                      \
-        : Operator1<CompareOperationHint>(                                \
-              IrOpcode::kJS##Name, properties, "JS" #Name, 2, 1, 1, 1, 1, \
-              Operator::ZeroIfNoThrow(properties), kHint) {}              \
-  };                                                                      \
-  Name##Operator<CompareOperationHint::kNone> k##Name##NoneOperator;      \
-  Name##Operator<CompareOperationHint::kSignedSmall>                      \
-      k##Name##SignedSmallOperator;                                       \
-  Name##Operator<CompareOperationHint::kNumber> k##Name##NumberOperator;  \
-  Name##Operator<CompareOperationHint::kNumberOrOddball>                  \
-      k##Name##NumberOrOddballOperator;                                   \
-  Name##Operator<CompareOperationHint::kString> k##Name##StringOperator;  \
-  Name##Operator<CompareOperationHint::kInternalizedString>               \
-      k##Name##InternalizedStringOperator;                                \
+#define COMPARE_OP(Name, properties)                                         \
+  template <CompareOperationHint kHint>                                      \
+  struct Name##Operator final : public Operator1<CompareOperationHint> {     \
+    Name##Operator()                                                         \
+        : Operator1<CompareOperationHint>(                                   \
+              IrOpcode::kJS##Name, properties, "JS" #Name, 2, 1, 1, 1, 1,    \
+              Operator::ZeroIfNoThrow(properties), kHint) {}                 \
+  };                                                                         \
+  Name##Operator<CompareOperationHint::kNone> k##Name##NoneOperator;         \
+  Name##Operator<CompareOperationHint::kSignedSmall>                         \
+      k##Name##SignedSmallOperator;                                          \
+  Name##Operator<CompareOperationHint::kNumber> k##Name##NumberOperator;     \
+  Name##Operator<CompareOperationHint::kNumberOrOddball>                     \
+      k##Name##NumberOrOddballOperator;                                      \
+  Name##Operator<CompareOperationHint::kInternalizedString>                  \
+      k##Name##InternalizedStringOperator;                                   \
+  Name##Operator<CompareOperationHint::kString> k##Name##StringOperator;     \
+  Name##Operator<CompareOperationHint::kReceiver> k##Name##ReceiverOperator; \
   Name##Operator<CompareOperationHint::kAny> k##Name##AnyOperator;
   COMPARE_OP_LIST(COMPARE_OP)
 #undef COMPARE_OP
@@ -667,6 +668,8 @@ BINARY_OP_LIST(BINARY_OP)
         return &cache_.k##Name##InternalizedStringOperator;            \
       case CompareOperationHint::kString:                              \
         return &cache_.k##Name##StringOperator;                        \
+      case CompareOperationHint::kReceiver:                            \
+        return &cache_.k##Name##ReceiverOperator;                      \
       case CompareOperationHint::kAny:                                 \
         return &cache_.k##Name##AnyOperator;                           \
     }                                                                  \

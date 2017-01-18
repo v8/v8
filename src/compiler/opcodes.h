@@ -308,6 +308,7 @@
   V(CheckMaps)                      \
   V(CheckNumber)                    \
   V(CheckInternalizedString)        \
+  V(CheckReceiver)                  \
   V(CheckString)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \

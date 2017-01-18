@@ -158,6 +158,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kInternalizedString;
     case CompareOperationFeedback::kString:
       return CompareOperationHint::kString;
+    case CompareOperationFeedback::kReceiver:
+      return CompareOperationHint::kReceiver;
     default:
       return CompareOperationHint::kAny;
   }

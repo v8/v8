@@ -70,6 +70,7 @@ class JSBinopReduction final {
         case CompareOperationHint::kAny:
         case CompareOperationHint::kNone:
         case CompareOperationHint::kString:
+        case CompareOperationHint::kReceiver:
         case CompareOperationHint::kInternalizedString:
           break;
       }
@@ -83,6 +84,16 @@ class JSBinopReduction final {
       return (CompareOperationHintOf(node_->op()) ==
               CompareOperationHint::kInternalizedString) &&
              BothInputsMaybe(Type::InternalizedString());
+    }
+    return false;
+  }
+
+  bool IsReceiverCompareOperation() {
+    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
+      DCHECK_EQ(1, node_->op()->EffectOutputCount());
+      return (CompareOperationHintOf(node_->op()) ==
+              CompareOperationHint::kReceiver) &&
+             BothInputsMaybe(Type::Receiver());
     }
     return false;
   }
@@ -113,6 +124,29 @@ class JSBinopReduction final {
       }
     }
     return false;
+  }
+
+  // Inserts a CheckReceiver for the left input.
+  void CheckLeftInputToReceiver() {
+    Node* left_input = graph()->NewNode(simplified()->CheckReceiver(), left(),
+                                        effect(), control());
+    node_->ReplaceInput(0, left_input);
+    update_effect(left_input);
+  }
+
+  // Checks that both inputs are Receiver, and if we don't know
+  // statically that one side is already a Receiver, insert a
+  // CheckReceiver node.
+  void CheckInputsToReceiver() {
+    if (!left_type()->Is(Type::Receiver())) {
+      CheckLeftInputToReceiver();
+    }
+    if (!right_type()->Is(Type::Receiver())) {
+      Node* right_input = graph()->NewNode(simplified()->CheckReceiver(),
+                                           right(), effect(), control());
+      node_->ReplaceInput(1, right_input);
+      update_effect(right_input);
+    }
   }
 
   // Checks that both inputs are InternalizedString, and if we don't know
@@ -924,6 +958,9 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
         simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+  } else if (r.IsReceiverCompareOperation()) {
+    r.CheckInputsToReceiver();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   return NoChange();
 }
@@ -975,6 +1012,12 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
         simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+  } else if (r.IsReceiverCompareOperation()) {
+    // For strict equality, it's enough to know that one input is a Receiver,
+    // as a strict equality comparison with a Receiver can only yield true if
+    // both sides refer to the same Receiver than.
+    r.CheckLeftInputToReceiver();
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   return NoChange();
 }

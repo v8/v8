@@ -1096,7 +1096,15 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         __ Goto(&gather_rhs_type);
 
         __ Bind(&lhs_is_not_string);
-        var_type_feedback.Bind(__ SmiConstant(CompareOperationFeedback::kAny));
+        if (Token::IsEqualityOp(compare_op)) {
+          var_type_feedback.Bind(__ SelectSmiConstant(
+              __ IsJSReceiverInstanceType(lhs_instance_type),
+              CompareOperationFeedback::kReceiver,
+              CompareOperationFeedback::kAny));
+        } else {
+          var_type_feedback.Bind(
+              __ SmiConstant(CompareOperationFeedback::kAny));
+        }
         __ Goto(&gather_rhs_type);
       }
     }
@@ -1161,8 +1169,17 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           __ Goto(&update_feedback);
 
           __ Bind(&rhs_is_not_string);
-          var_type_feedback.Bind(
-              __ SmiConstant(CompareOperationFeedback::kAny));
+          if (Token::IsEqualityOp(compare_op)) {
+            var_type_feedback.Bind(
+                __ SmiOr(var_type_feedback.value(),
+                         __ SelectSmiConstant(
+                             __ IsJSReceiverInstanceType(rhs_instance_type),
+                             CompareOperationFeedback::kReceiver,
+                             CompareOperationFeedback::kAny)));
+          } else {
+            var_type_feedback.Bind(
+                __ SmiConstant(CompareOperationFeedback::kAny));
+          }
           __ Goto(&update_feedback);
         }
       }

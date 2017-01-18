@@ -2306,6 +2306,17 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kCheckReceiver: {
+        if (InputIs(node, Type::Receiver())) {
+          VisitUnop(node, UseInfo::AnyTagged(),
+                    MachineRepresentation::kTaggedPointer);
+          if (lower()) DeferReplacement(node, node->InputAt(0));
+        } else {
+          VisitUnop(node, UseInfo::CheckedHeapObjectAsTaggedPointer(),
+                    MachineRepresentation::kTaggedPointer);
+        }
+        return;
+      }
       case IrOpcode::kCheckSmi: {
         if (SmiValuesAre32Bits() && truncation.IsUsedAsWord32()) {
           VisitUnop(node, UseInfo::CheckedSignedSmallAsWord32(),
