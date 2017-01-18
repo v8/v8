@@ -17,52 +17,6 @@ namespace v8 {
 namespace debug {
 
 /**
- * An event details object passed to the debug event listener.
- */
-class EventDetails : public v8::Debug::EventDetails {
- public:
-  /**
-   * Event type.
-   */
-  virtual v8::DebugEvent GetEvent() const = 0;
-
-  /**
-   * Access to execution state and event data of the debug event. Don't store
-   * these cross callbacks as their content becomes invalid.
-   */
-  virtual Local<Object> GetExecutionState() const = 0;
-  virtual Local<Object> GetEventData() const = 0;
-
-  /**
-   * Get the context active when the debug event happened. Note this is not
-   * the current active context as the JavaScript part of the debugger is
-   * running in its own context which is entered at this point.
-   */
-  virtual Local<Context> GetEventContext() const = 0;
-
-  /**
-   * Client data passed with the corresponding callback when it was
-   * registered.
-   */
-  virtual Local<Value> GetCallbackData() const = 0;
-
-  virtual ~EventDetails() {}
-};
-
-/**
- * Debug event callback function.
- *
- * \param event_details object providing information about the debug event
- *
- * A EventCallback does not take possession of the event data,
- * and must not rely on the data persisting after the handler returns.
- */
-typedef void (*EventCallback)(const EventDetails& event_details);
-
-bool SetDebugEventListener(Isolate* isolate, EventCallback that,
-                           Local<Value> data = Local<Value>());
-
-/**
  * Debugger is running in its own context which is entered while debugger
  * messages are being dispatched. This is an explicit getter for this
  * debugger context. Note that the content of the debugger context is subject
@@ -193,17 +147,23 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
-typedef std::function<void(debug::PromiseDebugActionType type, int id,
-                           void* data)>
-    AsyncTaskListener;
-void SetAsyncTaskListener(Isolate* isolate, AsyncTaskListener listener,
-                          void* data);
+class DebugEventListener {
+ public:
+  virtual ~DebugEventListener() {}
+  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type,
+                                    int id) {}
+  virtual void ScriptCompiled(v8::Local<Script> script,
+                              bool has_compile_error) {}
+  virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                                     v8::Local<v8::Object> exec_state,
+                                     v8::Local<v8::Value> break_points_hit) {}
+  virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                               v8::Local<v8::Object> exec_state,
+                               v8::Local<v8::Value> exception,
+                               bool is_promise_rejection, bool is_uncaught) {}
+};
 
-typedef std::function<void(v8::Local<Script> script, bool has_compile_error,
-                           void* data)>
-    CompileEventListener;
-void SetCompileEventListener(Isolate* isolate, CompileEventListener listener,
-                             void* data);
+void SetDebugEventListener(Isolate* isolate, DebugEventListener* listener);
 
 }  // namespace debug
 }  // namespace v8

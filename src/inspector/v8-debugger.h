@@ -26,7 +26,7 @@ class V8StackTraceImpl;
 
 using protocol::Response;
 
-class V8Debugger {
+class V8Debugger : public v8::debug::DebugEventListener {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
@@ -112,14 +112,6 @@ class V8Debugger {
                           v8::Local<v8::Array> hitBreakpoints,
                           bool isPromiseRejection = false,
                           bool isUncaught = false);
-  static void v8DebugEventCallback(const v8::debug::EventDetails&);
-  v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
-                                                  const char* functionName);
-  void handleV8DebugEvent(const v8::debug::EventDetails&);
-  static void v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
-                                  int id, void* data);
-  static void v8CompileEventListener(v8::Local<v8::debug::Script> script,
-                                     bool has_compile_error, void* data);
 
   v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>,
                                          v8::Local<v8::Object>);
@@ -140,6 +132,19 @@ class V8Debugger {
                                            v8::Local<v8::Function>);
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
+
+  // v8::debug::DebugEventListener implementation.
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
+                            int id) override;
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+                      bool has_compile_error) override;
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override;
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Object> exec_state,
+                       v8::Local<v8::Value> exception,
+                       bool is_promise_rejection, bool is_uncaught) override;
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;

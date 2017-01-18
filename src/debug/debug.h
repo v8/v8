@@ -286,7 +286,7 @@ class MessageImpl : public v8::Debug::Message {
 };
 
 // Details of the debug event delivered to the debug event listener.
-class EventDetailsImpl : public debug::EventDetails {
+class EventDetailsImpl : public v8::Debug::EventDetails {
  public:
   EventDetailsImpl(DebugEvent event,
                    Handle<JSObject> exec_state,
@@ -466,9 +466,7 @@ class Debug {
 
   int NextAsyncTaskId(Handle<JSObject> promise);
 
-  void SetAsyncTaskListener(debug::AsyncTaskListener listener, void* data);
-  void SetCompileEventListener(debug::CompileEventListener listener,
-                               void* data);
+  void SetDebugEventListener(debug::DebugEventListener* listener);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -679,10 +677,7 @@ class Debug {
 
   v8::Debug::MessageHandler message_handler_;
 
-  debug::AsyncTaskListener async_task_listener_ = nullptr;
-  void* async_task_listener_data_ = nullptr;
-  debug::CompileEventListener compile_event_listener_ = nullptr;
-  void* compile_event_listener_data_ = nullptr;
+  debug::DebugEventListener* debug_event_listener_ = nullptr;
 
   static const int kQueueInitialSize = 4;
   base::Semaphore command_received_;  // Signaled for each command received.

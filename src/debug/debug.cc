@@ -1715,6 +1715,16 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
   }
 }
 
+namespace {
+v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
+  Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
+  // Isolate::context() may have been NULL when "script collected" event
+  // occured.
+  if (context.is_null()) return v8::Local<v8::Context>();
+  Handle<Context> native_context(context->native_context());
+  return v8::Utils::ToLocal(native_context);
+}
+}  // anonymous namespace
 
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   // We cannot generate debug events when JS execution is disallowed.
@@ -1754,6 +1764,21 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
+  if (debug_event_listener_) {
+    HandleScope scope(isolate_);
+
+    // Create the execution state.
+    Handle<Object> exec_state;
+    // Bail out and don't call debugger if exception.
+    if (!MakeExecutionState().ToHandle(&exec_state)) return;
+
+    debug_event_listener_->ExceptionThrown(
+        GetDebugEventContext(isolate_),
+        v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
+        v8::Utils::ToLocal(exception), promise->IsJSObject(), uncaught);
+    if (!non_inspector_listener_exists()) return;
+  }
+
   // Create the event data object.
   Handle<Object> event_data;
   // Bail out and don't call debugger if exception.
@@ -1776,6 +1801,24 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue) {
 #ifdef DEBUG
   PrintBreakLocation();
 #endif  // DEBUG
+
+  if (debug_event_listener_) {
+    HandleScope scope(isolate_);
+
+    // Create the execution state.
+    Handle<Object> exec_state;
+    // Bail out and don't call debugger if exception.
+    if (!MakeExecutionState().ToHandle(&exec_state)) return;
+
+    bool previous = in_debug_event_listener_;
+    in_debug_event_listener_ = true;
+    debug_event_listener_->BreakProgramRequested(
+        GetDebugEventContext(isolate_),
+        v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
+        v8::Utils::ToLocal(break_points_hit));
+    in_debug_event_listener_ = previous;
+    if (!non_inspector_listener_exists()) return;
+  }
 
   HandleScope scope(isolate_);
   // Create the event data object.
@@ -1854,18 +1897,11 @@ int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
   return async_id->value();
 }
 
-void Debug::SetAsyncTaskListener(debug::AsyncTaskListener listener,
-                                 void* data) {
-  async_task_listener_ = listener;
-  async_task_listener_data_ = data;
-  UpdateState();
-}
-
 void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
   if (in_debug_scope() || ignore_events()) return;
 
-  if (async_task_listener_) {
-    async_task_listener_(type, id, async_task_listener_data_);
+  if (debug_event_listener_) {
+    debug_event_listener_->PromiseEventOccurred(type, id);
     if (!non_inspector_listener_exists()) return;
   }
 
@@ -1920,7 +1956,7 @@ void Debug::CallEventCallback(v8::DebugEvent event,
   in_debug_event_listener_ = true;
   if (event_listener_->IsForeign()) {
     // Invoke the C debug event listener.
-    debug::EventCallback callback = FUNCTION_CAST<debug::EventCallback>(
+    v8::Debug::EventCallback callback = FUNCTION_CAST<v8::Debug::EventCallback>(
         Handle<Foreign>::cast(event_listener_)->foreign_address());
     EventDetailsImpl event_details(event,
                                    Handle<JSObject>::cast(exec_state),
@@ -1945,13 +1981,6 @@ void Debug::CallEventCallback(v8::DebugEvent event,
   in_debug_event_listener_ = previous;
 }
 
-void Debug::SetCompileEventListener(debug::CompileEventListener listener,
-                                    void* data) {
-  compile_event_listener_ = listener;
-  compile_event_listener_data_ = data;
-  UpdateState();
-}
-
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   if (ignore_events()) return;
   if (script->type() != i::Script::TYPE_NORMAL &&
@@ -1963,10 +1992,9 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  if (compile_event_listener_) {
-    compile_event_listener_(ToApiHandle<debug::Script>(script),
-                            event != v8::AfterCompile,
-                            compile_event_listener_data_);
+  if (debug_event_listener_) {
+    debug_event_listener_->ScriptCompiled(ToApiHandle<debug::Script>(script),
+                                          event != v8::AfterCompile);
     if (!non_inspector_listener_exists()) return;
   }
 
@@ -2162,10 +2190,14 @@ void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
   }
 }
 
+void Debug::SetDebugEventListener(debug::DebugEventListener* listener) {
+  debug_event_listener_ = listener;
+  UpdateState();
+}
+
 void Debug::UpdateState() {
   bool is_active = message_handler_ != nullptr || !event_listener_.is_null() ||
-                   async_task_listener_ != nullptr ||
-                   compile_event_listener_ != nullptr;
+                   debug_event_listener_ != nullptr;
   if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
@@ -2502,17 +2534,6 @@ v8::Local<v8::String> MessageImpl::GetJSON() const {
     return v8::Utils::ToLocal(response_json_);
   }
 }
-
-namespace {
-v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
-  Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
-  // Isolate::context() may have been NULL when "script collected" event
-  // occured.
-  if (context.is_null()) return v8::Local<v8::Context>();
-  Handle<Context> native_context(context->native_context());
-  return v8::Utils::ToLocal(native_context);
-}
-}  // anonymous namespace
 
 v8::Local<v8::Context> MessageImpl::GetEventContext() const {
   Isolate* isolate = event_data_->GetIsolate();

@@ -160,13 +160,6 @@ BreakPoint.prototype.number = function() {}
 
 
 /** @interface */
-function BreakEvent() {}
-
-/** @return {!Array<!BreakPoint>|undefined} */
-BreakEvent.prototype.breakPointsHit = function() {}
-
-
-/** @interface */
 function ExecutionState() {}
 
 /**

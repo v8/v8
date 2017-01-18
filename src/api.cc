@@ -8987,19 +8987,6 @@ MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
   return Utils::ToLocal(result);
 }
 
-bool debug::SetDebugEventListener(Isolate* isolate, debug::EventCallback that,
-                                  Local<Value> data) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8(i_isolate);
-  i::HandleScope scope(i_isolate);
-  i::Handle<i::Object> foreign = i_isolate->factory()->undefined_value();
-  if (that != NULL) {
-    foreign = i_isolate->factory()->NewForeign(FUNCTION_ADDR(that));
-  }
-  i_isolate->debug()->SetEventListener(foreign, Utils::OpenHandle(*data, true));
-  return true;
-}
-
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8(i_isolate);
@@ -9331,20 +9318,11 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
-void debug::SetAsyncTaskListener(Isolate* v8_isolate,
-                                 debug::AsyncTaskListener listener,
-                                 void* data) {
+void debug::SetDebugEventListener(Isolate* v8_isolate,
+                                  debug::DebugEventListener* listener) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  isolate->debug()->SetAsyncTaskListener(listener, data);
-}
-
-void debug::SetCompileEventListener(Isolate* v8_isolate,
-                                    debug::CompileEventListener listener,
-                                    void* data) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  ENTER_V8(isolate);
-  isolate->debug()->SetCompileEventListener(listener, data);
+  isolate->debug()->SetDebugEventListener(listener);
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {

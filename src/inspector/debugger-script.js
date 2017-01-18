@@ -239,11 +239,10 @@ DebuggerScript.setBreakpointsActivated = function(execState, info)
 }
 
 /**
- * @param {!BreakEvent} eventData
+ * @param {!Array<!BreakPoint>|undefined} breakpoints
  */
-DebuggerScript.getBreakpointNumbers = function(eventData)
+DebuggerScript.getBreakpointNumbers = function(breakpoints)
 {
-    var breakpoints = eventData.breakPointsHit();
     var numbers = [];
     if (!breakpoints)
         return numbers;

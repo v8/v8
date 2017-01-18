@@ -68,12 +68,7 @@ void V8Debugger::enable() {
   if (m_enableCount++) return;
   DCHECK(!enabled());
   v8::HandleScope scope(m_isolate);
-  v8::debug::SetDebugEventListener(m_isolate, &V8Debugger::v8DebugEventCallback,
-                                   v8::External::New(m_isolate, this));
-  v8::debug::SetAsyncTaskListener(m_isolate, &V8Debugger::v8AsyncTaskListener,
-                                  this);
-  v8::debug::SetCompileEventListener(m_isolate,
-                                     &V8Debugger::v8CompileEventListener, this);
+  v8::debug::SetDebugEventListener(m_isolate, this);
   v8::debug::SetOutOfMemoryCallback(m_isolate, &V8Debugger::v8OOMCallback,
                                     this);
   m_debuggerContext.Reset(m_isolate, v8::debug::GetDebugContext(m_isolate));
@@ -91,8 +86,6 @@ void V8Debugger::disable() {
   allAsyncTasksCanceled();
   m_wasmTranslation.Clear();
   v8::debug::SetDebugEventListener(m_isolate, nullptr);
-  v8::debug::SetAsyncTaskListener(m_isolate, nullptr, nullptr);
-  v8::debug::SetCompileEventListener(m_isolate, nullptr, nullptr);
   v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
   m_isolate->RestoreOriginalHeapLimit();
 }
@@ -526,119 +519,77 @@ void V8Debugger::v8OOMCallback(void* data) {
   thisPtr->setPauseOnNextStatement(true);
 }
 
-void V8Debugger::v8DebugEventCallback(
-    const v8::debug::EventDetails& eventDetails) {
-  V8Debugger* thisPtr = toV8Debugger(eventDetails.GetCallbackData());
-  thisPtr->handleV8DebugEvent(eventDetails);
-}
-
-v8::Local<v8::Value> V8Debugger::callInternalGetterFunction(
-    v8::Local<v8::Object> object, const char* functionName) {
-  v8::MicrotasksScope microtasks(m_isolate,
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::Local<v8::Value> getterValue =
-      object
-          ->Get(m_isolate->GetCurrentContext(),
-                toV8StringInternalized(m_isolate, functionName))
-          .ToLocalChecked();
-  DCHECK(!getterValue.IsEmpty() && getterValue->IsFunction());
-  return v8::Local<v8::Function>::Cast(getterValue)
-      ->Call(m_isolate->GetCurrentContext(), object, 0, nullptr)
-      .ToLocalChecked();
-}
-
-void V8Debugger::handleV8DebugEvent(
-    const v8::debug::EventDetails& eventDetails) {
-  if (!enabled()) return;
-  v8::HandleScope scope(m_isolate);
-
-  v8::DebugEvent event = eventDetails.GetEvent();
-  if (event != v8::Break && event != v8::Exception) return;
-
-  v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
-  DCHECK(!eventContext.IsEmpty());
-  V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
-      m_inspector->contextGroupId(eventContext));
-  if (!agent) return;
-
-  if (event == v8::Exception) {
-    v8::Local<v8::Context> context = debuggerContext();
-    v8::Local<v8::Object> eventData = eventDetails.GetEventData();
-    v8::Local<v8::Value> exception =
-        callInternalGetterFunction(eventData, "exception");
-    v8::Local<v8::Value> promise =
-        callInternalGetterFunction(eventData, "promise");
-    bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
-    v8::Local<v8::Value> uncaught =
-        callInternalGetterFunction(eventData, "uncaught");
-    bool isUncaught = uncaught->BooleanValue(context).FromJust();
-    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                       exception, v8::Local<v8::Array>(), isPromiseRejection,
-                       isUncaught);
-  } else if (event == v8::Break) {
-    v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-    v8::Local<v8::Value> hitBreakpoints;
-    if (!callDebuggerMethod("getBreakpointNumbers", 1, argv)
-             .ToLocal(&hitBreakpoints))
-      return;
-    DCHECK(hitBreakpoints->IsArray());
-    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                       v8::Local<v8::Value>(), hitBreakpoints.As<v8::Array>());
-  }
-}
-
-void V8Debugger::v8CompileEventListener(v8::Local<v8::debug::Script> script,
-                                        bool has_compile_error, void* data) {
-  V8Debugger* debugger = static_cast<V8Debugger*>(data);
+void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
+                                bool has_compile_error) {
   v8::Local<v8::Value> contextData;
   if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32()) {
     return;
   }
   int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
-  int contextGroupId = debugger->m_inspector->contextGroupId(contextId);
+  int contextGroupId = m_inspector->contextGroupId(contextId);
   if (!contextGroupId) return;
   V8DebuggerAgentImpl* agent =
-      debugger->m_inspector->enabledDebuggerAgentForGroup(contextGroupId);
+      m_inspector->enabledDebuggerAgentForGroup(contextGroupId);
   if (!agent) return;
   if (script->IsWasm()) {
-    debugger->m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(),
-                                          agent);
-  } else if (debugger->m_ignoreScriptParsedEventsCounter == 0) {
+    m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
+  } else if (m_ignoreScriptParsedEventsCounter == 0) {
     agent->didParseSource(
-        V8DebuggerScript::Create(debugger->m_isolate, script, inLiveEditScope),
+        V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
         !has_compile_error);
   }
 }
 
-void V8Debugger::v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
-                                     int id, void* data) {
-  V8Debugger* debugger = static_cast<V8Debugger*>(data);
-  if (!debugger->m_maxAsyncCallStackDepth) return;
+void V8Debugger::BreakProgramRequested(v8::Local<v8::Context> pausedContext,
+                                       v8::Local<v8::Object> execState,
+                                       v8::Local<v8::Value> breakPointsHit) {
+  v8::Local<v8::Value> argv[] = {breakPointsHit};
+  v8::Local<v8::Value> hitBreakpoints;
+  if (!callDebuggerMethod("getBreakpointNumbers", 1, argv)
+           .ToLocal(&hitBreakpoints)) {
+    return;
+  }
+  DCHECK(hitBreakpoints->IsArray());
+  handleProgramBreak(pausedContext, execState, v8::Local<v8::Value>(),
+                     hitBreakpoints.As<v8::Array>());
+}
+
+void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
+                                 v8::Local<v8::Object> execState,
+                                 v8::Local<v8::Value> exception,
+                                 bool isPromiseRejection, bool isUncaught) {
+  handleProgramBreak(pausedContext, execState, exception,
+                     v8::Local<v8::Array>(), isPromiseRejection, isUncaught);
+}
+
+void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
+                                      int id) {
+  if (!m_maxAsyncCallStackDepth) return;
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
     case v8::debug::kDebugEnqueueAsyncFunction:
-      debugger->asyncTaskScheduled("async function", ptr, true);
+      asyncTaskScheduled("async function", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseResolve:
-      debugger->asyncTaskScheduled("Promise.resolve", ptr, true);
+      asyncTaskScheduled("Promise.resolve", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseReject:
-      debugger->asyncTaskScheduled("Promise.reject", ptr, true);
+      asyncTaskScheduled("Promise.reject", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseResolveThenableJob:
-      debugger->asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
+      asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
       break;
     case v8::debug::kDebugPromiseCollected:
-      debugger->asyncTaskCanceled(ptr);
+      asyncTaskCanceled(ptr);
       break;
     case v8::debug::kDebugWillHandle:
-      debugger->asyncTaskStarted(ptr);
+      asyncTaskStarted(ptr);
       break;
     case v8::debug::kDebugDidHandle:
-      debugger->asyncTaskFinished(ptr);
+      asyncTaskFinished(ptr);
       break;
   }
 }
