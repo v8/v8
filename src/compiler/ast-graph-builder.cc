@@ -933,7 +933,6 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
       DCHECK(!slot.IsInvalid());
       globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
       globals()->push_back(isolate()->factory()->undefined_value());
-      globals()->push_back(isolate()->factory()->undefined_value());
       break;
     }
     case VariableLocation::PARAMETER:
@@ -959,12 +958,6 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
-
-      // We need the slot where the literals array lives, too.
-      slot = decl->fun()->LiteralFeedbackSlot();
-      DCHECK(!slot.IsInvalid());
-      globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
-
       globals()->push_back(function);
       break;
     }

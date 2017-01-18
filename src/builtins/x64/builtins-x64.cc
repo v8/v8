@@ -1008,7 +1008,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ movp(map, FieldOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ SmiToInteger32(index, FieldOperand(map, FixedArray::kLengthOffset));
   __ cmpl(index, Immediate(2));
-  __ j(less, &try_shared);
+  __ j(less, &gotta_call_runtime);
 
   // r14 : native context
   // r9  : length / index
@@ -1065,7 +1065,9 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ cmpl(index, Immediate(1));
   __ j(greater, &loop_top);
 
-  // We found no code. Try the SharedFunctionInfo.
+  // We found no code.
+  __ jmp(&gotta_call_runtime);
+
   __ bind(&try_shared);
   __ movp(entry, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Is the shared function marked for tier up?

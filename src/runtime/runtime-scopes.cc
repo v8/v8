@@ -137,11 +137,10 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 3, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
     FeedbackVectorSlot slot(Smi::cast(declarations->get(i + 1))->value());
-    Handle<Object> possibly_literal_slot(declarations->get(i + 2), isolate);
-    Handle<Object> initial_value(declarations->get(i + 3), isolate);
+    Handle<Object> initial_value(declarations->get(i + 2), isolate);
 
     bool is_var = initial_value->IsUndefined(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
@@ -149,17 +148,12 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
     Handle<Object> value;
     if (is_function) {
-      DCHECK(possibly_literal_slot->IsSmi());
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackVectorSlot literals_slot(
-          Smi::cast(*possibly_literal_slot)->value());
-      Handle<LiteralsArray> literals(
-          LiteralsArray::cast(feedback_vector->Get(literals_slot)), isolate);
       Handle<JSFunction> function =
-          isolate->factory()->NewFunctionFromSharedFunctionInfo(
-              shared, context, literals, TENURED);
+          isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
+                                                                TENURED);
       value = function;
     } else {
       value = isolate->factory()->undefined_value();

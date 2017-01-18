@@ -1043,7 +1043,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(map, FieldOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ mov(index, FieldOperand(map, FixedArray::kLengthOffset));
   __ cmp(index, Immediate(Smi::FromInt(2)));
-  __ j(less, &try_shared);
+  __ j(less, &gotta_call_runtime);
 
   // edx : native context
   // ebx : length / index
@@ -1103,7 +1103,9 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ cmp(index, Immediate(Smi::FromInt(1)));
   __ j(greater, &loop_top);
 
-  // We found no code. Try the SharedFunctionInfo.
+  // We found no code.
+  __ jmp(&gotta_call_runtime);
+
   __ bind(&try_shared);
   __ pop(closure);
   __ pop(new_target);
