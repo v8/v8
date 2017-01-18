@@ -25,9 +25,12 @@ CONFIGS = dict(
   fullcode=['--nocrankshaft', '--turbo-filter=~', '--novalidate-asm'],
   noturbo=['--turbo-filter=~', '--noturbo-asm'],
   noturbo_opt=['--always-opt', '--turbo-filter=~', '--noturbo-asm'],
+  ignition=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
+            '--novalidate-asm'],
   ignition_staging=['--ignition-staging'],
-  ignition_turbo=['--ignition-staging', '--turbo'],
-  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt'],
+  ignition_turbo=['--ignition-staging', '--turbo', '--novalidate-asm'],
+  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt',
+                      '--novalidate-asm'],
 )
 
 # Timeout in seconds for one d8 run.
