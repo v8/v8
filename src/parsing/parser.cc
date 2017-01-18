@@ -4234,7 +4234,7 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
 //     const kReturn = 1;
 //     const kThrow = 2;
 //
-//     let input = function.sent;
+//     let input = undefined;
 //     let mode = kNext;
 //     let output = undefined;
 //
