@@ -746,7 +746,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
 
 RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
 
@@ -755,10 +755,33 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
     return isolate->heap()->undefined_value();
   }
 
-  MAYBE_RETURN(
-      JSReceiver::SetOrCopyDataProperties(isolate, target, source, false),
-      isolate->heap()->exception());
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
+                                                   nullptr, false),
+               isolate->heap()->exception());
   return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 0);
+
+  // 2. If source is undefined or null, let keys be an empty List.
+  if (source->IsUndefined(isolate) || source->IsNull(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  ScopedVector<Handle<Name>> excluded_properties(args.length() - 1);
+  for (int i = 1; i < args.length(); i++) {
+    excluded_properties[i - 1] = args.at<Name>(i);
+  }
+
+  Handle<JSObject> target =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
+                                                   &excluded_properties, false),
+               isolate->heap()->exception());
+  return *target;
 }
 
 RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {

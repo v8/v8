@@ -594,8 +594,8 @@ class PreParserFactory {
   }
   PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
                                        int literal_index,
-                                       int boilerplate_properties,
-                                       int pos) {
+                                       int boilerplate_properties, int pos,
+                                       bool has_rest_property) {
     return PreParserExpression::ObjectLiteral(properties.variables_);
   }
   PreParserExpression NewVariableProxy(void* variable) {

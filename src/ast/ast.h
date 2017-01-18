@@ -1399,6 +1399,9 @@ class ObjectLiteral final : public MaterializedLiteral {
   bool has_shallow_properties() const {
     return depth() == 1 && !has_elements() && !may_store_doubles();
   }
+  bool has_rest_property() const {
+    return HasRestPropertyField::decode(bit_field_);
+  }
 
   // Decide if a property should be in the object boilerplate.
   static bool IsBoilerplateProperty(Property* property);
@@ -1441,7 +1444,8 @@ class ObjectLiteral final : public MaterializedLiteral {
     kNoFlags = 0,
     kFastElements = 1,
     kShallowProperties = 1 << 1,
-    kDisableMementos = 1 << 2
+    kDisableMementos = 1 << 2,
+    kHasRestProperty = 1 << 3,
   };
 
   struct Accessors: public ZoneObject {
@@ -1469,13 +1473,15 @@ class ObjectLiteral final : public MaterializedLiteral {
   friend class AstNodeFactory;
 
   ObjectLiteral(ZoneList<Property*>* properties, int literal_index,
-                uint32_t boilerplate_properties, int pos)
+                uint32_t boilerplate_properties, int pos,
+                bool has_rest_property)
       : MaterializedLiteral(literal_index, pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
         properties_(properties) {
     bit_field_ |= FastElementsField::encode(false) |
                   HasElementsField::encode(false) |
-                  MayStoreDoublesField::encode(false);
+                  MayStoreDoublesField::encode(false) |
+                  HasRestPropertyField::encode(has_rest_property);
   }
 
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
@@ -1491,6 +1497,8 @@ class ObjectLiteral final : public MaterializedLiteral {
   };
   class MayStoreDoublesField
       : public BitField<bool, HasElementsField::kNext, 1> {};
+  class HasRestPropertyField
+      : public BitField<bool, MayStoreDoublesField::kNext, 1> {};
 };
 
 
@@ -3329,9 +3337,10 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   ObjectLiteral* NewObjectLiteral(
       ZoneList<ObjectLiteral::Property*>* properties, int literal_index,
-      uint32_t boilerplate_properties, int pos) {
+      uint32_t boilerplate_properties, int pos, bool has_rest_property) {
     return new (zone_)
-        ObjectLiteral(properties, literal_index, boilerplate_properties, pos);
+        ObjectLiteral(properties, literal_index, boilerplate_properties, pos,
+                      has_rest_property);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(

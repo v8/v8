@@ -218,7 +218,7 @@ class ParserBase {
         allow_harmony_restrictive_generators_(false),
         allow_harmony_trailing_commas_(false),
         allow_harmony_class_fields_(false),
-        allow_harmony_object_spread_(false) {}
+        allow_harmony_object_rest_spread_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -231,7 +231,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_trailing_commas);
   ALLOW_ACCESSORS(harmony_class_fields);
-  ALLOW_ACCESSORS(harmony_object_spread);
+  ALLOW_ACCESSORS(harmony_object_rest_spread);
 
 #undef ALLOW_ACCESSORS
 
@@ -1167,7 +1167,8 @@ class ParserBase {
   FunctionLiteralT ParseClassFieldForInitializer(bool has_initializer,
                                                  bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
-      ObjectLiteralChecker* checker, bool* is_computed_name, bool* ok);
+      ObjectLiteralChecker* checker, bool* is_computed_name,
+      bool* is_rest_property, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
                                  bool maybe_arrow, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
@@ -1456,7 +1457,7 @@ class ParserBase {
   bool allow_harmony_restrictive_generators_;
   bool allow_harmony_trailing_commas_;
   bool allow_harmony_class_fields_;
-  bool allow_harmony_object_spread_;
+  bool allow_harmony_object_rest_spread_;
 
   friend class DiscardableZoneScope;
 };
@@ -2110,18 +2111,27 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     }
 
     case Token::ELLIPSIS:
-      if (allow_harmony_object_spread()) {
-        // TODO(gsathya): Implement destructuring/rest
-        classifier()->RecordPatternError(scanner()->location(),
-                                         MessageTemplate::kUnexpectedToken);
-
+      if (allow_harmony_object_rest_spread()) {
         *name = impl()->EmptyIdentifier();
         Consume(Token::ELLIPSIS);
-        ExpressionClassifier spread_classifier(this);
         expression = ParseAssignmentExpression(true, CHECK_OK);
-        impl()->RewriteNonPattern(CHECK_OK);
-        impl()->AccumulateFormalParameterContainmentErrors();
         *kind = PropertyKind::kSpreadProperty;
+
+        if (expression->IsAssignment()) {
+          classifier()->RecordPatternError(
+              scanner()->location(),
+              MessageTemplate::kInvalidDestructuringTarget);
+        } else {
+          // TODO(gsathya): Throw error if number of properties >
+          // Code::kMaxArguments
+          CheckDestructuringElement(expression, pos,
+                                    scanner()->location().end_pos);
+        }
+
+        if (peek() != Token::RBRACE) {
+          classifier()->RecordPatternError(scanner()->location(),
+                                           MessageTemplate::kElementAfterRest);
+        }
         return expression;
       }
 
@@ -2331,6 +2341,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ObjectLiteralPropertyT
 ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
                                                 bool* is_computed_name,
+                                                bool* is_rest_property,
                                                 bool* ok) {
   bool is_get = false;
   bool is_set = false;
@@ -2349,12 +2360,13 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
   switch (kind) {
     case PropertyKind::kSpreadProperty:
-      DCHECK(allow_harmony_object_spread());
+      DCHECK(allow_harmony_object_rest_spread());
       DCHECK(!is_get && !is_set && !is_generator && !is_async &&
              !*is_computed_name);
       DCHECK(name_token == Token::ELLIPSIS);
 
       *is_computed_name = true;
+      *is_rest_property = true;
 
       return factory()->NewObjectLiteralProperty(
           impl()->GetLiteralTheHole(kNoSourcePosition), name_expression,
@@ -2529,6 +2541,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
       impl()->NewObjectPropertyList(4);
   int number_of_boilerplate_properties = 0;
   bool has_computed_names = false;
+  bool has_rest_property = false;
   ObjectLiteralChecker checker(this);
 
   Expect(Token::LBRACE, CHECK_OK);
@@ -2537,11 +2550,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
     FuncNameInferrer::State fni_state(fni_);
 
     bool is_computed_name = false;
-    ObjectLiteralPropertyT property =
-        ParseObjectPropertyDefinition(&checker, &is_computed_name, CHECK_OK);
+    bool is_rest_property = false;
+    ObjectLiteralPropertyT property = ParseObjectPropertyDefinition(
+        &checker, &is_computed_name, &is_rest_property, CHECK_OK);
 
     if (is_computed_name) {
       has_computed_names = true;
+    }
+
+    if (is_rest_property) {
+      has_rest_property = true;
     }
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
@@ -2562,10 +2580,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   // Computation of literal_index must happen before pre parse bailout.
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
-  return factory()->NewObjectLiteral(properties,
-                                     literal_index,
-                                     number_of_boilerplate_properties,
-                                     pos);
+  return factory()->NewObjectLiteral(properties, literal_index,
+                                     number_of_boilerplate_properties, pos,
+                                     has_rest_property);
 }
 
 template <typename Impl>

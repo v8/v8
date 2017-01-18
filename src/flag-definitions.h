@@ -202,7 +202,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_class_fields, "harmony public fields in class literals")    \
-  V(harmony_object_spread, "harmony object spread")
+  V(harmony_object_rest_spread, "harmony object rest spread properties")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                              \

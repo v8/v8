@@ -340,19 +340,62 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
                                                  Variable** temp_var) {
   auto temp = *temp_var = CreateTempVar(current_value_);
 
+  ZoneList<Expression*>* rest_runtime_callargs = nullptr;
+  if (pattern->has_rest_property()) {
+    // non_rest_properties_count = pattern->properties()->length - 1;
+    // args_length = 1 + non_rest_properties_count because we need to
+    // pass temp as well to the runtime function.
+    int args_length = pattern->properties()->length();
+    rest_runtime_callargs =
+        new (zone()) ZoneList<Expression*>(args_length, zone());
+    rest_runtime_callargs->Add(factory()->NewVariableProxy(temp), zone());
+  }
+
   block_->statements()->Add(parser_->BuildAssertIsCoercible(temp), zone());
 
   for (ObjectLiteralProperty* property : *pattern->properties()) {
     PatternContext context = SetInitializerContextIfNeeded(property->value());
+    Expression* value;
 
-    // Computed property names contain expressions which might require
-    // scope rewriting.
-    if (!property->key()->IsLiteral()) RewriteParameterScopes(property->key());
+    if (property->kind() == ObjectLiteralProperty::Kind::SPREAD) {
+      // var { y, [x++]: a, ...c } = temp
+      //     becomes
+      // var temp1 = %ToName('y');
+      // var y = temp[temp1]
+      // var temp2 = %ToName(x++);
+      // var a = temp[temp2];
+      // var c;
+      // c = %CopyDataPropertiesWithExcludedProperties(temp, temp1, temp2);
+      value = factory()->NewCallRuntime(
+          Runtime::kCopyDataPropertiesWithExcludedProperties,
+          rest_runtime_callargs, kNoSourcePosition);
+    } else {
+      Expression* key = property->key();
 
-    RecurseIntoSubpattern(
-        property->value(),
-        factory()->NewProperty(factory()->NewVariableProxy(temp),
-                               property->key(), kNoSourcePosition));
+      if (!key->IsLiteral()) {
+        // Computed property names contain expressions which might require
+        // scope rewriting.
+        RewriteParameterScopes(key);
+      }
+
+      // TODO(gsathya): Skip %ToName runtime call for literals.
+      if (pattern->has_rest_property()) {
+        auto args = new (zone()) ZoneList<Expression*>(1, zone());
+        args->Add(key, zone());
+        auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
+            Runtime::kToName, args, kNoSourcePosition));
+        key = factory()->NewVariableProxy(to_name_key);
+
+        DCHECK(rest_runtime_callargs != nullptr);
+        rest_runtime_callargs->Add(factory()->NewVariableProxy(to_name_key),
+                                   zone());
+      }
+
+      value = factory()->NewProperty(factory()->NewVariableProxy(temp), key,
+                                     kNoSourcePosition);
+    }
+
+    RecurseIntoSubpattern(property->value(), value);
     set_context(context);
   }
 }

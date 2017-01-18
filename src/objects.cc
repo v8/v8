@@ -2003,8 +2003,21 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
 
 namespace {
 
-MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> target,
-                                       Handle<Object> source, bool use_set) {
+bool HasExcludedProperty(const ScopedVector<Handle<Name>>* excluded_properties,
+                         Handle<Object> search_element) {
+  // TODO(gsathya): Change this to be a hashtable.
+  for (int i = 0; i < excluded_properties->length(); i++) {
+    if (search_element->SameValue(*excluded_properties->at(i))) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+MUST_USE_RESULT Maybe<bool> FastAssign(
+    Handle<JSReceiver> target, Handle<Object> source,
+    const ScopedVector<Handle<Name>>* excluded_properties, bool use_set) {
   // Non-empty strings are the only non-JSReceivers that need to be handled
   // explicitly by Object.assign.
   if (!source->IsJSReceiver()) {
@@ -2077,6 +2090,11 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> target,
       if (result.IsNothing()) return result;
       if (stable && call_to_js) stable = from->map() == *map;
     } else {
+      if (excluded_properties != nullptr &&
+          HasExcludedProperty(excluded_properties, next_key)) {
+        continue;
+      }
+
       // 4a ii 2. Perform ? CreateDataProperty(target, nextKey, propValue).
       bool success;
       LookupIterator it = LookupIterator::PropertyOrElement(
@@ -2090,15 +2108,14 @@ MUST_USE_RESULT Maybe<bool> FastAssign(Handle<JSReceiver> target,
 
   return Just(true);
 }
-
 }  // namespace
 
 // static
-Maybe<bool> JSReceiver::SetOrCopyDataProperties(Isolate* isolate,
-                                                Handle<JSReceiver> target,
-                                                Handle<Object> source,
-                                                bool use_set) {
-  Maybe<bool> fast_assign = FastAssign(target, source, use_set);
+Maybe<bool> JSReceiver::SetOrCopyDataProperties(
+    Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
+    const ScopedVector<Handle<Name>>* excluded_properties, bool use_set) {
+  Maybe<bool> fast_assign =
+      FastAssign(target, source, excluded_properties, use_set);
   if (fast_assign.IsNothing()) return Nothing<bool>();
   if (fast_assign.FromJust()) return Just(true);
 
@@ -2108,7 +2125,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(Isolate* isolate,
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, keys,
       KeyAccumulator::GetKeys(from, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
-                              GetKeysConversion::kKeepNumbers),
+                              GetKeysConversion::kConvertToString),
       Nothing<bool>());
 
   // 4. Repeat for each element nextKey of keys in List order,
@@ -2135,6 +2152,11 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(Isolate* isolate,
                                  isolate, target, next_key, prop_value, STRICT),
             Nothing<bool>());
       } else {
+        if (excluded_properties != nullptr &&
+            HasExcludedProperty(excluded_properties, next_key)) {
+          continue;
+        }
+
         // 4a ii 2. Perform ! CreateDataProperty(target, nextKey, propValue).
         bool success;
         LookupIterator it = LookupIterator::PropertyOrElement(

@@ -80,9 +80,8 @@ BUILTIN(ObjectAssign) {
   // 4. For each element nextSource of sources, in ascending index order,
   for (int i = 2; i < args.length(); ++i) {
     Handle<Object> next_source = args.at(i);
-    MAYBE_RETURN(
-        JSReceiver::SetOrCopyDataProperties(isolate, to, next_source, true),
-        isolate->heap()->exception());
+    MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, to, next_source),
+                 isolate->heap()->exception());
   }
   // 5. Return to.
   return *to;

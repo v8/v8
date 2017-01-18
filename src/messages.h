@@ -589,7 +589,7 @@ class ErrorUtils : public AllStatic {
   T(PushPastSafeLength,                                                        \
     "Pushing % elements on an array-like of length % "                         \
     "is disallowed, as the total surpasses 2**53-1")                           \
-  T(ElementAfterRest, "Rest element must be last element in array")            \
+  T(ElementAfterRest, "Rest element must be last element")                     \
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
