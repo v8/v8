@@ -55,7 +55,9 @@ class UtilsExtension : public v8::Extension {
                       "native function setlocale();"
                       "native function load();"
                       "native function compileAndRunWithOrigin();"
-                      "native function setCurrentTimeMSForTest();") {}
+                      "native function setCurrentTimeMSForTest();"
+                      "native function schedulePauseOnNextStatement();"
+                      "native function cancelPauseOnNextStatement();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -96,6 +98,21 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate,
                                        UtilsExtension::SetCurrentTimeMSForTest);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(
+                                isolate, "schedulePauseOnNextStatement",
+                                v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, UtilsExtension::SchedulePauseOnNextStatement);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "cancelPauseOnNextStatement",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, UtilsExtension::CancelPauseOnNextStatement);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -203,6 +220,31 @@ class UtilsExtension : public v8::Extension {
     inspector_client_->setCurrentTimeMSForTest(
         args[0].As<v8::Number>()->Value());
   }
+
+  static void SchedulePauseOnNextStatement(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsString()) {
+      fprintf(
+          stderr,
+          "Internal error: schedulePauseOnNextStatement('reason', 'details').");
+      Exit();
+    }
+    v8::internal::Vector<uint16_t> reason = ToVector(args[0].As<v8::String>());
+    v8_inspector::StringView reason_view(reason.start(), reason.length());
+    v8::internal::Vector<uint16_t> details = ToVector(args[1].As<v8::String>());
+    v8_inspector::StringView details_view(details.start(), details.length());
+    inspector_client_->session()->schedulePauseOnNextStatement(reason_view,
+                                                               details_view);
+  }
+
+  static void CancelPauseOnNextStatement(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: cancelPauseOnNextStatement().");
+      Exit();
+    }
+    inspector_client_->session()->cancelPauseOnNextStatement();
+  }
 };
 
 TaskRunner* UtilsExtension::backend_runner_ = nullptr;
@@ -283,7 +325,8 @@ class InspectorExtension : public v8::Extension {
       : v8::Extension("v8_inspector/inspector",
                       "native function attachInspector();"
                       "native function detachInspector();"
-                      "native function setMaxAsyncTaskStacks();") {}
+                      "native function setMaxAsyncTaskStacks();"
+                      "native function breakProgram();") {}
 
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -307,6 +350,13 @@ class InspectorExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(
           isolate, InspectorExtension::SetMaxAsyncTaskStacks);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "breakProgram",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       InspectorExtension::BreakProgram);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -349,6 +399,23 @@ class InspectorExtension : public v8::Extension {
     CHECK(inspector);
     v8_inspector::SetMaxAsyncTaskStacksForTest(
         inspector, args[0].As<v8::Int32>()->Value());
+  }
+
+  static void BreakProgram(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsString()) {
+      fprintf(stderr, "Internal error: breakProgram('reason', 'details').");
+      Exit();
+    }
+    v8_inspector::V8InspectorSession* session =
+        InspectorClientImpl::SessionFromContext(
+            args.GetIsolate()->GetCurrentContext());
+    CHECK(session);
+
+    v8::internal::Vector<uint16_t> reason = ToVector(args[0].As<v8::String>());
+    v8_inspector::StringView reason_view(reason.start(), reason.length());
+    v8::internal::Vector<uint16_t> details = ToVector(args[1].As<v8::String>());
+    v8_inspector::StringView details_view(details.start(), details.length());
+    session->breakProgram(reason_view, details_view);
   }
 };
 
