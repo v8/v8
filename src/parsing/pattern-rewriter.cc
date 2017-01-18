@@ -227,9 +227,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
       if (var_init_scope->is_script_scope() ||
           var_init_scope->is_module_scope()) {
         // We have to pessimistically assume that top-level variables will be
-        // assigned.  This is because there may be lazily parsed top-level
-        // functions, which, for efficiency, we preparse without variable
-        // tracking.
+        // assigned.  This is because they might be accessed by a lazily parsed
+        // top-level function, which, for efficiency, we preparse without
+        // variable tracking.  In the case of a script (not a module), they
+        // might also get accessed by another script.
         proxy->set_is_assigned();
       }
     }
