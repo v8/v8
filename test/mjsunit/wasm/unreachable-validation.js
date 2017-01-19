@@ -96,9 +96,10 @@ run(I, "(block U) 0f 0 iadd drop", [...block_unr, ...f32, ...zero, iadd, drop]);
 run(I, "(loop U) 0f 0 iadd drop", [...loop_unr, ...f32, ...zero, iadd, drop]);
 run(I, "(block (block U)) 0f 0 iadd drop", [...block_block_unr, ...f32, ...zero, iadd, drop]);
 
-// TODO(titzer): these are actually incorrect in V8.
-run(I, "0f U iadd drop", [...f32, unr, iadd, drop]);
-run(I, "0f 0 U iadd drop", [...f32, ...zero, unr, iadd, drop]);
+run(V, "0f U iadd drop", [...f32, unr, iadd, drop]);
+run(V, "0f 0 U iadd drop", [...f32, ...zero, unr, iadd, drop]);
 run(I, "0f 0 (block U) iadd drop", [...f32, ...zero, ...block_unr, iadd, drop]);
-run(I, "0f U 0 iadd drop", [...f32, unr, ...zero, iadd, drop]);
+run(V, "0f U 0 iadd drop", [...f32, unr, ...zero, iadd, drop]);
+run(I, "0 U 0f iadd drop", [...zero, unr, ...zero, ...f32, iadd, drop]);
 run(I, "0f (block U) 0 iadd drop", [...f32, ...block_unr, ...zero, iadd, drop]);
+run(I, "0 (block U) 0f iadd drop", [...zero, ...block_unr, ...f32, iadd, drop]);

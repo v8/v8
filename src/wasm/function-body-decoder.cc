@@ -1241,7 +1241,15 @@ class WasmFullDecoder : public WasmDecoder {
     if (pc_ > end_ && ok()) error("Beyond end of code");
   }
 
-  void EndControl() { ssa_env_->Kill(SsaEnv::kControlEnd); }
+  void EndControl() {
+    ssa_env_->Kill(SsaEnv::kControlEnd);
+    if (control_.empty()) {
+      stack_.clear();
+    } else {
+      DCHECK_LE(control_.back().stack_depth, stack_.size());
+      stack_.resize(control_.back().stack_depth);
+    }
+  }
 
   void SetBlockType(Control* c, BlockTypeOperand& operand) {
     c->merge.arity = operand.arity;
