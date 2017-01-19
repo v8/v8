@@ -5,6 +5,7 @@
 #include "src/tracing/traced-value.h"
 
 #include "src/base/platform/platform.h"
+#include "src/conversions.h"
 
 namespace v8 {
 namespace tracing {
@@ -84,7 +85,8 @@ void TracedValue::SetInteger(const char* name, int value) {
 void TracedValue::SetDouble(const char* name, double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeDict);
   WriteName(name);
-  data_ += std::to_string(value);
+  i::EmbeddedVector<char, 100> buffer;
+  data_ += DoubleToCString(value, buffer);
 }
 
 void TracedValue::SetBoolean(const char* name, bool value) {
@@ -130,7 +132,8 @@ void TracedValue::AppendLongInteger(int64_t value) {
 void TracedValue::AppendDouble(double value) {
   DCHECK_CURRENT_CONTAINER_IS(kStackTypeArray);
   WriteComma();
-  data_ += std::to_string(value);
+  i::EmbeddedVector<char, 100> buffer;
+  data_ += DoubleToCString(value, buffer);
 }
 
 void TracedValue::AppendBoolean(bool value) {
