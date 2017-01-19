@@ -48,6 +48,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
+    case Runtime::kInlineIsJSProxy:
+      return ReduceIsInstanceType(node, JS_PROXY_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
@@ -74,6 +76,12 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
+    case Runtime::kInlineJSCollectionGetTable:
+      return ReduceJSCollectionGetTable(node);
+    case Runtime::kInlineStringGetRawHashField:
+      return ReduceStringGetRawHashField(node);
+    case Runtime::kInlineTheHole:
+      return ReduceTheHole(node);
     default:
       break;
   }
@@ -305,6 +313,30 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                        active_function, effect, control);
   return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
                 active_function_map, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceJSCollectionGetTable(Node* node) {
+  Node* collection = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(node,
+                simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
+                collection, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceStringGetRawHashField(Node* node) {
+  Node* string = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(node,
+                simplified()->LoadField(AccessBuilder::ForNameHashField()),
+                string, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {
+  Node* value = jsgraph()->TheHoleConstant();
+  ReplaceWithValue(node, value);
+  return Replace(value);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,

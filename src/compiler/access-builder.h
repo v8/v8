@@ -52,6 +52,9 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   static FieldAccess ForJSObjectOffset(
       int offset, WriteBarrierKind write_barrier_kind = kFullWriteBarrier);
 
+  // Provides access to JSCollecton::table() field.
+  static FieldAccess ForJSCollectionTable();
+
   // Provides access to JSFunction::prototype_or_initial_map() field.
   static FieldAccess ForJSFunctionPrototypeOrInitialMap();
 

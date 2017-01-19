@@ -61,6 +61,12 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceCall(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
 
+  // TODO(turbofan): collection.js support; drop once Maps and Sets are
+  // converted to proper CodeStubAssembler based builtins.
+  Reduction ReduceJSCollectionGetTable(Node* node);
+  Reduction ReduceStringGetRawHashField(Node* node);
+  Reduction ReduceTheHole(Node* node);
+
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b, Node* c);

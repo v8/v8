@@ -104,6 +104,15 @@ FieldAccess AccessBuilder::ForJSObjectOffset(
 }
 
 // static
+FieldAccess AccessBuilder::ForJSCollectionTable() {
+  FieldAccess access = {kTaggedBase,           JSCollection::kTableOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSFunctionPrototypeOrInitialMap() {
   FieldAccess access = {
       kTaggedBase,         JSFunction::kPrototypeOrInitialMapOffset,
@@ -483,9 +492,9 @@ FieldAccess AccessBuilder::ForModuleRegularImports() {
 
 // static
 FieldAccess AccessBuilder::ForNameHashField() {
-  FieldAccess access = {kTaggedBase,      Name::kHashFieldOffset,
-                        Handle<Name>(),   MaybeHandle<Map>(),
-                        Type::Internal(), MachineType::Uint32(),
+  FieldAccess access = {kTaggedBase,        Name::kHashFieldOffset,
+                        Handle<Name>(),     MaybeHandle<Map>(),
+                        Type::Unsigned32(), MachineType::Uint32(),
                         kNoWriteBarrier};
   return access;
 }
