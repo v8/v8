@@ -1561,6 +1561,9 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToObject);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
+    case Runtime::kClassOf:
+    case Runtime::kInlineClassOf:
+      return Type::Union(Type::InternalizedString(), Type::Null(), zone());
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:
