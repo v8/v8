@@ -844,8 +844,8 @@ BytecodeGraphBuilder::Environment* BytecodeGraphBuilder::CheckContextExtensions(
         NewNode(javascript()->LoadContext(d, Context::EXTENSION_INDEX, false));
 
     Node* check_no_extension =
-        NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                extension_slot, jsgraph()->TheHoleConstant());
+        NewNode(simplified()->ReferenceEqual(), extension_slot,
+                jsgraph()->TheHoleConstant());
 
     NewBranch(check_no_extension);
     Environment* true_environment = environment()->Copy();
@@ -1599,16 +1599,14 @@ void BytecodeGraphBuilder::VisitDec() {
 
 void BytecodeGraphBuilder::VisitLogicalNot() {
   Node* value = environment()->LookupAccumulator();
-  Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,
-                       jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
+  Node* node = NewNode(simplified()->BooleanNot(), value);
   environment()->BindAccumulator(node);
 }
 
 void BytecodeGraphBuilder::VisitToBooleanLogicalNot() {
   Node* value = NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
                         environment()->LookupAccumulator());
-  Node* node = NewNode(common()->Select(MachineRepresentation::kTagged), value,
-                       jsgraph()->FalseConstant(), jsgraph()->TrueConstant());
+  Node* node = NewNode(simplified()->BooleanNot(), value);
   environment()->BindAccumulator(node);
 }
 
@@ -1698,16 +1696,16 @@ void BytecodeGraphBuilder::VisitTestUndetectable() {
 void BytecodeGraphBuilder::VisitTestNull() {
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* result = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                         object, jsgraph()->NullConstant());
+  Node* result = NewNode(simplified()->ReferenceEqual(), object,
+                         jsgraph()->NullConstant());
   environment()->BindAccumulator(result);
 }
 
 void BytecodeGraphBuilder::VisitTestUndefined() {
   Node* object =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* result = NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-                         object, jsgraph()->UndefinedConstant());
+  Node* result = NewNode(simplified()->ReferenceEqual(), object,
+                         jsgraph()->UndefinedConstant());
   environment()->BindAccumulator(result);
 }
 
@@ -2056,8 +2054,7 @@ void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
 void BytecodeGraphBuilder::BuildJumpIfEqual(Node* comperand) {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-              accumulator, comperand);
+      NewNode(simplified()->ReferenceEqual(), accumulator, comperand);
   BuildJumpIf(condition);
 }
 
@@ -2085,9 +2082,8 @@ void BytecodeGraphBuilder::BuildJumpIfToBooleanFalse() {
 
 void BytecodeGraphBuilder::BuildJumpIfNotHole() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* condition =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny),
-              accumulator, jsgraph()->TheHoleConstant());
+  Node* condition = NewNode(simplified()->ReferenceEqual(), accumulator,
+                            jsgraph()->TheHoleConstant());
   BuildJumpIfNot(condition);
 }
 
