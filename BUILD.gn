@@ -1455,7 +1455,6 @@ v8_source_set("v8_base") {
     "src/ic/access-compiler-data.h",
     "src/ic/access-compiler.cc",
     "src/ic/access-compiler.h",
-    "src/ic/accessor-assembler-impl.h",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
     "src/ic/call-optimization.cc",

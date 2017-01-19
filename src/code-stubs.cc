@@ -12,8 +12,6 @@
 #include "src/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
-#include "src/ic/accessor-assembler.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic-stats.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
@@ -437,11 +435,6 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
                                      GetCodeFlags(), name);
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
-}
-
-void LoadICProtoArrayStub::GenerateAssembly(CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateLoadICProtoArray(
-      state, throw_reference_error_if_nonexistent());
 }
 
 void ElementsTransitionAndStoreStub::GenerateAssembly(
@@ -1618,11 +1611,6 @@ void StoreGlobalStub::GenerateAssembly(
   }
 }
 
-void LoadFieldStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateLoadField(state);
-}
-
 void KeyedLoadSloppyArgumentsStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
@@ -1777,25 +1765,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
       code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
   handler_table->set(0, Smi::FromInt(handler_offset_));
   code->set_handler_table(*handler_table);
-}
-
-
-void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
-  if (kind() == Code::KEYED_LOAD_IC) {
-    descriptor->Initialize(
-        FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
-  }
-}
-
-
-CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
-  if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
-    return LoadWithVectorDescriptor(isolate());
-  } else {
-    DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-    return StoreWithVectorDescriptor(isolate());
-  }
 }
 
 void TransitionElementsKindStub::InitializeDescriptor(

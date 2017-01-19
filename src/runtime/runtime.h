@@ -965,7 +965,6 @@ namespace internal {
   F(CompareIC_Miss, 3, 1)                    \
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \
-  F(KeyedLoadIC_MissFromStubFailure, 4, 1)   \
   F(KeyedStoreIC_Miss, 5, 1)                 \
   F(KeyedStoreIC_Slow, 5, 1)                 \
   F(LoadElementWithInterceptor, 2, 1)        \

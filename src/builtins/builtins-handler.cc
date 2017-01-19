@@ -5,7 +5,6 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
-#include "src/ic/accessor-assembler.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
@@ -13,45 +12,35 @@
 namespace v8 {
 namespace internal {
 
-void Builtins::Generate_KeyedLoadIC_Megamorphic_TF(
-    compiler::CodeAssemblerState* state) {
-  AccessorAssembler::GenerateKeyedLoadICMegamorphic(state);
-}
-
-void Builtins::Generate_KeyedLoadIC_Miss(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, name,
-                            slot, vector);
+  TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, name, slot,
+                  vector);
 }
 
-void Builtins::Generate_KeyedLoadIC_Slow(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kKeyedGetProperty, context, receiver,
-                            name);
+  TailCallRuntime(Runtime::kKeyedGetProperty, context, receiver, name);
 }
 
-void Builtins::Generate_KeyedStoreIC_Megamorphic_TF(
+void Builtins::Generate_KeyedStoreIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
   KeyedStoreGenericGenerator::Generate(state, SLOPPY);
 }
 
-void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict_TF(
+void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(
     compiler::CodeAssemblerState* state) {
   KeyedStoreGenericGenerator::Generate(state, STRICT);
 }
@@ -64,48 +53,40 @@ void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
   KeyedStoreIC::GenerateSlow(masm);
 }
 
-void Builtins::Generate_LoadGlobalIC_Miss(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(LoadGlobalIC_Miss, CodeStubAssembler) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name, slot,
-                            vector);
+  TailCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name, slot, vector);
 }
 
-void Builtins::Generate_LoadGlobalIC_Slow(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* name = Parameter(Descriptor::kName);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name);
+  TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name);
 }
 
 void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
-void Builtins::Generate_LoadIC_Miss(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
-                            slot, vector);
+  TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
 }
 
 TF_BUILTIN(LoadIC_Normal, CodeStubAssembler) {
@@ -138,32 +119,28 @@ TF_BUILTIN(LoadIC_Normal, CodeStubAssembler) {
   TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
-void Builtins::Generate_LoadIC_Slow(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(LoadIC_Slow, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
+  TailCallRuntime(Runtime::kGetProperty, context, receiver, name);
 }
 
-void Builtins::Generate_StoreIC_Miss(compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
+TF_BUILTIN(StoreIC_Miss, CodeStubAssembler) {
   typedef StoreWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.Parameter(Descriptor::kVector);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
 
-  assembler.TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot,
-                            vector, receiver, name);
+  TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
+                  receiver, name);
 }
 
 TF_BUILTIN(StoreIC_Normal, CodeStubAssembler) {

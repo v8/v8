@@ -969,7 +969,6 @@
         'ic/access-compiler.cc',
         'ic/access-compiler.h',
         'ic/accessor-assembler.cc',
-        'ic/accessor-assembler-impl.h',
         'ic/accessor-assembler.h',
         'ic/call-optimization.cc',
         'ic/call-optimization.h',

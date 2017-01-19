@@ -39,6 +39,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate);
   static Callable LoadICInOptimizedCode(Isolate* isolate);
+  static Callable LoadICProtoArray(Isolate* isolate, bool throw_if_nonexistent);
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);

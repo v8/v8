@@ -7,7 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
-#include "src/ic/accessor-assembler-impl.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
 
@@ -16,10 +16,10 @@ namespace internal {
 
 using compiler::Node;
 
-class KeyedStoreGenericAssembler : public AccessorAssemblerImpl {
+class KeyedStoreGenericAssembler : public AccessorAssembler {
  public:
   explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
-      : AccessorAssemblerImpl(state) {}
+      : AccessorAssembler(state) {}
 
   void KeyedStoreGeneric(LanguageMode language_mode);
 

@@ -212,18 +212,21 @@ namespace internal {
   TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion)           \
                                                                                \
   /* Handlers */                                                               \
-  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,              \
-      LoadWithVector)                                                          \
+  TFS(LoadICProtoArray, HANDLER, Code::LOAD_IC, LoadICProtoArray)              \
+  TFS(LoadICProtoArrayThrowIfNonexistent, HANDLER, Code::LOAD_IC,              \
+      LoadICProtoArray)                                                        \
+  TFS(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector) \
   TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)              \
   TFS(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC, LoadWithVector)          \
-  TFS(KeyedStoreIC_Megamorphic_TF, KEYED_STORE_IC, kNoExtraICState,            \
+  TFS(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState,               \
       StoreWithVector)                                                         \
-  TFS(KeyedStoreIC_Megamorphic_Strict_TF, KEYED_STORE_IC,                      \
+  TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
       StoreICState::kStrictModeState, StoreWithVector)                         \
   ASM(KeyedStoreIC_Miss)                                                       \
   ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                        \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
   TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
+  TFS(LoadField, HANDLER, Code::LOAD_IC, LoadField)                            \
   ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                   \
   TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector)                   \

@@ -102,13 +102,11 @@ class Node;
   V(NumberToString)                           \
   V(StringAdd)                                \
   V(GetProperty)                              \
-  V(LoadICProtoArray)                         \
   V(StoreFastElement)                         \
   V(StoreGlobal)                              \
   V(StoreInterceptor)                         \
   V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
-  V(LoadField)                                \
   V(GrowArrayElements)
 
 // List of code stubs only used on ARM 32 bits platforms.
@@ -979,36 +977,6 @@ class LoadIndexedStringStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(LoadIndexedString, PlatformCodeStub);
 };
 
-
-class HandlerStub : public HydrogenCodeStub {
- public:
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return kind(); }
-
-  void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override;
-
- protected:
-  explicit HandlerStub(Isolate* isolate) : HydrogenCodeStub(isolate) {}
-
-  virtual Code::Kind kind() const = 0;
-
-  DEFINE_CODE_STUB_BASE(HandlerStub, HydrogenCodeStub);
-};
-
-class LoadFieldStub : public TurboFanCodeStub {
- public:
-  explicit LoadFieldStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return GetCodeKind(); }
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadField);
-  DEFINE_TURBOFAN_CODE_STUB(LoadField, TurboFanCodeStub);
-};
-
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
  public:
   explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
@@ -1647,30 +1615,6 @@ class CallICTrampolineStub : public PlatformCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
   DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
-};
-
-class LoadICProtoArrayStub : public TurboFanCodeStub {
- public:
-  explicit LoadICProtoArrayStub(Isolate* isolate,
-                                bool throw_reference_error_if_nonexistent)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = ThrowReferenceErrorIfNonexistentBits::encode(
-        throw_reference_error_if_nonexistent);
-  }
-
-  bool throw_reference_error_if_nonexistent() const {
-    return ThrowReferenceErrorIfNonexistentBits::decode(minor_key_);
-  }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
- private:
-  class ThrowReferenceErrorIfNonexistentBits : public BitField<bool, 0, 1> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadICProtoArray);
-  DEFINE_TURBOFAN_CODE_STUB(LoadICProtoArray, TurboFanCodeStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {
