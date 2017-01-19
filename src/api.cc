@@ -9755,6 +9755,11 @@ void HeapProfiler::SetWrapperClassInfoProvider(uint16_t class_id,
                                                                callback);
 }
 
+void HeapProfiler::SetGetRetainerInfosCallback(
+    GetRetainerInfosCallback callback) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetGetRetainerInfosCallback(
+      callback);
+}
 
 size_t HeapProfiler::GetProfilerMemorySize() {
   return reinterpret_cast<i::HeapProfiler*>(this)->
