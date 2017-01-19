@@ -861,18 +861,15 @@ Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
     return Replace(jsgraph()->Constant(f->string_string()));
   } else if (type->Is(Type::Symbol())) {
     return Replace(jsgraph()->Constant(f->symbol_string()));
-  } else if (type->Is(Type::Union(Type::Undefined(), Type::OtherUndetectable(),
-                                  graph()->zone()))) {
+  } else if (type->Is(Type::OtherUndetectableOrUndefined())) {
     return Replace(jsgraph()->Constant(f->undefined_string()));
-  } else if (type->Is(Type::Null())) {
+  } else if (type->Is(Type::NonCallableOrNull())) {
     return Replace(jsgraph()->Constant(f->object_string()));
   } else if (type->Is(Type::Function())) {
     return Replace(jsgraph()->Constant(f->function_string()));
   } else if (type->IsHeapConstant()) {
     return Replace(jsgraph()->Constant(
         Object::TypeOf(isolate(), type->AsHeapConstant()->Value())));
-  } else if (type->IsOtherNumberConstant()) {
-    return Replace(jsgraph()->Constant(f->number_string()));
   }
 
   return NoChange();
