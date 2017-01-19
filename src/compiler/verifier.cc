@@ -926,6 +926,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kObjectIsCallable:
+    case IrOpcode::kObjectIsNonCallable:
     case IrOpcode::kObjectIsNumber:
     case IrOpcode::kObjectIsReceiver:
     case IrOpcode::kObjectIsSmi:

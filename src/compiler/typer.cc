@@ -284,6 +284,7 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_METHOD
 
   static Type* ObjectIsCallable(Type*, Typer*);
+  static Type* ObjectIsNonCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
   static Type* ObjectIsReceiver(Type*, Typer*);
   static Type* ObjectIsSmi(Type*, Typer*);
@@ -502,8 +503,14 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 // Type checks.
 
 Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
-  if (type->Is(Type::Function())) return t->singleton_true_;
-  if (type->Is(Type::Primitive())) return t->singleton_false_;
+  if (type->Is(Type::Callable())) return t->singleton_true_;
+  if (!type->Maybe(Type::Callable())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsNonCallable(Type* type, Typer* t) {
+  if (type->Is(Type::NonCallable())) return t->singleton_true_;
+  if (!type->Maybe(Type::NonCallable())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1826,6 +1833,10 @@ Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
   return TypeUnaryOp(node, ObjectIsCallable);
+}
+
+Type* Typer::Visitor::TypeObjectIsNonCallable(Node* node) {
+  return TypeUnaryOp(node, ObjectIsNonCallable);
 }
 
 Type* Typer::Visitor::TypeObjectIsNumber(Node* node) {

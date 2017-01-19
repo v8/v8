@@ -325,6 +325,7 @@
   V(StoreElement)                   \
   V(StoreTypedElement)              \
   V(ObjectIsCallable)               \
+  V(ObjectIsNonCallable)            \
   V(ObjectIsNumber)                 \
   V(ObjectIsReceiver)               \
   V(ObjectIsSmi)                    \

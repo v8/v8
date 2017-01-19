@@ -903,6 +903,13 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
     value = graph()->NewNode(simplified()->ObjectIsCallable(), input);
   } else if (String::Equals(type, factory()->number_string())) {
     value = graph()->NewNode(simplified()->ObjectIsNumber(), input);
+  } else if (String::Equals(type, factory()->object_string())) {
+    value = graph()->NewNode(
+        common()->Select(MachineRepresentation::kTagged),
+        graph()->NewNode(simplified()->ObjectIsNonCallable(), input),
+        jsgraph()->TrueConstant(),
+        graph()->NewNode(simplified()->ReferenceEqual(), input,
+                         jsgraph()->NullConstant()));
   } else if (String::Equals(type, factory()->string_string())) {
     value = graph()->NewNode(simplified()->ObjectIsString(), input);
   } else if (String::Equals(type, factory()->undefined_string())) {
