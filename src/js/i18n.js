@@ -851,6 +851,8 @@ function isStructuallyValidLanguageTag(locale) {
     return false;
   }
 
+  locale = %StringToLowerCase(locale);
+
   // Just return if it's a x- form. It's all private.
   if (%StringIndexOf(locale, 'x-', 0) === 0) {
     return true;
