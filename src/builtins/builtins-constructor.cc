@@ -120,13 +120,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  Node* empty_literals_array = HeapConstant(factory->empty_literals_array());
   StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
+  Node* literals_array = LoadFixedArrayElement(
+      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kLiteralsOffset,
-                                 empty_literals_array);
+                                 literals_array);
   StoreObjectFieldNoWriteBarrier(
       result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,

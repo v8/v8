@@ -4990,8 +4990,10 @@ class LiteralsArray : public FixedArray {
     return OffsetOfElementAt(index + kFirstLiteralIndex);
   }
 
+  inline bool has_feedback_vector() const;
   inline TypeFeedbackVector* feedback_vector() const;
   inline void set_feedback_vector(TypeFeedbackVector* vector);
+
   inline Object* literal(int literal_index) const;
   inline void set_literal(int literal_index, Object* literal);
   inline void set_literal_undefined(int literal_index);
@@ -7128,12 +7130,6 @@ enum BuiltinFunctionId {
   kStringIteratorNext,
 };
 
-// Result of searching in an optimized code map of a SharedFunctionInfo. Note
-// that both {code} and {literals} can be NULL to pass search result status.
-struct CodeAndLiterals {
-  Code* code;               // Cached optimized code.
-  LiteralsArray* literals;  // Cached literals array.
-};
 
 // SharedFunctionInfo describes the JSFunction information that can be
 // shared by multiple instances of the function.
@@ -7165,11 +7161,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_ACCESSORS(optimized_code_map, FixedArray)
 
   // Returns entry from optimized code map for specified context and OSR entry.
-  // Note that {code == nullptr, literals == nullptr} indicates no matching
-  // entry has been found, whereas {code, literals == nullptr} indicates that
-  // code is context-independent.
-  CodeAndLiterals SearchOptimizedCodeMap(Context* native_context,
-                                         BailoutId osr_ast_id);
+  Code* SearchOptimizedCodeMap(Context* native_context, BailoutId osr_ast_id);
 
   // Clear optimized code map.
   void ClearOptimizedCodeMap();
@@ -7191,12 +7183,9 @@ class SharedFunctionInfo: public HeapObject {
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
   // Add or update entry in the optimized code map for context-dependent code.
-  // If {code} is not given, then an existing entry's code won't be overwritten.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
-                                    MaybeHandle<Code> code,
-                                    Handle<LiteralsArray> literals,
-                                    BailoutId osr_ast_id);
+                                    Handle<Code> code, BailoutId osr_ast_id);
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
@@ -7207,8 +7196,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kEntriesStart = 0;
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
-  static const int kLiteralsOffset = 2;
-  static const int kEntryLength = 3;
+  static const int kEntryLength = 2;
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   static const int kNotFound = -1;
@@ -7220,8 +7208,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOffsetToPreviousCachedCode =
       FixedArray::kHeaderSize +
       kPointerSize * (kCachedCodeOffset - kEntryLength);
-  static const int kOffsetToPreviousLiterals =
-      FixedArray::kHeaderSize + kPointerSize * (kLiteralsOffset - kEntryLength);
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -8171,6 +8157,7 @@ class JSFunction: public JSObject {
   // access to. For API objects we store the boilerplate in the literal array.
   DECL_ACCESSORS(literals, LiteralsArray)
 
+  inline bool has_literals_array() const;
   static void EnsureLiterals(Handle<JSFunction> function);
   inline TypeFeedbackVector* feedback_vector();
 

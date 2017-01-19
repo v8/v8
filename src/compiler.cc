@@ -598,14 +598,13 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
       &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
-  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+  Code* code = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), osr_ast_id);
-  if (cached.code != nullptr) {
+  if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    if (cached.literals != nullptr) function->set_literals(cached.literals);
-    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(!code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
-    return Handle<Code>(cached.code);
+    return Handle<Code>(code);
   }
   return MaybeHandle<Code>();
 }
@@ -627,10 +626,9 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Cache optimized context-specific code.
   Handle<JSFunction> function = info->closure();
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<LiteralsArray> literals(function->literals());
   Handle<Context> native_context(function->context()->native_context());
   SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
-                                            literals, info->osr_ast_id());
+                                            info->osr_ast_id());
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
@@ -866,10 +864,8 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
       RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
-      if (shared
-              ->SearchOptimizedCodeMap(info->context()->native_context(),
-                                       info->osr_ast_id())
-              .code == nullptr) {
+      if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
+                                         info->osr_ast_id()) == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info);
       }
       if (FLAG_trace_opt) {
@@ -1756,19 +1752,16 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     function->MarkForOptimization();
   }
 
-  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+  Code* code = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), BailoutId::None());
-  if (cached.code != nullptr) {
+  if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(!code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
-    function->ReplaceCode(cached.code);
+    function->ReplaceCode(code);
   }
 
-  if (cached.literals != nullptr) {
-    DCHECK(shared->is_compiled());
-    function->set_literals(cached.literals);
-  } else if (shared->is_compiled()) {
+  if (shared->is_compiled()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);
   }

@@ -107,7 +107,9 @@ TEST(VectorStructure) {
                     FeedbackVectorSlotKind::CREATE_CLOSURE));
     FeedbackVectorSlot slot = helper.slot(1);
     FixedArray* array = FixedArray::cast(vector->Get(slot));
-    CHECK_EQ(array, *factory->empty_literals_array());
+    CHECK_EQ(5, array->length());
+    CHECK_EQ(5, vector->GetParameter(slot));
+    CHECK_EQ(array->get(0), *factory->undefined_value());
   }
 }
 
