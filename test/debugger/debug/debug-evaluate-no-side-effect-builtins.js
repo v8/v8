@@ -46,7 +46,10 @@ function listener(event, exec_state, event_data, data) {
     for (f of Object.getOwnPropertyNames(String.prototype)) {
       if (typeof String.prototype[f] === "function") {
         // Do not expect locale-specific or regexp-related functions to work.
+        // {Lower,Upper}Case (Locale-specific or not) do not work either.
         if (f.indexOf("locale") >= 0) continue;
+        if (f.indexOf("Lower") >= 0) continue;
+        if (f.indexOf("Upper") >= 0) continue;
         if (f == "normalize") continue;
         if (f == "match") continue;
         if (f == "search") continue;
@@ -54,6 +57,10 @@ function listener(event, exec_state, event_data, data) {
         success("abcd"[f](2), `"abcd".${f}(2);`);
       }
     }
+    fail("'abCd'.toLowerCase()");
+    fail("'abcd'.toUpperCase()");
+    fail("'abCd'.toLocaleLowerCase()");
+    fail("'abcd'.toLocaleUpperCase()");
     fail("'abcd'.match(/a/)");
     fail("'abcd'.replace(/a/)");
     fail("'abcd'.search(/a/)");
