@@ -3390,8 +3390,8 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
 
   Handle<Object> wrapped_type(WrapFieldType(type));
 
-  Descriptor d = Descriptor::DataField(name, index, wrapped_type, attributes,
-                                       representation);
+  Descriptor d = Descriptor::DataField(name, index, attributes, kMutable,
+                                       representation, wrapped_type);
   Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
   int unused_property_fields = new_map->unused_property_fields() - 1;
   if (unused_property_fields < 0) {
@@ -4092,8 +4092,8 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
     // Skip if already updated the shared descriptor.
     if (descriptors->GetValue(descriptor) != *new_wrapped_type) {
       Descriptor d = Descriptor::DataField(
-          name, descriptors->GetFieldIndex(descriptor), new_wrapped_type,
-          details.attributes(), new_representation);
+          name, descriptors->GetFieldIndex(descriptor), details.attributes(),
+          kMutable, new_representation, new_wrapped_type);
       descriptors->Replace(descriptor, &d);
     }
   }
@@ -4260,6 +4260,10 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
     PropertyDetails new_details = new_descriptors->GetDetails(i);
     DCHECK_EQ(old_details.kind(), new_details.kind());
     DCHECK_EQ(old_details.attributes(), new_details.attributes());
+    if (!IsGeneralizableTo(old_details.constness(), new_details.constness())) {
+      return nullptr;
+    }
+    DCHECK(IsGeneralizableTo(old_details.location(), new_details.location()));
     if (!old_details.representation().fits_into(new_details.representation())) {
       return nullptr;
     }
@@ -5777,6 +5781,8 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     Object* value = dictionary->ValueAt(index);
 
     PropertyDetails details = dictionary->DetailsAt(index);
+    DCHECK_EQ(kField, details.location());
+    DCHECK_EQ(kMutable, details.constness());
     int enumeration_index = details.dictionary_index();
 
     Descriptor d;
@@ -9155,6 +9161,7 @@ namespace {
 bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (details.location() == kField) {
+    DCHECK_EQ(kMutable, details.constness());
     if (details.kind() == kData) {
       return value->FitsRepresentation(details.representation()) &&
              descriptors->GetFieldType(descriptor)->NowContains(value);
@@ -9166,6 +9173,7 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
 
   } else {
     DCHECK_EQ(kDescriptor, details.location());
+    DCHECK_EQ(kConst, details.constness());
     if (details.kind() == kData) {
       DCHECK(descriptors->GetValue(descriptor) != value ||
              value->FitsRepresentation(details.representation()));

@@ -157,6 +157,7 @@ class MapUpdater {
   int modified_descriptor_ = -1;
   PropertyKind new_kind_ = kData;
   PropertyAttributes new_attributes_ = NONE;
+  PropertyConstness new_constness_ = kMutable;
   PropertyLocation new_location_ = kField;
   Representation new_representation_ = Representation::None();
 
