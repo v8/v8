@@ -1841,7 +1841,7 @@ void GetPropertyStub::GenerateAssembly(
       };
 
   CodeStubAssembler::LookupInHolder lookup_element_in_holder =
-      [&assembler, context, &var_result, &end](
+      [&assembler](
           Node* receiver, Node* holder, Node* holder_map,
           Node* holder_instance_type, Node* index, Label* next_holder,
           Label* if_bailout) {

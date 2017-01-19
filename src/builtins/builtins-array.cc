@@ -318,7 +318,7 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
   assembler.Bind(&default_label);
   {
     args.ForEach(
-        [&assembler, receiver, context, &arg_index](Node* arg) {
+        [&assembler, receiver, context](Node* arg) {
           Node* length = assembler.LoadJSArrayLength(receiver);
           assembler.CallRuntime(Runtime::kSetProperty, context, receiver,
                                 length, arg, assembler.SmiConstant(STRICT));

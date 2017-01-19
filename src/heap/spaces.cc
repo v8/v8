@@ -780,7 +780,7 @@ void Page::ResetFreeListStatistics() {
 
 size_t Page::AvailableInFreeList() {
   size_t sum = 0;
-  ForAllFreeListCategories([this, &sum](FreeListCategory* category) {
+  ForAllFreeListCategories([&sum](FreeListCategory* category) {
     sum += category->available();
   });
   return sum;
@@ -2636,7 +2636,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 size_t FreeList::EvictFreeListItems(Page* page) {
   size_t sum = 0;
   page->ForAllFreeListCategories(
-      [this, &sum, page](FreeListCategory* category) {
+      [this, &sum](FreeListCategory* category) {
         DCHECK_EQ(this, category->owner());
         sum += category->available();
         RemoveCategory(category);
