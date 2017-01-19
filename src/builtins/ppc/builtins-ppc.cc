@@ -1363,12 +1363,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register closure = r4;
   Register map = r9;
   Register index = r5;
-
-  // Do we have a valid feedback vector?
-  __ LoadP(index, FieldMemOperand(closure, JSFunction::kLiteralsOffset));
-  __ LoadP(index, FieldMemOperand(index, LiteralsArray::kFeedbackVectorOffset));
-  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
-
   __ LoadP(map,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ LoadP(map,
@@ -1377,6 +1371,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ CmpSmiLiteral(index, Smi::FromInt(2), r0);
   __ blt(&gotta_call_runtime);
 
+  // Find literals.
   // r10 : native context
   // r5  : length / index
   // r9  : optimized code map
@@ -1397,6 +1392,18 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ LoadP(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ cmp(temp, native_context);
   __ bne(&loop_bottom);
+  // Literals available?
+  __ LoadP(temp,
+           FieldMemOperand(array_pointer,
+                           SharedFunctionInfo::kOffsetToPreviousLiterals));
+  __ LoadP(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
+  __ JumpIfSmi(temp, &gotta_call_runtime);
+
+  // Save the literals in the closure.
+  __ StoreP(temp, FieldMemOperand(closure, JSFunction::kLiteralsOffset), r0);
+  __ RecordWriteField(closure, JSFunction::kLiteralsOffset, temp, r7,
+                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
 
   // Code available?
   Register entry = r7;
@@ -1406,7 +1413,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ LoadP(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found code. Get it into the closure and return.
+  // Found literals and code. Get them into the closure and return.
   // Store code entry in the closure.
   __ addi(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ StoreP(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset), r0);
@@ -1440,7 +1447,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ CmpSmiLiteral(index, Smi::FromInt(1), r0);
   __ bgt(&loop_top);
 
-  // We found no code.
+  // We found neither literals nor code.
   __ b(&gotta_call_runtime);
 
   __ bind(&try_shared);

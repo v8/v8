@@ -1282,13 +1282,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
   DCHECK_EQ(MONOMORPHIC, nexus.ic_state());
 
-  Map* map = nexus.FindFirstMap();
-  if (map == nullptr) {
-    // Maps are weakly held in the type feedback vector, we may not have one.
-    return NoChange();
-  }
-
-  Handle<Map> receiver_map(map, isolate());
+  Handle<Map> receiver_map(nexus.FindFirstMap(), isolate());
   Handle<Name> cached_name =
       handle(Name::cast(nexus.GetFeedbackExtra()), isolate());
 
