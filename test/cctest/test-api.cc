@@ -7459,7 +7459,8 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
 
   FlagAndPersistent object_a, object_b;
 
-  size_t big_heap_size;
+  size_t big_heap_size = 0;
+  size_t big_array_size = 0;
 
   {
     v8::HandleScope handle_scope(iso);
@@ -7476,9 +7477,13 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
     } else {
       CcTest::CollectGarbage(i::NEW_SPACE);
     }
-    // We are relying on this creating a big flag array and reserving the space
-    // up front.
-    v8::Local<Value> big_array = CompileRun("new Array(5000)");
+    v8::Local<Value> big_array = v8::Array::New(CcTest::isolate(), 5000);
+    // Verify that we created an array where the space was reserved up front.
+    big_array_size =
+        v8::internal::JSArray::cast(*v8::Utils::OpenHandle(*big_array))
+            ->elements()
+            ->Size();
+    CHECK_LE(20000, big_array_size);
     a->Set(context, v8_str("y"), big_array).FromJust();
     big_heap_size = CcTest::heap()->SizeOfObjects();
   }
@@ -7500,8 +7505,7 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   }
   // A single GC should be enough to reclaim the memory, since we are using
   // phantom handles.
-  // BUG(5865): --expose-wasm with no snapshot builds requires a limit change.
-  CHECK_LT(CcTest::heap()->SizeOfObjects(), big_heap_size - 19000);
+  CHECK_GT(big_heap_size - big_array_size, CcTest::heap()->SizeOfObjects());
   CHECK(object_a.flag);
   CHECK(object_b.flag);
 }
