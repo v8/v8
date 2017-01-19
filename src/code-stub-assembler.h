@@ -710,6 +710,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
 
+  // Check if |var_string| has an indirect (thin or flat cons) string type,
+  // and unpack it if so.
+  void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,
+                                Variable* var_did_something);
+  // Check if |var_left| or |var_right| has an indirect (thin or flat cons)
+  // string type, and unpack it/them if so. Fall through if nothing was done.
+  void MaybeDerefIndirectStrings(Variable* var_left, Node* left_instance_type,
+                                 Variable* var_right, Node* right_instance_type,
+                                 Label* did_something);
+
   // Return the first index >= {from} at which {needle_char} was found in
   // {string}, or -1 if such an index does not exist. The returned value is
   // a Smi, {string} is expected to be a String, {needle_char} is an intptr,
@@ -740,9 +750,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Convert any object to a Primitive.
   Node* JSReceiverToPrimitive(Node* context, Node* input);
-
-  // Convert a String to a flat String.
-  Node* FlattenString(Node* string);
 
   enum ToIntegerTruncationMode {
     kNoTruncation,
@@ -856,7 +863,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Various building blocks for stubs doing property lookups.
   void TryToName(Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Label* if_bailout);
+                 Label* if_keyisunique, Variable* var_unique,
+                 Label* if_bailout);
 
   // Calculates array index for given dictionary entry and entry field.
   // See Dictionary::EntryToIndex().

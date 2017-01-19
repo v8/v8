@@ -850,6 +850,8 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
     os << "#";
   } else if (StringShape(this).IsCons()) {
     os << "c\"";
+  } else if (StringShape(this).IsThin()) {
+    os << ">\"";
   } else {
     os << "\"";
   }

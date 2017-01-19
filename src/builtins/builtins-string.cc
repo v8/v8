@@ -77,13 +77,23 @@ void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
   //   }
   //   return true;
   // }
+  // if (lhs and/or rhs are indirect strings) {
+  //   unwrap them and restart from the beginning;
+  // }
   // return %StringEqual(lhs, rhs);
 
-  Node* lhs = Parameter(0);
-  Node* rhs = Parameter(1);
+  Variable var_left(this, MachineRepresentation::kTagged);
+  Variable var_right(this, MachineRepresentation::kTagged);
+  var_left.Bind(Parameter(0));
+  var_right.Bind(Parameter(1));
   Node* context = Parameter(2);
 
-  Label if_equal(this), if_notequal(this);
+  Variable* input_vars[2] = {&var_left, &var_right};
+  Label if_equal(this), if_notequal(this), restart(this, 2, input_vars);
+  Goto(&restart);
+  Bind(&restart);
+  Node* lhs = var_left.value();
+  Node* rhs = var_right.value();
 
   // Fast check to see if {lhs} and {rhs} refer to the same String object.
   GotoIf(WordEqual(lhs, rhs), &if_equal);
@@ -159,34 +169,44 @@ void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
       var_offset.Bind(IntPtrAdd(offset, IntPtrConstant(1)));
       Goto(&loop);
     }
-        }
+  }
 
-        Bind(&if_notbothonebyteseqstrings);
-        {
-          // TODO(bmeurer): Add fast case support for flattened cons strings;
-          // also add support for two byte string equality checks.
-          Runtime::FunctionId function_id =
-              (mode == ResultMode::kDontNegateResult)
-                  ? Runtime::kStringEqual
-                  : Runtime::kStringNotEqual;
-          TailCallRuntime(function_id, context, lhs, rhs);
-        }
+  Bind(&if_notbothonebyteseqstrings);
+  {
+    // Try to unwrap indirect strings, restart the above attempt on success.
+    MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
+                              rhs_instance_type, &restart);
+    // TODO(bmeurer): Add support for two byte string equality checks.
 
-        Bind(&if_equal);
-        Return(BooleanConstant(mode == ResultMode::kDontNegateResult));
+    Runtime::FunctionId function_id = (mode == ResultMode::kDontNegateResult)
+                                          ? Runtime::kStringEqual
+                                          : Runtime::kStringNotEqual;
+    TailCallRuntime(function_id, context, lhs, rhs);
+  }
 
-        Bind(&if_notequal);
-        Return(BooleanConstant(mode == ResultMode::kNegateResult));
+  Bind(&if_equal);
+  Return(BooleanConstant(mode == ResultMode::kDontNegateResult));
+
+  Bind(&if_notequal);
+  Return(BooleanConstant(mode == ResultMode::kNegateResult));
 }
 
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     RelationalComparisonMode mode) {
-  Node* lhs = Parameter(0);
-  Node* rhs = Parameter(1);
+  Variable var_left(this, MachineRepresentation::kTagged);
+  Variable var_right(this, MachineRepresentation::kTagged);
+  var_left.Bind(Parameter(0));
+  var_right.Bind(Parameter(1));
   Node* context = Parameter(2);
 
+  Variable* input_vars[2] = {&var_left, &var_right};
   Label if_less(this), if_equal(this), if_greater(this);
+  Label restart(this, 2, input_vars);
+  Goto(&restart);
+  Bind(&restart);
 
+  Node* lhs = var_left.value();
+  Node* rhs = var_right.value();
   // Fast check to see if {lhs} and {rhs} refer to the same String object.
   GotoIf(WordEqual(lhs, rhs), &if_equal);
 
@@ -274,8 +294,10 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
 
     Bind(&if_notbothonebyteseqstrings);
     {
-      // TODO(bmeurer): Add fast case support for flattened cons strings;
-      // also add support for two byte string relational comparisons.
+      // Try to unwrap indirect strings, restart the above attempt on success.
+      MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
+                                rhs_instance_type, &restart);
+      // TODO(bmeurer): Add support for two byte string relational comparisons.
       switch (mode) {
         case RelationalComparisonMode::kLessThan:
           TailCallRuntime(Runtime::kStringLessThan, context, lhs, rhs);

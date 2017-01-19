@@ -1394,6 +1394,8 @@ void AccessorAssemblerImpl::KeyedLoadIC(const LoadICParameters* p) {
 
 void AccessorAssemblerImpl::KeyedLoadICGeneric(const LoadICParameters* p) {
   Variable var_index(this, MachineType::PointerRepresentation());
+  Variable var_unique(this, MachineRepresentation::kTagged);
+  var_unique.Bind(p->name);  // Dummy initialization.
   Variable var_details(this, MachineRepresentation::kWord32);
   Variable var_value(this, MachineRepresentation::kTagged);
   Label if_index(this), if_unique_name(this), if_element_hole(this),
@@ -1410,8 +1412,8 @@ void AccessorAssemblerImpl::KeyedLoadICGeneric(const LoadICParameters* p) {
                               Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
          &slow);
 
-  Node* key = p->name;
-  TryToName(key, &if_index, &var_index, &if_unique_name, &slow);
+  TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
+            &slow);
 
   Bind(&if_index);
   {
@@ -1460,6 +1462,7 @@ void AccessorAssemblerImpl::KeyedLoadICGeneric(const LoadICParameters* p) {
   Bind(&if_unique_name);
   {
     Comment("key is unique name");
+    Node* key = var_unique.value();
     // Check if the receiver has fast or slow properties.
     properties = LoadProperties(receiver);
     Node* properties_map = LoadMap(properties);
@@ -1518,6 +1521,7 @@ void AccessorAssemblerImpl::KeyedLoadICGeneric(const LoadICParameters* p) {
     // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
     // seeing global objects here (which would need special handling).
 
+    Node* key = var_unique.value();
     Variable var_name_index(this, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,

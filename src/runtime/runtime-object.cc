@@ -56,6 +56,14 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       DisallowHeapAllocation no_allocation;
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
+      // Get to a ThinString's referenced internalized string, but don't
+      // otherwise force internalization. We assume that internalization
+      // (which is a dictionary lookup with a non-internalized key) is
+      // about as expensive as doing the property dictionary lookup with
+      // the non-internalized key directly.
+      if (key->IsThinString()) {
+        key = handle(Handle<ThinString>::cast(key)->actual(), isolate);
+      }
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary* dictionary = receiver->global_dictionary();

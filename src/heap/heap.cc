@@ -1738,12 +1738,21 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
   if (!first_word.IsForwardingAddress()) {
     // Unreachable external string can be finalized.
-    heap->FinalizeExternalString(String::cast(*p));
+    String* string = String::cast(*p);
+    if (!string->IsExternalString()) {
+      // Original external string has been internalized.
+      DCHECK(string->IsThinString());
+      return NULL;
+    }
+    heap->FinalizeExternalString(string);
     return NULL;
   }
 
   // String is still reachable.
-  return String::cast(first_word.ToForwardingAddress());
+  String* string = String::cast(first_word.ToForwardingAddress());
+  if (string->IsThinString()) string = ThinString::cast(string)->actual();
+  // Internalization can replace external strings with non-external strings.
+  return string->IsExternalString() ? string : nullptr;
 }
 
 
@@ -6437,14 +6446,19 @@ void Heap::ExternalStringTable::CleanUpNewSpaceStrings() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    if (new_space_strings_[i]->IsTheHole(isolate)) {
+    Object* o = new_space_strings_[i];
+    if (o->IsTheHole(isolate)) {
       continue;
     }
-    DCHECK(new_space_strings_[i]->IsExternalString());
-    if (heap_->InNewSpace(new_space_strings_[i])) {
-      new_space_strings_[last++] = new_space_strings_[i];
+    if (o->IsThinString()) {
+      o = ThinString::cast(o)->actual();
+      if (!o->IsExternalString()) continue;
+    }
+    DCHECK(o->IsExternalString());
+    if (heap_->InNewSpace(o)) {
+      new_space_strings_[last++] = o;
     } else {
-      old_space_strings_.Add(new_space_strings_[i]);
+      old_space_strings_.Add(o);
     }
   }
   new_space_strings_.Rewind(last);
@@ -6456,12 +6470,17 @@ void Heap::ExternalStringTable::CleanUpAll() {
   int last = 0;
   Isolate* isolate = heap_->isolate();
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    if (old_space_strings_[i]->IsTheHole(isolate)) {
+    Object* o = old_space_strings_[i];
+    if (o->IsTheHole(isolate)) {
       continue;
     }
-    DCHECK(old_space_strings_[i]->IsExternalString());
-    DCHECK(!heap_->InNewSpace(old_space_strings_[i]));
-    old_space_strings_[last++] = old_space_strings_[i];
+    if (o->IsThinString()) {
+      o = ThinString::cast(o)->actual();
+      if (!o->IsExternalString()) continue;
+    }
+    DCHECK(o->IsExternalString());
+    DCHECK(!heap_->InNewSpace(o));
+    old_space_strings_[last++] = o;
   }
   old_space_strings_.Rewind(last);
   old_space_strings_.Trim();
@@ -6474,11 +6493,21 @@ void Heap::ExternalStringTable::CleanUpAll() {
 
 void Heap::ExternalStringTable::TearDown() {
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    heap_->FinalizeExternalString(ExternalString::cast(new_space_strings_[i]));
+    Object* o = new_space_strings_[i];
+    if (o->IsThinString()) {
+      o = ThinString::cast(o)->actual();
+      if (!o->IsExternalString()) continue;
+    }
+    heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   new_space_strings_.Free();
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    heap_->FinalizeExternalString(ExternalString::cast(old_space_strings_[i]));
+    Object* o = old_space_strings_[i];
+    if (o->IsThinString()) {
+      o = ThinString::cast(o)->actual();
+      if (!o->IsExternalString()) continue;
+    }
+    heap_->FinalizeExternalString(ExternalString::cast(o));
   }
   old_space_strings_.Free();
 }

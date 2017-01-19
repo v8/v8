@@ -3156,11 +3156,13 @@ void LargeObjectSpace::Verify() {
 
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
-    // strings), fixed arrays, byte arrays, and constant pool arrays in the
-    // large object space.
+    // strings), thin strings (sequential strings that have been
+    // morphed into thin strings), fixed arrays, byte arrays, and
+    // constant pool arrays in the large object space.
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
-          object->IsExternalString() || object->IsFixedArray() ||
-          object->IsFixedDoubleArray() || object->IsByteArray());
+          object->IsExternalString() || object->IsThinString() ||
+          object->IsFixedArray() || object->IsFixedDoubleArray() ||
+          object->IsByteArray());
 
     // The object itself should look OK.
     object->ObjectVerify();

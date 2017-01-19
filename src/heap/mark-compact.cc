@@ -1439,8 +1439,12 @@ class StringTableCleaner : public ObjectVisitor {
       if (o->IsHeapObject()) {
         if (Marking::IsWhite(ObjectMarking::MarkBitFrom(HeapObject::cast(o)))) {
           if (finalize_external_strings) {
-            DCHECK(o->IsExternalString());
-            heap_->FinalizeExternalString(String::cast(*p));
+            if (o->IsExternalString()) {
+              heap_->FinalizeExternalString(String::cast(*p));
+            } else {
+              // The original external string may have been internalized.
+              DCHECK(o->IsThinString());
+            }
           } else {
             pointers_removed_++;
           }

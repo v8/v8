@@ -221,6 +221,11 @@ class V8_EXPORT_PRIVATE Factory final {
   MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
       Handle<String> string);
 
+  // Creates an internalized copy of an external string. |string| must be
+  // of type StringClass.
+  template <class StringClass>
+  Handle<StringClass> InternalizeExternalString(Handle<String> string);
+
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
