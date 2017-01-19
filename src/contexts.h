@@ -571,14 +571,15 @@ class Context: public FixedArray {
 
   // A native context keeps track of all osrd optimized functions.
   inline bool OptimizedCodeMapIsCleared();
-  Code* SearchOptimizedCodeMap(SharedFunctionInfo* shared,
-                               BailoutId osr_ast_id);
+  void SearchOptimizedCodeMap(SharedFunctionInfo* shared, BailoutId osr_ast_id,
+                              Code** pcode, LiteralsArray** pliterals);
   int SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
                                   BailoutId osr_ast_id);
 
   static void AddToOptimizedCodeMap(Handle<Context> native_context,
                                     Handle<SharedFunctionInfo> shared,
                                     Handle<Code> code,
+                                    Handle<LiteralsArray> literals,
                                     BailoutId osr_ast_id);
 
   // A native context holds a list of all functions with optimized code.

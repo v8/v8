@@ -998,18 +998,13 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register closure = rdi;
   Register map = r8;
   Register index = r9;
-
-  // Do we have a valid feedback vector?
-  __ movp(rbx, FieldOperand(closure, JSFunction::kLiteralsOffset));
-  __ movp(rbx, FieldOperand(rbx, LiteralsArray::kFeedbackVectorOffset));
-  __ JumpIfRoot(rbx, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
-
   __ movp(map, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ movp(map, FieldOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ SmiToInteger32(index, FieldOperand(map, FixedArray::kLengthOffset));
   __ cmpl(index, Immediate(2));
   __ j(less, &gotta_call_runtime);
 
+  // Find literals.
   // r14 : native context
   // r9  : length / index
   // r8  : optimized code map
@@ -1026,6 +1021,17 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ movp(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ cmpp(temp, native_context);
   __ j(not_equal, &loop_bottom);
+  // Literals available?
+  __ movp(temp, FieldOperand(map, index, times_pointer_size,
+                             SharedFunctionInfo::kOffsetToPreviousLiterals));
+  __ movp(temp, FieldOperand(temp, WeakCell::kValueOffset));
+  __ JumpIfSmi(temp, &gotta_call_runtime);
+
+  // Save the literals in the closure.
+  __ movp(FieldOperand(closure, JSFunction::kLiteralsOffset), temp);
+  __ movp(r15, index);
+  __ RecordWriteField(closure, JSFunction::kLiteralsOffset, temp, r15,
+                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Code available?
   Register entry = rcx;
@@ -1034,7 +1040,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ movp(entry, FieldOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found code. Get it into the closure and return.
+  // Found literals and code. Get them into the closure and return.
   __ leap(entry, FieldOperand(entry, Code::kHeaderSize));
   __ movp(FieldOperand(closure, JSFunction::kCodeEntryOffset), entry);
   __ RecordWriteCodeEntryField(closure, entry, r15);
@@ -1065,7 +1071,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ cmpl(index, Immediate(1));
   __ j(greater, &loop_top);
 
-  // We found no code.
+  // We found neither literals nor code.
   __ jmp(&gotta_call_runtime);
 
   __ bind(&try_shared);

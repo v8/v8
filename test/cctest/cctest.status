@@ -188,6 +188,9 @@
 ##############################################################################
 ['system == windows', {
 
+  # BUG(5865). Fails on windows.
+  'test-api/IndependentWeakHandle': [SKIP],
+
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
