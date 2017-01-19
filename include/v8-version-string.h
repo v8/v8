@@ -20,10 +20,10 @@
 #define V8_S(x) V8_SX(x)
 
 #if V8_PATCH_LEVEL > 0
-#define V8_VERSION_STRING                                                    \
-  V8_S(V8_MAJOR_VERSION)                                                     \
-  "." V8_S(V8_MINOR_VERSION) "." V8_S(V8_BUILD_NUMBER) "." S(V8_PATCH_LEVEL) \
-      V8_CANDIDATE_STRING
+#define V8_VERSION_STRING                                        \
+  V8_S(V8_MAJOR_VERSION)                                         \
+  "." V8_S(V8_MINOR_VERSION) "." V8_S(V8_BUILD_NUMBER) "." V8_S( \
+      V8_PATCH_LEVEL) V8_CANDIDATE_STRING
 #else
 #define V8_VERSION_STRING \
   V8_S(V8_MAJOR_VERSION)  \
