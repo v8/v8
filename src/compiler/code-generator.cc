@@ -928,9 +928,13 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
                  type.representation() == MachineRepresentation::kNone);
           DCHECK(type.representation() != MachineRepresentation::kNone ||
                  constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
-
-          constant_object =
-              isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+          if (type == MachineType::Uint32()) {
+            constant_object =
+                isolate()->factory()->NewNumberFromUint(constant.ToInt32());
+          } else {
+            constant_object =
+                isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+          }
         }
         break;
       case Constant::kInt64:
