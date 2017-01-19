@@ -115,7 +115,7 @@ class Compiler : public AllStatic {
       Handle<Object> source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code, bool is_module);
+      NativesFlag is_natives_code);
 
   // Create a shared function info object for a Script that has already been
   // parsed while the script was being loaded from a streamed source.

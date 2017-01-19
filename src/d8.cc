@@ -694,7 +694,9 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   }
   ScriptOrigin origin(
       String::NewFromUtf8(isolate, file_name.c_str(), NewStringType::kNormal)
-          .ToLocalChecked());
+          .ToLocalChecked(),
+      Local<Integer>(), Local<Integer>(), Local<Boolean>(), Local<Integer>(),
+      Local<Value>(), Local<Boolean>(), Local<Boolean>(), True(isolate));
   ScriptCompiler::Source source(source_text, origin);
   Local<Module> module;
   if (!ScriptCompiler::CompileModule(isolate, &source).ToLocal(&module)) {

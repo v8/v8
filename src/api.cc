@@ -283,7 +283,8 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
       v8::Integer::New(v8_isolate, script->id()),
       Utils::ToLocal(source_map_url),
       v8::Boolean::New(v8_isolate, options.IsOpaque()),
-      v8::Boolean::New(v8_isolate, script->type() == i::Script::TYPE_WASM));
+      v8::Boolean::New(v8_isolate, script->type() == i::Script::TYPE_WASM),
+      v8::Boolean::New(v8_isolate, options.IsModule()));
   return origin;
 }
 
@@ -2103,8 +2104,7 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 }
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
-    Isolate* v8_isolate, Source* source, CompileOptions options,
-    bool is_module) {
+    Isolate* v8_isolate, Source* source, CompileOptions options) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   PREPARE_FOR_EXECUTION_WITH_ISOLATE(isolate, ScriptCompiler, CompileUnbound,
                                      UnboundScript);
@@ -2149,7 +2149,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     result = i::Compiler::GetSharedFunctionInfoForScript(
         str, name_obj, line_offset, column_offset, source->resource_options,
         source_map_url, isolate->native_context(), NULL, &script_data, options,
-        i::NOT_NATIVES_CODE, is_module);
+        i::NOT_NATIVES_CODE);
     has_pending_exception = result.is_null();
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
@@ -2178,24 +2178,26 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
     Isolate* v8_isolate, Source* source, CompileOptions options) {
-  return CompileUnboundInternal(v8_isolate, source, options, false);
+  DCHECK(!source->GetResourceOptions().IsModule());
+  return CompileUnboundInternal(v8_isolate, source, options);
 }
 
 
 Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
                                                     Source* source,
                                                     CompileOptions options) {
-  RETURN_TO_LOCAL_UNCHECKED(
-      CompileUnboundInternal(v8_isolate, source, options, false),
-      UnboundScript);
+  DCHECK(!source->GetResourceOptions().IsModule());
+  RETURN_TO_LOCAL_UNCHECKED(CompileUnboundInternal(v8_isolate, source, options),
+                            UnboundScript);
 }
 
 
 MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            Source* source,
                                            CompileOptions options) {
+  DCHECK(!source->GetResourceOptions().IsModule());
   auto isolate = context->GetIsolate();
-  auto maybe = CompileUnboundInternal(isolate, source, options, false);
+  auto maybe = CompileUnboundInternal(isolate, source, options);
   Local<UnboundScript> result;
   if (!maybe.ToLocal(&result)) return MaybeLocal<Script>();
   v8::Context::Scope scope(context);
@@ -2215,7 +2217,8 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
                                                  Source* source) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions, true);
+  DCHECK(source->GetResourceOptions().IsModule());
+  auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions);
   Local<UnboundScript> unbound;
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
@@ -9311,7 +9314,7 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
     result = i::Compiler::GetSharedFunctionInfoForScript(
         str, i::Handle<i::Object>(), 0, 0, origin_options,
         i::Handle<i::Object>(), isolate->native_context(), NULL, &script_data,
-        ScriptCompiler::kNoCompileOptions, i::INSPECTOR_CODE, false);
+        ScriptCompiler::kNoCompileOptions, i::INSPECTOR_CODE);
     has_pending_exception = result.is_null();
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }

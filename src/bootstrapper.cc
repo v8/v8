@@ -2992,8 +2992,7 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
   Handle<SharedFunctionInfo> function_info =
       Compiler::GetSharedFunctionInfoForScript(
           source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
-          context, NULL, NULL, ScriptCompiler::kNoCompileOptions, natives_flag,
-          false);
+          context, NULL, NULL, ScriptCompiler::kNoCompileOptions, natives_flag);
   if (function_info.is_null()) return false;
 
   DCHECK(context->IsNativeContext());
@@ -3056,7 +3055,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     function_info = Compiler::GetSharedFunctionInfoForScript(
         source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
         context, extension, NULL, ScriptCompiler::kNoCompileOptions,
-        EXTENSION_CODE, false);
+        EXTENSION_CODE);
     if (function_info.is_null()) return false;
     cache->Add(name, function_info);
   }

@@ -1490,8 +1490,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Object> source_map_url, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
-    ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
-    bool is_module) {
+    ScriptCompiler::CompileOptions compile_options, NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
@@ -1578,7 +1577,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Zone zone(isolate->allocator(), ZONE_NAME);
     ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-    if (is_module) parse_info.set_module();
+    if (resource_options.IsModule()) parse_info.set_module();
     if (compile_options != ScriptCompiler::kNoCompileOptions) {
       parse_info.set_cached_data(cached_data);
     }
