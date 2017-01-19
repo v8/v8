@@ -2183,12 +2183,23 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
   return handle(compiled_module->script());
 }
 
+bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
+  return isolate->allow_code_gen_callback() == nullptr ||
+         isolate->allow_code_gen_callback()(v8::Utils::ToLocal(context));
+}
+
 // TODO(clemensh): origin can be inferred from asm_js_script; remove it.
 MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
     ModuleOrigin origin, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   MaybeHandle<WasmModuleObject> nothing;
+
+  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
+    thrower->CompileError("Wasm code generation disallowed in this context");
+    return nothing;
+  }
+
   ModuleResult result = DecodeWasmModule(isolate, start, end, false, origin);
   if (result.failed()) {
     if (result.val) delete result.val;
