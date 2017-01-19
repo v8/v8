@@ -9,7 +9,6 @@
       'harness-adapt.js',
       'test262.status',
       'testcfg.py',
-      'local-tests/',
     ],
   },
   'includes': [
