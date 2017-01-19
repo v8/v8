@@ -174,7 +174,6 @@ namespace internal {
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                           \
     "Reference to a variable which requires dynamic lookup")                   \
-  V(kReferenceToLetOrConstVariable, "Reference to let or const variable")      \
   V(kReferenceToGlobalLexicalVariable, "Reference to global lexical variable") \
   V(kReferenceToModuleVariable, "Reference to module-allocated variable")      \
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable")  \
