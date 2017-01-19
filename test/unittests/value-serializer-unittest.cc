@@ -1744,6 +1744,38 @@ TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
   InvalidDecodeTest({0xff, 0x09, 0x42, 0xff, 0xff, 0x00});
 }
 
+// An array buffer allocator that never has available memory.
+class OOMArrayBufferAllocator : public ArrayBuffer::Allocator {
+ public:
+  void* Allocate(size_t) override { return nullptr; }
+  void* AllocateUninitialized(size_t) override { return nullptr; }
+  void Free(void*, size_t) override {}
+};
+
+TEST_F(ValueSerializerTest, DecodeArrayBufferOOM) {
+  // This test uses less of the harness, because it has to customize the
+  // isolate.
+  OOMArrayBufferAllocator allocator;
+  Isolate::CreateParams params;
+  params.array_buffer_allocator = &allocator;
+  Isolate* isolate = Isolate::New(params);
+  Isolate::Scope isolate_scope(isolate);
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+  TryCatch try_catch(isolate);
+
+  const std::vector<uint8_t> data = {0xff, 0x09, 0x3f, 0x00, 0x42,
+                                     0x03, 0x00, 0x80, 0xff, 0x00};
+  ValueDeserializer deserializer(isolate, &data[0],
+                                 static_cast<int>(data.size()), nullptr);
+  deserializer.SetSupportsLegacyWireFormat(true);
+  ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
+  ASSERT_FALSE(try_catch.HasCaught());
+  EXPECT_TRUE(deserializer.ReadValue(context).IsEmpty());
+  EXPECT_TRUE(try_catch.HasCaught());
+}
+
 // Includes an ArrayBuffer wrapper marked for transfer from the serialization
 // context to the deserialization context.
 class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
