@@ -106,32 +106,9 @@ function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
   AsyncFunctionAwait(generator, awaited, outerPromise);
 }
 
-function AsyncFunctionPromiseCreate() {
-  var promise = %promise_internal_constructor(UNDEFINED);
-  if (DEBUG_IS_ACTIVE) {
-    // Push the Promise under construction in an async function on
-    // the catch prediction stack to handle exceptions thrown before
-    // the first await.
-    // Assign ID and create a recurring task to save stack for future
-    // resumptions from await.
-    %DebugAsyncFunctionPromiseCreated(promise);
-  }
-  return promise;
-}
-
-function AsyncFunctionPromiseRelease(promise) {
-  if (DEBUG_IS_ACTIVE) {
-    // Pop the Promise under construction in an async function on
-    // from catch prediction stack.
-    %DebugPopPromise();
-  }
-}
-
 %InstallToContext([
   "async_function_await_caught", AsyncFunctionAwaitCaught,
   "async_function_await_uncaught", AsyncFunctionAwaitUncaught,
-  "async_function_promise_create", AsyncFunctionPromiseCreate,
-  "async_function_promise_release", AsyncFunctionPromiseRelease,
 ]);
 
 })

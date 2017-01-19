@@ -274,6 +274,10 @@ namespace internal {
   CPP(ArrayBufferPrototypeGetByteLength)                                       \
   CPP(ArrayBufferIsView)                                                       \
                                                                                \
+  /* AsyncFunction */                                                          \
+  TFJ(AsyncFunctionPromiseCreate, 0)                                           \
+  TFJ(AsyncFunctionPromiseRelease, 1)                                          \
+                                                                               \
   /* Boolean */                                                                \
   CPP(BooleanConstructor)                                                      \
   CPP(BooleanConstructor_ConstructStub)                                        \

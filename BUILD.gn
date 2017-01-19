@@ -969,6 +969,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
+    "src/builtins/builtins-async-function.cc",
     "src/builtins/builtins-async.cc",
     "src/builtins/builtins-async.h",
     "src/builtins/builtins-boolean.cc",

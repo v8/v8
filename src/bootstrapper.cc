@@ -3385,6 +3385,22 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
                                 Builtins::kGeneratorPrototypeThrow, 1, true);
       async_function_next->shared()->set_native(false);
       async_function_throw->shared()->set_native(false);
+
+      {
+        Handle<JSFunction> function = SimpleCreateFunction(
+            isolate, factory->empty_string(),
+            Builtins::kAsyncFunctionPromiseCreate, 0, false);
+        InstallWithIntrinsicDefaultProto(
+            isolate, function, Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX);
+      }
+
+      {
+        Handle<JSFunction> function = SimpleCreateFunction(
+            isolate, factory->empty_string(),
+            Builtins::kAsyncFunctionPromiseRelease, 1, false);
+        InstallWithIntrinsicDefaultProto(
+            isolate, function, Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX);
+      }
     }
   }
 
