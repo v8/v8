@@ -292,6 +292,9 @@ class TranslatedState {
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
   Handle<Object> MaterializeObjectAt(int object_index);
+  class CapturedObjectMaterializer;
+  Handle<Object> MaterializeCapturedObjectAt(TranslatedValue* slot,
+                                             int frame_index, int* value_index);
   bool GetAdaptedArguments(Handle<JSObject>* result, int frame_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);

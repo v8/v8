@@ -517,26 +517,26 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   return OpParameter<CompareOperationHint>(op);
 }
 
-#define CACHED_OP_LIST(V)                                   \
-  V(ToInteger, Operator::kNoProperties, 1, 1)               \
-  V(ToLength, Operator::kNoProperties, 1, 1)                \
-  V(ToName, Operator::kNoProperties, 1, 1)                  \
-  V(ToNumber, Operator::kNoProperties, 1, 1)                \
-  V(ToObject, Operator::kFoldable, 1, 1)                    \
-  V(ToString, Operator::kNoProperties, 1, 1)                \
-  V(Create, Operator::kEliminatable, 2, 1)                  \
-  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)  \
-  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)     \
-  V(HasProperty, Operator::kNoProperties, 2, 1)             \
-  V(TypeOf, Operator::kPure, 1, 1)                          \
-  V(InstanceOf, Operator::kNoProperties, 2, 1)              \
-  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)     \
-  V(ForInNext, Operator::kNoProperties, 4, 1)               \
-  V(ForInPrepare, Operator::kNoProperties, 1, 3)            \
-  V(LoadMessage, Operator::kNoThrow, 0, 1)                  \
-  V(StoreMessage, Operator::kNoThrow, 1, 0)                 \
-  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1) \
-  V(StackCheck, Operator::kNoWrite, 0, 0)                   \
+#define CACHED_OP_LIST(V)                                       \
+  V(ToInteger, Operator::kNoProperties, 1, 1)                   \
+  V(ToLength, Operator::kNoProperties, 1, 1)                    \
+  V(ToName, Operator::kNoProperties, 1, 1)                      \
+  V(ToNumber, Operator::kNoProperties, 1, 1)                    \
+  V(ToObject, Operator::kFoldable, 1, 1)                        \
+  V(ToString, Operator::kNoProperties, 1, 1)                    \
+  V(Create, Operator::kEliminatable, 2, 1)                      \
+  V(CreateIterResultObject, Operator::kEliminatable, 2, 1)      \
+  V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)         \
+  V(HasProperty, Operator::kNoProperties, 2, 1)                 \
+  V(TypeOf, Operator::kPure, 1, 1)                              \
+  V(InstanceOf, Operator::kNoProperties, 2, 1)                  \
+  V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)         \
+  V(ForInNext, Operator::kNoProperties, 4, 1)                   \
+  V(ForInPrepare, Operator::kNoProperties, 1, 3)                \
+  V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1) \
+  V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0) \
+  V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)     \
+  V(StackCheck, Operator::kNoWrite, 0, 0)                       \
   V(GetSuperConstructor, Operator::kNoWrite, 1, 1)
 
 #define BINARY_OP_LIST(V) \
