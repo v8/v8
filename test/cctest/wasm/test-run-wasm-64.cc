@@ -1319,16 +1319,6 @@ WASM_EXEC_TEST(I64ReinterpretF64) {
   }
 }
 
-WASM_EXEC_TEST(SignallingNanSurvivesI64ReinterpretF64) {
-  REQUIRE(I64ReinterpretF64);
-  WasmRunner<int64_t> r(execution_mode);
-  BUILD(r, WASM_I64_REINTERPRET_F64(WASM_SEQ(kExprF64Const, 0x00, 0x00, 0x00,
-                                             0x00, 0x00, 0x00, 0xf4, 0x7f)));
-
-  // This is a signalling nan.
-  CHECK_EQ(0x7ff4000000000000, r.Call());
-}
-
 WASM_EXEC_TEST(F64ReinterpretI64) {
   REQUIRE(F64ReinterpretI64);
   WasmRunner<int64_t, int64_t> r(execution_mode);

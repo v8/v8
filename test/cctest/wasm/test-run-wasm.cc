@@ -1048,16 +1048,6 @@ WASM_EXEC_TEST(I32ReinterpretF32) {
   }
 }
 
-WASM_EXEC_TEST(SignallingNanSurvivesI32ReinterpretF32) {
-  WasmRunner<int32_t> r(execution_mode);
-
-  BUILD(r, WASM_I32_REINTERPRET_F32(
-               WASM_SEQ(kExprF32Const, 0x00, 0x00, 0xa0, 0x7f)));
-
-  // This is a signalling nan.
-  CHECK_EQ(0x7fa00000, r.Call());
-}
-
 WASM_EXEC_TEST_WITH_TRAP(LoadMaxUint32Offset) {
   WasmRunner<int32_t> r(execution_mode);
   r.module().AddMemoryElems<int32_t>(8);

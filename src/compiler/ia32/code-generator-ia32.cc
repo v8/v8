@@ -2106,7 +2106,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Move(dst, g.ToImmediate(source));
     } else if (src_constant.type() == Constant::kFloat32) {
       // TODO(turbofan): Can we do better here?
-      uint32_t src = src_constant.ToFloat32AsInt();
+      uint32_t src = bit_cast<uint32_t>(src_constant.ToFloat32());
       if (destination->IsFPRegister()) {
         XMMRegister dst = g.ToDoubleRegister(destination);
         __ Move(dst, src);
@@ -2117,7 +2117,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src_constant.type());
-      uint64_t src = src_constant.ToFloat64AsInt();
+      uint64_t src = bit_cast<uint64_t>(src_constant.ToFloat64());
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
       if (destination->IsFPRegister()) {
