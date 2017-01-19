@@ -77,7 +77,8 @@ const int kDebugPromiseFirstID = 1;
 
 class BreakLocation {
  public:
-  static BreakLocation FromFrame(StandardFrame* frame);
+  static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
+                                 JavaScriptFrame* frame);
 
   static void AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                     JavaScriptFrame* frame,

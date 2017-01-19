@@ -858,11 +858,10 @@ class FrameSummary BASE_EMBEDDED {
 
   ~FrameSummary();
 
-  static inline FrameSummary GetFirst(const StandardFrame* frame) {
-    return Get(frame, 0);
-  }
-  static FrameSummary Get(const StandardFrame* frame, int index);
+  static FrameSummary GetTop(const StandardFrame* frame);
+  static FrameSummary GetBottom(const StandardFrame* frame);
   static FrameSummary GetSingle(const StandardFrame* frame);
+  static FrameSummary Get(const StandardFrame* frame, int index);
 
   // Dispatched accessors.
   Handle<Object> receiver() const;
@@ -924,6 +923,8 @@ class StandardFrame : public StackFrame {
   virtual bool IsConstructor() const;
 
   // Build a list with summaries for this frame including all inlined frames.
+  // The functions are ordered bottom-to-top (i.e. summaries.last() is the
+  // top-most activation; caller comes before callee).
   virtual void Summarize(
       List<FrameSummary>* frames,
       FrameSummary::Mode mode = FrameSummary::kExactSummary) const;

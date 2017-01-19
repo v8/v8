@@ -59,15 +59,12 @@ Debug::Debug(Isolate* isolate)
   ThreadInit();
 }
 
-BreakLocation BreakLocation::FromFrame(StandardFrame* frame) {
-  // TODO(clemensh): Handle Wasm frames.
-  DCHECK(!frame->is_wasm());
-
-  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
+BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
+                                       JavaScriptFrame* frame) {
+  auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   if (abstract_code->IsCode()) offset = offset - 1;
-  Handle<DebugInfo> debug_info(summary.function()->shared()->GetDebugInfo());
   auto it = BreakIterator::GetIterator(debug_info, abstract_code);
   it->SkipTo(BreakIndexFromCodeOffset(debug_info, abstract_code, offset));
   return it->GetBreakLocation();
@@ -76,7 +73,7 @@ BreakLocation BreakLocation::FromFrame(StandardFrame* frame) {
 void BreakLocation::AllAtCurrentStatement(Handle<DebugInfo> debug_info,
                                           JavaScriptFrame* frame,
                                           List<BreakLocation>* result_out) {
-  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
+  auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
   if (abstract_code->IsCode()) offset = offset - 1;
@@ -521,18 +518,14 @@ void Debug::Break(JavaScriptFrame* frame) {
   Handle<JSFunction> function(frame->function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) return;
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
 
-  BreakLocation location = BreakLocation::FromFrame(frame);
+  // Find the break location where execution has stopped.
+  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
 
   // Find actual break points, if any, and trigger debug break event.
-  MaybeHandle<FixedArray> break_points_hit;
-  if (break_points_active()) {
-    // Get the debug info, which must exist if we reach here.
-    Handle<DebugInfo> debug_info(shared->GetDebugInfo(), isolate_);
-
-    break_points_hit = CheckBreakPoints(debug_info, &location);
-  }
-
+  MaybeHandle<FixedArray> break_points_hit =
+      CheckBreakPoints(debug_info, &location);
   if (!break_points_hit.is_null()) {
     // Clear all current stepping setup.
     ClearStepping();
@@ -565,7 +558,7 @@ void Debug::Break(JavaScriptFrame* frame) {
       step_break = location.IsTailCall();
     // Fall through.
     case StepIn: {
-      FrameSummary summary = FrameSummary::GetFirst(frame);
+      FrameSummary summary = FrameSummary::GetTop(frame);
       step_break = step_break || location.IsReturn() || current_fp != last_fp ||
                    thread_local_.last_statement_position_ !=
                        summary.SourceStatementPosition();
@@ -1014,7 +1007,7 @@ void Debug::PrepareStep(StepAction step_action) {
   }
 
   // Get the debug info (create it if it does not exist).
-  auto summary = FrameSummary::GetFirst(frame).AsJavaScript();
+  auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   Handle<JSFunction> function(summary.function());
   Handle<SharedFunctionInfo> shared(function->shared());
   if (!EnsureDebugInfo(shared, function)) {
@@ -1022,7 +1015,8 @@ void Debug::PrepareStep(StepAction step_action) {
     return;
   }
 
-  BreakLocation location = BreakLocation::FromFrame(frame);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
 
   // Any step at a return is a step-out.
   if (location.IsReturn()) step_action = StepOut;
@@ -1589,11 +1583,15 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
+  // Get the executing function in which the debug break occurred.
+  Handle<SharedFunctionInfo> shared(frame->function()->shared());
+
   // With no debug info there are no break points, so we can't be at a return.
-  if (!frame->function()->shared()->HasDebugInfo()) return false;
+  if (!shared->HasDebugInfo()) return false;
 
   DCHECK(!frame->is_optimized());
-  BreakLocation location = BreakLocation::FromFrame(frame);
+  Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
   return location.IsReturn() || location.IsTailCall();
 }
 
@@ -2322,7 +2320,7 @@ void Debug::PrintBreakLocation() {
   JavaScriptFrameIterator iterator(isolate_);
   if (iterator.done()) return;
   JavaScriptFrame* frame = iterator.frame();
-  FrameSummary summary = FrameSummary::GetFirst(frame);
+  FrameSummary summary = FrameSummary::GetTop(frame);
   int source_position = summary.SourcePosition();
   Handle<Object> script_obj = summary.script();
   PrintF("[debug] break in function '");

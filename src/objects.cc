@@ -13043,7 +13043,7 @@ void Script::SetEvalOrigin(Handle<Script> script,
     // position, but store it as negative value for lazy translation.
     StackTraceFrameIterator it(script->GetIsolate());
     if (!it.done() && it.is_javascript()) {
-      FrameSummary summary = FrameSummary::GetFirst(it.javascript_frame());
+      FrameSummary summary = FrameSummary::GetTop(it.javascript_frame());
       script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
       script->set_eval_from_position(-summary.code_offset());
       return;

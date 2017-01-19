@@ -61,9 +61,10 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
     // inspect the function scope.
     // This can only happen if we set a break point inside right before the
     // return, which requires a debug info to be available.
+    Handle<DebugInfo> debug_info(shared_info->GetDebugInfo());
 
     // Find the break point where execution has stopped.
-    BreakLocation location = BreakLocation::FromFrame(GetFrame());
+    BreakLocation location = BreakLocation::FromFrame(debug_info, GetFrame());
 
     ignore_nested_scopes = location.IsReturn();
   }

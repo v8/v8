@@ -1263,12 +1263,15 @@ FrameSummary::~FrameSummary() {
 #undef FRAME_SUMMARY_DESTR
 }
 
-FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
-  DCHECK_LE(0, index);
+FrameSummary FrameSummary::GetTop(const StandardFrame* frame) {
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
-  DCHECK_GT(frames.length(), index);
-  return frames[index];
+  DCHECK_LT(0, frames.length());
+  return frames.last();
+}
+
+FrameSummary FrameSummary::GetBottom(const StandardFrame* frame) {
+  return Get(frame, 0);
 }
 
 FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
@@ -1276,6 +1279,14 @@ FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
   frame->Summarize(&frames);
   DCHECK_EQ(1, frames.length());
   return frames.first();
+}
+
+FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
+  DCHECK_LE(0, index);
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  frame->Summarize(&frames);
+  DCHECK_GT(frames.length(), index);
+  return frames[index];
 }
 
 #define FRAME_SUMMARY_DISPATCH(ret, name)        \
@@ -1781,7 +1792,7 @@ Script* WasmInterpreterEntryFrame::script() const {
 }
 
 int WasmInterpreterEntryFrame::position() const {
-  return FrameSummary::GetFirst(this).AsWasmInterpreted().SourcePosition();
+  return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
 }
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {
