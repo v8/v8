@@ -10838,10 +10838,12 @@ class JSArrayBuffer: public JSObject {
       void* data, size_t allocated_length,
       SharedFlag shared = SharedFlag::kNotShared);
 
-  static bool SetupAllocatingData(Handle<JSArrayBuffer> array_buffer,
-                                  Isolate* isolate, size_t allocated_length,
-                                  bool initialize = true,
-                                  SharedFlag shared = SharedFlag::kNotShared);
+  // Returns false if array buffer contents could not be allocated.
+  // In this case, |array_buffer| will not be set up.
+  static bool SetupAllocatingData(
+      Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
+      size_t allocated_length, bool initialize = true,
+      SharedFlag shared = SharedFlag::kNotShared) WARN_UNUSED_RESULT;
 
   // Dispatched behavior.
   DECLARE_PRINTER(JSArrayBuffer)
