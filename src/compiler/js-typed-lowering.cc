@@ -572,13 +572,20 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     } else if (!r.RightInputIs(Type::String())) {
       flags = STRING_ADD_CONVERT_RIGHT;
     }
+    Operator::Properties properties = node->op()->properties();
+    if (r.NeitherInputCanBe(Type::Receiver())) {
+      // Both sides are already strings, so we know that the
+      // string addition will not cause any observable side
+      // effects; it can still throw obviously.
+      properties = Operator::kNoWrite | Operator::kNoDeopt;
+    }
     // JSAdd(x:string, y) => CallStub[StringAdd](x, y)
     // JSAdd(x, y:string) => CallStub[StringAdd](x, y)
     Callable const callable =
         CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNeedsFrameState, node->op()->properties());
+        CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
