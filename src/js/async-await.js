@@ -106,11 +106,6 @@ function AsyncFunctionAwaitCaught(generator, awaited, outerPromise) {
   AsyncFunctionAwait(generator, awaited, outerPromise);
 }
 
-// How the parser rejects promises from async/await desugaring
-function RejectPromiseNoDebugEvent(promise, reason) {
-  return %promise_internal_reject(promise, reason, false);
-}
-
 function AsyncFunctionPromiseCreate() {
   var promise = %promise_internal_constructor(UNDEFINED);
   if (DEBUG_IS_ACTIVE) {
@@ -135,7 +130,6 @@ function AsyncFunctionPromiseRelease(promise) {
 %InstallToContext([
   "async_function_await_caught", AsyncFunctionAwaitCaught,
   "async_function_await_uncaught", AsyncFunctionAwaitUncaught,
-  "reject_promise_no_debug_event", RejectPromiseNoDebugEvent,
   "async_function_promise_create", AsyncFunctionPromiseCreate,
   "async_function_promise_release", AsyncFunctionPromiseRelease,
 ]);

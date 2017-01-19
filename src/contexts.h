@@ -107,8 +107,6 @@ enum ContextLookupFlags {
   V(PROMISE_ID_RESOLVE_HANDLER_INDEX, JSFunction, promise_id_resolve_handler) \
   V(PROMISE_ID_REJECT_HANDLER_INDEX, JSFunction, promise_id_reject_handler)   \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
-  V(REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, JSFunction,                          \
-    reject_promise_no_debug_event)                                            \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
   V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                          \

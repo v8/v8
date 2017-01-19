@@ -3018,15 +3018,15 @@ Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
 }
 
 Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
-  // %RejectPromiseNoDebugEvent(.promise, value, true), .promise
-  // The NoDebugEvent variant disables the additional debug event for the
-  // rejection since a debug event already happened for the exception that got
-  // us here.
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  // %promise_internal_reject(.promise, value, false), .promise
+  // Disables the additional debug event for the rejection since a debug event
+  // already happened for the exception that got us here.
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
   args->Add(value, zone());
+  args->Add(factory()->NewBooleanLiteral(false, pos), zone());
   Expression* call_runtime = factory()->NewCallRuntime(
-      Context::REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, args, pos);
+      Context::PROMISE_INTERNAL_REJECT_INDEX, args, pos);
   return factory()->NewBinaryOperation(
       Token::COMMA, call_runtime,
       factory()->NewVariableProxy(PromiseVariable()), pos);
