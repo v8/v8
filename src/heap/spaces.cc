@@ -3041,7 +3041,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   while (current != NULL) {
     HeapObject* object = current->GetObject();
     DCHECK(ObjectMarking::IsBlack(object));
-    ObjectMarking::BlackToWhite(object);
+    ObjectMarking::ClearMarkBit(object);
     Page::FromAddress(object->address())->ResetProgressBar();
     Page::FromAddress(object->address())->ResetLiveBytes();
     current = current->next_page();
