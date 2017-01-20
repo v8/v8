@@ -38,16 +38,15 @@ class InterpreterHandle {
       : instance_(debug_info->wasm_instance()->compiled_module()->module()),
         interpreter_(GetBytesEnv(&instance_, debug_info), &allocator_),
         isolate_(isolate) {
-    Handle<JSArrayBuffer> mem_buffer =
-        handle(debug_info->wasm_instance()->memory_buffer(), isolate);
-    if (mem_buffer->IsUndefined(isolate)) {
-      DCHECK_EQ(0, instance_.module->min_mem_pages);
-      instance_.mem_start = nullptr;
-      instance_.mem_size = 0;
-    } else {
+    if (debug_info->wasm_instance()->has_memory_buffer()) {
+      JSArrayBuffer* mem_buffer = debug_info->wasm_instance()->memory_buffer();
       instance_.mem_start =
           reinterpret_cast<byte*>(mem_buffer->backing_store());
       CHECK(mem_buffer->byte_length()->ToUint32(&instance_.mem_size));
+    } else {
+      DCHECK_EQ(0, instance_.module->min_mem_pages);
+      instance_.mem_start = nullptr;
+      instance_.mem_size = 0;
     }
   }
 
