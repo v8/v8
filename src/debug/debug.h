@@ -244,62 +244,16 @@ class DebugInfoListNode {
   DebugInfoListNode* next_;
 };
 
-// Message delivered to the message handler callback. This is either a debugger
-// event or the response to a command.
-class MessageImpl : public v8::Debug::Message {
- public:
-  // Create a message object for a debug event.
-  static MessageImpl NewEvent(DebugEvent event, bool running,
-                              Handle<JSObject> exec_state,
-                              Handle<JSObject> event_data);
-
-  // Create a message object for the response to a debug command.
-  static MessageImpl NewResponse(DebugEvent event, bool running,
-                                 Handle<JSObject> exec_state,
-                                 Handle<JSObject> event_data,
-                                 Handle<String> response_json,
-                                 v8::Debug::ClientData* client_data);
-
-  // Implementation of interface v8::Debug::Message.
-  virtual bool IsEvent() const;
-  virtual bool IsResponse() const;
-  virtual DebugEvent GetEvent() const;
-  virtual bool WillStartRunning() const;
-  virtual v8::Local<v8::Object> GetExecutionState() const;
-  virtual v8::Local<v8::Object> GetEventData() const;
-  virtual v8::Local<v8::String> GetJSON() const;
-  virtual v8::Local<v8::Context> GetEventContext() const;
-  virtual v8::Debug::ClientData* GetClientData() const;
-  virtual v8::Isolate* GetIsolate() const;
-
- private:
-  MessageImpl(bool is_event, DebugEvent event, bool running,
-              Handle<JSObject> exec_state, Handle<JSObject> event_data,
-              Handle<String> response_json, v8::Debug::ClientData* client_data);
-
-  bool is_event_;                 // Does this message represent a debug event?
-  DebugEvent event_;              // Debug event causing the break.
-  bool running_;                  // Will the VM start running after this event?
-  Handle<JSObject> exec_state_;   // Current execution state.
-  Handle<JSObject> event_data_;   // Data associated with the event.
-  Handle<String> response_json_;  // Response JSON if message holds a response.
-  v8::Debug::ClientData* client_data_;  // Client data passed with the request.
-};
-
 // Details of the debug event delivered to the debug event listener.
 class EventDetailsImpl : public v8::Debug::EventDetails {
  public:
-  EventDetailsImpl(DebugEvent event,
-                   Handle<JSObject> exec_state,
-                   Handle<JSObject> event_data,
-                   Handle<Object> callback_data,
-                   v8::Debug::ClientData* client_data);
+  EventDetailsImpl(DebugEvent event, Handle<JSObject> exec_state,
+                   Handle<JSObject> event_data, Handle<Object> callback_data);
   virtual DebugEvent GetEvent() const;
   virtual v8::Local<v8::Object> GetExecutionState() const;
   virtual v8::Local<v8::Object> GetEventData() const;
   virtual v8::Local<v8::Context> GetEventContext() const;
   virtual v8::Local<v8::Value> GetCallbackData() const;
-  virtual v8::Debug::ClientData* GetClientData() const;
   virtual v8::Isolate* GetIsolate() const;
 
  private:
@@ -308,70 +262,8 @@ class EventDetailsImpl : public v8::Debug::EventDetails {
   Handle<JSObject> event_data_;         // Data associated with the event.
   Handle<Object> callback_data_;        // User data passed with the callback
                                         // when it was registered.
-  v8::Debug::ClientData* client_data_;  // Data passed to DebugBreakForCommand.
 };
 
-// Message send by user to v8 debugger or debugger output message.
-// In addition to command text it may contain a pointer to some user data
-// which are expected to be passed along with the command reponse to message
-// handler.
-class CommandMessage {
- public:
-  static CommandMessage New(const Vector<uint16_t>& command,
-                            v8::Debug::ClientData* data);
-  CommandMessage();
-
-  // Deletes user data and disposes of the text.
-  void Dispose();
-  Vector<uint16_t> text() const { return text_; }
-  v8::Debug::ClientData* client_data() const { return client_data_; }
-
- private:
-  CommandMessage(const Vector<uint16_t>& text, v8::Debug::ClientData* data);
-
-  Vector<uint16_t> text_;
-  v8::Debug::ClientData* client_data_;
-};
-
-// A Queue of CommandMessage objects.  A thread-safe version is
-// LockingCommandMessageQueue, based on this class.
-class CommandMessageQueue BASE_EMBEDDED {
- public:
-  explicit CommandMessageQueue(int size);
-  ~CommandMessageQueue();
-  bool IsEmpty() const { return start_ == end_; }
-  CommandMessage Get();
-  void Put(const CommandMessage& message);
-  void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
-
- private:
-  // Doubles the size of the message queue, and copies the messages.
-  void Expand();
-
-  CommandMessage* messages_;
-  int start_;
-  int end_;
-  int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
-};
-
-// LockingCommandMessageQueue is a thread-safe circular buffer of CommandMessage
-// messages.  The message data is not managed by LockingCommandMessageQueue.
-// Pointers to the data are passed in and out. Implemented by adding a
-// Mutex to CommandMessageQueue.  Includes logging of all puts and gets.
-class LockingCommandMessageQueue BASE_EMBEDDED {
- public:
-  LockingCommandMessageQueue(Logger* logger, int size);
-  bool IsEmpty() const;
-  CommandMessage Get();
-  void Put(const CommandMessage& message);
-  void Clear();
-
- private:
-  Logger* logger_;
-  CommandMessageQueue queue_;
-  mutable base::Mutex mutex_;
-  DISALLOW_COPY_AND_ASSIGN(LockingCommandMessageQueue);
-};
 
 class DebugFeatureTracker {
  public:
@@ -405,7 +297,7 @@ class DebugFeatureTracker {
 class Debug {
  public:
   // Debug event triggers.
-  void OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue);
+  void OnDebugBreak(Handle<Object> break_points_hit);
 
   void OnThrow(Handle<Object> exception);
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
@@ -415,14 +307,10 @@ class Debug {
 
   // API facing.
   void SetEventListener(Handle<Object> callback, Handle<Object> data);
-  void SetMessageHandler(v8::Debug::MessageHandler handler);
-  void EnqueueCommandMessage(Vector<const uint16_t> command,
-                             v8::Debug::ClientData* client_data = NULL);
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
   void HandleDebugBreak();
-  void ProcessDebugMessages(bool debug_command_only);
 
   // Internal logic
   bool Load();
@@ -579,8 +467,6 @@ class Debug {
     thread_local_.break_id_ = ++thread_local_.break_count_;
   }
 
-  // Check whether there are commands in the command queue.
-  inline bool has_commands() const { return !command_queue_.IsEmpty(); }
   inline bool ignore_events() const {
     return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
   }
@@ -604,8 +490,7 @@ class Debug {
   // is presented. Other clients can install JavaScript event listener
   // (e.g. some of NodeJS module).
   bool non_inspector_listener_exists() const {
-    return message_handler_ != nullptr ||
-           (!event_listener_.is_null() && !event_listener_->IsForeign());
+    return !event_listener_.is_null() && !event_listener_->IsForeign();
   }
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
@@ -626,16 +511,8 @@ class Debug {
   // Mirror cache handling.
   void ClearMirrorCache();
 
-  void CallEventCallback(v8::DebugEvent event,
-                         Handle<Object> exec_state,
-                         Handle<Object> event_data,
-                         v8::Debug::ClientData* client_data);
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
-  void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data,
-                         bool auto_continue);
-  void NotifyMessageHandler(v8::DebugEvent event, Handle<JSObject> exec_state,
-                            Handle<JSObject> event_data, bool auto_continue);
-  void InvokeMessageHandler(MessageImpl message);
+  void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
 
   // Find the closest source position for a break point for a given position.
   int FindBreakablePosition(Handle<DebugInfo> debug_info, int source_position,
@@ -676,13 +553,7 @@ class Debug {
   Handle<Object> event_listener_;
   Handle<Object> event_listener_data_;
 
-  v8::Debug::MessageHandler message_handler_;
-
   debug::DebugEventListener* debug_event_listener_ = nullptr;
-
-  static const int kQueueInitialSize = 4;
-  base::Semaphore command_received_;  // Signaled for each command received.
-  LockingCommandMessageQueue command_queue_;
 
   // Debugger is active, i.e. there is a debug event listener attached.
   bool is_active_;
