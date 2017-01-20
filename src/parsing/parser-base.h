@@ -101,6 +101,12 @@ struct FormalParametersBase {
 // Used in functions where the return type is ExpressionT.
 #define CHECK_OK CHECK_OK_CUSTOM(EmptyExpression)
 
+#define CHECK_OK_VOID ok); \
+  if (!*ok) return;        \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
+
 // Common base class template shared between parser and pre-parser.
 // The Impl parameter is the actual class of the parser/pre-parser,
 // following the Curiously Recurring Template Pattern (CRTP).
@@ -1223,6 +1229,12 @@ class ParserBase {
   StatementT ParseClassDeclaration(ZoneList<const AstRawString*>* names,
                                    bool default_export, bool* ok);
   StatementT ParseNativeDeclaration(bool* ok);
+
+  // Consumes the ending }.
+  void ParseFunctionBody(StatementListT result, IdentifierT function_name,
+                         int pos, const FormalParametersT& parameters,
+                         FunctionKind kind,
+                         FunctionLiteral::FunctionType function_type, bool* ok);
 
   // Under some circumstances, we allow preparsing to abort if the preparsed
   // function is "long and trivial", and fully parse instead. Our current
@@ -3902,6 +3914,105 @@ ParserBase<Impl>::ParseAsyncFunctionDeclaration(
 }
 
 template <typename Impl>
+void ParserBase<Impl>::ParseFunctionBody(
+    typename ParserBase<Impl>::StatementListT result, IdentifierT function_name,
+    int pos, const FormalParametersT& parameters, FunctionKind kind,
+    FunctionLiteral::FunctionType function_type, bool* ok) {
+  static const int kFunctionNameAssignmentIndex = 0;
+  if (function_type == FunctionLiteral::kNamedExpression) {
+    DCHECK(!impl()->IsEmptyIdentifier(function_name));
+    // If we have a named function expression, we add a local variable
+    // declaration to the body of the function with the name of the
+    // function and let it refer to the function itself (closure).
+    // Not having parsed the function body, the language mode may still change,
+    // so we reserve a spot and create the actual const assignment later.
+    DCHECK_EQ(kFunctionNameAssignmentIndex, result->length());
+    result->Add(impl()->NullStatement(), zone());
+  }
+
+  DeclarationScope* function_scope = scope()->AsDeclarationScope();
+  DeclarationScope* inner_scope = function_scope;
+  BlockT inner_block = impl()->NullBlock();
+
+  StatementListT body = result;
+  if (!parameters.is_simple) {
+    inner_scope = NewVarblockScope();
+    inner_scope->set_start_position(scanner()->location().beg_pos);
+    inner_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
+    inner_block->set_scope(inner_scope);
+    body = inner_block->statements();
+  }
+
+  {
+    BlockState block_state(&scope_state_, inner_scope);
+
+    if (IsGeneratorFunction(kind)) {
+      impl()->ParseAndRewriteGeneratorFunctionBody(pos, kind, body, ok);
+    } else if (IsAsyncFunction(kind)) {
+      const bool accept_IN = true;
+      ParseAsyncFunctionBody(inner_scope, body, kind, FunctionBodyType::kNormal,
+                             accept_IN, pos, CHECK_OK_VOID);
+    } else {
+      ParseStatementList(body, Token::RBRACE, CHECK_OK_VOID);
+    }
+
+    if (IsDerivedConstructor(kind)) {
+      body->Add(factory()->NewReturnStatement(impl()->ThisExpression(),
+                                              kNoSourcePosition),
+                zone());
+    }
+  }
+
+  Expect(Token::RBRACE, CHECK_OK_VOID);
+  scope()->set_end_position(scanner()->location().end_pos);
+
+  if (!parameters.is_simple) {
+    DCHECK_NOT_NULL(inner_scope);
+    DCHECK_EQ(function_scope, scope());
+    DCHECK_EQ(function_scope, inner_scope->outer_scope());
+    impl()->SetLanguageMode(function_scope, inner_scope->language_mode());
+    BlockT init_block =
+        impl()->BuildParameterInitializationBlock(parameters, CHECK_OK_VOID);
+
+    if (is_sloppy(inner_scope->language_mode())) {
+      impl()->InsertSloppyBlockFunctionVarBindings(inner_scope);
+    }
+
+    // TODO(littledan): Merge the two rejection blocks into one
+    if (IsAsyncFunction(kind)) {
+      init_block = impl()->BuildRejectPromiseOnException(init_block);
+    }
+
+    inner_scope->set_end_position(scanner()->location().end_pos);
+    if (inner_scope->FinalizeBlockScope() != nullptr) {
+      impl()->CheckConflictingVarDeclarations(inner_scope, CHECK_OK_VOID);
+      impl()->InsertShadowingVarBindingInitializers(inner_block);
+    }
+    inner_scope = nullptr;
+
+    result->Add(init_block, zone());
+    result->Add(inner_block, zone());
+  } else {
+    DCHECK_EQ(inner_scope, function_scope);
+    if (is_sloppy(function_scope->language_mode())) {
+      impl()->InsertSloppyBlockFunctionVarBindings(function_scope);
+    }
+  }
+
+  if (!IsArrowFunction(kind)) {
+    // Declare arguments after parsing the function since lexical 'arguments'
+    // masks the arguments object. Declare arguments before declaring the
+    // function var since the arguments object masks 'function arguments'.
+    function_scope->DeclareArguments(ast_value_factory());
+  }
+
+  impl()->CreateFunctionNameAssignment(function_name, pos, function_type,
+                                       function_scope, result,
+                                       kFunctionNameAssignmentIndex);
+  impl()->MarkCollectedTailCallExpressions();
+}
+
+template <typename Impl>
 void ParserBase<Impl>::CheckArityRestrictions(int param_count,
                                               FunctionKind function_kind,
                                               bool has_rest,
@@ -4064,9 +4175,11 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
       }
       if (!is_lazy_top_level_function) {
         Consume(Token::LBRACE);
-        body = impl()->ParseEagerFunctionBody(
-            impl()->EmptyIdentifier(), kNoSourcePosition, formal_parameters,
-            kind, FunctionLiteral::kAnonymousExpression, CHECK_OK);
+        body = impl()->NewStatementList(8);
+        impl()->ParseFunctionBody(body, impl()->EmptyIdentifier(),
+                                  kNoSourcePosition, formal_parameters, kind,
+                                  FunctionLiteral::kAnonymousExpression,
+                                  CHECK_OK);
         materialized_literal_count =
             function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
@@ -5563,6 +5676,7 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
   }
 }
 
+#undef CHECK_OK_VOID
 
 }  // namespace internal
 }  // namespace v8
