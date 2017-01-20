@@ -770,6 +770,15 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
   DCHECK(0 < index && index <= captures_started_);
   DCHECK_NOT_NULL(name);
 
+  // Disallow captures named '__proto__'.
+  static const char16_t proto_string[] = u"__proto__";
+  if (name->size() == arraysize(proto_string) - 1) {
+    if (std::equal(name->begin(), name->end(), &proto_string[0])) {
+      ReportError(CStrVector("Illegal capture group name"));
+      return false;
+    }
+  }
+
   if (named_captures_ == nullptr) {
     named_captures_ = new (zone()) ZoneList<RegExpCapture*>(1, zone());
   } else {
