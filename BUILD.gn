@@ -1538,6 +1538,7 @@ v8_source_set("v8_base") {
     "src/json-stringifier.h",
     "src/keys.cc",
     "src/keys.h",
+    "src/label.h",
     "src/layout-descriptor-inl.h",
     "src/layout-descriptor.cc",
     "src/layout-descriptor.h",

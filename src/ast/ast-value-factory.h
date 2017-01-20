@@ -28,10 +28,11 @@
 #ifndef V8_AST_AST_VALUE_FACTORY_H_
 #define V8_AST_AST_VALUE_FACTORY_H_
 
-#include "src/api.h"
 #include "src/base/hashmap.h"
 #include "src/conversions.h"
+#include "src/factory.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/utils.h"
 
 // AstString, AstValue and AstValueFactory are for storing strings and values

@@ -235,17 +235,6 @@ unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 
 // -----------------------------------------------------------------------------
-// Implementation of Label
-
-int Label::pos() const {
-  if (pos_ < 0) return -pos_ - 1;
-  if (pos_ > 0) return  pos_ - 1;
-  UNREACHABLE();
-  return 0;
-}
-
-
-// -----------------------------------------------------------------------------
 // Implementation of RelocInfoWriter and RelocIterator
 //
 // Relocation information is written backwards in memory, from high addresses

@@ -1047,6 +1047,7 @@
         'json-stringifier.h',
         'keys.h',
         'keys.cc',
+        'label.h',
         'layout-descriptor-inl.h',
         'layout-descriptor.cc',
         'layout-descriptor.h',

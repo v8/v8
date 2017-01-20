@@ -5,7 +5,6 @@
 #ifndef V8_AST_AST_H_
 #define V8_AST_AST_H_
 
-#include "src/assembler.h"
 #include "src/ast/ast-types.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"
@@ -15,6 +14,7 @@
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/isolate.h"
+#include "src/label.h"
 #include "src/list.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
