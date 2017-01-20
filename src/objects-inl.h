@@ -31,6 +31,7 @@
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/objects/module-info.h"
+#include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
 #include "src/property.h"
 #include "src/prototype.h"

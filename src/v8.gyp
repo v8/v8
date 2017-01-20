@@ -1082,6 +1082,7 @@
         'objects/module-info.h',
         'objects/object-macros.h',
         'objects/object-macros-undef.h',
+        'objects/regexp-match-info.h',
         'objects/scope-info.cc',
         'objects/scope-info.h',
         'ostreams.cc',

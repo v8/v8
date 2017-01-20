@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class RegExpMatchInfo;
 
 enum ContextLookupFlags {
   FOLLOW_CONTEXT_CHAIN = 1 << 0,
