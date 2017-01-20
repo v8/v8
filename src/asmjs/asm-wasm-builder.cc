@@ -142,27 +142,27 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     DCHECK_EQ(kModuleScope, scope_);
     DCHECK_NULL(current_function_builder_);
     FunctionLiteral* old_func = decl->fun();
-    Zone zone(isolate_->allocator(), ZONE_NAME);
     DeclarationScope* new_func_scope = nullptr;
+    std::unique_ptr<ParseInfo> info;
     if (decl->fun()->body() == nullptr) {
       // TODO(titzer/bradnelson): Reuse SharedFunctionInfos used here when
       // compiling the wasm module.
       Handle<SharedFunctionInfo> shared =
           Compiler::GetSharedFunctionInfo(decl->fun(), script_, info_);
       shared->set_is_toplevel(false);
-      ParseInfo info(&zone, script_);
-      info.set_shared_info(shared);
-      info.set_toplevel(false);
-      info.set_language_mode(decl->fun()->scope()->language_mode());
-      info.set_allow_lazy_parsing(false);
-      info.set_function_literal_id(shared->function_literal_id());
-      info.set_ast_value_factory(ast_value_factory_);
-      info.set_ast_value_factory_owned(false);
+      info.reset(new ParseInfo(script_));
+      info->set_shared_info(shared);
+      info->set_toplevel(false);
+      info->set_language_mode(decl->fun()->scope()->language_mode());
+      info->set_allow_lazy_parsing(false);
+      info->set_function_literal_id(shared->function_literal_id());
+      info->set_ast_value_factory(ast_value_factory_);
+      info->set_ast_value_factory_owned(false);
       // Create fresh function scope to use to parse the function in.
-      new_func_scope = new (info.zone()) DeclarationScope(
-          info.zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
-      info.set_asm_function_scope(new_func_scope);
-      if (!Compiler::ParseAndAnalyze(&info)) {
+      new_func_scope = new (info->zone()) DeclarationScope(
+          info->zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
+      info->set_asm_function_scope(new_func_scope);
+      if (!Compiler::ParseAndAnalyze(info.get())) {
         decl->fun()->scope()->outer_scope()->RemoveInnerScope(new_func_scope);
         if (isolate_->has_pending_exception()) {
           isolate_->clear_pending_exception();
@@ -171,7 +171,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         typer_failed_ = true;
         return;
       }
-      FunctionLiteral* func = info.literal();
+      FunctionLiteral* func = info->literal();
       DCHECK_NOT_NULL(func);
       decl->set_fun(func);
     }

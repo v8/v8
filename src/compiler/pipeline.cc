@@ -550,9 +550,8 @@ class PipelineCompilationJob final : public CompilationJob {
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
       : CompilationJob(isolate, &info_, "TurboFan"),
-        zone_(isolate->allocator(), ZONE_NAME),
+        parse_info_(handle(function->shared())),
         zone_stats_(isolate->allocator()),
-        parse_info_(&zone_, handle(function->shared())),
         info_(&parse_info_, function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
@@ -565,9 +564,8 @@ class PipelineCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
-  Zone zone_;
-  ZoneStats zone_stats_;
   ParseInfo parse_info_;
+  ZoneStats zone_stats_;
   CompilationInfo info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -604,7 +602,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     info()->MarkAsInliningEnabled();
   }
 
-  linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
+  linkage_ = new (info()->zone())
+      Linkage(Linkage::ComputeIncoming(info()->zone(), info()));
 
   if (!pipeline_.CreateGraph()) {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
