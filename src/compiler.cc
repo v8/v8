@@ -507,7 +507,8 @@ bool CompileUnoptimizedInnerFunctionsRecursively(
       shared->set_is_toplevel(false);
     }
 
-    ParseInfo parse_info(script);
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    ParseInfo parse_info(&zone, script);
     parse_info.set_literal(literal);
     parse_info.set_shared_info(shared);
     parse_info.set_function_literal_id(shared->function_literal_id());
@@ -895,7 +896,8 @@ MaybeHandle<Code> GetBaselineCode(Handle<JSFunction> function) {
   Isolate* isolate = function->GetIsolate();
   VMState<COMPILER> state(isolate);
   PostponeInterruptsScope postpone(isolate);
-  ParseInfo parse_info(handle(function->shared()));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
 
   DCHECK(function->shared()->is_compiled());
@@ -1028,7 +1030,8 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
     return entry;
   }
 
-  ParseInfo parse_info(handle(function->shared()));
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, handle(function->shared()));
   CompilationInfo info(&parse_info, function);
   Handle<Code> result;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, result, GetUnoptimizedCode(&info), Code);
@@ -1207,7 +1210,8 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
       code = isolate->builtins()->InterpreterEntryTrampoline();
       function->shared()->ReplaceCode(*code);
     } else {
-      ParseInfo parse_info(handle(function->shared()));
+      Zone zone(isolate->allocator(), ZONE_NAME);
+      ParseInfo parse_info(&zone, handle(function->shared()));
       CompilationInfo info(&parse_info, function);
       if (!GetUnoptimizedCode(&info).ToHandle(&code)) {
         return false;
@@ -1231,7 +1235,8 @@ bool Compiler::CompileDebugCode(Handle<SharedFunctionInfo> shared) {
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   // Start a compilation.
-  ParseInfo parse_info(shared);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   info.MarkAsDebug();
   if (GetUnoptimizedCode(&info).is_null()) {
@@ -1258,7 +1263,8 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   script->set_shared_function_infos(isolate->heap()->empty_fixed_array());
 
   // Start a compilation.
-  ParseInfo parse_info(script);
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, script);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   info.MarkAsDebug();
 
@@ -1269,7 +1275,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
     // Check postconditions on success.
     DCHECK(!isolate->has_pending_exception());
     infos = LiveEditFunctionTracker::Collect(parse_info.literal(), script,
-                                             parse_info.zone(), isolate);
+                                             &zone, isolate);
   }
 
   // Restore the original function info list in order to remain side-effect
@@ -1393,7 +1399,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
     Script::SetEvalOrigin(script, outer_info, eval_position);
 
-    ParseInfo parse_info(script);
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info, Handle<JSFunction>::null());
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
@@ -1571,7 +1578,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     // Compile the function and add it to the cache.
-    ParseInfo parse_info(script);
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    ParseInfo parse_info(&zone, script);
     CompilationInfo info(&parse_info, Handle<JSFunction>::null());
     if (resource_options.IsModule()) parse_info.set_module();
     if (compile_options != ScriptCompiler::kNoCompileOptions) {

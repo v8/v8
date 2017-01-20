@@ -7,13 +7,12 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/objects-inl.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
-ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
-    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
+ParseInfo::ParseInfo(Zone* zone)
+    : zone_(zone),
       flags_(0),
       source_stream_(nullptr),
       source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
@@ -36,8 +35,8 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       function_name_(nullptr),
       literal_(nullptr) {}
 
-ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
-    : ParseInfo(shared->GetIsolate()->allocator()) {
+ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
+    : ParseInfo(zone) {
   isolate_ = shared->GetIsolate();
 
   set_toplevel(shared->is_toplevel());
@@ -67,14 +66,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   }
 }
 
-ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
-                     std::shared_ptr<Zone> zone)
-    : ParseInfo(shared) {
-  zone_.swap(zone);
-}
-
-ParseInfo::ParseInfo(Handle<Script> script)
-    : ParseInfo(script->GetIsolate()->allocator()) {
+ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
   isolate_ = script->GetIsolate();
 
   set_allow_lazy_parsing();
