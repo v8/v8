@@ -2789,14 +2789,12 @@ void Builtins::Generate_ConstructWithSpread(MacroAssembler* masm) {
   Label no_protector_check;
   __ ldr(scratch, FieldMemOperand(spread_map, Map::kBitField2Offset));
   __ DecodeField<Map::ElementsKindBits>(scratch);
-  __ cmp(scratch, Operand(LAST_FAST_ELEMENTS_KIND));
+  __ cmp(scratch, Operand(FAST_HOLEY_ELEMENTS));
   __ b(hi, &runtime_call);
   // For non-FastHoley kinds, we can skip the protector check.
   __ cmp(scratch, Operand(FAST_SMI_ELEMENTS));
   __ b(eq, &no_protector_check);
   __ cmp(scratch, Operand(FAST_ELEMENTS));
-  __ b(eq, &no_protector_check);
-  __ cmp(scratch, Operand(FAST_DOUBLE_ELEMENTS));
   __ b(eq, &no_protector_check);
   // Check the ArrayProtector cell.
   __ LoadRoot(scratch, Heap::kArrayProtectorRootIndex);
