@@ -2133,6 +2133,12 @@ TEST_F(FunctionBodyDecoderTest, BrTable_invalid_br2) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, BrUnreachable) {
+  static byte code[] = {WASM_GET_LOCAL(0), kExprBrTable,  0,
+                        BR_TARGET(0),      kExprSetLocal, 0};
+  EXPECT_VERIFIES_C(v_i, code);
+}
+
 TEST_F(FunctionBodyDecoderTest, Brv1) {
   EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_BRV(0, WASM_ZERO)));
   EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_LOOP(WASM_BRV(2, WASM_ZERO))));
@@ -2223,6 +2229,12 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   EXPECT_FAILURE(i_d, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
   EXPECT_FAILURE(i_f, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
   EXPECT_FAILURE(l_l, WASM_GET_LOCAL(0), kExprThrow, WASM_I64V(0));
+}
+
+TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
+  // TODO(titzer): unreachable code after throw should validate.
+  // FLAG_wasm_eh_prototype = true;
+  // EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, kExprSetLocal, 0);
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid

@@ -684,6 +684,10 @@ class WasmFullDecoder : public WasmDecoder {
             CHECK_PROTOTYPE_OPCODE(wasm_eh_prototype);
             Value value = Pop(0, kWasmI32);
             BUILD(Throw, value.node);
+            // TODO(titzer): Throw should end control, but currently we build a
+            // (reachable) runtime call instead of connecting it directly to
+            // end.
+            //            EndControl();
             break;
           }
           case kExprTry: {
@@ -953,6 +957,7 @@ class WasmFullDecoder : public WasmDecoder {
               ssa_env_ = break_env;
             }
             len = 1 + iterator.length();
+            EndControl();
             break;
           }
           case kExprReturn: {
