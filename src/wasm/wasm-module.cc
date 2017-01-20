@@ -1884,6 +1884,7 @@ class WasmInstanceBuilder {
 
     PropertyDescriptor desc;
     desc.set_writable(false);
+    desc.set_enumerable(true);
 
     // Count up export indexes.
     int export_index = 0;

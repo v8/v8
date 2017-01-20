@@ -247,3 +247,21 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   builder.exportMemoryAs('memory');
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError);
 })();
+
+(function TestIterableExports() {
+  print("TestIterableExports...");
+  let builder = new WasmModuleBuilder;
+  builder.addExport("a", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("b", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("c", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("d", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("e", builder.addGlobal(kWasmI32, false));
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+
+  let exports_count = 0;
+  for (var e in instance.exports) ++exports_count;
+
+  assertEquals(5, exports_count);
+})();
