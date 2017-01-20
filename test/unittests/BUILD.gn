@@ -139,6 +139,7 @@ v8_executable("unittests") {
     "wasm/switch-logic-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
+    "wasm/wasm-opcodes-unittest.cc",
     "zone/segmentpool-unittest.cc",
     "zone/zone-chunk-list-unittest.cc",
   ]

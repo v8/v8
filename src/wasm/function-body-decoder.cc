@@ -659,7 +659,7 @@ class WasmFullDecoder : public WasmDecoder {
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
       if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
         TRACE("  @%-8d #%02x:%-20s|", startrel(pc_), opcode,
-              WasmOpcodes::ShortOpcodeName(opcode));
+              WasmOpcodes::OpcodeName(opcode));
       }
 
       FunctionSig* sig = WasmOpcodes::Signature(opcode);
@@ -852,7 +852,7 @@ class WasmFullDecoder : public WasmDecoder {
               last_end_found_ = true;
               if (ssa_env_->go()) {
                 // The result of the block is the return value.
-                TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "ImplicitReturn");
+                TRACE("  @%-8d #xx:%-20s|", startrel(pc_), "(implicit) return");
                 DoReturn();
                 TRACE("\n");
               }
@@ -1164,7 +1164,7 @@ class WasmFullDecoder : public WasmDecoder {
             byte simd_index = checked_read_u8(pc_, 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
             TRACE("  @%-4d #%02x #%02x:%-20s|", startrel(pc_), kSimdPrefix,
-                  simd_index, WasmOpcodes::ShortOpcodeName(opcode));
+                  simd_index, WasmOpcodes::OpcodeName(opcode));
             len += DecodeSimdOpcode(opcode);
             break;
           }
@@ -1211,7 +1211,7 @@ class WasmFullDecoder : public WasmDecoder {
           }
           PrintF(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
                  static_cast<int>(val.pc - start_),
-                 WasmOpcodes::ShortOpcodeName(opcode));
+                 WasmOpcodes::OpcodeName(opcode));
           switch (opcode) {
             case kExprI32Const: {
               ImmI32Operand operand(this, val.pc);
@@ -1423,7 +1423,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   const char* SafeOpcodeNameAt(const byte* pc) {
     if (pc >= end_) return "<end>";
-    return WasmOpcodes::ShortOpcodeName(static_cast<WasmOpcode>(*pc));
+    return WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(*pc));
   }
 
   Value Pop(int index, ValueType expected) {

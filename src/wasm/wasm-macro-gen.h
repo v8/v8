@@ -630,9 +630,9 @@ class LocalDeclEncoder {
 #define WASM_SIMD_F32x4_REPLACE_LANE(lane, x, y) \
   x, y, kSimdPrefix, kExprF32x4ReplaceLane & 0xff, static_cast<byte>(lane)
 #define WASM_SIMD_F32x4_FROM_I32x4(x) \
-  x, kSimdPrefix, kExprF32x4FromInt32x4 & 0xff
+  x, kSimdPrefix, kExprF32x4SConvertI32x4 & 0xff
 #define WASM_SIMD_F32x4_FROM_U32x4(x) \
-  x, kSimdPrefix, kExprF32x4FromUint32x4 & 0xff
+  x, kSimdPrefix, kExprF32x4UConvertI32x4 & 0xff
 #define WASM_SIMD_F32x4_ADD(x, y) x, y, kSimdPrefix, kExprF32x4Add & 0xff
 #define WASM_SIMD_F32x4_SUB(x, y) x, y, kSimdPrefix, kExprF32x4Sub & 0xff
 
@@ -642,9 +642,9 @@ class LocalDeclEncoder {
 #define WASM_SIMD_I32x4_REPLACE_LANE(lane, x, y) \
   x, y, kSimdPrefix, kExprI32x4ReplaceLane & 0xff, static_cast<byte>(lane)
 #define WASM_SIMD_I32x4_FROM_F32x4(x) \
-  x, kSimdPrefix, kExprI32x4FromFloat32x4 & 0xff
+  x, kSimdPrefix, kExprI32x4SConvertF32x4 & 0xff
 #define WASM_SIMD_U32x4_FROM_F32x4(x) \
-  x, kSimdPrefix, kExprUi32x4FromFloat32x4 & 0xff
+  x, kSimdPrefix, kExprI32x4UConvertF32x4 & 0xff
 #define WASM_SIMD_S32x4_SELECT(x, y, z) \
   x, y, z, kSimdPrefix, kExprS32x4Select & 0xff
 #define WASM_SIMD_I32x4_ADD(x, y) x, y, kSimdPrefix, kExprI32x4Add & 0xff

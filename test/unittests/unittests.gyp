@@ -139,6 +139,7 @@
       'wasm/switch-logic-unittest.cc',
       'wasm/wasm-macro-gen-unittest.cc',
       'wasm/wasm-module-builder-unittest.cc',
+      'wasm/wasm-opcodes-unittest.cc',
     ],
     'unittests_sources_arm': [  ### gcmole(arch:arm) ###
       'compiler/arm/instruction-selector-arm-unittest.cc',

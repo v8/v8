@@ -3351,10 +3351,10 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprF32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateFloat32x4(),
                               inputs[0], inputs[0], inputs[0], inputs[0]);
-    case wasm::kExprF32x4FromInt32x4:
+    case wasm::kExprF32x4SConvertI32x4:
       return graph()->NewNode(jsgraph()->machine()->Float32x4FromInt32x4(),
                               inputs[0]);
-    case wasm::kExprF32x4FromUint32x4:
+    case wasm::kExprF32x4UConvertI32x4:
       return graph()->NewNode(jsgraph()->machine()->Float32x4FromUint32x4(),
                               inputs[0]);
     case wasm::kExprF32x4Abs:
@@ -3376,10 +3376,10 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
                               inputs[0], inputs[0], inputs[0]);
-    case wasm::kExprI32x4FromFloat32x4:
+    case wasm::kExprI32x4SConvertF32x4:
       return graph()->NewNode(jsgraph()->machine()->Int32x4FromFloat32x4(),
                               inputs[0]);
-    case wasm::kExprUi32x4FromFloat32x4:
+    case wasm::kExprI32x4UConvertF32x4:
       return graph()->NewNode(jsgraph()->machine()->Uint32x4FromFloat32x4(),
                               inputs[0]);
     case wasm::kExprI32x4Add:
