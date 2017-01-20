@@ -1357,7 +1357,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
          FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ Ldrsw(index, UntagSmiFieldMemOperand(map, FixedArray::kLengthOffset));
   __ Cmp(index, Operand(2));
-  __ B(lt, &try_shared);
+  __ B(lt, &gotta_call_runtime);
 
   // x3  : native context
   // x2  : length / index
@@ -1416,7 +1416,9 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Cmp(index, Operand(1));
   __ B(gt, &loop_top);
 
-  // We found no code. Try the SharedFunctionInfo.
+  // We found no code.
+  __ B(&gotta_call_runtime);
+
   __ Bind(&try_shared);
   __ Ldr(entry,
          FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
