@@ -125,23 +125,25 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
                        "WebAssembly.compile()");
 
+  Local<Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Promise::Resolver> resolver;
+  if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
+  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+  return_value.Set(resolver->GetPromise());
+
   if (args.Length() < 1) {
     thrower.TypeError("Argument 0 must be a buffer source");
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
   i::MaybeHandle<i::JSObject> module_obj =
       CreateModuleObject(isolate, args[0], &thrower);
 
-  Local<Context> context = isolate->GetCurrentContext();
-  v8::Local<v8::Promise::Resolver> resolver;
-  if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
   if (thrower.error()) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
   } else {
     resolver->Resolve(context, Utils::ToLocal(module_obj.ToHandleChecked()));
   }
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(resolver->GetPromise());
 }
 
 void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
