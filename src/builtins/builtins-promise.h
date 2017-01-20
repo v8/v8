@@ -81,6 +81,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                            Node* default_constructor);
 
   void PromiseSetHasHandler(Node* promise);
+  void PromiseSetHandledHint(Node* promise);
 
   void AppendPromiseCallback(int offset, compiler::Node* promise,
                              compiler::Node* value);

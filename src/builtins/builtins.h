@@ -279,6 +279,10 @@ namespace internal {
   CPP(ArrayBufferIsView)                                                       \
                                                                                \
   /* AsyncFunction */                                                          \
+  TFJ(AsyncFunctionAwaitCaught, 3)                                             \
+  TFJ(AsyncFunctionAwaitUncaught, 3)                                           \
+  TFJ(AsyncFunctionAwaitRejectClosure, 1)                                      \
+  TFJ(AsyncFunctionAwaitResolveClosure, 1)                                     \
   TFJ(AsyncFunctionPromiseCreate, 0)                                           \
   TFJ(AsyncFunctionPromiseRelease, 1)                                          \
                                                                                \
@@ -643,7 +647,6 @@ namespace internal {
   TFJ(PromiseRejectClosure, 1)                                                 \
   TFJ(PromiseThen, 2)                                                          \
   TFJ(PromiseCatch, 1)                                                         \
-  TFJ(PerformPromiseThen, 4)                                                   \
   TFJ(ResolvePromise, 2)                                                       \
   TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject)      \
   TFJ(PromiseHandle, 5)                                                        \

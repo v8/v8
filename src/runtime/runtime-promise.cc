@@ -198,15 +198,6 @@ RUNTIME_FUNCTION(Runtime_PromiseMarkAsHandled) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseMarkHandledHint) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(JSPromise, promise, 0);
-
-  promise->set_handled_hint(true);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

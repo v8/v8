@@ -67,7 +67,6 @@ enum ContextLookupFlags {
     promise_internal_constructor)                                       \
   V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject) \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
-  V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)       \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                 \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                       \
   V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                   \
@@ -197,6 +196,10 @@ enum ContextLookupFlags {
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
+  V(ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, SharedFunctionInfo,                \
+    async_function_await_reject_shared_fun)                                    \
+  V(ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,               \
+    async_function_await_resolve_shared_fun)                                   \
   V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
   V(BOOL16X8_FUNCTION_INDEX, JSFunction, bool16x8_function)                    \
   V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \

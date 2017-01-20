@@ -271,6 +271,13 @@ void PromiseBuiltinsAssembler::PromiseSetHasHandler(Node* promise) {
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
+void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
+  Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
+  Node* const new_flags =
+      SmiOr(flags, SmiConstant(1 << JSPromise::kHandledHintBit));
+  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
+}
+
 Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
                                                    Node* default_constructor) {
   Isolate* isolate = this->isolate();
@@ -1157,23 +1164,6 @@ TF_BUILTIN(IsPromise, PromiseBuiltinsAssembler) {
 
   Bind(&if_notpromise);
   Return(FalseConstant());
-}
-
-TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(1);
-  Node* const on_resolve = Parameter(2);
-  Node* const on_reject = Parameter(3);
-  Node* const deferred_promise = Parameter(4);
-  Node* const context = Parameter(7);
-
-  // No deferred_on_resolve/deferred_on_reject because this is just an
-  // internal promise created by async-await.
-  Node* const result = InternalPerformPromiseThen(
-      context, promise, on_resolve, on_reject, deferred_promise,
-      UndefinedConstant(), UndefinedConstant());
-
-  // TODO(gsathya): This is unused, but value is returned according to spec.
-  Return(result);
 }
 
 // ES#sec-promise.prototype.then

@@ -2265,7 +2265,6 @@
           'js/templates.js',
           'js/spread.js',
           'js/proxy.js',
-          'js/async-await.js',
           'js/harmony-string-padding.js',
           'debug/mirrors.js',
           'debug/debug.js',

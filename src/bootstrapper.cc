@@ -1935,14 +1935,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                        Context::IS_PROMISE_INDEX);
     }
 
-    {  // Internal: PerformPromiseThen
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPerformPromiseThen, 4, false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PERFORM_PROMISE_THEN_INDEX);
-    }
-
     {  // Internal: ResolvePromise
        // Also exposed as extrasUtils.resolvePromise.
       Handle<JSFunction> function = SimpleCreateFunction(
@@ -3350,57 +3342,85 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           script_source_mapping_url, attribs);
       script_map->AppendDescriptor(&d);
     }
+  }
+
+  {  // -- A s y n c F u n c t i o n
+    // Builtin functions for AsyncFunction.
+    PrototypeIterator iter(native_context->async_function_map());
+    Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
+
+    static const bool kUseStrictFunctionMap = true;
+    Handle<JSFunction> async_function_constructor = InstallFunction(
+        container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
+        async_function_prototype, Builtins::kAsyncFunctionConstructor,
+        kUseStrictFunctionMap);
+    async_function_constructor->shared()->DontAdaptArguments();
+    async_function_constructor->shared()->SetConstructStub(
+        *isolate->builtins()->AsyncFunctionConstructor());
+    async_function_constructor->shared()->set_length(1);
+    InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
+                                     Context::ASYNC_FUNCTION_FUNCTION_INDEX);
+    JSObject::ForceSetPrototype(async_function_constructor,
+                                isolate->function_function());
+
+    JSObject::AddProperty(
+        async_function_prototype, factory->constructor_string(),
+        async_function_constructor,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    JSFunction::SetPrototype(async_function_constructor,
+                             async_function_prototype);
 
     {
-      PrototypeIterator iter(native_context->async_function_map());
-      Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kAsyncFunctionAwaitCaught, 3, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX);
+    }
 
-      static const bool kUseStrictFunctionMap = true;
-      Handle<JSFunction> async_function_constructor = InstallFunction(
-          container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
-          async_function_prototype, Builtins::kAsyncFunctionConstructor,
-          kUseStrictFunctionMap);
-      async_function_constructor->shared()->DontAdaptArguments();
-      async_function_constructor->shared()->SetConstructStub(
-          *isolate->builtins()->AsyncFunctionConstructor());
-      async_function_constructor->shared()->set_length(1);
-      InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
-                                       Context::ASYNC_FUNCTION_FUNCTION_INDEX);
-      JSObject::ForceSetPrototype(async_function_constructor,
-                                  isolate->function_function());
+    {
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kAsyncFunctionAwaitUncaught, 3, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
+    }
 
-      JSObject::AddProperty(
-          async_function_prototype, factory->constructor_string(),
-          async_function_constructor,
-          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    {
+      Handle<Code> code =
+          isolate->builtins()->AsyncFunctionAwaitRejectClosure();
+      Handle<SharedFunctionInfo> info =
+          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context->set_async_function_await_reject_shared_fun(*info);
+    }
 
-      JSFunction::SetPrototype(async_function_constructor,
-                               async_function_prototype);
+    {
+      Handle<Code> code =
+          isolate->builtins()->AsyncFunctionAwaitResolveClosure();
+      Handle<SharedFunctionInfo> info =
+          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context->set_async_function_await_resolve_shared_fun(*info);
+    }
 
-      Handle<JSFunction> async_function_next =
-          SimpleInstallFunction(container, "AsyncFunctionNext",
-                                Builtins::kGeneratorPrototypeNext, 1, true);
-      Handle<JSFunction> async_function_throw =
-          SimpleInstallFunction(container, "AsyncFunctionThrow",
-                                Builtins::kGeneratorPrototypeThrow, 1, true);
-      async_function_next->shared()->set_native(false);
-      async_function_throw->shared()->set_native(false);
+    {
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kAsyncFunctionPromiseCreate, 0, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX);
+    }
 
-      {
-        Handle<JSFunction> function = SimpleCreateFunction(
-            isolate, factory->empty_string(),
-            Builtins::kAsyncFunctionPromiseCreate, 0, false);
-        InstallWithIntrinsicDefaultProto(
-            isolate, function, Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX);
-      }
-
-      {
-        Handle<JSFunction> function = SimpleCreateFunction(
-            isolate, factory->empty_string(),
-            Builtins::kAsyncFunctionPromiseRelease, 1, false);
-        InstallWithIntrinsicDefaultProto(
-            isolate, function, Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX);
-      }
+    {
+      Handle<JSFunction> function = SimpleCreateFunction(
+          isolate, factory->empty_string(),
+          Builtins::kAsyncFunctionPromiseRelease, 1, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX);
     }
   }
 

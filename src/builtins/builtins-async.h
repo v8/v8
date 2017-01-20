@@ -26,7 +26,7 @@ class AsyncBuiltinsAssembler : public PromiseBuiltinsAssembler {
   Node* Await(Node* context, Node* generator, Node* value, Node* outer_promise,
               const NodeGenerator1& create_closure_context,
               int on_resolve_context_index, int on_reject_context_index,
-              bool is_catchable);
+              bool is_predicted_as_caught);
 };
 
 }  // namespace internal

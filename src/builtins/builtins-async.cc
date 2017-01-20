@@ -15,7 +15,7 @@ namespace internal {
 Node* AsyncBuiltinsAssembler::Await(
     Node* context, Node* generator, Node* value, Node* outer_promise,
     const NodeGenerator1& create_closure_context, int on_resolve_context_index,
-    int on_reject_context_index, bool is_catchable) {
+    int on_reject_context_index, bool is_predicted_as_caught) {
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
   Node* const wrapped_value = AllocateAndInitJSPromise(context);
 
@@ -55,18 +55,17 @@ Node* AsyncBuiltinsAssembler::Await(
   GotoUnless(IsDebugActive(), &do_perform_promise_then);
   {
     Label common(this);
+    GotoIf(TaggedIsSmi(value), &common);
     GotoUnless(HasInstanceType(value, JS_PROMISE_TYPE), &common);
     {
       // Mark the reject handler callback to be a forwarding edge, rather
       // than a meaningful catch handler
       Node* const key =
           HeapConstant(factory()->promise_forwarding_handler_symbol());
-      CallRuntime(Runtime::kSetProperty, on_reject, key, TrueConstant(),
-                  SmiConstant(STRICT));
+      CallRuntime(Runtime::kSetProperty, context, on_reject, key,
+                  TrueConstant(), SmiConstant(STRICT));
 
-      if (!is_catchable) {
-        PromiseSetHasHandler(value);
-      }
+      if (is_predicted_as_caught) PromiseSetHandledHint(value);
     }
 
     Goto(&common);
@@ -76,8 +75,8 @@ Node* AsyncBuiltinsAssembler::Await(
     CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
 
     Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
-    CallRuntime(Runtime::kSetProperty, throwaway_promise, key, outer_promise,
-                SmiConstant(STRICT));
+    CallRuntime(Runtime::kSetProperty, context, throwaway_promise, key,
+                outer_promise, SmiConstant(STRICT));
   }
 
   Goto(&do_perform_promise_then);
