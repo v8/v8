@@ -592,12 +592,18 @@ void AstNumberingVisitor::VisitArguments(ZoneList<Expression*>* arguments) {
 void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
-  if (eager_literals_ && node->ShouldEagerCompile()) {
-    eager_literals_->Add(new (zone())
-                             ThreadedListZoneEntry<FunctionLiteral*>(node));
+  if (node->ShouldEagerCompile()) {
+    // If the function literal is being eagerly compiled, recurse into the
+    // declarations and body of the function literal.
+    if (!AstNumbering::Renumber(stack_limit_, zone_, node, eager_literals_)) {
+      SetStackOverflow();
+      return;
+    }
+    if (eager_literals_) {
+      eager_literals_->Add(new (zone())
+                               ThreadedListZoneEntry<FunctionLiteral*>(node));
+    }
   }
-  // We don't recurse into the declarations or body of the function literal:
-  // you have to separately Renumber() each FunctionLiteral that you compile.
   ReserveFeedbackSlots(node);
 }
 
