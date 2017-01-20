@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "70270c163a91d7c09c2cf71dfa798deffd9a3242",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "00810858e7e47bc3f41cdbf910943e7d45452d8a",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -20,9 +20,9 @@ deps = {
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
   "v8/third_party/jinja2":
-    Var("chromium_url") + "/chromium/src/third_party/jinja2.git" + "@" + "b61a2c009a579593a259c1b300e0ad02bf48fd78",
+    Var("chromium_url") + "/chromium/src/third_party/jinja2.git" + "@" + "d34383206fa42d52faa10bb9931d6d538f3a57e0",
   "v8/third_party/markupsafe":
-    Var("chromium_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "484a5661041cac13bfc688a26ec5434b05d18961",
+    Var("chromium_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "8f45f5cfa0009d2a70589bcda0349b8cb2b72783",
   "v8/tools/swarming_client":
     Var('chromium_url') + '/external/swarming.client.git' + '@' + "ebc8dab6f8b8d79ec221c94de39a921145abd404",
   "v8/testing/gtest":
@@ -39,7 +39,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "7a4c8c9994aa47c8d574126abd159f996946cecf",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "fa8cd6779b6716faa8acc92bdba13c27d0bf6464",
 }
 
 deps_os = {
@@ -47,7 +47,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "b43a6a289a7588b1769814f04dd6c7d7176974cc",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "cfcae9b972f24e331a8ed0110b5afc96e75919a0",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "49e3f62b24dae13614d03bf3ecad7f17ee010f62",
   },
   "win": {
     "v8/third_party/cygwin":
