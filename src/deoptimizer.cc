@@ -3724,6 +3724,8 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<JSArrayIterator> object = Handle<JSArrayIterator>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
       slot->value_ = object;
+      // Initialize the index to zero to make the heap verifier happy.
+      object->set_index(Smi::FromInt(0));
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> iterated_object = materializer.FieldAt(value_index);
