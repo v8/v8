@@ -418,7 +418,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
     case JS_API_OBJECT_TYPE: {
       Handle<JSObject> js_object = Handle<JSObject>::cast(receiver);
       Map* map = js_object->map();
-      if (FLAG_expose_wasm &&
+      if (!FLAG_wasm_disable_structured_cloning &&
           map->GetConstructor() ==
               isolate_->native_context()->wasm_module_constructor()) {
         return WriteWasmModule(js_object);
@@ -1532,7 +1532,7 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
-  if (!FLAG_expose_wasm) return MaybeHandle<JSObject>();
+  if (FLAG_wasm_disable_structured_cloning) return MaybeHandle<JSObject>();
 
   Vector<const uint8_t> encoding_tag;
   if (!ReadRawBytes(sizeof(WasmEncodingTag)).To(&encoding_tag) ||
