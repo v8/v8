@@ -2513,7 +2513,6 @@ class JSObject: public JSReceiver {
   inline void RawFastDoublePropertyAtPut(FieldIndex index, double value);
   inline void WriteToField(int descriptor, PropertyDetails details,
                            Object* value);
-  inline void WriteToField(int descriptor, Object* value);
 
   // Access to in object properties.
   inline int GetInObjectPropertyOffset(int index);

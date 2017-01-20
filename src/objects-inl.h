@@ -2354,12 +2354,6 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
   }
 }
 
-void JSObject::WriteToField(int descriptor, Object* value) {
-  DescriptorArray* desc = map()->instance_descriptors();
-  PropertyDetails details = desc->GetDetails(descriptor);
-  WriteToField(descriptor, details, value);
-}
-
 int JSObject::GetInObjectPropertyOffset(int index) {
   return map()->GetInObjectPropertyOffset(index);
 }

@@ -70,6 +70,12 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   }
 }
 
+void WriteToField(JSObject* object, int descriptor, Object* value) {
+  DescriptorArray* descriptors = object->map()->instance_descriptors();
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+  object->WriteToField(descriptor, details, value);
+}
+
 const int kNumberOfBits = 32;
 
 
@@ -1047,7 +1053,7 @@ TEST(DoScavenge) {
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
-  obj->WriteToField(0, *heap_number);
+  WriteToField(*obj, 0, *heap_number);
 
   {
     // Ensure the object is properly set up.
@@ -1123,8 +1129,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
-  obj->WriteToField(0, *heap_number);
-  obj->WriteToField(1, *obj_value);
+  WriteToField(*obj, 0, *heap_number);
+  WriteToField(*obj, 1, *obj_value);
 
   {
     // Ensure the object is properly set up.
