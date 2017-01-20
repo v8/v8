@@ -101,7 +101,7 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
   // If property kind is not reconfigured merge the result with
   // representation/field type from the old descriptor.
   if (old_details.kind() == new_kind_) {
-    new_constness_ = old_details.constness();
+    new_constness_ = kMutable;
 
     Representation old_representation = old_details.representation();
     new_representation_ = representation.generalize(old_representation);
