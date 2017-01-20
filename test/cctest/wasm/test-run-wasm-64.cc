@@ -1632,3 +1632,19 @@ WASM_EXEC_TEST(MixedCall_i64_0) { Run_WasmMixedCall_N(execution_mode, 0); }
 WASM_EXEC_TEST(MixedCall_i64_1) { Run_WasmMixedCall_N(execution_mode, 1); }
 WASM_EXEC_TEST(MixedCall_i64_2) { Run_WasmMixedCall_N(execution_mode, 2); }
 WASM_EXEC_TEST(MixedCall_i64_3) { Run_WasmMixedCall_N(execution_mode, 3); }
+
+WASM_EXEC_TEST(Regress5874) {
+  REQUIRE(I32ConvertI64);
+  REQUIRE(I64LoadStore);
+  REQUIRE(I64Const);
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<int64_t>(8);
+
+  BUILD(r, kExprI64Const, 0x00,        // --
+        kExprI32ConvertI64,            // --
+        kExprI64Const, 0x00,           // --
+        kExprI64StoreMem, 0x03, 0x00,  // --
+        kExprI32Const, 0x00);          // --
+
+  r.Call();
+}
