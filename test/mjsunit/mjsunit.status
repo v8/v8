@@ -241,8 +241,6 @@
   #BUG(v8:5683)
   'wasm/import-memory': [SKIP],
 
-  # BUG(v8:5873): Crashes with --ignition-staging under gc_stress
-  'es6/block-scoping': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
