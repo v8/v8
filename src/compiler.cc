@@ -434,17 +434,6 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   return status;
 }
 
-void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
-                                       Handle<SharedFunctionInfo> shared_info) {
-  shared_info->set_ast_node_count(literal->ast_node_count());
-  if (literal->dont_optimize_reason() != kNoReason) {
-    shared_info->DisableOptimization(literal->dont_optimize_reason());
-  }
-  if (literal->flags() & AstProperties::kMustUseIgnitionTurbo) {
-    shared_info->set_must_use_ignition_turbo(true);
-  }
-}
-
 bool Renumber(ParseInfo* parse_info,
               Compiler::EagerInnerFunctionLiterals* eager_literals) {
   RuntimeCallTimerScope runtimeTimer(parse_info->isolate(),
@@ -454,9 +443,16 @@ bool Renumber(ParseInfo* parse_info,
           parse_info->zone(), parse_info->literal(), eager_literals)) {
     return false;
   }
-  if (!parse_info->shared_info().is_null()) {
-    SetSharedFunctionFlagsFromLiteral(parse_info->literal(),
-                                      parse_info->shared_info());
+  Handle<SharedFunctionInfo> shared_info = parse_info->shared_info();
+  if (!shared_info.is_null()) {
+    FunctionLiteral* lit = parse_info->literal();
+    shared_info->set_ast_node_count(lit->ast_node_count());
+    if (lit->dont_optimize_reason() != kNoReason) {
+      shared_info->DisableOptimization(lit->dont_optimize_reason());
+    }
+    if (lit->flags() & AstProperties::kMustUseIgnitionTurbo) {
+      shared_info->set_must_use_ignition_turbo(true);
+    }
   }
   return true;
 }
@@ -485,7 +481,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
   return true;
 }
 
-bool CompileUnoptimizedInnerFunctions(
+bool CompileUnoptimizedInnerFunctionsRecursively(
     ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* literals,
     CompilationInfo* outer_info) {
   Isolate* isolate = outer_info->isolate();
@@ -495,13 +491,21 @@ bool CompileUnoptimizedInnerFunctions(
 
   for (auto it : *literals) {
     FunctionLiteral* literal = it->value();
-    Handle<SharedFunctionInfo> shared =
-        Compiler::GetSharedFunctionInfo(literal, script, outer_info);
-    if (shared->is_compiled()) continue;
 
-    // The {literal} has already been numbered because AstNumbering decends into
-    // eagerly compiled function literals.
-    SetSharedFunctionFlagsFromLiteral(literal, shared);
+    // Find any previously allocated shared function info for the given literal.
+    Handle<SharedFunctionInfo> shared;
+    MaybeHandle<SharedFunctionInfo> maybe_existing =
+        script->FindSharedFunctionInfo(isolate, literal);
+    if (maybe_existing.ToHandle(&shared)) {
+      DCHECK(!shared->is_toplevel());
+      // If we found an existing shared function info with compiled code,
+      // we are done.
+      if (shared->is_compiled()) continue;
+    } else {
+      shared =
+          isolate->factory()->NewSharedFunctionInfoForLiteral(literal, script);
+      shared->set_is_toplevel(false);
+    }
 
     ParseInfo parse_info(script);
     parse_info.set_literal(literal);
@@ -516,7 +520,11 @@ bool CompileUnoptimizedInnerFunctions(
     if (outer_info->will_serialize()) info.PrepareForSerializing();
     if (outer_info->is_debug()) info.MarkAsDebug();
 
-    if (!GenerateUnoptimizedCode(&info)) {
+    Compiler::EagerInnerFunctionLiterals inner_literals;
+    if (!Renumber(&parse_info, &inner_literals) ||
+        !CompileUnoptimizedInnerFunctionsRecursively(&inner_literals,
+                                                     outer_info) ||
+        !GenerateUnoptimizedCode(&info)) {
       if (!isolate->has_pending_exception()) isolate->StackOverflow();
       return false;
     }
@@ -536,7 +544,7 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
   if (!Compiler::Analyze(info->parse_info(), &inner_literals) ||
-      !CompileUnoptimizedInnerFunctions(&inner_literals, info) ||
+      !CompileUnoptimizedInnerFunctionsRecursively(&inner_literals, info) ||
       !GenerateUnoptimizedCode(info)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
