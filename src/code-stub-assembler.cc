@@ -7764,6 +7764,57 @@ Node* CodeStubAssembler::HasProperty(
   return result.value();
 }
 
+Node* CodeStubAssembler::ClassOf(Node* value) {
+  Variable var_result(this, MachineRepresentation::kTaggedPointer);
+  Label if_function(this, Label::kDeferred), if_object(this, Label::kDeferred),
+      if_primitive(this, Label::kDeferred), return_result(this);
+
+  // Check if {value} is a Smi.
+  GotoIf(TaggedIsSmi(value), &if_primitive);
+
+  Node* value_map = LoadMap(value);
+  Node* value_instance_type = LoadMapInstanceType(value_map);
+
+  // Check if {value} is a JSFunction or JSBoundFunction.
+  STATIC_ASSERT(LAST_TYPE == LAST_FUNCTION_TYPE);
+  GotoIf(Uint32LessThanOrEqual(Int32Constant(FIRST_FUNCTION_TYPE),
+                               value_instance_type),
+         &if_function);
+
+  // Check if {value} is a primitive HeapObject.
+  STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+  GotoIf(Uint32LessThan(value_instance_type,
+                        Int32Constant(FIRST_JS_RECEIVER_TYPE)),
+         &if_primitive);
+
+  // Load the {value}s constructor, and check that it's a JSFunction.
+  Node* constructor = LoadMapConstructor(value_map);
+  GotoUnless(IsJSFunction(constructor), &if_object);
+
+  // Return the instance class name for the {constructor}.
+  Node* shared_info =
+      LoadObjectField(constructor, JSFunction::kSharedFunctionInfoOffset);
+  Node* instance_class_name = LoadObjectField(
+      shared_info, SharedFunctionInfo::kInstanceClassNameOffset);
+  var_result.Bind(instance_class_name);
+  Goto(&return_result);
+
+  Bind(&if_function);
+  var_result.Bind(LoadRoot(Heap::kFunction_stringRootIndex));
+  Goto(&return_result);
+
+  Bind(&if_object);
+  var_result.Bind(LoadRoot(Heap::kObject_stringRootIndex));
+  Goto(&return_result);
+
+  Bind(&if_primitive);
+  var_result.Bind(NullConstant());
+  Goto(&return_result);
+
+  Bind(&return_result);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::Typeof(Node* value, Node* context) {
   Variable result_var(this, MachineRepresentation::kTagged);
 

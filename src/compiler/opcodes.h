@@ -120,6 +120,7 @@
   V(JSToString)
 
 #define JS_OTHER_UNOP_LIST(V) \
+  V(JSClassOf)                \
   V(JSTypeOf)
 
 #define JS_SIMPLE_UNOP_LIST(V) \

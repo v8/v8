@@ -82,6 +82,8 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceStringGetRawHashField(node);
     case Runtime::kInlineTheHole:
       return ReduceTheHole(node);
+    case Runtime::kInlineClassOf:
+      return ReduceClassOf(node);
     default:
       break;
   }
@@ -337,6 +339,13 @@ Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {
   Node* value = jsgraph()->TheHoleConstant();
   ReplaceWithValue(node, value);
   return Replace(value);
+}
+
+Reduction JSIntrinsicLowering::ReduceClassOf(Node* node) {
+  RelaxEffectsAndControls(node);
+  node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, javascript()->ClassOf());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,

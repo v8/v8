@@ -208,6 +208,7 @@ namespace internal {
   TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                      \
   TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion)                     \
   TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion)                      \
+  TFS(ClassOf, BUILTIN, kNoExtraICState, Typeof)                               \
   TFS(Typeof, BUILTIN, kNoExtraICState, Typeof)                                \
   TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion)           \
                                                                                \

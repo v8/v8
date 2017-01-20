@@ -1139,6 +1139,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Runtime::FunctionId fallback_runtime_function_id = Runtime::kHasProperty);
   Node* ForInFilter(Node* key, Node* object, Node* context);
 
+  Node* ClassOf(Node* object);
+
   Node* Typeof(Node* value, Node* context);
 
   Node* GetSuperConstructor(Node* value, Node* context);

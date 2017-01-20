@@ -474,6 +474,17 @@ void Builtins::Generate_ToObject(compiler::CodeAssemblerState* state) {
   assembler.Return(object);
 }
 
+// Deprecated ES5 [[Class]] internal property (used to implement %_ClassOf).
+void Builtins::Generate_ClassOf(compiler::CodeAssemblerState* state) {
+  typedef compiler::Node Node;
+  typedef TypeofDescriptor Descriptor;
+  CodeStubAssembler assembler(state);
+
+  Node* object = assembler.Parameter(Descriptor::kObject);
+
+  assembler.Return(assembler.ClassOf(object));
+}
+
 // ES6 section 12.5.5 typeof operator
 void Builtins::Generate_Typeof(compiler::CodeAssemblerState* state) {
   typedef compiler::Node Node;

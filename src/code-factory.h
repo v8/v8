@@ -128,6 +128,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringGreaterThanOrEqual(Isolate* isolate);
   static Callable SubString(Isolate* isolate);
 
+  static Callable ClassOf(Isolate* isolate);
   static Callable Typeof(Isolate* isolate);
   static Callable GetSuperConstructor(Isolate* isolate);
 

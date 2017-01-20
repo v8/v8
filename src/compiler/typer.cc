@@ -1052,6 +1052,9 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
 
 // JS unary operators.
 
+Type* Typer::Visitor::TypeJSClassOf(Node* node) {
+  return Type::InternalizedStringOrNull();
+}
 
 Type* Typer::Visitor::TypeJSTypeOf(Node* node) {
   return Type::InternalizedString();
@@ -1561,9 +1564,8 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToObject);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
-    case Runtime::kClassOf:
     case Runtime::kInlineClassOf:
-      return Type::Union(Type::InternalizedString(), Type::Null(), zone());
+      return Type::InternalizedStringOrNull();
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:

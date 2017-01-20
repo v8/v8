@@ -636,9 +636,13 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Boolean.
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kJSClassOf:
+      // Type is InternaliedString \/ Null.
+      CheckTypeIs(node, Type::InternalizedStringOrNull());
+      break;
     case IrOpcode::kJSTypeOf:
-      // Type is String.
-      CheckTypeIs(node, Type::String());
+      // Type is InternalizedString.
+      CheckTypeIs(node, Type::InternalizedString());
       break;
     case IrOpcode::kJSGetSuperConstructor:
       // We don't check the input for Type::Function because

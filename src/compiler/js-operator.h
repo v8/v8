@@ -590,6 +590,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadModule(int32_t cell_index);
   const Operator* StoreModule(int32_t cell_index);
 
+  const Operator* ClassOf();
   const Operator* TypeOf();
   const Operator* InstanceOf();
   const Operator* OrdinaryHasInstance();

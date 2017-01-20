@@ -148,6 +148,7 @@ namespace compiler {
   V(String,                       kInternalizedString | kOtherString) \
   V(UniqueName,                   kSymbol | kInternalizedString) \
   V(Name,                         kSymbol | kString) \
+  V(InternalizedStringOrNull,     kInternalizedString | kNull) \
   V(BooleanOrNumber,              kBoolean | kNumber) \
   V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
   V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
