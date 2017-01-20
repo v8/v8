@@ -136,6 +136,12 @@ class Logger : public CodeEventListener {
   // object.
   void SuspectReadEvent(Name* name, Object* obj);
 
+  // Emits an event when a message is put on or read from a debugging queue.
+  // DebugTag lets us put a call-site specific label on the event.
+  void DebugTag(const char* call_site_tag);
+  void DebugEvent(const char* event_type, Vector<uint16_t> parameter);
+
+
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();
   void ApiNamedPropertyAccess(const char* tag, JSObject* holder, Object* name);

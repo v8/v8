@@ -1249,6 +1249,28 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 }
 
 
+void Logger::DebugTag(const char* call_site_tag) {
+  if (!log_->IsEnabled() || !FLAG_log) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("debug-tag,%s", call_site_tag);
+  msg.WriteToLogFile();
+}
+
+
+void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
+  if (!log_->IsEnabled() || !FLAG_log) return;
+  StringBuilder s(parameter.length() + 1);
+  for (int i = 0; i < parameter.length(); ++i) {
+    s.AddCharacter(static_cast<char>(parameter[i]));
+  }
+  char* parameter_string = s.Finalize();
+  Log::MessageBuilder msg(log_);
+  msg.Append("debug-queue-event,%s,%15.3f,%s", event_type,
+             base::OS::TimeCurrentMillis(), parameter_string);
+  DeleteArray(parameter_string);
+  msg.WriteToLogFile();
+}
+
 void Logger::RuntimeCallTimerEvent() {
   RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
   RuntimeCallTimer* timer = stats->current_timer();

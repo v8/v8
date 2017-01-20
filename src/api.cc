@@ -8896,6 +8896,24 @@ bool Debug::CheckDebugBreak(Isolate* isolate) {
 }
 
 
+void Debug::SetMessageHandler(Isolate* isolate,
+                              v8::Debug::MessageHandler handler) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8(i_isolate);
+  i_isolate->debug()->SetMessageHandler(handler);
+}
+
+
+void Debug::SendCommand(Isolate* isolate,
+                        const uint16_t* command,
+                        int length,
+                        ClientData* client_data) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  internal_isolate->debug()->EnqueueCommandMessage(
+      i::Vector<const uint16_t>(command, length), client_data);
+}
+
+
 MaybeLocal<Value> Debug::Call(Local<Context> context,
                               v8::Local<v8::Function> fun,
                               v8::Local<v8::Value> data) {
@@ -8933,6 +8951,10 @@ MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
            .ToLocal(&result);
   RETURN_ON_FAILED_EXECUTION(Value);
   RETURN_ESCAPED(result);
+}
+
+void Debug::ProcessDebugMessages(Isolate* isolate) {
+  reinterpret_cast<i::Isolate*>(isolate)->debug()->ProcessDebugMessages(true);
 }
 
 
