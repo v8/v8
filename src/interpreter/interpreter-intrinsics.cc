@@ -304,31 +304,6 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   return result;
 }
 
-Node* IntrinsicsHelper::ValueOf(Node* args_reg, Node* arg_count,
-                                Node* context) {
-  InterpreterAssembler::Variable return_value(assembler_,
-                                              MachineRepresentation::kTagged);
-  InterpreterAssembler::Label done(assembler_);
-
-  Node* object = __ LoadRegister(args_reg);
-  return_value.Bind(object);
-
-  // If the object is a smi return the object.
-  __ GotoIf(__ TaggedIsSmi(object), &done);
-
-  // If the object is not a value type, return the object.
-  Node* condition =
-      CompareInstanceType(object, JS_VALUE_TYPE, kInstanceTypeEqual);
-  __ GotoUnless(condition, &done);
-
-  // If the object is a value type, return the value field.
-  return_value.Bind(__ LoadObjectField(object, JSValue::kValueOffset));
-  __ Goto(&done);
-
-  __ Bind(&done);
-  return return_value.value();
-}
-
 Node* IntrinsicsHelper::ClassOf(Node* args_reg, Node* arg_count,
                                 Node* context) {
   Node* value = __ LoadRegister(args_reg);
