@@ -21,17 +21,23 @@ using namespace v8::internal::wasm;
 
 namespace {
 
+// Forward declaration.
+class InterpreterHandle;
+InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info);
+
 class InterpreterHandle {
   AccountingAllocator allocator_;
   WasmInstance instance_;
   WasmInterpreter interpreter_;
+  Isolate* isolate_;
 
  public:
   // Initialize in the right order, using helper methods to make this possible.
   // WasmInterpreter has to be allocated in place, since it is not movable.
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : instance_(debug_info->wasm_instance()->compiled_module()->module()),
-        interpreter_(GetBytesEnv(&instance_, debug_info), &allocator_) {
+        interpreter_(GetBytesEnv(&instance_, debug_info), &allocator_),
+        isolate_(isolate) {
     Handle<JSArrayBuffer> mem_buffer =
         handle(debug_info->wasm_instance()->memory_buffer(), isolate);
     if (mem_buffer->IsUndefined(isolate)) {
@@ -95,10 +101,9 @@ class InterpreterHandle {
     do {
       state = thread->Run();
       switch (state) {
-        case WasmInterpreter::State::PAUSED: {
-          // We hit a breakpoint.
-          // TODO(clemensh): Handle this.
-        } break;
+        case WasmInterpreter::State::PAUSED:
+          NotifyDebugEventListeners();
+          break;
         case WasmInterpreter::State::FINISHED:
           // Perfect, just break the switch and exit the loop.
           break;
@@ -136,6 +141,83 @@ class InterpreterHandle {
       }
     }
   }
+
+  Handle<WasmInstanceObject> GetInstanceObject() {
+    StackTraceFrameIterator it(isolate_);
+    WasmInterpreterEntryFrame* frame =
+        WasmInterpreterEntryFrame::cast(it.frame());
+    Handle<WasmInstanceObject> instance_obj(frame->wasm_instance(), isolate_);
+    DCHECK_EQ(this, GetInterpreterHandle(instance_obj->debug_info()));
+    return instance_obj;
+  }
+
+  void NotifyDebugEventListeners() {
+    // Enter the debugger.
+    DebugScope debug_scope(isolate_->debug());
+    if (debug_scope.failed()) return;
+
+    // Postpone interrupt during breakpoint processing.
+    PostponeInterruptsScope postpone(isolate_);
+
+    // If we are paused on a breakpoint, clear all stepping and notify the
+    // listeners.
+    Handle<WasmCompiledModule> compiled_module(
+        GetInstanceObject()->compiled_module(), isolate_);
+    int position = GetTopPosition(compiled_module);
+    MaybeHandle<FixedArray> hit_breakpoints;
+    if (isolate_->debug()->break_points_active()) {
+      hit_breakpoints = compiled_module->CheckBreakPoints(position);
+    }
+
+    // If we hit a breakpoint, pass a JSArray with all breakpoints, otherwise
+    // pass undefined.
+    Handle<Object> hit_breakpoints_js;
+    if (hit_breakpoints.is_null()) {
+      hit_breakpoints_js = isolate_->factory()->undefined_value();
+    } else {
+      hit_breakpoints_js = isolate_->factory()->NewJSArrayWithElements(
+          hit_breakpoints.ToHandleChecked());
+    }
+
+    isolate_->debug()->OnDebugBreak(hit_breakpoints_js, false);
+  }
+
+  int GetTopPosition(Handle<WasmCompiledModule> compiled_module) {
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    DCHECK_LT(0, thread->GetFrameCount());
+
+    wasm::InterpretedFrame frame =
+        thread->GetFrame(thread->GetFrameCount() - 1);
+    return compiled_module->GetFunctionOffset(frame.function()->func_index) +
+           frame.pc();
+  }
+
+  std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
+      Address frame_pointer) {
+    // TODO(clemensh): Use frame_pointer.
+    USE(frame_pointer);
+
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    std::vector<std::pair<uint32_t, int>> stack(thread->GetFrameCount());
+    for (int i = 0, e = thread->GetFrameCount(); i < e; ++i) {
+      wasm::InterpretedFrame frame = thread->GetFrame(i);
+      stack[i] = {frame.function()->func_index, frame.pc()};
+    }
+    return stack;
+  }
+
+  std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
+      Address frame_pointer, int idx) {
+    // TODO(clemensh): Use frame_pointer.
+    USE(frame_pointer);
+
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
+    return std::unique_ptr<wasm::InterpretedFrame>(
+        new wasm::InterpretedFrame(thread->GetMutableFrame(idx)));
+  }
 };
 
 InterpreterHandle* GetOrCreateInterpreterHandle(
@@ -149,6 +231,12 @@ InterpreterHandle* GetOrCreateInterpreterHandle(
   }
 
   return Handle<Managed<InterpreterHandle>>::cast(handle)->get();
+}
+
+InterpreterHandle* GetInterpreterHandle(WasmDebugInfo* debug_info) {
+  Object* handle_obj = debug_info->get(WasmDebugInfo::kInterpreterHandle);
+  DCHECK(!handle_obj->IsUndefined(debug_info->GetIsolate()));
+  return Managed<InterpreterHandle>::cast(handle_obj)->get();
 }
 
 int GetNumFunctions(WasmInstanceObject* instance) {
@@ -265,10 +353,18 @@ void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
   EnsureRedirectToInterpreter(isolate, debug_info, func_index);
 }
 
-void WasmDebugInfo::RunInterpreter(Handle<WasmDebugInfo> debug_info,
-                                   int func_index, uint8_t* arg_buffer) {
+void WasmDebugInfo::RunInterpreter(int func_index, uint8_t* arg_buffer) {
   DCHECK_LE(0, func_index);
-  InterpreterHandle* interp_handle =
-      GetOrCreateInterpreterHandle(debug_info->GetIsolate(), debug_info);
-  interp_handle->Execute(static_cast<uint32_t>(func_index), arg_buffer);
+  GetInterpreterHandle(this)->Execute(static_cast<uint32_t>(func_index),
+                                      arg_buffer);
+}
+
+std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
+    Address frame_pointer) {
+  return GetInterpreterHandle(this)->GetInterpretedStack(frame_pointer);
+}
+
+std::unique_ptr<wasm::InterpretedFrame> WasmDebugInfo::GetInterpretedFrame(
+    Address frame_pointer, int idx) {
+  return GetInterpreterHandle(this)->GetInterpretedFrame(frame_pointer, idx);
 }

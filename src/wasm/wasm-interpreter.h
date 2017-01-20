@@ -80,20 +80,24 @@ FOREACH_UNION_MEMBER(DECLARE_CAST)
 #undef DECLARE_CAST
 
 // Representation of frames within the interpreter.
-class WasmFrame {
+class InterpretedFrame {
  public:
   const WasmFunction* function() const { return function_; }
-  int pc() const {
-    // TODO(wasm): Remove USE once we actually use them.
-    USE(fp_);
-    USE(sp_);
-    return pc_;
-  }
+  int pc() const { return pc_; }
+
+  //==========================================================================
+  // Stack frame inspection.
+  //==========================================================================
+  int GetParameterCount() const;
+  WasmVal GetLocalVal(int index) const;
+  WasmVal GetExprVal(int pc) const;
+  void SetLocalVal(int index, WasmVal val);
+  void SetExprVal(int pc, WasmVal val);
 
  private:
   friend class WasmInterpreter;
 
-  WasmFrame(const WasmFunction* function, int pc, int fp, int sp)
+  InterpretedFrame(const WasmFunction* function, int pc, int fp, int sp)
       : function_(function), pc_(pc), fp_(fp), sp_(sp) {}
 
   const WasmFunction* function_;
@@ -134,8 +138,8 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     // Stack inspection and modification.
     pc_t GetBreakpointPc();
     int GetFrameCount();
-    const WasmFrame* GetFrame(int index);
-    WasmFrame* GetMutableFrame(int index);
+    const InterpretedFrame GetFrame(int index);
+    InterpretedFrame GetMutableFrame(int index);
     WasmVal GetReturnValue(int index = 0);
     // Returns true if the thread executed an instruction which may produce
     // nondeterministic results, e.g. float div, float sqrt, and float mul,
@@ -172,14 +176,6 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //==========================================================================
   int GetThreadCount();
   Thread* GetThread(int id);
-
-  //==========================================================================
-  // Stack frame inspection.
-  //==========================================================================
-  WasmVal GetLocalVal(const WasmFrame* frame, int index);
-  WasmVal GetExprVal(const WasmFrame* frame, int pc);
-  void SetLocalVal(WasmFrame* frame, int index, WasmVal val);
-  void SetExprVal(WasmFrame* frame, int pc, WasmVal val);
 
   //==========================================================================
   // Memory access.

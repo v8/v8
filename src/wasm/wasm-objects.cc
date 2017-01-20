@@ -1133,6 +1133,27 @@ bool WasmCompiledModule::SetBreakPoint(
   return true;
 }
 
+MaybeHandle<FixedArray> WasmCompiledModule::CheckBreakPoints(int position) {
+  Isolate* isolate = GetIsolate();
+  if (!shared()->has_breakpoint_infos()) return {};
+
+  Handle<FixedArray> breakpoint_infos(shared()->breakpoint_infos(), isolate);
+  int insert_pos =
+      FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+  if (insert_pos >= breakpoint_infos->length()) return {};
+
+  Handle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
+                                       isolate);
+  if (maybe_breakpoint_info->IsUndefined(isolate)) return {};
+  Handle<BreakPointInfo> breakpoint_info =
+      Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
+  if (breakpoint_info->source_position() != position) return {};
+
+  Handle<Object> breakpoint_objects(breakpoint_info->break_point_objects(),
+                                    isolate);
+  return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
+}
+
 Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
     Isolate* isolate, Handle<WasmInstanceObject> instance) {
   Handle<FixedArray> array =

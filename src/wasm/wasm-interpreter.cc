@@ -985,16 +985,22 @@ class ThreadImpl {
     possible_nondeterminism_ = false;
   }
 
-  int GetFrameCount() { return static_cast<int>(frames_.size()); }
-
-  const WasmFrame* GetFrame(int index) {
-    UNIMPLEMENTED();
-    return nullptr;
+  int GetFrameCount() {
+    DCHECK_GE(kMaxInt, frames_.size());
+    return static_cast<int>(frames_.size());
   }
 
-  WasmFrame* GetMutableFrame(int index) {
-    UNIMPLEMENTED();
-    return nullptr;
+  template <typename FrameCons>
+  InterpretedFrame GetMutableFrame(int index, FrameCons frame_cons) {
+    DCHECK_LE(0, index);
+    DCHECK_GT(frames_.size(), index);
+    Frame* frame = &frames_[index];
+    DCHECK_GE(kMaxInt, frame->ret_pc);
+    DCHECK_GE(kMaxInt, frame->sp);
+    DCHECK_GE(kMaxInt, frame->llimit());
+    return frame_cons(frame->code->function, static_cast<int>(frame->ret_pc),
+                      static_cast<int>(frame->sp),
+                      static_cast<int>(frame->llimit()));
   }
 
   WasmVal GetReturnValue(int index) {
@@ -1747,11 +1753,16 @@ pc_t WasmInterpreter::Thread::GetBreakpointPc() {
 int WasmInterpreter::Thread::GetFrameCount() {
   return ToImpl(this)->GetFrameCount();
 }
-const WasmFrame* WasmInterpreter::Thread::GetFrame(int index) {
-  return ToImpl(this)->GetFrame(index);
+const InterpretedFrame WasmInterpreter::Thread::GetFrame(int index) {
+  return GetMutableFrame(index);
 }
-WasmFrame* WasmInterpreter::Thread::GetMutableFrame(int index) {
-  return ToImpl(this)->GetMutableFrame(index);
+InterpretedFrame WasmInterpreter::Thread::GetMutableFrame(int index) {
+  // We have access to the constructor of InterpretedFrame, but ThreadImpl has
+  // not. So pass it as a lambda (should all get inlined).
+  auto frame_cons = [](const WasmFunction* function, int pc, int fp, int sp) {
+    return InterpretedFrame(function, pc, fp, sp);
+  };
+  return ToImpl(this)->GetMutableFrame(index, frame_cons);
 }
 WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
   return ToImpl(this)->GetReturnValue(index);
@@ -1844,29 +1855,6 @@ WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
   return ToThread(&internals_->threads_[id]);
 }
 
-WasmVal WasmInterpreter::GetLocalVal(const WasmFrame* frame, int index) {
-  CHECK_GE(index, 0);
-  UNIMPLEMENTED();
-  WasmVal none;
-  none.type = kWasmStmt;
-  return none;
-}
-
-WasmVal WasmInterpreter::GetExprVal(const WasmFrame* frame, int pc) {
-  UNIMPLEMENTED();
-  WasmVal none;
-  none.type = kWasmStmt;
-  return none;
-}
-
-void WasmInterpreter::SetLocalVal(WasmFrame* frame, int index, WasmVal val) {
-  UNIMPLEMENTED();
-}
-
-void WasmInterpreter::SetExprVal(WasmFrame* frame, int pc, WasmVal val) {
-  UNIMPLEMENTED();
-}
-
 size_t WasmInterpreter::GetMemorySize() {
   return internals_->instance_->mem_size;
 }
@@ -1895,6 +1883,35 @@ ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(
   ControlTransfers targets(zone, nullptr, start, end);
   return targets.map_;
 }
+
+//============================================================================
+// Implementation of the frame inspection interface.
+//============================================================================
+int InterpretedFrame::GetParameterCount() const {
+  USE(fp_);
+  USE(sp_);
+  // TODO(clemensh): Return the correct number of parameters.
+  return 0;
+}
+
+WasmVal InterpretedFrame::GetLocalVal(int index) const {
+  CHECK_GE(index, 0);
+  UNIMPLEMENTED();
+  WasmVal none;
+  none.type = kWasmStmt;
+  return none;
+}
+
+WasmVal InterpretedFrame::GetExprVal(int pc) const {
+  UNIMPLEMENTED();
+  WasmVal none;
+  none.type = kWasmStmt;
+  return none;
+}
+
+void InterpretedFrame::SetLocalVal(int index, WasmVal val) { UNIMPLEMENTED(); }
+
+void InterpretedFrame::SetExprVal(int pc, WasmVal val) { UNIMPLEMENTED(); }
 
 }  // namespace wasm
 }  // namespace internal

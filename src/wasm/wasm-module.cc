@@ -863,15 +863,17 @@ std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& name) {
 }
 
 WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
-  DCHECK(code->kind() == Code::WASM_FUNCTION);
   DisallowHeapAllocation no_gc;
+  DCHECK(code->kind() == Code::WASM_FUNCTION ||
+         code->kind() == Code::WASM_INTERPRETER_ENTRY);
   FixedArray* deopt_data = code->deoptimization_data();
   DCHECK_NOT_NULL(deopt_data);
-  DCHECK_EQ(2, deopt_data->length());
+  DCHECK_EQ(code->kind() == Code::WASM_INTERPRETER_ENTRY ? 1 : 2,
+            deopt_data->length());
   Object* weak_link = deopt_data->get(0);
   DCHECK(weak_link->IsWeakCell());
   WeakCell* cell = WeakCell::cast(weak_link);
-  if (!cell->value()) return nullptr;
+  if (cell->cleared()) return nullptr;
   return WasmInstanceObject::cast(cell->value());
 }
 

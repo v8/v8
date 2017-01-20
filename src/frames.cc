@@ -1763,7 +1763,7 @@ void WasmInterpreterEntryFrame::Iterate(ObjectVisitor* v) const {
 void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
                                       int index) const {
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("WASM TO INTERPRETER [");
+  accumulator->Add("WASM INTERPRETER ENTRY [");
   Script* script = this->script();
   accumulator->PrintName(script->name());
   accumulator->Add("]");
@@ -1772,8 +1772,15 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
 
 void WasmInterpreterEntryFrame::Summarize(List<FrameSummary>* functions,
                                           FrameSummary::Mode mode) const {
-  // TODO(clemensh): Implement this.
-  UNIMPLEMENTED();
+  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  std::vector<std::pair<uint32_t, int>> interpreted_stack =
+      instance->debug_info()->GetInterpretedStack(fp());
+
+  for (auto& e : interpreted_stack) {
+    FrameSummary::WasmInterpretedFrameSummary summary(isolate(), instance,
+                                                      e.first, e.second);
+    functions->Add(summary);
+  }
 }
 
 Code* WasmInterpreterEntryFrame::unchecked_code() const {

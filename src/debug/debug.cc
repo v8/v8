@@ -2317,9 +2317,9 @@ void Debug::ProcessDebugMessages(bool debug_command_only) {
 void Debug::PrintBreakLocation() {
   if (!FLAG_print_break_location) return;
   HandleScope scope(isolate_);
-  JavaScriptFrameIterator iterator(isolate_);
+  StackTraceFrameIterator iterator(isolate_);
   if (iterator.done()) return;
-  JavaScriptFrame* frame = iterator.frame();
+  StandardFrame* frame = iterator.frame();
   FrameSummary summary = FrameSummary::GetTop(frame);
   int source_position = summary.SourcePosition();
   Handle<Object> script_obj = summary.script();
@@ -2372,8 +2372,6 @@ DebugScope::DebugScope(Debug* debug)
   // frame id.
   StackTraceFrameIterator it(isolate());
   bool has_frames = !it.done();
-  // We don't currently support breaking inside wasm framess.
-  DCHECK(!has_frames || !it.is_wasm());
   debug_->thread_local_.break_frame_id_ =
       has_frames ? it.frame()->id() : StackFrame::NO_ID;
   debug_->SetNextBreakId();

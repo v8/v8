@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+class InterpretedFrame;
 struct WasmModule;
 }
 
@@ -395,6 +396,10 @@ class WasmCompiledModule : public FixedArray {
   static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
                             Handle<Object> break_point_object);
 
+  // Return an empty handle if no breakpoint is hit at that location, or a
+  // FixedArray with all hit breakpoint objects.
+  MaybeHandle<FixedArray> CheckBreakPoints(int position);
+
  private:
   void InitId();
 
@@ -417,8 +422,15 @@ class WasmDebugInfo : public FixedArray {
 
   static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
 
-  static void RunInterpreter(Handle<WasmDebugInfo>, int func_index,
-                             uint8_t* arg_buffer);
+  void RunInterpreter(int func_index, uint8_t* arg_buffer);
+
+  // Get the stack of the wasm interpreter as pairs of <function index, byte
+  // offset>. The list is ordered bottom-to-top, i.e. caller before callee.
+  std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
+      Address frame_pointer);
+
+  std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
+      Address frame_pointer, int idx);
 
   DECLARE_GETTER(wasm_instance, WasmInstanceObject);
 };
