@@ -19,7 +19,8 @@ void LocalArrayBufferTracker::Free() {
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(it->first);
-    if ((free_mode == kFreeAll) || ObjectMarking::IsWhite(buffer)) {
+    if ((free_mode == kFreeAll) ||
+        Marking::IsWhite(ObjectMarking::MarkBitFrom(buffer))) {
       const size_t len = it->second;
       heap_->isolate()->array_buffer_allocator()->Free(buffer->backing_store(),
                                                        len);
