@@ -1460,6 +1460,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return Type::OtherObject();
 
         // Array functions.
+        case kArrayIsArray:
+          return Type::Boolean();
         case kArrayConcat:
           return Type::Receiver();
         case kArrayEvery:
@@ -1494,6 +1496,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return t->cache_.kPositiveSafeInteger;
 
         // Object functions.
+        case kObjectAssign:
+        case kObjectCreate:
+          return Type::OtherObject();
         case kObjectHasOwnProperty:
           return Type::Boolean();
 
@@ -1521,6 +1526,46 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return Type::String();
         case kGlobalIsFinite:
         case kGlobalIsNaN:
+          return Type::Boolean();
+
+        // Map functions.
+        case kMapClear:
+        case kMapForEach:
+          return Type::Undefined();
+        case kMapDelete:
+        case kMapHas:
+          return Type::Boolean();
+        case kMapEntries:
+        case kMapKeys:
+        case kMapSet:
+        case kMapValues:
+          return Type::OtherObject();
+
+        // Set functions.
+        case kSetAdd:
+        case kSetEntries:
+        case kSetKeys:
+        case kSetValues:
+          return Type::OtherObject();
+        case kSetClear:
+        case kSetForEach:
+          return Type::Undefined();
+        case kSetDelete:
+        case kSetHas:
+          return Type::Boolean();
+
+        // WeakMap functions.
+        case kWeakMapDelete:
+        case kWeakMapHas:
+          return Type::Boolean();
+        case kWeakMapSet:
+          return Type::OtherObject();
+
+        // WeakSet functions.
+        case kWeakSetAdd:
+          return Type::OtherObject();
+        case kWeakSetDelete:
+        case kWeakSetHas:
           return Type::Boolean();
         default:
           break;
