@@ -185,6 +185,31 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
       FixedArray);
 }
 
+Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
+    int boilerplate, int all_properties, bool has_seen_proto) {
+  DCHECK_GE(all_properties, boilerplate);
+
+  int backing_store_size = all_properties - (has_seen_proto ? 1 : 0);
+  DCHECK_GE(backing_store_size, 0);
+  bool has_different_size_backing_store = boilerplate != backing_store_size;
+
+  // Space for name and value for every boilerplate property.
+  int size = 2 * boilerplate;
+
+  if (has_different_size_backing_store) {
+    // An extra entry for the backing store size.
+    size++;
+  }
+
+  Handle<BoilerplateDescription> description =
+      Handle<BoilerplateDescription>::cast(NewFixedArray(size, TENURED));
+
+  if (has_different_size_backing_store) {
+    DCHECK((boilerplate != all_properties) || has_seen_proto);
+    description->set_backing_store_size(isolate(), backing_store_size);
+  }
+  return description;
+}
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
                                                     PretenureFlag pretenure) {

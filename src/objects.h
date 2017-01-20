@@ -1058,6 +1058,7 @@ template <class C> inline bool Is(Object* obj);
   V(DependentCode)               \
   V(HandlerTable)                \
   V(FixedArray)                  \
+  V(BoilerplateDescription)      \
   V(FixedDoubleArray)            \
   V(WeakFixedArray)              \
   V(ArrayList)                   \
@@ -2914,6 +2915,29 @@ class FixedArray: public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
 
+// BoilerplateDescription is a list of properties consisting of name value
+// pairs. In addition to the properties, it provides the projected number
+// of properties in the backing store. This number includes properties with
+// computed names that are not
+// in the list.
+class BoilerplateDescription : public FixedArray {
+ public:
+  Object* name(int index) const;
+  Object* value(int index) const;
+
+  // The number of boilerplate properties.
+  int size() const;
+
+  // Number of boilerplate properties and properties with computed names.
+  int backing_store_size() const;
+
+  void set_backing_store_size(Isolate* isolate, int backing_store_size);
+
+  DECLARE_CAST(BoilerplateDescription)
+
+ private:
+  bool has_number_of_properties() const;
+};
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray: public FixedArrayBase {
@@ -6345,7 +6369,6 @@ class Map: public HeapObject {
   static const int kInstanceTypeAndBitFieldOffset =
       kInstanceAttributesOffset + 0;
   static const int kBitField2Offset = kInstanceAttributesOffset + 2;
-  static const int kUnusedPropertyFieldsByte = 3;
   static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 3;
 
   STATIC_ASSERT(kInstanceTypeAndBitFieldOffset ==

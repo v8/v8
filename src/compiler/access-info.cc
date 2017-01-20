@@ -391,7 +391,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Don't search on the prototype when storing in literals
     if (access_mode == AccessMode::kStoreInLiteral) {
-      return false;
+      return LookupTransition(receiver_map, name, holder, access_info);
     }
 
     // Don't lookup private symbols on the prototype chain.

@@ -582,9 +582,9 @@ void ObjectLiteral::InitDepthAndFlags() {
 void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   if (!constant_properties_.is_null()) return;
 
-  // Allocate a fixed array to hold all the constant properties.
-  Handle<FixedArray> constant_properties =
-      isolate->factory()->NewFixedArray(boilerplate_properties_ * 2, TENURED);
+  Handle<BoilerplateDescription> constant_properties =
+      isolate->factory()->NewBoilerplateDescription(
+          boilerplate_properties_, properties()->length(), has_seen_proto());
 
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {

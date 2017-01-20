@@ -48,6 +48,12 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   Handle<FixedArray> NewUninitializedFixedArray(int size);
 
+  // Allocates a fixed array for name-value pairs of boilerplate properties and
+  // calculates the number of properties we need to store in the backing store.
+  Handle<BoilerplateDescription> NewBoilerplateDescription(int boilerplate,
+                                                           int all_properties,
+                                                           bool has_seen_proto);
+
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for capacity = 0,
   // so the return type must be the general fixed array class.

@@ -196,6 +196,8 @@ bool HeapObject::IsFixedArray() const {
          instance_type == TRANSITION_ARRAY_TYPE;
 }
 
+bool HeapObject::IsBoilerplateDescription() const { return IsFixedArray(); }
+
 // External objects are not extensible, so the map check is enough.
 bool HeapObject::IsExternal() const {
   return map() == GetHeap()->external_map();
@@ -615,6 +617,7 @@ bool Object::IsMinusZero() const {
 
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(ArrayList)
+CAST_ACCESSOR(BoilerplateDescription)
 CAST_ACCESSOR(Bool16x8)
 CAST_ACCESSOR(Bool32x4)
 CAST_ACCESSOR(Bool8x16)
