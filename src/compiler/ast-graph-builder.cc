@@ -2228,10 +2228,8 @@ void AstGraphBuilder::VisitIterationBody(IterationStatement* stmt,
                                          LoopBuilder* loop,
                                          BailoutId stack_check_id) {
   ControlScopeForIteration scope(this, stmt, loop);
-  if (FLAG_turbo_loop_stackcheck || !info()->shared_info()->asm_function()) {
-    Node* node = NewNode(javascript()->StackCheck());
-    PrepareFrameState(node, stack_check_id);
-  }
+  Node* node = NewNode(javascript()->StackCheck());
+  PrepareFrameState(node, stack_check_id);
   Visit(stmt->body());
 }
 

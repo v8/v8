@@ -434,7 +434,6 @@ DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
-DEFINE_BOOL(turbo_loop_stackcheck, true, "enable stack checks in loops")
 DEFINE_STRING(turbo_filter, "~~", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
