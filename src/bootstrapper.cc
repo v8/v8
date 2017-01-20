@@ -3592,6 +3592,13 @@ void Genesis::InitializeGlobal_harmony_array_prototype_values() {
                         NONE);
 }
 
+void Genesis::InitializeGlobal_harmony_async_iteration() {
+  if (!FLAG_harmony_async_iteration) return;
+  Handle<JSFunction> symbol_fun(native_context()->symbol_function());
+  InstallConstant(isolate(), symbol_fun, "asyncIterator",
+                  factory()->async_iterator_symbol());
+}
+
 Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
                                                const char* name,
                                                Builtins::Name call,
@@ -4057,6 +4064,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_trailing_commas_natives[] = {nullptr};
   static const char* harmony_class_fields_natives[] = {nullptr};
   static const char* harmony_object_rest_spread_natives[] = {nullptr};
+  static const char* harmony_async_iteration_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
