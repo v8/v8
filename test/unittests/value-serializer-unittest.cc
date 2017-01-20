@@ -54,6 +54,17 @@ class ValueSerializerTest : public TestWithIsolate {
           .ToChecked();
     }
     host_object_constructor_template_ = function_template;
+    isolate_ = reinterpret_cast<i::Isolate*>(isolate());
+  }
+
+  ~ValueSerializerTest() {
+    // In some cases unhandled scheduled exceptions from current test produce
+    // that Context::New(isolate()) from next test's constructor returns NULL.
+    // In order to prevent that, we added destructor which will clear scheduled
+    // exceptions just for the current test from test case.
+    if (isolate_->has_scheduled_exception()) {
+      isolate_->clear_scheduled_exception();
+    }
   }
 
   const Local<Context>& serialization_context() {
@@ -256,6 +267,7 @@ class ValueSerializerTest : public TestWithIsolate {
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
   Local<FunctionTemplate> host_object_constructor_template_;
+  i::Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializerTest);
 };
