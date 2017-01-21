@@ -2003,8 +2003,9 @@ Maybe<bool> JSReceiver::HasInPrototypeChain(Isolate* isolate,
 
 namespace {
 
-bool HasExcludedProperty(const ScopedVector<Handle<Name>>* excluded_properties,
-                         Handle<Object> search_element) {
+bool HasExcludedProperty(
+    const ScopedVector<Handle<Object>>* excluded_properties,
+    Handle<Object> search_element) {
   // TODO(gsathya): Change this to be a hashtable.
   for (int i = 0; i < excluded_properties->length(); i++) {
     if (search_element->SameValue(*excluded_properties->at(i))) {
@@ -2017,7 +2018,7 @@ bool HasExcludedProperty(const ScopedVector<Handle<Name>>* excluded_properties,
 
 MUST_USE_RESULT Maybe<bool> FastAssign(
     Handle<JSReceiver> target, Handle<Object> source,
-    const ScopedVector<Handle<Name>>* excluded_properties, bool use_set) {
+    const ScopedVector<Handle<Object>>* excluded_properties, bool use_set) {
   // Non-empty strings are the only non-JSReceivers that need to be handled
   // explicitly by Object.assign.
   if (!source->IsJSReceiver()) {
@@ -2113,7 +2114,7 @@ MUST_USE_RESULT Maybe<bool> FastAssign(
 // static
 Maybe<bool> JSReceiver::SetOrCopyDataProperties(
     Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
-    const ScopedVector<Handle<Name>>* excluded_properties, bool use_set) {
+    const ScopedVector<Handle<Object>>* excluded_properties, bool use_set) {
   Maybe<bool> fast_assign =
       FastAssign(target, source, excluded_properties, use_set);
   if (fast_assign.IsNothing()) return Nothing<bool>();
@@ -2125,7 +2126,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, keys,
       KeyAccumulator::GetKeys(from, KeyCollectionMode::kOwnOnly, ALL_PROPERTIES,
-                              GetKeysConversion::kConvertToString),
+                              GetKeysConversion::kKeepNumbers),
       Nothing<bool>());
 
   // 4. Repeat for each element nextKey of keys in List order,
@@ -6675,7 +6676,6 @@ bool PropertyKeyToArrayLength(Handle<Object> value, uint32_t* length) {
   if (value->IsString()) return String::cast(*value)->AsArrayIndex(length);
   return false;
 }
-
 
 bool PropertyKeyToArrayIndex(Handle<Object> index_obj, uint32_t* output) {
   return PropertyKeyToArrayLength(index_obj, output) && *output != kMaxUInt32;

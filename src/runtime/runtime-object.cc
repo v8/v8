@@ -779,9 +779,20 @@ RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
     return isolate->heap()->undefined_value();
   }
 
-  ScopedVector<Handle<Name>> excluded_properties(args.length() - 1);
+  ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
   for (int i = 1; i < args.length(); i++) {
-    excluded_properties[i - 1] = args.at<Name>(i);
+    Handle<Object> property = args.at(i);
+    uint32_t property_num;
+    // We convert string to number if possible, in cases of computed
+    // properties resolving to numbers, which would've been strings
+    // instead because of our call to %ToName() in the desugaring for
+    // computed properties.
+    if (property->IsString() &&
+        String::cast(*property)->AsArrayIndex(&property_num)) {
+      property = isolate->factory()->NewNumberFromUint(property_num);
+    }
+
+    excluded_properties[i - 1] = property;
   }
 
   Handle<JSObject> target =

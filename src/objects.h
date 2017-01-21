@@ -2011,7 +2011,7 @@ class JSReceiver: public HeapObject {
   // maybe_excluded_properties list.
   MUST_USE_RESULT static Maybe<bool> SetOrCopyDataProperties(
       Isolate* isolate, Handle<JSReceiver> target, Handle<Object> source,
-      const ScopedVector<Handle<Name>>* excluded_properties = nullptr,
+      const ScopedVector<Handle<Object>>* excluded_properties = nullptr,
       bool use_set = true);
 
   // Implementation of [[HasProperty]], ECMA-262 5th edition, section 8.12.6.

@@ -42,6 +42,11 @@ assertEquals({ a: 1 }, x);
 assertEquals(key, 2);
 assertEquals(1, y);
 
+var key = '1';
+var {[key]: y, ...x} = {1: 1, a: 1};
+assertEquals({a: 1}, x);
+assertEquals(1, y);
+
 function example({a, ...rest}, { b = rest }) {
     assertEquals(1, a);
     assertEquals({ b: 2, c: 3}, rest);
@@ -55,6 +60,13 @@ var y = {
   ...x,
 };
 assertEquals(y.a, 3);
+
+var {...y} = {
+  get a() {
+    return 1
+  }
+};
+assertEquals({a: 1}, y);
 
 var x = {
   get a() { throw new Error(); },
@@ -120,3 +132,28 @@ assertEquals({ 0: { x: 1} }, z);
 
 var {...{x}} = { x: 1};
 assertEquals(1, x);
+
+var {4294967297: y, ...x} = {4294967297: 1, x: 1};
+assertEquals(1, y);
+assertEquals({x: 1}, x);
+
+var obj = {
+  [Symbol.toPrimitive]() {
+    return 1;
+  }
+};
+var {[obj]: y, ...x} = {1: 1, x: 1};
+assertEquals(1, y);
+assertEquals({x: 1}, x);
+
+var {[null]: y, ...x} = {null: 1, x: 1};
+assertEquals(1, y);
+assertEquals({x: 1}, x);
+
+var {[true]: y, ...x} = {true: 1, x: 1};
+assertEquals(1, y);
+assertEquals({x: 1}, x);
+
+var {[false]: y, ...x} = {false: 1, x: 1};
+assertEquals(1, y);
+assertEquals({x: 1}, x);

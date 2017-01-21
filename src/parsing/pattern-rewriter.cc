@@ -361,12 +361,11 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
     if (property->kind() == ObjectLiteralProperty::Kind::SPREAD) {
       // var { y, [x++]: a, ...c } = temp
       //     becomes
-      // var temp1 = %ToName('y');
-      // var y = temp[temp1]
-      // var temp2 = %ToName(x++);
-      // var a = temp[temp2];
+      // var y = temp.y;
+      // var temp1 = %ToName(x++);
+      // var a = temp[temp1];
       // var c;
-      // c = %CopyDataPropertiesWithExcludedProperties(temp, temp1, temp2);
+      // c = %CopyDataPropertiesWithExcludedProperties(temp, "y", temp1);
       value = factory()->NewCallRuntime(
           Runtime::kCopyDataPropertiesWithExcludedProperties,
           rest_runtime_callargs, kNoSourcePosition);
@@ -379,17 +378,23 @@ void Parser::PatternRewriter::VisitObjectLiteral(ObjectLiteral* pattern,
         RewriteParameterScopes(key);
       }
 
-      // TODO(gsathya): Skip %ToName runtime call for literals.
       if (pattern->has_rest_property()) {
-        auto args = new (zone()) ZoneList<Expression*>(1, zone());
-        args->Add(key, zone());
-        auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
-            Runtime::kToName, args, kNoSourcePosition));
-        key = factory()->NewVariableProxy(to_name_key);
+        Expression* excluded_property = key;
+
+        if (property->is_computed_name()) {
+          DCHECK(!key->IsPropertyName() || !key->IsNumberLiteral());
+          auto args = new (zone()) ZoneList<Expression*>(1, zone());
+          args->Add(key, zone());
+          auto to_name_key = CreateTempVar(factory()->NewCallRuntime(
+              Runtime::kToName, args, kNoSourcePosition));
+          key = factory()->NewVariableProxy(to_name_key);
+          excluded_property = factory()->NewVariableProxy(to_name_key);
+        } else {
+          DCHECK(key->IsPropertyName() || key->IsNumberLiteral());
+        }
 
         DCHECK(rest_runtime_callargs != nullptr);
-        rest_runtime_callargs->Add(factory()->NewVariableProxy(to_name_key),
-                                   zone());
+        rest_runtime_callargs->Add(excluded_property, zone());
       }
 
       value = factory()->NewProperty(factory()->NewVariableProxy(temp), key,
