@@ -373,29 +373,32 @@ assertEq(memGrowDesc.configurable, true);
 
 // 'WebAssembly.Memory.prototype.grow' method
 
-if (false) { // TODO: bugs with Memory.grow
 let memGrow = memGrowDesc.value;
 assertEq(memGrow.length, 1);
-assertErrorMessage(() => memGrow.call(), TypeError, /called on incompatible undefined/);
-assertErrorMessage(() => memGrow.call({}), TypeError, /called on incompatible Object/);
-assertErrorMessage(() => memGrow.call(mem1, -1), RangeError, /bad Memory grow delta/);
-assertErrorMessage(() => memGrow.call(mem1, Math.pow(2,32)), RangeError, /bad Memory grow delta/);
+assertErrorMessage(() => memGrow.call(), TypeError,
+    /called on incompatible undefined/);
+assertErrorMessage(() => memGrow.call({}), TypeError,
+    /called on incompatible Object/);
+assertErrorMessage(() => memGrow.call(mem1, -1), RangeError,
+    /bad Memory grow delta/);
+assertErrorMessage(() => memGrow.call(mem1, Math.pow(2,32)), RangeError,
+    /bad Memory grow delta/);
 var mem = new Memory({initial:1, maximum:2});
 var buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
 assertEq(mem.grow(0), 1);
-assertEq(buf !== mem.buffer, true);
-assertEq(buf.byteLength, 0);
+// TODO(gdeepti): Pending spec clarification
+// assertEq(buf !== mem.buffer, true);
+// assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
 assertEq(mem.grow(1), 1);
-assertEq(buf !== mem.buffer, true);
-assertEq(buf.byteLength, 0);
+// TODO(gdeepti): assertEq(buf !== mem.buffer, true);
+// TODO(gdeepti): assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
 assertErrorMessage(() => mem.grow(1), Error, /failed to grow memory/);
 assertEq(buf, mem.buffer);
-}
 
 // 'WebAssembly.Table' data property
 let tableDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Table');
