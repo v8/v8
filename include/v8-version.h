@@ -13,10 +13,6 @@
 #define V8_BUILD_NUMBER 0
 #define V8_PATCH_LEVEL 0
 
-#ifndef V8_EMBEDDER_STRING
-#define V8_EMBEDDER_STRING ""
-#endif  // V8_EMBEDDER_STRING
-
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
 #define V8_IS_CANDIDATE_VERSION 1
