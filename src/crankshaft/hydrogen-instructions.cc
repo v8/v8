@@ -2177,6 +2177,11 @@ HConstant::HConstant(Special special)
                  InstanceTypeField::encode(kUnknownInstanceType)),
       int32_value_(0) {
   DCHECK_EQ(kHoleNaN, special);
+  // Manipulating the signaling NaN used for the hole in C++, e.g. with bit_cast
+  // will change its value on ia32 (the x87 stack is used to return values
+  // and stores to the stack silently clear the signalling bit).
+  // Therefore we have to use memcpy for initializing |double_value_| with
+  // kHoleNanInt64 here.
   std::memcpy(&double_value_, &kHoleNanInt64, sizeof(double_value_));
   Initialize(Representation::Double());
 }

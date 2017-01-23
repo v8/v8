@@ -1963,9 +1963,8 @@ class Heap {
                           AllocationSite* allocation_site = NULL);
 
   // Allocates a HeapNumber from value.
-  MUST_USE_RESULT AllocationResult
-  AllocateHeapNumber(double value, MutableMode mode = IMMUTABLE,
-                     PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT AllocationResult AllocateHeapNumber(
+      MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
 
 // Allocates SIMD values from the given lane values.
 #define SIMD_ALLOCATE_DECLARATION(TYPE, Type, type, lane_count, lane_type) \

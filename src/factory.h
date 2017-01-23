@@ -437,15 +437,28 @@ class V8_EXPORT_PRIVATE Factory final {
     }
     return NewNumber(static_cast<double>(value), pretenure);
   }
-  Handle<HeapNumber> NewHeapNumber(double value,
-                                   MutableMode mode = IMMUTABLE,
-                                   PretenureFlag pretenure = NOT_TENURED);
-
+  Handle<HeapNumber> NewHeapNumber(double value, MutableMode mode = IMMUTABLE,
+                                   PretenureFlag pretenure = NOT_TENURED) {
+    Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
+    heap_number->set_value(value);
+    return heap_number;
+  }
+  Handle<HeapNumber> NewHeapNumberFromBits(
+      uint64_t bits, MutableMode mode = IMMUTABLE,
+      PretenureFlag pretenure = NOT_TENURED) {
+    Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
+    heap_number->set_value_as_bits(bits);
+    return heap_number;
+  }
+  // Creates mutable heap number object with value field set to hole NaN.
   Handle<HeapNumber> NewMutableHeapNumber(
       PretenureFlag pretenure = NOT_TENURED) {
-    double hole_nan = bit_cast<double>(kHoleNanInt64);
-    return NewHeapNumber(hole_nan, MUTABLE, pretenure);
+    return NewHeapNumberFromBits(kHoleNanInt64, MUTABLE, pretenure);
   }
+
+  // Creates heap number object with not yet set value field.
+  Handle<HeapNumber> NewHeapNumber(MutableMode mode,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
 #define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
   Handle<Type> New##Type(lane_type lanes[lane_count],             \

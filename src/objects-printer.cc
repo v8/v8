@@ -365,21 +365,26 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
 namespace {
 
 template <class T>
+bool IsTheHoleAt(T* array, int index) {
+  return false;
+}
+
+template <>
+bool IsTheHoleAt(FixedDoubleArray* array, int index) {
+  return array->is_the_hole(index);
+}
+
+template <class T>
 double GetScalarElement(T* array, int index) {
+  if (IsTheHoleAt(array, index)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
   return array->get_scalar(index);
 }
 
-double GetScalarElement(FixedDoubleArray* array, int index) {
-  if (array->is_the_hole(index)) return bit_cast<double>(kHoleNanInt64);
-  return array->get_scalar(index);
-}
-
-bool is_the_hole(double maybe_hole) {
-  return bit_cast<uint64_t>(maybe_hole) == kHoleNanInt64;
-}
-
-template <class T, bool print_the_hole>
+template <class T>
 void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
+  const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
   T* array = T::cast(object);
   if (array->length() == 0) return;
   int previous_index = 0;
@@ -390,7 +395,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
     if (i < array->length()) value = GetScalarElement(array, i);
     bool values_are_nan = std::isnan(previous_value) && std::isnan(value);
     if (i != array->length() && (previous_value == value || values_are_nan) &&
-        is_the_hole(previous_value) == is_the_hole(value)) {
+        IsTheHoleAt(array, i - 1) == IsTheHoleAt(array, i)) {
       continue;
     }
     os << "\n";
@@ -400,7 +405,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
       ss << '-' << (i - 1);
     }
     os << std::setw(12) << ss.str() << ": ";
-    if (print_the_hole && is_the_hole(previous_value)) {
+    if (print_the_hole && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
     } else {
       os << previous_value;
@@ -450,14 +455,14 @@ bool JSObject::PrintElements(std::ostream& os) {  // NOLINT
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      DoPrintElements<FixedDoubleArray, true>(os, elements());
+      DoPrintElements<FixedDoubleArray>(os, elements());
       break;
     }
 
-#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size)     \
-  case TYPE##_ELEMENTS: {                                       \
-    DoPrintElements<Fixed##Type##Array, false>(os, elements()); \
-    break;                                                      \
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size) \
+  case TYPE##_ELEMENTS: {                                   \
+    DoPrintElements<Fixed##Type##Array>(os, elements());    \
+    break;                                                  \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
@@ -654,7 +659,7 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");
   os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray, true>(os, this);
+  DoPrintElements<FixedDoubleArray>(os, this);
   os << "\n";
 }
 

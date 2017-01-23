@@ -3641,9 +3641,9 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
       DCHECK_EQ(kField, old_details.location());
       FieldIndex index = FieldIndex::ForDescriptor(*old_map, i);
       if (object->IsUnboxedDoubleField(index)) {
-        double old = object->RawFastDoublePropertyAt(index);
-        value = isolate->factory()->NewHeapNumber(
-            old, representation.IsDouble() ? MUTABLE : IMMUTABLE);
+        uint64_t old_bits = object->RawFastDoublePropertyAsBitsAt(index);
+        value = isolate->factory()->NewHeapNumberFromBits(
+            old_bits, representation.IsDouble() ? MUTABLE : IMMUTABLE);
 
       } else {
         value = handle(object->RawFastPropertyAt(index), isolate);
@@ -3693,8 +3693,9 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     // yet.
     if (new_map->IsUnboxedDoubleField(index)) {
       DCHECK(value->IsMutableHeapNumber());
-      object->RawFastDoublePropertyAtPut(index,
-                                         HeapNumber::cast(value)->value());
+      // Ensure that all bits of the double value are preserved.
+      object->RawFastDoublePropertyAsBitsAtPut(
+          index, HeapNumber::cast(value)->value_as_bits());
       if (i < old_number_of_fields && !old_map->IsUnboxedDoubleField(index)) {
         // Transition from tagged to untagged slot.
         heap->ClearRecordedSlot(*object,
@@ -7949,8 +7950,9 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
         FieldIndex index = FieldIndex::ForDescriptor(copy->map(), i);
         if (object->IsUnboxedDoubleField(index)) {
           if (copying) {
-            double value = object->RawFastDoublePropertyAt(index);
-            copy->RawFastDoublePropertyAtPut(index, value);
+            // Ensure that all bits of the double value are preserved.
+            uint64_t value = object->RawFastDoublePropertyAsBitsAt(index);
+            copy->RawFastDoublePropertyAsBitsAtPut(index, value);
           }
         } else {
           Handle<Object> value(object->RawFastPropertyAt(index), isolate);

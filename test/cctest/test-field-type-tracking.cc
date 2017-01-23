@@ -2461,3 +2461,31 @@ TEST(FieldTypeConvertSimple) {
 
 // TODO(ishell): add this test once IS_ACCESSOR_FIELD_SUPPORTED is supported.
 // TEST(TransitionAccessorConstantToAnotherAccessorConstant)
+
+TEST(HoleyMutableHeapNumber) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+  Isolate* isolate = CcTest::i_isolate();
+
+  Handle<HeapNumber> mhn = isolate->factory()->NewMutableHeapNumber();
+  CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
+
+  mhn = isolate->factory()->NewHeapNumber(0.0, MUTABLE);
+  CHECK_EQ(V8_UINT64_C(0), mhn->value_as_bits());
+
+  mhn->set_value_as_bits(kHoleNanInt64);
+  CHECK_EQ(kHoleNanInt64, mhn->value_as_bits());
+
+  // Ensure that new storage for uninitialized value or mutable heap number
+  // with uninitialized sentinel (kHoleNanInt64) is a mutable heap number
+  // with uninitialized sentinel.
+  Handle<Object> obj =
+      Object::NewStorageFor(isolate, isolate->factory()->uninitialized_value(),
+                            Representation::Double());
+  CHECK(obj->IsMutableHeapNumber());
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
+
+  obj = Object::NewStorageFor(isolate, mhn, Representation::Double());
+  CHECK(obj->IsMutableHeapNumber());
+  CHECK_EQ(kHoleNanInt64, HeapNumber::cast(*obj)->value_as_bits());
+}

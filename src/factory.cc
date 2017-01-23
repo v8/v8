@@ -1308,16 +1308,12 @@ Handle<Object> Factory::NewNumberFromUint(uint32_t value,
   return NewHeapNumber(FastUI2D(value), IMMUTABLE, pretenure);
 }
 
-
-Handle<HeapNumber> Factory::NewHeapNumber(double value,
-                                          MutableMode mode,
+Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                                           PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateHeapNumber(value, mode, pretenure),
-      HeapNumber);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateHeapNumber(mode, pretenure),
+                     HeapNumber);
 }
-
 
 #define SIMD128_NEW_DEF(TYPE, Type, type, lane_count, lane_type)               \
   Handle<Type> Factory::New##Type(lane_type lanes[lane_count],                 \

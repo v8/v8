@@ -757,15 +757,16 @@ bool Object::FilterKey(PropertyFilter filter) {
 Handle<Object> Object::NewStorageFor(Isolate* isolate, Handle<Object> object,
                                      Representation representation) {
   if (!representation.IsDouble()) return object;
-  double value;
+  Handle<HeapNumber> result = isolate->factory()->NewHeapNumber(MUTABLE);
   if (object->IsUninitialized(isolate)) {
-    value = bit_cast<double>(kHoleNanInt64);
+    result->set_value_as_bits(kHoleNanInt64);
   } else if (object->IsMutableHeapNumber()) {
-    value = HeapNumber::cast(*object)->value();
+    // Ensure that all bits of the double value are preserved.
+    result->set_value_as_bits(HeapNumber::cast(*object)->value_as_bits());
   } else {
-    value = object->Number();
+    result->set_value(object->Number());
   }
-  return isolate->factory()->NewHeapNumber(value, MUTABLE);
+  return result;
 }
 
 Handle<Object> Object::WrapForRead(Isolate* isolate, Handle<Object> object,
@@ -1557,6 +1558,13 @@ void HeapNumber::set_value(double value) {
   WRITE_DOUBLE_FIELD(this, kValueOffset, value);
 }
 
+uint64_t HeapNumber::value_as_bits() const {
+  return READ_UINT64_FIELD(this, kValueOffset);
+}
+
+void HeapNumber::set_value_as_bits(uint64_t bits) {
+  WRITE_UINT64_FIELD(this, kValueOffset, bits);
+}
 
 int HeapNumber::get_exponent() {
   return ((READ_INT_FIELD(this, kExponentOffset) & kExponentMask) >>
@@ -2308,6 +2316,10 @@ double JSObject::RawFastDoublePropertyAt(FieldIndex index) {
   return READ_DOUBLE_FIELD(this, index.offset());
 }
 
+uint64_t JSObject::RawFastDoublePropertyAsBitsAt(FieldIndex index) {
+  DCHECK(IsUnboxedDoubleField(index));
+  return READ_UINT64_FIELD(this, index.offset());
+}
 
 void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
   if (index.is_inobject()) {
@@ -2319,16 +2331,17 @@ void JSObject::RawFastPropertyAtPut(FieldIndex index, Object* value) {
   }
 }
 
-
-void JSObject::RawFastDoublePropertyAtPut(FieldIndex index, double value) {
-  WRITE_DOUBLE_FIELD(this, index.offset(), value);
+void JSObject::RawFastDoublePropertyAsBitsAtPut(FieldIndex index,
+                                                uint64_t bits) {
+  WRITE_UINT64_FIELD(this, index.offset(), bits);
 }
-
 
 void JSObject::FastPropertyAtPut(FieldIndex index, Object* value) {
   if (IsUnboxedDoubleField(index)) {
     DCHECK(value->IsMutableHeapNumber());
-    RawFastDoublePropertyAtPut(index, HeapNumber::cast(value)->value());
+    // Ensure that all bits of the double value are preserved.
+    RawFastDoublePropertyAsBitsAtPut(index,
+                                     HeapNumber::cast(value)->value_as_bits());
   } else {
     RawFastPropertyAtPut(index, value);
   }
@@ -2345,12 +2358,23 @@ void JSObject::WriteToField(int descriptor, PropertyDetails details,
     if (value->IsUninitialized(this->GetIsolate())) {
       return;
     }
+    // Manipulating the signaling NaN used for the hole and uninitialized
+    // double field sentinel in C++, e.g. with bit_cast or value()/set_value(),
+    // will change its value on ia32 (the x87 stack is used to return values
+    // and stores to the stack silently clear the signalling bit).
+    uint64_t bits;
+    if (value->IsSmi()) {
+      bits = bit_cast<uint64_t>(static_cast<double>(Smi::cast(value)->value()));
+    } else {
+      DCHECK(value->IsHeapNumber());
+      bits = HeapNumber::cast(value)->value_as_bits();
+    }
     if (IsUnboxedDoubleField(index)) {
-      RawFastDoublePropertyAtPut(index, value->Number());
+      RawFastDoublePropertyAsBitsAtPut(index, bits);
     } else {
       HeapNumber* box = HeapNumber::cast(RawFastPropertyAt(index));
       DCHECK(box->IsMutableHeapNumber());
-      box->set_value(value->Number());
+      box->set_value_as_bits(bits);
     }
   } else {
     RawFastPropertyAtPut(index, value);

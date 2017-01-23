@@ -926,11 +926,11 @@ TEST(Regress436816) {
   HeapObject* fake_object = HeapObject::FromAddress(fake_address);
   CHECK(fake_object->IsHeapObject());
 
-  double boom_value = bit_cast<double>(fake_object);
+  uint64_t boom_value = bit_cast<uint64_t>(fake_object);
   for (int i = 0; i < kPropsCount; i++) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     CHECK(map->IsUnboxedDoubleField(index));
-    object->RawFastDoublePropertyAtPut(index, boom_value);
+    object->RawFastDoublePropertyAsBitsAtPut(index, boom_value);
   }
   CHECK(object->HasFastProperties());
   CHECK(!object->map()->HasFastPointerLayout());
@@ -1412,12 +1412,12 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   JSObject::MigrateToMap(obj, new_map);
 
   Address fake_object = reinterpret_cast<Address>(*obj_value) + kPointerSize;
-  double boom_value = bit_cast<double>(fake_object);
+  uint64_t boom_value = bit_cast<uint64_t>(fake_object);
 
   FieldIndex double_field_index =
       FieldIndex::ForDescriptor(*new_map, double_descriptor);
   CHECK(obj->IsUnboxedDoubleField(double_field_index));
-  obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
+  obj->RawFastDoublePropertyAsBitsAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
   CcTest::CollectGarbage(NEW_SPACE);
@@ -1427,7 +1427,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
         FieldIndex::ForDescriptor(*new_map, tagged_descriptor);
     CHECK_EQ(*obj_value, obj->RawFastPropertyAt(tagged_field_index));
   }
-  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
+  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAsBitsAt(double_field_index));
 }
 
 
@@ -1491,12 +1491,12 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // barrier.
   JSObject::MigrateToMap(obj, new_map);
 
-  double boom_value = bit_cast<double>(UINT64_C(0xbaad0176a37c28e1));
+  uint64_t boom_value = UINT64_C(0xbaad0176a37c28e1);
 
   FieldIndex double_field_index =
       FieldIndex::ForDescriptor(*new_map, double_descriptor);
   CHECK(obj->IsUnboxedDoubleField(double_field_index));
-  obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
+  obj->RawFastDoublePropertyAsBitsAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
   CcTest::CollectGarbage(OLD_SPACE);
@@ -1509,7 +1509,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
         FieldIndex::ForDescriptor(*new_map, tagged_descriptor);
     CHECK_EQ(*obj_value, obj->RawFastPropertyAt(tagged_field_index));
   }
-  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
+  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAsBitsAt(double_field_index));
 }
 
 enum OldToWriteBarrierKind {

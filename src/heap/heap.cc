@@ -2415,8 +2415,7 @@ bool Heap::CreateInitialMaps() {
   return true;
 }
 
-
-AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
+AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
                                           PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
@@ -2433,7 +2432,6 @@ AllocationResult Heap::AllocateHeapNumber(double value, MutableMode mode,
 
   Map* map = mode == MUTABLE ? mutable_heap_number_map() : heap_number_map();
   HeapObject::cast(result)->set_map_no_write_barrier(map);
-  HeapNumber::cast(result)->set_value(value);
   return result;
 }
 
@@ -2600,8 +2598,8 @@ void Heap::CreateInitialObjects() {
 
   set_nan_value(*factory->NewHeapNumber(
       std::numeric_limits<double>::quiet_NaN(), IMMUTABLE, TENURED));
-  set_hole_nan_value(*factory->NewHeapNumber(bit_cast<double>(kHoleNanInt64),
-                                             IMMUTABLE, TENURED));
+  set_hole_nan_value(
+      *factory->NewHeapNumberFromBits(kHoleNanInt64, IMMUTABLE, TENURED));
   set_infinity_value(*factory->NewHeapNumber(V8_INFINITY, IMMUTABLE, TENURED));
   set_minus_infinity_value(
       *factory->NewHeapNumber(-V8_INFINITY, IMMUTABLE, TENURED));

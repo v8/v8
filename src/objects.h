@@ -1836,6 +1836,9 @@ class HeapNumber: public HeapObject {
   inline double value() const;
   inline void set_value(double value);
 
+  inline uint64_t value_as_bits() const;
+  inline void set_value_as_bits(uint64_t bits);
+
   DECLARE_CAST(HeapNumber)
 
   // Dispatched behavior.
@@ -2508,10 +2511,11 @@ class JSObject: public JSReceiver {
                                        FieldIndex index);
   inline Object* RawFastPropertyAt(FieldIndex index);
   inline double RawFastDoublePropertyAt(FieldIndex index);
+  inline uint64_t RawFastDoublePropertyAsBitsAt(FieldIndex index);
 
   inline void FastPropertyAtPut(FieldIndex index, Object* value);
   inline void RawFastPropertyAtPut(FieldIndex index, Object* value);
-  inline void RawFastDoublePropertyAtPut(FieldIndex index, double value);
+  inline void RawFastDoublePropertyAsBitsAtPut(FieldIndex index, uint64_t bits);
   inline void WriteToField(int descriptor, PropertyDetails details,
                            Object* value);
 
