@@ -3591,6 +3591,19 @@ uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
   return running_hash;
 }
 
+namespace {
+
+bool OnlyLastArgIsSpread(ZoneList<Expression*>* args) {
+  for (int i = 0; i < args->length() - 1; i++) {
+    if (args->at(i)->IsSpread()) {
+      return false;
+    }
+  }
+  return args->at(args->length() - 1)->IsSpread();
+}
+
+}  // namespace
+
 ZoneList<Expression*>* Parser::PrepareSpreadArguments(
     ZoneList<Expression*>* list) {
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
@@ -3654,27 +3667,20 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
 }
 
 Expression* Parser::SpreadCall(Expression* function,
-                               ZoneList<Expression*>* args, int pos) {
+                               ZoneList<Expression*>* args, int pos,
+                               Call::PossiblyEval is_possibly_eval) {
+  // Handle these cases in BytecodeGenerator.
+  // [Call,New]WithSpread bytecodes aren't used with tailcalls - see
+  // https://crbug.com/v8/5867
+  if (!allow_tailcalls() && OnlyLastArgIsSpread(args)) {
+    return factory()->NewCall(function, args, pos);
+  }
+
   if (function->IsSuperCallReference()) {
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
     // %reflect_construct($super_constructor, args, new.target)
 
-    bool only_last_arg_is_spread = false;
-    for (int i = 0; i < args->length(); i++) {
-      if (args->at(i)->IsSpread()) {
-        if (i == args->length() - 1) {
-          only_last_arg_is_spread = true;
-        }
-        break;
-      }
-    }
-
-    if (only_last_arg_is_spread) {
-      // Handle in BytecodeGenerator.
-      Expression* super_call_ref = NewSuperCallReference(pos);
-      return factory()->NewCall(super_call_ref, args, pos);
-    }
     args = PrepareSpreadArguments(args);
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
@@ -3716,6 +3722,10 @@ Expression* Parser::SpreadCall(Expression* function,
 
 Expression* Parser::SpreadCallNew(Expression* function,
                                   ZoneList<Expression*>* args, int pos) {
+  if (OnlyLastArgIsSpread(args)) {
+    // Handle in BytecodeGenerator.
+    return factory()->NewCallNew(function, args, pos);
+  }
   args = PrepareSpreadArguments(args);
   args->InsertAt(0, function, zone());
 
