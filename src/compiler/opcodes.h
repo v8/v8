@@ -161,6 +161,7 @@
   V(JSCallConstruct)                \
   V(JSCallConstructWithSpread)      \
   V(JSCallFunction)                 \
+  V(JSCallFunctionWithSpread)       \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \
   V(JSForInNext)                    \

@@ -681,6 +681,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Receiver());
       break;
     case IrOpcode::kJSCallFunction:
+    case IrOpcode::kJSCallFunctionWithSpread:
     case IrOpcode::kJSCallRuntime:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());

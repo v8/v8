@@ -1582,6 +1582,9 @@ Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
   return TypeUnaryOp(node, JSCallFunctionTyper);
 }
 
+Type* Typer::Visitor::TypeJSCallFunctionWithSpread(Node* node) {
+  return TypeUnaryOp(node, JSCallFunctionTyper);
+}
 
 Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
   switch (CallRuntimeParametersOf(node->op()).id()) {

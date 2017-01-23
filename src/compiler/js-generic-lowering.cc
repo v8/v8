@@ -548,6 +548,12 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
+void JSGenericLowering::LowerJSCallFunctionWithSpread(Node* node) {
+  CallFunctionWithSpreadParameters const& p =
+      CallFunctionWithSpreadParametersOf(node->op());
+  ReplaceWithRuntimeCall(node, Runtime::kCallWithSpread,
+                         static_cast<int>(p.arity()));
+}
 
 void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   const CallRuntimeParameters& p = CallRuntimeParametersOf(node->op());

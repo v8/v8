@@ -159,6 +159,31 @@ std::ostream& operator<<(std::ostream&, CallFunctionParameters const&);
 
 const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
 
+// Defines the arity for a JavaScript constructor call with a spread as the last
+// parameters. This is used as a parameter by JSCallConstructWithSpread
+// operators.
+class CallFunctionWithSpreadParameters final {
+ public:
+  explicit CallFunctionWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+
+  uint32_t arity() const { return arity_; }
+
+ private:
+  uint32_t const arity_;
+};
+
+bool operator==(CallFunctionWithSpreadParameters const&,
+                CallFunctionWithSpreadParameters const&);
+bool operator!=(CallFunctionWithSpreadParameters const&,
+                CallFunctionWithSpreadParameters const&);
+
+size_t hash_value(CallFunctionWithSpreadParameters const&);
+
+std::ostream& operator<<(std::ostream&,
+                         CallFunctionWithSpreadParameters const&);
+
+CallFunctionWithSpreadParameters const& CallFunctionWithSpreadParametersOf(
+    Operator const*);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
@@ -552,6 +577,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  const Operator* CallFunctionWithSpread(uint32_t arity);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);

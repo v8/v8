@@ -118,6 +118,30 @@ const CallFunctionParameters& CallFunctionParametersOf(const Operator* op) {
   return OpParameter<CallFunctionParameters>(op);
 }
 
+bool operator==(CallFunctionWithSpreadParameters const& lhs,
+                CallFunctionWithSpreadParameters const& rhs) {
+  return lhs.arity() == rhs.arity();
+}
+
+bool operator!=(CallFunctionWithSpreadParameters const& lhs,
+                CallFunctionWithSpreadParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CallFunctionWithSpreadParameters const& p) {
+  return base::hash_combine(p.arity());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CallFunctionWithSpreadParameters const& p) {
+  return os << p.arity();
+}
+
+CallFunctionWithSpreadParameters const& CallFunctionWithSpreadParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCallFunctionWithSpread, op->opcode());
+  return OpParameter<CallFunctionWithSpreadParameters>(op);
+}
 
 bool operator==(CallRuntimeParameters const& lhs,
                 CallRuntimeParameters const& rhs) {
@@ -712,6 +736,14 @@ const Operator* JSOperatorBuilder::CallFunction(
       parameters);                                         // parameter
 }
 
+const Operator* JSOperatorBuilder::CallFunctionWithSpread(uint32_t arity) {
+  CallFunctionWithSpreadParameters parameters(arity);
+  return new (zone()) Operator1<CallFunctionWithSpreadParameters>(   // --
+      IrOpcode::kJSCallFunctionWithSpread, Operator::kNoProperties,  // opcode
+      "JSCallFunctionWithSpread",                                    // name
+      parameters.arity(), 1, 1, 1, 1, 2,                             // counts
+      parameters);  // parameter
+}
 
 const Operator* JSOperatorBuilder::CallRuntime(Runtime::FunctionId id) {
   const Runtime::Function* f = Runtime::FunctionForId(id);

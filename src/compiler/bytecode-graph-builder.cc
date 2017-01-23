@@ -1273,6 +1273,16 @@ void BytecodeGraphBuilder::VisitCall() {
   BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kAny);
 }
 
+void BytecodeGraphBuilder::VisitCallWithSpread() {
+  PrepareEagerCheckpoint();
+  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(0);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(1);
+  const Operator* op =
+      javascript()->CallFunctionWithSpread(static_cast<int>(arg_count));
+  Node* value = ProcessCallRuntimeArguments(op, first_arg, arg_count);
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitCallProperty() {
   BuildCall(TailCallMode::kDisallow, ConvertReceiverMode::kNotNullOrUndefined);
 }
@@ -1351,16 +1361,6 @@ Node* BytecodeGraphBuilder::ProcessCallNewWithSpreadArguments(
   all[arity - 1] = new_target;
   Node* value = MakeNode(op, static_cast<int>(arity), all, false);
   return value;
-}
-
-void BytecodeGraphBuilder::VisitCallWithSpread() {
-  PrepareEagerCheckpoint();
-  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(0);
-  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(1);
-  const Operator* call =
-      javascript()->CallRuntime(Runtime::kCallWithSpread, arg_count);
-  Node* value = ProcessCallRuntimeArguments(call, first_arg, arg_count);
-  environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitNewWithSpread() {
