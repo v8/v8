@@ -915,7 +915,7 @@ TEST(EmptyMemoryEmptyDataSegment) {
         U32V_1(6),              // section size
         ENTRY_COUNT(1),         // --
         0,                      // linear memory index
-        WASM_I32V_1(24),        // destination offset
+        WASM_I32V_1(0),         // destination offset
         kExprEnd,
         U32V_1(0),  // source size
     };
@@ -957,8 +957,8 @@ TEST(MemoryWithOOBEmptyDataSegment) {
     testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
                                                     data + arraysize(data),
                                                     ModuleOrigin::kWasmOrigin);
-    // It should be possible to instantiate this module.
-    CHECK(!thrower.error());
+    // It should not be possible to instantiate this module.
+    CHECK(thrower.error());
   }
   Cleanup();
 }
