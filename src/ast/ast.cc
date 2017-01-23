@@ -520,7 +520,6 @@ void ObjectLiteral::InitDepthAndFlags() {
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
     if (!IsBoilerplateProperty(property)) {
-      DCHECK(has_seen_proto());
       is_simple = false;
       continue;
     }
@@ -584,9 +583,14 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   if (!constant_properties_.is_null()) return;
 
   int index_keys = 0;
+  bool has_seen_proto = false;
   for (int i = 0; i < properties()->length(); i++) {
     ObjectLiteral::Property* property = properties()->at(i);
-    if (!IsBoilerplateProperty(property) || property->is_computed_name()) {
+    if (!IsBoilerplateProperty(property)) {
+      has_seen_proto = true;
+      continue;
+    }
+    if (property->is_computed_name()) {
       continue;
     }
 
@@ -602,7 +606,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   Handle<BoilerplateDescription> constant_properties =
       isolate->factory()->NewBoilerplateDescription(
           boilerplate_properties_, properties()->length() - index_keys,
-          has_seen_proto());
+          has_seen_proto);
 
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {

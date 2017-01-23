@@ -2552,7 +2552,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   typename Types::ObjectPropertyList properties =
       impl()->NewObjectPropertyList(4);
   int number_of_boilerplate_properties = 0;
-  bool has_seen_proto = false;
 
   bool has_computed_names = false;
   bool has_rest_property = false;
@@ -2576,9 +2575,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
       has_rest_property = true;
     }
 
-    if (!impl()->IsBoilerplateProperty(property)) {
-      has_seen_proto = true;
-    } else if (!has_computed_names) {
+    if (impl()->IsBoilerplateProperty(property) && !has_computed_names) {
       // Count CONSTANT or COMPUTED properties to maintain the enumeration
       // order.
       number_of_boilerplate_properties++;
@@ -2599,8 +2596,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   int literal_index = function_state_->NextMaterializedLiteralIndex();
 
   return factory()->NewObjectLiteral(properties, literal_index,
-                                     number_of_boilerplate_properties,
-                                     has_seen_proto, pos, has_rest_property);
+                                     number_of_boilerplate_properties, pos,
+                                     has_rest_property);
 }
 
 template <typename Impl>
