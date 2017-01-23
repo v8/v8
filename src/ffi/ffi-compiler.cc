@@ -35,23 +35,50 @@ class FFIAssembler : public CodeStubAssembler {
  public:
   explicit FFIAssembler(CodeAssemblerState* state) : CodeStubAssembler(state) {}
 
-  Node* ToJS(Node* node, Node* context, MachineType type) {
+  Node* ToJS(Node* node, Node* context, FFIType type) {
+    switch (type) {
+      case FFIType::kInt32:
+        return ChangeInt32ToTagged(node);
+    }
     UNREACHABLE();
-    // TODO(mattloring): Needs to be implemented.
     return nullptr;
   }
 
-  Node* FromJS(Node* node, Node* context, MachineType type) {
+  Node* FromJS(Node* node, Node* context, FFIType type) {
+    switch (type) {
+      case FFIType::kInt32:
+        return TruncateTaggedToWord32(context, node);
+    }
     UNREACHABLE();
-    // TODO(mattloring): Needs to be implemented.
     return nullptr;
+  }
+
+  MachineType FFIToMachineType(FFIType type) {
+    switch (type) {
+      case FFIType::kInt32:
+        return MachineType::Int32();
+    }
+    UNREACHABLE();
+    return MachineType::None();
+  }
+
+  Signature<MachineType>* FFIToMachineSignature(FFISignature* sig) {
+    Signature<MachineType>::Builder sig_builder(zone(), sig->return_count(),
+                                                sig->parameter_count());
+    for (size_t i = 0; i < sig->return_count(); i++) {
+      sig_builder.AddReturn(FFIToMachineType(sig->GetReturn(i)));
+    }
+    for (size_t j = 0; j < sig->parameter_count(); j++) {
+      sig_builder.AddParam(FFIToMachineType(sig->GetParam(j)));
+    }
+    return sig_builder.Build();
   }
 
   void GenerateJSToNativeWrapper(NativeFunction* func) {
     int params = static_cast<int>(func->sig->parameter_count());
     int returns = static_cast<int>(func->sig->return_count());
     ApiFunction api_func(func->start);
-    ExternalReference ref(&api_func, ExternalReference::DIRECT_API_CALL,
+    ExternalReference ref(&api_func, ExternalReference::BUILTIN_CALL,
                           isolate());
 
     Node* context_param = GetJSContextParameter();
@@ -64,7 +91,8 @@ class FFIAssembler : public CodeStubAssembler {
           FromJS(Parameter(i), context_param, func->sig->GetParam(i));
     }
 
-    Node* call = CallCFunctionN(func->sig, input_count, inputs);
+    Node* call =
+        CallCFunctionN(FFIToMachineSignature(func->sig), input_count, inputs);
     Node* return_val = UndefinedConstant();
     if (returns == 1) {
       return_val = ToJS(call, context_param, func->sig->GetReturn());
@@ -79,7 +107,7 @@ Handle<JSFunction> CompileJSToNativeWrapper(Isolate* isolate,
   int params = static_cast<int>(func.sig->parameter_count());
   Zone zone(isolate->allocator(), ZONE_NAME);
   CodeAssemblerState state(isolate, &zone, params,
-                           Code::ComputeFlags(Code::FUNCTION), "js-to-native");
+                           Code::ComputeFlags(Code::BUILTIN), "js-to-native");
   FFIAssembler assembler(&state);
   assembler.GenerateJSToNativeWrapper(&func);
   Handle<Code> code = assembler.GenerateCode(&state);

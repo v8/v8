@@ -18,7 +18,9 @@ void InstallFFIMap(Isolate* isolate);
 
 namespace ffi {
 
-typedef Signature<MachineType> FFISignature;
+enum class FFIType : uint8_t { kInt32 };
+
+typedef Signature<FFIType> FFISignature;
 
 struct NativeFunction {
   FFISignature* sig;
