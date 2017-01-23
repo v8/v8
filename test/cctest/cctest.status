@@ -296,6 +296,10 @@
   'test-gap-resolver/FuzzResolver': [SKIP],
   'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f32': [SKIP],
   'test-run-wasm/RunWasmCompiled_MultiReturnSelect_f64': [SKIP],
+  'test-run-wasm/RunWasmCompiled_SignallingNanSurvivesI32ReinterpretF32': [SKIP],
+  'test-run-wasm-64/RunWasmCompiled_SignallingNanSurvivesI64ReinterpretF64': [SKIP],
+  'test-run-wasm/RunWasmInterpreted_SignallingNanSurvivesI32ReinterpretF32': [SKIP],
+  'test-run-wasm-64/RunWasmInterpreted_SignallingNanSurvivesI64ReinterpretF64': [SKIP],
 }],  # 'arch == x87'
 
 ##############################################################################
