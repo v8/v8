@@ -187,7 +187,7 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
 
 Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
     int boilerplate, int all_properties, bool has_seen_proto) {
-  DCHECK_GE(all_properties, boilerplate);
+  DCHECK_GE(all_properties, 0);
 
   int backing_store_size = all_properties - (has_seen_proto ? 1 : 0);
   DCHECK_GE(backing_store_size, 0);

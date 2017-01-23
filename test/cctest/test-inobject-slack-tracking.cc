@@ -753,13 +753,14 @@ TEST(ObjectLiteralPropertyBackingStoreSize) {
 
   // Avoid over-/under-allocation for computed property names.
   os << "(function() {\n"
+        "  'use strict';\n"
         "  function f(x) {\n"
         "    var o = {\n"
         "      1: 42,\n"    // Do not allocate for index key.
         "      '2': 42,\n"  // Do not allocate for index key.
         "      [x]: 42,\n"  // Allocate for property with computed name.
-        "      3: 42\n"     // Allocate for index key because we have seen a
-        // computed property.
+        "      3: 42,\n"    // Do not allocate for index key.
+        "      '4': 42\n"   // Do not allocate for index key.
         "    };\n"
         "    return o;\n"
         "  }\n"
@@ -768,7 +769,26 @@ TEST(ObjectLiteralPropertyBackingStoreSize) {
         "\n"
         "  return f(x);\n"
         "} )();";
-  CheckExpectedProperties(2, os);
+  CheckExpectedProperties(1, os);
+
+  // Conversion to index key.
+  os << "(function() {\n"
+        "  function f(x) {\n"
+        "    var o = {\n"
+        "      1: 42,\n"       // Do not allocate for index key.
+        "      '2': 42,\n"     // Do not allocate for index key.
+        "      [x]: 42,\n"     // Allocate for property with computed name.
+        "      3: 42,\n"       // Do not allocate for index key.
+        "      get 12() {}\n"  // Do not allocate for index key.
+        "    };\n"
+        "    return o;\n"
+        "  }\n"
+        "\n"
+        "  var x = 'hello'\n"
+        "\n"
+        "  return f(x);\n"
+        "} )();";
+  CheckExpectedProperties(1, os);
 
   os << "(function() {\n"
         "  function f() {\n"

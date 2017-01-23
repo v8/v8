@@ -19,15 +19,6 @@ static Handle<Map> ComputeObjectLiteralMap(
     Handle<BoilerplateDescription> boilerplate_description,
     bool* is_result_from_cache) {
   int number_of_properties = boilerplate_description->backing_store_size();
-
-  for (int index = 0; index < boilerplate_description->size(); index++) {
-    Object* key = boilerplate_description->name(index);
-    uint32_t element_index = 0;
-    if (key->ToArrayIndex(&element_index)) {
-      // An index key does not require space in the property backing store.
-      number_of_properties--;
-    }
-  }
   Isolate* isolate = context->GetIsolate();
   return isolate->factory()->ObjectLiteralMapFromCache(
       context, number_of_properties, is_result_from_cache);
