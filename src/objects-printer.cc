@@ -1094,7 +1094,11 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - function token position = " << function_token_position();
   os << "\n - start position = " << start_position();
   os << "\n - end position = " << end_position();
-  os << "\n - debug info = " << Brief(debug_info());
+  if (HasDebugInfo()) {
+    os << "\n - debug info = " << Brief(debug_info());
+  } else {
+    os << "\n - no debug info";
+  }
   os << "\n - length = " << length();
   os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());

@@ -1002,7 +1002,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   Register debug_info = kInterpreterBytecodeArrayRegister;
   DCHECK(!debug_info.is(r0));
   __ ldr(debug_info, FieldMemOperand(r0, SharedFunctionInfo::kDebugInfoOffset));
-  __ cmp(debug_info, Operand(DebugInfo::uninitialized()));
+  __ SmiTst(debug_info);
   // Load original bytecode array or the debug copy.
   __ ldr(kInterpreterBytecodeArrayRegister,
          FieldMemOperand(r0, SharedFunctionInfo::kFunctionDataOffset), eq);

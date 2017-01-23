@@ -1560,8 +1560,8 @@ void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
       } else {
         prev->set_next(current->next());
       }
+      shared->set_debug_info(Smi::FromInt(debug_info->debugger_hints()));
       delete current;
-      shared->set_debug_info(DebugInfo::uninitialized());
       return;
     }
     // Move to next in list.

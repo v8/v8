@@ -551,6 +551,10 @@ class MacroAssembler: public Assembler {
                     Label* on_not_smi,
                     Label::Distance near_jump = Label::kFar);
 
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Operand src, Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
   // Jump to label if the value is not a non-negative tagged smi.
   void JumpUnlessNonNegativeSmi(Register src,
                                 Label* on_not_smi,

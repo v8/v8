@@ -5974,6 +5974,7 @@ void Script::set_origin_options(ScriptOriginOptions origin_options) {
 
 
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
+SMI_ACCESSORS(DebugInfo, debugger_hints, kDebuggerHintsIndex)
 ACCESSORS(DebugInfo, debug_bytecode_array, Object, kDebugBytecodeArrayIndex)
 ACCESSORS(DebugInfo, break_points, FixedArray, kBreakPointsStateIndex)
 
@@ -6042,23 +6043,6 @@ BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_named_expression,
                kIsNamedExpressionBit)
 BOOL_ACCESSORS(SharedFunctionInfo, start_position_and_type, is_toplevel,
                kIsTopLevelBit)
-
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
-               kAllowLazyCompilation)
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               uses_arguments,
-               kUsesArguments)
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               has_duplicate_parameters,
-               kHasDuplicateParameters)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, deserialized, kDeserialized)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
-               kIsDeclaration)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
-               kMarkedForTierUp)
 
 #if V8_HOST_ARCH_32_BIT
 SMI_ACCESSORS(SharedFunctionInfo, length, kLengthOffset)
@@ -6144,12 +6128,6 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,
 
 #endif
 
-
-BOOL_GETTER(SharedFunctionInfo,
-            compiler_hints,
-            optimization_disabled,
-            kOptimizationDisabled)
-
 AbstractCode* SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(bytecode_array());
@@ -6158,19 +6136,42 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
   }
 }
 
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
+               kAllowLazyCompilation)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, uses_arguments,
+               kUsesArguments)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, has_duplicate_parameters,
+               kHasDuplicateParameters)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, asm_function, kIsAsmFunction)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
+               kIsDeclaration)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, marked_for_tier_up,
+               kMarkedForTierUp)
+
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
+               kNeedsHomeObject)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
+               kMustUseIgnitionTurbo)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
+               kIsAsmWasmBroken)
+
+BOOL_GETTER(SharedFunctionInfo, compiler_hints, optimization_disabled,
+            kOptimizationDisabled)
+
 void SharedFunctionInfo::set_optimization_disabled(bool disable) {
   set_compiler_hints(BooleanBit::set(compiler_hints(),
                                      kOptimizationDisabled,
                                      disable));
 }
 
-
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LANGUAGE_END == 2);
   return construct_language_mode(
       BooleanBit::get(compiler_hints(), kStrictModeFunction));
 }
-
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   STATIC_ASSERT(LANGUAGE_END == 2);
@@ -6186,7 +6187,6 @@ FunctionKind SharedFunctionInfo::kind() const {
   return FunctionKindBits::decode(compiler_hints());
 }
 
-
 void SharedFunctionInfo::set_kind(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   int hints = compiler_hints();
@@ -6194,23 +6194,14 @@ void SharedFunctionInfo::set_kind(FunctionKind kind) {
   set_compiler_hints(hints);
 }
 
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, needs_home_object,
-               kNeedsHomeObject)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, force_inline, kForceInline)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
-               name_should_print_as_anonymous,
-               kNameShouldPrintAsAnonymous)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous_expression,
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints,
+               name_should_print_as_anonymous, kNameShouldPrintAsAnonymous)
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, is_anonymous_expression,
                kIsAnonymousExpression)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, must_use_ignition_turbo,
-               kMustUseIgnitionTurbo)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_flush, kDontFlush)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
-               kIsAsmWasmBroken)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, has_no_side_effect,
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, deserialized, kDeserialized)
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
                kHasNoSideEffect)
-BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, computed_has_no_side_effect,
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_has_no_side_effect,
                kComputedHasNoSideEffect)
 
 bool Script::HasValidSource() {
@@ -6315,25 +6306,35 @@ bool SharedFunctionInfo::has_simple_parameters() {
   return scope_info()->HasSimpleParameters();
 }
 
-
-bool SharedFunctionInfo::HasDebugInfo() {
-  bool has_debug_info = debug_info()->IsStruct();
+bool SharedFunctionInfo::HasDebugInfo() const {
+  bool has_debug_info = !debug_info()->IsSmi();
+  DCHECK_EQ(debug_info()->IsStruct(), has_debug_info);
   DCHECK(!has_debug_info || HasDebugCode());
   return has_debug_info;
 }
 
-
-DebugInfo* SharedFunctionInfo::GetDebugInfo() {
+DebugInfo* SharedFunctionInfo::GetDebugInfo() const {
   DCHECK(HasDebugInfo());
   return DebugInfo::cast(debug_info());
 }
 
-
-bool SharedFunctionInfo::HasDebugCode() {
+bool SharedFunctionInfo::HasDebugCode() const {
   if (HasBaselineCode()) return code()->has_debug_break_slots();
   return HasBytecodeArray();
 }
 
+int SharedFunctionInfo::debugger_hints() const {
+  if (HasDebugInfo()) return GetDebugInfo()->debugger_hints();
+  return Smi::cast(debug_info())->value();
+}
+
+void SharedFunctionInfo::set_debugger_hints(int value) {
+  if (HasDebugInfo()) {
+    GetDebugInfo()->set_debugger_hints(value);
+  } else {
+    set_debug_info(Smi::FromInt(value));
+  }
+}
 
 bool SharedFunctionInfo::IsApiFunction() {
   return function_data()->IsFunctionTemplateInfo();
@@ -6350,11 +6351,11 @@ void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
   set_function_data(data);
 }
 
-bool SharedFunctionInfo::HasBytecodeArray() {
+bool SharedFunctionInfo::HasBytecodeArray() const {
   return function_data()->IsBytecodeArray();
 }
 
-BytecodeArray* SharedFunctionInfo::bytecode_array() {
+BytecodeArray* SharedFunctionInfo::bytecode_array() const {
   DCHECK(HasBytecodeArray());
   return BytecodeArray::cast(function_data());
 }
@@ -6369,11 +6370,11 @@ void SharedFunctionInfo::ClearBytecodeArray() {
   set_function_data(GetHeap()->undefined_value());
 }
 
-bool SharedFunctionInfo::HasAsmWasmData() {
+bool SharedFunctionInfo::HasAsmWasmData() const {
   return function_data()->IsFixedArray();
 }
 
-FixedArray* SharedFunctionInfo::asm_wasm_data() {
+FixedArray* SharedFunctionInfo::asm_wasm_data() const {
   DCHECK(HasAsmWasmData());
   return FixedArray::cast(function_data());
 }

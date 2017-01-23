@@ -1570,6 +1570,11 @@ void MacroAssembler::JumpIfNotSmi(Register src,
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
+void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
+                                  Label::Distance near_jump) {
+  Condition smi = CheckSmi(src);
+  j(NegateCondition(smi), on_not_smi, near_jump);
+}
 
 void MacroAssembler::JumpUnlessNonNegativeSmi(
     Register src, Label* on_not_smi_or_negative,

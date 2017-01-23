@@ -7292,12 +7292,12 @@ class SharedFunctionInfo: public HeapObject {
   inline bool IsApiFunction();
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
-  inline bool HasBytecodeArray();
-  inline BytecodeArray* bytecode_array();
+  inline bool HasBytecodeArray() const;
+  inline BytecodeArray* bytecode_array() const;
   inline void set_bytecode_array(BytecodeArray* bytecode);
   inline void ClearBytecodeArray();
-  inline bool HasAsmWasmData();
-  inline FixedArray* asm_wasm_data();
+  inline bool HasAsmWasmData() const;
+  inline FixedArray* asm_wasm_data() const;
   inline void set_asm_wasm_data(FixedArray* data);
   inline void ClearAsmWasmData();
 
@@ -7335,14 +7335,40 @@ class SharedFunctionInfo: public HeapObject {
   inline void set_start_position_and_type(int value);
 
   // The function is subject to debugging if a debug info is attached.
-  inline bool HasDebugInfo();
-  inline DebugInfo* GetDebugInfo();
+  inline bool HasDebugInfo() const;
+  inline DebugInfo* GetDebugInfo() const;
 
   // A function has debug code if the compiled code has debug break slots.
-  inline bool HasDebugCode();
+  inline bool HasDebugCode() const;
 
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
+
+  // Bit field containing various information collected for debugging.
+  // This field is either stored on the kDebugInfo slot or inside the
+  // debug info struct.
+  inline int debugger_hints() const;
+  inline void set_debugger_hints(int value);
+
+  // Indicates that the function was created by the Function function.
+  // Though it's anonymous, toString should treat it as if it had the name
+  // "anonymous".  We don't set the name itself so that the system does not
+  // see a binding for it.
+  DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
+
+  // Indicates that the function is either an anonymous expression
+  // or an arrow function (the name field can be set through the API,
+  // which does not change this flag).
+  DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
+
+  // Indicates that the the shared function info is deserialized from cache.
+  DECL_BOOLEAN_ACCESSORS(deserialized)
+
+  // Indicates that the function cannot cause side-effects.
+  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
+
+  // Indicates that |has_no_side_effect| has been computed and set.
+  DECL_BOOLEAN_ACCESSORS(computed_has_no_side_effect)
 
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
@@ -7422,17 +7448,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicate that this function should always be inlined in optimized code.
   DECL_BOOLEAN_ACCESSORS(force_inline)
 
-  // Indicates that the function was created by the Function function.
-  // Though it's anonymous, toString should treat it as if it had the name
-  // "anonymous".  We don't set the name itself so that the system does not
-  // see a binding for it.
-  DECL_BOOLEAN_ACCESSORS(name_should_print_as_anonymous)
-
-  // Indicates that the function is either an anonymous expression
-  // or an arrow function (the name field can be set through the API,
-  // which does not change this flag).
-  DECL_BOOLEAN_ACCESSORS(is_anonymous_expression)
-
   // Indicates that code for this function must be compiled through the
   // Ignition / TurboFan pipeline, and is unsupported by
   // FullCodegen / Crankshaft.
@@ -7444,9 +7459,6 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that this function is an asm function.
   DECL_BOOLEAN_ACCESSORS(asm_function)
 
-  // Indicates that the the shared function info is deserialized from cache.
-  DECL_BOOLEAN_ACCESSORS(deserialized)
-
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
@@ -7455,12 +7467,6 @@ class SharedFunctionInfo: public HeapObject {
 
   // Indicates that asm->wasm conversion failed and should not be re-attempted.
   DECL_BOOLEAN_ACCESSORS(is_asm_wasm_broken)
-
-  // Indicates that the function cannot cause side-effects.
-  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
-
-  // Indicates that |has_no_side_effect| has been computed and set.
-  DECL_BOOLEAN_ACCESSORS(computed_has_no_side_effect)
 
   inline FunctionKind kind() const;
   inline void set_kind(FunctionKind kind);
@@ -7736,23 +7742,30 @@ class SharedFunctionInfo: public HeapObject {
     // byte 1
     kForceInline,
     kIsAsmFunction,
-    kIsAnonymousExpression,
-    kNameShouldPrintAsAnonymous,
     kMustUseIgnitionTurbo,
     kDontFlush,
     kIsDeclaration,
+    kIsAsmWasmBroken,
 
-    kUnused,  // unused.
+    kUnused1,  // Unused fields.
+    kUnused2,
+
     // byte 2
     kFunctionKind,
     // rest of byte 2 and first two bits of byte 3 are used by FunctionKind
     // byte 3
-    kDeserialized = kFunctionKind + 10,
-    kIsAsmWasmBroken,
+    kCompilerHintsCount = kFunctionKind + 10,  // Pseudo entry
+  };
+
+  // Bit positions in debugger_hints.
+  enum DebuggerHints {
+    kIsAnonymousExpression,
+    kNameShouldPrintAsAnonymous,
+    kDeserialized,
     kHasNoSideEffect,
     kComputedHasNoSideEffect,
-    kCompilerHintsCount,  // Pseudo entry
   };
+
   // kFunctionKind has to be byte-aligned
   STATIC_ASSERT((kFunctionKind % kBitsPerByte) == 0);
 
@@ -11490,6 +11503,9 @@ class DebugInfo: public Struct {
   // The shared function info for the source being debugged.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
+  // Bit field containing various information collected for debugging.
+  DECL_INT_ACCESSORS(debugger_hints)
+
   DECL_ACCESSORS(debug_bytecode_array, Object)
   // Fixed array holding status information for each active break point.
   DECL_ACCESSORS(break_points, FixedArray)
@@ -11510,8 +11526,6 @@ class DebugInfo: public Struct {
   // Get the number of break points for this function.
   int GetBreakPointCount();
 
-  static Smi* uninitialized() { return Smi::kZero; }
-
   inline bool HasDebugBytecodeArray();
   inline bool HasDebugCode();
 
@@ -11526,8 +11540,10 @@ class DebugInfo: public Struct {
   DECLARE_VERIFIER(DebugInfo)
 
   static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
-  static const int kDebugBytecodeArrayIndex =
+  static const int kDebuggerHintsIndex =
       kSharedFunctionInfoIndex + kPointerSize;
+  static const int kDebugBytecodeArrayIndex =
+      kDebuggerHintsIndex + kPointerSize;
   static const int kBreakPointsStateIndex =
       kDebugBytecodeArrayIndex + kPointerSize;
   static const int kSize = kBreakPointsStateIndex + kPointerSize;
