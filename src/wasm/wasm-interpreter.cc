@@ -616,7 +616,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
                                         WasmInstance* instance) {
   // TODO(ahaas): Move memory allocation to wasm-module.cc for better
   // encapsulation.
-  if (delta_pages > wasm::kV8MaxWasmMemoryPages ||
+  if (delta_pages > FLAG_wasm_max_mem_pages ||
       delta_pages > instance->module->max_mem_pages) {
     return -1;
   }
@@ -633,7 +633,7 @@ static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   } else {
     DCHECK_NOT_NULL(instance->mem_start);
     new_size = old_size + delta_pages * wasm::WasmModule::kPageSize;
-    if (new_size / wasm::WasmModule::kPageSize > wasm::kV8MaxWasmMemoryPages ||
+    if (new_size / wasm::WasmModule::kPageSize > FLAG_wasm_max_mem_pages ||
         new_size / wasm::WasmModule::kPageSize >
             instance->module->max_mem_pages) {
       return -1;

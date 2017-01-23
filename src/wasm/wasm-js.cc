@@ -499,7 +499,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          i::wasm::kV8MaxWasmMemoryPages)) {
+                          i::FLAG_wasm_max_mem_pages)) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -697,8 +697,8 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
   int64_t max_size64 = receiver->maximum_pages();
   if (max_size64 < 0 ||
-      max_size64 > static_cast<int64_t>(i::wasm::kV8MaxWasmMemoryPages)) {
-    max_size64 = i::wasm::kV8MaxWasmMemoryPages;
+      max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
+    max_size64 = i::FLAG_wasm_max_mem_pages;
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->buffer());
   uint32_t old_size =

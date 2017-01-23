@@ -755,7 +755,7 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 
 Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
                                            bool enable_guard_regions) {
-  if (size > (kV8MaxWasmMemoryPages * WasmModule::kPageSize)) {
+  if (size > (FLAG_wasm_max_mem_pages * WasmModule::kPageSize)) {
     // TODO(titzer): lift restriction on maximum memory allocated here.
     return Handle<JSArrayBuffer>::null();
   }
@@ -1834,7 +1834,7 @@ class WasmInstanceBuilder {
 
   // Allocate memory for a module instance as a new JSArrayBuffer.
   Handle<JSArrayBuffer> AllocateMemory(uint32_t min_mem_pages) {
-    if (min_mem_pages > kV8MaxWasmMemoryPages) {
+    if (min_mem_pages > FLAG_wasm_max_mem_pages) {
       thrower_->RangeError("Out of memory: wasm memory too large");
       return Handle<JSArrayBuffer>::null();
     }
@@ -2276,14 +2276,14 @@ uint32_t GetMaxInstanceMemoryPages(Isolate* isolate,
     Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
     if (memory_object->has_maximum_pages()) {
       uint32_t maximum = static_cast<uint32_t>(memory_object->maximum_pages());
-      if (maximum < kV8MaxWasmMemoryPages) return maximum;
+      if (maximum < FLAG_wasm_max_mem_pages) return maximum;
     }
   }
   uint32_t compiled_max_pages = instance->compiled_module()->max_mem_pages();
   isolate->counters()->wasm_max_mem_pages_count()->AddSample(
       compiled_max_pages);
   if (compiled_max_pages != 0) return compiled_max_pages;
-  return kV8MaxWasmMemoryPages;
+  return FLAG_wasm_max_mem_pages;
 }
 
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
@@ -2301,7 +2301,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
          std::numeric_limits<uint32_t>::max());
   uint32_t new_size = old_size + pages * WasmModule::kPageSize;
   if (new_size <= old_size || max_pages * WasmModule::kPageSize < new_size ||
-      kV8MaxWasmMemoryPages * WasmModule::kPageSize < new_size) {
+      FLAG_wasm_max_mem_pages * WasmModule::kPageSize < new_size) {
     return Handle<JSArrayBuffer>::null();
   }
 
@@ -2368,9 +2368,9 @@ int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate,
     uint32_t max_pages;
     if (memory_object->has_maximum_pages()) {
       max_pages = static_cast<uint32_t>(memory_object->maximum_pages());
-      if (kV8MaxWasmMemoryPages < max_pages) return -1;
+      if (FLAG_wasm_max_mem_pages < max_pages) return -1;
     } else {
-      max_pages = kV8MaxWasmMemoryPages;
+      max_pages = FLAG_wasm_max_mem_pages;
     }
     new_buffer = GrowMemoryBuffer(isolate, memory_buffer, pages, max_pages);
     if (new_buffer.is_null()) return -1;

@@ -17,6 +17,8 @@
 #include "test/fuzzer/fuzzer-support.h"
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+  unsigned int flag_value = v8::internal::FLAG_wasm_max_mem_pages;
+  v8::internal::FLAG_wasm_max_mem_pages = 32;
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
   v8::internal::Isolate* i_isolate =
@@ -34,5 +36,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
   v8::internal::wasm::testing::CompileAndRunWasmModule(
       i_isolate, data, data + size, v8::internal::wasm::kWasmOrigin);
+  v8::internal::FLAG_wasm_max_mem_pages = flag_value;
   return 0;
 }

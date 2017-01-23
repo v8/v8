@@ -1779,7 +1779,7 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
   Diamond check_input_range(
       graph(), jsgraph()->common(),
       graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(), input,
-                       jsgraph()->Uint32Constant(wasm::kV8MaxWasmMemoryPages)),
+                       jsgraph()->Uint32Constant(FLAG_wasm_max_mem_pages)),
       BranchHint::kTrue);
 
   check_input_range.Chain(*control_);

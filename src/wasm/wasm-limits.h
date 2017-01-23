@@ -17,7 +17,8 @@ const size_t kV8MaxWasmImports = 100000;
 const size_t kV8MaxWasmExports = 100000;
 const size_t kV8MaxWasmGlobals = 1000000;
 const size_t kV8MaxWasmDataSegments = 100000;
-const size_t kV8MaxWasmMemoryPages = 16384;  // = 1 GiB
+// kV8MaxWasmMemoryPages is defined by FLAG_wasm_max_mem_pages
+// const size_t kV8MaxWasmMemoryPages = 16384;  // = 1 GiB
 const size_t kV8MaxWasmStringSize = 100000;
 const size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
 const size_t kV8MaxWasmFunctionSize = 128 * 1024;

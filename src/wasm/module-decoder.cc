@@ -322,7 +322,7 @@ class ModuleDecoder : public Decoder {
             // ===== Imported memory =========================================
             if (!AddMemory(module)) break;
             consume_resizable_limits(
-                "memory", "pages", kV8MaxWasmMemoryPages,
+                "memory", "pages", FLAG_wasm_max_mem_pages,
                 &module->min_mem_pages, &module->has_max_mem,
                 kSpecMaxWasmMemoryPages, &module->max_mem_pages);
             break;
@@ -394,7 +394,7 @@ class ModuleDecoder : public Decoder {
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
         if (!AddMemory(module)) break;
-        consume_resizable_limits("memory", "pages", kV8MaxWasmMemoryPages,
+        consume_resizable_limits("memory", "pages", FLAG_wasm_max_mem_pages,
                                  &module->min_mem_pages, &module->has_max_mem,
                                  kSpecMaxWasmMemoryPages,
                                  &module->max_mem_pages);
