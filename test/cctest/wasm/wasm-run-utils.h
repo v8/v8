@@ -827,9 +827,9 @@ jmp_buf WasmRunnerBase::jump_buffer;
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
   TEST(RunWasmCompiled_##name) { RunWasm_##name(kExecuteCompiled); }       \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmCompiledWithoutTrapIf_##name) {                              \
+  TEST(RunWasmCompiledWithTrapIf_##name) {                                 \
     bool trap_if = FLAG_wasm_trap_if;                                      \
-    FLAG_wasm_trap_if = false;                                             \
+    FLAG_wasm_trap_if = true;                                              \
     RunWasm_##name(kExecuteCompiled);                                      \
     FLAG_wasm_trap_if = trap_if;                                           \
   }                                                                        \

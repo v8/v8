@@ -555,7 +555,7 @@ DEFINE_BOOL(wasm_guard_pages, false,
             "add guard pages to the end of WebWassembly memory"
             " (experimental, no effect on 32-bit)")
 DEFINE_IMPLICATION(wasm_trap_handler, wasm_guard_pages)
-DEFINE_BOOL(wasm_trap_if, true,
+DEFINE_BOOL(wasm_trap_if, false,
             "enable the use of the trap_if operator for traps")
 DEFINE_BOOL(wasm_code_fuzzer_gen_test, false,
             "Generate a test case when running the wasm-code fuzzer")
