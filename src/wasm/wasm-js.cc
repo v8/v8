@@ -697,7 +697,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
   int64_t max_size64 = receiver->maximum_pages();
   if (max_size64 < 0 ||
-      max_size64 > static_cast<int64_t>(i::wasm::kV8MaxWasmTableSize)) {
+      max_size64 > static_cast<int64_t>(i::wasm::kV8MaxWasmMemoryPages)) {
     max_size64 = i::wasm::kV8MaxWasmMemoryPages;
   }
   i::Handle<i::JSArrayBuffer> old_buffer(receiver->buffer());
