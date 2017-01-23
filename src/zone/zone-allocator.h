@@ -49,10 +49,15 @@ class zone_allocator {
   size_type max_size() const throw() {
     return std::numeric_limits<int>::max() / sizeof(value_type);
   }
-  void construct(pointer p, const T& val) {
-    new (static_cast<void*>(p)) T(val);
+  template <typename U, typename... Args>
+  void construct(U* p, Args&&... args) {
+    void* v_p = const_cast<void*>(static_cast<const void*>(p));
+    new (v_p) U(std::forward<Args>(args)...);
   }
-  void destroy(pointer p) { p->~T(); }
+  template <typename U>
+  void destroy(U* p) {
+    p->~U();
+  }
 
   bool operator==(zone_allocator const& other) const {
     return zone_ == other.zone_;

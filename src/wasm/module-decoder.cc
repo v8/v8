@@ -1201,7 +1201,7 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("body size");
     int offset = static_cast<int>(section_offset + decoder.pc_offset());
-    table.push_back(std::make_pair(offset, static_cast<int>(size)));
+    table.emplace_back(offset, static_cast<int>(size));
     DCHECK(table.back().first >= 0 && table.back().second >= 0);
     decoder.consume_bytes(size);
   }
@@ -1224,7 +1224,7 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
   for (uint32_t i = 0; i < functions_count && decoder.ok(); ++i) {
     uint32_t size = decoder.consume_u32v("table size");
     if (size == 0) {
-      table.push_back(std::vector<AsmJsOffsetEntry>());
+      table.emplace_back();
       continue;
     }
     if (!decoder.checkAvailable(size)) {

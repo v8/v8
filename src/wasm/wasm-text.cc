@@ -90,8 +90,7 @@ void wasm::PrintWasmText(const WasmModule *module,
     const int kMaxIndentation = 64;
     int indentation = std::min(kMaxIndentation, 2 * control_depth);
     if (offset_table) {
-      offset_table->push_back(debug::WasmDisassemblyOffsetTableEntry(
-          i.pc_offset(), line_nr, indentation));
+      offset_table->emplace_back(i.pc_offset(), line_nr, indentation);
     }
 
     // 64 whitespaces
