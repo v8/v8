@@ -1194,6 +1194,9 @@ class Isolate {
   base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
 #endif
 
+  void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
+  bool allow_atomics_wait() { return allow_atomics_wait_; }
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectPrototype(Object* object);
@@ -1471,6 +1474,8 @@ class Isolate {
 #ifdef USE_SIMULATOR
   base::Mutex simulator_i_cache_mutex_;
 #endif
+
+  bool allow_atomics_wait_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

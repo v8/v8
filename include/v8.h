@@ -6345,7 +6345,8 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          external_references(nullptr) {}
+          external_references(nullptr),
+          allow_atomics_wait(true) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6401,6 +6402,12 @@ class V8_EXPORT Isolate {
      * entire lifetime of the isolate.
      */
     intptr_t* external_references;
+
+    /**
+     * Whether calling Atomics.wait (a function that may block) is allowed in
+     * this isolate.
+     */
+    bool allow_atomics_wait;
   };
 
 

@@ -269,6 +269,7 @@ class ErrorUtils : public AllStatic {
     "ArrayBuffer subclass returned this from species constructor")             \
   T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
+  T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \

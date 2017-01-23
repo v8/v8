@@ -8121,6 +8121,7 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   }
 
   isolate->set_api_external_references(params.external_references);
+  isolate->set_allow_atomics_wait(params.allow_atomics_wait);
   SetResourceConstraints(isolate, params.constraints);
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);

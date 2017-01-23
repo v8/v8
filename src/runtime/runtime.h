@@ -73,7 +73,8 @@ namespace internal {
   F(AtomicsIsLockFree, 1, 1)                    \
   F(AtomicsWait, 4, 1)                          \
   F(AtomicsWake, 3, 1)                          \
-  F(AtomicsNumWaitersForTesting, 2, 1)
+  F(AtomicsNumWaitersForTesting, 2, 1)          \
+  F(SetAllowAtomicsWait, 1, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)        \
   F(ThrowUnsupportedSuperError, 0, 1)        \
