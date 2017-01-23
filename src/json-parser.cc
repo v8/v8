@@ -478,7 +478,7 @@ void JsonParser<seq_one_byte>::CommitStateToJsonObject(
   DCHECK(!json_object->map()->is_dictionary_map());
 
   DisallowHeapAllocation no_gc;
-  DescriptorArray* descriptors = map->instance_descriptors();
+  DescriptorArray* descriptors = json_object->map()->instance_descriptors();
   int length = properties->length();
   for (int i = 0; i < length; i++) {
     Handle<Object> value = (*properties)[i];
