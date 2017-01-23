@@ -40,9 +40,6 @@ Debug::Debug(Isolate* isolate)
     : debug_context_(Handle<Context>()),
       event_listener_(Handle<Object>()),
       event_listener_data_(Handle<Object>()),
-      message_handler_(NULL),
-      command_received_(0),
-      command_queue_(isolate->logger(), kQueueInitialSize),
       is_active_(false),
       hook_on_function_call_(false),
       is_suppressed_(false),
@@ -532,7 +529,7 @@ void Debug::Break(JavaScriptFrame* frame) {
     // Notify the debug event listeners.
     Handle<JSArray> jsarr = isolate_->factory()->NewJSArrayWithElements(
         break_points_hit.ToHandleChecked());
-    OnDebugBreak(jsarr, false);
+    OnDebugBreak(jsarr);
     return;
   }
 
@@ -574,7 +571,7 @@ void Debug::Break(JavaScriptFrame* frame) {
 
   if (step_break) {
     // Notify the debug event listeners.
-    OnDebugBreak(isolate_->factory()->undefined_value(), false);
+    OnDebugBreak(isolate_->factory()->undefined_value());
   } else {
     // Re-prepare to continue.
     PrepareStep(step_action);
@@ -1786,11 +1783,11 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   }
 
   // Process debug event.
-  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data), false);
+  ProcessDebugEvent(v8::Exception, Handle<JSObject>::cast(event_data));
   // Return to continue execution from where the exception was thrown.
 }
 
-void Debug::OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue) {
+void Debug::OnDebugBreak(Handle<Object> break_points_hit) {
   // The caller provided for DebugScope.
   AssertDebugContext();
   // Bail out if there is no listener for this event
@@ -1825,8 +1822,7 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit, bool auto_continue) {
   if (!MakeBreakEvent(break_points_hit).ToHandle(&event_data)) return;
 
   // Process debug event.
-  ProcessDebugEvent(v8::Break, Handle<JSObject>::cast(event_data),
-                    auto_continue);
+  ProcessDebugEvent(v8::Break, Handle<JSObject>::cast(event_data));
 }
 
 
@@ -1916,12 +1912,14 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
     return;
 
   // Process debug event.
-  ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data),
-                    true);
+  ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data));
 }
 
-void Debug::ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data,
-                              bool auto_continue) {
+void Debug::ProcessDebugEvent(v8::DebugEvent event,
+                              Handle<JSObject> event_data) {
+  // Notify registered debug event listener. This can be either a C or
+  // a JavaScript function.
+  if (event_listener_.is_null()) return;
   HandleScope scope(isolate_);
 
   // Create the execution state.
@@ -1929,24 +1927,6 @@ void Debug::ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data,
   // Bail out and don't call debugger if exception.
   if (!MakeExecutionState().ToHandle(&exec_state)) return;
 
-  // First notify the message handler if any.
-  if (message_handler_ != NULL) {
-    NotifyMessageHandler(event, Handle<JSObject>::cast(exec_state), event_data,
-                         auto_continue);
-  }
-  // Notify registered debug event listener. This can be either a C or
-  // a JavaScript function. Don't call event listener for v8::Break
-  // here, if it's only a debug command -- they will be processed later.
-  if ((event != v8::Break || !auto_continue) && !event_listener_.is_null()) {
-    CallEventCallback(event, exec_state, event_data, NULL);
-  }
-}
-
-
-void Debug::CallEventCallback(v8::DebugEvent event,
-                              Handle<Object> exec_state,
-                              Handle<Object> event_data,
-                              v8::Debug::ClientData* client_data) {
   // Prevent other interrupts from triggering, for example API callbacks,
   // while dispatching event listners.
   PostponeInterruptsScope postpone(isolate_);
@@ -1956,11 +1936,9 @@ void Debug::CallEventCallback(v8::DebugEvent event,
     // Invoke the C debug event listener.
     v8::Debug::EventCallback callback = FUNCTION_CAST<v8::Debug::EventCallback>(
         Handle<Foreign>::cast(event_listener_)->foreign_address());
-    EventDetailsImpl event_details(event,
-                                   Handle<JSObject>::cast(exec_state),
+    EventDetailsImpl event_details(event, Handle<JSObject>::cast(exec_state),
                                    Handle<JSObject>::cast(event_data),
-                                   event_listener_data_,
-                                   client_data);
+                                   event_listener_data_);
     callback(event_details);
     CHECK(!isolate_->has_scheduled_exception());
   } else {
@@ -1986,7 +1964,6 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
     return;
   }
   SuppressDebug while_processing(this);
-  bool in_nested_debug_scope = in_debug_scope();
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
@@ -2002,20 +1979,8 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   // Bail out and don't call debugger if exception.
   if (!MakeCompileEvent(script, event).ToHandle(&event_data)) return;
 
-  // Don't call NotifyMessageHandler if already in debug scope to avoid running
-  // nested command loop.
-  if (in_nested_debug_scope) {
-    if (event_listener_.is_null()) return;
-    // Create the execution state.
-    Handle<Object> exec_state;
-    // Bail out and don't call debugger if exception.
-    if (!MakeExecutionState().ToHandle(&exec_state)) return;
-
-    CallEventCallback(event, exec_state, event_data, NULL);
-  } else {
-    // Process debug event.
-    ProcessDebugEvent(event, Handle<JSObject>::cast(event_data), true);
-  }
+  // Process debug event.
+  ProcessDebugEvent(event, Handle<JSObject>::cast(event_data));
 }
 
 
@@ -2027,136 +1992,6 @@ Handle<Context> Debug::GetDebugContext() {
   return handle(*debug_context(), isolate_);
 }
 
-void Debug::NotifyMessageHandler(v8::DebugEvent event,
-                                 Handle<JSObject> exec_state,
-                                 Handle<JSObject> event_data,
-                                 bool auto_continue) {
-  // Prevent other interrupts from triggering, for example API callbacks,
-  // while dispatching message handler callbacks.
-  PostponeInterruptsScope no_interrupts(isolate_);
-  DCHECK(is_active_);
-  HandleScope scope(isolate_);
-  // Process the individual events.
-  bool sendEventMessage = false;
-  switch (event) {
-    case v8::Break:
-      sendEventMessage = !auto_continue;
-      break;
-    case v8::CompileError:
-    case v8::AsyncTaskEvent:
-      break;
-    case v8::Exception:
-    case v8::AfterCompile:
-      sendEventMessage = true;
-      break;
-  }
-
-  // The debug command interrupt flag might have been set when the command was
-  // added. It should be enough to clear the flag only once while we are in the
-  // debugger.
-  DCHECK(in_debug_scope());
-  isolate_->stack_guard()->ClearDebugCommand();
-
-  // Notify the debugger that a debug event has occurred unless auto continue is
-  // active in which case no event is send.
-  if (sendEventMessage) {
-    MessageImpl message = MessageImpl::NewEvent(
-        event, auto_continue, Handle<JSObject>::cast(exec_state),
-        Handle<JSObject>::cast(event_data));
-    InvokeMessageHandler(message);
-  }
-
-  // If auto continue don't make the event cause a break, but process messages
-  // in the queue if any. For script collected events don't even process
-  // messages in the queue as the execution state might not be what is expected
-  // by the client.
-  if (auto_continue && !has_commands()) return;
-
-  // DebugCommandProcessor goes here.
-  bool running = auto_continue;
-
-  Handle<Object> cmd_processor_ctor =
-      JSReceiver::GetProperty(isolate_, exec_state, "debugCommandProcessor")
-          .ToHandleChecked();
-  Handle<Object> ctor_args[] = {isolate_->factory()->ToBoolean(running)};
-  Handle<JSReceiver> cmd_processor = Handle<JSReceiver>::cast(
-      Execution::Call(isolate_, cmd_processor_ctor, exec_state, 1, ctor_args)
-          .ToHandleChecked());
-  Handle<JSFunction> process_debug_request = Handle<JSFunction>::cast(
-      JSReceiver::GetProperty(isolate_, cmd_processor, "processDebugRequest")
-          .ToHandleChecked());
-  Handle<Object> is_running =
-      JSReceiver::GetProperty(isolate_, cmd_processor, "isRunning")
-          .ToHandleChecked();
-
-  // Process requests from the debugger.
-  do {
-    // Wait for new command in the queue.
-    command_received_.Wait();
-
-    // Get the command from the queue.
-    CommandMessage command = command_queue_.Get();
-    isolate_->logger()->DebugTag(
-        "Got request from command queue, in interactive loop.");
-    if (!is_active()) {
-      // Delete command text and user data.
-      command.Dispose();
-      return;
-    }
-
-    Vector<const uc16> command_text(
-        const_cast<const uc16*>(command.text().start()),
-        command.text().length());
-    Handle<String> request_text = isolate_->factory()
-                                      ->NewStringFromTwoByte(command_text)
-                                      .ToHandleChecked();
-    Handle<Object> request_args[] = {request_text};
-    Handle<Object> answer_value;
-    Handle<String> answer;
-    MaybeHandle<Object> maybe_exception;
-    MaybeHandle<Object> maybe_result = Execution::TryCall(
-        isolate_, process_debug_request, cmd_processor, 1, request_args,
-        Execution::MessageHandling::kReport, &maybe_exception);
-
-    if (maybe_result.ToHandle(&answer_value)) {
-      if (answer_value->IsUndefined(isolate_)) {
-        answer = isolate_->factory()->empty_string();
-      } else {
-        answer = Handle<String>::cast(answer_value);
-      }
-
-      // Log the JSON request/response.
-      if (FLAG_trace_debug_json) {
-        PrintF("%s\n", request_text->ToCString().get());
-        PrintF("%s\n", answer->ToCString().get());
-      }
-
-      Handle<Object> is_running_args[] = {answer};
-      maybe_result = Execution::Call(isolate_, is_running, cmd_processor, 1,
-                                     is_running_args);
-      Handle<Object> result;
-      if (!maybe_result.ToHandle(&result)) break;
-      running = result->IsTrue(isolate_);
-    } else {
-      Handle<Object> exception;
-      if (!maybe_exception.ToHandle(&exception)) break;
-      Handle<Object> result;
-      if (!Object::ToString(isolate_, exception).ToHandle(&result)) break;
-      answer = Handle<String>::cast(result);
-    }
-
-    // Return the result.
-    MessageImpl message = MessageImpl::NewResponse(
-        event, running, exec_state, event_data, answer, command.client_data());
-    InvokeMessageHandler(message);
-    command.Dispose();
-
-    // Return from debug event processing if either the VM is put into the
-    // running state (through a continue command) or auto continue is active
-    // and there are no more commands queued.
-  } while (!running || has_commands());
-  command_queue_.Clear();
-}
 
 void Debug::SetEventListener(Handle<Object> callback,
                              Handle<Object> data) {
@@ -2178,15 +2013,6 @@ void Debug::SetEventListener(Handle<Object> callback,
   UpdateState();
 }
 
-void Debug::SetMessageHandler(v8::Debug::MessageHandler handler) {
-  message_handler_ = handler;
-  UpdateState();
-  if (handler == NULL && in_debug_scope()) {
-    // Send an empty command to the debugger if in a break to make JavaScript
-    // run again if the debugger is closed.
-    EnqueueCommandMessage(Vector<const uint16_t>::empty());
-  }
-}
 
 void Debug::SetDebugEventListener(debug::DebugEventListener* listener) {
   debug_event_listener_ = listener;
@@ -2194,8 +2020,8 @@ void Debug::SetDebugEventListener(debug::DebugEventListener* listener) {
 }
 
 void Debug::UpdateState() {
-  bool is_active = message_handler_ != nullptr || !event_listener_.is_null() ||
-                   debug_event_listener_ != nullptr;
+  bool is_active =
+      !event_listener_.is_null() || debug_event_listener_ != nullptr;
   if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
@@ -2213,31 +2039,6 @@ void Debug::UpdateHookOnFunctionCall() {
   STATIC_ASSERT(LastStepAction == StepFrame);
   hook_on_function_call_ = thread_local_.last_step_action_ >= StepIn ||
                            isolate_->needs_side_effect_check();
-}
-
-// Calls the registered debug message handler. This callback is part of the
-// public API.
-void Debug::InvokeMessageHandler(MessageImpl message) {
-  if (message_handler_ != NULL) message_handler_(message);
-}
-
-// Puts a command coming from the public API on the queue.  Creates
-// a copy of the command string managed by the debugger.  Up to this
-// point, the command data was managed by the API client.  Called
-// by the API client thread.
-void Debug::EnqueueCommandMessage(Vector<const uint16_t> command,
-                                  v8::Debug::ClientData* client_data) {
-  // Need to cast away const.
-  CommandMessage message = CommandMessage::New(
-      Vector<uint16_t>(const_cast<uint16_t*>(command.start()),
-                       command.length()),
-      client_data);
-  isolate_->logger()->DebugTag("Put command on command_queue.");
-  command_queue_.Put(message);
-  command_received_.Signal();
-
-  // Set the debug command break flag to have the command processed.
-  if (!in_debug_scope()) isolate_->stack_guard()->RequestDebugCommand();
 }
 
 MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
@@ -2286,31 +2087,16 @@ void Debug::HandleDebugBreak() {
     }
   }
 
-  // Collect the break state before clearing the flags.
-  bool debug_command_only = isolate_->stack_guard()->CheckDebugCommand() &&
-                            !isolate_->stack_guard()->CheckDebugBreak();
-
   isolate_->stack_guard()->ClearDebugBreak();
 
   // Clear stepping to avoid duplicate breaks.
   ClearStepping();
 
-  ProcessDebugMessages(debug_command_only);
-}
-
-void Debug::ProcessDebugMessages(bool debug_command_only) {
-  isolate_->stack_guard()->ClearDebugCommand();
-
-  StackLimitCheck check(isolate_);
-  if (check.HasOverflowed()) return;
-
   HandleScope scope(isolate_);
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  // Notify the debug event listeners. Indicate auto continue if the break was
-  // a debug command break.
-  OnDebugBreak(isolate_->factory()->undefined_value(), debug_command_only);
+  OnDebugBreak(isolate_->factory()->undefined_value());
 }
 
 #ifdef DEBUG
@@ -2391,10 +2177,6 @@ DebugScope::~DebugScope() {
     // JavaScript. This can happen if the v8::Debug::Call is used in which
     // case the exception should end up in the calling code.
     if (!isolate()->has_pending_exception()) debug_->ClearMirrorCache();
-
-    // If there are commands in the queue when leaving the debugger request
-    // that these commands are processed.
-    if (debug_->has_commands()) isolate()->stack_guard()->RequestDebugCommand();
   }
 
   // Leaving this debugger entry.
@@ -2453,107 +2235,14 @@ NoSideEffectScope::~NoSideEffectScope() {
   isolate_->debug()->side_effect_check_failed_ = false;
 }
 
-MessageImpl MessageImpl::NewEvent(DebugEvent event, bool running,
-                                  Handle<JSObject> exec_state,
-                                  Handle<JSObject> event_data) {
-  MessageImpl message(true, event, running, exec_state, event_data,
-                      Handle<String>(), NULL);
-  return message;
-}
-
-MessageImpl MessageImpl::NewResponse(DebugEvent event, bool running,
-                                     Handle<JSObject> exec_state,
-                                     Handle<JSObject> event_data,
-                                     Handle<String> response_json,
-                                     v8::Debug::ClientData* client_data) {
-  MessageImpl message(false, event, running, exec_state, event_data,
-                      response_json, client_data);
-  return message;
-}
-
-MessageImpl::MessageImpl(bool is_event, DebugEvent event, bool running,
-                         Handle<JSObject> exec_state,
-                         Handle<JSObject> event_data,
-                         Handle<String> response_json,
-                         v8::Debug::ClientData* client_data)
-    : is_event_(is_event),
-      event_(event),
-      running_(running),
-      exec_state_(exec_state),
-      event_data_(event_data),
-      response_json_(response_json),
-      client_data_(client_data) {}
-
-bool MessageImpl::IsEvent() const { return is_event_; }
-
-bool MessageImpl::IsResponse() const { return !is_event_; }
-
-DebugEvent MessageImpl::GetEvent() const { return event_; }
-
-bool MessageImpl::WillStartRunning() const { return running_; }
-
-v8::Local<v8::Object> MessageImpl::GetExecutionState() const {
-  return v8::Utils::ToLocal(exec_state_);
-}
-
-v8::Isolate* MessageImpl::GetIsolate() const {
-  return reinterpret_cast<v8::Isolate*>(exec_state_->GetIsolate());
-}
-
-v8::Local<v8::Object> MessageImpl::GetEventData() const {
-  return v8::Utils::ToLocal(event_data_);
-}
-
-v8::Local<v8::String> MessageImpl::GetJSON() const {
-  Isolate* isolate = event_data_->GetIsolate();
-  v8::EscapableHandleScope scope(reinterpret_cast<v8::Isolate*>(isolate));
-
-  if (IsEvent()) {
-    // Call toJSONProtocol on the debug event object.
-    Handle<Object> fun =
-        JSReceiver::GetProperty(isolate, event_data_, "toJSONProtocol")
-            .ToHandleChecked();
-    if (!fun->IsJSFunction()) {
-      return v8::Local<v8::String>();
-    }
-
-    MaybeHandle<Object> maybe_exception;
-    MaybeHandle<Object> maybe_json = Execution::TryCall(
-        isolate, fun, event_data_, 0, nullptr,
-        Execution::MessageHandling::kReport, &maybe_exception);
-    Handle<Object> json;
-    if (!maybe_json.ToHandle(&json) || !json->IsString()) {
-      return v8::Local<v8::String>();
-    }
-    return scope.Escape(v8::Utils::ToLocal(Handle<String>::cast(json)));
-  } else {
-    return v8::Utils::ToLocal(response_json_);
-  }
-}
-
-v8::Local<v8::Context> MessageImpl::GetEventContext() const {
-  Isolate* isolate = event_data_->GetIsolate();
-  v8::Local<v8::Context> context = GetDebugEventContext(isolate);
-  // Isolate::context() may be NULL when "script collected" event occurs.
-  DCHECK(!context.IsEmpty());
-  return context;
-}
-
-v8::Debug::ClientData* MessageImpl::GetClientData() const {
-  return client_data_;
-}
-
 EventDetailsImpl::EventDetailsImpl(DebugEvent event,
                                    Handle<JSObject> exec_state,
                                    Handle<JSObject> event_data,
-                                   Handle<Object> callback_data,
-                                   v8::Debug::ClientData* client_data)
+                                   Handle<Object> callback_data)
     : event_(event),
       exec_state_(exec_state),
       event_data_(event_data),
-      callback_data_(callback_data),
-      client_data_(client_data) {}
-
+      callback_data_(callback_data) {}
 
 DebugEvent EventDetailsImpl::GetEvent() const {
   return event_;
@@ -2580,94 +2269,8 @@ v8::Local<v8::Value> EventDetailsImpl::GetCallbackData() const {
 }
 
 
-v8::Debug::ClientData* EventDetailsImpl::GetClientData() const {
-  return client_data_;
-}
-
 v8::Isolate* EventDetailsImpl::GetIsolate() const {
   return reinterpret_cast<v8::Isolate*>(exec_state_->GetIsolate());
-}
-
-CommandMessage::CommandMessage()
-    : text_(Vector<uint16_t>::empty()), client_data_(NULL) {}
-
-CommandMessage::CommandMessage(const Vector<uint16_t>& text,
-                               v8::Debug::ClientData* data)
-    : text_(text), client_data_(data) {}
-
-void CommandMessage::Dispose() {
-  text_.Dispose();
-  delete client_data_;
-  client_data_ = NULL;
-}
-
-CommandMessage CommandMessage::New(const Vector<uint16_t>& command,
-                                   v8::Debug::ClientData* data) {
-  return CommandMessage(command.Clone(), data);
-}
-
-CommandMessageQueue::CommandMessageQueue(int size)
-    : start_(0), end_(0), size_(size) {
-  messages_ = NewArray<CommandMessage>(size);
-}
-
-CommandMessageQueue::~CommandMessageQueue() {
-  while (!IsEmpty()) Get().Dispose();
-  DeleteArray(messages_);
-}
-
-CommandMessage CommandMessageQueue::Get() {
-  DCHECK(!IsEmpty());
-  int result = start_;
-  start_ = (start_ + 1) % size_;
-  return messages_[result];
-}
-
-void CommandMessageQueue::Put(const CommandMessage& message) {
-  if ((end_ + 1) % size_ == start_) {
-    Expand();
-  }
-  messages_[end_] = message;
-  end_ = (end_ + 1) % size_;
-}
-
-void CommandMessageQueue::Expand() {
-  CommandMessageQueue new_queue(size_ * 2);
-  while (!IsEmpty()) {
-    new_queue.Put(Get());
-  }
-  CommandMessage* array_to_free = messages_;
-  *this = new_queue;
-  new_queue.messages_ = array_to_free;
-  // Make the new_queue empty so that it doesn't call Dispose on any messages.
-  new_queue.start_ = new_queue.end_;
-  // Automatic destructor called on new_queue, freeing array_to_free.
-}
-
-LockingCommandMessageQueue::LockingCommandMessageQueue(Logger* logger, int size)
-    : logger_(logger), queue_(size) {}
-
-bool LockingCommandMessageQueue::IsEmpty() const {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
-  return queue_.IsEmpty();
-}
-
-CommandMessage LockingCommandMessageQueue::Get() {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
-  CommandMessage result = queue_.Get();
-  logger_->DebugEvent("Get", result.text());
-  return result;
-}
-
-void LockingCommandMessageQueue::Put(const CommandMessage& message) {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
-  queue_.Put(message);
-  logger_->DebugEvent("Put", message.text());
-}
-
-void LockingCommandMessageQueue::Clear() {
-  base::LockGuard<base::Mutex> lock_guard(&mutex_);
-  queue_.Clear();
 }
 
 }  // namespace internal

@@ -178,7 +178,7 @@ class InterpreterHandle {
           hit_breakpoints.ToHandleChecked());
     }
 
-    isolate_->debug()->OnDebugBreak(hit_breakpoints_js, false);
+    isolate_->debug()->OnDebugBreak(hit_breakpoints_js);
   }
 
   int GetTopPosition(Handle<WasmCompiledModule> compiled_module) {

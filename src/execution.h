@@ -86,12 +86,11 @@ class StackGuard final {
 
 #define INTERRUPT_LIST(V)                       \
   V(DEBUGBREAK, DebugBreak, 0)                  \
-  V(DEBUGCOMMAND, DebugCommand, 1)              \
-  V(TERMINATE_EXECUTION, TerminateExecution, 2) \
-  V(GC_REQUEST, GC, 3)                          \
-  V(INSTALL_CODE, InstallCode, 4)               \
-  V(API_INTERRUPT, ApiInterrupt, 5)             \
-  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 6)
+  V(TERMINATE_EXECUTION, TerminateExecution, 1) \
+  V(GC_REQUEST, GC, 2)                          \
+  V(INSTALL_CODE, InstallCode, 3)               \
+  V(API_INTERRUPT, ApiInterrupt, 4)             \
+  V(DEOPT_MARKED_ALLOCATION_SITES, DeoptMarkedAllocationSites, 5)
 
 #define V(NAME, Name, id)                                          \
   inline bool Check##Name() { return CheckInterrupt(NAME); }  \

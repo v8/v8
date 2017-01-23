@@ -55,12 +55,14 @@ class BreakHandler {
  public:
   explicit BreakHandler(Isolate* isolate) : isolate_(isolate) {
     current_handler = this;
-    isolate->debug()->SetMessageHandler(&HandleMessage);
+    v8::Debug::SetDebugEventListener(reinterpret_cast<v8::Isolate*>(isolate),
+                                     DebugEventListener);
   }
   ~BreakHandler() {
     CHECK_EQ(this, current_handler);
     current_handler = nullptr;
-    isolate_->debug()->SetMessageHandler(nullptr);
+    v8::Debug::SetDebugEventListener(reinterpret_cast<v8::Isolate*>(isolate_),
+                                     nullptr);
   }
 
   int count() const { return count_; }
@@ -71,25 +73,14 @@ class BreakHandler {
 
   static BreakHandler* current_handler;
 
-  static void HandleMessage(const v8::Debug::Message& message) {
-    // Ignore responses.
-    if (!message.IsEvent()) return;
-    // Ignore everything except break events.
-    if (message.GetEvent() != v8::DebugEvent::Break) return;
+  static void DebugEventListener(const v8::Debug::EventDetails& event_details) {
+    if (event_details.GetEvent() != v8::DebugEvent::Break) return;
 
     printf("break!\n");
     CHECK_NOT_NULL(current_handler);
     current_handler->count_ += 1;
     // Don't run into an endless loop.
     CHECK_GT(100, current_handler->count_);
-
-    const char command[] = "{\"type\":\"request\", \"command\":\"continue\"}";
-    uint16_t command_u16[arraysize(command) - 1];
-    for (unsigned i = 0; i < arraysize(command) - 1; ++i) {
-      command_u16[i] = command[i];
-    }
-    current_handler->isolate_->debug()->EnqueueCommandMessage(
-        ArrayVector(command_u16), message.GetClientData());
   }
 };
 
