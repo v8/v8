@@ -349,9 +349,6 @@
 ['variant == turbofan or variant == ignition_turbofan', {
   # BUG(4751). Flaky with Ignition.
   'test-cpu-profiler/JsNativeJsSample': [SKIP],
-
-  # TODO(vogelheim,5548): Turbofan does support cached accessors.
-  'test-api-accessors/CachedAccessorCrankshaft': [FAIL],
 }],  # variant == turbofan or variant == ignition_turbofan
 
 ##############################################################################

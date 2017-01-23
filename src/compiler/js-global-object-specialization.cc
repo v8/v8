@@ -62,6 +62,7 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
       kTaggedBase, PropertyCell::kValueOffset, name, map, type, r, kind};
   return access;
 }
+
 }  // namespace
 
 Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
@@ -85,6 +86,7 @@ Reduction JSGlobalObjectSpecialization::ReduceJSLoadGlobal(Node* node) {
   // Lookup on the global object instead.  We only deal with own data
   // properties of the global object here (represented as PropertyCell).
   LookupIterator it(global_object(), name, LookupIterator::OWN);
+  it.TryLookupCachedProperty();
   if (it.state() != LookupIterator::DATA) return NoChange();
   if (!it.GetHolder<JSObject>()->IsJSGlobalObject()) return NoChange();
   Handle<PropertyCell> property_cell = it.GetPropertyCell();
