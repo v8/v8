@@ -133,7 +133,8 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   } else if (subject->IsSlicedString()) {
     start_index += SlicedString::cast(subject)->offset();
     subject = SlicedString::cast(subject)->parent();
-  } else if (subject->IsThinString()) {
+  }
+  if (subject->IsThinString()) {
     subject = ThinString::cast(subject)->actual();
   }
   DCHECK(start_index >= 0);
@@ -148,6 +149,7 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
     return reinterpret_cast<const byte*>(
         ExternalOneByteString::cast(subject)->GetChars() + start_index);
   } else {
+    DCHECK(subject->IsExternalTwoByteString());
     return reinterpret_cast<const byte*>(
         ExternalTwoByteString::cast(subject)->GetChars() + start_index);
   }
