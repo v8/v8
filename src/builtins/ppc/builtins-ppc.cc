@@ -1019,8 +1019,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Load original bytecode array or the debug copy.
   __ LoadP(kInterpreterBytecodeArrayRegister,
            FieldMemOperand(r3, SharedFunctionInfo::kFunctionDataOffset));
-  __ CmpSmiLiteral(debug_info, DebugInfo::uninitialized(), r0);
-  __ beq(&array_done);
+  __ TestIfSmi(debug_info, r0);
+  __ beq(&array_done, cr0);
   __ LoadP(kInterpreterBytecodeArrayRegister,
            FieldMemOperand(debug_info, DebugInfo::kDebugBytecodeArrayIndex));
   __ bind(&array_done);
