@@ -137,14 +137,19 @@ inline int MostSignificantBit(uint32_t x) {
   return nibble + msb4[x];
 }
 
-
-// The C++ standard leaves the semantics of '>>' undefined for
-// negative signed operands. Most implementations do the right thing,
-// though.
-inline int ArithmeticShiftRight(int x, int s) {
-  return x >> s;
+template <typename T>
+static T ArithmeticShiftRight(T x, int shift) {
+  DCHECK_LE(0, shift);
+  if (x < 0) {
+    // Right shift of signed values is implementation defined. Simulate a
+    // true arithmetic right shift by adding leading sign bits.
+    using UnsignedT = typename std::make_unsigned<T>::type;
+    UnsignedT mask = ~(static_cast<UnsignedT>(~0) >> shift);
+    return (static_cast<UnsignedT>(x) >> shift) | mask;
+  } else {
+    return x >> shift;
+  }
 }
-
 
 template <typename T>
 int Compare(const T& a, const T& b) {

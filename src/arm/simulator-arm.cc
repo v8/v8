@@ -573,7 +573,6 @@ static bool AllOnOnePage(uintptr_t start, int size) {
   return start_page == end_page;
 }
 
-
 void Simulator::set_last_debugger_input(char* input) {
   DeleteArray(last_debugger_input_);
   last_debugger_input_ = input;
@@ -4355,6 +4354,84 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           dst[i] = src2[i - boundary];
         }
         set_q_register(Vd, dst);
+      } else if (instr->Bits(11, 7) == 0xA && instr->Bit(4) == 1) {
+        // vshl.i<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = instr->Bits(21, 16) - size;
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        NeonSize ns = static_cast<NeonSize>(size / 16);
+        switch (ns) {
+          case Neon8: {
+            uint8_t src[16];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 16; i++) {
+              src[i] <<= shift;
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          case Neon16: {
+            uint16_t src[8];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 8; i++) {
+              src[i] <<= shift;
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          case Neon32: {
+            uint32_t src[4];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 4; i++) {
+              src[i] <<= shift;
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
+        }
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+        // vshr.s<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = 2 * size - instr->Bits(21, 16);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        NeonSize ns = static_cast<NeonSize>(size / 16);
+        switch (ns) {
+          case Neon8: {
+            int8_t src[16];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 16; i++) {
+              src[i] = ArithmeticShiftRight(src[i], shift);
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          case Neon16: {
+            int16_t src[8];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 8; i++) {
+              src[i] = ArithmeticShiftRight(src[i], shift);
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          case Neon32: {
+            int32_t src[4];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 4; i++) {
+              src[i] = ArithmeticShiftRight(src[i], shift);
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
+        }
       } else {
         UNIMPLEMENTED();
       }
@@ -4992,6 +5069,45 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           set_q_register(Vd, src);
         } else {
           UNIMPLEMENTED();
+        }
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+        // vshr.u<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = 2 * size - instr->Bits(21, 16);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        NeonSize ns = static_cast<NeonSize>(size / 16);
+        switch (ns) {
+          case Neon8: {
+            uint8_t src[16];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 16; i++) {
+              src[i] >>= shift;
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          case Neon16: {
+            uint16_t src[8];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 8; i++) {
+              src[i] >>= shift;
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          case Neon32: {
+            uint32_t src[4];
+            get_q_register(Vm, src);
+            for (int i = 0; i < 4; i++) {
+              src[i] >>= shift;
+            }
+            set_q_register(Vd, src);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
         }
       } else {
         UNIMPLEMENTED();

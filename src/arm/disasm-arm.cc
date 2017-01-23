@@ -1973,6 +1973,24 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
         out_buffer_pos_ +=
             SNPrintF(out_buffer_ + out_buffer_pos_, "vext.8 q%d, q%d, q%d, #%d",
                      Vd, Vn, Vm, imm4);
+      } else if (instr->Bits(11, 7) == 0xA && instr->Bit(4) == 1) {
+        // vshl.i<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = instr->Bits(21, 16) - size;
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshl.i%d q%d, q%d, #%d",
+                     size, Vd, Vm, shift);
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+        // vshr.s<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = 2 * size - instr->Bits(21, 16);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.s%d q%d, q%d, #%d",
+                     size, Vd, Vm, shift);
       } else {
         Unknown(instr);
       }
@@ -2162,15 +2180,24 @@ void Decoder::DecodeSpecialCondition(Instruction* instr) {
             Unknown(instr);
           }
         } else if (instr->Bits(19, 18) == 0x2 && instr->Bits(11, 8) == 0x5) {
+          // vrecpe/vrsqrte.f32 Qd, Qm.
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           const char* op = instr->Bit(7) == 0 ? "vrecpe" : "vrsqrte";
-          // vrecpe/vrsqrte.f32 Qd, Qm.
           out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_,
                                       "%s.f32 q%d, q%d", op, Vd, Vm);
         } else {
           Unknown(instr);
         }
+      } else if (instr->Bits(11, 7) == 0 && instr->Bit(4) == 1) {
+        // vshr.u<size> Qd, Qm, shift
+        int size = base::bits::RoundDownToPowerOfTwo32(instr->Bits(21, 16));
+        int shift = 2 * size - instr->Bits(21, 16);
+        int Vd = instr->VFPDRegValue(kSimd128Precision);
+        int Vm = instr->VFPMRegValue(kSimd128Precision);
+        out_buffer_pos_ +=
+            SNPrintF(out_buffer_ + out_buffer_pos_, "vshr.u%d q%d, q%d, #%d",
+                     size, Vd, Vm, shift);
       } else {
         Unknown(instr);
       }

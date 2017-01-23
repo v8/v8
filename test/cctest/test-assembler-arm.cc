@@ -1301,6 +1301,8 @@ TEST(15) {
     uint32_t vadd8[4], vadd16[4], vadd32[4];
     uint32_t vsub8[4], vsub16[4], vsub32[4];
     uint32_t vmul8[4], vmul16[4], vmul32[4];
+    uint32_t vshl8[4], vshl16[4], vshl32[5];
+    uint32_t vshr_s8[4], vshr_u16[4], vshr_s32[5];
     uint32_t vceq[4], vceqf[4], vcgef[4], vcgtf[4];
     uint32_t vcge_s8[4], vcge_u16[4], vcge_s32[4];
     uint32_t vcgt_s8[4], vcgt_u16[4], vcgt_s32[4];
@@ -1671,6 +1673,32 @@ TEST(15) {
     __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vmul32))));
     __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
 
+    // vshl.
+    __ mov(r4, Operand(0x55));
+    __ vdup(Neon8, q0, r4);
+    __ vshl(NeonS8, q1, q0, 1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshl8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vshl(NeonU16, q1, q0, 9);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshl16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vshl(NeonS32, q1, q0, 17);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshl32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
+    // vshr.s, vshr.u.
+    __ mov(r4, Operand(0x80));
+    __ vdup(Neon8, q0, r4);
+    __ vshr(NeonS8, q1, q0, 1);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_s8))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vshr(NeonU16, q1, q0, 9);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_u16))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+    __ vshr(NeonS32, q1, q0, 17);
+    __ add(r4, r0, Operand(static_cast<int32_t>(offsetof(T, vshr_s32))));
+    __ vst1(Neon8, NeonListOperand(q1), NeonMemOperand(r4));
+
     // vceq.
     __ mov(r4, Operand(0x03));
     __ vdup(Neon8, q0, r4);
@@ -1926,6 +1954,12 @@ TEST(15) {
     CHECK_EQ_SPLAT(vmul8, 0x04040404u);
     CHECK_EQ_SPLAT(vmul16, 0x00040004u);
     CHECK_EQ_SPLAT(vmul32, 0x00000004u);
+    CHECK_EQ_SPLAT(vshl8, 0xaaaaaaaau);
+    CHECK_EQ_SPLAT(vshl16, 0xaa00aa00u);
+    CHECK_EQ_SPLAT(vshl32, 0xaaaa0000u);
+    CHECK_EQ_SPLAT(vshr_s8, 0xc0c0c0c0u);
+    CHECK_EQ_SPLAT(vshr_u16, 0x00400040u);
+    CHECK_EQ_SPLAT(vshr_s32, 0xffffc040u);
     CHECK_EQ_SPLAT(vceq, 0x00ff00ffu);
     // [0, 3, 0, 3, ...] >= [3, 3, 3, 3, ...]
     CHECK_EQ_SPLAT(vcge_s8, 0x00ff00ffu);
