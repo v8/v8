@@ -3738,6 +3738,24 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_object_map(*iterated_object_map);
       return object;
     }
+    case JS_STRING_ITERATOR_TYPE: {
+      Handle<JSStringIterator> object = Handle<JSStringIterator>::cast(
+          isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+      slot->value_ = object;
+      // Initialize the index to zero to make the heap verifier happy.
+      object->set_index(0);
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> iterated_string = materializer.FieldAt(value_index);
+      Handle<Object> next_index = materializer.FieldAt(value_index);
+      object->set_properties(FixedArray::cast(*properties));
+      object->set_elements(FixedArrayBase::cast(*elements));
+      CHECK(iterated_string->IsString());
+      object->set_string(String::cast(*iterated_string));
+      CHECK(next_index->IsSmi());
+      object->set_index(Smi::cast(*next_index)->value());
+      return object;
+    }
     case JS_ARRAY_TYPE: {
       Handle<JSArray> object = Handle<JSArray>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
@@ -3886,7 +3904,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_MAP_TYPE:
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
-    case JS_STRING_ITERATOR_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
     case JS_PROMISE_CAPABILITY_TYPE:
