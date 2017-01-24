@@ -58,6 +58,21 @@ Error.prepareStackTrace = function (error, structuredStackTrace) {
   return "";
 }
 
+// Mock buffer access in float typed arrays because of varying NaN patterns.
+// Note, for now we just use noop forwarding proxies, because they already
+// turn off optimizations.
+function __MockTypedArray(arrayType) {
+  array_creation_handler = {
+    construct: function(target, args) {
+      return new Proxy(new arrayType(args), {});
+    },
+  };
+  return new Proxy(arrayType, array_creation_handler);
+}
+
+Float32Array = __MockTypedArray(Float32Array);
+Float64Array = __MockTypedArray(Float64Array);
+
 // Mock Worker.
 var __magic_index_for_mocked_worker = 0
 // TODO(machenbach): Randomize this for each test case, but keep stable during
