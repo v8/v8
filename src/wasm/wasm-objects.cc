@@ -737,6 +737,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   Handle<WasmCompiledModule> compiled_module(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
   compiled_module->InitId();
+  compiled_module->set_num_imported_functions(0);
   compiled_module->set_shared(shared);
   compiled_module->set_native_context(isolate->native_context());
   return compiled_module;

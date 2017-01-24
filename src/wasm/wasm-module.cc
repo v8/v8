@@ -119,9 +119,11 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 }
 
 void RelocateMemoryReferencesInCode(Handle<FixedArray> code_table,
+                                    uint32_t num_imported_functions,
                                     Address old_start, Address start,
                                     uint32_t prev_size, uint32_t new_size) {
-  for (int i = 0; i < code_table->length(); ++i) {
+  for (int i = static_cast<int>(num_imported_functions);
+       i < code_table->length(); ++i) {
     DCHECK(code_table->get(i)->IsCode());
     Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
     AllowDeferredHandleDereference embedding_raw_address;
@@ -564,7 +566,8 @@ static void ResetCompiledModule(Isolate* isolate, WasmInstanceObject* owner,
   if (fct_obj != nullptr && fct_obj != undefined &&
       (old_mem_size > 0 || globals_start != nullptr || function_tables)) {
     FixedArray* functions = FixedArray::cast(fct_obj);
-    for (int i = 0; i < functions->length(); ++i) {
+    for (int i = compiled_module->num_imported_functions();
+         i < functions->length(); ++i) {
       Code* code = Code::cast(functions->get(i));
       bool changed = false;
       for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
@@ -990,6 +993,7 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> ret = WasmCompiledModule::New(isolate, shared);
+  ret->set_num_imported_functions(num_imported_functions);
   ret->set_code_table(code_table);
   ret->set_min_mem_pages(min_mem_pages);
   ret->set_max_mem_pages(max_mem_pages);
@@ -1343,8 +1347,9 @@ class WasmInstanceBuilder {
               ? static_cast<Address>(
                     compiled_module_->memory()->backing_store())
               : nullptr;
-      RelocateMemoryReferencesInCode(code_table, old_mem_start, mem_start,
-                                     old_mem_size, mem_size);
+      RelocateMemoryReferencesInCode(
+          code_table, module_->num_imported_functions, old_mem_start, mem_start,
+          old_mem_size, mem_size);
       compiled_module_->set_memory(memory_);
     }
 
@@ -2380,8 +2385,9 @@ void UncheckedUpdateInstanceMemory(Isolate* isolate,
   Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
   DCHECK_NOT_NULL(new_mem_start);
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
-  RelocateMemoryReferencesInCode(code_table, old_mem_start, new_mem_start,
-                                 old_size, new_size);
+  RelocateMemoryReferencesInCode(
+      code_table, instance->compiled_module()->module()->num_imported_functions,
+      old_mem_start, new_mem_start, old_size, new_size);
 }
 
 int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate,

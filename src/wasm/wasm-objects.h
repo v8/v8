@@ -254,20 +254,21 @@ class WasmCompiledModule : public FixedArray {
     return handle(TYPE::cast(weak_##NAME()->value()));                      \
   }
 
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                \
-  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)    \
-  MACRO(OBJECT, Context, native_context)              \
-  MACRO(OBJECT, FixedArray, code_table)               \
-  MACRO(OBJECT, FixedArray, weak_exported_functions)  \
-  MACRO(OBJECT, FixedArray, function_tables)          \
-  MACRO(OBJECT, FixedArray, signature_tables)         \
-  MACRO(OBJECT, FixedArray, empty_function_tables)    \
-  MACRO(OBJECT, JSArrayBuffer, memory)                \
-  MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)        \
-  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)        \
-  MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
-  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
-  MACRO(WEAK_LINK, JSObject, owning_instance)         \
+#define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
+  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)      \
+  MACRO(OBJECT, Context, native_context)                \
+  MACRO(SMALL_NUMBER, uint32_t, num_imported_functions) \
+  MACRO(OBJECT, FixedArray, code_table)                 \
+  MACRO(OBJECT, FixedArray, weak_exported_functions)    \
+  MACRO(OBJECT, FixedArray, function_tables)            \
+  MACRO(OBJECT, FixedArray, signature_tables)           \
+  MACRO(OBJECT, FixedArray, empty_function_tables)      \
+  MACRO(OBJECT, JSArrayBuffer, memory)                  \
+  MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)          \
+  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)          \
+  MACRO(WEAK_LINK, WasmCompiledModule, next_instance)   \
+  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)   \
+  MACRO(WEAK_LINK, JSObject, owning_instance)           \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
 #if DEBUG
