@@ -59,8 +59,8 @@ const Handle<WasmInstanceObject> InstantiateModuleForTesting(
   // again through the normal pipeline.
   // TODO(wasm): Use {module} instead of decoding the module bytes again.
   MaybeHandle<WasmModuleObject> module_object = CreateModuleObjectFromBytes(
-      isolate, wire_bytes.module_bytes.start(), wire_bytes.module_bytes.end(),
-      thrower, ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
+      isolate, wire_bytes.start(), wire_bytes.end(), thrower,
+      ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
       Vector<const byte>::empty());
   if (module_object.is_null()) {
     thrower->CompileError("Module pre-validation failed.");

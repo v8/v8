@@ -321,7 +321,7 @@ void FinishCompilationUnits(
 void CompileInParallel(Isolate* isolate, ModuleBytesEnv* module_env,
                        std::vector<Handle<Code>>& functions,
                        ErrorThrower* thrower) {
-  const WasmModule* module = module_env->module;
+  const WasmModule* module = module_env->module_env.module;
   // Data structures for the parallel compilation.
   std::vector<compiler::WasmCompilationUnit*> compilation_units(
       module->functions.size());
@@ -388,7 +388,7 @@ void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
                          ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
-  const WasmModule* module = module_env->module;
+  const WasmModule* module = module_env->module_env.module;
   for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
        i < module->functions.size(); ++i) {
     const WasmFunction& func = module->functions[i];
@@ -399,7 +399,7 @@ void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
     code = compiler::WasmCompilationUnit::CompileWasmFunction(
         thrower, isolate, module_env, &func);
     if (code.is_null()) {
-      WasmName str = module_env->GetName(&func);
+      WasmName str = module_env->wire_bytes.GetName(&func);
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, str.length(),
                             str.start());
       break;
@@ -730,8 +730,8 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
   script->set_type(Script::TYPE_WASM);
 
   int hash = StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.module_bytes.start()),
-      wire_bytes.module_bytes.length(), kZeroHashSeed);
+      reinterpret_cast<const char*>(wire_bytes.start()), wire_bytes.length(),
+      kZeroHashSeed);
 
   const int kBufferSize = 50;
   char buffer[kBufferSize];
@@ -970,7 +970,9 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   // TODO(wasm): only save the sections necessary to deserialize a
   // {WasmModule}. E.g. function bodies could be omitted.
   Handle<String> module_bytes =
-      factory->NewStringFromOneByte(wire_bytes.module_bytes, TENURED)
+      factory
+          ->NewStringFromOneByte({wire_bytes.start(), wire_bytes.length()},
+                                 TENURED)
           .ToHandleChecked();
   DCHECK(module_bytes->IsSeqOneByteString());
 

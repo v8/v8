@@ -3686,9 +3686,9 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   MachineOperatorBuilder* machine = jsgraph_->machine();
   SourcePositionTable* source_position_table =
       new (jsgraph_->zone()) SourcePositionTable(graph);
-  WasmGraphBuilder builder(module_env_, jsgraph_->zone(), jsgraph_,
+  WasmGraphBuilder builder(&module_env_->module_env, jsgraph_->zone(), jsgraph_,
                            function_->sig, source_position_table);
-  const byte* module_start = module_env_->module_bytes.start();
+  const byte* module_start = module_env_->wire_bytes.start();
   wasm::FunctionBody body = {function_->sig, module_start,
                              module_start + function_->code_start_offset,
                              module_start + function_->code_end_offset};
@@ -3717,13 +3717,13 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     OFStream os(stdout);
-    PrintWasmCode(isolate_->allocator(), body, module_env_->module, os,
-                  nullptr);
+    PrintWasmCode(isolate_->allocator(), body, module_env_->module_env.module,
+                  os, nullptr);
   }
   if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
     OFStream os(stdout);
-    PrintWasmText(module_env_->module, *module_env_, function_->func_index, os,
-                  nullptr);
+    PrintWasmText(module_env_->module_env.module, module_env_->wire_bytes,
+                  function_->func_index, os, nullptr);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
@@ -3739,7 +3739,7 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
     : thrower_(thrower),
       isolate_(isolate),
       module_env_(module_env),
-      function_(&module_env->module->functions[index]),
+      function_(&module_env->module_env.module->functions[index]),
       graph_zone_(new Zone(isolate->allocator(), ZONE_NAME)),
       jsgraph_(new (graph_zone()) JSGraph(
           isolate, new (graph_zone()) Graph(graph_zone()),
@@ -3749,8 +3749,9 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
                        InstructionSelector::SupportedMachineOperatorFlags(),
                        InstructionSelector::AlignmentRequirements()))),
       compilation_zone_(isolate->allocator(), ZONE_NAME),
-      info_(function->name_length != 0 ? module_env->GetNameOrNull(function)
-                                       : ArrayVector("wasm"),
+      info_(function->name_length != 0
+                ? module_env->wire_bytes.GetNameOrNull(function)
+                : ArrayVector("wasm"),
             isolate, &compilation_zone_,
             Code::ComputeFlags(Code::WASM_FUNCTION)),
       job_(),
@@ -3768,7 +3769,9 @@ void WasmCompilationUnit::ExecuteCompilation() {
   if (FLAG_trace_wasm_compiler) {
     OFStream os(stdout);
     os << "Compiling WASM function "
-       << wasm::WasmFunctionName(function_, module_env_) << std::endl;
+       << wasm::WasmFunctionName(
+              function_, module_env_->wire_bytes.GetNameOrNull(function_))
+       << std::endl;
     os << std::endl;
   }
 
@@ -3793,8 +3796,8 @@ void WasmCompilationUnit::ExecuteCompilation() {
   CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
       &compilation_zone_, function_->sig);
   if (jsgraph_->machine()->Is32()) {
-    descriptor =
-        module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
+    descriptor = module_env_->module_env.GetI32WasmCallDescriptor(
+        &compilation_zone_, descriptor);
   }
   job_.reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_, descriptor,
                                              source_positions,
@@ -3822,7 +3825,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
     if (graph_construction_result_.failed()) {
       // Add the function as another context for the exception
       ScopedVector<char> buffer(128);
-      wasm::WasmName name = module_env_->GetName(function_);
+      wasm::WasmName name = module_env_->wire_bytes.GetName(function_);
       SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
                function_->func_index, name.length(), name.start());
       thrower_->CompileFailed(buffer.start(), graph_construction_result_);
@@ -3845,7 +3848,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
     RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
                               "WASM_function", function_->func_index,
                               wasm::WasmName("module"),
-                              module_env_->GetName(function_));
+                              module_env_->wire_bytes.GetName(function_));
   }
 
   if (FLAG_trace_wasm_decode_time) {

@@ -69,8 +69,7 @@ void wasm::PrintWasmText(const WasmModule *module,
 
   // Print the local declarations.
   BodyLocalDecls decls(&zone);
-  Vector<const byte> func_bytes = wire_bytes.module_bytes.SubVector(
-      fun->code_start_offset, fun->code_end_offset);
+  Vector<const byte> func_bytes = wire_bytes.GetFunctionBytes(fun);
   BytecodeIterator i(func_bytes.begin(), func_bytes.end(), &decls);
   DCHECK_LT(func_bytes.begin(), i.pc());
   if (!decls.type_list.empty()) {

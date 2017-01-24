@@ -1784,12 +1784,13 @@ class WasmInterpreterInternals : public ZoneObject {
   ZoneVector<ThreadImpl> threads_;
 
   WasmInterpreterInternals(Zone* zone, const ModuleBytesEnv& env)
-      : instance_(env.instance),
-        module_bytes_(env.module_bytes.start(), env.module_bytes.end(), zone),
-        codemap_(env.instance ? env.instance->module : nullptr,
-                 module_bytes_.data(), zone),
+      : instance_(env.module_env.instance),
+        module_bytes_(env.wire_bytes.start(), env.wire_bytes.end(), zone),
+        codemap_(
+            env.module_env.instance ? env.module_env.instance->module : nullptr,
+            module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.emplace_back(zone, &codemap_, env.instance);
+    threads_.emplace_back(zone, &codemap_, env.module_env.instance);
   }
 
   void Delete() { threads_.clear(); }

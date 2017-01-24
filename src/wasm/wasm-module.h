@@ -259,13 +259,11 @@ struct WasmInstance {
 // this struct is alive.
 struct V8_EXPORT_PRIVATE ModuleWireBytes {
   ModuleWireBytes(Vector<const byte> module_bytes)
-      : module_bytes(module_bytes) {}
+      : module_bytes_(module_bytes) {}
   ModuleWireBytes(const byte* start, const byte* end)
-      : module_bytes(start, static_cast<int>(end - start)) {
+      : module_bytes_(start, static_cast<int>(end - start)) {
     DCHECK_GE(kMaxInt, end - start);
   }
-
-  const Vector<const byte> module_bytes;
 
   // Get a string stored in the module bytes representing a name.
   WasmName GetName(uint32_t offset, uint32_t length) const {
@@ -273,7 +271,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
     CHECK(BoundsCheck(offset, length));
     DCHECK_GE(length, 0);
     return Vector<const char>::cast(
-        module_bytes.SubVector(offset, offset + length));
+        module_bytes_.SubVector(offset, offset + length));
   }
 
   // Get a string stored in the module bytes representing a function name.
@@ -287,7 +285,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
     CHECK(BoundsCheck(offset, length));
     DCHECK_GE(length, 0);
     return Vector<const char>::cast(
-        module_bytes.SubVector(offset, offset + length));
+        module_bytes_.SubVector(offset, offset + length));
   }
 
   // Get a string stored in the module bytes representing a function name.
@@ -297,9 +295,21 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 
   // Checks the given offset range is contained within the module bytes.
   bool BoundsCheck(uint32_t offset, uint32_t length) const {
-    uint32_t size = static_cast<uint32_t>(module_bytes.length());
+    uint32_t size = static_cast<uint32_t>(module_bytes_.length());
     return offset <= size && length <= size - offset;
   }
+
+  Vector<const byte> GetFunctionBytes(const WasmFunction* function) const {
+    return module_bytes_.SubVector(function->code_start_offset,
+                                   function->code_end_offset);
+  }
+
+  const byte* start() const { return module_bytes_.start(); }
+  const byte* end() const { return module_bytes_.end(); }
+  int length() const { return module_bytes_.length(); }
+
+ private:
+  const Vector<const byte> module_bytes_;
 };
 
 // Interface provided to the decoder/graph builder which contains only
@@ -356,19 +366,22 @@ struct V8_EXPORT_PRIVATE ModuleEnv {
 };
 
 // A ModuleEnv together with ModuleWireBytes.
-struct ModuleBytesEnv : public ModuleEnv, public ModuleWireBytes {
+struct ModuleBytesEnv {
   ModuleBytesEnv(const WasmModule* module, WasmInstance* instance,
                  Vector<const byte> module_bytes)
-      : ModuleEnv(module, instance), ModuleWireBytes(module_bytes) {}
+      : module_env(module, instance), wire_bytes(module_bytes) {}
   ModuleBytesEnv(const WasmModule* module, WasmInstance* instance,
                  const ModuleWireBytes& wire_bytes)
-      : ModuleEnv(module, instance), ModuleWireBytes(wire_bytes) {}
+      : module_env(module, instance), wire_bytes(wire_bytes) {}
+
+  ModuleEnv module_env;
+  ModuleWireBytes wire_bytes;
 };
 
 // A helper for printing out the names of functions.
 struct WasmFunctionName {
-  WasmFunctionName(const WasmFunction* function, ModuleBytesEnv* module_env)
-      : function_(function), name_(module_env->GetNameOrNull(function)) {}
+  WasmFunctionName(const WasmFunction* function, WasmName name)
+      : function_(function), name_(name) {}
 
   const WasmFunction* function_;
   WasmName name_;
