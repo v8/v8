@@ -11848,6 +11848,7 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
       DCHECK(!slot.IsInvalid());
       globals_.Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
       globals_.Add(isolate()->factory()->undefined_value(), zone());
+      globals_.Add(isolate()->factory()->undefined_value(), zone());
       return;
     }
     case VariableLocation::PARAMETER:
@@ -11886,6 +11887,12 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_.Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+
+      // We need the slot where the literals array lives, too.
+      slot = declaration->fun()->LiteralFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals_.Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+
       Handle<SharedFunctionInfo> function = Compiler::GetSharedFunctionInfo(
           declaration->fun(), current_info()->script(), top_info());
       // Check for stack-overflow exception.

@@ -137,10 +137,10 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 3, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
     FeedbackVectorSlot slot(Smi::cast(declarations->get(i + 1))->value());
-    Handle<Object> initial_value(declarations->get(i + 2), isolate);
+    Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
     bool is_var = initial_value->IsUndefined(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
