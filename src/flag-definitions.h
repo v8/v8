@@ -203,7 +203,6 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_regexp_named_captures, "harmony regexp named captures")      \
   V(harmony_regexp_property, "harmony unicode regexp property classes")  \
   V(harmony_class_fields, "harmony public fields in class literals")     \
-  V(harmony_object_rest_spread, "harmony object rest spread properties") \
   V(harmony_async_iteration, "harmony async iteration")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
@@ -213,7 +212,8 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
     "harmony restrictions on generator declarations")       \
   V(harmony_tailcalls, "harmony tail calls")                \
   V(harmony_trailing_commas,                                \
-    "harmony trailing commas in function parameter lists")
+    "harmony trailing commas in function parameter lists")  \
+  V(harmony_object_rest_spread, "harmony object rest spread properties")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)
