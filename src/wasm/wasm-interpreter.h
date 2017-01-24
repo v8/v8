@@ -120,6 +120,13 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   //                       +------------- Finish -------------> FINISHED
   enum State { STOPPED, RUNNING, PAUSED, FINISHED, TRAPPED };
 
+  // Tells a thread to pause after certain instructions.
+  enum BreakFlag : uint8_t {
+    None = 0,
+    AfterReturn = 1 << 0,
+    AfterCall = 1 << 1
+  };
+
   // Representation of a thread in the interpreter.
   class V8_EXPORT_PRIVATE Thread {
     // Don't instante Threads; they will be allocated as ThreadImpl in the
@@ -150,6 +157,9 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
     // TODO(wasm): Implement this once we support multiple threads.
     // bool SetBreakpoint(const WasmFunction* function, int pc, bool enabled);
     // bool GetBreakpoint(const WasmFunction* function, int pc);
+
+    void AddBreakFlags(uint8_t flags);
+    void ClearBreakFlags();
   };
 
   WasmInterpreter(const ModuleBytesEnv& env, AccountingAllocator* allocator);

@@ -1462,8 +1462,6 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
  public:
   inline explicit JavaScriptFrameIterator(Isolate* isolate);
   inline JavaScriptFrameIterator(Isolate* isolate, ThreadLocalTop* top);
-  // Skip frames until the frame with the given id is reached.
-  JavaScriptFrameIterator(Isolate* isolate, StackFrame::Id id);
 
   inline JavaScriptFrame* frame() const;
 
@@ -1485,6 +1483,7 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
 class StackTraceFrameIterator BASE_EMBEDDED {
  public:
   explicit StackTraceFrameIterator(Isolate* isolate);
+  // Skip frames until the frame with the given id is reached.
   StackTraceFrameIterator(Isolate* isolate, StackFrame::Id id);
   bool done() const { return iterator_.done(); }
   void Advance();

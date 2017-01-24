@@ -925,11 +925,7 @@ class ThreadImpl {
         instance_(instance),
         stack_(zone),
         frames_(zone),
-        blocks_(zone),
-        state_(WasmInterpreter::STOPPED),
-        break_pc_(kInvalidPc),
-        trap_reason_(kTrapCount),
-        possible_nondeterminism_(false) {}
+        blocks_(zone) {}
 
   //==========================================================================
   // Implementation of public interface for WasmInterpreter::Thread.
@@ -1014,6 +1010,10 @@ class ThreadImpl {
 
   bool PossibleNondeterminism() { return possible_nondeterminism_; }
 
+  void AddBreakFlags(uint8_t flags) { break_flags_ |= flags; }
+
+  void ClearBreakFlags() { break_flags_ = WasmInterpreter::BreakFlag::None; }
+
  private:
   // Entries on the stack of functions being evaluated.
   struct Frame {
@@ -1040,10 +1040,11 @@ class ThreadImpl {
   ZoneVector<WasmVal> stack_;
   ZoneVector<Frame> frames_;
   ZoneVector<Block> blocks_;
-  WasmInterpreter::State state_;
-  pc_t break_pc_;
-  TrapReason trap_reason_;
-  bool possible_nondeterminism_;
+  WasmInterpreter::State state_ = WasmInterpreter::STOPPED;
+  pc_t break_pc_ = kInvalidPc;
+  TrapReason trap_reason_ = kTrapCount;
+  bool possible_nondeterminism_ = false;
+  uint8_t break_flags_ = 0;  // a combination of WasmInterpreter::BreakFlag
 
   CodeMap* codemap() { return codemap_; }
   WasmInstance* instance() { return instance_; }
@@ -1178,12 +1179,9 @@ class ThreadImpl {
   void Execute(InterpreterCode* code, pc_t pc, int max) {
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
-    while (true) {
-      if (max-- <= 0) {
-        // Maximum number of instructions reached.
-        state_ = WasmInterpreter::PAUSED;
-        return CommitPc(pc);
-      }
+    while (--max >= 0) {
+#define PAUSE_IF_BREAK_FLAG(flag) \
+  if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) max = 0;
 
       if (pc >= limit) {
         // Fell off end of code; do an implicit return.
@@ -1191,6 +1189,7 @@ class ThreadImpl {
         if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
           return;
         decoder.Reset(code->start, code->end);
+        PAUSE_IF_BREAK_FLAG(AfterReturn);
         continue;
       }
 
@@ -1198,7 +1197,7 @@ class ThreadImpl {
       int len = 1;
       byte opcode = code->start[pc];
       byte orig = opcode;
-      if (opcode == kInternalBreakpoint) {
+      if (V8_UNLIKELY(opcode == kInternalBreakpoint)) {
         orig = code->orig_start[pc];
         if (SkipBreakpoint(code, pc)) {
           // skip breakpoint by switching on original code.
@@ -1300,6 +1299,7 @@ class ThreadImpl {
           size_t arity = code->function->sig->return_count();
           if (!DoReturn(&code, &pc, &limit, arity)) return;
           decoder.Reset(code->start, code->end);
+          PAUSE_IF_BREAK_FLAG(AfterReturn);
           continue;
         }
         case kExprUnreachable: {
@@ -1365,6 +1365,7 @@ class ThreadImpl {
           DoCall(target, &pc, pc + 1 + operand.length, &limit);
           code = target;
           decoder.Reset(code->start, code->end);
+          PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;
         }
         case kExprCallIndirect: {
@@ -1391,6 +1392,7 @@ class ThreadImpl {
           DoCall(target, &pc, pc + 1 + operand.length, &limit);
           code = target;
           decoder.Reset(code->start, code->end);
+          PAUSE_IF_BREAK_FLAG(AfterCall);
           continue;
         }
         case kExprGetGlobal: {
@@ -1636,7 +1638,8 @@ class ThreadImpl {
 
       pc += len;
     }
-    UNREACHABLE();  // above decoding loop should run forever.
+    state_ = WasmInterpreter::PAUSED;
+    CommitPc(pc);
   }
 
   WasmVal Pop() {
@@ -1676,6 +1679,7 @@ class ThreadImpl {
   }
 
   void TraceValueStack() {
+#ifdef DEBUG
     Frame* top = frames_.size() > 0 ? &frames_.back() : nullptr;
     sp_t sp = top ? top->sp : 0;
     sp_t plimit = top ? top->plimit() : 0;
@@ -1711,6 +1715,7 @@ class ThreadImpl {
         }
       }
     }
+#endif  // DEBUG
   }
 };
 
@@ -1769,6 +1774,12 @@ WasmVal WasmInterpreter::Thread::GetReturnValue(int index) {
 }
 bool WasmInterpreter::Thread::PossibleNondeterminism() {
   return ToImpl(this)->PossibleNondeterminism();
+}
+void WasmInterpreter::Thread::AddBreakFlags(uint8_t flags) {
+  ToImpl(this)->AddBreakFlags(flags);
+}
+void WasmInterpreter::Thread::ClearBreakFlags() {
+  ToImpl(this)->ClearBreakFlags();
 }
 
 //============================================================================

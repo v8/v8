@@ -751,8 +751,10 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator it(isolate, id);
-  JavaScriptFrame* frame = it.frame();
+  StackTraceFrameIterator it(isolate, id);
+  StandardFrame* frame = it.frame();
+  if (it.frame()->is_wasm()) return 0;
+
   FrameInspector frame_inspector(frame, 0, isolate);
 
   // Count the visible scopes.
@@ -786,8 +788,9 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator frame_it(isolate, id);
-  JavaScriptFrame* frame = frame_it.frame();
+  StackTraceFrameIterator frame_it(isolate, id);
+  // Wasm has no scopes, this must be javascript.
+  JavaScriptFrame* frame = JavaScriptFrame::cast(frame_it.frame());
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   // Find the requested scope.
@@ -975,8 +978,9 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
     // Get the frame where the debugging is performed.
     StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-    JavaScriptFrameIterator frame_it(isolate, id);
-    JavaScriptFrame* frame = frame_it.frame();
+    StackTraceFrameIterator frame_it(isolate, id);
+    // Wasm has no scopes, this must be javascript.
+    JavaScriptFrame* frame = JavaScriptFrame::cast(frame_it.frame());
     FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
     ScopeIterator it(isolate, &frame_inspector);

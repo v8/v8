@@ -423,6 +423,8 @@ class WasmDebugInfo : public FixedArray {
 
   static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
 
+  void PrepareStep(StepAction);
+
   void RunInterpreter(int func_index, uint8_t* arg_buffer);
 
   // Get the stack of the wasm interpreter as pairs of <function index, byte

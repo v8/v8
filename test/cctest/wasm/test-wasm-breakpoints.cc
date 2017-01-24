@@ -3,7 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/debug/debug-interface.h"
+#include "src/frames-inl.h"
 #include "src/property-descriptor.h"
+#include "src/utils.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -53,12 +55,31 @@ void CheckLocationsFail(WasmCompiledModule *compiled_module,
 
 class BreakHandler {
  public:
-  explicit BreakHandler(Isolate* isolate) : isolate_(isolate) {
+  enum Action {
+    Continue = StepAction::LastStepAction + 1,
+    StepNext = StepAction::StepNext,
+    StepIn = StepAction::StepIn,
+    StepOut = StepAction::StepOut,
+    StepFrame = StepAction::StepFrame
+  };
+  struct BreakPoint {
+    int position;
+    Action action;
+    BreakPoint(int position, Action action)
+        : position(position), action(action) {}
+  };
+
+  explicit BreakHandler(Isolate* isolate,
+                        std::initializer_list<BreakPoint> expected_breaks)
+      : isolate_(isolate), expected_breaks_(expected_breaks) {
     current_handler = this;
     v8::Debug::SetDebugEventListener(reinterpret_cast<v8::Isolate*>(isolate),
                                      DebugEventListener);
   }
   ~BreakHandler() {
+    // Check that all expected breakpoints have been hit.
+    CHECK_EQ(count_, expected_breaks_.size());
+    // BreakHandlers must be correctly stacked.
     CHECK_EQ(this, current_handler);
     current_handler = nullptr;
     v8::Debug::SetDebugEventListener(reinterpret_cast<v8::Isolate*>(isolate_),
@@ -70,17 +91,40 @@ class BreakHandler {
  private:
   Isolate* isolate_;
   int count_ = 0;
+  std::vector<BreakPoint> expected_breaks_;
 
   static BreakHandler* current_handler;
+
+  void HandleBreak() {
+    printf("Break #%d\n", count_);
+    CHECK_GT(expected_breaks_.size(), count_);
+
+    // Check the current position.
+    StackTraceFrameIterator frame_it(isolate_);
+    auto summ = FrameSummary::GetTop(frame_it.frame()).AsWasmInterpreted();
+    CHECK_EQ(expected_breaks_[count_].position, summ.byte_offset());
+
+    Action next_action = expected_breaks_[count_].action;
+    switch (next_action) {
+      case Continue:
+        break;
+      case StepNext:
+      case StepIn:
+      case StepOut:
+      case StepFrame:
+        isolate_->debug()->PrepareStep(static_cast<StepAction>(next_action));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    ++count_;
+  }
 
   static void DebugEventListener(const v8::Debug::EventDetails& event_details) {
     if (event_details.GetEvent() != v8::DebugEvent::Break) return;
 
-    printf("break!\n");
     CHECK_NOT_NULL(current_handler);
-    current_handler->count_ += 1;
-    // Don't run into an endless loop.
-    CHECK_GT(100, current_handler->count_);
+    current_handler->HandleBreak();
   }
 };
 
@@ -131,7 +175,7 @@ void SetBreakpoint(WasmRunnerBase& runner, int function_index, int byte_offset,
 
 }  // namespace
 
-TEST(CollectPossibleBreakpoints) {
+TEST(WasmCollectPossibleBreakpoints) {
   WasmRunner<int> runner(kExecuteCompiled);
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
@@ -156,7 +200,7 @@ TEST(CollectPossibleBreakpoints) {
   CheckLocationsFail(instance->compiled_module(), {0, 9}, {1, 0});
 }
 
-TEST(TestSimpleBreak) {
+TEST(WasmSimpleBreak) {
   WasmRunner<int> runner(kExecuteCompiled);
   Isolate* isolate = runner.main_isolate();
 
@@ -166,8 +210,7 @@ TEST(TestSimpleBreak) {
       runner.module().WrapCode(runner.function_index());
   SetBreakpoint(runner, runner.function_index(), 4, 4);
 
-  BreakHandler count_breaks(isolate);
-  CHECK_EQ(0, count_breaks.count());
+  BreakHandler count_breaks(isolate, {{4, BreakHandler::Continue}});
 
   Handle<Object> global(isolate->context()->global_object(), isolate);
   MaybeHandle<Object> retval =
@@ -176,6 +219,71 @@ TEST(TestSimpleBreak) {
   int result;
   CHECK(retval.ToHandleChecked()->ToInt32(&result));
   CHECK_EQ(14, result);
+}
 
-  CHECK_EQ(1, count_breaks.count());
+TEST(WasmSimpleStepping) {
+  WasmRunner<int> runner(kExecuteCompiled);
+  BUILD(runner, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
+
+  Isolate* isolate = runner.main_isolate();
+  Handle<JSFunction> main_fun_wrapper =
+      runner.module().WrapCode(runner.function_index());
+
+  // Set breakpoint at the first I32Const.
+  SetBreakpoint(runner, runner.function_index(), 1, 1);
+
+  BreakHandler count_breaks(isolate,
+                            {
+                                {1, BreakHandler::StepNext},  // I32Const
+                                {3, BreakHandler::StepNext},  // I32Const
+                                {5, BreakHandler::Continue}   // I32Add
+                            });
+
+  Handle<Object> global(isolate->context()->global_object(), isolate);
+  MaybeHandle<Object> retval =
+      Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr);
+  CHECK(!retval.is_null());
+  int result;
+  CHECK(retval.ToHandleChecked()->ToInt32(&result));
+  CHECK_EQ(14, result);
+}
+
+TEST(WasmStepInAndOut) {
+  WasmRunner<int, int> runner(kExecuteCompiled);
+  WasmFunctionCompiler& f2 = runner.NewFunction<void>();
+  f2.AllocateLocal(ValueType::kWord32);
+
+  // Call f2 via indirect call, because a direct call requires f2 to exist when
+  // we compile main, but we need to compile main first so that the order of
+  // functions in the code section matches the function indexes.
+
+  // return arg0
+  BUILD(runner, WASM_RETURN1(WASM_GET_LOCAL(0)));
+  // for (int i = 0; i < 10; ++i) { f2(i); }
+  BUILD(f2, WASM_LOOP(
+                WASM_BR_IF(0, WASM_BINOP(kExprI32GeU, WASM_GET_LOCAL(0),
+                                         WASM_I32V_1(10))),
+                WASM_SET_LOCAL(
+                    0, WASM_BINOP(kExprI32Sub, WASM_GET_LOCAL(0), WASM_ONE)),
+                WASM_CALL_FUNCTION(runner.function_index(), WASM_GET_LOCAL(0)),
+                WASM_BR(1)));
+
+  Isolate* isolate = runner.main_isolate();
+  Handle<JSFunction> main_fun_wrapper =
+      runner.module().WrapCode(f2.function_index());
+
+  // Set first breakpoint on the GetLocal (offset 19) before the Call.
+  SetBreakpoint(runner, f2.function_index(), 19, 19);
+
+  BreakHandler count_breaks(isolate,
+                            {
+                                {19, BreakHandler::StepIn},   // GetLocal
+                                {21, BreakHandler::StepIn},   // Call
+                                {1, BreakHandler::StepOut},   // in f2
+                                {23, BreakHandler::Continue}  // After Call
+                            });
+
+  Handle<Object> global(isolate->context()->global_object(), isolate);
+  CHECK(!Execution::Call(isolate, main_fun_wrapper, global, 0, nullptr)
+             .is_null());
 }

@@ -131,16 +131,6 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 
 // -------------------------------------------------------------------------
 
-JavaScriptFrameIterator::JavaScriptFrameIterator(Isolate* isolate,
-                                                 StackFrame::Id id)
-    : iterator_(isolate) {
-  while (!done()) {
-    Advance();
-    if (frame()->id() == id) return;
-  }
-}
-
-
 void JavaScriptFrameIterator::Advance() {
   do {
     iterator_.Advance();

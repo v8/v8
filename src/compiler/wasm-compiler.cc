@@ -2956,8 +2956,10 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
       sig->return_count() == 0 ? 0 : 1 << ElementSizeLog2Of(sig->GetReturn(0));
 
   // Get a stack slot for the arguments.
-  Node* arg_buffer = graph()->NewNode(jsgraph()->machine()->StackSlot(
-      std::max(args_size_bytes, return_size_bytes)));
+  Node* arg_buffer = args_size_bytes == 0 && return_size_bytes == 0
+                         ? jsgraph()->IntPtrConstant(0)
+                         : graph()->NewNode(jsgraph()->machine()->StackSlot(
+                               std::max(args_size_bytes, return_size_bytes)));
 
   // Now store all our arguments to the buffer.
   int param_index = 0;

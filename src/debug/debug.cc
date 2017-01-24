@@ -984,24 +984,36 @@ void Debug::PrepareStep(StepAction step_action) {
   // If there is no JavaScript stack don't do anything.
   if (frame_id == StackFrame::NO_ID) return;
 
-  JavaScriptFrameIterator frames_it(isolate_, frame_id);
-  JavaScriptFrame* frame = frames_it.frame();
+  StackTraceFrameIterator frames_it(isolate_, frame_id);
+  StandardFrame* frame = frames_it.frame();
 
   feature_tracker()->Track(DebugFeatureTracker::kStepping);
 
   thread_local_.last_step_action_ = step_action;
   UpdateHookOnFunctionCall();
 
+  // Handle stepping in wasm functions via the wasm interpreter.
+  if (frame->is_wasm()) {
+    // If the top frame is compiled, we cannot step.
+    if (frame->is_wasm_compiled()) return;
+    WasmInterpreterEntryFrame* wasm_frame =
+        WasmInterpreterEntryFrame::cast(frame);
+    wasm_frame->wasm_instance()->debug_info()->PrepareStep(step_action);
+    return;
+  }
+
+  JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
+
   // If the function on the top frame is unresolved perform step out. This will
   // be the case when calling unknown function and having the debugger stopped
   // in an unhandled exception.
-  if (!frame->function()->IsJSFunction()) {
+  if (!js_frame->function()->IsJSFunction()) {
     // Step out: Find the calling JavaScript frame and flood it with
     // breakpoints.
     frames_it.Advance();
     // Fill the function to return to with one-shot break points.
-    JSFunction* function = frames_it.frame()->function();
-    FloodWithOneShot(Handle<JSFunction>(function));
+    JSFunction* function = JavaScriptFrame::cast(frames_it.frame())->function();
+    FloodWithOneShot(handle(function, isolate_));
     return;
   }
 
@@ -1015,7 +1027,7 @@ void Debug::PrepareStep(StepAction step_action) {
   }
 
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-  BreakLocation location = BreakLocation::FromFrame(debug_info, frame);
+  BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
 
   // Any step at a return is a step-out.
   if (location.IsReturn()) step_action = StepOut;
@@ -1037,21 +1049,26 @@ void Debug::PrepareStep(StepAction step_action) {
     case StepOut:
       // Advance to caller frame.
       frames_it.Advance();
-      // Skip native and extension functions on the stack.
-      while (
-          !frames_it.done() &&
-          (!frames_it.frame()->function()->shared()->IsSubjectToDebugging() ||
-           IsBlackboxed(frames_it.frame()->function()->shared()))) {
+      // Find top-most function which is subject to debugging.
+      while (!frames_it.done()) {
+        StandardFrame* caller_frame = frames_it.frame();
+        if (caller_frame->is_wasm()) {
+          // TODO(clemensh): Implement stepping out from JS to WASM.
+          break;
+        }
+        Handle<JSFunction> js_caller_function(
+            JavaScriptFrame::cast(caller_frame)->function(), isolate_);
+        if (js_caller_function->shared()->IsSubjectToDebugging() &&
+            !IsBlackboxed(js_caller_function->shared())) {
+          // Fill the caller function to return to with one-shot break points.
+          FloodWithOneShot(js_caller_function);
+          thread_local_.target_fp_ = frames_it.frame()->UnpaddedFP();
+          break;
+        }
         // Builtin functions are not subject to stepping, but need to be
         // deoptimized to include checks for step-in at call sites.
-        Deoptimizer::DeoptimizeFunction(frames_it.frame()->function());
+        Deoptimizer::DeoptimizeFunction(*js_caller_function);
         frames_it.Advance();
-      }
-      if (!frames_it.done()) {
-        // Fill the caller function to return to with one-shot break points.
-        Handle<JSFunction> caller_function(frames_it.frame()->function());
-        FloodWithOneShot(caller_function);
-        thread_local_.target_fp_ = frames_it.frame()->UnpaddedFP();
       }
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
@@ -1062,9 +1079,11 @@ void Debug::PrepareStep(StepAction step_action) {
       FloodWithOneShot(function);
       break;
     case StepIn:
+      // TODO(clemensh): Implement stepping from JS into WASM.
       FloodWithOneShot(function);
       break;
     case StepFrame:
+      // TODO(clemensh): Implement stepping from JS into WASM or vice versa.
       // No point in setting one-shot breaks at places where we are not about
       // to leave the current frame.
       FloodWithOneShot(function, CALLS_AND_RETURNS);

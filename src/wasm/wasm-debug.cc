@@ -30,6 +30,8 @@ class InterpreterHandle {
   WasmInstance instance_;
   WasmInterpreter interpreter_;
   Isolate* isolate_;
+  StepAction next_step_action_ = StepNone;
+  int last_step_stack_depth_ = 0;
 
  public:
   // Initialize in the right order, using helper methods to make this possible.
@@ -62,6 +64,18 @@ class InterpreterHandle {
 
   WasmInterpreter* interpreter() { return &interpreter_; }
   const WasmModule* module() { return instance_.module; }
+
+  void PrepareStep(StepAction step_action) {
+    next_step_action_ = step_action;
+    last_step_stack_depth_ = CurrentStackDepth();
+  }
+
+  void ClearStepping() { next_step_action_ = StepNone; }
+
+  int CurrentStackDepth() {
+    DCHECK_EQ(1, interpreter()->GetThreadCount());
+    return interpreter()->GetThread(0)->GetFrameCount();
+  }
 
   void Execute(uint32_t func_index, uint8_t* arg_buffer) {
     DCHECK_GE(module()->functions.size(), func_index);
@@ -96,15 +110,17 @@ class InterpreterHandle {
            thread->state() == WasmInterpreter::FINISHED);
     thread->Reset();
     thread->PushFrame(&module()->functions[func_index], wasm_args.start());
-    WasmInterpreter::State state;
-    do {
-      state = thread->Run();
+    bool finished = false;
+    while (!finished) {
+      // TODO(clemensh): Add occasional StackChecks.
+      WasmInterpreter::State state = ContinueExecution(thread);
       switch (state) {
         case WasmInterpreter::State::PAUSED:
-          NotifyDebugEventListeners();
+          NotifyDebugEventListeners(thread);
           break;
         case WasmInterpreter::State::FINISHED:
           // Perfect, just break the switch and exit the loop.
+          finished = true;
           break;
         case WasmInterpreter::State::TRAPPED:
           // TODO(clemensh): Generate appropriate JS exception.
@@ -116,7 +132,7 @@ class InterpreterHandle {
         default:
           UNREACHABLE();
       }
-    } while (state != WasmInterpreter::State::FINISHED);
+    }
 
     // Copy back the return value
     DCHECK_GE(kV8MaxWasmFunctionReturns, sig->return_count());
@@ -141,6 +157,33 @@ class InterpreterHandle {
     }
   }
 
+  WasmInterpreter::State ContinueExecution(WasmInterpreter::Thread* thread) {
+    switch (next_step_action_) {
+      case StepNone:
+        return thread->Run();
+      case StepIn:
+        return thread->Step();
+      case StepOut:
+        thread->AddBreakFlags(WasmInterpreter::BreakFlag::AfterReturn);
+        return thread->Step();
+      case StepNext: {
+        int stack_depth = thread->GetFrameCount();
+        if (stack_depth == last_step_stack_depth_) return thread->Step();
+        thread->AddBreakFlags(stack_depth > last_step_stack_depth_
+                                  ? WasmInterpreter::BreakFlag::AfterReturn
+                                  : WasmInterpreter::BreakFlag::AfterCall);
+        return thread->Run();
+      }
+      case StepFrame:
+        thread->AddBreakFlags(WasmInterpreter::BreakFlag::AfterCall |
+                              WasmInterpreter::BreakFlag::AfterReturn);
+        return thread->Run();
+      default:
+        UNREACHABLE();
+        return WasmInterpreter::STOPPED;
+    }
+  }
+
   Handle<WasmInstanceObject> GetInstanceObject() {
     StackTraceFrameIterator it(isolate_);
     WasmInterpreterEntryFrame* frame =
@@ -150,7 +193,7 @@ class InterpreterHandle {
     return instance_obj;
   }
 
-  void NotifyDebugEventListeners() {
+  void NotifyDebugEventListeners(WasmInterpreter::Thread* thread) {
     // Enter the debugger.
     DebugScope debug_scope(isolate_->debug());
     if (debug_scope.failed()) return;
@@ -158,27 +201,47 @@ class InterpreterHandle {
     // Postpone interrupt during breakpoint processing.
     PostponeInterruptsScope postpone(isolate_);
 
-    // If we are paused on a breakpoint, clear all stepping and notify the
-    // listeners.
-    Handle<WasmCompiledModule> compiled_module(
-        GetInstanceObject()->compiled_module(), isolate_);
-    int position = GetTopPosition(compiled_module);
-    MaybeHandle<FixedArray> hit_breakpoints;
+    // Check whether we hit a breakpoint.
     if (isolate_->debug()->break_points_active()) {
-      hit_breakpoints = compiled_module->CheckBreakPoints(position);
+      Handle<WasmCompiledModule> compiled_module(
+          GetInstanceObject()->compiled_module(), isolate_);
+      int position = GetTopPosition(compiled_module);
+      Handle<FixedArray> breakpoints;
+      if (compiled_module->CheckBreakPoints(position).ToHandle(&breakpoints)) {
+        // We hit one or several breakpoints. Clear stepping, notify the
+        // listeners and return.
+        ClearStepping();
+        Handle<Object> hit_breakpoints_js =
+            isolate_->factory()->NewJSArrayWithElements(breakpoints);
+        isolate_->debug()->OnDebugBreak(hit_breakpoints_js);
+        return;
+      }
     }
 
-    // If we hit a breakpoint, pass a JSArray with all breakpoints, otherwise
-    // pass undefined.
-    Handle<Object> hit_breakpoints_js;
-    if (hit_breakpoints.is_null()) {
-      hit_breakpoints_js = isolate_->factory()->undefined_value();
-    } else {
-      hit_breakpoints_js = isolate_->factory()->NewJSArrayWithElements(
-          hit_breakpoints.ToHandleChecked());
+    // We did not hit a breakpoint, so maybe this pause is related to stepping.
+    bool hit_step = false;
+    switch (next_step_action_) {
+      case StepNone:
+        break;
+      case StepIn:
+        hit_step = true;
+        break;
+      case StepOut:
+        hit_step = thread->GetFrameCount() < last_step_stack_depth_;
+        break;
+      case StepNext: {
+        hit_step = thread->GetFrameCount() == last_step_stack_depth_;
+        break;
+      }
+      case StepFrame:
+        hit_step = thread->GetFrameCount() != last_step_stack_depth_;
+        break;
+      default:
+        UNREACHABLE();
     }
-
-    isolate_->debug()->OnDebugBreak(hit_breakpoints_js);
+    if (!hit_step) return;
+    ClearStepping();
+    isolate_->debug()->OnDebugBreak(isolate_->factory()->undefined_value());
   }
 
   int GetTopPosition(Handle<WasmCompiledModule> compiled_module) {
@@ -350,6 +413,10 @@ void WasmDebugInfo::SetBreakpoint(Handle<WasmDebugInfo> debug_info,
   const WasmFunction* func = &handle->module()->functions[func_index];
   interpreter->SetBreakpoint(func, offset, true);
   EnsureRedirectToInterpreter(isolate, debug_info, func_index);
+}
+
+void WasmDebugInfo::PrepareStep(StepAction step_action) {
+  GetInterpreterHandle(this)->PrepareStep(step_action);
 }
 
 void WasmDebugInfo::RunInterpreter(int func_index, uint8_t* arg_buffer) {
