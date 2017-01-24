@@ -821,6 +821,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
       case IrOpcode::kObjectIsCallable:
+      case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
@@ -836,9 +837,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         if (use->op()->EffectInputCount() == 0 &&
             uses->op()->EffectInputCount() > 0 &&
             !IrOpcode::IsJsOpcode(use->opcode())) {
-          TRACE("Encountered unaccounted use by #%d (%s)\n", use->id(),
-                use->op()->mnemonic());
-          UNREACHABLE();
+          V8_Fatal(__FILE__, __LINE__,
+                   "Encountered unaccounted use by #%d (%s)\n", use->id(),
+                   use->op()->mnemonic());
         }
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
