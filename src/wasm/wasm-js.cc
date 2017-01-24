@@ -68,7 +68,7 @@ RawBuffer GetRawBufferSource(
     end = start + array->ByteLength();
 
   } else {
-    thrower->TypeError("Argument 0 must be an ArrayBuffer or Uint8Array");
+    thrower->TypeError("Argument 0 must be a buffer source");
   }
   if (start == nullptr || end == start) {
     thrower->CompileError("BufferSource argument is empty");
@@ -104,6 +104,17 @@ static bool ValidateModule(v8::Isolate* isolate,
   return i::wasm::ValidateModuleBytes(i_isolate, buffer.start, buffer.end,
                                       thrower,
                                       i::wasm::ModuleOrigin::kWasmOrigin);
+}
+
+// TODO(wasm): move brand check to the respective types, and don't throw
+// in it, rather, use a provided ErrorThrower, or let caller handle it.
+static bool BrandCheck(Isolate* isolate, i::Handle<i::Object> value,
+                       i::Handle<i::Symbol> sym) {
+  if (!value->IsJSObject()) return false;
+  i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
+  Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, sym);
+  if (has_brand.IsNothing()) return false;
+  return has_brand.ToChecked();
 }
 
 static bool BrandCheck(Isolate* isolate, i::Handle<i::Object> value,
@@ -174,11 +185,6 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  if (args.Length() > 2) {
-    thrower.LinkError(
-        "WebAssembly.instantiate accepts no more than 2 parameters");
-    return;
-  }
   i::MaybeHandle<i::JSObject> module_obj =
       CreateModuleObject(isolate, args[0], &thrower);
   if (module_obj.is_null()) return;
@@ -322,33 +328,72 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ErrorThrower thrower(i_isolate, "WebAssembly.compile()");
 
   Local<Context> context = isolate->GetCurrentContext();
+  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
+
   v8::Local<v8::Promise::Resolver> resolver;
   if (!v8::Promise::Resolver::New(context).ToLocal(&resolver)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(resolver->GetPromise());
 
   if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a buffer source");
+    thrower.TypeError(
+        "Argument 0 must be provided and must be either a buffer source or a "
+        "WebAssembly.Module object");
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
 
-  i::MaybeHandle<i::WasmModuleObject> module_obj =
-      CreateModuleObject(isolate, args[0], &thrower);
-  if (module_obj.is_null()) {
-    DCHECK(thrower.error());
+  i::Handle<i::Object> first_arg = Utils::OpenHandle(*args[0]);
+  if (!first_arg->IsJSObject()) {
+    thrower.TypeError(
+        "Argument 0 must be a buffer source or a WebAssembly.Module object");
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
-
-  MaybeLocal<Value> instance = InstantiateModuleImpl(
-      i_isolate, module_obj.ToHandleChecked(), args, &thrower);
+  bool want_pair = !BrandCheck(
+      isolate, first_arg, i::Handle<i::Symbol>(i_context->wasm_module_sym()));
+  i::Handle<i::WasmModuleObject> module_obj;
+  if (want_pair) {
+    i::MaybeHandle<i::WasmModuleObject> maybe_module_obj =
+        CreateModuleObject(isolate, args[0], &thrower);
+    if (!maybe_module_obj.ToHandle(&module_obj)) {
+      DCHECK(thrower.error());
+      resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+      return;
+    }
+  } else {
+    module_obj = i::Handle<i::WasmModuleObject>::cast(first_arg);
+  }
+  DCHECK(!module_obj.is_null());
+  MaybeLocal<Value> instance =
+      InstantiateModuleImpl(i_isolate, module_obj, args, &thrower);
   if (instance.IsEmpty()) {
     DCHECK(thrower.error());
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
   } else {
     DCHECK(!thrower.error());
-    resolver->Resolve(context, instance.ToLocalChecked());
+    Local<Value> retval;
+    if (want_pair) {
+      i::Handle<i::JSFunction> object_function = i::Handle<i::JSFunction>(
+          i_isolate->native_context()->object_function(), i_isolate);
+
+      i::Handle<i::JSObject> i_retval =
+          i_isolate->factory()->NewJSObject(object_function, i::TENURED);
+      i::Handle<i::String> module_property_name =
+          i_isolate->factory()->InternalizeUtf8String("module");
+      i::Handle<i::String> instance_property_name =
+          i_isolate->factory()->InternalizeUtf8String("instance");
+      i::JSObject::AddProperty(i_retval, module_property_name, module_obj,
+                               i::NONE);
+      i::JSObject::AddProperty(i_retval, instance_property_name,
+                               Utils::OpenHandle(*instance.ToLocalChecked()),
+                               i::NONE);
+      retval = Utils::ToLocal(i_retval);
+    } else {
+      retval = instance.ToLocalChecked();
+    }
+    DCHECK(!retval.IsEmpty());
+    resolver->Resolve(context, retval);
   }
 }
 
