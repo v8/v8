@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE Factory final {
   // calculates the number of properties we need to store in the backing store.
   Handle<BoilerplateDescription> NewBoilerplateDescription(int boilerplate,
                                                            int all_properties,
+                                                           int index_keys,
                                                            bool has_seen_proto);
 
   // Allocate a new uninitialized fixed double array.

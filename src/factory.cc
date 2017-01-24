@@ -186,10 +186,13 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
 }
 
 Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
-    int boilerplate, int all_properties, bool has_seen_proto) {
-  DCHECK_GE(all_properties, 0);
+    int boilerplate, int all_properties, int index_keys, bool has_seen_proto) {
+  DCHECK_GE(boilerplate, 0);
+  DCHECK_GE(all_properties, index_keys);
+  DCHECK_GE(index_keys, 0);
 
-  int backing_store_size = all_properties - (has_seen_proto ? 1 : 0);
+  int backing_store_size =
+      all_properties - index_keys - (has_seen_proto ? 1 : 0);
   DCHECK_GE(backing_store_size, 0);
   bool has_different_size_backing_store = boilerplate != backing_store_size;
 
@@ -205,7 +208,7 @@ Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
       Handle<BoilerplateDescription>::cast(NewFixedArray(size, TENURED));
 
   if (has_different_size_backing_store) {
-    DCHECK((boilerplate != all_properties) || has_seen_proto);
+    DCHECK((boilerplate != (all_properties - index_keys)) || has_seen_proto);
     description->set_backing_store_size(isolate(), backing_store_size);
   }
   return description;
