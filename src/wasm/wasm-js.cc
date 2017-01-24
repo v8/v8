@@ -460,7 +460,7 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
                           v8_str(isolate, "initial"), &initial, 0,
-                          i::wasm::kV8MaxWasmTableSize)) {
+                          i::FLAG_wasm_max_table_size)) {
     return;
   }
   // The descriptor's 'maximum'.
@@ -567,8 +567,8 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   int64_t max_size64 = receiver->maximum_length();
   if (max_size64 < 0 ||
-      max_size64 > static_cast<int64_t>(i::wasm::kV8MaxWasmTableSize)) {
-    max_size64 = i::wasm::kV8MaxWasmTableSize;
+      max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_table_size)) {
+    max_size64 = i::FLAG_wasm_max_table_size;
   }
 
   if (new_size64 < old_size || new_size64 > max_size64) {

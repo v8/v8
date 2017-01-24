@@ -1989,7 +1989,7 @@ class WasmInstanceBuilder {
               module_->function_tables[exp.index];
           if (table_instance.table_object.is_null()) {
             uint32_t maximum =
-                table.has_max ? table.max_size : kV8MaxWasmTableSize;
+                table.has_max ? table.max_size : FLAG_wasm_max_table_size;
             table_instance.table_object = WasmTableObject::New(
                 isolate_, table.min_size, maximum, &table_instance.js_wrappers);
           }

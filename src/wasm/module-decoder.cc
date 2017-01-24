@@ -313,8 +313,8 @@ class ModuleDecoder : public Decoder {
             expect_u8("element type", kWasmAnyFunctionTypeForm);
             WasmIndirectFunctionTable* table = &module->function_tables.back();
             consume_resizable_limits("element count", "elements",
-                                     kV8MaxWasmTableSize, &table->min_size,
-                                     &table->has_max, kV8MaxWasmTableSize,
+                                     FLAG_wasm_max_table_size, &table->min_size,
+                                     &table->has_max, FLAG_wasm_max_table_size,
                                      &table->max_size);
             break;
           }
@@ -381,9 +381,10 @@ class ModuleDecoder : public Decoder {
                                            false, false, SignatureMap()});
         WasmIndirectFunctionTable* table = &module->function_tables.back();
         expect_u8("table type", kWasmAnyFunctionTypeForm);
-        consume_resizable_limits(
-            "table elements", "elements", kV8MaxWasmTableSize, &table->min_size,
-            &table->has_max, kV8MaxWasmTableSize, &table->max_size);
+        consume_resizable_limits("table elements", "elements",
+                                 FLAG_wasm_max_table_size, &table->min_size,
+                                 &table->has_max, FLAG_wasm_max_table_size,
+                                 &table->max_size);
       }
       section_iter.advance();
     }
@@ -526,7 +527,7 @@ class ModuleDecoder : public Decoder {
     // ===== Elements section ================================================
     if (section_iter.section_code() == kElementSectionCode) {
       uint32_t element_count =
-          consume_count("element count", kV8MaxWasmTableSize);
+          consume_count("element count", FLAG_wasm_max_table_size);
       for (uint32_t i = 0; ok() && i < element_count; ++i) {
         const byte* pos = pc();
         uint32_t table_index = consume_u32v("table index");

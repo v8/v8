@@ -15,6 +15,7 @@
 #include "src/list-inl.h"
 #include "src/ostreams.h"
 #include "src/utils.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
