@@ -1912,10 +1912,7 @@ class WasmInstanceBuilder {
     Handle<JSObject> exports_object = instance;
     if (module_->origin == kWasmOrigin) {
       // Create the "exports" object.
-      Handle<JSFunction> object_function = Handle<JSFunction>(
-          isolate_->native_context()->object_function(), isolate_);
-      exports_object =
-          isolate_->factory()->NewJSObject(object_function, TENURED);
+      exports_object = isolate_->factory()->NewJSObjectWithNullProto();
       Handle<String> exports_name =
           isolate_->factory()->InternalizeUtf8String("exports");
       JSObject::AddProperty(instance, exports_name, exports_object, NONE);

@@ -1723,9 +1723,9 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
       isolate()->heap()->AllocateJSObject(*constructor, pretenure), JSObject);
 }
 
-
-Handle<JSObject> Factory::NewJSObjectWithNullProto() {
-  Handle<JSObject> result = NewJSObject(isolate()->object_function());
+Handle<JSObject> Factory::NewJSObjectWithNullProto(PretenureFlag pretenure) {
+  Handle<JSObject> result =
+      NewJSObject(isolate()->object_function(), pretenure);
   Handle<Map> new_map =
       Map::Copy(Handle<Map>(result->map()), "ObjectWithNullProto");
   Map::SetPrototype(new_map, null_value());

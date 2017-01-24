@@ -371,6 +371,12 @@ assertTrue(instanceExportsDesc.writable);
 assertTrue(instanceExportsDesc.enumerable);
 assertTrue(instanceExportsDesc.configurable);
 
+exportsObj = exportingInstance.exports;
+assertEq(typeof exportsObj, 'object');
+assertFalse(Object.isExtensible(exportsObj));
+assertEq(Object.getPrototypeOf(exportsObj), null);
+assertEq(Object.keys(exportsObj).join(), 'f');
+
 // Exported WebAssembly functions
 let f = exportingInstance.exports.f;
 assertTrue(f instanceof Function);
