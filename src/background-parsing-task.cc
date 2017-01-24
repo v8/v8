@@ -13,6 +13,7 @@ namespace internal {
 void StreamedSource::Release() {
   parser.reset();
   info.reset();
+  zone.reset();
 }
 
 BackgroundParsingTask::BackgroundParsingTask(
@@ -28,8 +29,10 @@ BackgroundParsingTask::BackgroundParsingTask(
 
   // Prepare the data for the internalization phase and compilation phase, which
   // will happen in the main thread after parsing.
-  ParseInfo* info = new ParseInfo(isolate->allocator());
+  Zone* zone = new Zone(isolate->allocator(), ZONE_NAME);
+  ParseInfo* info = new ParseInfo(zone);
   info->set_toplevel();
+  source->zone.reset(zone);
   source->info.reset(info);
   info->set_isolate(isolate);
   info->set_source_stream(source->source_stream.get());

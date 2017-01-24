@@ -5,8 +5,6 @@
 #ifndef V8_PARSING_PARSE_INFO_H_
 #define V8_PARSING_PARSE_INFO_H_
 
-#include <memory>
-
 #include "include/v8.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -17,7 +15,6 @@ class Extension;
 
 namespace internal {
 
-class AccountingAllocator;
 class AstRawString;
 class AstValueFactory;
 class DeclarationScope;
@@ -31,18 +28,13 @@ class Zone;
 // A container for the inputs, configuration options, and outputs of parsing.
 class V8_EXPORT_PRIVATE ParseInfo {
  public:
-  explicit ParseInfo(AccountingAllocator* zone_allocator);
-  ParseInfo(Handle<Script> script);
-  ParseInfo(Handle<SharedFunctionInfo> shared);
-
-  // TODO(rmcilroy): Remove once Hydrogen no longer needs this.
-  ParseInfo(Handle<SharedFunctionInfo> shared, std::shared_ptr<Zone> zone);
+  explicit ParseInfo(Zone* zone);
+  ParseInfo(Zone* zone, Handle<Script> script);
+  ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared);
 
   ~ParseInfo();
 
-  Zone* zone() const { return zone_.get(); }
-
-  std::shared_ptr<Zone> zone_shared() const { return zone_; }
+  Zone* zone() const { return zone_; }
 
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
@@ -231,7 +223,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
-  std::shared_ptr<Zone> zone_;
+  Zone* zone_;
   unsigned flags_;
   ScriptCompiler::ExternalSourceStream* source_stream_;
   ScriptCompiler::StreamedSource::Encoding source_stream_encoding_;
