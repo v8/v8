@@ -136,6 +136,21 @@ WASM_EXEC_TEST(I64Add) {
   }
 }
 
+// The i64 add and subtract regression tests need a 64-bit value with a non-zero
+// upper half. This upper half was clobbering eax, leading to the function
+// returning 1 rather than 0.
+const int64_t kHasBit33On = 0x100000000;
+
+WASM_EXEC_TEST(Regress5800_Add) {
+  REQUIRE(I64Add);
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_ADD(
+                                        WASM_I64V(0), WASM_I64V(kHasBit33On)))),
+                      WASM_RETURN1(WASM_I32V(0))),
+        WASM_I32V(0));
+  CHECK_EQ(0, r.Call());
+}
+
 WASM_EXEC_TEST(I64Sub) {
   REQUIRE(I64Sub);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
@@ -143,6 +158,16 @@ WASM_EXEC_TEST(I64Sub) {
   FOR_INT64_INPUTS(i) {
     FOR_INT64_INPUTS(j) { CHECK_EQ(*i - *j, r.Call(*i, *j)); }
   }
+}
+
+WASM_EXEC_TEST(Regress5800_Sub) {
+  REQUIRE(I64Sub);
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r, WASM_BLOCK(WASM_BR_IF(0, WASM_I64_EQZ(WASM_I64_SUB(
+                                        WASM_I64V(0), WASM_I64V(kHasBit33On)))),
+                      WASM_RETURN1(WASM_I32V(0))),
+        WASM_I32V(0));
+  CHECK_EQ(0, r.Call());
 }
 
 WASM_EXEC_TEST(I64AddUseOnlyLowWord) {
@@ -1597,3 +1622,19 @@ WASM_EXEC_TEST(MixedCall_i64_0) { Run_WasmMixedCall_N(execution_mode, 0); }
 WASM_EXEC_TEST(MixedCall_i64_1) { Run_WasmMixedCall_N(execution_mode, 1); }
 WASM_EXEC_TEST(MixedCall_i64_2) { Run_WasmMixedCall_N(execution_mode, 2); }
 WASM_EXEC_TEST(MixedCall_i64_3) { Run_WasmMixedCall_N(execution_mode, 3); }
+
+WASM_EXEC_TEST(Regress5874) {
+  REQUIRE(I32ConvertI64);
+  REQUIRE(I64LoadStore);
+  REQUIRE(I64Const);
+  WasmRunner<int32_t> r(execution_mode);
+  r.module().AddMemoryElems<int64_t>(8);
+
+  BUILD(r, kExprI64Const, 0x00,        // --
+        kExprI32ConvertI64,            // --
+        kExprI64Const, 0x00,           // --
+        kExprI64StoreMem, 0x03, 0x00,  // --
+        kExprI32Const, 0x00);          // --
+
+  r.Call();
+}
