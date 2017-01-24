@@ -168,7 +168,7 @@ TEST_F(BytecodeArrayWriterUnittest, ComplexExample) {
       /* 36 85 S> */ B(Return),
       /* 37       */ B(ForInStep), R8(7),
       /* 39       */ B(Star), R8(7),
-      /* 41       */ B(JumpLoop), U8(-24), U8(0),
+      /* 41       */ B(JumpLoop), U8(24), U8(0),
       /* 44       */ B(LdaUndefined),
       /* 45 85 S> */ B(Return),
       // clang-format on

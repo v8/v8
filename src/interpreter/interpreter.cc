@@ -2391,7 +2391,7 @@ void Interpreter::DoTestUndefined(InterpreterAssembler* assembler) {
 //
 // Jump by number of bytes represented by the immediate operand |imm|.
 void Interpreter::DoJump(InterpreterAssembler* assembler) {
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ Jump(relative_jump);
 }
 
@@ -2410,7 +2410,7 @@ void Interpreter::DoJumpConstant(InterpreterAssembler* assembler) {
 // accumulator contains true.
 void Interpreter::DoJumpIfTrue(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
@@ -2433,7 +2433,7 @@ void Interpreter::DoJumpIfTrueConstant(InterpreterAssembler* assembler) {
 // accumulator contains false.
 void Interpreter::DoJumpIfFalse(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
@@ -2456,7 +2456,7 @@ void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
 // referenced by the accumulator is true when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Label if_true(assembler), if_false(assembler);
   __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   __ Bind(&if_true);
@@ -2489,7 +2489,7 @@ void Interpreter::DoJumpIfToBooleanTrueConstant(
 // referenced by the accumulator is false when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Label if_true(assembler), if_false(assembler);
   __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   __ Bind(&if_true);
@@ -2523,7 +2523,7 @@ void Interpreter::DoJumpIfToBooleanFalseConstant(
 void Interpreter::DoJumpIfNull(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ JumpIfWordEqual(accumulator, null_value, relative_jump);
 }
 
@@ -2547,7 +2547,7 @@ void Interpreter::DoJumpIfUndefined(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* undefined_value =
       __ HeapConstant(isolate_->factory()->undefined_value());
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
 }
 
@@ -2570,7 +2570,7 @@ void Interpreter::DoJumpIfUndefinedConstant(InterpreterAssembler* assembler) {
 // referenced by the accumulator is a JSReceiver.
 void Interpreter::DoJumpIfJSReceiver(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
 
   Label if_object(assembler), if_notobject(assembler, Label::kDeferred),
       if_notsmi(assembler);
@@ -2614,7 +2614,7 @@ void Interpreter::DoJumpIfJSReceiverConstant(InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfNotHole(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 
@@ -2636,7 +2636,7 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
 // performs a loop nesting check and potentially triggers OSR in case the
 // current OSR level matches (or exceeds) the specified |loop_depth|.
 void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* loop_depth = __ BytecodeOperandImm(1);
   Node* osr_level = __ LoadOSRNestingLevel();
 
@@ -2647,7 +2647,7 @@ void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
   __ Branch(condition, &ok, &osr_armed);
 
   __ Bind(&ok);
-  __ Jump(relative_jump);
+  __ JumpBackward(relative_jump);
 
   __ Bind(&osr_armed);
   {
@@ -2655,7 +2655,7 @@ void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
     Node* target = __ HeapConstant(callable.code());
     Node* context = __ GetContext();
     __ CallStub(callable.descriptor(), target, context);
-    __ Jump(relative_jump);
+    __ JumpBackward(relative_jump);
   }
 }
 

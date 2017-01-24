@@ -39,6 +39,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the 32-bit unsigned immediate for bytecode operand |operand_index|
   // in the current bytecode.
   compiler::Node* BytecodeOperandUImm(int operand_index);
+  // Returns the word-size unsigned immediate for bytecode operand
+  // |operand_index| in the current bytecode.
+  compiler::Node* BytecodeOperandUImmWord(int operand_index);
   // Returns the 32-bit signed immediate for bytecode operand |operand_index|
   // in the current bytecode.
   compiler::Node* BytecodeOperandImm(int operand_index);
@@ -167,15 +170,18 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                compiler::Node* first_arg,
                                compiler::Node* arg_count, int return_size = 1);
 
-  // Jump relative to the current bytecode by |jump_offset|.
+  // Jump forward relative to the current bytecode by the |jump_offset|.
   compiler::Node* Jump(compiler::Node* jump_offset);
 
-  // Jump relative to the current bytecode by |jump_offset| if the
+  // Jump backward relative to the current bytecode by the |jump_offset|.
+  compiler::Node* JumpBackward(compiler::Node* jump_offset);
+
+  // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are equal.
   void JumpIfWordEqual(compiler::Node* lhs, compiler::Node* rhs,
                        compiler::Node* jump_offset);
 
-  // Jump relative to the current bytecode by |jump_offset| if the
+  // Jump forward relative to the current bytecode by |jump_offset| if the
   // word values |lhs| and |rhs| are not equal.
   void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                           compiler::Node* jump_offset);
@@ -245,9 +251,10 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
 
-  // Updates the bytecode array's interrupt budget by a 32-bit signed |weight|
-  // and calls Runtime::kInterrupt if counter reaches zero.
-  void UpdateInterruptBudget(compiler::Node* weight);
+  // Updates the bytecode array's interrupt budget by a 32-bit unsigned |weight|
+  // and calls Runtime::kInterrupt if counter reaches zero. If |backward|, then
+  // the interrupt budget is decremented, otherwise it is incremented.
+  void UpdateInterruptBudget(compiler::Node* weight, bool backward);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   compiler::Node* RegisterFrameOffset(compiler::Node* index);
@@ -278,7 +285,12 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeUnsignedOperand(int operand_index,
                                           OperandSize operand_size);
 
-  // Jump relative to the current bytecode by |jump_offset| if the
+  // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
+  // then jump backward (subtract the offset), otherwise jump forward (add the
+  // offset). Helper function for Jump and JumpBackward.
+  compiler::Node* Jump(compiler::Node* jump_offset, bool backward);
+
+  // Jump forward relative to the current bytecode by |jump_offset| if the
   // |condition| is true. Helper function for JumpIfWordEqual and
   // JumpIfWordNotEqual.
   void JumpConditional(compiler::Node* condition, compiler::Node* jump_offset);
@@ -290,7 +302,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates and returns BytecodeOffset() advanced by delta bytecodes.
   // Traces the exit of the current bytecode.
   compiler::Node* Advance(int delta);
-  compiler::Node* Advance(compiler::Node* delta);
+  compiler::Node* Advance(compiler::Node* delta, bool backward = false);
 
   // Load the bytecode at |bytecode_offset|.
   compiler::Node* LoadBytecode(compiler::Node* bytecode_offset);

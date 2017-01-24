@@ -707,6 +707,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(const BytecodeLabel& target,
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJump(label, 0);
   return *this;
 }
@@ -714,40 +715,47 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Jump(BytecodeLabel* label) {
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfTrue(BytecodeLabel* label) {
   // The peephole optimizer attempts to simplify JumpIfToBooleanTrue
   // to JumpIfTrue.
+  DCHECK(!label->is_bound());
   OutputJumpIfToBooleanTrue(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfFalse(BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfToBooleanFalse(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNull(BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfNull(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfUndefined(
     BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfUndefined(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfNotHole(
     BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfNotHole(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpIfJSReceiver(
     BytecodeLabel* label) {
+  DCHECK(!label->is_bound());
   OutputJumpIfJSReceiver(label, 0);
   return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::JumpLoop(BytecodeLabel* label,
                                                      int loop_depth) {
+  DCHECK(label->is_bound());
   OutputJumpLoop(label, 0, loop_depth);
   return *this;
 }

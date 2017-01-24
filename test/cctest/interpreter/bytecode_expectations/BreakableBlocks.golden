@@ -79,11 +79,11 @@ bytecodes: [
   /*  118 S> */ B(Ldar), R(2),
                 B(Inc), U8(5),
                 B(Star), R(2),
-                B(JumpLoop), U8(-36), U8(1),
+                B(JumpLoop), U8(36), U8(1),
   /*   84 S> */ B(Ldar), R(1),
                 B(Inc), U8(3),
                 B(Star), R(1),
-                B(JumpLoop), U8(-56), U8(0),
+                B(JumpLoop), U8(56), U8(0),
   /*  188 S> */ B(Ldar), R(0),
   /*  200 S> */ B(Return),
 ]

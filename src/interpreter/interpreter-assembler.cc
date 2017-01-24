@@ -395,6 +395,10 @@ Node* InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+Node* InterpreterAssembler::BytecodeOperandUImmWord(int operand_index) {
+  return ChangeUint32ToWord(BytecodeOperandUImm(operand_index));
+}
+
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
   DCHECK_EQ(OperandType::kImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));
@@ -882,10 +886,7 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
                    arg_count, first_arg, function_entry);
 }
 
-void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
-  // TODO(rmcilroy): It might be worthwhile to only update the budget for
-  // backwards branches. Those are distinguishable by the {JumpLoop} bytecode.
-
+void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Label ok(this), interrupt_check(this, Label::kDeferred), end(this);
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
@@ -894,7 +895,11 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
   Variable new_budget(this, MachineRepresentation::kWord32);
   Node* old_budget =
       Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
-  new_budget.Bind(Int32Add(old_budget, weight));
+  if (backward) {
+    new_budget.Bind(Int32Sub(old_budget, weight));
+  } else {
+    new_budget.Bind(Int32Add(old_budget, weight));
+  }
   Node* condition =
       Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
   Branch(condition, &ok, &interrupt_check);
@@ -922,22 +927,29 @@ Node* InterpreterAssembler::Advance(int delta) {
   return Advance(IntPtrConstant(delta));
 }
 
-Node* InterpreterAssembler::Advance(Node* delta) {
+Node* InterpreterAssembler::Advance(Node* delta, bool backward) {
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
   }
-  Node* next_offset = IntPtrAdd(BytecodeOffset(), delta);
+  Node* next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
+                               : IntPtrAdd(BytecodeOffset(), delta);
   bytecode_offset_.Bind(next_offset);
   return next_offset;
 }
 
-Node* InterpreterAssembler::Jump(Node* delta) {
+Node* InterpreterAssembler::Jump(Node* delta, bool backward) {
   DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
 
-  UpdateInterruptBudget(TruncateWordToWord32(delta));
-  Node* new_bytecode_offset = Advance(delta);
+  UpdateInterruptBudget(TruncateWordToWord32(delta), backward);
+  Node* new_bytecode_offset = Advance(delta, backward);
   Node* target_bytecode = LoadBytecode(new_bytecode_offset);
   return DispatchToBytecode(target_bytecode, new_bytecode_offset);
+}
+
+Node* InterpreterAssembler::Jump(Node* delta) { return Jump(delta, false); }
+
+Node* InterpreterAssembler::JumpBackward(Node* delta) {
+  return Jump(delta, true);
 }
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
@@ -1175,7 +1187,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   Node* profiling_weight =
       Int32Sub(Int32Constant(kHeapObjectTag + BytecodeArray::kHeaderSize),
                TruncateWordToWord32(BytecodeOffset()));
-  UpdateInterruptBudget(profiling_weight);
+  UpdateInterruptBudget(profiling_weight, false);
 }
 
 Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {

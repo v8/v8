@@ -29,7 +29,7 @@ bytecodes: [
   /*   95 E> */ B(TestGreaterThan), R(0), U8(3),
                 B(JumpIfFalse), U8(4),
   /*  101 S> */ B(Jump), U8(5),
-                B(JumpLoop), U8(-17), U8(0),
+                B(JumpLoop), U8(17), U8(0),
   /*  110 S> */ B(Ldar), R(0),
   /*  123 S> */ B(Return),
 ]

@@ -27,7 +27,7 @@ bytecodes: [
   /*   65 S> */ B(LdaSmi), U8(10),
   /*   71 E> */ B(Add), R(0), U8(3),
                 B(Star), R(0),
-                B(JumpLoop), U8(-15), U8(0),
+                B(JumpLoop), U8(15), U8(0),
   /*   79 S> */ B(Ldar), R(0),
   /*   89 S> */ B(Return),
 ]
@@ -58,7 +58,7 @@ bytecodes: [
   /*   74 S> */ B(LdaFalse),
   /*   74 E> */ B(TestEqual), R(0), U8(2),
                 B(JumpIfFalse), U8(5),
-                B(JumpLoop), U8(-12), U8(0),
+                B(JumpLoop), U8(12), U8(0),
   /*   85 S> */ B(Ldar), R(0),
   /*   95 S> */ B(Return),
 ]

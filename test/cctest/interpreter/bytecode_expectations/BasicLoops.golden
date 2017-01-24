@@ -88,7 +88,7 @@ bytecodes: [
   /*  132 E> */ B(TestEqual), R(0), U8(6),
                 B(JumpIfFalse), U8(4),
   /*  138 S> */ B(Jump), U8(5),
-                B(JumpLoop), U8(-40), U8(0),
+                B(JumpLoop), U8(40), U8(0),
   /*  147 S> */ B(Ldar), R(1),
   /*  157 S> */ B(Return),
 ]
@@ -141,7 +141,7 @@ bytecodes: [
   /*  173 S> */ B(LdaSmi), U8(1),
   /*  179 E> */ B(Add), R(0), U8(7),
                 B(Star), R(0),
-                B(JumpLoop), U8(-52), U8(0),
+                B(JumpLoop), U8(52), U8(0),
   /*  186 S> */ B(Ldar), R(0),
   /*  196 S> */ B(Return),
 ]
@@ -182,7 +182,7 @@ bytecodes: [
   /*  105 S> */ B(LdaSmi), U8(1),
   /*  111 E> */ B(Add), R(0), U8(4),
                 B(Star), R(0),
-                B(JumpLoop), U8(-24), U8(1),
+                B(JumpLoop), U8(24), U8(1),
   /*  122 S> */ B(LdaSmi), U8(1),
   /*  128 E> */ B(Add), R(0), U8(5),
                 B(Star), R(0),
@@ -223,7 +223,7 @@ bytecodes: [
   /*   85 S> */ B(LdaSmi), U8(1),
   /*   91 E> */ B(Sub), R(0), U8(3),
                 B(Star), R(0),
-                B(JumpLoop), U8(-19), U8(0),
+                B(JumpLoop), U8(19), U8(0),
   /*   98 S> */ B(Ldar), R(1),
   /*  108 S> */ B(Return),
 ]
@@ -270,7 +270,7 @@ bytecodes: [
   /*  144 S> */ B(LdaSmi), U8(10),
   /*  144 E> */ B(TestLessThan), R(0), U8(6),
                 B(JumpIfFalse), U8(5),
-                B(JumpLoop), U8(-40), U8(0),
+                B(JumpLoop), U8(40), U8(0),
   /*  151 S> */ B(Ldar), R(1),
   /*  161 S> */ B(Return),
 ]
@@ -306,7 +306,7 @@ bytecodes: [
   /*   84 E> */ B(Sub), R(0), U8(3),
                 B(Star), R(0),
   /*   98 S> */ B(JumpIfToBooleanFalse), U8(5),
-                B(JumpLoop), U8(-17), U8(0),
+                B(JumpLoop), U8(17), U8(0),
   /*  102 S> */ B(Ldar), R(1),
   /*  112 S> */ B(Return),
 ]
@@ -393,7 +393,7 @@ bytecodes: [
   /*  117 E> */ B(TestEqual), R(0), U8(5),
                 B(JumpIfFalse), U8(4),
   /*  123 S> */ B(Jump), U8(2),
-                B(JumpLoop), U8(-33), U8(0),
+                B(JumpLoop), U8(33), U8(0),
   /*  149 S> */ B(Ldar), R(1),
   /*  159 S> */ B(Return),
 ]
@@ -430,7 +430,7 @@ bytecodes: [
   /*  103 S> */ B(LdaSmi), U8(1),
   /*  109 E> */ B(Add), R(0), U8(4),
                 B(Star), R(0),
-                B(JumpLoop), U8(-26), U8(0),
+                B(JumpLoop), U8(26), U8(0),
                 B(LdaUndefined),
   /*  116 S> */ B(Return),
 ]
@@ -466,7 +466,7 @@ bytecodes: [
   /*  101 S> */ B(LdaSmi), U8(1),
   /*  107 E> */ B(Add), R(0), U8(4),
                 B(Star), R(0),
-                B(JumpLoop), U8(-26), U8(0),
+                B(JumpLoop), U8(26), U8(0),
                 B(LdaUndefined),
   /*  114 S> */ B(Return),
 ]
@@ -502,7 +502,7 @@ bytecodes: [
   /*   55 S> */ B(LdaSmi), U8(1),
   /*   59 E> */ B(Add), R(0), U8(2),
                 B(Star), R(0),
-                B(JumpLoop), U8(-26), U8(0),
+                B(JumpLoop), U8(26), U8(0),
                 B(LdaUndefined),
   /*  113 S> */ B(Return),
 ]
@@ -537,7 +537,7 @@ bytecodes: [
   /*   53 S> */ B(LdaSmi), U8(1),
   /*   57 E> */ B(Add), R(0), U8(2),
                 B(Star), R(0),
-                B(JumpLoop), U8(-26), U8(0),
+                B(JumpLoop), U8(26), U8(0),
                 B(LdaUndefined),
   /*  111 S> */ B(Return),
 ]
@@ -574,7 +574,7 @@ bytecodes: [
   /*   72 S> */ B(LdaSmi), U8(1),
   /*   76 E> */ B(Add), R(1), U8(3),
                 B(Star), R(1),
-                B(JumpLoop), U8(-24), U8(0),
+                B(JumpLoop), U8(24), U8(0),
                 B(LdaUndefined),
   /*  110 S> */ B(Return),
 ]
@@ -609,7 +609,7 @@ bytecodes: [
   /*   67 S> */ B(Ldar), R(1),
                 B(Dec), U8(2),
                 B(Star), R(1),
-                B(JumpLoop), U8(-18), U8(0),
+                B(JumpLoop), U8(18), U8(0),
   /*   88 S> */ B(Ldar), R(0),
   /*   98 S> */ B(Return),
 ]
@@ -672,7 +672,7 @@ bytecodes: [
   /*   69 S> */ B(Ldar), R(1),
                 B(Inc), U8(2),
                 B(Star), R(1),
-                B(JumpLoop), U8(-23), U8(0),
+                B(JumpLoop), U8(23), U8(0),
   /*  112 S> */ B(Ldar), R(0),
   /*  122 S> */ B(Return),
 ]
@@ -722,7 +722,7 @@ bytecodes: [
                 B(Inc), U8(3),
   /*  127 E> */ B(StaCurrentContextSlot), U8(4),
                 B(PopContext), R(3),
-                B(JumpLoop), U8(-45), U8(0),
+                B(JumpLoop), U8(45), U8(0),
                 B(LdaUndefined),
   /*  137 S> */ B(Return),
 ]

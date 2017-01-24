@@ -365,8 +365,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Debugger();
 
   // Insert dummy ops to force longer jumps.
-  for (int i = 0; i < 128; i++) {
-    builder.LoadTrue();
+  for (int i = 0; i < 256; i++) {
+    builder.Debugger();
   }
 
   // Bind labels for long jumps at the very end.
@@ -524,7 +524,7 @@ static Bytecode PeepholeToBoolean(Bytecode jump_bytecode) {
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
   CanonicalHandleScope canonical(isolate());
-  static const int kFarJumpDistance = 256;
+  static const int kFarJumpDistance = 256 + 20;
 
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 1);
 
@@ -569,7 +569,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 22);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 22);
   iterator.Advance();
 
   // Ignore compare operation.
@@ -577,7 +577,7 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanTrue));
-  CHECK_EQ(iterator.GetImmediateOperand(0), 17);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 17);
   iterator.Advance();
 
   // Ignore compare operation.
@@ -585,21 +585,21 @@ TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {
 
   CHECK_EQ(iterator.current_bytecode(),
            PeepholeToBoolean(Bytecode::kJumpIfToBooleanFalse));
-  CHECK_EQ(iterator.GetImmediateOperand(0), 12);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 12);
   iterator.Advance();
 
   // Ignore add operation.
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanTrue);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 7);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 7);
   iterator.Advance();
 
   // Ignore add operation.
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpIfToBooleanFalse);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 2);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 2);
   iterator.Advance();
 
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpConstant);
@@ -670,13 +670,13 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 0);
   iterator.Advance();
-  for (int i = 0; i < 42; i++) {
+  for (unsigned i = 0; i < 42; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
     CHECK_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
     // offset of 3 (because kJumpLoop takes two immediate operands)
-    CHECK_EQ(iterator.GetImmediateOperand(0), -i * 3 - 3);
+    CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), i * 3 + 3);
     iterator.Advance();
   }
   // Check padding to force wide backwards jumps.
@@ -686,7 +686,7 @@ TEST_F(BytecodeArrayBuilderTest, BackwardJumps) {
   }
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
   CHECK_EQ(iterator.current_operand_scale(), OperandScale::kDouble);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -386);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 386);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
@@ -713,13 +713,13 @@ TEST_F(BytecodeArrayBuilderTest, LabelReuse) {
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   BytecodeArrayIterator iterator(array);
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 2);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 2);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
-  CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 0);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
-  CHECK_EQ(iterator.GetImmediateOperand(0), -3);
+  CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 3);
   iterator.Advance();
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
   iterator.Advance();
@@ -747,13 +747,13 @@ TEST_F(BytecodeArrayBuilderTest, LabelAddressReuse) {
   BytecodeArrayIterator iterator(array);
   for (int i = 0; i < kRepeats; i++) {
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJump);
-    CHECK_EQ(iterator.GetImmediateOperand(0), 2);
+    CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 2);
     iterator.Advance();
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
-    CHECK_EQ(iterator.GetImmediateOperand(0), 0);
+    CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 0);
     iterator.Advance();
     CHECK_EQ(iterator.current_bytecode(), Bytecode::kJumpLoop);
-    CHECK_EQ(iterator.GetImmediateOperand(0), -3);
+    CHECK_EQ(iterator.GetUnsignedImmediateOperand(0), 3);
     iterator.Advance();
   }
   CHECK_EQ(iterator.current_bytecode(), Bytecode::kReturn);
