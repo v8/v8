@@ -496,7 +496,7 @@ class NativeObjectsExplorer {
 
  private:
   void FillRetainedObjects();
-  void FillImplicitReferences();
+  void FillEdges();
   List<HeapObject*>* GetListMaybeDisposeInfo(v8::RetainedObjectInfo* info);
   void SetNativeRootReference(v8::RetainedObjectInfo* info);
   void SetRootNativeRootsReference();
@@ -532,6 +532,7 @@ class NativeObjectsExplorer {
   HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
   SnapshotFiller* filler_;
+  v8::HeapProfiler::RetainerEdges edges_;
 
   static HeapThing const kNativesRootObject;
 
