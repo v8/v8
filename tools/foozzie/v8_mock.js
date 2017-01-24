@@ -53,6 +53,11 @@ __magic_mock_date_handler = {
 
 Date = new Proxy(Date, __magic_mock_date_handler);
 
+// Mock stack traces.
+Error.prepareStackTrace = function (error, structuredStackTrace) {
+  return "";
+}
+
 // Mock Worker.
 var __magic_index_for_mocked_worker = 0
 // TODO(machenbach): Randomize this for each test case, but keep stable during
