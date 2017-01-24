@@ -86,13 +86,13 @@ void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
 enum StepAction {
   StepOut = 0,   // Step out of the current function.
   StepNext = 1,  // Step to the next statement in the current function.
-  StepIn = 2,    // Step into new functions invoked or the next statement
+  StepIn = 2     // Step into new functions invoked or the next statement
                  // in the current function.
-  StepFrame = 3  // Step into a new frame or return to previous frame.
 };
 
 void PrepareStep(Isolate* isolate, StepAction action);
-void ClearStepping(Isolate* isolate);
+
+bool HasNonBlackboxedFrameOnStack(Isolate* isolate);
 
 /**
  * Out-of-memory callback function.
@@ -147,9 +147,9 @@ void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);
 MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
                                                  Local<String> source);
 
-class DebugEventListener {
+class DebugDelegate {
  public:
-  virtual ~DebugEventListener() {}
+  virtual ~DebugDelegate() {}
   virtual void PromiseEventOccurred(debug::PromiseDebugActionType type,
                                     int id) {}
   virtual void ScriptCompiled(v8::Local<Script> script,
@@ -161,9 +161,17 @@ class DebugEventListener {
                                v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,
                                bool is_promise_rejection, bool is_uncaught) {}
+  virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
+                                    const debug::Location& start,
+                                    const debug::Location& end) {
+    return false;
+  }
 };
 
-void SetDebugEventListener(Isolate* isolate, DebugEventListener* listener);
+void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
+
+void ResetBlackboxedStateCache(Isolate* isolate,
+                               v8::Local<debug::Script> script);
 
 }  // namespace debug
 }  // namespace v8

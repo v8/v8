@@ -73,6 +73,7 @@ class V8DebuggerScript {
   virtual bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
       std::vector<v8::debug::Location>* locations) = 0;
+  virtual void resetBlackboxedStateCache() = 0;
 
  protected:
   V8DebuggerScript(v8::Isolate*, String16 id, String16 url);

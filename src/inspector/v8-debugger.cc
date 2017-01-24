@@ -30,6 +30,18 @@ inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
   return value ? v8::True(isolate) : v8::False(isolate);
 }
 
+V8DebuggerAgentImpl* agentForScript(V8InspectorImpl* inspector,
+                                    v8::Local<v8::debug::Script> script) {
+  v8::Local<v8::Value> contextData;
+  if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32()) {
+    return nullptr;
+  }
+  int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
+  int contextGroupId = inspector->contextGroupId(contextId);
+  if (!contextGroupId) return nullptr;
+  return inspector->enabledDebuggerAgentForGroup(contextGroupId);
+}
+
 }  // namespace
 
 static bool inLiveEditScope = false;
@@ -68,7 +80,7 @@ void V8Debugger::enable() {
   if (m_enableCount++) return;
   DCHECK(!enabled());
   v8::HandleScope scope(m_isolate);
-  v8::debug::SetDebugEventListener(m_isolate, this);
+  v8::debug::SetDebugDelegate(m_isolate, this);
   v8::debug::SetOutOfMemoryCallback(m_isolate, &V8Debugger::v8OOMCallback,
                                     this);
   m_debuggerContext.Reset(m_isolate, v8::debug::GetDebugContext(m_isolate));
@@ -85,7 +97,7 @@ void V8Debugger::disable() {
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
   m_wasmTranslation.Clear();
-  v8::debug::SetDebugEventListener(m_isolate, nullptr);
+  v8::debug::SetDebugDelegate(m_isolate, nullptr);
   v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
   m_isolate->RestoreOriginalHeapLimit();
 }
@@ -243,7 +255,7 @@ void V8Debugger::setPauseOnNextStatement(bool pause) {
 
 bool V8Debugger::canBreakProgram() {
   if (!m_breakpointsActivated) return false;
-  return m_isolate->InContext();
+  return v8::debug::HasNonBlackboxedFrameOnStack(m_isolate);
 }
 
 void V8Debugger::breakProgram() {
@@ -294,11 +306,6 @@ void V8Debugger::stepOutOfFunction() {
   DCHECK(!m_executionState.IsEmpty());
   v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
   continueProgram();
-}
-
-void V8Debugger::clearStepping() {
-  DCHECK(enabled());
-  v8::debug::ClearStepping(m_isolate);
 }
 
 Response V8Debugger::setScriptSource(
@@ -480,10 +487,10 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;
-  V8DebuggerAgentImpl::SkipPauseRequest result =
+  bool shouldPause =
       agent->didPause(pausedContext, exception, breakpointIds,
                       isPromiseRejection, isUncaught, m_scheduledOOMBreak);
-  if (result == V8DebuggerAgentImpl::RequestNoSkip) {
+  if (shouldPause) {
     m_runningNestedMessageLoop = true;
     int groupId = m_inspector->contextGroupId(pausedContext);
     DCHECK(groupId);
@@ -502,14 +509,6 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
   m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
   m_executionState.Clear();
-
-  if (result == V8DebuggerAgentImpl::RequestStepFrame) {
-    v8::debug::PrepareStep(m_isolate, v8::debug::StepFrame);
-  } else if (result == V8DebuggerAgentImpl::RequestStepInto) {
-    v8::debug::PrepareStep(m_isolate, v8::debug::StepIn);
-  } else if (result == V8DebuggerAgentImpl::RequestStepOut) {
-    v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
-  }
 }
 
 void V8Debugger::v8OOMCallback(void* data) {
@@ -521,15 +520,7 @@ void V8Debugger::v8OOMCallback(void* data) {
 
 void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
                                 bool has_compile_error) {
-  v8::Local<v8::Value> contextData;
-  if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32()) {
-    return;
-  }
-  int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
-  int contextGroupId = m_inspector->contextGroupId(contextId);
-  if (!contextGroupId) return;
-  V8DebuggerAgentImpl* agent =
-      m_inspector->enabledDebuggerAgentForGroup(contextGroupId);
+  V8DebuggerAgentImpl* agent = agentForScript(m_inspector, script);
   if (!agent) return;
   if (script->IsWasm()) {
     m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
@@ -560,6 +551,15 @@ void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  bool isPromiseRejection, bool isUncaught) {
   handleProgramBreak(pausedContext, execState, exception,
                      v8::Local<v8::Array>(), isPromiseRejection, isUncaught);
+}
+
+bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                                      const v8::debug::Location& start,
+                                      const v8::debug::Location& end) {
+  V8DebuggerAgentImpl* agent = agentForScript(m_inspector, script);
+  if (!agent) return false;
+  return agent->isFunctionBlackboxed(String16::fromInteger(script->Id()), start,
+                                     end);
 }
 
 void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,

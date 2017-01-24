@@ -6227,6 +6227,10 @@ BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, has_no_side_effect,
                kHasNoSideEffect)
 BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_has_no_side_effect,
                kComputedHasNoSideEffect)
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, debug_is_blackboxed,
+               kDebugIsBlackboxed)
+BOOL_ACCESSORS(SharedFunctionInfo, debugger_hints, computed_debug_is_blackboxed,
+               kComputedDebugIsBlackboxed)
 
 bool Script::HasValidSource() {
   Object* src = this->source();

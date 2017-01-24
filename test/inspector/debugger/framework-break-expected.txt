@@ -1,0 +1,56 @@
+Checks that breaks in framework code correctly processed.
+
+Running test: testConsoleAssert
+> all frames in framework:
+> mixed, top frame in framework:
+frameworkAssert (framework.js:9:10)
+(anonymous) (user.js:0:0)
+
+
+Running test: testCaughtException
+> all frames in framework:
+> mixed, top frame in framework:
+
+Running test: testUncaughtException
+> all frames in framework:
+> mixed, top frame in framework:
+
+Running test: testBreakpoint
+> all frames in framework:
+breakpoint (framework.js:24:2)
+(anonymous) (framework.js:0:0)
+
+> mixed, top frame in framework:
+breakpoint (framework.js:24:2)
+(anonymous) (user.js:0:0)
+
+
+Running test: testDebuggerStatement
+> all frames in framework:
+debuggerStatement (framework.js:28:2)
+(anonymous) (framework.js:0:0)
+
+> mixed, top frame in framework:
+debuggerStatement (framework.js:28:2)
+(anonymous) (user.js:0:0)
+
+
+Running test: testSyncDOMBreakpoint
+> all frames in framework:
+> mixed, top frame in framework:
+syncDOMBreakpoint (framework.js:32:2)
+(anonymous) (user.js:0:0)
+
+
+Running test: testAsyncDOMBreakpoint
+> all frames in framework:
+(anonymous) (user.js:0:0)
+
+
+Running test: testCaughtSyntaxError
+> all frames in framework:
+> mixed, top frame in framework:
+
+Running test: testCaughtJSONParseError
+> all frames in framework:
+> mixed, top frame in framework:

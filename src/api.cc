@@ -9035,11 +9035,17 @@ void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
-void debug::ClearStepping(Isolate* v8_isolate) {
+bool debug::HasNonBlackboxedFrameOnStack(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  // Clear all current stepping setup.
-  isolate->debug()->ClearStepping();
+  i::HandleScope scope(isolate);
+  for (i::StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
+    i::Handle<i::SharedFunctionInfo> shared(
+        it.javascript_frame()->function()->shared());
+    if (!isolate->debug()->IsBlackboxed(shared)) return true;
+  }
+  return false;
 }
 
 v8::Isolate* debug::Script::GetIsolate() const {
@@ -9314,11 +9320,22 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
-void debug::SetDebugEventListener(Isolate* v8_isolate,
-                                  debug::DebugEventListener* listener) {
+void debug::SetDebugDelegate(Isolate* v8_isolate,
+                             debug::DebugDelegate* delegate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  isolate->debug()->SetDebugEventListener(listener);
+  isolate->debug()->SetDebugDelegate(delegate);
+}
+
+void debug::ResetBlackboxedStateCache(Isolate* v8_isolate,
+                                      v8::Local<debug::Script> script) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  i::DisallowHeapAllocation no_gc;
+  i::SharedFunctionInfo::ScriptIterator iter(Utils::OpenHandle(*script));
+  while (i::SharedFunctionInfo* info = iter.Next()) {
+    info->set_computed_debug_is_blackboxed(false);
+  }
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {

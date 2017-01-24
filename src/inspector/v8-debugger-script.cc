@@ -148,6 +148,11 @@ class ActualScript : public V8DebuggerScript {
     return script->GetPossibleBreakpoints(start, end, locations);
   }
 
+  void resetBlackboxedStateCache() override {
+    v8::HandleScope scope(m_isolate);
+    v8::debug::ResetBlackboxedStateCache(m_isolate, m_script.Get(m_isolate));
+  }
+
  private:
   String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> name;
@@ -196,6 +201,8 @@ class WasmVirtualScript : public V8DebuggerScript {
     // wasm-get-breakable-locations.js.
     return false;
   }
+
+  void resetBlackboxedStateCache() override {}
 
  private:
   static const String16& emptyString() {

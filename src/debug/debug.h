@@ -356,7 +356,9 @@ class Debug {
 
   int NextAsyncTaskId(Handle<JSObject> promise);
 
-  void SetDebugEventListener(debug::DebugEventListener* listener);
+  bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
+
+  void SetDebugDelegate(debug::DebugDelegate* delegate);
 
   // Returns whether the operation succeeded. Compilation can only be triggered
   // if a valid closure is passed as the second argument, otherwise the shared
@@ -494,6 +496,8 @@ class Debug {
     return !event_listener_.is_null() && !event_listener_->IsForeign();
   }
 
+  bool IsBlackboxed(SharedFunctionInfo* shared);
+
   void OnException(Handle<Object> exception, Handle<Object> promise);
 
   // Constructors for debug event objects.
@@ -554,7 +558,7 @@ class Debug {
   Handle<Object> event_listener_;
   Handle<Object> event_listener_data_;
 
-  debug::DebugEventListener* debug_event_listener_ = nullptr;
+  debug::DebugDelegate* debug_delegate_ = nullptr;
 
   // Debugger is active, i.e. there is a debug event listener attached.
   bool is_active_;

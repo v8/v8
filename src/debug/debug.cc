@@ -840,7 +840,8 @@ void Debug::FloodWithOneShot(Handle<JSFunction> function,
   // Debug utility functions are not subject to debugging.
   if (function->native_context() == *debug_context()) return;
 
-  if (!function->shared()->IsSubjectToDebugging()) {
+  if (!function->shared()->IsSubjectToDebugging() ||
+      IsBlackboxed(function->shared())) {
     // Builtin functions are not subject to stepping, but need to be
     // deoptimized, because optimized code does not check for debug
     // step in at call sites.
@@ -959,7 +960,8 @@ void Debug::PrepareStepOnThrow() {
 
   // Find the closest Javascript frame we can flood with one-shots.
   while (!it.done() &&
-         !it.frame()->function()->shared()->IsSubjectToDebugging()) {
+         (!it.frame()->function()->shared()->IsSubjectToDebugging() ||
+          IsBlackboxed(it.frame()->function()->shared()))) {
     it.Advance();
   }
 
@@ -1019,6 +1021,8 @@ void Debug::PrepareStep(StepAction step_action) {
   if (location.IsReturn()) step_action = StepOut;
   // A step-next at a tail call is a step-out.
   if (location.IsTailCall() && step_action == StepNext) step_action = StepOut;
+  // A step-next in blackboxed function is a step-out.
+  if (step_action == StepNext && IsBlackboxed(shared)) step_action = StepOut;
 
   thread_local_.last_statement_position_ =
       summary.abstract_code()->SourceStatementPosition(summary.code_offset());
@@ -1034,8 +1038,10 @@ void Debug::PrepareStep(StepAction step_action) {
       // Advance to caller frame.
       frames_it.Advance();
       // Skip native and extension functions on the stack.
-      while (!frames_it.done() &&
-             !frames_it.frame()->function()->shared()->IsSubjectToDebugging()) {
+      while (
+          !frames_it.done() &&
+          (!frames_it.frame()->function()->shared()->IsSubjectToDebugging() ||
+           IsBlackboxed(frames_it.frame()->function()->shared()))) {
         // Builtin functions are not subject to stepping, but need to be
         // deoptimized to include checks for step-in at call sites.
         Deoptimizer::DeoptimizeFunction(frames_it.frame()->function());
@@ -1751,15 +1757,18 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   }
 
   {
-    // Check whether the break location is muted.
     JavaScriptFrameIterator it(isolate_);
-    if (!it.done() && IsMutedAtCurrentLocation(it.frame())) return;
+    // Check whether the top frame is blackboxed or the break location is muted.
+    if (!it.done() && (IsBlackboxed(it.frame()->function()->shared()) ||
+                       IsMutedAtCurrentLocation(it.frame()))) {
+      return;
+    }
   }
 
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  if (debug_event_listener_) {
+  if (debug_delegate_) {
     HandleScope scope(isolate_);
 
     // Create the execution state.
@@ -1767,7 +1776,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
     // Bail out and don't call debugger if exception.
     if (!MakeExecutionState().ToHandle(&exec_state)) return;
 
-    debug_event_listener_->ExceptionThrown(
+    debug_delegate_->ExceptionThrown(
         GetDebugEventContext(isolate_),
         v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
         v8::Utils::ToLocal(exception), promise->IsJSObject(), uncaught);
@@ -1797,7 +1806,7 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit) {
   PrintBreakLocation();
 #endif  // DEBUG
 
-  if (debug_event_listener_) {
+  if (debug_delegate_) {
     HandleScope scope(isolate_);
 
     // Create the execution state.
@@ -1807,7 +1816,7 @@ void Debug::OnDebugBreak(Handle<Object> break_points_hit) {
 
     bool previous = in_debug_event_listener_;
     in_debug_event_listener_ = true;
-    debug_event_listener_->BreakProgramRequested(
+    debug_delegate_->BreakProgramRequested(
         GetDebugEventContext(isolate_),
         v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
         v8::Utils::ToLocal(break_points_hit));
@@ -1891,11 +1900,46 @@ int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
   return async_id->value();
 }
 
+namespace {
+debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
+  Script::PositionInfo info;
+  Script::GetPositionInfo(script, source_position, &info, Script::WITH_OFFSET);
+  return debug::Location(info.line, info.column);
+}
+}  // namespace
+
+bool Debug::IsBlackboxed(SharedFunctionInfo* shared) {
+  HandleScope scope(isolate_);
+  Handle<SharedFunctionInfo> shared_function_info(shared);
+  return IsBlackboxed(shared_function_info);
+}
+
+bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
+  if (!debug_delegate_) return false;
+  if (!shared->computed_debug_is_blackboxed()) {
+    bool is_blackboxed = false;
+    if (shared->script()->IsScript()) {
+      HandleScope handle_scope(isolate_);
+      Handle<Script> script(Script::cast(shared->script()));
+      if (script->type() == i::Script::TYPE_NORMAL) {
+        debug::Location start =
+            GetDebugLocation(script, shared->start_position());
+        debug::Location end = GetDebugLocation(script, shared->end_position());
+        is_blackboxed = debug_delegate_->IsFunctionBlackboxed(
+            ToApiHandle<debug::Script>(script), start, end);
+      }
+    }
+    shared->set_debug_is_blackboxed(is_blackboxed);
+    shared->set_computed_debug_is_blackboxed(true);
+  }
+  return shared->debug_is_blackboxed();
+}
+
 void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
   if (in_debug_scope() || ignore_events()) return;
 
-  if (debug_event_listener_) {
-    debug_event_listener_->PromiseEventOccurred(type, id);
+  if (debug_delegate_) {
+    debug_delegate_->PromiseEventOccurred(type, id);
     if (!non_inspector_listener_exists()) return;
   }
 
@@ -1967,9 +2011,9 @@ void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  if (debug_event_listener_) {
-    debug_event_listener_->ScriptCompiled(ToApiHandle<debug::Script>(script),
-                                          event != v8::AfterCompile);
+  if (debug_delegate_) {
+    debug_delegate_->ScriptCompiled(ToApiHandle<debug::Script>(script),
+                                    event != v8::AfterCompile);
     if (!non_inspector_listener_exists()) return;
   }
 
@@ -2013,15 +2057,13 @@ void Debug::SetEventListener(Handle<Object> callback,
   UpdateState();
 }
 
-
-void Debug::SetDebugEventListener(debug::DebugEventListener* listener) {
-  debug_event_listener_ = listener;
+void Debug::SetDebugDelegate(debug::DebugDelegate* delegate) {
+  debug_delegate_ = delegate;
   UpdateState();
 }
 
 void Debug::UpdateState() {
-  bool is_active =
-      !event_listener_.is_null() || debug_event_listener_ != nullptr;
+  bool is_active = !event_listener_.is_null() || debug_delegate_ != nullptr;
   if (is_active || in_debug_scope()) {
     // Note that the debug context could have already been loaded to
     // bootstrap test cases.
@@ -2078,6 +2120,11 @@ void Debug::HandleDebugBreak() {
     if (fun && fun->IsJSFunction()) {
       // Don't stop in builtin functions.
       if (!JSFunction::cast(fun)->shared()->IsSubjectToDebugging()) return;
+      if (isolate_->stack_guard()->CheckDebugBreak() &&
+          IsBlackboxed(JSFunction::cast(fun)->shared())) {
+        Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+        return;
+      }
       JSGlobalObject* global =
           JSFunction::cast(fun)->context()->global_object();
       // Don't stop in debugger functions.

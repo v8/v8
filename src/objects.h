@@ -7374,6 +7374,12 @@ class SharedFunctionInfo: public HeapObject {
   // Indicates that |has_no_side_effect| has been computed and set.
   DECL_BOOLEAN_ACCESSORS(computed_has_no_side_effect)
 
+  // Indicates that the function should be skipped during stepping.
+  DECL_BOOLEAN_ACCESSORS(debug_is_blackboxed)
+
+  // Indicates that |debug_is_blackboxed| has been computed and set.
+  DECL_BOOLEAN_ACCESSORS(computed_debug_is_blackboxed)
+
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
@@ -7768,6 +7774,8 @@ class SharedFunctionInfo: public HeapObject {
     kDeserialized,
     kHasNoSideEffect,
     kComputedHasNoSideEffect,
+    kDebugIsBlackboxed,
+    kComputedDebugIsBlackboxed,
   };
 
   // kFunctionKind has to be byte-aligned

@@ -26,7 +26,7 @@ class V8StackTraceImpl;
 
 using protocol::Response;
 
-class V8Debugger : public v8::debug::DebugEventListener {
+class V8Debugger : public v8::debug::DebugDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
@@ -48,7 +48,6 @@ class V8Debugger : public v8::debug::DebugEventListener {
   void stepIntoStatement();
   void stepOverStatement();
   void stepOutOfFunction();
-  void clearStepping();
 
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
@@ -145,6 +144,9 @@ class V8Debugger : public v8::debug::DebugEventListener {
                        v8::Local<v8::Object> exec_state,
                        v8::Local<v8::Value> exception,
                        bool is_promise_rejection, bool is_uncaught) override;
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override;
 
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
