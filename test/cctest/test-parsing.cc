@@ -6973,6 +6973,31 @@ TEST(DestructuringNegativeTests) {
   }
 }
 
+TEST(ObjectRestNegativeTestSlow) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"var { ", " } = { a: 1};"},
+    { NULL, NULL }
+  };
+
+  using v8::internal::Code;
+  std::string statement;
+  for (int i = 0; i < Code::kMaxArguments; ++i) {
+    statement += std::to_string(i) + " : " + "x, ";
+  }
+  statement += "...y";
+
+  const char* statement_data[] = {
+    statement.c_str(),
+    NULL
+  };
+
+  // clang-format on
+  // The test is quite slow, so run it with a reduced set of flags.
+  static const ParserFlag flags[] = {kAllowLazy, kAllowHarmonyObjectRestSpread};
+  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, flags,
+                    arraysize(flags));
+}
 
 TEST(DestructuringAssignmentPositiveTests) {
   const char* context_data[][2] = {

@@ -2134,8 +2134,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
               scanner()->location(),
               MessageTemplate::kInvalidDestructuringTarget);
         } else {
-          // TODO(gsathya): Throw error if number of properties >
-          // Code::kMaxArguments
           CheckDestructuringElement(expression, pos,
                                     scanner()->location().end_pos);
         }
@@ -2594,6 +2592,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
   // Computation of literal_index must happen before pre parse bailout.
   int literal_index = function_state_->NextMaterializedLiteralIndex();
+
+  // In pattern rewriter, we rewrite rest property to call out to a
+  // runtime function passing all the other properties as arguments to
+  // this runtime function. Here, we make sure that the number of
+  // properties is less than number of arguments allowed for a runtime
+  // call.
+  if (has_rest_property && properties->length() > Code::kMaxArguments) {
+    this->classifier()->RecordPatternError(Scanner::Location(pos, position()),
+                                           MessageTemplate::kTooManyArguments);
+  }
 
   return factory()->NewObjectLiteral(properties, literal_index,
                                      number_of_boilerplate_properties, pos,
