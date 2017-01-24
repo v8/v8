@@ -692,8 +692,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
       InterpreterAssemblerTestState state(this, bytecode);
       InterpreterAssemblerForTest m(&state, bytecode);
-      Callable builtin =
-          CodeFactory::InterpreterPushArgsAndCall(isolate(), tail_call_mode);
+      Callable builtin = CodeFactory::InterpreterPushArgsAndCall(
+          isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
       Node* function = m.IntPtrConstant(0);
       Node* first_arg = m.IntPtrConstant(1);
       Node* arg_count = m.Int32Constant(2);

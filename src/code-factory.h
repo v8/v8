@@ -165,6 +165,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                        TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
   static Callable Construct(Isolate* isolate);
@@ -174,11 +175,11 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);
 
-  static Callable InterpreterPushArgsAndCall(
-      Isolate* isolate, TailCallMode tail_call_mode,
-      CallableType function_type = CallableType::kAny);
+  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
+                                             TailCallMode tail_call_mode,
+                                             InterpreterPushArgsMode mode);
   static Callable InterpreterPushArgsAndConstruct(Isolate* isolate,
-                                                  PushArgsConstructMode mode);
+                                                  InterpreterPushArgsMode mode);
   static Callable InterpreterPushArgsAndConstructArray(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);

@@ -74,6 +74,7 @@ namespace internal {
   ASM(TailCall_ReceiverIsNullOrUndefined)                                      \
   ASM(TailCall_ReceiverIsNotNullOrUndefined)                                   \
   ASM(TailCall_ReceiverIsAny)                                                  \
+  ASM(CallWithSpread)                                                          \
                                                                                \
   /* Construct */                                                              \
   /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
@@ -139,6 +140,7 @@ namespace internal {
   ASM(InterpreterEntryTrampoline)                                              \
   ASM(InterpreterPushArgsAndCall)                                              \
   ASM(InterpreterPushArgsAndCallFunction)                                      \
+  ASM(InterpreterPushArgsAndCallWithFinalSpread)                               \
   ASM(InterpreterPushArgsAndTailCall)                                          \
   ASM(InterpreterPushArgsAndTailCallFunction)                                  \
   ASM(InterpreterPushArgsAndConstruct)                                         \
@@ -805,7 +807,7 @@ namespace internal {
 
 // Forward declarations.
 class ObjectVisitor;
-enum class PushArgsConstructMode : unsigned;
+enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
 class CodeAssemblerState;
 }
@@ -847,10 +849,9 @@ class Builtins {
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> InterpreterPushArgsAndCall(
-      TailCallMode tail_call_mode,
-      CallableType function_type = CallableType::kAny);
-  Handle<Code> InterpreterPushArgsAndConstruct(PushArgsConstructMode mode);
+  Handle<Code> InterpreterPushArgsAndCall(TailCallMode tail_call_mode,
+                                          InterpreterPushArgsMode mode);
+  Handle<Code> InterpreterPushArgsAndConstruct(InterpreterPushArgsMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> NewCloneShallowObject(int length);
@@ -905,10 +906,10 @@ class Builtins {
 
   static void Generate_InterpreterPushArgsAndCallImpl(
       MacroAssembler* masm, TailCallMode tail_call_mode,
-      CallableType function_type);
+      InterpreterPushArgsMode mode);
 
   static void Generate_InterpreterPushArgsAndConstructImpl(
-      MacroAssembler* masm, PushArgsConstructMode mode);
+      MacroAssembler* masm, InterpreterPushArgsMode mode);
 
   enum class MathMaxMinKind { kMax, kMin };
   static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);

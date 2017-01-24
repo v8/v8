@@ -1200,38 +1200,24 @@ inline bool IsConstructable(FunctionKind kind, LanguageMode mode) {
   return true;
 }
 
-enum class CallableType : unsigned { kJSFunction, kAny };
-
-inline size_t hash_value(CallableType type) { return bit_cast<unsigned>(type); }
-
-inline std::ostream& operator<<(std::ostream& os, CallableType function_type) {
-  switch (function_type) {
-    case CallableType::kJSFunction:
-      return os << "JSFunction";
-    case CallableType::kAny:
-      return os << "Any";
-  }
-  UNREACHABLE();
-  return os;
-}
-
-enum class PushArgsConstructMode : unsigned {
+enum class InterpreterPushArgsMode : unsigned {
   kJSFunction,
   kWithFinalSpread,
   kOther
 };
 
-inline size_t hash_value(PushArgsConstructMode mode) {
+inline size_t hash_value(InterpreterPushArgsMode mode) {
   return bit_cast<unsigned>(mode);
 }
 
-inline std::ostream& operator<<(std::ostream& os, PushArgsConstructMode mode) {
+inline std::ostream& operator<<(std::ostream& os,
+                                InterpreterPushArgsMode mode) {
   switch (mode) {
-    case PushArgsConstructMode::kJSFunction:
+    case InterpreterPushArgsMode::kJSFunction:
       return os << "JSFunction";
-    case PushArgsConstructMode::kWithFinalSpread:
+    case InterpreterPushArgsMode::kWithFinalSpread:
       return os << "WithFinalSpread";
-    case PushArgsConstructMode::kOther:
+    case InterpreterPushArgsMode::kOther:
       return os << "Other";
   }
   UNREACHABLE();

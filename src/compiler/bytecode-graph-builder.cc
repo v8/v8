@@ -1275,11 +1275,14 @@ void BytecodeGraphBuilder::VisitCall() {
 
 void BytecodeGraphBuilder::VisitCallWithSpread() {
   PrepareEagerCheckpoint();
-  interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(0);
-  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(1);
-  const Operator* op =
-      javascript()->CallFunctionWithSpread(static_cast<int>(arg_count));
-  Node* value = ProcessCallRuntimeArguments(op, first_arg, arg_count);
+  Node* callee =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
+  size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
+  const Operator* call =
+      javascript()->CallFunctionWithSpread(static_cast<int>(arg_count + 1));
+
+  Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 

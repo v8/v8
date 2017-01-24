@@ -543,7 +543,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
     // Call using call function builtin.
     Callable callable = CodeFactory::InterpreterPushArgsAndCall(
-        isolate(), tail_call_mode, CallableType::kJSFunction);
+        isolate(), tail_call_mode, InterpreterPushArgsMode::kJSFunction);
     Node* code_target = HeapConstant(callable.code());
     Node* ret_value = CallStub(callable.descriptor(), code_target, context,
                                arg_count, first_arg, function);
@@ -659,7 +659,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
     // Call using call builtin.
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
-        isolate(), tail_call_mode, CallableType::kAny);
+        isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
     Node* code_target_call = HeapConstant(callable_call.code());
     Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
                                context, arg_count, first_arg, function);
@@ -675,7 +675,18 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* context,
                                    Node* first_arg, Node* arg_count,
                                    TailCallMode tail_call_mode) {
   Callable callable = CodeFactory::InterpreterPushArgsAndCall(
-      isolate(), tail_call_mode, CallableType::kAny);
+      isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
+  Node* code_target = HeapConstant(callable.code());
+
+  return CallStub(callable.descriptor(), code_target, context, arg_count,
+                  first_arg, function);
+}
+
+Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
+                                             Node* first_arg, Node* arg_count) {
+  Callable callable = CodeFactory::InterpreterPushArgsAndCall(
+      isolate(), TailCallMode::kDisallow,
+      InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
 
   return CallStub(callable.descriptor(), code_target, context, arg_count,
@@ -718,7 +729,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
     Comment("call using callConstructFunction");
     IncrementCallCount(type_feedback_vector, slot_id);
     Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), PushArgsConstructMode::kJSFunction);
+        isolate(), InterpreterPushArgsMode::kJSFunction);
     return_value.Bind(CallStub(callable_function.descriptor(),
                                HeapConstant(callable_function.code()), context,
                                arg_count, new_target, constructor,
@@ -821,7 +832,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   {
     Comment("call using callConstruct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), PushArgsConstructMode::kOther);
+        isolate(), InterpreterPushArgsMode::kOther);
     Node* code_target = HeapConstant(callable.code());
     return_value.Bind(CallStub(callable.descriptor(), code_target, context,
                                arg_count, new_target, constructor,
@@ -841,7 +852,7 @@ Node* InterpreterAssembler::CallConstructWithSpread(Node* constructor,
   Variable return_value(this, MachineRepresentation::kTagged);
   Comment("call using ConstructWithSpread");
   Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
-      isolate(), PushArgsConstructMode::kWithFinalSpread);
+      isolate(), InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
   return_value.Bind(CallStub(callable.descriptor(), code_target, context,
                              arg_count, new_target, constructor,

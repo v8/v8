@@ -891,8 +891,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(RegisterList args) {
-  OutputCallWithSpread(args, args.register_count());
+BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(Register callable,
+                                                           RegisterList args) {
+  OutputCallWithSpread(callable, args, args.register_count());
   return *this;
 }
 

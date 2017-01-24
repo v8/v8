@@ -2466,19 +2466,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // the registers up-front. Otherwise these registers are unavailable during
   // receiver / argument visiting and we can end up with memory leaks due to
   // registers keeping objects alive.
-  RegisterList args;
-  Register callee;
-  // The CallWithSpread bytecode takes all arguments in a register list so that
-  // it can easily call into a runtime function for its implementation. This
-  // will change once CallWithSpread has an implementation in ASM.
-  // TODO(petermarshall): Remove this special path when CallWithSpread is done.
-  if (expr->only_last_arg_is_spread()) {
-    args = register_allocator()->NewGrowableRegisterList();
-    callee = register_allocator()->GrowRegisterList(&args);
-  } else {
-    callee = register_allocator()->NewRegister();
-    args = register_allocator()->NewGrowableRegisterList();
-  }
+  Register callee = register_allocator()->NewRegister();
+  RegisterList args = register_allocator()->NewGrowableRegisterList();
 
   // TODO(petermarshall): We have a lot of call bytecodes that are very similar,
   // see if we can reduce the number by adding a separate argument which
@@ -2552,11 +2541,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // Evaluate all arguments to the function call and store in sequential args
   // registers.
   VisitArguments(expr->arguments(), &args);
-  // TODO(petermarshall): Check this for spread calls as well when
-  // CallWithSpread is done.
-  if (!expr->only_last_arg_is_spread()) {
-    CHECK_EQ(expr->arguments()->length() + 1, args.register_count());
-  }
+  CHECK_EQ(expr->arguments()->length() + 1, args.register_count());
 
   // Resolve callee for a potential direct eval call. This block will mutate the
   // callee value.
@@ -2589,9 +2574,8 @@ void BytecodeGenerator::VisitCall(Call* expr) {
   // When a call contains a spread, a Call AST node is only created if there is
   // exactly one spread, and it is the last argument.
   if (expr->only_last_arg_is_spread()) {
-    CHECK_EQ(expr->arguments()->length() + 2, args.register_count());
     DCHECK_EQ(TailCallMode::kDisallow, expr->tail_call_mode());
-    builder()->CallWithSpread(args);
+    builder()->CallWithSpread(callee, args);
   } else {
     int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
     builder()->Call(callee, args, feedback_slot_index, call_type,

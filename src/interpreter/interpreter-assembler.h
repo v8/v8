@@ -129,6 +129,14 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                          compiler::Node* first_arg, compiler::Node* arg_count,
                          TailCallMode tail_call_mode);
 
+  // Call JSFunction or Callable |function| with |arg_count|
+  // arguments (not including receiver) and the first argument
+  // located at |first_arg|.
+  compiler::Node* CallJSWithSpread(compiler::Node* function,
+                                   compiler::Node* context,
+                                   compiler::Node* first_arg,
+                                   compiler::Node* arg_count);
+
   // Call constructor |constructor| with |arg_count| arguments (not
   // including receiver) and the first argument located at
   // |first_arg|. The |new_target| is the same as the

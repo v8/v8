@@ -694,7 +694,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 // static
 void Builtins::Generate_InterpreterPushArgsAndCallImpl(
     MacroAssembler* masm, TailCallMode tail_call_mode,
-    CallableType function_type) {
+    InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- ebx : the address of the first argument to be pushed. Subsequent
@@ -726,12 +726,12 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   // Call the target.
   __ Push(edx);  // Re-push return address.
 
-  if (function_type == CallableType::kJSFunction) {
+  if (mode == InterpreterPushArgsMode::kJSFunction) {
     __ Jump(masm->isolate()->builtins()->CallFunction(ConvertReceiverMode::kAny,
                                                       tail_call_mode),
             RelocInfo::CODE_TARGET);
   } else {
-    DCHECK_EQ(function_type, CallableType::kAny);
+    DCHECK_EQ(mode, InterpreterPushArgsMode::kOther);
     __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny,
                                               tail_call_mode),
             RelocInfo::CODE_TARGET);
@@ -844,7 +844,7 @@ void Generate_InterpreterPushArgsAndReturnAddress(
 
 // static
 void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
-    MacroAssembler* masm, PushArgsConstructMode mode) {
+    MacroAssembler* masm, InterpreterPushArgsMode mode) {
   // ----------- S t a t e -------------
   //  -- eax : the number of arguments (not including the receiver)
   //  -- edx : the new target
@@ -870,7 +870,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   __ Pop(edi);
 
   __ AssertUndefinedOrAllocationSite(ebx);
-  if (mode == PushArgsConstructMode::kJSFunction) {
+  if (mode == InterpreterPushArgsMode::kJSFunction) {
     // Tail call to the function-specific construct stub (still in the caller
     // context at this point).
     __ AssertFunction(edi);
@@ -879,12 +879,12 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
     __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kConstructStubOffset));
     __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
     __ jmp(ecx);
-  } else if (mode == PushArgsConstructMode::kWithFinalSpread) {
+  } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor with unmodified eax, edi, edx values.
     __ Jump(masm->isolate()->builtins()->ConstructWithSpread(),
             RelocInfo::CODE_TARGET);
   } else {
-    DCHECK_EQ(PushArgsConstructMode::kOther, mode);
+    DCHECK_EQ(InterpreterPushArgsMode::kOther, mode);
     // Call the constructor with unmodified eax, edi, edx values.
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }

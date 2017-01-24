@@ -551,8 +551,16 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
 void JSGenericLowering::LowerJSCallFunctionWithSpread(Node* node) {
   CallFunctionWithSpreadParameters const& p =
       CallFunctionWithSpreadParametersOf(node->op());
-  ReplaceWithRuntimeCall(node, Runtime::kCallWithSpread,
-                         static_cast<int>(p.arity()));
+  int const arg_count = static_cast<int>(p.arity() - 2);
+  Callable callable = CodeFactory::CallWithSpread(isolate());
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), arg_count + 1, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* stub_arity = jsgraph()->Int32Constant(arg_count);
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, stub_arity);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 void JSGenericLowering::LowerJSCallRuntime(Node* node) {

@@ -374,6 +374,12 @@ Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode,
 }
 
 // static
+Callable CodeFactory::CallWithSpread(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallWithSpread(),
+                  CallTrampolineDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
   return Callable(isolate->builtins()->CallFunction(mode),
                   CallTrampolineDescriptor(isolate));
@@ -400,15 +406,15 @@ Callable CodeFactory::ConstructFunction(Isolate* isolate) {
 // static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
                                                  TailCallMode tail_call_mode,
-                                                 CallableType function_type) {
-  return Callable(isolate->builtins()->InterpreterPushArgsAndCall(
-                      tail_call_mode, function_type),
-                  InterpreterPushArgsAndCallDescriptor(isolate));
+                                                 InterpreterPushArgsMode mode) {
+  return Callable(
+      isolate->builtins()->InterpreterPushArgsAndCall(tail_call_mode, mode),
+      InterpreterPushArgsAndCallDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndConstruct(
-    Isolate* isolate, PushArgsConstructMode mode) {
+    Isolate* isolate, InterpreterPushArgsMode mode) {
   return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(mode),
                   InterpreterPushArgsAndConstructDescriptor(isolate));
 }
