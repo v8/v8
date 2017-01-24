@@ -9,7 +9,6 @@
 #include "src/base/hashmap.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/objects/scope-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
