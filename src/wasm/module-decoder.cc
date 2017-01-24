@@ -1268,6 +1268,36 @@ AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* tables_start,
   return decoder.toResult(std::move(table));
 }
 
+std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
+                                                      const byte* end) {
+  Decoder decoder(start, end);
+  decoder.consume_bytes(4, "wasm magic");
+  decoder.consume_bytes(4, "wasm version");
+
+  std::vector<CustomSectionOffset> result;
+
+  while (decoder.more()) {
+    byte section_code = decoder.consume_u8("section code");
+    uint32_t section_length = decoder.consume_u32v("section length");
+    uint32_t section_start = decoder.pc_offset();
+    if (section_code != 0) {
+      // Skip known sections.
+      decoder.consume_bytes(section_length, "section bytes");
+      continue;
+    }
+    uint32_t name_length = decoder.consume_u32v("name length");
+    uint32_t name_offset = decoder.pc_offset();
+    decoder.consume_bytes(name_length, "section name");
+    uint32_t payload_offset = decoder.pc_offset();
+    uint32_t payload_length = section_length - (payload_offset - section_start);
+    decoder.consume_bytes(payload_length);
+    result.push_back({section_start, name_offset, name_length, payload_offset,
+                      payload_length, section_length});
+  }
+
+  return result;
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

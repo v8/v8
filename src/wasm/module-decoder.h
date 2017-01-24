@@ -56,6 +56,18 @@ FunctionOffsetsResult DecodeWasmFunctionOffsets(const byte* module_start,
 V8_EXPORT_PRIVATE WasmInitExpr DecodeWasmInitExprForTesting(const byte* start,
                                                             const byte* end);
 
+struct CustomSectionOffset {
+  uint32_t section_start;
+  uint32_t name_offset;
+  uint32_t name_length;
+  uint32_t payload_offset;
+  uint32_t payload_length;
+  uint32_t section_length;
+};
+
+V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
+    const byte* start, const byte* end);
+
 // Extracts the mapping from wasm byte offset to asm.js source position per
 // function.
 // Returns a vector of vectors with <byte_offset, source_position> entries, or

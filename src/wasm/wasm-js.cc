@@ -231,16 +231,14 @@ MaybeLocal<Value> InstantiateModuleImpl(
   return Utils::ToLocal(instance.ToHandleChecked());
 }
 
-void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  HandleScope scope(args.GetIsolate());
+namespace {
+i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower& thrower) {
   v8::Isolate* isolate = args.GetIsolate();
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
-  ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
-
+  i::MaybeHandle<i::WasmModuleObject> nothing;
   if (args.Length() < 1) {
     thrower.TypeError("Argument 0 must be a WebAssembly.Module");
-    return;
+    return nothing;
   }
 
   Local<Context> context = isolate->GetCurrentContext();
@@ -248,17 +246,28 @@ void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (!BrandCheck(isolate, Utils::OpenHandle(*args[0]),
                   i::Handle<i::Symbol>(i_context->wasm_module_sym()),
                   "Argument 0 must be a WebAssembly.Module")) {
-    return;
+    return nothing;
   }
 
   Local<Object> module_obj = Local<Object>::Cast(args[0]);
-  i::Handle<i::WasmModuleObject> i_module_obj =
-      i::Handle<i::WasmModuleObject>::cast(v8::Utils::OpenHandle(*module_obj));
+  return i::Handle<i::WasmModuleObject>::cast(
+      v8::Utils::OpenHandle(*module_obj));
+}
+}  // namespace
 
-  i::Handle<i::JSArray> imports = i::wasm::GetImports(i_isolate, i_module_obj);
+void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope scope(args.GetIsolate());
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.Module.imports()");
 
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(Utils::ToLocal(imports));
+  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+
+  if (!maybe_module.is_null()) {
+    auto imports =
+        i::wasm::GetImports(i_isolate, maybe_module.ToHandleChecked());
+    args.GetReturnValue().Set(Utils::ToLocal(imports));
+  }
 }
 
 void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -268,27 +277,44 @@ void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   ErrorThrower thrower(i_isolate, "WebAssembly.Module.exports()");
 
-  if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a WebAssembly.Module");
+  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+
+  if (!maybe_module.is_null()) {
+    auto exports =
+        i::wasm::GetExports(i_isolate, maybe_module.ToHandleChecked());
+    args.GetReturnValue().Set(Utils::ToLocal(exports));
+  }
+}
+
+void WebAssemblyModuleCustomSections(
+    const v8::FunctionCallbackInfo<v8::Value>& args) {
+  HandleScope scope(args.GetIsolate());
+  v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  ErrorThrower thrower(i_isolate, "WebAssembly.Module.customSections()");
+
+  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+
+  if (args.Length() < 2) {
+    thrower.TypeError("Argument 1 must be a string");
     return;
   }
 
-  Local<Context> context = isolate->GetCurrentContext();
-  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args[0]),
-                  i::Handle<i::Symbol>(i_context->wasm_module_sym()),
-                  "Argument 0 must be a WebAssembly.Module")) {
+  i::Handle<i::Object> name = Utils::OpenHandle(*args[1]);
+  if (!name->IsString()) {
+    thrower.TypeError("Argument 1 must be a string");
     return;
   }
 
-  Local<Object> module_obj = Local<Object>::Cast(args[0]);
-  i::Handle<i::WasmModuleObject> i_module_obj =
-      i::Handle<i::WasmModuleObject>::cast(v8::Utils::OpenHandle(*module_obj));
-
-  i::Handle<i::JSArray> exports = i::wasm::GetExports(i_isolate, i_module_obj);
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(Utils::ToLocal(exports));
+  if (!maybe_module.is_null()) {
+    auto custom_sections =
+        i::wasm::GetCustomSections(i_isolate, maybe_module.ToHandleChecked(),
+                                   i::Handle<i::String>::cast(name), &thrower);
+    if (!thrower.error()) {
+      args.GetReturnValue().Set(Utils::ToLocal(custom_sections));
+    }
+  }
 }
 
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -298,32 +324,18 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
-  if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a WebAssembly.Module");
-    return;
+  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+
+  if (!maybe_module.is_null()) {
+    MaybeLocal<Value> instance = InstantiateModuleImpl(
+        i_isolate, maybe_module.ToHandleChecked(), args, &thrower);
+
+    if (instance.IsEmpty()) {
+      DCHECK(thrower.error());
+      return;
+    }
+    args.GetReturnValue().Set(instance.ToLocalChecked());
   }
-
-  Local<Context> context = isolate->GetCurrentContext();
-  i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args[0]),
-                  i::Handle<i::Symbol>(i_context->wasm_module_sym()),
-                  "Argument 0 must be a WebAssembly.Module")) {
-    return;
-  }
-
-  Local<Object> module_obj = Local<Object>::Cast(args[0]);
-  i::Handle<i::WasmModuleObject> i_module_obj =
-      i::Handle<i::WasmModuleObject>::cast(v8::Utils::OpenHandle(*module_obj));
-
-  MaybeLocal<Value> instance =
-      InstantiateModuleImpl(i_isolate, i_module_obj, args, &thrower);
-  if (instance.IsEmpty()) {
-    DCHECK(thrower.error());
-    return;
-  }
-
-  v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  return_value.Set(instance.ToLocalChecked());
 }
 
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -864,6 +876,8 @@ void WasmJs::Install(Isolate* isolate) {
               1);
   InstallFunc(isolate, module_constructor, "exports", WebAssemblyModuleExports,
               1);
+  InstallFunc(isolate, module_constructor, "customSections",
+              WebAssemblyModuleCustomSections, 2);
   JSObject::AddProperty(module_proto, isolate->factory()->constructor_string(),
                         module_constructor, DONT_ENUM);
   JSObject::AddProperty(module_proto, factory->to_string_tag_symbol(),

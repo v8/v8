@@ -14,6 +14,14 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 function assertEq(val, expected) {
   assertEquals(expected, val);
 }
+function assertArrayBuffer(val, expected) {
+  assertTrue(val instanceof ArrayBuffer);
+  assertEq(expected.length, val.byteLength);
+  var input = new Int8Array(val);
+  for (var i = 0; i < expected.length; i++) {
+    assertEq(expected[i], input[i]);
+  }
+}
 function wasmIsSupported() {
   return (typeof WebAssembly.Module) == "function";
 }
@@ -249,6 +257,68 @@ assertEq(arr[2].kind, "table");
 assertEq(arr[2].name, "c");
 assertEq(arr[3].kind, "global");
 assertEq(arr[3].name, "x");
+
+// 'WebAssembly.Module.customSections' data property
+let moduleCustomSectionsDesc =
+    Object.getOwnPropertyDescriptor(Module, 'customSections');
+assertEq(typeof moduleCustomSectionsDesc.value, 'function');
+assertEq(moduleCustomSectionsDesc.writable, true);
+assertEq(moduleCustomSectionsDesc.enumerable, false);
+assertEq(moduleCustomSectionsDesc.configurable, true);
+
+let moduleCustomSections = moduleCustomSectionsDesc.value;
+assertEq(moduleCustomSections.length, 2);
+assertErrorMessage(
+    () => moduleCustomSections(), TypeError, /requires more than 0 arguments/);
+assertErrorMessage(
+    () => moduleCustomSections(undefined), TypeError,
+    /first argument must be a WebAssembly.Module/);
+assertErrorMessage(
+    () => moduleCustomSections({}), TypeError,
+    /first argument must be a WebAssembly.Module/);
+var arr = moduleCustomSections(emptyModule, 'x');
+assertEq(arr instanceof Array, true);
+assertEq(arr.length, 0);
+
+assertErrorMessage(
+    () => moduleCustomSections(1), TypeError,
+    'first argument must be a WebAssembly.Module');
+assertErrorMessage(
+    () => moduleCustomSections(emptyModule), TypeError,
+    'second argument must be a String');
+assertErrorMessage(
+    () => moduleCustomSections(emptyModule, 3), TypeError,
+    'second argument must be a String');
+
+let customSectionModuleBinary2 = (() => {
+  let builder = new WasmModuleBuilder();
+  builder.addExplicitSection([kUnknownSectionCode, 3, 1, 'x'.charCodeAt(0), 2]);
+  builder.addExplicitSection([
+    kUnknownSectionCode, 6, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
+    'o'.charCodeAt(0), 66, 77
+  ]);
+  builder.addExplicitSection([
+    kUnknownSectionCode, 7, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
+    'o'.charCodeAt(0), 91, 92, 93
+  ]);
+  builder.addExplicitSection([
+    kUnknownSectionCode, 7, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
+    'x'.charCodeAt(0), 99, 99, 99
+  ]);
+  return new Int8Array(builder.toBuffer());
+})();
+var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'x');
+assertEq(arr instanceof Array, true);
+assertEq(arr.length, 1);
+assertArrayBuffer(arr[0], [2]);
+var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'foo');
+assertEq(arr instanceof Array, true);
+assertEq(arr.length, 2);
+assertArrayBuffer(arr[0], [66, 77]);
+assertArrayBuffer(arr[1], [91, 92, 93]);
+var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'bar');
+assertEq(arr instanceof Array, true);
+assertEq(arr.length, 0);
 
 // 'WebAssembly.Instance' data property
 let instanceDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'Instance');

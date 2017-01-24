@@ -2593,7 +2593,7 @@ Handle<JSArray> wasm::GetImports(Isolate* isolate,
   for (int index = 0; index < num_imports; ++index) {
     WasmImport& import = module->import_table[index];
 
-    Handle<JSObject> entry = factory->NewJSObject(object_function, TENURED);
+    Handle<JSObject> entry = factory->NewJSObject(object_function);
 
     Handle<String> import_kind;
     switch (import.kind) {
@@ -2664,8 +2664,6 @@ Handle<JSArray> wasm::GetExports(Isolate* isolate,
   for (int index = 0; index < num_exports; ++index) {
     WasmExport& exp = module->export_table[index];
 
-    Handle<JSObject> entry = factory->NewJSObject(object_function, TENURED);
-
     Handle<String> export_kind;
     switch (exp.kind) {
       case kExternalFunction:
@@ -2684,6 +2682,8 @@ Handle<JSArray> wasm::GetExports(Isolate* isolate,
         UNREACHABLE();
     }
 
+    Handle<JSObject> entry = factory->NewJSObject(object_function);
+
     MaybeHandle<String> export_name =
         WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
             isolate, compiled_module, exp.name_offset, exp.name_length);
@@ -2693,6 +2693,73 @@ Handle<JSArray> wasm::GetExports(Isolate* isolate,
     JSObject::AddProperty(entry, kind_string, export_kind, NONE);
 
     storage->set(index, *entry);
+  }
+
+  return array_object;
+}
+
+Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
+                                        Handle<WasmModuleObject> module_object,
+                                        Handle<String> name,
+                                        ErrorThrower* thrower) {
+  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
+                                             isolate);
+  Factory* factory = isolate->factory();
+
+  std::vector<CustomSectionOffset> custom_sections;
+  {
+    DisallowHeapAllocation no_gc;  // for raw access to string bytes.
+    Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
+                                          isolate);
+    const byte* start =
+        reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
+    const byte* end = start + module_bytes->length();
+    custom_sections = DecodeCustomSections(start, end);
+  }
+
+  std::vector<Handle<Object>> matching_sections;
+
+  // Gather matching sections.
+  for (auto section : custom_sections) {
+    MaybeHandle<String> section_name =
+        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+            isolate, compiled_module, section.name_offset, section.name_length);
+
+    if (!name->Equals(*section_name.ToHandleChecked())) continue;
+
+    // Make a copy of the payload data in the section.
+    bool is_external;  // Set by TryAllocateBackingStore
+    void* memory = TryAllocateBackingStore(isolate, section.payload_length,
+                                           false, is_external);
+
+    Handle<Object> section_data = factory->undefined_value();
+    if (memory) {
+      Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+      JSArrayBuffer::Setup(buffer, isolate, is_external, memory,
+                           static_cast<int>(section.payload_length));
+      DisallowHeapAllocation no_gc;  // for raw access to string bytes.
+      Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
+                                            isolate);
+      const byte* start =
+          reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
+      memcpy(memory, start + section.payload_offset, section.payload_length);
+      section_data = buffer;
+    } else {
+      thrower->RangeError("out of memory allocating custom section data");
+      return Handle<JSArray>();
+    }
+
+    matching_sections.push_back(section_data);
+  }
+
+  int num_custom_sections = static_cast<int>(matching_sections.size());
+  Handle<JSArray> array_object = factory->NewJSArray(FAST_ELEMENTS, 0, 0);
+  Handle<FixedArray> storage = factory->NewFixedArray(num_custom_sections);
+  JSArray::SetContent(array_object, storage);
+  array_object->set_length(Smi::FromInt(num_custom_sections));
+
+  for (int i = 0; i < num_custom_sections; i++) {
+    storage->set(i, *matching_sections[i]);
   }
 
   return array_object;
