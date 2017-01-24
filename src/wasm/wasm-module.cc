@@ -2237,7 +2237,8 @@ MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
     Vector<const byte> asm_js_offset_table_bytes) {
   MaybeHandle<WasmModuleObject> nothing;
 
-  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
+  if (origin != kAsmJsOrigin &&
+      !IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     thrower->CompileError("Wasm code generation disallowed in this context");
     return nothing;
   }
