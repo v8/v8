@@ -1454,8 +1454,10 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
   const bool should_initialize = false;
   Handle<JSArrayBuffer> array_buffer =
       isolate_->factory()->NewJSArrayBuffer(SharedFlag::kNotShared, pretenure_);
-  JSArrayBuffer::SetupAllocatingData(array_buffer, isolate_, byte_length,
-                                     should_initialize);
+  if (!JSArrayBuffer::SetupAllocatingData(array_buffer, isolate_, byte_length,
+                                          should_initialize)) {
+    return MaybeHandle<JSArrayBuffer>();
+  }
   memcpy(array_buffer->backing_store(), position_, byte_length);
   position_ += byte_length;
   AddObjectWithID(id, array_buffer);
