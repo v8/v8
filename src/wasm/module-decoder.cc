@@ -610,22 +610,29 @@ class ModuleDecoder : public Decoder {
 
     // ===== Name section ====================================================
     if (section_iter.section_code() == kNameSectionCode) {
-      uint32_t functions_count = consume_u32v("functions count");
+      // TODO(titzer): find a way to report name errors as warnings.
+      // Use an inner decoder so that errors don't fail the outer decoder.
+      Decoder inner(start_, pc_, end_);
+      uint32_t functions_count = inner.consume_u32v("functions count");
 
-      for (uint32_t i = 0; ok() && i < functions_count; ++i) {
+      for (uint32_t i = 0; inner.ok() && i < functions_count; ++i) {
         uint32_t function_name_length = 0;
-        uint32_t name_offset = consume_string(&function_name_length, false);
+        uint32_t name_offset =
+            consume_string(inner, &function_name_length, false);
         uint32_t func_index = i;
         if (func_index < module->functions.size()) {
           module->functions[func_index].name_offset = name_offset;
           module->functions[func_index].name_length = function_name_length;
         }
 
-        uint32_t local_names_count = consume_u32v("local names count");
+        uint32_t local_names_count = inner.consume_u32v("local names count");
         for (uint32_t j = 0; ok() && j < local_names_count; j++) {
-          skip_string();
+          uint32_t length = inner.consume_u32v("string length");
+          inner.consume_bytes(length, "string");
         }
       }
+      // Skip the whole names section in the outer decoder.
+      consume_bytes(section_iter.payload_length(), nullptr);
       section_iter.advance();
     }
 
@@ -811,25 +818,24 @@ class ModuleDecoder : public Decoder {
     }
   }
 
-  // Reads a length-prefixed string, checking that it is within bounds. Returns
-  // the offset of the string, and the length as an out parameter.
   uint32_t consume_string(uint32_t* length, bool validate_utf8) {
-    *length = consume_u32v("string length");
-    uint32_t offset = pc_offset();
-    const byte* string_start = pc_;
-    // Consume bytes before validation to guarantee that the string is not oob.
-    if (*length > 0) consume_bytes(*length, "string");
-    if (ok() && validate_utf8 &&
-        !unibrow::Utf8::Validate(string_start, *length)) {
-      error(string_start, "no valid UTF-8 string");
-    }
-    return offset;
+    return consume_string(*this, length, validate_utf8);
   }
 
-  // Skips over a length-prefixed string, but checks that it is within bounds.
-  void skip_string() {
-    uint32_t length = consume_u32v("string length");
-    consume_bytes(length, "string");
+  // Reads a length-prefixed string, checking that it is within bounds. Returns
+  // the offset of the string, and the length as an out parameter.
+  uint32_t consume_string(Decoder& decoder, uint32_t* length,
+                          bool validate_utf8) {
+    *length = decoder.consume_u32v("string length");
+    uint32_t offset = decoder.pc_offset();
+    const byte* string_start = decoder.pc();
+    // Consume bytes before validation to guarantee that the string is not oob.
+    if (*length > 0) decoder.consume_bytes(*length, "string");
+    if (decoder.ok() && validate_utf8 &&
+        !unibrow::Utf8::Validate(string_start, *length)) {
+      decoder.error(string_start, "no valid UTF-8 string");
+    }
+    return offset;
   }
 
   uint32_t consume_sig_index(WasmModule* module, FunctionSig** sig) {
