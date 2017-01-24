@@ -11950,19 +11950,47 @@ void JSFunction::AttemptConcurrentOptimization() {
 }
 
 // static
+Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
+    Handle<SharedFunctionInfo> shared, Handle<Context> native_context) {
+  Isolate* isolate = shared->GetIsolate();
+  CodeAndLiterals result =
+      shared->SearchOptimizedCodeMap(*native_context, BailoutId::None());
+  if (result.literals != nullptr) {
+    DCHECK(shared->feedback_metadata()->is_empty() ||
+           !result.literals->feedback_vector()->is_empty());
+    return handle(result.literals, isolate);
+  }
+
+  Handle<TypeFeedbackVector> feedback_vector =
+      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+  Handle<LiteralsArray> literals =
+      LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
+  Handle<Code> code;
+  if (result.code != nullptr) {
+    code = Handle<Code>(result.code, isolate);
+  }
+  AddToOptimizedCodeMap(shared, native_context, code, literals,
+                        BailoutId::None());
+  return literals;
+}
+
+// static
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    Handle<Code> code, BailoutId osr_ast_id) {
+    MaybeHandle<Code> code, Handle<LiteralsArray> literals,
+    BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
   if (isolate->serializer_enabled()) return;
-  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code.is_null() ||
+         code.ToHandleChecked()->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(native_context->IsNativeContext());
-  STATIC_ASSERT(kEntryLength == 2);
+  STATIC_ASSERT(kEntryLength == 3);
   Handle<FixedArray> new_code_map;
   int entry;
 
   if (!osr_ast_id.IsNone()) {
-    Context::AddToOptimizedCodeMap(native_context, shared, code, osr_ast_id);
+    Context::AddToOptimizedCodeMap(
+        native_context, shared, code.ToHandleChecked(), literals, osr_ast_id);
     return;
   }
 
@@ -11974,9 +12002,15 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context);
     if (entry >= kEntriesStart) {
-      // Just set the code of the entry.
-      Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
-      old_code_map->set(entry + kCachedCodeOffset, *code_cell);
+      // Just set the code and literals of the entry.
+      if (!code.is_null()) {
+        Handle<WeakCell> code_cell =
+            isolate->factory()->NewWeakCell(code.ToHandleChecked());
+        old_code_map->set(entry + kCachedCodeOffset, *code_cell);
+      }
+      Handle<WeakCell> literals_cell =
+          isolate->factory()->NewWeakCell(literals);
+      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
       return;
     }
 
@@ -12004,11 +12038,15 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     }
   }
 
-  Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+  Handle<WeakCell> code_cell =
+      code.is_null() ? isolate->factory()->empty_weak_cell()
+                     : isolate->factory()->NewWeakCell(code.ToHandleChecked());
+  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
   WeakCell* context_cell = native_context->self_weak_cell();
 
   new_code_map->set(entry + kContextOffset, context_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
+  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
 
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
@@ -12018,6 +12056,8 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
+    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
+    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
   }
 #endif
 
@@ -12055,7 +12095,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
           ShortPrint();
           PrintF("]\n");
         }
-        // Just clear the code.
+        // Just clear the code in order to continue sharing literals.
         code_map->set(src + kCachedCodeOffset, heap->empty_weak_cell(),
                       SKIP_WRITE_BARRIER);
       }
@@ -12072,45 +12112,12 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
 void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<Context> native_context(function->context()->native_context());
-  Isolate* isolate = shared->GetIsolate();
-
-  if (!function->has_literals_array()) {
-    if (FLAG_trace_strong_rooted_literals) {
-      PrintF("EnsureLiterals: Installing literals array in %s %p\n",
-             shared->DebugName()->ToCString().get(),
-             reinterpret_cast<void*>(*function));
-    }
-    // Top level code didn't get it's literals installed.
-    Handle<TypeFeedbackVector> feedback_vector =
-        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-    Handle<LiteralsArray> new_literals =
-        LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
-    function->set_literals(*new_literals);
-  } else if (!function->literals()->has_feedback_vector()) {
-    if (FLAG_trace_strong_rooted_literals) {
-      PrintF("EnsureLiterals: Installing feedback vector in %s %p\n",
-             shared->DebugName()->ToCString().get(),
-             reinterpret_cast<void*>(*function));
-    }
-    // If the feedback vector hasn't been installed, do that.
-    Handle<TypeFeedbackVector> feedback_vector = TypeFeedbackVector::New(
-        shared->GetIsolate(), handle(shared->feedback_metadata()));
-    function->literals()->set_feedback_vector(*feedback_vector);
-  } else {
-    if (FLAG_trace_strong_rooted_literals) {
-      PrintF("EnsureLiterals: did nothing for %s %p\n",
-             shared->DebugName()->ToCString().get(),
-             reinterpret_cast<void*>(*function));
-    }
+  if (function->literals() ==
+      function->GetIsolate()->heap()->empty_literals_array()) {
+    Handle<LiteralsArray> literals =
+        SharedFunctionInfo::FindOrCreateLiterals(shared, native_context);
+    function->set_literals(*literals);
   }
-
-  // No matter what, ensure some post-conditions.
-  DCHECK(shared->feedback_metadata()->slot_count() != 0 ||
-         function->feedback_vector() ==
-             shared->GetIsolate()->heap()->empty_type_feedback_vector());
-  DCHECK(shared->num_literals() == 0 ||
-         function->literals() !=
-             shared->GetIsolate()->heap()->empty_literals_array());
 }
 
 static void GetMinInobjectSlack(Map* map, void* data) {
@@ -13689,11 +13696,15 @@ void SharedFunctionInfo::ClearCodeFromOptimizedCodeMap() {
   }
 }
 
-Code* SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
-                                                 BailoutId osr_ast_id) {
-  Code* result = nullptr;
+CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
+    Context* native_context, BailoutId osr_ast_id) {
+  CodeAndLiterals result = {nullptr, nullptr};
   if (!osr_ast_id.IsNone()) {
-    return native_context->SearchOptimizedCodeMap(this, osr_ast_id);
+    Code* code;
+    LiteralsArray* literals;
+    native_context->SearchOptimizedCodeMap(this, osr_ast_id, &code, &literals);
+    result = {code, literals};
+    return result;
   }
 
   DCHECK(osr_ast_id.IsNone());
@@ -13702,8 +13713,12 @@ Code* SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
     FixedArray* code_map = optimized_code_map();
     DCHECK_LE(entry + kEntryLength, code_map->length());
     WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
+    WeakCell* literals_cell =
+        WeakCell::cast(code_map->get(entry + kLiteralsOffset));
 
-    result = cell->cleared() ? nullptr : Code::cast(cell->value());
+    result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
+              literals_cell->cleared() ? nullptr : LiteralsArray::cast(
+                                                       literals_cell->value())};
   }
   return result;
 }

@@ -7500,7 +7500,8 @@ static void IndependentWeakHandle(bool global_gc, bool interlinked) {
   }
   // A single GC should be enough to reclaim the memory, since we are using
   // phantom handles.
-  CHECK_LT(CcTest::heap()->SizeOfObjects(), big_heap_size - 20000);
+  // BUG(5865): --expose-wasm with no snapshot builds requires a limit change.
+  CHECK_LT(CcTest::heap()->SizeOfObjects(), big_heap_size - 19000);
   CHECK(object_a.flag);
   CHECK(object_b.flag);
 }
