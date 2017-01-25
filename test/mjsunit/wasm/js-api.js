@@ -292,19 +292,10 @@ assertErrorMessage(
 
 let customSectionModuleBinary2 = (() => {
   let builder = new WasmModuleBuilder();
-  builder.addExplicitSection([kUnknownSectionCode, 3, 1, 'x'.charCodeAt(0), 2]);
-  builder.addExplicitSection([
-    kUnknownSectionCode, 6, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
-    'o'.charCodeAt(0), 66, 77
-  ]);
-  builder.addExplicitSection([
-    kUnknownSectionCode, 7, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
-    'o'.charCodeAt(0), 91, 92, 93
-  ]);
-  builder.addExplicitSection([
-    kUnknownSectionCode, 7, 3, 'f'.charCodeAt(0), 'o'.charCodeAt(0),
-    'x'.charCodeAt(0), 99, 99, 99
-  ]);
+  builder.addCustomSection('x', [2]);
+  builder.addCustomSection('foo', [66, 77]);
+  builder.addCustomSection('foo', [91, 92, 93]);
+  builder.addCustomSection('fox', [99, 99, 99]);
   return new Int8Array(builder.toBuffer());
 })();
 var arr = moduleCustomSections(new Module(customSectionModuleBinary2), 'x');
