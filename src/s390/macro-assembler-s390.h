@@ -245,8 +245,10 @@ class MacroAssembler : public Assembler {
 
   // Add (Register - Immediate)
   void Add32(Register dst, const Operand& imm);
+  void Add32_RI(Register dst, const Operand& imm);
   void AddP(Register dst, const Operand& imm);
   void Add32(Register dst, Register src, const Operand& imm);
+  void Add32_RRI(Register dst, Register src, const Operand& imm);
   void AddP(Register dst, Register src, const Operand& imm);
 
   // Add (Register - Register)
@@ -282,8 +284,12 @@ class MacroAssembler : public Assembler {
 
   // Subtract (Register - Immediate)
   void Sub32(Register dst, const Operand& imm);
+  void Sub32_RI(Register dst, const Operand& imm) { Sub32(dst, imm); }
   void SubP(Register dst, const Operand& imm);
   void Sub32(Register dst, Register src, const Operand& imm);
+  void Sub32_RRI(Register dst, Register src, const Operand& imm) {
+    Sub32(dst, src, imm);
+  }
   void SubP(Register dst, Register src, const Operand& imm);
 
   // Subtract (Register - Register)
@@ -316,6 +322,14 @@ class MacroAssembler : public Assembler {
   void Mul32(Register dst, const MemOperand& src1);
   void Mul32(Register dst, Register src1);
   void Mul32(Register dst, const Operand& src1);
+  void MulHigh32(Register dst, Register src1, const MemOperand& src2);
+  void MulHigh32(Register dst, Register src1, Register src2);
+  void MulHigh32(Register dst, Register src1, const Operand& src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                    const MemOperand& src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1, Register src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                    const Operand& src2);
   void Mul64(Register dst, const MemOperand& src1);
   void Mul64(Register dst, Register src1);
   void Mul64(Register dst, const Operand& src1);

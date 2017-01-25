@@ -3270,6 +3270,53 @@ void MacroAssembler::Mul32(Register dst, const Operand& src1) {
   msfi(dst, src1);
 }
 
+void MacroAssembler::MulHigh32(Register dst, Register src1,
+                               const MemOperand& src2) {
+  lgfr(dst, src1);
+  msgf(dst, src2);
+  srlg(dst, dst, Operand(32));
+}
+
+void MacroAssembler::MulHigh32(Register dst, Register src1, Register src2) {
+  if (dst.is(src2)) {
+    std::swap(src1, src2);
+  }
+  lgfr(dst, src1);
+  msgfr(dst, src2);
+  srlg(dst, dst, Operand(32));
+}
+
+void MacroAssembler::MulHigh32(Register dst, Register src1,
+                               const Operand& src2) {
+  lgfr(dst, src1);
+  msgfi(dst, src2);
+  srlg(dst, dst, Operand(32));
+}
+
+void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                                  const MemOperand& src2) {
+  lgfr(dst, src1);
+  msgf(dst, src2);
+  cgfr(dst, dst);
+}
+
+void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                                  Register src2) {
+  if (dst.is(src2)) {
+    std::swap(src1, src2);
+  }
+  lgfr(dst, src1);
+  msgfr(dst, src2);
+  cgfr(dst, dst);
+}
+
+void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                                  const Operand& src2) {
+  lgfr(dst, src1);
+  msgfi(dst, src2);
+  cgfr(dst, dst);
+}
+
 void MacroAssembler::Mul64(Register dst, const MemOperand& src1) {
   if (is_int20(src1.offset())) {
     msg(dst, src1);
@@ -3362,6 +3409,12 @@ void MacroAssembler::Add32(Register dst, const Operand& opnd) {
     afi(dst, opnd);
 }
 
+// Add 32-bit (Register dst = Register dst + Immediate opnd)
+void MacroAssembler::Add32_RI(Register dst, const Operand& opnd) {
+  // Just a wrapper for above
+  Add32(dst, opnd);
+}
+
 // Add Pointer Size (Register dst = Register dst + Immediate opnd)
 void MacroAssembler::AddP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
@@ -3384,6 +3437,13 @@ void MacroAssembler::Add32(Register dst, Register src, const Operand& opnd) {
     lr(dst, src);
   }
   Add32(dst, opnd);
+}
+
+// Add 32-bit (Register dst = Register src + Immediate opnd)
+void MacroAssembler::Add32_RRI(Register dst, Register src,
+                               const Operand& opnd) {
+  // Just a wrapper for above
+  Add32(dst, src, opnd);
 }
 
 // Add Pointer Size (Register dst = Register src + Immediate opnd)
@@ -4134,12 +4194,24 @@ void MacroAssembler::Load(Register dst, const Operand& opnd) {
 #else
     lhi(dst, opnd);
 #endif
-  } else {
+  } else if (is_int32(value)) {
 #if V8_TARGET_ARCH_S390X
     lgfi(dst, opnd);
 #else
     iilf(dst, opnd);
 #endif
+  } else if (is_uint32(value)) {
+#if V8_TARGET_ARCH_S390X
+    llilf(dst, opnd);
+#else
+    iilf(dst, opnd);
+#endif
+  } else {
+    int32_t hi_32 = static_cast<int64_t>(value) >> 32;
+    int32_t lo_32 = static_cast<int32_t>(value);
+
+    iihf(dst, Operand(hi_32));
+    iilf(dst, Operand(lo_32));
   }
 }
 

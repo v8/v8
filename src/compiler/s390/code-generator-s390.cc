@@ -302,7 +302,175 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   return kNoCondition;
 }
 
+typedef void (MacroAssembler::*RRTypeInstr)(Register, Register);
+typedef void (MacroAssembler::*RMTypeInstr)(Register, const MemOperand&);
+typedef void (MacroAssembler::*RITypeInstr)(Register, const Operand&);
+typedef void (MacroAssembler::*RRRTypeInstr)(Register, Register, Register);
+typedef void (MacroAssembler::*RRMTypeInstr)(Register, Register,
+                                             const MemOperand&);
+typedef void (MacroAssembler::*RRITypeInstr)(Register, Register,
+                                             const Operand&);
+
+#define CHECK_AND_ZERO_EXT_OUTPUT(num)                                   \
+  {                                                                      \
+    CHECK(HasImmediateInput(instr, (num)));                              \
+    int doZeroExt = i.InputInt32(num);                                   \
+    if (doZeroExt) masm->LoadlW(i.OutputRegister(), i.OutputRegister()); \
+  }
+
+void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
+                   Instruction* instr, RRTypeInstr rr_instr,
+                   RMTypeInstr rm_instr, RITypeInstr ri_instr) {
+  CHECK(i.OutputRegister().is(i.InputRegister(0)));
+  AddressingMode mode = AddressingModeField::decode(instr->opcode());
+  int zeroExtIndex = 2;
+  if (mode != kMode_None) {
+    size_t first_index = 1;
+    MemOperand operand = i.MemoryOperand(&mode, &first_index);
+    zeroExtIndex = first_index;
+    CHECK(rm_instr != NULL);
+    (masm->*rm_instr)(i.OutputRegister(), operand);
+  } else if (HasRegisterInput(instr, 1)) {
+    (masm->*rr_instr)(i.OutputRegister(), i.InputRegister(1));
+  } else if (HasImmediateInput(instr, 1)) {
+    (masm->*ri_instr)(i.OutputRegister(), i.InputImmediate(1));
+  } else if (HasStackSlotInput(instr, 1)) {
+    (masm->*rm_instr)(i.OutputRegister(), i.InputStackSlot32(1));
+  } else {
+    UNREACHABLE();
+  }
+  CHECK_AND_ZERO_EXT_OUTPUT(zeroExtIndex);
+}
+
+void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
+                   Instruction* instr, RRRTypeInstr rrr_instr,
+                   RMTypeInstr rm_instr, RITypeInstr ri_instr) {
+  AddressingMode mode = AddressingModeField::decode(instr->opcode());
+  int zeroExtIndex = 2;
+  if (mode != kMode_None) {
+    CHECK(i.OutputRegister().is(i.InputRegister(0)));
+    size_t first_index = 1;
+    MemOperand operand = i.MemoryOperand(&mode, &first_index);
+    zeroExtIndex = first_index;
+    CHECK(rm_instr != NULL);
+    (masm->*rm_instr)(i.OutputRegister(), operand);
+  } else if (HasRegisterInput(instr, 1)) {
+    (masm->*rrr_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputRegister(1));
+  } else if (HasImmediateInput(instr, 1)) {
+    CHECK(i.OutputRegister().is(i.InputRegister(0)));
+    (masm->*ri_instr)(i.OutputRegister(), i.InputImmediate(1));
+  } else if (HasStackSlotInput(instr, 1)) {
+    CHECK(i.OutputRegister().is(i.InputRegister(0)));
+    (masm->*rm_instr)(i.OutputRegister(), i.InputStackSlot32(1));
+  } else {
+    UNREACHABLE();
+  }
+  CHECK_AND_ZERO_EXT_OUTPUT(zeroExtIndex);
+}
+
+void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
+                   Instruction* instr, RRRTypeInstr rrr_instr,
+                   RMTypeInstr rm_instr, RRITypeInstr rri_instr) {
+  AddressingMode mode = AddressingModeField::decode(instr->opcode());
+  int zeroExtIndex = 2;
+  if (mode != kMode_None) {
+    CHECK(i.OutputRegister().is(i.InputRegister(0)));
+    size_t first_index = 1;
+    MemOperand operand = i.MemoryOperand(&mode, &first_index);
+    zeroExtIndex = first_index;
+    CHECK(rm_instr != NULL);
+    (masm->*rm_instr)(i.OutputRegister(), operand);
+  } else if (HasRegisterInput(instr, 1)) {
+    (masm->*rrr_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputRegister(1));
+  } else if (HasImmediateInput(instr, 1)) {
+    (masm->*rri_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputImmediate(1));
+  } else if (HasStackSlotInput(instr, 1)) {
+    CHECK(i.OutputRegister().is(i.InputRegister(0)));
+    (masm->*rm_instr)(i.OutputRegister(), i.InputStackSlot32(1));
+  } else {
+    UNREACHABLE();
+  }
+  CHECK_AND_ZERO_EXT_OUTPUT(zeroExtIndex);
+}
+
+void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
+                   Instruction* instr, RRRTypeInstr rrr_instr,
+                   RRMTypeInstr rrm_instr, RRITypeInstr rri_instr) {
+  AddressingMode mode = AddressingModeField::decode(instr->opcode());
+  int zeroExtIndex = 2;
+  if (mode != kMode_None) {
+    size_t first_index = 1;
+    MemOperand operand = i.MemoryOperand(&mode, &first_index);
+    zeroExtIndex = first_index;
+    CHECK(rrm_instr != NULL);
+    (masm->*rrm_instr)(i.OutputRegister(), i.InputRegister(0), operand);
+  } else if (HasRegisterInput(instr, 1)) {
+    (masm->*rrr_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputRegister(1));
+  } else if (HasImmediateInput(instr, 1)) {
+    (masm->*rri_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputImmediate(1));
+  } else if (HasStackSlotInput(instr, 1)) {
+    (masm->*rrm_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputStackSlot32(1));
+  } else {
+    UNREACHABLE();
+  }
+  CHECK_AND_ZERO_EXT_OUTPUT(zeroExtIndex);
+}
+
+void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
+                   Instruction* instr, RRRTypeInstr rrr_instr,
+                   RRITypeInstr rri_instr) {
+  AddressingMode mode = AddressingModeField::decode(instr->opcode());
+  CHECK(mode == kMode_None);
+  int zeroExtIndex = 2;
+  if (HasRegisterInput(instr, 1)) {
+    (masm->*rrr_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputRegister(1));
+  } else if (HasImmediateInput(instr, 1)) {
+    (masm->*rri_instr)(i.OutputRegister(), i.InputRegister(0),
+                       i.InputImmediate(1));
+  } else {
+    UNREACHABLE();
+  }
+  CHECK_AND_ZERO_EXT_OUTPUT(zeroExtIndex);
+}
+
+void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
+                   Instruction* instr, RRTypeInstr rr_instr,
+                   RITypeInstr ri_instr) {
+  AddressingMode mode = AddressingModeField::decode(instr->opcode());
+  CHECK(mode == kMode_None);
+  CHECK(i.OutputRegister().is(i.InputRegister(0)));
+  int zeroExtIndex = 2;
+  if (HasRegisterInput(instr, 1)) {
+    (masm->*rr_instr)(i.OutputRegister(), i.InputRegister(1));
+  } else if (HasImmediateInput(instr, 1)) {
+    (masm->*ri_instr)(i.OutputRegister(), i.InputImmediate(1));
+  } else {
+    UNREACHABLE();
+  }
+  CHECK_AND_ZERO_EXT_OUTPUT(zeroExtIndex);
+}
+
+#define ASSEMBLE_BIN_OP(instr1, instr2, instr3)            \
+  AssembleBinOp(i, masm(), instr, &MacroAssembler::instr1, \
+                &MacroAssembler::instr2, &MacroAssembler::instr3)
+
+#undef CHECK_AND_ZERO_EXT_OUTPUT
+
 }  // namespace
+
+#define CHECK_AND_ZERO_EXT_OUTPUT(num)                                \
+  {                                                                   \
+    CHECK(HasImmediateInput(instr, (num)));                           \
+    int doZeroExt = i.InputInt32(num);                                \
+    if (doZeroExt) __ LoadlW(i.OutputRegister(), i.OutputRegister()); \
+  }
 
 #define ASSEMBLE_FLOAT_UNOP(asm_instr)                                \
   do {                                                                \
@@ -359,7 +527,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     __ LoadRR(r0, i.InputRegister(0));          \
     __ shift_instr(r0, Operand(32));            \
     __ div_instr(r0, i.InputRegister(1));       \
-    __ ltr(i.OutputRegister(), r0);             \
+    __ LoadlW(i.OutputRegister(), r0);          \
   } while (0)
 
 #define ASSEMBLE_FLOAT_MODULO()                                               \
@@ -1058,35 +1226,43 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_And32:
-      ASSEMBLE_BINOP(And);
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        ASSEMBLE_BIN_OP(nrk, And, nilf);
+      } else {
+        ASSEMBLE_BIN_OP(nr, And, nilf);
+      }
       break;
     case kS390_And64:
       ASSEMBLE_BINOP(AndP);
       break;
     case kS390_Or32:
-      ASSEMBLE_BINOP(Or);
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        ASSEMBLE_BIN_OP(ork, Or, oilf);
+      } else {
+        ASSEMBLE_BIN_OP(or_z, Or, oilf);
+      }
+      break;
     case kS390_Or64:
       ASSEMBLE_BINOP(OrP);
       break;
     case kS390_Xor32:
-      ASSEMBLE_BINOP(Xor);
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        ASSEMBLE_BIN_OP(xrk, Xor, xilf);
+      } else {
+        ASSEMBLE_BIN_OP(xr, Xor, xilf);
+      }
       break;
     case kS390_Xor64:
       ASSEMBLE_BINOP(XorP);
       break;
     case kS390_ShiftLeft32:
-      if (HasRegisterInput(instr, 1)) {
-        if (i.OutputRegister().is(i.InputRegister(1)) &&
-            !CpuFeatures::IsSupported(DISTINCT_OPS)) {
-          __ LoadRR(kScratchReg, i.InputRegister(1));
-          __ ShiftLeft(i.OutputRegister(), i.InputRegister(0), kScratchReg);
-        } else {
-          ASSEMBLE_BINOP(ShiftLeft);
-        }
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::sllk,
+                      &MacroAssembler::sllk);
       } else {
-        ASSEMBLE_BINOP(ShiftLeft);
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::sll,
+                      &MacroAssembler::sll);
       }
-      __ LoadlW(i.OutputRegister(0), i.OutputRegister(0));
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ShiftLeft64:
@@ -1094,18 +1270,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_ShiftRight32:
-      if (HasRegisterInput(instr, 1)) {
-        if (i.OutputRegister().is(i.InputRegister(1)) &&
-            !CpuFeatures::IsSupported(DISTINCT_OPS)) {
-          __ LoadRR(kScratchReg, i.InputRegister(1));
-          __ ShiftRight(i.OutputRegister(), i.InputRegister(0), kScratchReg);
-        } else {
-          ASSEMBLE_BINOP(ShiftRight);
-        }
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::srlk,
+                      &MacroAssembler::srlk);
       } else {
-        ASSEMBLE_BINOP(ShiftRight);
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::srl,
+                      &MacroAssembler::srl);
       }
-      __ LoadlW(i.OutputRegister(0), i.OutputRegister(0));
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ShiftRight64:
@@ -1113,19 +1284,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_ShiftRightArith32:
-      if (HasRegisterInput(instr, 1)) {
-        if (i.OutputRegister().is(i.InputRegister(1)) &&
-            !CpuFeatures::IsSupported(DISTINCT_OPS)) {
-          __ LoadRR(kScratchReg, i.InputRegister(1));
-          __ ShiftRightArith(i.OutputRegister(), i.InputRegister(0),
-                             kScratchReg);
-        } else {
-          ASSEMBLE_BINOP(ShiftRightArith);
-        }
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::srak,
+                      &MacroAssembler::srak);
       } else {
-        ASSEMBLE_BINOP(ShiftRightArith);
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::sra,
+                      &MacroAssembler::sra);
       }
-      __ LoadlW(i.OutputRegister(), i.OutputRegister());
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ShiftRightArith64:
@@ -1207,7 +1372,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #endif
-    case kS390_RotRight32:
+    case kS390_RotRight32: {
       if (HasRegisterInput(instr, 1)) {
         __ LoadComplementRR(kScratchReg, i.InputRegister(1));
         __ rll(i.OutputRegister(), i.InputRegister(0), kScratchReg);
@@ -1215,7 +1380,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ rll(i.OutputRegister(), i.InputRegister(0),
                Operand(32 - i.InputInt32(1)));
       }
+      CHECK_AND_ZERO_EXT_OUTPUT(2);
       break;
+    }
 #if V8_TARGET_ARCH_S390X
     case kS390_RotRight64:
       if (HasRegisterInput(instr, 1)) {
@@ -1226,14 +1393,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 Operand(64 - i.InputInt32(1)));
       }
       break;
-#endif
-    case kS390_Not32:
-      __ Not32(i.OutputRegister(), i.InputRegister(0));
-      break;
-    case kS390_Not64:
-      __ Not64(i.OutputRegister(), i.InputRegister(0));
-      break;
-#if V8_TARGET_ARCH_S390X
     case kS390_RotLeftAndClear64:
       if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT)) {
         int shiftAmount = i.InputInt32(1);
@@ -1282,10 +1441,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
 #endif
-    case kS390_Add32:
-      ASSEMBLE_BINOP(Add32);
-      __ LoadW(i.OutputRegister(), i.OutputRegister());
+    case kS390_Add32: {
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        ASSEMBLE_BIN_OP(ark, Add32, Add32_RRI);
+      } else {
+        ASSEMBLE_BIN_OP(ar, Add32, Add32_RI);
+      }
       break;
+    }
     case kS390_Add64:
       ASSEMBLE_BINOP(AddP);
       break;
@@ -1310,8 +1473,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Sub32:
-      ASSEMBLE_BINOP(Sub32);
-      __ LoadW(i.OutputRegister(), i.OutputRegister());
+      if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
+        ASSEMBLE_BIN_OP(srk, Sub32, Sub32_RRI);
+      } else {
+        ASSEMBLE_BIN_OP(sr, Sub32, Sub32_RI);
+      }
       break;
     case kS390_Sub64:
       ASSEMBLE_BINOP(SubP);
@@ -1343,17 +1509,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Mul32:
-      if (HasRegisterInput(instr, 1)) {
-        __ Mul32(i.InputRegister(0), i.InputRegister(1));
-      } else if (HasImmediateInput(instr, 1)) {
-        __ Mul32(i.InputRegister(0), i.InputImmediate(1));
-      } else if (HasStackSlotInput(instr, 1)) {
-        __ Mul32(i.InputRegister(0), i.InputStackSlot32(1));
-      } else {
-        UNIMPLEMENTED();
-      }
+      ASSEMBLE_BIN_OP(Mul32, Mul32, Mul32);
+      break;
+    case kS390_Mul32WithOverflow:
+      ASSEMBLE_BIN_OP(Mul32WithOverflowIfCCUnequal,
+                      Mul32WithOverflowIfCCUnequal,
+                      Mul32WithOverflowIfCCUnequal);
       break;
     case kS390_Mul64:
+      CHECK(i.OutputRegister().is(i.InputRegister(0)));
       if (HasRegisterInput(instr, 1)) {
         __ Mul64(i.InputRegister(0), i.InputRegister(1));
       } else if (HasImmediateInput(instr, 1)) {
@@ -1365,15 +1529,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_MulHigh32:
-      __ LoadRR(r1, i.InputRegister(0));
-      if (HasRegisterInput(instr, 1)) {
-        __ mr_z(r0, i.InputRegister(1));
-      } else if (HasStackSlotInput(instr, 1)) {
-        __ mfy(r0, i.InputStackSlot32(1));
-      } else {
-        UNIMPLEMENTED();
-      }
-      __ LoadW(i.OutputRegister(), r0);
+      ASSEMBLE_BIN_OP(MulHigh32, MulHigh32, MulHigh32);
       break;
     case kS390_Mul32WithHigh32:
       __ LoadRR(r1, i.InputRegister(0));
@@ -1419,13 +1575,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ltgr(i.OutputRegister(), r1);  // Copy R1: Quotient to output
       break;
 #endif
-    case kS390_Div32:
-      __ LoadRR(r0, i.InputRegister(0));
-      __ srda(r0, Operand(32));
-      __ dr(r0, i.InputRegister(1));
-      __ LoadAndTestP_ExtendSrc(i.OutputRegister(),
-                                r1);  // Copy R1: Quotient to output
+    case kS390_Div32: {
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      __ lgfr(r1, i.InputRegister(0));
+      if (mode != kMode_None) {
+        size_t first_index = 1;
+        MemOperand operand = i.MemoryOperand(&mode, &first_index);
+        __ dsgf(r0, operand);
+      } else if (HasRegisterInput(instr, 1)) {
+        __ dsgfr(r0, i.InputRegister(1));
+      } else if (HasStackSlotInput(instr, 1)) {
+        __ dsgf(r0, i.InputStackSlot32(1));
+      } else {
+        UNREACHABLE();
+      }
+      __ LoadlW(i.OutputRegister(), r1);
       break;
+    }
 #if V8_TARGET_ARCH_S390X
     case kS390_DivU64:
       __ LoadRR(r1, i.InputRegister(0));
@@ -1434,14 +1600,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ltgr(i.OutputRegister(), r1);  // Copy R1: Quotient to output
       break;
 #endif
-    case kS390_DivU32:
-      __ LoadRR(r0, i.InputRegister(0));
+    case kS390_DivU32: {
+      __ lr(r0, i.InputRegister(0));
       __ srdl(r0, Operand(32));
-      __ dlr(r0, i.InputRegister(1));  // R0:R1: Dividend
-      __ LoadlW(i.OutputRegister(), r1);  // Copy R1: Quotient to output
-      __ LoadAndTestP_ExtendSrc(r1, r1);
+      AddressingMode mode = AddressingModeField::decode(instr->opcode());
+      if (mode != kMode_None) {
+        size_t first_index = 1;
+        MemOperand operand = i.MemoryOperand(&mode, &first_index);
+        __ dl(r0, operand);
+      } else if (HasRegisterInput(instr, 1)) {
+        __ dlr(r0, i.InputRegister(1));
+      } else if (HasStackSlotInput(instr, 1)) {
+        __ dl(r0, i.InputStackSlot32(1));
+      } else {
+        UNREACHABLE();
+      }
+      __ LoadlW(i.OutputRegister(), r1);
       break;
-
+    }
     case kS390_DivFloat:
       // InputDoubleRegister(1)=InputDoubleRegister(0)/InputDoubleRegister(1)
       if (i.OutputDoubleRegister().is(i.InputDoubleRegister(1))) {
@@ -1575,7 +1751,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kS390_Neg32:
       __ lcr(i.OutputRegister(), i.InputRegister(0));
-      __ LoadW(i.OutputRegister(), i.OutputRegister());
+      CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
     case kS390_Neg64:
       __ lcgr(i.OutputRegister(), i.InputRegister(0));
@@ -1731,18 +1907,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kS390_ExtendSignWord8:
-#if V8_TARGET_ARCH_S390X
-      __ lgbr(i.OutputRegister(), i.InputRegister(0));
-#else
       __ lbr(i.OutputRegister(), i.InputRegister(0));
-#endif
+      CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
     case kS390_ExtendSignWord16:
-#if V8_TARGET_ARCH_S390X
-      __ lghr(i.OutputRegister(), i.InputRegister(0));
-#else
       __ lhr(i.OutputRegister(), i.InputRegister(0));
-#endif
+      CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_ExtendSignWord32:
@@ -2012,6 +2182,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_StoreDouble:
       ASSEMBLE_STORE_DOUBLE();
+      break;
+    case kS390_Lay:
+      __ lay(i.OutputRegister(), i.MemoryOperand());
       break;
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(LoadlB);
@@ -2361,7 +2534,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
 #endif
             __ mov(dst, Operand(src.ToInt32(), src.rmode()));
           } else {
-            __ mov(dst, Operand(src.ToInt32()));
+            __ Load(dst, Operand(src.ToInt32()));
           }
           break;
         case Constant::kInt64:
@@ -2370,7 +2543,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
             __ mov(dst, Operand(src.ToInt64(), src.rmode()));
           } else {
             DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
-            __ mov(dst, Operand(src.ToInt64()));
+            __ Load(dst, Operand(src.ToInt64()));
           }
 #else
           __ mov(dst, Operand(src.ToInt64()));

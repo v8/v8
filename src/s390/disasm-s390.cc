@@ -712,6 +712,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case XGRK:
       Format(instr, "xgrk\t'r5,'r6,'r3");
       break;
+    case CGFR:
+      Format(instr, "cgfr\t'r5,'r6");
+      break;
     case CGR:
       Format(instr, "cgr\t'r5,'r6");
       break;
@@ -774,6 +777,12 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       break;
     case DSGR:
       Format(instr, "dsgr\t'r5,'r6");
+      break;
+    case DSGFR:
+      Format(instr, "dsgfr\t'r5,'r6");
+      break;
+    case MSGFR:
+      Format(instr, "msgfr\t'r5,'r6");
       break;
     case LZDR:
       Format(instr, "lzdr\t'f5");
@@ -1390,6 +1399,15 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
       break;
     case MSG:
       Format(instr, "msg\t'r1,'d2('r2d,'r3)");
+      break;
+    case DSG:
+      Format(instr, "dsg\t'r1,'d2('r2d,'r3)");
+      break;
+    case DSGF:
+      Format(instr, "dsgf\t'r1,'d2('r2d,'r3)");
+      break;
+    case MSGF:
+      Format(instr, "msgf\t'r1,'d2('r2d,'r3)");
       break;
     case MSY:
       Format(instr, "msy\t'r1,'d2('r2d,'r3)");

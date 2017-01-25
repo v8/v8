@@ -1892,6 +1892,10 @@ void Assembler::msg(Register r1, const MemOperand& opnd) {
   rxy_form(MSG, r1, opnd.rx(), opnd.rb(), opnd.offset());
 }
 
+void Assembler::msgf(Register r1, const MemOperand& opnd) {
+  rxy_form(MSGF, r1, opnd.rx(), opnd.rb(), opnd.offset());
+}
+
 // --------------------------
 // 32-bit Divide Instructions
 // --------------------------
@@ -1902,7 +1906,15 @@ void Assembler::d(Register r1, const MemOperand& opnd) {
 
 // Divide Logical Register-Storage (32<-64)
 void Assembler::dl(Register r1, const MemOperand& opnd) {
-  rx_form(DL, r1, opnd.rx(), opnd.rb(), opnd.offset());
+  rxy_form(DL, r1, opnd.rx(), opnd.rb(), opnd.offset());
+}
+
+void Assembler::dsg(Register r1, const MemOperand& opnd) {
+  rxy_form(DSG, r1, opnd.rx(), opnd.rb(), opnd.offset());
+}
+
+void Assembler::dsgf(Register r1, const MemOperand& opnd) {
+  rxy_form(DSGF, r1, opnd.rx(), opnd.rb(), opnd.offset());
 }
 
 // --------------------
