@@ -6159,6 +6159,7 @@ TEST(NewSpaceAllocationCounter) {
   Heap* heap = isolate->heap();
   size_t counter1 = heap->NewSpaceAllocationCounter();
   CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);  // Ensure new space is empty.
   const size_t kSize = 1024;
   AllocateInSpace(isolate, kSize, NEW_SPACE);
   size_t counter2 = heap->NewSpaceAllocationCounter();
