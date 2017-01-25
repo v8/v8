@@ -51,7 +51,7 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             ]
         }
         timestamp : <timestamp>
-        type : debug
+        type : timeEnd
     }
 }
 
@@ -134,6 +134,6 @@ set locale to fr_CA.UTF-8 (has comma as separator)
             ]
         }
         timestamp : <timestamp>
-        type : debug
+        type : timeEnd
     }
 }

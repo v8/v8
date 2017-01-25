@@ -189,7 +189,13 @@ class V8_EXPORT V8InspectorClient {
 
   virtual void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
                                                v8::Local<v8::Object>) {}
+  // Deprecated, to be replaced with v8::Isolate::MessageErrorLevel version.
   virtual void consoleAPIMessage(int contextGroupId, V8ConsoleAPIType,
+                                 const StringView& message,
+                                 const StringView& url, unsigned lineNumber,
+                                 unsigned columnNumber, V8StackTrace*) {}
+  virtual void consoleAPIMessage(int contextGroupId,
+                                 v8::Isolate::MessageErrorLevel level,
                                  const StringView& message,
                                  const StringView& url, unsigned lineNumber,
                                  unsigned columnNumber, V8StackTrace*) {}
@@ -201,6 +207,7 @@ class V8_EXPORT V8InspectorClient {
   virtual void consoleTime(const StringView& title) {}
   virtual void consoleTimeEnd(const StringView& title) {}
   virtual void consoleTimeStamp(const StringView& title) {}
+  virtual void consoleClear(int contextGroupId) {}
   virtual double currentTimeMS() { return 0; }
   typedef void (*TimerCallback)(void*);
   virtual void startRepeatingTimer(double, TimerCallback, void* data) {}

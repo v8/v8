@@ -336,8 +336,14 @@ void V8Console::groupEndCallback(
 }
 
 void V8Console::clearCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  ConsoleHelper(info).reportCallWithDefaultArgument(ConsoleAPIType::kClear,
-                                                    String16("console.clear"));
+  ConsoleHelper helper(info);
+  InspectedContext* context = helper.ensureInspectedContext();
+  if (!context) return;
+  int contextGroupId = context->contextGroupId();
+  if (V8InspectorClient* client = helper.ensureDebuggerClient())
+    client->consoleClear(contextGroupId);
+  helper.reportCallWithDefaultArgument(ConsoleAPIType::kClear,
+                                       String16("console.clear"));
 }
 
 void V8Console::countCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
