@@ -7570,13 +7570,14 @@ void InternalFieldCallback(bool global_gc) {
   Trivial* t1;
   Trivial2* t2;
   instance_templ->SetInternalFieldCount(2);
+  v8::Persistent<v8::Object> handle;
   {
     v8::HandleScope scope(isolate);
     Local<v8::Object> obj = templ->GetFunction(env.local())
                                 .ToLocalChecked()
                                 ->NewInstance(env.local())
                                 .ToLocalChecked();
-    v8::Persistent<v8::Object> handle(isolate, obj);
+    handle.Reset(isolate, obj);
     CHECK_EQ(2, obj->InternalFieldCount());
     CHECK(obj->GetInternalField(0)->IsUndefined());
     t1 = new Trivial(42);
