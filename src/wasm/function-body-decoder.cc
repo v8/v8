@@ -470,7 +470,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   bool Decode() {
     if (FLAG_wasm_code_fuzzer_gen_test) {
-      PrintWasmCodeForDebugging(start_, end_);
+      PrintRawWasmCode(start_, end_);
     }
     base::ElapsedTimer decode_timer;
     if (FLAG_trace_wasm_decode_time) {
@@ -1879,16 +1879,29 @@ unsigned OpcodeLength(const byte* pc, const byte* end) {
   return WasmDecoder::OpcodeLength(&decoder, pc);
 }
 
-void PrintWasmCodeForDebugging(const byte* start, const byte* end) {
+void PrintRawWasmCode(const byte* start, const byte* end) {
   AccountingAllocator allocator;
-  OFStream os(stdout);
-  PrintWasmCode(&allocator, FunctionBodyForTesting(start, end), nullptr, os,
-                nullptr);
+  PrintRawWasmCode(&allocator, FunctionBodyForTesting(start, end), nullptr);
 }
 
-bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                   const wasm::WasmModule* module, std::ostream& os,
-                   std::vector<std::tuple<uint32_t, int, int>>* offset_table) {
+namespace {
+const char* RawOpcodeName(WasmOpcode opcode) {
+  switch (opcode) {
+#define DECLARE_NAME_CASE(name, opcode, sig) \
+  case kExpr##name:                          \
+    return "kExpr" #name;
+    FOREACH_OPCODE(DECLARE_NAME_CASE)
+#undef DECLARE_NAME_CASE
+    default:
+      break;
+  }
+  return "Unknown";
+}
+}  // namespace
+
+bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                      const wasm::WasmModule* module) {
+  OFStream os(stdout);
   Zone zone(allocator, ZONE_NAME);
   WasmFullDecoder decoder(&zone, module, body);
   int line_nr = 0;
@@ -1937,16 +1950,13 @@ bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
     if (opcode == kExprElse) control_depth--;
 
     int num_whitespaces = control_depth < 32 ? 2 * control_depth : 64;
-    if (offset_table) {
-      offset_table->push_back(
-          std::make_tuple(i.pc_offset(), line_nr, num_whitespaces));
-    }
 
     // 64 whitespaces
     const char* padding =
         "                                                                ";
     os.write(padding, num_whitespaces);
-    os << "k" << WasmOpcodes::OpcodeName(opcode) << ",";
+
+    os << RawOpcodeName(opcode) << ",";
 
     for (size_t j = 1; j < length; ++j) {
       os << " 0x" << AsHex(i.pc()[j], 2) << ",";
