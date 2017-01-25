@@ -702,7 +702,7 @@ class RuntimeCallTimer final {
   V(CompileScopeAnalysis)                           \
   V(CompileScript)                                  \
   V(CompileSerialize)                               \
-  V(CompilerDispatcher)                             \
+  V(CompileWaitForDispatcher)                       \
   V(DeoptimizeCode)                                 \
   V(FunctionCallback)                               \
   V(GC)                                             \

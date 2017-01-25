@@ -15,6 +15,7 @@
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
 #include "src/compilation-cache.h"
+#include "src/compiler-dispatcher/compiler-dispatcher.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler/pipeline.h"
 #include "src/crankshaft/hydrogen.h"
@@ -375,6 +376,20 @@ bool ShouldUseIgnition(CompilationInfo* info) {
   return shared->PassesFilter(FLAG_ignition_filter);
 }
 
+bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
+                bool is_debug) {
+  return FLAG_validate_asm && scope->asm_module() &&
+         !shared_info->is_asm_wasm_broken() && !is_debug;
+}
+
+bool UseCompilerDispatcher(CompilerDispatcher* dispatcher,
+                           DeclarationScope* scope,
+                           Handle<SharedFunctionInfo> shared_info,
+                           bool is_debug, bool will_serialize) {
+  return dispatcher->IsEnabled() && !is_debug && !will_serialize &&
+         !UseAsmWasm(scope, shared_info, is_debug);
+}
+
 CompilationJob* GetUnoptimizedCompilationJob(CompilationInfo* info) {
   // Function should have been parsed and analyzed before creating a compilation
   // job.
@@ -427,8 +442,14 @@ void InstallUnoptimizedCode(CompilationInfo* info) {
 CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
   CompilationJob::Status status = job->FinalizeJob();
   if (status == CompilationJob::SUCCEEDED) {
-    EnsureFeedbackMetadata(job->info());
-    InstallUnoptimizedCode(job->info());
+    CompilationInfo* info = job->info();
+    EnsureFeedbackMetadata(info);
+    DCHECK(!info->code().is_null());
+    if (info->parse_info()->literal()->should_be_used_once_hint()) {
+      info->code()->MarkToBeExecutedOnce(info->isolate());
+    }
+    InstallUnoptimizedCode(info);
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, info);
     job->RecordUnoptimizedCompilationStats();
   }
   return status;
@@ -462,8 +483,7 @@ bool Renumber(ParseInfo* parse_info,
 }
 
 bool GenerateUnoptimizedCode(CompilationInfo* info) {
-  if (FLAG_validate_asm && info->scope()->asm_module() &&
-      !info->shared_info()->is_asm_wasm_broken() && !info->is_debug()) {
+  if (UseAsmWasm(info->scope(), info->shared_info(), info->is_debug())) {
     EnsureFeedbackMetadata(info);
     MaybeHandle<FixedArray> wasm_data;
     wasm_data = AsmJs::CompileAsmViaWasm(info);
@@ -486,10 +506,12 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
 }
 
 bool CompileUnoptimizedInnerFunctions(
-    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* literals,
+    Compiler::EagerInnerFunctionLiterals* literals,
     CompilationInfo* outer_info) {
   Isolate* isolate = outer_info->isolate();
   Handle<Script> script = outer_info->script();
+  bool is_debug = outer_info->is_debug();
+  bool will_serialize = outer_info->will_serialize();
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::CompileInnerFunction);
 
@@ -503,29 +525,35 @@ bool CompileUnoptimizedInnerFunctions(
     // eagerly compiled function literals.
     SetSharedFunctionFlagsFromLiteral(literal, shared);
 
-    Zone zone(isolate->allocator(), ZONE_NAME);
-    ParseInfo parse_info(&zone, script);
-    parse_info.set_literal(literal);
-    parse_info.set_shared_info(shared);
-    parse_info.set_function_literal_id(shared->function_literal_id());
-    parse_info.set_language_mode(literal->scope()->language_mode());
-    parse_info.set_ast_value_factory(
-        outer_info->parse_info()->ast_value_factory());
-    parse_info.set_ast_value_factory_owned(false);
+    // Try to enqueue the eager function on the compiler dispatcher.
+    CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
+    if (UseCompilerDispatcher(dispatcher, literal->scope(), shared, is_debug,
+                              will_serialize) &&
+        dispatcher->EnqueueAndStep(shared, literal)) {
+      // If we have successfully queued up the function for compilation on the
+      // compiler dispatcher then we are done.
+      continue;
+    } else {
+      // Otherwise generate unoptimized code now.
+      Zone zone(isolate->allocator(), ZONE_NAME);
+      ParseInfo parse_info(&zone, script);
+      CompilationInfo info(&parse_info, Handle<JSFunction>::null());
 
-    CompilationInfo info(&parse_info, Handle<JSFunction>::null());
-    if (outer_info->will_serialize()) info.PrepareForSerializing();
-    if (outer_info->is_debug()) info.MarkAsDebug();
+      parse_info.set_literal(literal);
+      parse_info.set_shared_info(shared);
+      parse_info.set_function_literal_id(shared->function_literal_id());
+      parse_info.set_language_mode(literal->scope()->language_mode());
+      parse_info.set_ast_value_factory(
+          outer_info->parse_info()->ast_value_factory());
+      parse_info.set_ast_value_factory_owned(false);
 
-    if (!GenerateUnoptimizedCode(&info)) {
-      if (!isolate->has_pending_exception()) isolate->StackOverflow();
-      return false;
-    }
+      if (will_serialize) info.PrepareForSerializing();
+      if (is_debug) info.MarkAsDebug();
 
-    DCHECK(!info.code().is_null());
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, &info);
-    if (literal->should_be_used_once_hint()) {
-      info.code()->MarkToBeExecutedOnce(isolate);
+      if (!GenerateUnoptimizedCode(&info)) {
+        if (!isolate->has_pending_exception()) isolate->StackOverflow();
+        return false;
+      }
     }
   }
   return true;
@@ -539,6 +567,17 @@ bool CompileUnoptimizedCode(CompilationInfo* info) {
   if (!Compiler::Analyze(info->parse_info(), &inner_literals) ||
       !CompileUnoptimizedInnerFunctions(&inner_literals, info) ||
       !GenerateUnoptimizedCode(info)) {
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    return false;
+  }
+
+  // TODO(rmcilroy): Remove this once the enqueued tasks can keep the parsed
+  // zone and handles alive and replace with a check in CompileLazy to finish
+  // the task itself.
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, &RuntimeCallStats::CompileWaitForDispatcher);
+  if (isolate->compiler_dispatcher()->IsEnabled() &&
+      !isolate->compiler_dispatcher()->FinishAllNow()) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
   }
@@ -1122,7 +1161,9 @@ bool Compiler::Analyze(ParseInfo* info,
                                      &RuntimeCallStats::CompileAnalyse);
   if (!Rewriter::Rewrite(info)) return false;
   DeclarationScope::Analyze(info, AnalyzeMode::kRegular);
-  if (!Renumber(info, eager_literals)) return false;
+  if (!Renumber(info, eager_literals)) {
+    return false;
+  }
   DCHECK_NOT_NULL(info->scope());
   return true;
 }
@@ -1730,13 +1771,8 @@ bool Compiler::FinalizeCompilationJob(CompilationJob* raw_job) {
     return FinalizeOptimizedCompilationJob(job.get()) ==
            CompilationJob::SUCCEEDED;
   } else {
-    if (FinalizeUnoptimizedCompilationJob(job.get()) ==
-        CompilationJob::SUCCEEDED) {
-      RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                                job->info());
-      return true;
-    }
-    return false;
+    return FinalizeUnoptimizedCompilationJob(job.get()) ==
+           CompilationJob::SUCCEEDED;
   }
 }
 
