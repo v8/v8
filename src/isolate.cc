@@ -2215,6 +2215,7 @@ Isolate::Isolate(bool enable_serializer)
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
       rail_mode_(PERFORMANCE_ANIMATION),
+      promise_hook_or_debug_is_active_(false),
       promise_hook_(NULL),
       load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
@@ -3245,10 +3246,18 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
-void Isolate::SetPromiseHook(PromiseHook hook) { promise_hook_ = hook; }
+void Isolate::DebugStateUpdated() {
+  promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
+}
+
+void Isolate::SetPromiseHook(PromiseHook hook) {
+  promise_hook_ = hook;
+  DebugStateUpdated();
+}
 
 void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                              Handle<Object> parent) {
+  if (debug()->is_active()) debug()->RunPromiseHook(type, promise, parent);
   if (promise_hook_ == nullptr) return;
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
@@ -3272,33 +3281,9 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-namespace {
-class PromiseDebugEventScope {
- public:
-  PromiseDebugEventScope(Isolate* isolate, int id)
-      : isolate_(isolate), id_(id) {
-    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_);
-    }
-  }
-
-  ~PromiseDebugEventScope() {
-    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_);
-    }
-  }
-
- private:
-  Isolate* isolate_;
-  int id_;
-};
-}  // namespace
-
 void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id());
-
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
@@ -3340,8 +3325,6 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
 void Isolate::PromiseResolveThenableJob(
     Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
     MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id());
-
   Handle<JSReceiver> thenable(info->thenable(), this);
   Handle<JSFunction> resolve(info->resolve(), this);
   Handle<JSFunction> reject(info->reject(), this);

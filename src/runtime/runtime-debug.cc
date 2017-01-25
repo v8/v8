@@ -1878,13 +1878,6 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugNextAsyncTaskId) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  return Smi::FromInt(isolate->debug()->NextAsyncTaskId(promise));
-}
-
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);

@@ -72,9 +72,6 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_TAIL_CALL,
 };
 
-const int kDebugPromiseNoID = 0;
-const int kDebugPromiseFirstID = 1;
-
 class BreakLocation {
  public:
   static BreakLocation FromFrame(Handle<DebugInfo> debug_info,
@@ -353,6 +350,9 @@ class Debug {
                               int end_position, std::set<int>* positions);
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
+
+  void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+                      Handle<Object> parent);
 
   int NextAsyncTaskId(Handle<JSObject> promise);
 

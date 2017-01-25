@@ -563,13 +563,17 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
 }
 
 void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
-                                      int id) {
+                                      int id, int parentId) {
   if (!m_maxAsyncCallStackDepth) return;
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
+    case v8::debug::kDebugPromiseCreated:
+      asyncTaskCreated(
+          ptr, parentId ? reinterpret_cast<void*>(parentId * 2 + 1) : nullptr);
+      break;
     case v8::debug::kDebugEnqueueAsyncFunction:
       asyncTaskScheduled("async function", ptr, true);
       break;
@@ -578,9 +582,6 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
       break;
     case v8::debug::kDebugEnqueuePromiseReject:
       asyncTaskScheduled("Promise.reject", ptr, true);
-      break;
-    case v8::debug::kDebugEnqueuePromiseResolveThenableJob:
-      asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
       break;
     case v8::debug::kDebugPromiseCollected:
       asyncTaskCanceled(ptr);
@@ -857,6 +858,11 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 
+void V8Debugger::asyncTaskCreated(void* task, void* parentTask) {
+  if (!m_maxAsyncCallStackDepth) return;
+  if (parentTask) m_parentTask[task] = parentTask;
+}
+
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
   if (!m_maxAsyncCallStackDepth) return;
@@ -891,6 +897,7 @@ void V8Debugger::asyncTaskCanceled(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   m_asyncTaskStacks.erase(task);
   m_recurringTasks.erase(task);
+  m_parentTask.erase(task);
   auto it = m_taskToId.find(task);
   if (it == m_taskToId.end()) return;
   m_idToTask.erase(it->second);
@@ -900,7 +907,9 @@ void V8Debugger::asyncTaskCanceled(void* task) {
 void V8Debugger::asyncTaskStarted(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   m_currentTasks.push_back(task);
-  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(task);
+  auto parentIt = m_parentTask.find(task);
+  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(
+      parentIt == m_parentTask.end() ? task : parentIt->second);
   // Needs to support following order of events:
   // - asyncTaskScheduled
   //   <-- attached here -->
@@ -924,11 +933,7 @@ void V8Debugger::asyncTaskFinished(void* task) {
 
   m_currentStacks.pop_back();
   if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
-    m_asyncTaskStacks.erase(task);
-    auto it = m_taskToId.find(task);
-    if (it == m_taskToId.end()) return;
-    m_idToTask.erase(it->second);
-    m_taskToId.erase(it);
+    asyncTaskCanceled(task);
   }
 }
 
@@ -937,6 +942,7 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_recurringTasks.clear();
   m_currentStacks.clear();
   m_currentTasks.clear();
+  m_parentTask.clear();
   m_idToTask.clear();
   m_taskToId.clear();
   m_lastTaskId = 0;

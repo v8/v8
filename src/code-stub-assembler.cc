@@ -8338,11 +8338,13 @@ Node* CodeStubAssembler::IsDebugActive() {
   return Word32NotEqual(is_debug_active, Int32Constant(0));
 }
 
-Node* CodeStubAssembler::IsPromiseHookEnabled() {
-  Node* const promise_hook = Load(
-      MachineType::Pointer(),
-      ExternalConstant(ExternalReference::promise_hook_address(isolate())));
-  return WordNotEqual(promise_hook, IntPtrConstant(0));
+Node* CodeStubAssembler::IsPromiseHookEnabledOrDebugIsActive() {
+  Node* const promise_hook_or_debug_is_active =
+      Load(MachineType::Uint8(),
+           ExternalConstant(
+               ExternalReference::promise_hook_or_debug_is_active_address(
+                   isolate())));
+  return Word32NotEqual(promise_hook_or_debug_is_active, Int32Constant(0));
 }
 
 Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
@@ -8391,8 +8393,6 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
   StoreObjectFieldNoWriteBarrier(
       result, PromiseReactionJobInfo::kDeferredOnRejectOffset,
       deferred_on_reject);
-  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kDebugIdOffset,
-                                 SmiConstant(kDebugPromiseNoID));
   StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kContextOffset,
                                  context);
   return result;

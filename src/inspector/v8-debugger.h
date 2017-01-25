@@ -132,9 +132,11 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
 
+  void asyncTaskCreated(void* task, void* parentTask);
+
   // v8::debug::DebugEventListener implementation.
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
-                            int id) override;
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
+                            int parentId) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,
@@ -172,6 +174,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   std::vector<void*> m_currentTasks;
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+  protocol::HashMap<void*, void*> m_parentTask;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
 

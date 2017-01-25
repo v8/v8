@@ -1749,7 +1749,7 @@ TEST(IsPromiseHookEnabled) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabled()));
+  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabledOrDebugIsActive()));
 
   Handle<Code> code = data.GenerateCode();
   CHECK(!code.is_null());
@@ -1847,7 +1847,6 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
   CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
   CHECK(promise_info->context()->IsContext());
-  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
 }
 
 TEST(AllocatePromiseResolveThenableJobInfo) {
@@ -1886,7 +1885,6 @@ TEST(AllocatePromiseResolveThenableJobInfo) {
   CHECK(promise_info->then()->IsJSFunction());
   CHECK(promise_info->resolve()->IsJSFunction());
   CHECK(promise_info->reject()->IsJSFunction());
-  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
   CHECK(promise_info->context()->IsContext());
 }
 

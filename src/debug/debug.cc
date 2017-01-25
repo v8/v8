@@ -1890,7 +1890,63 @@ void ResetPromiseHandle(const v8::WeakCallbackInfo<void>& info) {
   GlobalHandles::Destroy(data->location);
   info.SetSecondPassCallback(&SendAsyncTaskEventCancel);
 }
+
+// In an async function, reuse the existing stack related to the outer
+// Promise. Otherwise, e.g. in a direct call to then, save a new stack.
+// Promises with multiple reactions with one or more of them being async
+// functions will not get a good stack trace, as async functions require
+// different stacks from direct Promise use, but we save and restore a
+// stack once for all reactions.
+//
+// If this isn't a case of async function, we return false, otherwise
+// we set the correct id and return true.
+//
+// TODO(littledan): Improve this case.
+int GetReferenceAsyncTaskId(Isolate* isolate, Handle<JSPromise> promise) {
+  Handle<Symbol> handled_by_symbol =
+      isolate->factory()->promise_handled_by_symbol();
+  Handle<Object> handled_by_promise =
+      JSObject::GetDataProperty(promise, handled_by_symbol);
+  if (!handled_by_promise->IsJSPromise()) {
+    return isolate->debug()->NextAsyncTaskId(promise);
+  }
+  Handle<JSPromise> handled_by_promise_js =
+      Handle<JSPromise>::cast(handled_by_promise);
+  Handle<Symbol> async_stack_id_symbol =
+      isolate->factory()->promise_async_stack_id_symbol();
+  Handle<Object> async_task_id =
+      JSObject::GetDataProperty(handled_by_promise_js, async_stack_id_symbol);
+  if (!async_task_id->IsSmi()) {
+    return isolate->debug()->NextAsyncTaskId(promise);
+  }
+  return Handle<Smi>::cast(async_task_id)->value();
+}
 }  //  namespace
+
+void Debug::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
+                           Handle<Object> parent) {
+  if (!debug_delegate_) return;
+  int id = GetReferenceAsyncTaskId(isolate_, promise);
+  switch (type) {
+    case PromiseHookType::kInit:
+      debug_delegate_->PromiseEventOccurred(
+          debug::kDebugPromiseCreated, id,
+          parent->IsJSPromise() ? GetReferenceAsyncTaskId(
+                                      isolate_, Handle<JSPromise>::cast(parent))
+                                : 0);
+      return;
+    case PromiseHookType::kResolve:
+      // We can't use this hook because it's called before promise object will
+      // get resolved status.
+      return;
+    case PromiseHookType::kBefore:
+      OnAsyncTaskEvent(debug::kDebugWillHandle, id);
+      return;
+    case PromiseHookType::kAfter:
+      OnAsyncTaskEvent(debug::kDebugDidHandle, id);
+      return;
+  }
+}
 
 int Debug::NextAsyncTaskId(Handle<JSObject> promise) {
   LookupIterator it(promise, isolate_->factory()->promise_async_id_symbol());
@@ -1958,7 +2014,7 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id) {
   if (in_debug_scope() || ignore_events()) return;
 
   if (debug_delegate_) {
-    debug_delegate_->PromiseEventOccurred(type, id);
+    debug_delegate_->PromiseEventOccurred(type, id, 0);
     if (!non_inspector_listener_exists()) return;
   }
 
@@ -2093,6 +2149,7 @@ void Debug::UpdateState() {
     Unload();
   }
   is_active_ = is_active;
+  isolate_->DebugStateUpdated();
 }
 
 void Debug::UpdateHookOnFunctionCall() {
