@@ -69,6 +69,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kJSGetSuperConstructor:
+      return ReduceJSGetSuperConstructor(node);
     case IrOpcode::kJSInstanceOf:
       return ReduceJSInstanceOf(node);
     case IrOpcode::kJSOrdinaryHasInstance:
@@ -88,6 +90,41 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
     default:
       break;
   }
+  return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGetSuperConstructor, node->opcode());
+  Node* constructor = NodeProperties::GetValueInput(node, 0);
+
+  // If deoptimization is disabled, we cannot optimize.
+  if (!(flags() & kDeoptimizationEnabled)) return NoChange();
+
+  // Check if the input is a known JSFunction.
+  HeapObjectMatcher m(constructor);
+  if (!m.HasValue()) return NoChange();
+  Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+  Handle<Map> function_map(function->map(), isolate());
+  Handle<Object> function_prototype(function_map->prototype(), isolate());
+
+  // We can constant-fold the super constructor access if the
+  // {function}s map is stable, i.e. we can use a code dependency
+  // to guard against [[Prototype]] changes of {function}.
+  if (function_map->is_stable()) {
+    Node* value = jsgraph()->Constant(function_prototype);
+    dependencies()->AssumeMapStable(function_map);
+    if (function_prototype->IsConstructor()) {
+      ReplaceWithValue(node, value);
+      return Replace(value);
+    } else {
+      node->InsertInput(graph()->zone(), 0, value);
+      NodeProperties::ChangeOp(
+          node, javascript()->CallRuntime(Runtime::kThrowNotSuperConstructor));
+      return Changed(node);
+    }
+  }
+
   return NoChange();
 }
 
