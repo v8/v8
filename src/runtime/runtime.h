@@ -171,7 +171,6 @@ namespace internal {
   F(ChangeBreakOnException, 2, 1)               \
   F(IsBreakOnException, 1, 1)                   \
   F(PrepareStep, 2, 1)                          \
-  F(PrepareStepFrame, 0, 1)                     \
   F(ClearStepping, 0, 1)                        \
   F(DebugEvaluate, 4, 1)                        \
   F(DebugEvaluateGlobal, 2, 1)                  \

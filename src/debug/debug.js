@@ -51,8 +51,7 @@ Debug.ExceptionBreak = { Caught : 0,
 // The different types of steps.
 Debug.StepAction = { StepOut: 0,
                      StepNext: 1,
-                     StepIn: 2,
-                     StepFrame: 3 };
+                     StepIn: 2 };
 
 // The different types of scripts matching enum ScriptType in objects.h.
 Debug.ScriptType = { Native: 0,
@@ -828,8 +827,7 @@ function ExecutionState(break_id) {
 ExecutionState.prototype.prepareStep = function(action) {
   if (action === Debug.StepAction.StepIn ||
       action === Debug.StepAction.StepOut ||
-      action === Debug.StepAction.StepNext ||
-      action === Debug.StepAction.StepFrame) {
+      action === Debug.StepAction.StepNext) {
     return %PrepareStep(this.break_id, action);
   }
   throw %make_type_error(kDebuggerType);

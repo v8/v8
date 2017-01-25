@@ -1182,7 +1182,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   // Get the step action and check validity.
   StepAction step_action = static_cast<StepAction>(NumberToInt32(args[1]));
   if (step_action != StepIn && step_action != StepNext &&
-      step_action != StepOut && step_action != StepFrame) {
+      step_action != StepOut) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -1191,19 +1191,6 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
 
   // Prepare step.
   isolate->debug()->PrepareStep(static_cast<StepAction>(step_action));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PrepareStepFrame) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  CHECK(isolate->debug()->CheckExecutionState());
-
-  // Clear all current stepping setup.
-  isolate->debug()->ClearStepping();
-
-  // Prepare step.
-  isolate->debug()->PrepareStep(StepFrame);
   return isolate->heap()->undefined_value();
 }
 

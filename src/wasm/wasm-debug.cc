@@ -174,10 +174,6 @@ class InterpreterHandle {
                                   : WasmInterpreter::BreakFlag::AfterCall);
         return thread->Run();
       }
-      case StepFrame:
-        thread->AddBreakFlags(WasmInterpreter::BreakFlag::AfterCall |
-                              WasmInterpreter::BreakFlag::AfterReturn);
-        return thread->Run();
       default:
         UNREACHABLE();
         return WasmInterpreter::STOPPED;
@@ -233,9 +229,6 @@ class InterpreterHandle {
         hit_step = thread->GetFrameCount() == last_step_stack_depth_;
         break;
       }
-      case StepFrame:
-        hit_step = thread->GetFrameCount() != last_step_stack_depth_;
-        break;
       default:
         UNREACHABLE();
     }

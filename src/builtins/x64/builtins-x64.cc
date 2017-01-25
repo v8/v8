@@ -467,7 +467,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   ExternalReference debug_hook =
       ExternalReference::debug_hook_on_function_call_address(masm->isolate());
   Operand debug_hook_operand = masm->ExternalOperand(debug_hook);
-  STATIC_ASSERT(StepFrame > StepIn);
   __ cmpb(debug_hook_operand, Immediate(0));
   __ j(not_equal, &prepare_step_in_if_stepping);
 

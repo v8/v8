@@ -561,9 +561,6 @@ void Debug::Break(JavaScriptFrame* frame) {
                        summary.SourceStatementPosition();
       break;
     }
-    case StepFrame:
-      step_break = current_fp != last_fp;
-      break;
   }
 
   // Clear all current stepping setup.
@@ -1081,12 +1078,6 @@ void Debug::PrepareStep(StepAction step_action) {
     case StepIn:
       // TODO(clemensh): Implement stepping from JS into WASM.
       FloodWithOneShot(function);
-      break;
-    case StepFrame:
-      // TODO(clemensh): Implement stepping from JS into WASM or vice versa.
-      // No point in setting one-shot breaks at places where we are not about
-      // to leave the current frame.
-      FloodWithOneShot(function, CALLS_AND_RETURNS);
       break;
   }
 }
@@ -2153,9 +2144,8 @@ void Debug::UpdateState() {
 }
 
 void Debug::UpdateHookOnFunctionCall() {
-  STATIC_ASSERT(StepFrame > StepIn);
-  STATIC_ASSERT(LastStepAction == StepFrame);
-  hook_on_function_call_ = thread_local_.last_step_action_ >= StepIn ||
+  STATIC_ASSERT(LastStepAction == StepIn);
+  hook_on_function_call_ = thread_local_.last_step_action_ == StepIn ||
                            isolate_->needs_side_effect_check();
 }
 

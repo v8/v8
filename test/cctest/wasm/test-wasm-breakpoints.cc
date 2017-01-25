@@ -59,8 +59,7 @@ class BreakHandler {
     Continue = StepAction::LastStepAction + 1,
     StepNext = StepAction::StepNext,
     StepIn = StepAction::StepIn,
-    StepOut = StepAction::StepOut,
-    StepFrame = StepAction::StepFrame
+    StepOut = StepAction::StepOut
   };
   struct BreakPoint {
     int position;
@@ -111,7 +110,6 @@ class BreakHandler {
       case StepNext:
       case StepIn:
       case StepOut:
-      case StepFrame:
         isolate_->debug()->PrepareStep(static_cast<StepAction>(next_action));
         break;
       default:

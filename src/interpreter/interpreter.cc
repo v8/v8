@@ -3252,8 +3252,7 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
       ExternalReference::debug_last_step_action_address(isolate_));
   Node* step_action = __ Load(MachineType::Int8(), step_action_address);
   STATIC_ASSERT(StepIn > StepNext);
-  STATIC_ASSERT(StepFrame > StepNext);
-  STATIC_ASSERT(LastStepAction == StepFrame);
+  STATIC_ASSERT(LastStepAction == StepIn);
   Node* step_next = __ Int32Constant(StepNext);
   __ Branch(__ Int32LessThanOrEqual(step_next, step_action), &if_stepping, &ok);
   __ Bind(&ok);
