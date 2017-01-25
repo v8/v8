@@ -19,6 +19,7 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
+class PreParsedScopeData;
 class SloppyBlockFunctionStatement;
 class Statement;
 class StringSet;
@@ -585,6 +586,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
 
+  void CollectVariableData(PreParsedScopeData* data);
+
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 
@@ -788,7 +791,8 @@ class DeclarationScope : public Scope {
   // records variables which cannot be resolved inside the Scope (we don't yet
   // know what they will resolve to since the outer Scopes are incomplete) and
   // migrates them into migrate_to.
-  void AnalyzePartially(AstNodeFactory* ast_node_factory);
+  void AnalyzePartially(AstNodeFactory* ast_node_factory,
+                        PreParsedScopeData* preparsed_scope_data);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);

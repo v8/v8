@@ -8697,6 +8697,28 @@ class ScopeTestHelper {
   static bool MustAllocateInContext(Variable* var) {
     return var->scope()->MustAllocateInContext(var);
   }
+
+  static void CompareScopeToData(Scope* scope, const PreParsedScopeData* data,
+                                 size_t& index) {
+    CHECK_EQ(data->backing_store_[index++], scope->scope_type());
+    CHECK_EQ(data->backing_store_[index++], scope->start_position());
+    CHECK_EQ(data->backing_store_[index++], scope->end_position());
+
+    int inner_scope_count = 0;
+    for (Scope* inner = scope->inner_scope(); inner != nullptr;
+         inner = inner->sibling()) {
+      ++inner_scope_count;
+    }
+    CHECK_EQ(data->backing_store_[index++], inner_scope_count);
+
+    // Variable count is 0. TODO(marja): implement.
+    CHECK_EQ(data->backing_store_[index++], 0);
+
+    for (Scope* inner = scope->inner_scope(); inner != nullptr;
+         inner = inner->sibling()) {
+      CompareScopeToData(inner, data, index);
+    }
+  }
 };
 }  // namespace internal
 }  // namespace v8
@@ -8973,5 +8995,99 @@ TEST(NoPessimisticContextAllocation) {
       CHECK_EQ(inners[i].ctxt_allocate,
                i::ScopeTestHelper::MustAllocateInContext(var));
     }
+  }
+}
+
+TEST(PreParserScopeAnalysis) {
+  i::FLAG_lazy_inner_functions = true;
+  i::FLAG_preparser_scope_analysis = true;
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::Factory* factory = isolate->factory();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  const char* prefix = "(function outer() { ";
+  const char* suffix = " })();";
+  int prefix_len = Utf8LengthHelper(prefix);
+  int suffix_len = Utf8LengthHelper(suffix);
+
+  // The scope start positions must match; note the extra space in lazy_inner.
+  const char* lazy_inner = " function inner(%s) { %s }";
+  const char* eager_inner = "(function inner(%s) { %s })()";
+
+  struct {
+    const char* params;
+    const char* source;
+  } inners[] = {
+      {"", "var1"},
+      {"", "if (true) {}"},
+      {"", "function f1() {}"},
+      {"", "if (true) { function f1() {} }"},
+  };
+
+  for (unsigned i = 0; i < arraysize(inners); ++i) {
+    // First compile with the lazy inner function and extract the scope data.
+    const char* inner_function = lazy_inner;
+    int inner_function_len = Utf8LengthHelper(inner_function) - 4;
+
+    int params_len = Utf8LengthHelper(inners[i].params);
+    int source_len = Utf8LengthHelper(inners[i].source);
+    int len =
+        prefix_len + inner_function_len + params_len + source_len + suffix_len;
+
+    i::ScopedVector<char> lazy_program(len + 1);
+    i::SNPrintF(lazy_program, "%s", prefix);
+    i::SNPrintF(lazy_program + prefix_len, inner_function, inners[i].params,
+                inners[i].source);
+    i::SNPrintF(lazy_program + prefix_len + inner_function_len + params_len +
+                    source_len,
+                "%s", suffix);
+
+    i::Handle<i::String> source =
+        factory->InternalizeUtf8String(lazy_program.start());
+    source->PrintOn(stdout);
+    printf("\n");
+
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo lazy_info(&zone, script);
+
+    // No need to run scope analysis; preparser scope data is produced when
+    // parsing.
+    CHECK(i::parsing::ParseProgram(&lazy_info));
+
+    // Then parse eagerly and check against the scope data.
+    inner_function = eager_inner;
+    inner_function_len = Utf8LengthHelper(inner_function) - 4;
+    len =
+        prefix_len + inner_function_len + params_len + source_len + suffix_len;
+
+    i::ScopedVector<char> eager_program(len + 1);
+    i::SNPrintF(eager_program, "%s", prefix);
+    i::SNPrintF(eager_program + prefix_len, inner_function, inners[i].params,
+                inners[i].source);
+    i::SNPrintF(eager_program + prefix_len + inner_function_len + params_len +
+                    source_len,
+                "%s", suffix);
+
+    source = factory->InternalizeUtf8String(eager_program.start());
+    source->PrintOn(stdout);
+    printf("\n");
+
+    script = factory->NewScript(source);
+    i::ParseInfo eager_info(&zone, script);
+
+    CHECK(i::parsing::ParseProgram(&eager_info));
+    CHECK(i::Compiler::Analyze(&eager_info));
+
+    i::Scope* scope =
+        eager_info.literal()->scope()->inner_scope()->inner_scope();
+    DCHECK_NOT_NULL(scope);
+    DCHECK_NULL(scope->sibling());
+    DCHECK(scope->is_function_scope());
+
+    size_t index = 0;
+    i::ScopeTestHelper::CompareScopeToData(
+        scope, lazy_info.preparsed_scope_data(), index);
   }
 }

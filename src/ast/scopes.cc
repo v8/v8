@@ -15,6 +15,7 @@
 #include "src/objects/module-info.h"
 #include "src/objects/scope-info.h"
 #include "src/parsing/parse-info.h"
+#include "src/parsing/preparsed-scope-data.h"
 
 namespace v8 {
 namespace internal {
@@ -1377,7 +1378,9 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   was_lazily_parsed_ = !aborted;
 }
 
-void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
+void DeclarationScope::AnalyzePartially(
+    AstNodeFactory* ast_node_factory,
+    PreParsedScopeData* preparsed_scope_data) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
 
@@ -1397,6 +1400,13 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
     if (arguments_ != nullptr &&
         !(MustAllocate(arguments_) && !has_arguments_parameter_)) {
       arguments_ = nullptr;
+    }
+
+    if (FLAG_preparser_scope_analysis) {
+      // Decide context allocation for the locals and parameters and store the
+      // info away.
+      AllocateVariablesRecursively();
+      CollectVariableData(preparsed_scope_data);
     }
   }
 
@@ -2148,6 +2158,16 @@ void Scope::AllocateDebuggerScopeInfos(Isolate* isolate,
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     if (scope->is_function_scope()) continue;
     scope->AllocateDebuggerScopeInfos(isolate, outer);
+  }
+}
+
+void Scope::CollectVariableData(PreParsedScopeData* data) {
+  PreParsedScopeData::ScopeScope scope_scope(data, scope_type(),
+                                             start_position(), end_position());
+  // TODO(marja): Add data about the variables.
+
+  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
+    inner->CollectVariableData(data);
   }
 }
 

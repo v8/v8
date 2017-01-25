@@ -93,9 +93,7 @@ declare_args() {
   # TODO(brettw) http://crbug.com/684096 Remove the define condition when the
   # build_override conversion is complete.
   if (!defined(v8_extra_library_files)) {
-    v8_extra_library_files = [
-      "//test/cctest/test-extra.js"
-    ]
+    v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
   }
 
   # Like v8_extra_library_files but for experimental features.
@@ -105,17 +103,16 @@ declare_args() {
   # TODO(brettw) http://crbug.com/684096 Remove the define condition when the
   # build_override conversion is complete.
   if (!defined(v8_experimental_extra_library_files)) {
-    v8_experimental_extra_library_files = [
-      "//test/cctest/test-experimental-extra.js",
-    ]
+    v8_experimental_extra_library_files =
+        [ "//test/cctest/test-experimental-extra.js" ]
   }
 
   if (defined(v8_enable_gdbjit_default)) {
     v8_enable_gdbjit = v8_enable_gdbjit_default
   } else {
     v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
-        v8_current_cpu == "x87") && (is_linux || is_mac)) ||
-      (v8_current_cpu == "ppc64" && is_linux)
+                         v8_current_cpu == "x87") && (is_linux || is_mac)) ||
+                       (v8_current_cpu == "ppc64" && is_linux)
   }
 }
 
@@ -1620,6 +1617,8 @@ v8_source_set("v8_base") {
     "src/parsing/preparse-data-format.h",
     "src/parsing/preparse-data.cc",
     "src/parsing/preparse-data.h",
+    "src/parsing/preparsed-scope-data.cc",
+    "src/parsing/preparsed-scope-data.h",
     "src/parsing/preparser.cc",
     "src/parsing/preparser.h",
     "src/parsing/rewriter.cc",

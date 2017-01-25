@@ -1106,6 +1106,8 @@
         'parsing/preparse-data-format.h',
         'parsing/preparse-data.cc',
         'parsing/preparse-data.h',
+        'parsing/preparsed-scope-data.cc',
+        'parsing/preparsed-scope-data.h',
         'parsing/preparser.cc',
         'parsing/preparser.h',
         'parsing/rewriter.cc',

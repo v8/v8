@@ -519,7 +519,8 @@ Parser::Parser(ParseInfo* info)
       cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
       temp_zoned_(false),
-      log_(nullptr) {
+      log_(nullptr),
+      preparsed_scope_data_(info->preparsed_scope_data()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
@@ -2685,7 +2686,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // If the preconditions are correct the function body should never be
       // accessed, but do this anyway for better behaviour if they're wrong.
       body = nullptr;
-      scope->AnalyzePartially(&previous_zone_ast_node_factory);
+      scope->AnalyzePartially(&previous_zone_ast_node_factory,
+                              preparsed_scope_data_);
     }
 
     DCHECK_IMPLIES(use_temp_zone, temp_zoned_);

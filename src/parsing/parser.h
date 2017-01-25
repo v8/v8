@@ -27,6 +27,7 @@ class ParseInfo;
 class ScriptData;
 class ParserTarget;
 class ParserTargetScope;
+class PreParsedScopeData;
 
 class FunctionEntry BASE_EMBEDDED {
  public:
@@ -1136,6 +1137,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ParserLogger* log_;
+
+  PreParsedScopeData* preparsed_scope_data_;
 };
 
 // ----------------------------------------------------------------------------
