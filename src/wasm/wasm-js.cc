@@ -108,26 +108,16 @@ static bool ValidateModule(v8::Isolate* isolate,
 
 // TODO(wasm): move brand check to the respective types, and don't throw
 // in it, rather, use a provided ErrorThrower, or let caller handle it.
-static bool BrandCheck(Isolate* isolate, i::Handle<i::Object> value,
-                       i::Handle<i::Symbol> sym) {
+static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> sym) {
   if (!value->IsJSObject()) return false;
   i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
   Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, sym);
-  if (has_brand.IsNothing()) return false;
-  return has_brand.ToChecked();
+  return !has_brand.IsNothing() && has_brand.ToChecked();
 }
 
-static bool BrandCheck(Isolate* isolate, i::Handle<i::Object> value,
+static bool BrandCheck(ErrorThrower* thrower, i::Handle<i::Object> value,
                        i::Handle<i::Symbol> sym, const char* msg) {
-  if (value->IsJSObject()) {
-    i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
-    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, sym);
-    if (has_brand.IsNothing()) return false;
-    if (has_brand.ToChecked()) return true;
-  }
-  v8::Local<v8::Value> e = v8::Exception::TypeError(v8_str(isolate, msg));
-  isolate->ThrowException(e);
-  return false;
+  return HasBrand(value, sym) ? true : (thrower->TypeError("%s", msg), false);
 }
 
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -233,17 +223,17 @@ MaybeLocal<Value> InstantiateModuleImpl(
 
 namespace {
 i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
-    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower& thrower) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
   v8::Isolate* isolate = args.GetIsolate();
   i::MaybeHandle<i::WasmModuleObject> nothing;
   if (args.Length() < 1) {
-    thrower.TypeError("Argument 0 must be a WebAssembly.Module");
+    thrower->TypeError("Argument 0 must be a WebAssembly.Module");
     return nothing;
   }
 
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args[0]),
+  if (!BrandCheck(thrower, Utils::OpenHandle(*args[0]),
                   i::Handle<i::Symbol>(i_context->wasm_module_sym()),
                   "Argument 0 must be a WebAssembly.Module")) {
     return nothing;
@@ -261,7 +251,7 @@ void WebAssemblyModuleImports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ErrorThrower thrower(i_isolate, "WebAssembly.Module.imports()");
 
-  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+  auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
 
   if (!maybe_module.is_null()) {
     auto imports =
@@ -274,10 +264,9 @@ void WebAssemblyModuleExports(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
   ErrorThrower thrower(i_isolate, "WebAssembly.Module.exports()");
 
-  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+  auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
 
   if (!maybe_module.is_null()) {
     auto exports =
@@ -291,10 +280,9 @@ void WebAssemblyModuleCustomSections(
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
   ErrorThrower thrower(i_isolate, "WebAssembly.Module.customSections()");
 
-  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+  auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
 
   if (args.Length() < 2) {
     thrower.TypeError("Argument 1 must be a string");
@@ -321,10 +309,9 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(args.GetIsolate());
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-
   ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
-  auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+  auto maybe_module = GetFirstArgumentAsModule(args, &thrower);
 
   if (!maybe_module.is_null()) {
     MaybeLocal<Value> instance = InstantiateModuleImpl(
@@ -341,9 +328,9 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
 
   HandleScope scope(isolate);
-  ErrorThrower thrower(i_isolate, "WebAssembly.instantiate()");
 
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
@@ -368,8 +355,8 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
-  bool want_pair = !BrandCheck(
-      isolate, first_arg, i::Handle<i::Symbol>(i_context->wasm_module_sym()));
+  bool want_pair =
+      !HasBrand(first_arg, i::Handle<i::Symbol>(i_context->wasm_module_sym()));
   i::Handle<i::WasmModuleObject> module_obj;
   if (want_pair) {
     i::MaybeHandle<i::WasmModuleObject> maybe_module_obj =
@@ -543,9 +530,11 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyTableGetLength(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
+                       "WebAssembly.Table.length()");
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
+  if (!BrandCheck(&thrower, Utils::OpenHandle(*args.This()),
                   i::Handle<i::Symbol>(i_context->wasm_table_sym()),
                   "Receiver is not a WebAssembly.Table")) {
     return;
@@ -558,9 +547,11 @@ void WebAssemblyTableGetLength(
 
 void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
+                       "WebAssembly.Table.grow()");
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
+  if (!BrandCheck(&thrower, Utils::OpenHandle(*args.This()),
                   i::Handle<i::Symbol>(i_context->wasm_table_sym()),
                   "Receiver is not a WebAssembly.Table")) {
     return;
@@ -584,10 +575,8 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   if (new_size64 < old_size || new_size64 > max_size64) {
-    v8::Local<v8::Value> e = v8::Exception::RangeError(
-        v8_str(isolate, new_size64 < old_size ? "trying to shrink table"
-                                              : "maximum table size exceeded"));
-    isolate->ThrowException(e);
+    thrower.RangeError(new_size64 < old_size ? "trying to shrink table"
+                                             : "maximum table size exceeded");
     return;
   }
 
@@ -611,15 +600,16 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.Table.get()");
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
+  if (!BrandCheck(&thrower, Utils::OpenHandle(*args.This()),
                   i::Handle<i::Symbol>(i_context->wasm_table_sym()),
                   "Receiver is not a WebAssembly.Table")) {
     return;
   }
 
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   auto receiver =
       i::Handle<i::WasmTableObject>::cast(Utils::OpenHandle(*args.This()));
   i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
@@ -627,9 +617,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (args.Length() > 0 && !args[0]->Int32Value(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   if (i < 0 || i >= array->length()) {
-    v8::Local<v8::Value> e =
-        v8::Exception::RangeError(v8_str(isolate, "index out of bounds"));
-    isolate->ThrowException(e);
+    thrower.RangeError("index out of bounds");
     return;
   }
 
@@ -640,17 +628,16 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.Table.set()");
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
+  if (!BrandCheck(&thrower, Utils::OpenHandle(*args.This()),
                   i::Handle<i::Symbol>(i_context->wasm_table_sym()),
                   "Receiver is not a WebAssembly.Table")) {
     return;
   }
   if (args.Length() < 2) {
-    v8::Local<v8::Value> e = v8::Exception::TypeError(
-        v8_str(isolate, "Argument 1 must be null or a function"));
-    isolate->ThrowException(e);
+    thrower.TypeError("Argument 1 must be null or a function");
     return;
   }
   i::Handle<i::Object> value = Utils::OpenHandle(*args[1]);
@@ -658,9 +645,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
       (!value->IsJSFunction() ||
        i::Handle<i::JSFunction>::cast(value)->code()->kind() !=
            i::Code::JS_TO_WASM_FUNCTION)) {
-    v8::Local<v8::Value> e = v8::Exception::TypeError(
-        v8_str(isolate, "Argument 1 must be null or a WebAssembly function"));
-    isolate->ThrowException(e);
+    thrower.TypeError("Argument 1 must be null or a WebAssembly function");
     return;
   }
 
@@ -670,9 +655,7 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   int i;
   if (!args[0]->Int32Value(context).To(&i)) return;
   if (i < 0 || i >= array->length()) {
-    v8::Local<v8::Value> e =
-        v8::Exception::RangeError(v8_str(isolate, "index out of bounds"));
-    isolate->ThrowException(e);
+    thrower.RangeError("index out of bounds");
     return;
   }
 
@@ -691,18 +674,18 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.Memory.grow()");
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
+  if (!BrandCheck(&thrower, Utils::OpenHandle(*args.This()),
                   i::Handle<i::Symbol>(i_context->wasm_memory_sym()),
                   "Receiver is not a WebAssembly.Memory")) {
     return;
   }
   int64_t delta_size = 0;
   if (args.Length() < 1 || !args[0]->IntegerValue(context).To(&delta_size)) {
-    v8::Local<v8::Value> e = v8::Exception::TypeError(
-        v8_str(isolate, "Argument 0 required, must be numeric value of pages"));
-    isolate->ThrowException(e);
+    thrower.TypeError("Argument 0 required, must be numeric value of pages");
     return;
   }
   i::Handle<i::WasmMemoryObject> receiver =
@@ -717,19 +700,14 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       old_buffer->byte_length()->Number() / i::wasm::kSpecMaxWasmMemoryPages;
   int64_t new_size64 = old_size + delta_size;
   if (delta_size < 0 || max_size64 < new_size64 || new_size64 < old_size) {
-    v8::Local<v8::Value> e = v8::Exception::RangeError(v8_str(
-        isolate, new_size64 < old_size ? "trying to shrink memory"
-                                       : "maximum memory size exceeded"));
-    isolate->ThrowException(e);
+    thrower.RangeError(new_size64 < old_size ? "trying to shrink memory"
+                                             : "maximum memory size exceeded");
     return;
   }
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   int32_t ret = i::wasm::GrowWebAssemblyMemory(
       i_isolate, receiver, static_cast<uint32_t>(delta_size));
   if (ret == -1) {
-    v8::Local<v8::Value> e = v8::Exception::RangeError(
-        v8_str(isolate, "Unable to grow instance memory."));
-    isolate->ThrowException(e);
+    thrower.RangeError("Unable to grow instance memory.");
     return;
   }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
@@ -739,14 +717,15 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void WebAssemblyMemoryGetBuffer(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ErrorThrower thrower(i_isolate, "WebAssembly.Memory.buffer");
   Local<Context> context = isolate->GetCurrentContext();
   i::Handle<i::Context> i_context = Utils::OpenHandle(*context);
-  if (!BrandCheck(isolate, Utils::OpenHandle(*args.This()),
+  if (!BrandCheck(&thrower, Utils::OpenHandle(*args.This()),
                   i::Handle<i::Symbol>(i_context->wasm_memory_sym()),
                   "Receiver is not a WebAssembly.Memory")) {
     return;
   }
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::Handle<i::WasmMemoryObject> receiver =
       i::Handle<i::WasmMemoryObject>::cast(Utils::OpenHandle(*args.This()));
   i::Handle<i::Object> buffer(receiver->buffer(), i_isolate);
@@ -949,16 +928,6 @@ void WasmJs::Install(Isolate* isolate) {
       isolate->native_context()->wasm_runtime_error_function());
   JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),
                         runtime_error, attributes);
-}
-
-static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> symbol) {
-  if (value->IsJSObject()) {
-    i::Handle<i::JSObject> object = i::Handle<i::JSObject>::cast(value);
-    Maybe<bool> has_brand = i::JSObject::HasOwnProperty(object, symbol);
-    if (has_brand.IsNothing()) return false;
-    if (has_brand.ToChecked()) return true;
-  }
-  return false;
 }
 
 bool WasmJs::IsWasmMemoryObject(Isolate* isolate, Handle<Object> value) {
