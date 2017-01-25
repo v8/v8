@@ -413,6 +413,8 @@ class CodeAssemblerVariable {
  public:
   explicit CodeAssemblerVariable(CodeAssembler* assembler,
                                  MachineRepresentation rep);
+  CodeAssemblerVariable(CodeAssembler* assembler, MachineRepresentation rep,
+                        Node* initial_value);
   ~CodeAssemblerVariable();
   void Bind(Node* value);
   Node* value() const;

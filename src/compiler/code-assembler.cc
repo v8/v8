@@ -700,6 +700,13 @@ CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
   state_->variables_.insert(impl_);
 }
 
+CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
+                                             MachineRepresentation rep,
+                                             Node* initial_value)
+    : CodeAssemblerVariable(assembler, rep) {
+  Bind(initial_value);
+}
+
 CodeAssemblerVariable::~CodeAssemblerVariable() {
   state_->variables_.erase(impl_);
 }

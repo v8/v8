@@ -170,11 +170,11 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
   Node* const limit = IntPtrAdd(
       IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), num_indices);
 
-  Variable var_from_cursor(this, MachineType::PointerRepresentation());
-  Variable var_to_cursor(this, MachineType::PointerRepresentation());
-
-  var_from_cursor.Bind(IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
-  var_to_cursor.Bind(IntPtrConstant(1));
+  Variable var_from_cursor(
+      this, MachineType::PointerRepresentation(),
+      IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
+  Variable var_to_cursor(this, MachineType::PointerRepresentation(),
+                         IntPtrConstant(1));
 
   Variable* vars[] = {&var_from_cursor, &var_to_cursor};
   Label loop(this, 2, vars);
@@ -492,13 +492,11 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 
   Node* const int_zero = IntPtrConstant(0);
   Node* const int_one = IntPtrConstant(1);
-  Variable var_length(this, MachineType::PointerRepresentation());
+  Variable var_length(this, MachineType::PointerRepresentation(), int_zero);
   Variable var_flags(this, MachineType::PointerRepresentation());
 
   // First, count the number of characters we will need and check which flags
   // are set.
-
-  var_length.Bind(int_zero);
 
   if (is_fastpath) {
     // Refer to JSRegExp's flag property on the fast-path.
@@ -559,8 +557,8 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Node* const result = AllocateSeqOneByteString(context, var_length.value());
     Node* const flags_intptr = var_flags.value();
 
-    Variable var_offset(this, MachineType::PointerRepresentation());
-    var_offset.Bind(
+    Variable var_offset(
+        this, MachineType::PointerRepresentation(),
         IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
 #define CASE_FOR_FLAG(FLAG, CHAR)                              \
@@ -591,8 +589,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
                                         Node* const maybe_receiver) {
   Label out(this), if_isregexp(this);
 
-  Variable var_result(this, MachineRepresentation::kWord32);
-  var_result.Bind(Int32Constant(0));
+  Variable var_result(this, MachineRepresentation::kWord32, Int32Constant(0));
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
   GotoUnless(IsJSReceiver(maybe_receiver), &out);
@@ -676,13 +673,9 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
   Isolate* isolate = this->isolate();
 
-  Variable var_flags(this, MachineRepresentation::kTagged);
-  Variable var_pattern(this, MachineRepresentation::kTagged);
-  Variable var_new_target(this, MachineRepresentation::kTagged);
-
-  var_flags.Bind(flags);
-  var_pattern.Bind(pattern);
-  var_new_target.Bind(new_target);
+  Variable var_flags(this, MachineRepresentation::kTagged, flags);
+  Variable var_pattern(this, MachineRepresentation::kTagged, pattern);
+  Variable var_new_target(this, MachineRepresentation::kTagged, new_target);
 
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_function =
@@ -814,11 +807,8 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
                          "RegExp.prototype.compile");
   Node* const receiver = maybe_receiver;
 
-  Variable var_flags(this, MachineRepresentation::kTagged);
-  Variable var_pattern(this, MachineRepresentation::kTagged);
-
-  var_flags.Bind(maybe_flags);
-  var_pattern.Bind(maybe_pattern);
+  Variable var_flags(this, MachineRepresentation::kTagged, maybe_flags);
+  Variable var_pattern(this, MachineRepresentation::kTagged, maybe_pattern);
 
   // Handle a JSRegExp pattern.
   {
@@ -1306,11 +1296,9 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
 Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
                                                   Node* const index,
                                                   Node* const is_unicode) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-
   // Default to last_index + 1.
   Node* const index_plus_one = SmiAdd(index, SmiConstant(1));
-  var_result.Bind(index_plus_one);
+  Variable var_result(this, MachineRepresentation::kTagged, index_plus_one);
 
   Label if_isunicode(this), out(this);
   Branch(is_unicode, &if_isunicode, &out);
