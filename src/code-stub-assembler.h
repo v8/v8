@@ -1167,6 +1167,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        Node* deferred_on_resolve,
                                        Node* deferred_on_reject, Node* context);
 
+  // Support for printf-style debugging
+  void Print(const char* s);
+  void Print(const char* prefix, Node* tagged_value);
+  inline void Print(Node* tagged_value) { return Print(nullptr, tagged_value); }
+
  protected:
   void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,
                               Label* if_found, Variable* var_name_index,

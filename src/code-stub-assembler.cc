@@ -8365,5 +8365,29 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
   return result;
 }
 
+void CodeStubAssembler::Print(const char* s) {
+#ifdef DEBUG
+  std::string formatted(s);
+  formatted += "\n";
+  Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
+      formatted.c_str(), TENURED);
+  CallRuntime(Runtime::kGlobalPrint, NoContextConstant(), HeapConstant(string));
+#endif
+}
+
+void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
+#ifdef DEBUG
+  if (prefix != nullptr) {
+    std::string formatted(prefix);
+    formatted += ": ";
+    Handle<String> string = isolate()->factory()->NewStringFromAsciiChecked(
+        formatted.c_str(), TENURED);
+    CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
+                HeapConstant(string));
+  }
+  CallRuntime(Runtime::kGlobalPrint, NoContextConstant(), tagged_value);
+#endif
+}
+
 }  // namespace internal
 }  // namespace v8
