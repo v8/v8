@@ -407,6 +407,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
         return Changed(node);
       }
 
+      // Don't inline cross native context.
+      if (function->native_context() != *native_context()) return NoChange();
+
       // Check for known builtin functions.
       switch (shared->code()->builtin_index()) {
         case Builtins::kFunctionPrototypeApply:
@@ -568,6 +571,9 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
                       Runtime::kThrowConstructedNonConstructable));
         return Changed(node);
       }
+
+      // Don't inline cross native context.
+      if (function->native_context() != *native_context()) return NoChange();
 
       // Check for the ArrayConstructor.
       if (*function == function->native_context()->array_function()) {
