@@ -2194,10 +2194,16 @@ void Debug::HandleDebugBreak() {
     DCHECK(!it.done());
     Object* fun = it.frame()->function();
     if (fun && fun->IsJSFunction()) {
-      // Don't stop in builtin functions.
-      if (!JSFunction::cast(fun)->shared()->IsSubjectToDebugging()) return;
-      if (isolate_->stack_guard()->CheckDebugBreak() &&
+      // Don't stop in builtin and blackboxed functions.
+      if (!JSFunction::cast(fun)->shared()->IsSubjectToDebugging() ||
           IsBlackboxed(JSFunction::cast(fun)->shared())) {
+        // Inspector uses pause on next statement for asynchronous breakpoints.
+        // When breakpoint is fired we try to break on first not blackboxed
+        // statement. To achieve this goal we need to deoptimize current
+        // function and don't clear requested DebugBreak even if it's blackboxed
+        // to be able to break on not blackboxed function call.
+        // TODO(yangguo): introduce break_on_function_entry since current
+        // implementation is slow.
         Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
         return;
       }

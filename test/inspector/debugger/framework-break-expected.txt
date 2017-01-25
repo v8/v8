@@ -27,13 +27,7 @@ breakpoint (framework.js:24:2)
 
 Running test: testDebuggerStatement
 > all frames in framework:
-debuggerStatement (framework.js:28:2)
-(anonymous) (framework.js:0:0)
-
 > mixed, top frame in framework:
-debuggerStatement (framework.js:28:2)
-(anonymous) (user.js:0:0)
-
 
 Running test: testSyncDOMBreakpoint
 > all frames in framework:
