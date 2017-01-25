@@ -182,6 +182,21 @@ class OperandGenerator {
                               sequence()->NextVirtualRegister());
   }
 
+  int AllocateVirtualRegister() { return sequence()->NextVirtualRegister(); }
+
+  InstructionOperand DefineSameAsFirstForVreg(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::SAME_AS_FIRST_INPUT, vreg);
+  }
+
+  InstructionOperand DefineAsRegistertForVreg(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER, vreg);
+  }
+
+  InstructionOperand UseRegisterForVreg(int vreg) {
+    return UnallocatedOperand(UnallocatedOperand::MUST_HAVE_REGISTER,
+                              UnallocatedOperand::USED_AT_START, vreg);
+  }
+
   InstructionOperand TempDoubleRegister() {
     UnallocatedOperand op = UnallocatedOperand(
         UnallocatedOperand::MUST_HAVE_REGISTER,
