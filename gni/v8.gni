@@ -35,8 +35,19 @@ declare_args() {
   # add a dependency on the ICU library.
   v8_enable_i18n_support = true
 
-  # Enable inspector. See include/v8-inspector.h.
-  v8_enable_inspector = v8_enable_inspector_override
+  # TODO(brettw) http://crbug.com/684096 Remove the define condition and the
+  # v8_enable_inspector_override variable when the build_override conversion is
+  # complete. This value should just default to true.
+  if (defined(v8_enable_inspector_override)) {
+    # Enable inspector. See include/v8-inspector.h.
+    v8_enable_inspector = v8_enable_inspector_override
+  } else {
+    # Enable inspector. See include/v8-inspector.h.
+    v8_enable_inspector = true
+  }
+
+  # Use static libraries instead of source_sets.
+  v8_static_library = false
 }
 
 if (v8_use_external_startup_data == "") {
