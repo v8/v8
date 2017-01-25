@@ -2711,10 +2711,11 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
 
   Register spread_len = x5;
 
+  Label runtime_call, push_args;
   __ Peek(spread, 0);
+  __ JumpIfSmi(spread, &runtime_call);
   __ Ldr(spread_map, FieldMemOperand(spread, HeapObject::kMapOffset));
 
-  Label runtime_call, push_args;
   // Check that the spread is an array.
   __ CompareInstanceType(spread_map, scratch, JS_ARRAY_TYPE);
   __ B(ne, &runtime_call);

@@ -2643,11 +2643,12 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
 
   Register native_context = t4;
 
+  Label runtime_call, push_args;
   __ lw(spread, MemOperand(sp, 0));
+  __ JumpIfSmi(spread, &runtime_call);
   __ lw(spread_map, FieldMemOperand(spread, HeapObject::kMapOffset));
   __ lw(native_context, NativeContextMemOperand());
 
-  Label runtime_call, push_args;
   // Check that the spread is an array.
   __ lbu(scratch, FieldMemOperand(spread_map, Map::kInstanceTypeOffset));
   __ Branch(&runtime_call, ne, scratch, Operand(JS_ARRAY_TYPE));

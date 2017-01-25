@@ -2764,14 +2764,15 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
 }
 
 static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
+  Label runtime_call, push_args;
   // Load the spread argument into rbx.
   __ movp(rbx, Operand(rsp, kPointerSize));
+  __ JumpIfSmi(rbx, &runtime_call);
   // Load the map of the spread into r15.
   __ movp(r15, FieldOperand(rbx, HeapObject::kMapOffset));
   // Load native context into r14.
   __ movp(r14, NativeContextOperand());
 
-  Label runtime_call, push_args;
   // Check that the spread is an array.
   __ CmpInstanceType(r15, JS_ARRAY_TYPE);
   __ j(not_equal, &runtime_call);
