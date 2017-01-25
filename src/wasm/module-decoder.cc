@@ -620,7 +620,7 @@ class ModuleDecoder : public Decoder {
         uint32_t name_offset =
             consume_string(inner, &function_name_length, false);
         uint32_t func_index = i;
-        if (func_index < module->functions.size()) {
+        if (inner.ok() && func_index < module->functions.size()) {
           module->functions[func_index].name_offset = name_offset;
           module->functions[func_index].name_length = function_name_length;
         }
