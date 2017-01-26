@@ -168,6 +168,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallForwardVarargs(Isolate* isolate);
+  static Callable CallFunctionForwardVarargs(Isolate* isolate);
   static Callable Construct(Isolate* isolate);
   static Callable ConstructWithSpread(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);

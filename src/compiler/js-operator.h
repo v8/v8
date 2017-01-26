@@ -106,6 +106,43 @@ std::ostream& operator<<(std::ostream&,
 CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
     Operator const*);
 
+// Defines the flags for a JavaScript call forwarding parameters. This
+// is used as parameter by JSCallForwardVarargs operators.
+class CallForwardVarargsParameters final {
+ public:
+  CallForwardVarargsParameters(uint32_t start_index,
+                               TailCallMode tail_call_mode)
+      : bit_field_(StartIndexField::encode(start_index) |
+                   TailCallModeField::encode(tail_call_mode)) {}
+
+  uint32_t start_index() const { return StartIndexField::decode(bit_field_); }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
+  }
+
+  bool operator==(CallForwardVarargsParameters const& that) const {
+    return this->bit_field_ == that.bit_field_;
+  }
+  bool operator!=(CallForwardVarargsParameters const& that) const {
+    return !(*this == that);
+  }
+
+ private:
+  friend size_t hash_value(CallForwardVarargsParameters const& p) {
+    return p.bit_field_;
+  }
+
+  typedef BitField<uint32_t, 0, 30> StartIndexField;
+  typedef BitField<TailCallMode, 31, 1> TailCallModeField;
+
+  uint32_t const bit_field_;
+};
+
+std::ostream& operator<<(std::ostream&, CallForwardVarargsParameters const&);
+
+CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
+    Operator const*) WARN_UNUSED_RESULT;
+
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
 class CallFunctionParameters final {
@@ -572,6 +609,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       int literal_flags, int literal_index);
 
+  const Operator* CallForwardVarargs(uint32_t start_index,
+                                     TailCallMode tail_call_mode);
   const Operator* CallFunction(
       size_t arity, float frequency = 0.0f,
       VectorSlotPair const& feedback = VectorSlotPair(),

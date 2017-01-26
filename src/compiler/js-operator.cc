@@ -118,6 +118,17 @@ const CallFunctionParameters& CallFunctionParametersOf(const Operator* op) {
   return OpParameter<CallFunctionParameters>(op);
 }
 
+std::ostream& operator<<(std::ostream& os,
+                         CallForwardVarargsParameters const& p) {
+  return os << p.start_index() << ", " << p.tail_call_mode();
+}
+
+CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
+    Operator const* op) {
+  DCHECK_EQ(IrOpcode::kJSCallForwardVarargs, op->opcode());
+  return OpParameter<CallForwardVarargsParameters>(op);
+}
+
 bool operator==(CallFunctionWithSpreadParameters const& lhs,
                 CallFunctionWithSpreadParameters const& rhs) {
   return lhs.arity() == rhs.arity();
@@ -722,6 +733,16 @@ const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
       "JSToBoolean",                              // name
       1, 0, 0, 1, 0, 0,                           // inputs/outputs
       hints);                                     // parameter
+}
+
+const Operator* JSOperatorBuilder::CallForwardVarargs(
+    uint32_t start_index, TailCallMode tail_call_mode) {
+  CallForwardVarargsParameters parameters(start_index, tail_call_mode);
+  return new (zone()) Operator1<CallForwardVarargsParameters>(   // --
+      IrOpcode::kJSCallForwardVarargs, Operator::kNoProperties,  // opcode
+      "JSCallForwardVarargs",                                    // name
+      2, 1, 1, 1, 1, 2,                                          // counts
+      parameters);                                               // parameter
 }
 
 const Operator* JSOperatorBuilder::CallFunction(

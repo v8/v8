@@ -371,6 +371,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* StateValues(int arguments, SparseInputMask bitmask);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
+  const Operator* ArgumentsObjectState();
   const Operator* ObjectState(int pointer_slots);
   const Operator* TypedObjectState(const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,

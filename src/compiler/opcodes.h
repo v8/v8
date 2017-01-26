@@ -59,6 +59,7 @@
   V(FrameState)           \
   V(StateValues)          \
   V(TypedStateValues)     \
+  V(ArgumentsObjectState) \
   V(ObjectState)          \
   V(TypedObjectState)     \
   V(Call)                 \
@@ -160,6 +161,7 @@
 #define JS_OTHER_OP_LIST(V)         \
   V(JSCallConstruct)                \
   V(JSCallConstructWithSpread)      \
+  V(JSCallForwardVarargs)           \
   V(JSCallFunction)                 \
   V(JSCallFunctionWithSpread)       \
   V(JSCallRuntime)                  \

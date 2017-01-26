@@ -1248,6 +1248,13 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
+const Operator* CommonOperatorBuilder::ArgumentsObjectState() {
+  return new (zone()) Operator(                          // --
+      IrOpcode::kArgumentsObjectState, Operator::kPure,  // opcode
+      "ArgumentsObjectState",                            // name
+      0, 0, 0, 1, 0, 0);                                 // counts
+}
+
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {
   return new (zone()) Operator1<int>(           // --
       IrOpcode::kObjectState, Operator::kPure,  // opcode

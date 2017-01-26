@@ -3692,7 +3692,6 @@ void FastNewSloppyArgumentsStub::Generate(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kNewSloppyArguments);
 }
 
-
 void FastNewStrictArgumentsStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- edi    : function

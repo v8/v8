@@ -104,18 +104,11 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       if (edge.from() == node) continue;
       return NoChange();
     }
-    // Get to the actual frame state from which to extract the arguments;
-    // we can only optimize this in case the {node} was already inlined into
-    // some other function (and same for the {arg_array}).
-    CreateArgumentsType type = CreateArgumentsTypeOf(arg_array->op());
+    // Check if the arguments can be handled in the fast case (i.e. we don't
+    // have aliased sloppy arguments), and compute the {start_index} for
+    // rest parameters.
+    CreateArgumentsType const type = CreateArgumentsTypeOf(arg_array->op());
     Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
-    Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
-    if (outer_state->opcode() != IrOpcode::kFrameState) return NoChange();
-    FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
-    if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
-      // Need to take the parameters from the arguments adaptor.
-      frame_state = outer_state;
-    }
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
     int start_index = 0;
     if (type == CreateArgumentsType::kMappedArguments) {
@@ -128,11 +121,43 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
       start_index = shared->internal_formal_parameter_count();
     }
+    // Check if are applying to inlined arguments or to the arguments of
+    // the outermost function.
+    Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+    if (outer_state->opcode() != IrOpcode::kFrameState) {
+      // TODO(jarin,bmeurer): Support the NewUnmappedArgumentsElement and
+      // NewRestParameterElements in the EscapeAnalysis and Deoptimizer
+      // instead, then we don't need this hack.
+      if (type != CreateArgumentsType::kRestParameter) {
+        // There are no other uses of the {arg_array} except in StateValues,
+        // so we just replace {arg_array} with a marker for the Deoptimizer
+        // that this refers to the arguments object.
+        Node* arguments = graph()->NewNode(common()->ArgumentsObjectState());
+        ReplaceWithValue(arg_array, arguments);
+      }
+
+      // Reduce {node} to a JSCallForwardVarargs operation, which just
+      // re-pushes the incoming arguments and calls the {target}.
+      node->RemoveInput(0);  // Function.prototype.apply
+      node->RemoveInput(2);  // arguments
+      NodeProperties::ChangeOp(node, javascript()->CallForwardVarargs(
+                                         start_index, p.tail_call_mode()));
+      return Changed(node);
+    }
+    // Get to the actual frame state from which to extract the arguments;
+    // we can only optimize this in case the {node} was already inlined into
+    // some other function (and same for the {arg_array}).
+    FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
+    if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
+      // Need to take the parameters from the arguments adaptor.
+      frame_state = outer_state;
+    }
     // Remove the argArray input from the {node}.
     node->RemoveInput(static_cast<int>(--arity));
-    // Add the actual parameters to the {node}, skipping the receiver.
+    // Add the actual parameters to the {node}, skipping the receiver,
+    // starting from {start_index}.
     Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
-    for (int i = start_index + 1; i < state_info.parameter_count(); ++i) {
+    for (int i = start_index + 1; i < parameters->InputCount(); ++i) {
       node->InsertInput(graph()->zone(), static_cast<int>(arity),
                         parameters->InputAt(i));
       ++arity;

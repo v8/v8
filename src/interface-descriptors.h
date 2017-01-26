@@ -46,6 +46,7 @@ class PlatformInterfaceDescriptor;
   V(CallFunction)                         \
   V(CallFunctionWithFeedback)             \
   V(CallFunctionWithFeedbackAndVector)    \
+  V(CallForwardVarargs)                   \
   V(CallConstruct)                        \
   V(CallTrampoline)                       \
   V(ConstructStub)                        \
@@ -560,6 +561,12 @@ class CallTrampolineDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
+class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kStartIndex)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallForwardVarargsDescriptor,
+                                               CallInterfaceDescriptor)
+};
 
 class ConstructStubDescriptor : public CallInterfaceDescriptor {
  public:

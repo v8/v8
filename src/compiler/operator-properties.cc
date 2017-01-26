@@ -95,6 +95,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     // Call operations
     case IrOpcode::kJSCallConstruct:
     case IrOpcode::kJSCallConstructWithSpread:
+    case IrOpcode::kJSCallForwardVarargs:
     case IrOpcode::kJSCallFunction:
     case IrOpcode::kJSCallFunctionWithSpread:
 

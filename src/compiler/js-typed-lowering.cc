@@ -2023,6 +2023,34 @@ Reduction JSTypedLowering::ReduceJSCallConstruct(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallForwardVarargs, node->opcode());
+  CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Type* target_type = NodeProperties::GetType(target);
+
+  // Check if {target} is a JSFunction.
+  if (target_type->Is(Type::Function())) {
+    // Compute flags for the call.
+    CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
+    if (p.tail_call_mode() == TailCallMode::kAllow) {
+      flags |= CallDescriptor::kSupportsTailCalls;
+    }
+
+    // Patch {node} to an indirect call via CallFunctionForwardVarargs.
+    Callable callable = CodeFactory::CallFunctionForwardVarargs(isolate());
+    node->InsertInput(graph()->zone(), 0,
+                      jsgraph()->HeapConstant(callable.code()));
+    node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(p.start_index()));
+    NodeProperties::ChangeOp(
+        node,
+        common()->Call(Linkage::GetStubCallDescriptor(
+            isolate(), graph()->zone(), callable.descriptor(), 1, flags)));
+    return Changed(node);
+  }
+
+  return NoChange();
+}
 
 Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
@@ -2386,6 +2414,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSConvertReceiver(node);
     case IrOpcode::kJSCallConstruct:
       return ReduceJSCallConstruct(node);
+    case IrOpcode::kJSCallForwardVarargs:
+      return ReduceJSCallForwardVarargs(node);
     case IrOpcode::kJSCallFunction:
       return ReduceJSCallFunction(node);
     case IrOpcode::kJSForInNext:

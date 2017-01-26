@@ -386,6 +386,18 @@ Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
 }
 
 // static
+Callable CodeFactory::CallForwardVarargs(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallForwardVarargs(),
+                  CallForwardVarargsDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::CallFunctionForwardVarargs(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallFunctionForwardVarargs(),
+                  CallForwardVarargsDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::Construct(Isolate* isolate) {
   return Callable(isolate->builtins()->Construct(),
                   ConstructTrampolineDescriptor(isolate));

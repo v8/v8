@@ -1122,6 +1122,7 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 class FrameStateDescriptor;
 
 enum class StateValueKind : uint8_t {
+  kArguments,
   kPlain,
   kOptimizedOut,
   kNested,
@@ -1135,6 +1136,10 @@ class StateValueDescriptor {
         type_(MachineType::AnyTagged()),
         id_(0) {}
 
+  static StateValueDescriptor Arguments() {
+    return StateValueDescriptor(StateValueKind::kArguments,
+                                MachineType::AnyTagged(), 0);
+  }
   static StateValueDescriptor Plain(MachineType type) {
     return StateValueDescriptor(StateValueKind::kPlain, type, 0);
   }
@@ -1151,10 +1156,11 @@ class StateValueDescriptor {
                                 MachineType::AnyTagged(), id);
   }
 
-  int IsPlain() { return kind_ == StateValueKind::kPlain; }
-  int IsOptimizedOut() { return kind_ == StateValueKind::kOptimizedOut; }
-  int IsNested() { return kind_ == StateValueKind::kNested; }
-  int IsDuplicate() { return kind_ == StateValueKind::kDuplicate; }
+  bool IsArguments() const { return kind_ == StateValueKind::kArguments; }
+  bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
+  bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
+  bool IsNested() const { return kind_ == StateValueKind::kNested; }
+  bool IsDuplicate() const { return kind_ == StateValueKind::kDuplicate; }
   MachineType type() const { return type_; }
   size_t id() const { return id_; }
 
@@ -1223,6 +1229,7 @@ class StateValueList {
     nested_.push_back(nested);
     return nested;
   }
+  void PushArguments() { fields_.push_back(StateValueDescriptor::Arguments()); }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));
   }

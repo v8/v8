@@ -452,6 +452,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
 
       return g->UseImmediate(input);
     }
+    case IrOpcode::kArgumentsObjectState:
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       UNREACHABLE();
@@ -507,6 +508,10 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   }
 
   switch (input->opcode()) {
+    case IrOpcode::kArgumentsObjectState: {
+      values->PushArguments();
+      return 0;
+    }
     case IrOpcode::kObjectState: {
       UNREACHABLE();
       return 0;

@@ -833,6 +833,10 @@ Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeArgumentsObjectState(Node* node) {
+  return Type::Internal();
+}
+
 Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
 
 Type* Typer::Visitor::TypeTypedObjectState(Node* node) {
@@ -1575,6 +1579,9 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
   return Type::NonInternal();
 }
 
+Type* Typer::Visitor::TypeJSCallForwardVarargs(Node* node) {
+  return TypeUnaryOp(node, JSCallFunctionTyper);
+}
 
 Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
   // TODO(bmeurer): We could infer better types if we wouldn't ignore the

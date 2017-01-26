@@ -530,6 +530,22 @@ void JSGenericLowering::LowerJSCallConstructWithSpread(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
+void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
+  CallForwardVarargsParameters p = CallForwardVarargsParametersOf(node->op());
+  Callable callable = CodeFactory::CallForwardVarargs(isolate());
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  if (p.tail_call_mode() == TailCallMode::kAllow) {
+    flags |= CallDescriptor::kSupportsTailCalls;
+  }
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), zone(), callable.descriptor(), 1, flags);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  Node* start_index = jsgraph()->Uint32Constant(p.start_index());
+  node->InsertInput(zone(), 0, stub_code);
+  node->InsertInput(zone(), 2, start_index);
+  NodeProperties::ChangeOp(node, common()->Call(desc));
+}
+
 void JSGenericLowering::LowerJSCallFunction(Node* node) {
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);

@@ -2293,6 +2293,86 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   }
 }
 
+// static
+void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
+                                           Handle<Code> code) {
+  // ----------- S t a t e -------------
+  //  -- edi    : the target to call (can be any Object)
+  //  -- ecx    : start index (to support rest parameters)
+  //  -- esp[0] : return address.
+  //  -- esp[4] : thisArgument
+  // -----------------------------------
+
+  // Check if we have an arguments adaptor frame below the function frame.
+  Label arguments_adaptor, arguments_done;
+  __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ cmp(Operand(ebx, CommonFrameConstants::kContextOrFrameTypeOffset),
+         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ j(equal, &arguments_adaptor, Label::kNear);
+  {
+    __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
+    __ mov(eax, FieldOperand(eax, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(eax,
+           FieldOperand(eax, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ mov(ebx, ebp);
+  }
+  __ jmp(&arguments_done, Label::kNear);
+  __ bind(&arguments_adaptor);
+  {
+    // Just load the length from the ArgumentsAdaptorFrame.
+    __ mov(eax, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  }
+  __ bind(&arguments_done);
+
+  Label stack_empty, stack_done;
+  __ SmiUntag(eax);
+  __ sub(eax, ecx);
+  __ j(less_equal, &stack_empty);
+  {
+    // Check for stack overflow.
+    {
+      // Check the stack for overflow. We are not trying to catch interruptions
+      // (i.e. debug break and preemption) here, so check the "real stack
+      // limit".
+      Label done;
+      __ LoadRoot(ecx, Heap::kRealStackLimitRootIndex);
+      // Make ecx the space we have left. The stack might already be
+      // overflowed here which will cause ecx to become negative.
+      __ neg(ecx);
+      __ add(ecx, esp);
+      __ sar(ecx, kPointerSizeLog2);
+      // Check if the arguments will overflow the stack.
+      __ cmp(ecx, eax);
+      __ j(greater, &done, Label::kNear);  // Signed comparison.
+      __ TailCallRuntime(Runtime::kThrowStackOverflow);
+      __ bind(&done);
+    }
+
+    // Forward the arguments from the caller frame.
+    {
+      Label loop;
+      __ mov(ecx, eax);
+      __ pop(edx);
+      __ bind(&loop);
+      {
+        __ Push(Operand(ebx, ecx, times_pointer_size, 1 * kPointerSize));
+        __ dec(ecx);
+        __ j(not_zero, &loop);
+      }
+      __ push(edx);
+    }
+  }
+  __ jmp(&stack_done, Label::kNear);
+  __ bind(&stack_empty);
+  {
+    // We just pass the receiver, which is already on the stack.
+    __ Move(eax, Immediate(0));
+  }
+  __ bind(&stack_done);
+
+  __ Jump(code, RelocInfo::CODE_TARGET);
+}
+
 namespace {
 
 // Drops top JavaScript frame and an arguments adaptor frame below it (if

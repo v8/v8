@@ -490,6 +490,7 @@ void Verifier::Visitor::Check(Node* node) {
     }
     case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:
+    case IrOpcode::kArgumentsObjectState:
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       // TODO(jarin): what are the constraints on these?
@@ -680,6 +681,7 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Receiver.
       CheckTypeIs(node, Type::Receiver());
       break;
+    case IrOpcode::kJSCallForwardVarargs:
     case IrOpcode::kJSCallFunction:
     case IrOpcode::kJSCallFunctionWithSpread:
     case IrOpcode::kJSCallRuntime:

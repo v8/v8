@@ -75,6 +75,8 @@ namespace internal {
   ASM(TailCall_ReceiverIsNotNullOrUndefined)                                   \
   ASM(TailCall_ReceiverIsAny)                                                  \
   ASM(CallWithSpread)                                                          \
+  ASM(CallForwardVarargs)                                                      \
+  ASM(CallFunctionForwardVarargs)                                              \
                                                                                \
   /* Construct */                                                              \
   /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
@@ -903,6 +905,8 @@ class Builtins {
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
                             TailCallMode tail_call_mode);
+  static void Generate_CallForwardVarargs(MacroAssembler* masm,
+                                          Handle<Code> code);
 
   static void Generate_InterpreterPushArgsAndCallImpl(
       MacroAssembler* masm, TailCallMode tail_call_mode,

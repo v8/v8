@@ -720,24 +720,23 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ jmp(rcx);
 }
 
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Register scratch1, Register scratch2,
-                                        Label* stack_overflow) {
+static void Generate_StackOverflowCheck(
+    MacroAssembler* masm, Register num_args, Register scratch,
+    Label* stack_overflow,
+    Label::Distance stack_overflow_distance = Label::kFar) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  __ LoadRoot(scratch1, Heap::kRealStackLimitRootIndex);
-  __ movp(scratch2, rsp);
-  // Make scratch2 the space we have left. The stack might already be overflowed
-  // here which will cause scratch2 to become negative.
-  __ subp(scratch2, scratch1);
-  // Make scratch1 the space we need for the array when it is unrolled onto the
-  // stack.
-  __ movp(scratch1, num_args);
-  __ shlp(scratch1, Immediate(kPointerSizeLog2));
+  __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
+  __ movp(scratch, rsp);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  __ subp(scratch, kScratchRegister);
+  __ sarp(scratch, Immediate(kPointerSizeLog2));
   // Check if the arguments will overflow the stack.
-  __ cmpp(scratch2, scratch1);
-  __ j(less_equal, stack_overflow);  // Signed comparison.
+  __ cmpp(scratch, num_args);
+  // Signed comparison.
+  __ j(less_equal, stack_overflow, stack_overflow_distance);
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
@@ -779,7 +778,7 @@ void Builtins::Generate_InterpreterPushArgsAndCallImpl(
   __ addp(rcx, Immediate(1));  // Add one for receiver.
 
   // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, rcx, rdx, r8, &stack_overflow);
+  Generate_StackOverflowCheck(masm, rcx, rdx, &stack_overflow);
 
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
@@ -828,7 +827,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructImpl(
   Label stack_overflow;
 
   // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, rax, r8, r9, &stack_overflow);
+  Generate_StackOverflowCheck(masm, rax, r8, &stack_overflow);
 
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
@@ -890,7 +889,7 @@ void Builtins::Generate_InterpreterPushArgsAndConstructArray(
   __ addp(r8, Immediate(1));  // Add one for receiver.
 
   // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, r8, rdi, r9, &stack_overflow);
+  Generate_StackOverflowCheck(masm, r8, rdi, &stack_overflow);
 
   // Pop return address to allow tail-call after pushing arguments.
   __ PopReturnAddressTo(kScratchRegister);
@@ -2147,7 +2146,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
     // The registers rcx and r8 will be modified. The register rbx is only read.
-    Generate_StackOverflowCheck(masm, rbx, rcx, r8, &stack_overflow);
+    Generate_StackOverflowCheck(masm, rbx, rcx, &stack_overflow);
 
     // Copy receiver and all expected arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -2169,7 +2168,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
     EnterArgumentsAdaptorFrame(masm);
     // The registers rcx and r8 will be modified. The register rbx is only read.
-    Generate_StackOverflowCheck(masm, rbx, rcx, r8, &stack_overflow);
+    Generate_StackOverflowCheck(masm, rbx, rcx, &stack_overflow);
 
     // Copy receiver and all actual arguments.
     const int offset = StandardFrameConstants::kCallerSPOffset;
@@ -2374,6 +2373,72 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
     __ j(equal, masm->isolate()->builtins()->Call(), RelocInfo::CODE_TARGET);
     __ Jump(masm->isolate()->builtins()->Construct(), RelocInfo::CODE_TARGET);
   }
+}
+
+// static
+void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
+                                           Handle<Code> code) {
+  // ----------- S t a t e -------------
+  //  -- rdi    : the target to call (can be any Object)
+  //  -- rcx    : start index (to support rest parameters)
+  //  -- rsp[0] : return address.
+  //  -- rsp[8] : thisArgument
+  // -----------------------------------
+
+  // Check if we have an arguments adaptor frame below the function frame.
+  Label arguments_adaptor, arguments_done;
+  __ movp(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
+  __ Cmp(Operand(rbx, CommonFrameConstants::kContextOrFrameTypeOffset),
+         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ j(equal, &arguments_adaptor, Label::kNear);
+  {
+    __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
+    __ movp(rax, FieldOperand(rax, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadSharedFunctionInfoSpecialField(
+        rax, rax, SharedFunctionInfo::kFormalParameterCountOffset);
+    __ movp(rbx, rbp);
+  }
+  __ jmp(&arguments_done, Label::kNear);
+  __ bind(&arguments_adaptor);
+  {
+    __ SmiToInteger32(
+        rax, Operand(rbx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  }
+  __ bind(&arguments_done);
+
+  Label stack_empty, stack_done, stack_overflow;
+  __ subl(rax, rcx);
+  __ j(less_equal, &stack_empty);
+  {
+    // Check for stack overflow.
+    Generate_StackOverflowCheck(masm, rax, rcx, &stack_overflow, Label::kNear);
+
+    // Forward the arguments from the caller frame.
+    {
+      Label loop;
+      __ movl(rcx, rax);
+      __ Pop(r8);
+      __ bind(&loop);
+      {
+        StackArgumentsAccessor args(rbx, rcx, ARGUMENTS_DONT_CONTAIN_RECEIVER);
+        __ Push(args.GetArgumentOperand(0));
+        __ decl(rcx);
+        __ j(not_zero, &loop);
+      }
+      __ Push(r8);
+    }
+  }
+  __ jmp(&stack_done, Label::kNear);
+  __ bind(&stack_overflow);
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  __ bind(&stack_empty);
+  {
+    // We just pass the receiver, which is already on the stack.
+    __ Set(rax, 0);
+  }
+  __ bind(&stack_done);
+
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 namespace {
