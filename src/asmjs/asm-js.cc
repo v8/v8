@@ -191,6 +191,8 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
       internal::wasm::kAsmJsOrigin, info->script(), asm_offsets_vec);
   DCHECK(!compiled.is_null());
   double compile_time = compile_timer.Elapsed().InMillisecondsF();
+  DCHECK_GE(module->end(), module->begin());
+  uintptr_t wasm_size = module->end() - module->begin();
 
   wasm::AsmTyper::StdlibSet uses = builder.typer()->StdlibUses();
   Handle<FixedArray> uses_array =
@@ -216,10 +218,10 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
   if (FLAG_predictable) {
     length = base::OS::SNPrintF(text, arraysize(text), "success");
   } else {
-    length =
-        base::OS::SNPrintF(text, arraysize(text),
-                           "success, asm->wasm: %0.3f ms, compile: %0.3f ms",
-                           asm_wasm_time, compile_time);
+    length = base::OS::SNPrintF(
+        text, arraysize(text),
+        "success, asm->wasm: %0.3f ms, compile: %0.3f ms, %" PRIuPTR " bytes",
+        asm_wasm_time, compile_time, wasm_size);
   }
   DCHECK_NE(-1, length);
   USE(length);
