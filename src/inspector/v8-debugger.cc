@@ -47,7 +47,8 @@ V8DebuggerAgentImpl* agentForScript(V8InspectorImpl* inspector,
 static bool inLiveEditScope = false;
 
 v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
-    const char* functionName, int argc, v8::Local<v8::Value> argv[]) {
+    const char* functionName, int argc, v8::Local<v8::Value> argv[],
+    bool catchExceptions) {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   DCHECK(m_isolate->InContext());
@@ -57,7 +58,10 @@ v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
       debuggerScript
           ->Get(context, toV8StringInternalized(m_isolate, functionName))
           .ToLocalChecked());
-  v8::TryCatch try_catch(m_isolate);
+  if (catchExceptions) {
+    v8::TryCatch try_catch(m_isolate);
+    return function->Call(context, debuggerScript, argc, argv);
+  }
   return function->Call(context, debuggerScript, argc, argv);
 }
 
@@ -345,7 +349,7 @@ Response V8Debugger::setScriptSource(
     v8::TryCatch tryCatch(m_isolate);
     tryCatch.SetVerbose(false);
     v8::MaybeLocal<v8::Value> maybeResult =
-        callDebuggerMethod("liveEditScriptSource", 3, argv);
+        callDebuggerMethod("liveEditScriptSource", 3, argv, false);
     if (tryCatch.HasCaught()) {
       v8::Local<v8::Message> message = tryCatch.Message();
       if (!message.IsEmpty())
@@ -422,7 +426,7 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
   } else {
     v8::Local<v8::Value> argv[] = {m_executionState,
                                    v8::Integer::New(m_isolate, limit)};
-    if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv)
+    if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv, true)
              .ToLocal(&currentCallFramesV8))
       return JavaScriptCallFrames();
   }
@@ -536,7 +540,7 @@ void V8Debugger::BreakProgramRequested(v8::Local<v8::Context> pausedContext,
                                        v8::Local<v8::Value> breakPointsHit) {
   v8::Local<v8::Value> argv[] = {breakPointsHit};
   v8::Local<v8::Value> hitBreakpoints;
-  if (!callDebuggerMethod("getBreakpointNumbers", 1, argv)
+  if (!callDebuggerMethod("getBreakpointNumbers", 1, argv, true)
            .ToLocal(&hitBreakpoints)) {
     return;
   }
@@ -649,7 +653,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
       break;
   }
 
-  if (!callDebuggerMethod(debuggerMethod, 1, argv).ToLocal(&scopesValue))
+  if (!callDebuggerMethod(debuggerMethod, 1, argv, true).ToLocal(&scopesValue))
     return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Value> copied;
   if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
@@ -746,7 +750,7 @@ v8::Local<v8::Value> V8Debugger::collectionEntries(
   }
   v8::Local<v8::Value> argv[] = {object};
   v8::Local<v8::Value> entriesValue;
-  if (!callDebuggerMethod("getCollectionEntries", 1, argv)
+  if (!callDebuggerMethod("getCollectionEntries", 1, argv, true)
            .ToLocal(&entriesValue) ||
       !entriesValue->IsArray())
     return v8::Undefined(m_isolate);
@@ -784,7 +788,7 @@ v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
   v8::Local<v8::Value> argv[] = {object};
   v8::Local<v8::Value> location;
   v8::Local<v8::Value> copied;
-  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv)
+  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv, true)
            .ToLocal(&location) ||
       !copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
                                     location)
