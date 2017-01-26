@@ -79,6 +79,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
   Node* target = NodeProperties::GetValueInput(node, 0);
   CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  // Tail calls to Function.prototype.apply are not properly supported
+  // down the pipeline, so we disable this optimization completely for
+  // tail calls (for now).
+  if (p.tail_call_mode() == TailCallMode::kAllow) return NoChange();
   Handle<JSFunction> apply =
       Handle<JSFunction>::cast(HeapObjectMatcher(target).Value());
   size_t arity = p.arity();
