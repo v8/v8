@@ -426,8 +426,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // SIMD operators.
   const Operator* CreateFloat32x4();
-  const Operator* Float32x4ExtractLane();
-  const Operator* Float32x4ReplaceLane();
+  const Operator* Float32x4ExtractLane(int32_t);
+  const Operator* Float32x4ReplaceLane(int32_t);
   const Operator* Float32x4Abs();
   const Operator* Float32x4Neg();
   const Operator* Float32x4Sqrt();
@@ -451,8 +451,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float32x4FromUint32x4();
 
   const Operator* CreateInt32x4();
-  const Operator* Int32x4ExtractLane();
-  const Operator* Int32x4ReplaceLane();
+  const Operator* Int32x4ExtractLane(int32_t);
+  const Operator* Int32x4ReplaceLane(int32_t);
   const Operator* Int32x4Neg();
   const Operator* Int32x4Add();
   const Operator* Int32x4Sub();
@@ -494,8 +494,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Bool32x4NotEqual();
 
   const Operator* CreateInt16x8();
-  const Operator* Int16x8ExtractLane();
-  const Operator* Int16x8ReplaceLane();
+  const Operator* Int16x8ExtractLane(int32_t);
+  const Operator* Int16x8ReplaceLane(int32_t);
   const Operator* Int16x8Neg();
   const Operator* Int16x8Add();
   const Operator* Int16x8AddSaturate();
@@ -542,8 +542,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Bool16x8NotEqual();
 
   const Operator* CreateInt8x16();
-  const Operator* Int8x16ExtractLane();
-  const Operator* Int8x16ReplaceLane();
+  const Operator* Int8x16ExtractLane(int32_t);
+  const Operator* Int8x16ReplaceLane(int32_t);
   const Operator* Int8x16Neg();
   const Operator* Int8x16Add();
   const Operator* Int8x16AddSaturate();

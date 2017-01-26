@@ -386,12 +386,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // with {size} inputs.
   const Operator* ResizeMergeOrPhi(const Operator* op, int size);
 
-  // Simd Operators
-  const Operator* Int32x4ExtractLane(int32_t);
-  const Operator* Int32x4ReplaceLane(int32_t);
-  const Operator* Float32x4ExtractLane(int32_t);
-  const Operator* Float32x4ReplaceLane(int32_t);
-
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
       FrameStateType type, int parameter_count, int local_count,

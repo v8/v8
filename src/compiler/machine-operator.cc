@@ -221,8 +221,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                       \
   V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                       \
   V(CreateFloat32x4, Operator::kNoProperties, 4, 0, 1)                     \
-  V(Float32x4ExtractLane, Operator::kNoProperties, 2, 0, 1)                \
-  V(Float32x4ReplaceLane, Operator::kNoProperties, 3, 0, 1)                \
   V(Float32x4Abs, Operator::kNoProperties, 1, 0, 1)                        \
   V(Float32x4Neg, Operator::kNoProperties, 1, 0, 1)                        \
   V(Float32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                       \
@@ -245,8 +243,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32x4FromInt32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Float32x4FromUint32x4, Operator::kNoProperties, 1, 0, 1)               \
   V(CreateInt32x4, Operator::kNoProperties, 4, 0, 1)                       \
-  V(Int32x4ExtractLane, Operator::kNoProperties, 2, 0, 1)                  \
-  V(Int32x4ReplaceLane, Operator::kNoProperties, 3, 0, 1)                  \
   V(Int32x4Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int32x4Add, Operator::kCommutative, 2, 0, 1)                           \
   V(Int32x4Sub, Operator::kNoProperties, 2, 0, 1)                          \
@@ -285,8 +281,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Bool32x4Equal, Operator::kCommutative, 2, 0, 1)                        \
   V(Bool32x4NotEqual, Operator::kCommutative, 2, 0, 1)                     \
   V(CreateInt16x8, Operator::kNoProperties, 8, 0, 1)                       \
-  V(Int16x8ExtractLane, Operator::kNoProperties, 2, 0, 1)                  \
-  V(Int16x8ReplaceLane, Operator::kNoProperties, 3, 0, 1)                  \
   V(Int16x8Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int16x8Add, Operator::kCommutative, 2, 0, 1)                           \
   V(Int16x8AddSaturate, Operator::kCommutative, 2, 0, 1)                   \
@@ -330,8 +324,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Bool16x8Equal, Operator::kCommutative, 2, 0, 1)                        \
   V(Bool16x8NotEqual, Operator::kCommutative, 2, 0, 1)                     \
   V(CreateInt8x16, Operator::kNoProperties, 16, 0, 1)                      \
-  V(Int8x16ExtractLane, Operator::kNoProperties, 2, 0, 1)                  \
-  V(Int8x16ReplaceLane, Operator::kNoProperties, 3, 0, 1)                  \
   V(Int8x16Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int8x16Add, Operator::kCommutative, 2, 0, 1)                           \
   V(Int8x16AddSaturate, Operator::kCommutative, 2, 0, 1)                   \
@@ -457,6 +449,12 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(kWord8)                           \
   V(kWord16)                          \
   V(kWord32)
+
+#define SIMD_LANE_OP_LIST(V) \
+  V(Float32x4, 4)            \
+  V(Int32x4, 4)              \
+  V(Int16x8, 8)              \
+  V(Int8x16, 16)
 
 #define STACK_SLOT_CACHED_SIZES_LIST(V) V(4) V(8) V(16)
 
@@ -633,6 +631,24 @@ struct MachineOperatorGlobalCache {
   AtomicStore##Type##Operator kAtomicStore##Type;
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef STORE
+
+#define SIMD_LANE_OPS(Name, lane_count)                                     \
+  struct Name##ExtractLaneOperator final : public Operator1<int> {          \
+    static int lane_number;                                                 \
+    Name##ExtractLaneOperator()                                             \
+        : Operator1<int>(IrOpcode::k##Name##ExtractLane, Operator::kPure,   \
+                         "ExtractLane", 1, 0, 0, 1, 0, 0, lane_number++) {} \
+  };                                                                        \
+  struct Name##ReplaceLaneOperator final : public Operator1<int> {          \
+    static int lane_number;                                                 \
+    Name##ReplaceLaneOperator()                                             \
+        : Operator1<int>(IrOpcode::k##Name##ReplaceLane, Operator::kPure,   \
+                         "ReplaceLane", 2, 0, 0, 1, 0, 0, lane_number++) {} \
+  };                                                                        \
+  Name##ExtractLaneOperator k##Name##ExtractLane[lane_count];               \
+  Name##ReplaceLaneOperator k##Name##ReplaceLane[lane_count];
+  SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
+#undef SIMD_LANE_OPS
 
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
@@ -860,6 +876,22 @@ const Operator* MachineOperatorBuilder::AtomicStore(MachineRepresentation rep) {
   UNREACHABLE();
   return nullptr;
 }
+
+#define SIMD_LANE_OPS(Name, lane_count)                                       \
+  const Operator* MachineOperatorBuilder::Name##ExtractLane(                  \
+      int32_t lane_number) {                                                  \
+    DCHECK(0 <= lane_number && lane_number < lane_count);                     \
+    return &cache_.k##Name##ExtractLane[lane_number];                         \
+  }                                                                           \
+  const Operator* MachineOperatorBuilder::Name##ReplaceLane(                  \
+      int32_t lane_number) {                                                  \
+    DCHECK(0 <= lane_number && lane_number < lane_count);                     \
+    return &cache_.k##Name##ReplaceLane[lane_number];                         \
+  }                                                                           \
+  int MachineOperatorGlobalCache::Name##ExtractLaneOperator::lane_number = 0; \
+  int MachineOperatorGlobalCache::Name##ReplaceLaneOperator::lane_number = 0;
+SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
+#undef SIMD_LANE_OPS
 
 }  // namespace compiler
 }  // namespace internal

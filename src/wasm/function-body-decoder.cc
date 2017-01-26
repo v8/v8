@@ -348,9 +348,30 @@ class WasmDecoder : public Decoder {
     return true;
   }
 
-  inline bool Validate(const byte* pc, LaneOperand& operand) {
-    if (operand.lane < 0 || operand.lane > 3) {
-      error(pc_, pc_ + 2, "invalid extract lane value");
+  inline bool Validate(const byte* pc, WasmOpcode opcode,
+                       LaneOperand& operand) {
+    uint8_t num_lanes = 0;
+    switch (opcode) {
+      case kExprF32x4ExtractLane:
+      case kExprF32x4ReplaceLane:
+      case kExprI32x4ExtractLane:
+      case kExprI32x4ReplaceLane:
+        num_lanes = 4;
+        break;
+      case kExprI16x8ExtractLane:
+      case kExprI16x8ReplaceLane:
+        num_lanes = 8;
+        break;
+      case kExprI8x16ExtractLane:
+      case kExprI8x16ReplaceLane:
+        num_lanes = 16;
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+    if (operand.lane < 0 || operand.lane >= num_lanes) {
+      error(pc_, pc_ + 2, "invalid lane value");
       return false;
     } else {
       return true;
@@ -1338,7 +1359,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   unsigned ExtractLane(WasmOpcode opcode, ValueType type) {
     LaneOperand operand(this, pc_);
-    if (Validate(pc_, operand)) {
+    if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(1, zone_);
       inputs[0] = Pop(0, ValueType::kSimd128).node;
       TFNode* node = BUILD(SimdLaneOp, opcode, operand.lane, inputs);
@@ -1349,7 +1370,7 @@ class WasmFullDecoder : public WasmDecoder {
 
   unsigned ReplaceLane(WasmOpcode opcode, ValueType type) {
     LaneOperand operand(this, pc_);
-    if (Validate(pc_, operand)) {
+    if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, type).node;
       inputs[0] = Pop(0, ValueType::kSimd128).node;
@@ -1362,20 +1383,24 @@ class WasmFullDecoder : public WasmDecoder {
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
     unsigned len = 0;
     switch (opcode) {
-      case kExprI32x4ExtractLane: {
-        len = ExtractLane(opcode, ValueType::kWord32);
-        break;
-      }
       case kExprF32x4ExtractLane: {
         len = ExtractLane(opcode, ValueType::kFloat32);
         break;
       }
-      case kExprI32x4ReplaceLane: {
-        len = ReplaceLane(opcode, ValueType::kWord32);
+      case kExprI32x4ExtractLane:
+      case kExprI16x8ExtractLane:
+      case kExprI8x16ExtractLane: {
+        len = ExtractLane(opcode, ValueType::kWord32);
         break;
       }
       case kExprF32x4ReplaceLane: {
         len = ReplaceLane(opcode, ValueType::kFloat32);
+        break;
+      }
+      case kExprI32x4ReplaceLane:
+      case kExprI16x8ReplaceLane:
+      case kExprI8x16ReplaceLane: {
+        len = ReplaceLane(opcode, ValueType::kWord32);
         break;
       }
       default: {

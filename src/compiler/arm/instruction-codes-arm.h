@@ -136,11 +136,49 @@ namespace compiler {
   V(ArmInt32x4ReplaceLane)         \
   V(ArmInt32x4FromFloat32x4)       \
   V(ArmUint32x4FromFloat32x4)      \
+  V(ArmInt32x4Neg)                 \
   V(ArmInt32x4Add)                 \
   V(ArmInt32x4Sub)                 \
+  V(ArmInt32x4Mul)                 \
+  V(ArmInt32x4Min)                 \
+  V(ArmInt32x4Max)                 \
   V(ArmInt32x4Eq)                  \
   V(ArmInt32x4Ne)                  \
-  V(ArmSimd32x4Select)
+  V(ArmInt32x4Gt)                  \
+  V(ArmInt32x4Ge)                  \
+  V(ArmUint32x4Gt)                 \
+  V(ArmUint32x4Ge)                 \
+  V(ArmSimd32x4Select)             \
+  V(ArmInt16x8Splat)               \
+  V(ArmInt16x8ExtractLane)         \
+  V(ArmInt16x8ReplaceLane)         \
+  V(ArmInt16x8Neg)                 \
+  V(ArmInt16x8Add)                 \
+  V(ArmInt16x8Sub)                 \
+  V(ArmInt16x8Mul)                 \
+  V(ArmInt16x8Min)                 \
+  V(ArmInt16x8Max)                 \
+  V(ArmInt16x8Eq)                  \
+  V(ArmInt16x8Ne)                  \
+  V(ArmInt16x8Gt)                  \
+  V(ArmInt16x8Ge)                  \
+  V(ArmUint16x8Gt)                 \
+  V(ArmUint16x8Ge)                 \
+  V(ArmInt8x16Splat)               \
+  V(ArmInt8x16ExtractLane)         \
+  V(ArmInt8x16ReplaceLane)         \
+  V(ArmInt8x16Neg)                 \
+  V(ArmInt8x16Add)                 \
+  V(ArmInt8x16Sub)                 \
+  V(ArmInt8x16Mul)                 \
+  V(ArmInt8x16Min)                 \
+  V(ArmInt8x16Max)                 \
+  V(ArmInt8x16Eq)                  \
+  V(ArmInt8x16Ne)                  \
+  V(ArmInt8x16Gt)                  \
+  V(ArmInt8x16Ge)                  \
+  V(ArmUint8x16Gt)                 \
+  V(ArmUint8x16Ge)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

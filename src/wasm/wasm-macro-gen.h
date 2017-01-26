@@ -650,6 +650,18 @@ class LocalDeclEncoder {
 #define WASM_SIMD_I32x4_ADD(x, y) x, y, kSimdPrefix, kExprI32x4Add & 0xff
 #define WASM_SIMD_I32x4_SUB(x, y) x, y, kSimdPrefix, kExprI32x4Sub & 0xff
 
+#define WASM_SIMD_I16x8_SPLAT(x) x, kSimdPrefix, kExprI16x8Splat & 0xff
+#define WASM_SIMD_I16x8_EXTRACT_LANE(lane, x) \
+  x, kSimdPrefix, kExprI16x8ExtractLane & 0xff, static_cast<byte>(lane)
+#define WASM_SIMD_I16x8_REPLACE_LANE(lane, x, y) \
+  x, y, kSimdPrefix, kExprI16x8ReplaceLane & 0xff, static_cast<byte>(lane)
+
+#define WASM_SIMD_I8x16_SPLAT(x) x, kSimdPrefix, kExprI8x16Splat & 0xff
+#define WASM_SIMD_I8x16_EXTRACT_LANE(lane, x) \
+  x, kSimdPrefix, kExprI8x16ExtractLane & 0xff, static_cast<byte>(lane)
+#define WASM_SIMD_I8x16_REPLACE_LANE(lane, x, y) \
+  x, y, kSimdPrefix, kExprI8x16ReplaceLane & 0xff, static_cast<byte>(lane)
+
 #define SIG_ENTRY_v_v kWasmFunctionTypeForm, 0, 0
 #define SIZEOF_SIG_ENTRY_v_v 3
 

@@ -2286,6 +2286,7 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   Emit(code, 0, nullptr, input_count, inputs);
 }
 
+// TODO(bbudge) Macro-ize SIMD methods.
 void InstructionSelector::VisitCreateFloat32x4(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmFloat32x4Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
@@ -2386,6 +2387,12 @@ void InstructionSelector::VisitUint32x4FromFloat32x4(Node* node) {
        g.UseRegister(node->InputAt(0)));
 }
 
+void InstructionSelector::VisitInt32x4Neg(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Neg, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
 void InstructionSelector::VisitInt32x4Add(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmInt32x4Add, g.DefineAsRegister(node),
@@ -2395,6 +2402,24 @@ void InstructionSelector::VisitInt32x4Add(Node* node) {
 void InstructionSelector::VisitInt32x4Sub(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmInt32x4Sub, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Mul(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Mul, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Min(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Min, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4Max(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Max, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
@@ -2410,11 +2435,219 @@ void InstructionSelector::VisitInt32x4NotEqual(Node* node) {
        g.UseRegister(node->InputAt(1)));
 }
 
+void InstructionSelector::VisitInt32x4GreaterThan(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Gt, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt32x4GreaterThanOrEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt32x4Ge, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint32x4GreaterThan(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint32x4Gt, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint32x4GreaterThanOrEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint32x4Ge, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
 void InstructionSelector::VisitSimd32x4Select(Node* node) {
   ArmOperandGenerator g(this);
   Emit(kArmSimd32x4Select, g.DefineAsRegister(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
        g.UseRegister(node->InputAt(2)));
+}
+
+void InstructionSelector::VisitCreateInt16x8(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitInt16x8ExtractLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmInt16x8ExtractLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitInt16x8ReplaceLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmInt16x8ReplaceLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8Neg(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Neg, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitInt16x8Add(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Add, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8Sub(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Sub, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8Mul(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Mul, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8Min(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Min, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8Max(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Max, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8Equal(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Eq, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8NotEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Ne, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8GreaterThan(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Gt, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt16x8GreaterThanOrEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt16x8Ge, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint16x8GreaterThan(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint16x8Gt, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint16x8GreaterThanOrEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint16x8Ge, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitCreateInt8x16(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitInt8x16ExtractLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmInt8x16ExtractLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitInt8x16ReplaceLane(Node* node) {
+  ArmOperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kArmInt8x16ReplaceLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16Neg(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Neg, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitInt8x16Add(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Add, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16Sub(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Sub, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16Mul(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Mul, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16Min(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Min, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16Max(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Max, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16Equal(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Eq, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16NotEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Ne, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16GreaterThan(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Gt, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitInt8x16GreaterThanOrEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmInt8x16Ge, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+       g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint8x16GreaterThan(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint8x16Gt, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitUint8x16GreaterThanOrEqual(Node* node) {
+  ArmOperandGenerator g(this);
+  Emit(kArmUint8x16Ge, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
 }
 
 // static

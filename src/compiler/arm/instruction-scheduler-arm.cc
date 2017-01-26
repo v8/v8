@@ -124,11 +124,49 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt32x4ReplaceLane:
     case kArmInt32x4FromFloat32x4:
     case kArmUint32x4FromFloat32x4:
+    case kArmInt32x4Neg:
     case kArmInt32x4Add:
     case kArmInt32x4Sub:
+    case kArmInt32x4Mul:
+    case kArmInt32x4Min:
+    case kArmInt32x4Max:
     case kArmInt32x4Eq:
     case kArmInt32x4Ne:
+    case kArmInt32x4Gt:
+    case kArmInt32x4Ge:
+    case kArmUint32x4Gt:
+    case kArmUint32x4Ge:
     case kArmSimd32x4Select:
+    case kArmInt16x8Splat:
+    case kArmInt16x8ExtractLane:
+    case kArmInt16x8ReplaceLane:
+    case kArmInt16x8Neg:
+    case kArmInt16x8Add:
+    case kArmInt16x8Sub:
+    case kArmInt16x8Mul:
+    case kArmInt16x8Min:
+    case kArmInt16x8Max:
+    case kArmInt16x8Eq:
+    case kArmInt16x8Ne:
+    case kArmInt16x8Gt:
+    case kArmInt16x8Ge:
+    case kArmUint16x8Gt:
+    case kArmUint16x8Ge:
+    case kArmInt8x16Splat:
+    case kArmInt8x16ExtractLane:
+    case kArmInt8x16ReplaceLane:
+    case kArmInt8x16Neg:
+    case kArmInt8x16Add:
+    case kArmInt8x16Sub:
+    case kArmInt8x16Mul:
+    case kArmInt8x16Min:
+    case kArmInt8x16Max:
+    case kArmInt8x16Eq:
+    case kArmInt8x16Ne:
+    case kArmInt8x16Gt:
+    case kArmInt8x16Ge:
+    case kArmUint8x16Gt:
+    case kArmUint8x16Ge:
       return kNoOpcodeFlags;
 
     case kArmVldrF32:
