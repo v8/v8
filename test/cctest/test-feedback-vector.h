@@ -46,6 +46,11 @@ Handle<TypeFeedbackVector> NewTypeFeedbackVector(Isolate* isolate, Spec* spec) {
   return TypeFeedbackVector::New(isolate, metadata);
 }
 
+template <typename Spec>
+Handle<TypeFeedbackMetadata> NewTypeFeedbackMetadata(Isolate* isolate,
+                                                     Spec* spec) {
+  return TypeFeedbackMetadata::New(isolate, spec);
+}
 
 }  // namespace internal
 }  // namespace v8

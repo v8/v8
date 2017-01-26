@@ -18,24 +18,25 @@ MaybeHandle<Object> CallInterpreter(Isolate* isolate,
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, const char* source, MaybeHandle<BytecodeArray> bytecode,
-    MaybeHandle<TypeFeedbackVector> feedback_vector, const char* filter)
+    MaybeHandle<TypeFeedbackMetadata> feedback_metadata, const char* filter)
     : isolate_(isolate),
       source_(source),
       bytecode_(bytecode),
-      feedback_vector_(feedback_vector) {
+      feedback_metadata_(feedback_metadata) {
   i::FLAG_ignition = true;
   i::FLAG_always_opt = false;
 }
 
 InterpreterTester::InterpreterTester(
     Isolate* isolate, Handle<BytecodeArray> bytecode,
-    MaybeHandle<TypeFeedbackVector> feedback_vector, const char* filter)
-    : InterpreterTester(isolate, nullptr, bytecode, feedback_vector, filter) {}
+    MaybeHandle<TypeFeedbackMetadata> feedback_metadata, const char* filter)
+    : InterpreterTester(isolate, nullptr, bytecode, feedback_metadata, filter) {
+}
 
 InterpreterTester::InterpreterTester(Isolate* isolate, const char* source,
                                      const char* filter)
     : InterpreterTester(isolate, source, MaybeHandle<BytecodeArray>(),
-                        MaybeHandle<TypeFeedbackVector>(), filter) {}
+                        MaybeHandle<TypeFeedbackMetadata>(), filter) {}
 
 InterpreterTester::~InterpreterTester() {}
 
