@@ -61,12 +61,15 @@ static void MemoryFinalizer(const v8::WeakCallbackInfo<void>& data) {
   JSArrayBuffer** p = reinterpret_cast<JSArrayBuffer**>(data.GetParameter());
   JSArrayBuffer* buffer = *p;
 
-  void* memory = buffer->backing_store();
-  base::OS::Free(memory,
-                 RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize()));
+  if (!buffer->was_neutered()) {
+    void* memory = buffer->backing_store();
+    DCHECK(memory != nullptr);
+    base::OS::Free(memory,
+                   RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize()));
 
-  data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
-      -buffer->byte_length()->Number());
+    data.GetIsolate()->AdjustAmountOfExternalAllocatedMemory(
+        -buffer->byte_length()->Number());
+  }
 
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
@@ -756,6 +759,28 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 }
 }  // namespace
 
+Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
+                                       size_t size, bool is_external,
+                                       bool enable_guard_regions) {
+  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
+  JSArrayBuffer::Setup(buffer, isolate, is_external, backing_store,
+                       static_cast<int>(size));
+  buffer->set_is_neuterable(false);
+  buffer->set_has_guard_region(enable_guard_regions);
+
+  if (is_external) {
+    // We mark the buffer as external if we allocated it here with guard
+    // pages. That means we need to arrange for it to be freed.
+
+    // TODO(eholk): Finalizers may not run when the main thread is shutting
+    // down, which means we may leak memory here.
+    Handle<Object> global_handle = isolate->global_handles()->Create(*buffer);
+    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
+                            &MemoryFinalizer, v8::WeakCallbackType::kFinalizer);
+  }
+  return buffer;
+}
+
 Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
                                            bool enable_guard_regions) {
   if (size > (FLAG_wasm_max_mem_pages * WasmModule::kPageSize)) {
@@ -781,24 +806,8 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
   }
 #endif
 
-  Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
-  JSArrayBuffer::Setup(buffer, isolate, is_external, memory,
-                       static_cast<int>(size));
-  buffer->set_is_neuterable(false);
-  buffer->set_has_guard_region(enable_guard_regions);
-
-  if (is_external) {
-    // We mark the buffer as external if we allocated it here with guard
-    // pages. That means we need to arrange for it to be freed.
-
-    // TODO(eholk): Finalizers may not run when the main thread is shutting
-    // down, which means we may leak memory here.
-    Handle<Object> global_handle = isolate->global_handles()->Create(*buffer);
-    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                            &MemoryFinalizer, v8::WeakCallbackType::kFinalizer);
-  }
-
-  return buffer;
+  return SetupArrayBuffer(isolate, memory, size, is_external,
+                          enable_guard_regions);
 }
 
 const char* wasm::SectionName(WasmSectionCode code) {
@@ -2349,25 +2358,16 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     return Handle<JSArrayBuffer>::null();
   }
 
-  Handle<JSArrayBuffer> new_buffer;
-  if (!old_buffer.is_null() && old_buffer->has_guard_region()) {
-    // We don't move the backing store, we simply change the protection to make
-    // more of it accessible.
-    base::OS::Unprotect(old_buffer->backing_store(), new_size);
-    reinterpret_cast<v8::Isolate*>(isolate)
-        ->AdjustAmountOfExternalAllocatedMemory(pages * WasmModule::kPageSize);
-    Handle<Object> new_size_object =
-        isolate->factory()->NewNumberFromSize(new_size);
-    old_buffer->set_byte_length(*new_size_object);
-    new_buffer = old_buffer;
-  } else {
-    const bool enable_guard_regions = false;
-    new_buffer = NewArrayBuffer(isolate, new_size, enable_guard_regions);
-    if (new_buffer.is_null()) return new_buffer;
-    Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
-    if (old_size != 0) {
-      memcpy(new_mem_start, old_mem_start, old_size);
-    }
+  // TODO(gdeepti): Change the protection here instead of allocating a new
+  // buffer before guard regions are turned on, see issue #5886.
+  const bool enable_guard_regions =
+      !old_buffer.is_null() && old_buffer->has_guard_region();
+  Handle<JSArrayBuffer> new_buffer =
+      NewArrayBuffer(isolate, new_size, enable_guard_regions);
+  if (new_buffer.is_null()) return new_buffer;
+  Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
+  if (old_size != 0) {
+    memcpy(new_mem_start, old_mem_start, old_size);
   }
   return new_buffer;
 }
@@ -2387,6 +2387,30 @@ void UncheckedUpdateInstanceMemory(Isolate* isolate,
       old_mem_start, new_mem_start, old_size, new_size);
 }
 
+void DetachArrayBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer) {
+  const bool has_guard_regions =
+      (!buffer.is_null() && buffer->has_guard_region());
+  void* backing_store = buffer->backing_store();
+  if (backing_store != nullptr) {
+    DCHECK(!buffer->is_neuterable());
+    int64_t byte_length = NumberToSize(buffer->byte_length());
+    buffer->set_is_neuterable(true);
+    if (!has_guard_regions) {
+      buffer->set_is_external(true);
+      isolate->heap()->UnregisterArrayBuffer(*buffer);
+    }
+    buffer->Neuter();
+    if (!has_guard_regions) {
+      isolate->array_buffer_allocator()->Free(backing_store, byte_length);
+    } else {
+      base::OS::Free(backing_store, RoundUp(i::wasm::kWasmMaxHeapOffset,
+                                            base::OS::CommitPageSize()));
+      reinterpret_cast<v8::Isolate*>(isolate)
+          ->AdjustAmountOfExternalAllocatedMemory(-byte_length);
+    }
+  }
+}
+
 int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate,
                                     Handle<WasmMemoryObject> receiver,
                                     uint32_t pages) {
@@ -2402,12 +2426,26 @@ int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate,
     old_size = old_buffer->byte_length()->Number();
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
   }
+  Handle<JSArrayBuffer> new_buffer;
   // Return current size if grow by 0
   if (pages == 0) {
+    if (!old_buffer.is_null() && old_buffer->backing_store() != nullptr) {
+      new_buffer = SetupArrayBuffer(isolate, old_buffer->backing_store(),
+                                    old_size, old_buffer->is_external(),
+                                    old_buffer->has_guard_region());
+      memory_object->set_buffer(*new_buffer);
+      old_buffer->set_is_neuterable(true);
+      if (!old_buffer->has_guard_region()) {
+        old_buffer->set_is_external(true);
+        isolate->heap()->UnregisterArrayBuffer(*old_buffer);
+      }
+      // Neuter but don't free the memory because it is now being used by
+      // new_buffer.
+      old_buffer->Neuter();
+    }
     DCHECK(old_size % WasmModule::kPageSize == 0);
     return (old_size / WasmModule::kPageSize);
   }
-  Handle<JSArrayBuffer> new_buffer;
   if (!memory_object->has_instances_link()) {
     // Memory object does not have an instance associated with it, just grow
     uint32_t max_pages;
@@ -2444,6 +2482,7 @@ int32_t wasm::GrowWebAssemblyMemory(Isolate* isolate,
     }
   }
   memory_object->set_buffer(*new_buffer);
+  DetachArrayBuffer(isolate, old_buffer);
   DCHECK(old_size % WasmModule::kPageSize == 0);
   return (old_size / WasmModule::kPageSize);
 }

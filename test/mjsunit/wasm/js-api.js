@@ -454,14 +454,13 @@ var mem = new Memory({initial:1, maximum:2});
 var buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
 assertEq(mem.grow(0), 1);
-// TODO(gdeepti): Pending spec clarification
-// assertTrue(buf !== mem.buffer);
-// assertEq(buf.byteLength, 0);
+assertTrue(buf !== mem.buffer);
+assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, kPageSize);
 assertEq(mem.grow(1), 1);
-// TODO(gdeepti): assertTrue(buf !== mem.buffer);
-// TODO(gdeepti): assertEq(buf.byteLength, 0);
+assertTrue(buf !== mem.buffer);
+assertEq(buf.byteLength, 0);
 buf = mem.buffer;
 assertEq(buf.byteLength, 2 * kPageSize);
 assertErrorMessage(() => mem.grow(1), Error, /failed to grow memory/);
