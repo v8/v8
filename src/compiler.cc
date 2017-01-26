@@ -386,7 +386,8 @@ bool UseCompilerDispatcher(CompilerDispatcher* dispatcher,
                            DeclarationScope* scope,
                            Handle<SharedFunctionInfo> shared_info,
                            bool is_debug, bool will_serialize) {
-  return dispatcher->IsEnabled() && !is_debug && !will_serialize &&
+  return FLAG_compiler_dispatcher_eager_inner && dispatcher->IsEnabled() &&
+         !is_debug && !will_serialize &&
          !UseAsmWasm(scope, shared_info, is_debug);
 }
 
