@@ -66,8 +66,15 @@
 
 ##############################################################################
 ['variant == turbofan_opt', {
+  # TODO(mstarzinger): Debugger cannot materialize de-materialized functions.
+  'debug/regress/regress-crbug-323936': [FAIL],
+
   # TODO(jarin/mstarzinger): Investigate debugger issues with TurboFan.
+  'debug/debug-evaluate-closure': [FAIL],
   'debug/debug-evaluate-locals': [FAIL],
+  'debug/debug-liveedit-double-call': [FAIL],
+  'debug/debug-set-variable-value': [FAIL],
+  'debug/es6/debug-evaluate-blockscopes': [FAIL],
 }],  # variant == turbofan_opt
 
 ##############################################################################

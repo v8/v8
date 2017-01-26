@@ -9,7 +9,6 @@ function load(o) { return o.x; }
 for (var x = 0; x < 1000; ++x) {
   load({x});
   load({x});
-  %OptimizeFunctionOnNextCall(load);
   try { load(); } catch (e) { }
 }
 
@@ -21,7 +20,6 @@ function store(o) { o.x = -1; }
 for (var x = 0; x < 1000; ++x) {
   store({x});
   store({x});
-  %OptimizeFunctionOnNextCall(store);
   try { store(); } catch (e) { }
 }
 

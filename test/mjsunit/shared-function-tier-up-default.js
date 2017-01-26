@@ -13,20 +13,20 @@
     }
     sum += f(i);
 
-    if (isAlwaysOptimize() || isNeverOptimize()) {
+    if (%GetOptimizationStatus(f) == 3 || %GetOptimizationStatus(f) == 4) {
       // If we are always or never optimizing f, just exit, this test is useless.
       return;
     }
 
     if (i == 1) {
       // f must be baseline code.
-      assertTrue(isBaselined(f));
+      assertEquals(2, %GetOptimizationStatus(f));
 
       // Run twice (i = 0, 1), then tier-up.
       %OptimizeFunctionOnNextCall(f);
     } else if (i == 2) {
       // Tier-up at i = 2 should go up to crankshaft.
-      assertTrue(isCrankshafted(f));
+      assertEquals(1, %GetOptimizationStatus(f));
     }
   }
 })()

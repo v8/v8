@@ -79,8 +79,4 @@ assertOptimized(inferrable_store);
 // seeing a property name key. It should have inferred a receiver map and
 // emitted an elements store, however.
 inferrable_store("deopt");
-
-// TurboFan is not sophisticated enough to use key type provided by ICs.
-if (!isTurboFanned(inferrable_store)) {
-  assertUnoptimized(inferrable_store);
-}
+assertUnoptimized(inferrable_store);

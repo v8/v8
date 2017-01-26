@@ -27,14 +27,11 @@
 
 // Flags: --allow-natives-syntax --expose-gc
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
-
-assertFalse(isAlwaysOptimize());
 
 function f(x) {
   var xx = x * x;

@@ -1153,18 +1153,6 @@ class DeclareGlobalsNativeFlag : public BitField<bool, 1, 1> {};
 STATIC_ASSERT(LANGUAGE_END == 2);
 class DeclareGlobalsLanguageMode : public BitField<LanguageMode, 2, 1> {};
 
-// A set of bits returned by Runtime_GetOptimizationStatus.
-// These bits must be in sync with bits defined in test/mjsunit/mjsunit.js
-enum class OptimizationStatus {
-  kIsFunction = 1 << 0,
-  kNeverOptimize = 1 << 1,
-  kAlwaysOptimize = 1 << 2,
-  kMaybeDeopted = 1 << 3,
-  kOptimized = 1 << 4,
-  kTurboFanned = 1 << 5,
-  kInterpreted = 1 << 6,
-};
-
 }  // namespace internal
 }  // namespace v8
 

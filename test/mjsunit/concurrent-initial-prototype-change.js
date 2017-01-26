@@ -27,7 +27,7 @@
 
 // Flags: --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
-// Flags: --nostress-opt --no-always-opt
+// Flags: --nostress-opt
 
 // --nostress-opt is in place because this particular optimization
 // (guaranteeing that the Array prototype chain has no elements) is
@@ -40,8 +40,6 @@ if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
-
-assertFalse(isAlwaysOptimize());
 
 function f1(a, i) {
   return a[i] + 0.5;

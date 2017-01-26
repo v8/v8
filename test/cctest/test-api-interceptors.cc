@@ -13,7 +13,6 @@
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/objects.h"
-#include "src/runtime/runtime.h"
 #include "src/unicode-inl.h"
 #include "src/utils.h"
 
@@ -4094,7 +4093,6 @@ THREADED_TEST(NamedPropertyHandlerGetterAttributes) {
 
 
 THREADED_TEST(Regress256330) {
-  if (!i::FLAG_crankshaft) return;
   i::FLAG_allow_natives_syntax = true;
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
@@ -4110,10 +4108,7 @@ THREADED_TEST(Regress256330) {
       "f(o); f(o); f(o);"
       "%OptimizeFunctionOnNextCall(f);"
       "f(o);");
-  int status = v8_run_int32value(v8_compile("%GetOptimizationStatus(f)"));
-  int mask = static_cast<int>(i::OptimizationStatus::kIsFunction) |
-             static_cast<int>(i::OptimizationStatus::kOptimized);
-  CHECK_EQ(mask, status & mask);
+  ExpectBoolean("%GetOptimizationStatus(f) != 2", true);
 }
 
 
