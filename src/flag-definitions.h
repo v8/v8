@@ -488,6 +488,8 @@ DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
 DEFINE_BOOL(turbo_lower_create_closure, false,
             "enable inline allocation for closure instantiation")
+// TODO(turbofan): Rename --crankshaft to --optimize eventually.
+DEFINE_IMPLICATION(turbo, crankshaft)
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,

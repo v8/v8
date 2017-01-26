@@ -2,7 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax --ignition-staging --no-turbo
+// Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax
+// Flags: --ignition-staging --no-turbo
+// Flags: --crankshaft --no-always-opt
 
 (function() {
   var sum = 0;
