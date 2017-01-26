@@ -78,6 +78,7 @@ class PlatformInterfaceDescriptor;
   V(StringCharAt)                         \
   V(StringCharCodeAt)                     \
   V(StringCompare)                        \
+  V(StringIndexOf)                        \
   V(SubString)                            \
   V(Keyed)                                \
   V(Named)                                \
@@ -750,6 +751,13 @@ class SubStringDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kString, kFrom, kTo)
   DECLARE_DESCRIPTOR_WITH_STACK_ARGS(SubStringDescriptor,
                                      CallInterfaceDescriptor)
+};
+
+class StringIndexOfDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kSearchString, kPosition)
+  DECLARE_DEFAULT_DESCRIPTOR(StringIndexOfDescriptor, CallInterfaceDescriptor,
+                             kParameterCount)
 };
 
 // TODO(ishell): not used, remove.

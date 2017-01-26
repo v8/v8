@@ -129,14 +129,15 @@ namespace internal {
   ASM(StackCheck)                                                              \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                          \
-  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                       \
-  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                       \
-  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                \
-  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                    \
-  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)             \
   TFS(StringCharAt, BUILTIN, kNoExtraICState, StringCharAt)                    \
   TFS(StringCharCodeAt, BUILTIN, kNoExtraICState, StringCharCodeAt)            \
+  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                          \
+  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                    \
+  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)             \
+  TFS(StringIndexOf, BUILTIN, kNoExtraICState, StringIndexOf)                  \
+  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                       \
+  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                \
+  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                       \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \

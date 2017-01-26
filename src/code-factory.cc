@@ -294,6 +294,12 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
 }
 
 // static
+Callable CodeFactory::StringIndexOf(Isolate* isolate) {
+  return Callable(isolate->builtins()->StringIndexOf(),
+                  StringIndexOfDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::SubString(Isolate* isolate) {
   SubStringStub stub(isolate);
   return Callable(stub.GetCode(), stub.GetCallInterfaceDescriptor());

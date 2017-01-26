@@ -60,6 +60,10 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   Node* LoadSurrogatePairAt(Node* string, Node* length, Node* index,
                             UnicodeEncoding encoding);
+
+  void StringIndexOf(Node* receiver, Node* instance_type, Node* search_string,
+                     Node* search_string_instance_type, Node* position,
+                     std::function<void(Node*)> f_return);
 };
 
 void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
@@ -785,7 +789,93 @@ BUILTIN(StringPrototypeIncludes) {
   return *isolate->factory()->ToBoolean(index_in_str != -1);
 }
 
-// ES6 #sec-string.prototype.indexof
+void StringBuiltinsAssembler::StringIndexOf(
+    Node* receiver, Node* instance_type, Node* search_string,
+    Node* search_string_instance_type, Node* position,
+    std::function<void(Node*)> f_return) {
+  CSA_ASSERT(this, IsString(receiver));
+  CSA_ASSERT(this, IsString(search_string));
+  CSA_ASSERT(this, TaggedIsSmi(position));
+
+  Label zero_length_needle(this), call_runtime_unchecked(this),
+      return_minus_1(this), check_search_string(this), continue_fast_path(this);
+
+  Node* needle_length = SmiUntag(LoadStringLength(search_string));
+  // Use faster/complex runtime fallback for long search strings.
+  GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
+         &call_runtime_unchecked);
+  Node* string_length = SmiUntag(LoadStringLength(receiver));
+  Node* start_position = SmiUntag(position);
+
+  GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
+  // Check that the needle fits in the start position.
+  GotoUnless(IntPtrLessThanOrEqual(needle_length,
+                                   IntPtrSub(string_length, start_position)),
+             &return_minus_1);
+  // Only support one-byte strings on the fast path.
+  BranchIfSimpleOneByteStringInstanceType(instance_type, &check_search_string,
+                                          &call_runtime_unchecked);
+  Bind(&check_search_string);
+  BranchIfSimpleOneByteStringInstanceType(search_string_instance_type,
+                                          &continue_fast_path,
+                                          &call_runtime_unchecked);
+  Bind(&continue_fast_path);
+  {
+    Node* needle_byte =
+        ChangeInt32ToIntPtr(LoadOneByteChar(search_string, IntPtrConstant(0)));
+    Node* start_address = OneByteCharAddress(receiver, start_position);
+    Node* search_length = IntPtrSub(string_length, start_position);
+    // Call out to the highly optimized memchr to perform the actual byte
+    // search.
+    Node* memchr =
+        ExternalConstant(ExternalReference::libc_memchr_function(isolate()));
+    Node* result_address =
+        CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
+                       MachineType::IntPtr(), MachineType::UintPtr(), memchr,
+                       start_address, needle_byte, search_length);
+    GotoIf(WordEqual(result_address, IntPtrConstant(0)), &return_minus_1);
+    Node* result_index =
+        IntPtrAdd(IntPtrSub(result_address, start_address), start_position);
+    f_return(SmiTag(result_index));
+  }
+  Bind(&return_minus_1);
+  { f_return(SmiConstant(-1)); }
+  Bind(&zero_length_needle);
+  {
+    Comment("0-length search_string");
+    f_return(SmiTag(IntPtrMin(string_length, start_position)));
+  }
+  Bind(&call_runtime_unchecked);
+  {
+    // Simplified version of the runtime call where the types of the arguments
+    // are already known due to type checks in this stub.
+    Comment("Call Runtime Unchecked");
+    Node* result = CallRuntime(Runtime::kStringIndexOfUnchecked, SmiConstant(0),
+                               receiver, search_string, position);
+    f_return(result);
+  }
+}
+
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+// Unchecked helper for builtins lowering.
+TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
+  Node* receiver = Parameter(0);
+  Node* search_string = Parameter(1);
+  Node* position = Parameter(2);
+
+  Label call_runtime(this);
+
+  Node* instance_type = LoadInstanceType(receiver);
+  Node* search_string_instance_type = LoadInstanceType(search_string);
+
+  StringIndexOf(receiver, instance_type, search_string,
+                search_string_instance_type, position,
+                [this](Node* result) { this->Return(result); });
+}
+
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
 TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
   Variable search_string(this, MachineRepresentation::kTagged),
       position(this, MachineRepresentation::kTagged);
@@ -832,83 +922,26 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
   Bind(&fast_path);
   {
     Comment("Fast Path");
-    Label zero_length_needle(this);
     GotoIf(TaggedIsSmi(receiver), &call_runtime);
     Node* needle = search_string.value();
     GotoIf(TaggedIsSmi(needle), &call_runtime);
+
     Node* instance_type = LoadInstanceType(receiver);
     GotoUnless(IsStringInstanceType(instance_type), &call_runtime);
 
     Node* needle_instance_type = LoadInstanceType(needle);
     GotoUnless(IsStringInstanceType(needle_instance_type), &call_runtime);
 
-    // At this point we know that the receiver and the needle are Strings and
-    // that position is a Smi.
-
-    Node* needle_length = SmiUntag(LoadStringLength(needle));
-    // Use possibly faster runtime fallback for long search strings.
-    GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
-           &call_runtime_unchecked);
-    Node* string_length = SmiUntag(LoadStringLength(receiver));
-    Node* start_position = SmiUntag(position.value());
-
-    GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
-    // Check that the needle fits in the start position.
-    GotoUnless(IntPtrLessThanOrEqual(needle_length,
-                                     IntPtrSub(string_length, start_position)),
-               &return_minus_1);
-    // Only support one-byte strings on the fast path.
-    Label check_needle(this), continue_fast_path(this);
-    BranchIfSimpleOneByteStringInstanceType(instance_type, &check_needle,
-                                            &call_runtime_unchecked);
-    Bind(&check_needle);
-    BranchIfSimpleOneByteStringInstanceType(
-        needle_instance_type, &continue_fast_path, &call_runtime_unchecked);
-    Bind(&continue_fast_path);
-    {
-      Node* needle_byte =
-          ChangeInt32ToIntPtr(LoadOneByteChar(needle, IntPtrConstant(0)));
-      Node* start_address = OneByteCharAddress(receiver, start_position);
-      Node* search_length = IntPtrSub(string_length, start_position);
-      // Call out to the highly optimized memchr to perform the actual byte
-      // search.
-      Node* memchr =
-          ExternalConstant(ExternalReference::libc_memchr_function(isolate()));
-      Node* result_address =
-          CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
-                         MachineType::IntPtr(), MachineType::UintPtr(), memchr,
-                         start_address, needle_byte, search_length);
-      GotoIf(WordEqual(result_address, IntPtrConstant(0)), &return_minus_1);
-      Node* result_index =
-          IntPtrAdd(IntPtrSub(result_address, start_address), start_position);
-      arguments.PopAndReturn(SmiTag(result_index));
-    }
-    Bind(&zero_length_needle);
-    {
-      Comment("0-length needle");
-      arguments.PopAndReturn(SmiTag(IntPtrMin(string_length, start_position)));
-    }
+    StringIndexOf(
+        receiver, instance_type, needle, needle_instance_type, position.value(),
+        [&arguments](Node* result) { arguments.PopAndReturn(result); });
   }
-
-  Bind(&return_minus_1);
-  { arguments.PopAndReturn(SmiConstant(-1)); }
 
   Bind(&call_runtime);
   {
     Comment("Call Runtime");
     Node* result = CallRuntime(Runtime::kStringIndexOf, context, receiver,
                                search_string.value(), position.value());
-    arguments.PopAndReturn(result);
-  }
-
-  Bind(&call_runtime_unchecked);
-  {
-    // Simplified version of the runtime call where the types of the arguments
-    // are already known due to type checks in this stub.
-    Comment("Call Runtime Unchecked");
-    Node* result =
-        CallRuntime(Runtime::kStringIndexOfUnchecked, context, receiver,
-                    search_string.value(), position.value());
     arguments.PopAndReturn(result);
   }
 }

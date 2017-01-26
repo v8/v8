@@ -5,9 +5,11 @@
 #include "src/compiler/js-builtin-reducer.h"
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -1730,6 +1732,44 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
+  int arg_count = node->op()->ValueInputCount();
+  if (arg_count != 3 && arg_count != 4) return NoChange();
+  Node* receiver;
+  if (!(receiver = GetStringWitness(node))) return NoChange();
+  Node* search_string = NodeProperties::GetValueInput(node, 2);
+  if (!NodeProperties::GetType(search_string)->Is(Type::String())) {
+    return NoChange();
+  }
+  // Replace the current JSFunctionCall to String.prototype.indexOf with a
+  // simple Call to the unchecked StringIndexOf builtin.
+  Callable callable = CodeFactory::StringIndexOf(isolate());
+  const CallInterfaceDescriptor& descriptor = callable.descriptor();
+  CallDescriptor* desc =
+      Linkage::GetStubCallDescriptor(isolate(), graph()->zone(), descriptor,
+                                     descriptor.GetStackParameterCount(),
+                                     CallDescriptor::kNoFlags, Operator::kPure);
+  Node* stub_code = jsgraph()->HeapConstant(callable.code());
+  // The Call Operator doesn't require an effect nor a control input.
+  RelaxEffectsAndControls(node);
+  // Remove framestate since StringIndexOf cannot deopt.
+  node->RemoveInput(arg_count + 1);
+  // Remove the control input.
+  node->RemoveInput(arg_count + 2);
+  // Replace the JSFunction from the JSFunctionCall node with the CodeStub.
+  node->ReplaceInput(0, stub_code);
+  if (arg_count == 3) {
+    // Insert the missing position argument.
+    node->InsertInput(graph()->zone(), 3, jsgraph()->ZeroConstant());
+  }
+  const Operator* op = common()->Call(desc);
+  node->TrimInputCount(op->ValueInputCount());
+  NodeProperties::ChangeOp(node, op);
+  return Changed(node);
+}
+
 Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     Node* effect = NodeProperties::GetEffectInput(node);
@@ -2101,6 +2141,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIndexOf:
+      return ReduceStringIndexOf(node);
     case kStringIterator:
       return ReduceStringIterator(node);
     case kStringIteratorNext:
