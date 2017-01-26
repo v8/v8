@@ -1697,10 +1697,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       }
       GenerateCallToTrap(trap_id);
       if (frame_elided_) {
-        ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                              Safepoint::kNoLazyDeopt);
         __ set_has_frame(old_has_frame);
       }
       if (FLAG_debug_code) {
@@ -1722,6 +1718,10 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
       }
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
     }
 
     bool frame_elided_;
