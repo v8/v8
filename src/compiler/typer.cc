@@ -1505,6 +1505,8 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
           return Type::OtherObject();
         case kObjectHasOwnProperty:
           return Type::Boolean();
+        case kObjectToString:
+          return Type::String();
 
         // RegExp functions.
         case kRegExpCompile:
