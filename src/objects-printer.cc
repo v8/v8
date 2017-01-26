@@ -417,7 +417,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
 
 void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
   // Print in array notation for non-sparse arrays.
-  Object* previous_value = array->get(0);
+  Object* previous_value = array->length() > 0 ? array->get(0) : nullptr;
   Object* value = nullptr;
   int previous_index = 0;
   int i;
