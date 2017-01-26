@@ -3,6 +3,9 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --nostress-opt --track-field-types
+// Flags: --no-always-opt
+
+assertFalse(isAlwaysOptimize());
 
 (function() {
   var o = { text: "Hello World!" };

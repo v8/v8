@@ -25,12 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --no-always-opt
 
 // Verifies that the KeyedStoreIC correctly handles out-of-bounds stores
 // to an array that grow it by a single element. Test functions are
 // called twice to make sure that the IC is used, first call is handled
 // by the runtime in the miss stub.
+
+assertFalse(isAlwaysOptimize());
 
 function array_store_1(a,b,c) {
   return (a[b] = c);

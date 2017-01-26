@@ -81,10 +81,10 @@ test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);
 test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);
 %OptimizeFunctionOnNextCall(test);
 test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);
-assertTrue(2 != %GetOptimizationStatus(test));
+assertOptimized(test);
 
 // By deleting the field we are forcing the code to deopt when the field is
 // read on next execution.
 delete deopt_trigger;
 test(10.0, 20.0, 30.0, 40.0, 50.0, 1.5);
-assertTrue(1 != %GetOptimizationStatus(test));
+assertUnoptimized(test);

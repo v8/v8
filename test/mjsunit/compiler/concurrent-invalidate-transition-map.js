@@ -27,11 +27,14 @@
 
 // Flags: --track-fields --track-double-fields --allow-natives-syntax
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
+
+assertFalse(isAlwaysOptimize());
 
 function new_object() {
   var o = {};

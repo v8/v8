@@ -40,7 +40,7 @@ function f1() {
 for (var j = 0; j < 5; ++j) f1();
 %OptimizeFunctionOnNextCall(f1);
 f1();
-assertTrue(%GetOptimizationStatus(f1) != 2);
+assertOptimized(f1);
 
 // Dynamic lookup in and through block contexts.
 function f2(one) {

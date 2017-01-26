@@ -314,18 +314,19 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 }
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
-  bool optimization_disabled = shared->optimization_disabled();
+  if (shared->optimization_disabled()) {
+    return false;
+  }
+
   bool must_use_ignition_turbo = shared->must_use_ignition_turbo();
 
   // Check the enabling conditions for Turbofan.
   // 1. "use asm" code.
-  bool is_turbofanable_asm =
-      FLAG_turbo_asm && shared->asm_function() && !optimization_disabled;
+  bool is_turbofanable_asm = FLAG_turbo_asm && shared->asm_function();
 
   // 2. Fallback for features unsupported by Crankshaft.
   bool is_unsupported_by_crankshaft_but_turbofanable =
-      must_use_ignition_turbo && strcmp(FLAG_turbo_filter, "~~") == 0 &&
-      !optimization_disabled;
+      must_use_ignition_turbo && strcmp(FLAG_turbo_filter, "~~") == 0;
 
   // 3. Explicitly enabled by the command-line filter.
   bool passes_turbo_filter = shared->PassesFilter(FLAG_turbo_filter);

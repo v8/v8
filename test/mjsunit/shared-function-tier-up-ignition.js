@@ -13,29 +13,30 @@
     }
     sum += f(i);
 
-    if (%GetOptimizationStatus(f) == 3 || %GetOptimizationStatus(f) == 4) {
+    if (isAlwaysOptimize() || isNeverOptimize()) {
       // If we are always or never optimizing f, just exit, this test is useless.
       return;
     }
 
     if (i == 1) {
       // f must be interpreted code.
-      assertEquals(8, %GetOptimizationStatus(f));
+      assertTrue(isInterpreted(f));
 
       // Allow it to run twice (i = 0, 1), then tier-up to baseline.
       %BaselineFunctionOnNextCall(f);
     } else if (i == 2) {
       // Tier-up at i = 2 should only go up to baseline.
-      assertEquals(2, %GetOptimizationStatus(f));
+      assertTrue(isBaselined(f));
+
     } else if (i == 3) {
       // Now f must be baseline code.
-      assertEquals(2, %GetOptimizationStatus(f));
+      assertTrue(isBaselined(f));
 
       // Run two more times (i = 2, 3), then tier-up to optimized.
       %OptimizeFunctionOnNextCall(f);
     } else if (i == 4) {
       // Tier-up at i = 4 should now go up to crankshaft.
-      assertEquals(1, %GetOptimizationStatus(f));
+      assertTrue(isCrankshafted(f));
     }
   }
 })()

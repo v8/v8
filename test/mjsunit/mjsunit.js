@@ -120,6 +120,38 @@ var assertContains;
 // Assert that a string matches a given regex.
 var assertMatches;
 
+// These bits must be in sync with bits defined in Runtime_GetOptimizationStatus
+var V8OptimizationStatus = {
+  kIsFunction: 1 << 0,
+  kNeverOptimize: 1 << 1,
+  kAlwaysOptimize: 1 << 2,
+  kMaybeDeopted: 1 << 3,
+  kOptimized: 1 << 4,
+  kTurboFanned: 1 << 5,
+  kInterpreted: 1 << 6
+};
+
+// Returns true if --no-crankshaft mode is on.
+var isNeverOptimize;
+
+// Returns true if --always-opt mode is on.
+var isAlwaysOptimize;
+
+// Returns true if given function in interpreted.
+var isInterpreted;
+
+// Returns true if given function is compiled by a base-line compiler.
+var isBaselined;
+
+// Returns true if given function is optimized.
+var isOptimized;
+
+// Returns true if given function is compiled by Crankshaft.
+var isCrankshafted;
+
+// Returns true if given function is compiled by TurboFan.
+var isTurboFanned;
+
 
 (function () {  // Scope for utility functions.
 
@@ -462,12 +494,72 @@ var assertMatches;
 
   assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) !== 1, name_opt);
+    var opt_status = OptimizationStatus(fun, sync_opt);
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
   assertOptimized = function assertOptimized(fun, sync_opt, name_opt) {
     if (sync_opt === undefined) sync_opt = "";
-    assertTrue(OptimizationStatus(fun, sync_opt) !== 2, name_opt);
+    var opt_status = OptimizationStatus(fun, sync_opt);
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    if ((opt_status & V8OptimizationStatus.kNeverOptimize) !== 0) {
+      // TODO(ishell): every test that calls %OptimizeFunctionOnNextCall()
+      // does not make sense when --no-crankshaft option is provided.
+      return;
+    }
+    assertTrue((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
+  }
+
+  isNeverOptimize = function isNeverOptimize() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kNeverOptimize) !== 0;
+  }
+
+  isAlwaysOptimize = function isAlwaysOptimize() {
+    var opt_status = OptimizationStatus(undefined, "");
+    return (opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0;
+  }
+
+  isInterpreted = function isInterpreted(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
+           (opt_status & V8OptimizationStatus.kInterpreted) !== 0;
+  }
+
+  // NOTE: This predicate also returns true for functions that have never
+  // been compiled (i.e. that have LazyCompile stub as a code).
+  isBaselined = function isBaselined(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) === 0 &&
+           (opt_status & V8OptimizationStatus.kInterpreted) === 0;
+  }
+
+  isOptimized = function isOptimized(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
+  }
+
+  isCrankshafted = function isCrankshafted(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kTurboFanned) === 0;
+  }
+
+  isTurboFanned = function isTurboFanned(fun) {
+    var opt_status = OptimizationStatus(fun, "");
+    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
+               "not a function");
+    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
+           (opt_status & V8OptimizationStatus.kTurboFanned) !== 0;
   }
 
 })();

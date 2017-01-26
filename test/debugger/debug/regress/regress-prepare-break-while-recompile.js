@@ -26,11 +26,14 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --concurrent-recompilation --block-concurrent-recompilation
+// Flags: --no-always-opt
 
 if (!%IsConcurrentRecompilationSupported()) {
   print("Concurrent recompilation is disabled. Skipping this test.");
   quit();
 }
+
+assertFalse(isAlwaysOptimize());
 
 Debug = debug.Debug
 

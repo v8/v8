@@ -480,5 +480,5 @@ for (var i=0; i<10; i++) {
 f(12);
 g(12);
 
-assertTrue(%GetOptimizationStatus(f) != 2);
-assertTrue(%GetOptimizationStatus(g) != 2);
+assertOptimized(f);
+assertOptimized(g);

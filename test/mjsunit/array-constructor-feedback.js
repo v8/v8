@@ -26,7 +26,10 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax --expose-gc
-// Flags: --noalways-opt
+// Flags: --no-always-opt --crankshaft
+
+assertFalse(isNeverOptimize());
+assertFalse(isAlwaysOptimize());
 
 // Test element kind of objects.
 
@@ -72,7 +75,7 @@ function assertKind(expected, obj, name_opt) {
   a[0] = 3.5;
   b = bar0(Array);
   assertKind(elements_kind.fast_double, b);
-    %OptimizeFunctionOnNextCall(bar0);
+  %OptimizeFunctionOnNextCall(bar0);
   b = bar0(Array);
   assertKind(elements_kind.fast_double, b);
   assertOptimized(bar0);
@@ -81,18 +84,16 @@ function assertKind(expected, obj, name_opt) {
   assertUnoptimized(bar0)
   // When it's re-optimized, we should call through the full stub
   bar0(Array);
-    %OptimizeFunctionOnNextCall(bar0);
+  %OptimizeFunctionOnNextCall(bar0);
   b = bar0(Array);
   // This only makes sense to test if we allow crankshafting
-  if (4 != %GetOptimizationStatus(bar0)) {
-    // We also lost our ability to record kind feedback, as the site
-    // is megamorphic now.
-    assertKind(elements_kind.fast_smi_only, b);
-    assertOptimized(bar0);
-    b[0] = 3.5;
-    c = bar0(Array);
-    assertKind(elements_kind.fast_smi_only, c);
-  }
+  // We also lost our ability to record kind feedback, as the site
+  // is megamorphic now.
+  assertKind(elements_kind.fast_smi_only, b);
+  assertOptimized(bar0);
+  b[0] = 3.5;
+  c = bar0(Array);
+  assertKind(elements_kind.fast_smi_only, c);
 })();
 
 
@@ -141,17 +142,15 @@ function assertKind(expected, obj, name_opt) {
   }
   a = bar();
   bar();
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   b = bar();
   // This only makes sense to test if we allow crankshafting
-  if (4 != %GetOptimizationStatus(bar)) {
-    assertOptimized(bar);
-      %DebugPrint(3);
-    b[0] = 3.5;
-    c = bar();
-    assertKind(elements_kind.fast_smi_only, c);
-    assertOptimized(bar);
-  }
+  assertOptimized(bar);
+  %DebugPrint(3);
+  b[0] = 3.5;
+  c = bar();
+  assertKind(elements_kind.fast_smi_only, c);
+  assertOptimized(bar);
 })();
 
 
@@ -180,7 +179,7 @@ function assertKind(expected, obj, name_opt) {
   function bar(len) { return new Array(len); }
   bar(0);
   bar(0);
-    %OptimizeFunctionOnNextCall(bar);
+  %OptimizeFunctionOnNextCall(bar);
   a = bar(0);
   assertOptimized(bar);
   assertFalse(isHoley(a));
@@ -192,10 +191,8 @@ function assertKind(expected, obj, name_opt) {
   a = bar(0);
   assertOptimized(bar);
   // Crankshafted functions don't use mementos, so feedback still
-  // indicates a packed array is desired. (unless --nocrankshaft is in use).
-  if (4 != %GetOptimizationStatus(bar)) {
-    assertFalse(isHoley(a));
-  }
+  // indicates a packed array is desired.
+  assertFalse(isHoley(a));
 })();
 
 // Test: Make sure that crankshaft continues with feedback for large arrays.
