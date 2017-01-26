@@ -915,27 +915,15 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
       }
       return true;
     }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return false;
-        }
-        break;
-      }
-      case IrOpcode::kStoreElement:
-      case IrOpcode::kStoreTypedElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return false;
-        }
-        break;
-      }
+    // The instance type doesn't change for JSReceiver values, so we
+    // don't need to pay attention to potentially side-effecting nodes
+    // here. Strings and internal structures like FixedArray and
+    // FixedDoubleArray are weird here, but we don't use this function then.
+    DCHECK_LE(FIRST_JS_RECEIVER_TYPE, instance_type);
+    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckMaps node.
+      return false;
     }
     dominator = NodeProperties::GetEffectInput(dominator);
   }
