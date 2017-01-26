@@ -134,6 +134,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
                                             v8::Local<v8::Value>);
 
   void asyncTaskCreated(void* task, void* parentTask);
+  void registerAsyncTaskIfNeeded(void* task);
 
   // v8::debug::DebugEventListener implementation.
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
@@ -166,6 +167,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
+  AsyncTaskToStackTrace m_asyncTaskCreationStacks;
   int m_maxAsyncCallStacks;
   std::map<int, void*> m_idToTask;
   std::unordered_map<void*, int> m_taskToId;

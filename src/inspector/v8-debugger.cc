@@ -862,9 +862,32 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 
+void V8Debugger::registerAsyncTaskIfNeeded(void* task) {
+  if (m_taskToId.find(task) != m_taskToId.end()) return;
+
+  int id = ++m_lastTaskId;
+  m_taskToId[task] = id;
+  m_idToTask[id] = task;
+  if (static_cast<int>(m_idToTask.size()) > m_maxAsyncCallStacks) {
+    void* taskToRemove = m_idToTask.begin()->second;
+    asyncTaskCanceled(taskToRemove);
+  }
+}
+
 void V8Debugger::asyncTaskCreated(void* task, void* parentTask) {
   if (!m_maxAsyncCallStackDepth) return;
   if (parentTask) m_parentTask[task] = parentTask;
+  v8::HandleScope scope(m_isolate);
+  // We don't need to pass context group id here because we gets this callback
+  // from V8 for promise events only.
+  // Passing one as maxStackSize forces no async chain for the new stack and
+  // allows us to not grow exponentially.
+  std::unique_ptr<V8StackTraceImpl> creationStack =
+      V8StackTraceImpl::capture(this, 0, 1, String16());
+  if (creationStack && !creationStack->isEmpty()) {
+    m_asyncTaskCreationStacks[task] = std::move(creationStack);
+    registerAsyncTaskIfNeeded(task);
+  }
 }
 
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
@@ -887,13 +910,7 @@ void V8Debugger::asyncTaskScheduled(const String16& taskName, void* task,
   if (chain) {
     m_asyncTaskStacks[task] = std::move(chain);
     if (recurring) m_recurringTasks.insert(task);
-    int id = ++m_lastTaskId;
-    m_taskToId[task] = id;
-    m_idToTask[id] = task;
-    if (static_cast<int>(m_idToTask.size()) > m_maxAsyncCallStacks) {
-      void* taskToRemove = m_idToTask.begin()->second;
-      asyncTaskCanceled(taskToRemove);
-    }
+    registerAsyncTaskIfNeeded(task);
   }
 }
 
@@ -902,6 +919,7 @@ void V8Debugger::asyncTaskCanceled(void* task) {
   m_asyncTaskStacks.erase(task);
   m_recurringTasks.erase(task);
   m_parentTask.erase(task);
+  m_asyncTaskCreationStacks.erase(task);
   auto it = m_taskToId.find(task);
   if (it == m_taskToId.end()) return;
   m_idToTask.erase(it->second);
@@ -924,6 +942,10 @@ void V8Debugger::asyncTaskStarted(void* task) {
   std::unique_ptr<V8StackTraceImpl> stack;
   if (stackIt != m_asyncTaskStacks.end() && stackIt->second)
     stack = stackIt->second->cloneImpl();
+  auto itCreation = m_asyncTaskCreationStacks.find(task);
+  if (stack && itCreation != m_asyncTaskCreationStacks.end()) {
+    stack->setCreation(itCreation->second->cloneImpl());
+  }
   m_currentStacks.push_back(std::move(stack));
 }
 
@@ -947,6 +969,7 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_currentStacks.clear();
   m_currentTasks.clear();
   m_parentTask.clear();
+  m_asyncTaskCreationStacks.clear();
   m_idToTask.clear();
   m_taskToId.clear();
   m_lastTaskId = 0;

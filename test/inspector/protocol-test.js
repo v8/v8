@@ -112,6 +112,21 @@ InspectorTest.logCallFrames = function(callFrames)
   }
 }
 
+InspectorTest.logAsyncStackTrace = function(asyncStackTrace)
+{
+  while (asyncStackTrace) {
+    if (asyncStackTrace.promiseCreationFrame) {
+      var frame = asyncStackTrace.promiseCreationFrame;
+      InspectorTest.log(`-- ${asyncStackTrace.description} (${frame.url
+                        }:${frame.lineNumber}:${frame.columnNumber})--`);
+    } else {
+      InspectorTest.log(`-- ${asyncStackTrace.description} --`);
+    }
+    InspectorTest.logCallFrames(asyncStackTrace.callFrames);
+    asyncStackTrace = asyncStackTrace.parent;
+  }
+}
+
 InspectorTest.completeTest = function()
 {
   Protocol.Debugger.disable().then(() => quit());
