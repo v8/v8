@@ -261,10 +261,6 @@ class BytecodeGraphBuilder {
     bytecode_analysis_ = bytecode_analysis;
   }
 
-  bool IsLivenessAnalysisEnabled() const {
-    return this->is_liveness_analysis_enabled_;
-  }
-
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -302,8 +298,6 @@ class BytecodeGraphBuilder {
 
   // Control nodes that exit the function body.
   ZoneVector<Node*> exit_controls_;
-
-  bool const is_liveness_analysis_enabled_;
 
   StateValuesCache state_values_cache_;
 

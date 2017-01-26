@@ -470,7 +470,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       input_buffer_size_(0),
       input_buffer_(nullptr),
       exit_controls_(local_zone),
-      is_liveness_analysis_enabled_(FLAG_analyze_environment_liveness),
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
       start_position_(shared_info->start_position(), inlining_id) {}
