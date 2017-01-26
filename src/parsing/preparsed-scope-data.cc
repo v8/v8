@@ -4,6 +4,9 @@
 
 #include "src/parsing/preparsed-scope-data.h"
 
+#include "src/ast/variables.h"
+#include "src/objects-inl.h"
+
 namespace v8 {
 namespace internal {
 
@@ -35,11 +38,20 @@ PreParsedScopeData::ScopeScope::~ScopeScope() {
   data_->backing_store_[index_in_data_ + 1] = variable_count_;
 }
 
-void PreParsedScopeData::ScopeScope::AddVariable(VariableLocation location,
-                                                 bool maybe_assigned) {
-  data_->backing_store_.push_back(location);
-  data_->backing_store_.push_back(maybe_assigned);
-  ++variable_count_;
+void PreParsedScopeData::ScopeScope::MaybeAddVariable(Variable* var) {
+  if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {
+#ifdef DEBUG
+    // For tests (which check that the data is about the same variables).
+    const AstRawString* name = var->raw_name();
+    data_->backing_store_.push_back(name->length());
+    for (int i = 0; i < name->length(); ++i) {
+      data_->backing_store_.push_back(name->raw_data()[i]);
+    }
+#endif
+    data_->backing_store_.push_back(var->location());
+    data_->backing_store_.push_back(var->maybe_assigned());
+    ++variable_count_;
+  }
 }
 
 }  // namespace internal

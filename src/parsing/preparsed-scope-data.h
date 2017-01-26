@@ -23,7 +23,7 @@ class PreParsedScopeData {
                int start_position, int end_position);
     ~ScopeScope();
 
-    void AddVariable(VariableLocation location, bool maybe_assigned);
+    void MaybeAddVariable(Variable* var);
 
    private:
     PreParsedScopeData* data_;

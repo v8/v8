@@ -2178,10 +2178,7 @@ void Scope::CollectVariableData(PreParsedScopeData* data) {
   PreParsedScopeData::ScopeScope scope_scope(data, scope_type(),
                                              start_position(), end_position());
   for (Variable* local : locals_) {
-    if (local->mode() == VAR || local->mode() == LET ||
-        local->mode() == CONST) {
-      scope_scope.AddVariable(local->location(), local->maybe_assigned());
-    }
+    scope_scope.MaybeAddVariable(local);
   }
   for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
     inner->CollectVariableData(data);

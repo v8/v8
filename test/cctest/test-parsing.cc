@@ -8724,6 +8724,14 @@ class ScopeTestHelper {
     for (Variable* local : scope->locals_) {
       if (local->mode() == VAR || local->mode() == LET ||
           local->mode() == CONST) {
+#ifdef DEBUG
+        const AstRawString* local_name = local->raw_name();
+        int name_length = data->backing_store_[index++];
+        CHECK_EQ(name_length, local_name->length());
+        for (int i = 0; i < name_length; ++i) {
+          CHECK_EQ(data->backing_store_[index++], local_name->raw_data()[i]);
+        }
+#endif
         CHECK_EQ(data->backing_store_[index++], local->location());
         CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
       }
