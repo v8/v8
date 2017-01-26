@@ -495,6 +495,8 @@ class Debug {
   }
 
   bool IsBlackboxed(SharedFunctionInfo* shared);
+  bool IsExceptionBlackboxed(bool uncaught);
+  bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
 

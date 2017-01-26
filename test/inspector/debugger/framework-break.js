@@ -1,11 +1,11 @@
 // Copyright 2017 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+// Flags: --allow-natives-syntax
 
 print('Checks that breaks in framework code correctly processed.');
 
-InspectorTest.addScript(
-    `
+InspectorTest.addScript(`
 function frameworkAssert() {
   console.assert(false);
 }
@@ -51,8 +51,21 @@ function throwFromJSONParse() {
   }
 }
 
-//# sourceURL=framework.js`,
-    7, 26);
+function throwInlinedUncaughtError() {
+  function inlinedWrapper() {
+    throwUserException();
+  }
+  %OptimizeFunctionOnNextCall(inlinedWrapper);
+  inlinedWrapper();
+}
+
+//# sourceURL=framework.js`, 8, 26);
+
+InspectorTest.addScript(`
+function throwUserException() {
+  throw new Error();
+}
+//# sourceURL=user.js`, 64, 26)
 
 InspectorTest.setupScriptMap();
 Protocol.Debugger.onPaused(message => {
@@ -98,17 +111,29 @@ InspectorTest.runTestSuite([
         .then(() => InspectorTest.log('> all frames in framework:'))
         .then(
             () => Protocol.Runtime.evaluate(
-                {expression: 'throwUncaughtError()//# sourceURL=framework.js'}))
+                {expression: 'setTimeout(\'throwUncaughtError()//# sourceURL=framework.js\', 0)//# sourceURL=framework.js'}))
+        .then(() => Protocol.Runtime.evaluate({ expression: "new Promise(resolve => setTimeout(resolve, 0))", awaitPromise: true}))
         .then(() => InspectorTest.log('> mixed, top frame in framework:'))
         .then(
             () => Protocol.Runtime.evaluate(
-                {expression: 'throwUncaughtError()//# sourceURL=user.js'}))
+                {expression: 'setTimeout(\'throwUncaughtError()//# sourceURL=user.js\', 0)'}))
+        .then(() => Protocol.Runtime.evaluate({ expression: "new Promise(resolve => setTimeout(resolve, 0))", awaitPromise: true}))
         .then(() => Protocol.Debugger.setPauseOnExceptions({state: 'none'}))
         .then(next);
   },
 
+  function testUncaughtExceptionWithInlinedFrame(next) {
+    Protocol.Debugger.setPauseOnExceptions({state: 'all'})
+        .then(() => InspectorTest.log('> mixed top frame in framework:'))
+        .then(
+            () => Protocol.Runtime.evaluate(
+                {expression: 'setTimeout(\'throwInlinedUncaughtError()//# sourceURL=framework.js\', 0)//# sourceURL=framework.js'}))
+        .then(() => Protocol.Runtime.evaluate({ expression: "new Promise(resolve => setTimeout(resolve, 0))", awaitPromise: true}))
+        .then(next);
+  },
+
   function testBreakpoint(next) {
-    Protocol.Debugger.setBreakpointByUrl({lineNumber: 24, url: 'framework.js'})
+    Protocol.Debugger.setBreakpointByUrl({lineNumber: 25, url: 'framework.js'})
         .then(() => InspectorTest.log('> all frames in framework:'))
         .then(
             () => Protocol.Runtime.evaluate(

@@ -1737,6 +1737,38 @@ v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
 }
 }  // anonymous namespace
 
+bool Debug::IsExceptionBlackboxed(bool uncaught) {
+  JavaScriptFrameIterator it(isolate_);
+  if (it.done()) return false;
+  // Uncaught exception is blackboxed if all current frames are blackboxed,
+  // caught exception if top frame is blackboxed.
+  bool is_top_frame_blackboxed = IsFrameBlackboxed(it.frame());
+  if (!uncaught || !is_top_frame_blackboxed) return is_top_frame_blackboxed;
+  it.Advance();
+  while (!it.done()) {
+    if (!IsFrameBlackboxed(it.frame())) return false;
+    it.Advance();
+  }
+  return true;
+}
+
+bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
+  HandleScope scope(isolate_);
+  if (!frame->HasInlinedFrames()) {
+    return IsBlackboxed(frame->function()->shared());
+  }
+  List<SharedFunctionInfo*> raw_shareds;
+  frame->GetFunctions(&raw_shareds);
+  List<Handle<SharedFunctionInfo>> shareds;
+  for (int i = 0; i < raw_shareds.length(); ++i) {
+    shareds.Add(handle(raw_shareds[i]));
+  }
+  for (int i = 0; i < shareds.length(); ++i) {
+    if (!IsBlackboxed(shareds[i])) return false;
+  }
+  return true;
+}
+
 void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   // We cannot generate debug events when JS execution is disallowed.
   // TODO(5530): Reenable debug events within DisallowJSScopes once relevant
@@ -1769,8 +1801,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
   {
     JavaScriptFrameIterator it(isolate_);
     // Check whether the top frame is blackboxed or the break location is muted.
-    if (!it.done() && (IsBlackboxed(it.frame()->function()->shared()) ||
-                       IsMutedAtCurrentLocation(it.frame()))) {
+    if (!it.done() && (IsMutedAtCurrentLocation(it.frame()) ||
+                       IsExceptionBlackboxed(uncaught))) {
       return;
     }
   }
