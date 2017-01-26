@@ -88,6 +88,7 @@
   V(get_string, "get")                                             \
   V(get_space_string, "get ")                                      \
   V(global_string, "global")                                       \
+  V(group_string, "group")                                         \
   V(has_string, "has")                                             \
   V(hour_string, "hour")                                           \
   V(ignoreCase_string, "ignoreCase")                               \
