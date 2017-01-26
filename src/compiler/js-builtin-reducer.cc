@@ -123,7 +123,9 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
       return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
                                 : MaybeHandle<Map>();
     }
-    if (dominator->op()->EffectInputCount() != 1) {
+    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+    if (dominator->op()->EffectInputCount() != 1 ||
+        !dominator->op()->HasProperty(Operator::kNoWrite)) {
       // Didn't find any appropriate CheckMaps node.
       return MaybeHandle<Map>();
     }
