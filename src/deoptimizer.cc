@@ -2793,7 +2793,7 @@ TranslatedValue TranslatedValue::NewDuplicateObject(TranslatedState* container,
 
 // static
 TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
-                                          float value) {
+                                          Float32 value) {
   TranslatedValue slot(container, kFloat);
   slot.float_value_ = value;
   return slot;
@@ -2801,7 +2801,7 @@ TranslatedValue TranslatedValue::NewFloat(TranslatedState* container,
 
 // static
 TranslatedValue TranslatedValue::NewDouble(TranslatedState* container,
-                                           double value) {
+                                           Float64 value) {
   TranslatedValue slot(container, kDouble);
   slot.double_value_ = value;
   return slot;
@@ -2870,12 +2870,12 @@ uint32_t TranslatedValue::uint32_value() const {
   return uint32_value_;
 }
 
-float TranslatedValue::float_value() const {
+Float32 TranslatedValue::float_value() const {
   DCHECK_EQ(kFloat, kind());
   return float_value_;
 }
 
-double TranslatedValue::double_value() const {
+Float64 TranslatedValue::double_value() const {
   DCHECK_EQ(kDouble, kind());
   return double_value_;
 }
@@ -2985,22 +2985,29 @@ void TranslatedValue::MaterializeSimple() {
   }
 
   switch (kind()) {
-    case kInt32: {
+    case kInt32:
       value_ = Handle<Object>(isolate()->factory()->NewNumber(int32_value()));
       return;
-    }
 
     case kUInt32:
       value_ = Handle<Object>(isolate()->factory()->NewNumber(uint32_value()));
       return;
 
-    case kFloat:
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(float_value()));
+    case kFloat: {
+      double scalar_value = float_value().get_scalar();
+      value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
       return;
+    }
 
-    case kDouble:
-      value_ = Handle<Object>(isolate()->factory()->NewNumber(double_value()));
+    case kDouble: {
+      if (double_value().is_hole_nan()) {
+        value_ = isolate()->factory()->hole_nan_value();
+        return;
+      }
+      double scalar_value = double_value().get_scalar();
+      value_ = Handle<Object>(isolate()->factory()->NewNumber(scalar_value));
       return;
+    }
 
     case kCapturedObject:
     case kDuplicatedObject:
@@ -3048,6 +3055,13 @@ uint32_t TranslatedState::GetUInt32Slot(Address fp, int slot_offset) {
 #endif
 }
 
+Float32 TranslatedState::GetFloatSlot(Address fp, int slot_offset) {
+  return Float32::FromBits(GetUInt32Slot(fp, slot_offset));
+}
+
+Float64 TranslatedState::GetDoubleSlot(Address fp, int slot_offset) {
+  return Float64::FromBits(Memory::uint64_at(fp + slot_offset));
+}
 
 void TranslatedValue::Handlify() {
   if (kind() == kTagged) {
@@ -3403,9 +3417,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::FLOAT_REGISTER: {
       int input_reg = iterator->Next();
       if (registers == nullptr) return TranslatedValue::NewInvalid(this);
-      float value = registers->GetFloatRegister(input_reg);
+      Float32 value = registers->GetFloatRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (float)", value,
+        PrintF(trace_file, "%e ; %s (float)", value.get_scalar(),
                RegisterConfiguration::Crankshaft()->GetFloatRegisterName(
                    input_reg));
       }
@@ -3415,9 +3429,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::DOUBLE_REGISTER: {
       int input_reg = iterator->Next();
       if (registers == nullptr) return TranslatedValue::NewInvalid(this);
-      double value = registers->GetDoubleRegister(input_reg);
+      Float64 value = registers->GetDoubleRegister(input_reg);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; %s (double)", value,
+        PrintF(trace_file, "%e ; %s (double)", value.get_scalar(),
                RegisterConfiguration::Crankshaft()->GetDoubleRegisterName(
                    input_reg));
       }
@@ -3473,9 +3487,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::FLOAT_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
-      float value = ReadFloatValue(fp + slot_offset);
+      Float32 value = GetFloatSlot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value,
+        PrintF(trace_file, "%e ; (float) [fp %c %d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       return TranslatedValue::NewFloat(this, value);
@@ -3484,9 +3498,9 @@ TranslatedValue TranslatedState::CreateNextTranslatedValue(
     case Translation::DOUBLE_STACK_SLOT: {
       int slot_offset =
           OptimizedFrame::StackSlotOffsetRelativeToFp(iterator->Next());
-      double value = ReadDoubleValue(fp + slot_offset);
+      Float64 value = GetDoubleSlot(fp, slot_offset);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "%e ; (double) [fp %c %d] ", value,
+        PrintF(trace_file, "%e ; (double) [fp %c %d] ", value.get_scalar(),
                slot_offset < 0 ? '-' : '+', std::abs(slot_offset));
       }
       return TranslatedValue::NewDouble(this, value);
@@ -3857,7 +3871,11 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
         for (int i = 0; i < length; ++i) {
           Handle<Object> value = materializer.FieldAt(value_index);
           CHECK(value->IsNumber());
-          double_array->set(i, value->Number());
+          if (value.is_identical_to(isolate_->factory()->hole_nan_value())) {
+            double_array->set_the_hole(isolate_, i);
+          } else {
+            double_array->set(i, value->Number());
+          }
         }
       }
       return object;
