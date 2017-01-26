@@ -386,6 +386,7 @@ TEST(DisasmX64) {
     __ cvtsd2ss(xmm0, xmm1);
     __ cvtsd2ss(xmm0, Operand(rbx, rcx, times_4, 10000));
     __ movaps(xmm0, xmm1);
+    __ shufps(xmm0, xmm9, 0x0);
 
     // logic operation
     __ andps(xmm0, xmm1);
