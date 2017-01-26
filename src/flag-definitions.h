@@ -501,6 +501,8 @@ DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
 DEFINE_BOOL(expose_wasm, true, "expose WASM interface to JavaScript")
+DEFINE_BOOL(assume_asmjs_origin, false,
+            "force wasm decoder to assume input is internal asm-wasm format")
 DEFINE_BOOL(wasm_disable_structured_cloning, false,
             "disable WASM structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,

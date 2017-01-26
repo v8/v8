@@ -178,7 +178,9 @@ class ModuleDecoder : public Decoder {
  public:
   ModuleDecoder(Zone* zone, const byte* module_start, const byte* module_end,
                 ModuleOrigin origin)
-      : Decoder(module_start, module_end), module_zone(zone), origin_(origin) {
+      : Decoder(module_start, module_end),
+        module_zone(zone),
+        origin_(FLAG_assume_asmjs_origin ? kAsmJsOrigin : origin) {
     result_.start = start_;
     if (end_ < start_) {
       error(start_, "end is less than start");
