@@ -364,7 +364,7 @@ class AsmTyper final {
   AsmType* ParameterTypeAnnotations(Variable* parameter,
                                     Expression* annotation);
   // 5.2 ReturnTypeAnnotations
-  AsmType* ReturnTypeAnnotations(ReturnStatement* statement);
+  AsmType* ReturnTypeAnnotations(Expression* ret_expr);
   // 5.4 VariableTypeAnnotations
   // 5.5 GlobalVariableTypeAnnotations
   AsmType* VariableTypeAnnotations(

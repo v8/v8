@@ -856,9 +856,10 @@ TEST(ErrorsInFunction) {
        "}\n",
        "Undeclared identifier in return statement"},
       {"function f() {\n"
+       "  var i = 0;\n"
        "  return i?0:1;\n"
        "}\n",
-       "Invalid return type expression"},
+       "Type mismatch in return statement"},
       {"function f() {\n"
        "  return stdlib.Math.E;"
        "}\n",
