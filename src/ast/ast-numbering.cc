@@ -649,6 +649,13 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 
   if (FLAG_trace_opt) {
     if (disable_crankshaft_reason_ != kNoReason) {
+      // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
+      // the function to be accessed in the below print. This DCHECK will fail
+      // if we move ast numbering off the main thread, but that won't be before
+      // we remove FCG, in which case this entire check isn't necessary anyway.
+      AllowHandleDereference allow_deref;
+      DCHECK(!node->debug_name().is_null());
+
       PrintF("[enforcing Ignition and TurboFan for %s because: %s\n",
              node->debug_name()->ToCString().get(),
              GetBailoutReason(disable_crankshaft_reason_));
