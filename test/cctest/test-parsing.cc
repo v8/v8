@@ -8711,8 +8711,23 @@ class ScopeTestHelper {
     }
     CHECK_EQ(data->backing_store_[index++], inner_scope_count);
 
-    // Variable count is 0. TODO(marja): implement.
-    CHECK_EQ(data->backing_store_[index++], 0);
+    int variable_count = 0;
+    for (Variable* local : scope->locals_) {
+      if (local->mode() == VAR || local->mode() == LET ||
+          local->mode() == CONST) {
+        ++variable_count;
+      }
+    }
+
+    CHECK_EQ(data->backing_store_[index++], variable_count);
+
+    for (Variable* local : scope->locals_) {
+      if (local->mode() == VAR || local->mode() == LET ||
+          local->mode() == CONST) {
+        CHECK_EQ(data->backing_store_[index++], local->location());
+        CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
+      }
+    }
 
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
@@ -9022,7 +9037,6 @@ TEST(PreParserScopeAnalysis) {
       {"", "var1"},
       {"", "if (true) {}"},
       {"", "function f1() {}"},
-      {"", "if (true) { function f1() {} }"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {
@@ -9076,6 +9090,7 @@ TEST(PreParserScopeAnalysis) {
 
     script = factory->NewScript(source);
     i::ParseInfo eager_info(&zone, script);
+    eager_info.set_allow_lazy_parsing(false);
 
     CHECK(i::parsing::ParseProgram(&eager_info));
     CHECK(i::Compiler::Analyze(&eager_info));

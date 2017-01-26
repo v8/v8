@@ -23,8 +23,7 @@ class PreParsedScopeData {
                int start_position, int end_position);
     ~ScopeScope();
 
-    // TODO(marja): The functions for adding information about local variables
-    // will appear here.
+    void AddVariable(VariableLocation location, bool maybe_assigned);
 
    private:
     PreParsedScopeData* data_;

@@ -657,7 +657,7 @@ void DeclarationScope::DeclareArguments(AstValueFactory* ast_value_factory) {
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
     arguments_ = Declare(zone(), ast_value_factory->arguments_string(), VAR);
-  } else if (IsLexicalVariableMode(arguments_->mode())) {
+  } else if (IsLexical(arguments_)) {
     // Check if there's lexically declared variable named arguments to avoid
     // redeclaration. See ES#sec-functiondeclarationinstantiation, step 20.
     arguments_ = nullptr;
@@ -950,7 +950,8 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
   // introduced during variable allocation, and TEMPORARY variables are
   // allocated via NewTemporary().
   DCHECK(IsDeclaredVariableMode(mode));
-  DCHECK(!GetDeclarationScope()->is_being_lazily_parsed());
+  DCHECK_IMPLIES(GetDeclarationScope()->is_being_lazily_parsed(),
+                 mode == VAR || mode == LET || mode == CONST);
   DCHECK(!GetDeclarationScope()->was_lazily_parsed());
   return Declare(zone(), name, mode, kind, init_flag, maybe_assigned_flag);
 }
@@ -1080,7 +1081,15 @@ void Scope::DeclareVariableName(const AstRawString* name, VariableMode mode) {
   DCHECK(scope_info_.is_null());
 
   // Declare the variable in the declaration scope.
-  variables_.DeclareName(zone(), name, mode);
+  if (FLAG_preparser_scope_analysis) {
+    Variable* var = LookupLocal(name);
+    if (var == nullptr) {
+      var = DeclareLocal(name, mode);
+    }
+    var->set_is_used();
+  } else {
+    variables_.DeclareName(zone(), name, mode);
+  }
 }
 
 VariableProxy* Scope::NewUnresolved(AstNodeFactory* factory,
@@ -1909,6 +1918,9 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
 }
 
 bool Scope::MustAllocate(Variable* var) {
+  if (var == kDummyPreParserLexicalVariable || var == kDummyPreParserVariable) {
+    return true;
+  }
   DCHECK(var->location() != VariableLocation::MODULE);
   // Give var a read/write use if there is a chance it might be accessed
   // via an eval() call.  This is only possible if the variable has a
@@ -2085,7 +2097,8 @@ void ModuleScope::AllocateModuleVariables() {
 
 void Scope::AllocateVariablesRecursively() {
   DCHECK(!already_resolved_);
-  DCHECK_EQ(0, num_stack_slots_);
+  DCHECK_IMPLIES(!FLAG_preparser_scope_analysis, num_stack_slots_ == 0);
+
   // Don't allocate variables of preparsed scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
     return;
@@ -2164,8 +2177,12 @@ void Scope::AllocateDebuggerScopeInfos(Isolate* isolate,
 void Scope::CollectVariableData(PreParsedScopeData* data) {
   PreParsedScopeData::ScopeScope scope_scope(data, scope_type(),
                                              start_position(), end_position());
-  // TODO(marja): Add data about the variables.
-
+  for (Variable* local : locals_) {
+    if (local->mode() == VAR || local->mode() == LET ||
+        local->mode() == CONST) {
+      scope_scope.AddVariable(local->location(), local->maybe_assigned());
+    }
+  }
   for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
     inner->CollectVariableData(data);
   }

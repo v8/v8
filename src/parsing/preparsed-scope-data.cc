@@ -35,5 +35,12 @@ PreParsedScopeData::ScopeScope::~ScopeScope() {
   data_->backing_store_[index_in_data_ + 1] = variable_count_;
 }
 
+void PreParsedScopeData::ScopeScope::AddVariable(VariableLocation location,
+                                                 bool maybe_assigned) {
+  data_->backing_store_.push_back(location);
+  data_->backing_store_.push_back(maybe_assigned);
+  ++variable_count_;
+}
+
 }  // namespace internal
 }  // namespace v8
