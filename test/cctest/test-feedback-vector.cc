@@ -99,7 +99,7 @@ TEST(VectorStructure) {
   {
     FeedbackVectorSpec spec(&zone);
     spec.AddGeneralSlot();
-    spec.AddCreateClosureSlot(5);
+    spec.AddCreateClosureSlot();
     spec.AddGeneralSlot();
     vector = NewTypeFeedbackVector(isolate, &spec);
     FeedbackVectorHelper helper(vector);

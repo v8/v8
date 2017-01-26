@@ -31,8 +31,6 @@ enum class FeedbackVectorSlotKind {
   INTERPRETER_BINARYOP_IC,
   INTERPRETER_COMPARE_IC,
   STORE_DATA_PROPERTY_IN_LITERAL_IC,
-
-  // This kind of slot has an integer parameter associated with it.
   CREATE_CLOSURE,
   // This is a general purpose slot that occupies one feedback vector element.
   GENERAL,
@@ -60,8 +58,7 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
   }
 
-  FeedbackVectorSlot AddCreateClosureSlot(int size) {
-    This()->append_parameter(size);
+  FeedbackVectorSlot AddCreateClosureSlot() {
     return AddSlot(FeedbackVectorSlotKind::CREATE_CLOSURE);
   }
 
@@ -108,20 +105,13 @@ class FeedbackVectorSpecBase {
 class StaticFeedbackVectorSpec
     : public FeedbackVectorSpecBase<StaticFeedbackVectorSpec> {
  public:
-  StaticFeedbackVectorSpec() : slot_count_(0), parameters_count_(0) {}
+  StaticFeedbackVectorSpec() : slot_count_(0) {}
 
   int slots() const { return slot_count_; }
 
   FeedbackVectorSlotKind GetKind(int slot) const {
     DCHECK(slot >= 0 && slot < slot_count_);
     return kinds_[slot];
-  }
-
-  int parameters_count() const { return parameters_count_; }
-
-  int GetParameter(int index) const {
-    DCHECK(index >= 0 && index < parameters_count_);
-    return parameters_[index];
   }
 
  private:
@@ -132,26 +122,17 @@ class StaticFeedbackVectorSpec
     kinds_[slot_count_++] = kind;
   }
 
-  void append_parameter(int parameter) {
-    DCHECK(parameters_count_ < kMaxLength);
-    parameters_[parameters_count_++] = parameter;
-  }
-
   static const int kMaxLength = 12;
 
   int slot_count_;
   FeedbackVectorSlotKind kinds_[kMaxLength];
-  int parameters_count_;
-  int parameters_[kMaxLength];
 };
 
 
 class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
  public:
-  explicit FeedbackVectorSpec(Zone* zone)
-      : slot_kinds_(zone), parameters_(zone) {
+  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
     slot_kinds_.reserve(16);
-    parameters_.reserve(8);
   }
 
   int slots() const { return static_cast<int>(slot_kinds_.size()); }
@@ -160,10 +141,6 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     return static_cast<FeedbackVectorSlotKind>(slot_kinds_.at(slot));
   }
 
-  int parameters_count() const { return static_cast<int>(parameters_.size()); }
-
-  int GetParameter(int index) const { return parameters_.at(index); }
-
  private:
   friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
 
@@ -171,10 +148,7 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
     slot_kinds_.push_back(static_cast<unsigned char>(kind));
   }
 
-  void append_parameter(int parameter) { parameters_.push_back(parameter); }
-
   ZoneVector<unsigned char> slot_kinds_;
-  ZoneVector<int> parameters_;
 };
 
 
@@ -190,14 +164,10 @@ class TypeFeedbackMetadata : public FixedArray {
   static inline TypeFeedbackMetadata* cast(Object* obj);
 
   static const int kSlotsCountIndex = 0;
-  static const int kParametersTableIndex = 1;
-  static const int kReservedIndexCount = 2;
+  static const int kReservedIndexCount = 1;
 
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackVectorSlotKind kind);
-
-  // Defines if slots of given kind require "parameter".
-  static inline bool SlotRequiresParameter(FeedbackVectorSlotKind kind);
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
@@ -210,9 +180,6 @@ class TypeFeedbackMetadata : public FixedArray {
 
   // Returns slot kind for given slot.
   FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
-
-  // Returns parameter for given index (note: this is not the slot)
-  int GetParameter(int parameter_index) const;
 
   template <typename Spec>
   static Handle<TypeFeedbackMetadata> New(Isolate* isolate, const Spec* spec);
@@ -282,8 +249,6 @@ class TypeFeedbackVector : public FixedArray {
 
   // Returns slot kind for given slot.
   FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const;
-  // Returns parameter corresponding to given slot or -1.
-  int GetParameter(FeedbackVectorSlot slot) const;
 
   static Handle<TypeFeedbackVector> New(Isolate* isolate,
                                         Handle<TypeFeedbackMetadata> metadata);

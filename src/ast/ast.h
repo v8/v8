@@ -2603,10 +2603,7 @@ class FunctionLiteral final : public Expression {
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
-    // The + 1 is because we need an array with room for the literals
-    // as well as the feedback vector.
-    literal_feedback_slot_ =
-        spec->AddCreateClosureSlot(materialized_literal_count_ + 1);
+    literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
   FeedbackVectorSlot LiteralFeedbackSlot() const {
@@ -2873,12 +2870,9 @@ class NativeFunctionLiteral final : public Expression {
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
-    // 0 is a magic number here. It means we are holding the literals
-    // array for a native function literal, which needs to be
-    // the empty literals array.
     // TODO(mvstanton): The FeedbackVectorSlotCache can be adapted
     // to always return the same slot for this case.
-    literal_feedback_slot_ = spec->AddCreateClosureSlot(0);
+    literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
  private:

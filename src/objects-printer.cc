@@ -729,10 +729,6 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresParameter(kind)) {
-      int parameter_value = this->GetParameter(parameter_index++);
-      os << " [" << parameter_value << "]";
-    }
   }
   os << "\n";
 }
@@ -807,12 +803,7 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::CREATE_CLOSURE: {
-        // TODO(mvstanton): Integrate this into the iterator.
-        int parameter_value = metadata()->GetParameter(parameter_index++);
-        os << "[" << parameter_value << "]";
-        break;
-      }
+      case FeedbackVectorSlotKind::CREATE_CLOSURE:
       case FeedbackVectorSlotKind::GENERAL:
         break;
       case FeedbackVectorSlotKind::INVALID:
