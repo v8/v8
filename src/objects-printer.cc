@@ -724,7 +724,6 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
   os << "\n - slot_count: " << slot_count();
 
   TypeFeedbackMetadataIterator iter(this);
-  int parameter_index = 0;
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
@@ -749,7 +748,6 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  int parameter_index = 0;
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
