@@ -47,6 +47,15 @@ syncDOMBreakpoint (framework.js:33:2)
 (anonymous) (user.js:0:0)
 
 
+Running test: testSyncDOMBreakpointWithInlinedUserFrame
+> mixed, top frame in framework:
+syncDOMBreakpoint (framework.js:33:2)
+userFunction (user.js:70:2)
+inlinedWrapper (framework.js:64:4)
+syncDOMBreakpointWithInlinedUserFrame (framework.js:67:2)
+(anonymous) (framework.js:0:0)
+
+
 Running test: testAsyncDOMBreakpoint
 > all frames in framework:
 (anonymous) (user.js:0:0)

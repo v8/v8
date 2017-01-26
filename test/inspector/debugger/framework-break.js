@@ -59,12 +59,25 @@ function throwInlinedUncaughtError() {
   inlinedWrapper();
 }
 
+function syncDOMBreakpointWithInlinedUserFrame() {
+  function inlinedWrapper() {
+    userFunction();
+  }
+  %OptimizeFunctionOnNextCall(inlinedWrapper);
+  inlinedWrapper();
+}
+
 //# sourceURL=framework.js`, 8, 26);
 
 InspectorTest.addScript(`
 function throwUserException() {
   throw new Error();
 }
+
+function userFunction() {
+  syncDOMBreakpoint();
+}
+
 //# sourceURL=user.js`, 64, 26)
 
 InspectorTest.setupScriptMap();
@@ -164,6 +177,13 @@ InspectorTest.runTestSuite([
         .then(
             () => Protocol.Runtime.evaluate(
                 {expression: 'syncDOMBreakpoint()//# sourceURL=user.js'}))
+        .then(next);
+  },
+
+  function testSyncDOMBreakpointWithInlinedUserFrame(next) {
+    InspectorTest.log('> mixed, top frame in framework:');
+    Protocol.Runtime
+        .evaluate({expression: 'syncDOMBreakpointWithInlinedUserFrame()//# sourceURL=framework.js'})
         .then(next);
   },
 

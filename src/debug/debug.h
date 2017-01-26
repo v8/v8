@@ -387,6 +387,8 @@ class Debug {
   void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
                              LiveEditFrameDropMode mode);
 
+  bool IsFrameBlackboxed(JavaScriptFrame* frame);
+
   // Threading support.
   char* ArchiveDebug(char* to);
   char* RestoreDebug(char* from);
@@ -496,7 +498,6 @@ class Debug {
 
   bool IsBlackboxed(SharedFunctionInfo* shared);
   bool IsExceptionBlackboxed(bool uncaught);
-  bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
 

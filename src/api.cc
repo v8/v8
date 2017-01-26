@@ -9041,9 +9041,9 @@ bool debug::HasNonBlackboxedFrameOnStack(Isolate* v8_isolate) {
   i::HandleScope scope(isolate);
   for (i::StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
     if (!it.is_javascript()) continue;
-    i::Handle<i::SharedFunctionInfo> shared(
-        it.javascript_frame()->function()->shared());
-    if (!isolate->debug()->IsBlackboxed(shared)) return true;
+    if (!isolate->debug()->IsFrameBlackboxed(it.javascript_frame())) {
+      return true;
+    }
   }
   return false;
 }
