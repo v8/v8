@@ -1,8 +1,0 @@
-# Copyright 2015 The V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
-# This file should be empty.
-
-# TODO(brettw) http://crbug.com/684096 Remove this when all callers are updated
-# to use the new build overrides system.

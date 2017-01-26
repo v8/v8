@@ -30,15 +30,7 @@ declare_args() {
   v8_deprecation_warnings = false
 
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
-  #
-  # TODO(brettw) http://crbug.com/684096 Remove the define condition and the
-  # v8_imminent_deprecation_warnings_default variable when the build_override
-  # conversion is complete. This value should just default to true.
-  if (defined(v8_imminent_deprecation_warnings_default)) {
-    v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings_default
-  } else {
-    v8_imminent_deprecation_warnings = false
-  }
+  v8_imminent_deprecation_warnings = false
 
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
@@ -89,31 +81,17 @@ declare_args() {
   # if files export symbols used by later files, they should go first.
   #
   # This default is used by cctests. Projects using V8 will want to override.
-  #
-  # TODO(brettw) http://crbug.com/684096 Remove the define condition when the
-  # build_override conversion is complete.
-  if (!defined(v8_extra_library_files)) {
-    v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
-  }
+  v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
 
   # Like v8_extra_library_files but for experimental features.
   #
   # This default is used by cctests. Projects using V8 will want to override.
-  #
-  # TODO(brettw) http://crbug.com/684096 Remove the define condition when the
-  # build_override conversion is complete.
-  if (!defined(v8_experimental_extra_library_files)) {
-    v8_experimental_extra_library_files =
-        [ "//test/cctest/test-experimental-extra.js" ]
-  }
+  v8_experimental_extra_library_files =
+      [ "//test/cctest/test-experimental-extra.js" ]
 
-  if (defined(v8_enable_gdbjit_default)) {
-    v8_enable_gdbjit = v8_enable_gdbjit_default
-  } else {
-    v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
-                         v8_current_cpu == "x87") && (is_linux || is_mac)) ||
-                       (v8_current_cpu == "ppc64" && is_linux)
-  }
+  v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
+                       v8_current_cpu == "x87") && (is_linux || is_mac)) ||
+                     (v8_current_cpu == "ppc64" && is_linux)
 }
 
 # Derived defaults.
