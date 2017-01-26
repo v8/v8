@@ -19,7 +19,6 @@
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -2055,10 +2054,7 @@ class CallRuntime final : public Expression {
 
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId CallId() { return BailoutId(local_id(0)); }
-
-  const char* debug_name() {
-    return is_jsruntime() ? "(context function)" : function_->name;
-  }
+  const char* debug_name();
 
  private:
   friend class AstNodeFactory;

@@ -29,6 +29,21 @@ namespace internal {
 
 #ifdef DEBUG
 
+static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
+  switch (idx) {
+#define NATIVE_CONTEXT_FIELDS_IDX(NAME, Type, name) \
+  case Context::NAME:                               \
+    return #name;
+
+    NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELDS_IDX)
+
+    default:
+      break;
+  }
+
+  return "UnknownIntrinsicIndex";
+}
+
 void AstNode::Print() { Print(Isolate::Current()); }
 
 void AstNode::Print(Isolate* isolate) {
@@ -1062,6 +1077,14 @@ bool Literal::Match(void* literal1, void* literal2) {
   const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
   return (x->IsString() && y->IsString() && x->AsString() == y->AsString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
+}
+
+const char* CallRuntime::debug_name() {
+#ifdef DEBUG
+  return NameForNativeContextIntrinsicIndex(context_index_);
+#else
+  return is_jsruntime() ? "(context function)" : function_->name;
+#endif  // DEBUG
 }
 
 }  // namespace internal
