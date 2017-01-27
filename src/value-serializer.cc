@@ -217,18 +217,26 @@ void ValueSerializer::WriteTwoByteString(Vector<const uc16> chars) {
 }
 
 void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
-  memcpy(ReserveRawBytes(length), source, length);
+  uint8_t* dest;
+  if (ReserveRawBytes(length).To(&dest)) {
+    memcpy(dest, source, length);
+  }
 }
 
-uint8_t* ValueSerializer::ReserveRawBytes(size_t bytes) {
+Maybe<uint8_t*> ValueSerializer::ReserveRawBytes(size_t bytes) {
   size_t old_size = buffer_size_;
   size_t new_size = old_size + bytes;
-  if (new_size > buffer_capacity_) ExpandBuffer(new_size);
+  if (new_size > buffer_capacity_) {
+    bool ok;
+    if (!ExpandBuffer(new_size).To(&ok)) {
+      return Nothing<uint8_t*>();
+    }
+  }
   buffer_size_ = new_size;
-  return &buffer_[old_size];
+  return Just(&buffer_[old_size]);
 }
 
-void ValueSerializer::ExpandBuffer(size_t required_capacity) {
+Maybe<bool> ValueSerializer::ExpandBuffer(size_t required_capacity) {
   DCHECK_GT(required_capacity, buffer_capacity_);
   size_t requested_capacity =
       std::max(required_capacity, buffer_capacity_ * 2) + 64;
@@ -241,9 +249,15 @@ void ValueSerializer::ExpandBuffer(size_t required_capacity) {
     new_buffer = realloc(buffer_, requested_capacity);
     provided_capacity = requested_capacity;
   }
-  DCHECK_GE(provided_capacity, requested_capacity);
-  buffer_ = reinterpret_cast<uint8_t*>(new_buffer);
-  buffer_capacity_ = provided_capacity;
+  if (new_buffer) {
+    DCHECK(provided_capacity >= requested_capacity);
+    buffer_ = reinterpret_cast<uint8_t*>(new_buffer);
+    buffer_capacity_ = provided_capacity;
+    return Just(true);
+  } else {
+    out_of_memory_ = true;
+    return Nothing<bool>();
+  }
 }
 
 void ValueSerializer::WriteUint32(uint32_t value) {
@@ -274,20 +288,21 @@ void ValueSerializer::TransferArrayBuffer(uint32_t transfer_id,
 }
 
 Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
+  out_of_memory_ = false;
   if (object->IsSmi()) {
     WriteSmi(Smi::cast(*object));
-    return Just(true);
+    return ThrowIfOutOfMemory();
   }
 
   DCHECK(object->IsHeapObject());
   switch (HeapObject::cast(*object)->map()->instance_type()) {
     case ODDBALL_TYPE:
       WriteOddball(Oddball::cast(*object));
-      return Just(true);
+      return ThrowIfOutOfMemory();
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
       WriteHeapNumber(HeapNumber::cast(*object));
-      return Just(true);
+      return ThrowIfOutOfMemory();
     case JS_TYPED_ARRAY_TYPE:
     case JS_DATA_VIEW_TYPE: {
       // Despite being JSReceivers, these have their wrapped buffer serialized
@@ -308,7 +323,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
     default:
       if (object->IsString()) {
         WriteString(Handle<String>::cast(object));
-        return Just(true);
+        return ThrowIfOutOfMemory();
       } else if (object->IsJSReceiver()) {
         return WriteJSReceiver(Handle<JSReceiver>::cast(object));
       } else {
@@ -369,9 +384,11 @@ void ValueSerializer::WriteString(Handle<String> string) {
       v8::Local<v8::String> api_string = Utils::ToLocal(string);
       uint32_t utf8_length = api_string->Utf8Length();
       WriteVarint(utf8_length);
-      api_string->WriteUtf8(
-          reinterpret_cast<char*>(ReserveRawBytes(utf8_length)), utf8_length,
-          nullptr, v8::String::NO_NULL_TERMINATION);
+      uint8_t* dest;
+      if (ReserveRawBytes(utf8_length).To(&dest)) {
+        api_string->WriteUtf8(reinterpret_cast<char*>(dest), utf8_length,
+                              nullptr, v8::String::NO_NULL_TERMINATION);
+      }
     }
   } else if (flat.IsTwoByte()) {
     Vector<const uc16> chars = flat.ToUC16Vector();
@@ -392,7 +409,7 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
   if (uint32_t id = *id_map_entry) {
     WriteTag(SerializationTag::kObjectReference);
     WriteVarint(id - 1);
-    return Just(true);
+    return ThrowIfOutOfMemory();
   }
 
   // Otherwise, allocate an ID for it.
@@ -432,12 +449,12 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       return WriteHostObject(Handle<JSObject>::cast(receiver));
     case JS_DATE_TYPE:
       WriteJSDate(JSDate::cast(*receiver));
-      return Just(true);
+      return ThrowIfOutOfMemory();
     case JS_VALUE_TYPE:
       return WriteJSValue(Handle<JSValue>::cast(receiver));
     case JS_REGEXP_TYPE:
       WriteJSRegExp(JSRegExp::cast(*receiver));
-      return Just(true);
+      return ThrowIfOutOfMemory();
     case JS_MAP_TYPE:
       return WriteJSMap(Handle<JSMap>::cast(receiver));
     case JS_SET_TYPE:
@@ -498,7 +515,7 @@ Maybe<bool> ValueSerializer::WriteJSObject(Handle<JSObject> object) {
 
   WriteTag(SerializationTag::kEndJSObject);
   WriteVarint<uint32_t>(properties_written);
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
@@ -513,7 +530,7 @@ Maybe<bool> ValueSerializer::WriteJSObjectSlow(Handle<JSObject> object) {
   }
   WriteTag(SerializationTag::kEndJSObject);
   WriteVarint<uint32_t>(properties_written);
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
@@ -618,7 +635,7 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
     WriteVarint<uint32_t>(properties_written);
     WriteVarint<uint32_t>(length);
   }
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 void ValueSerializer::WriteJSDate(JSDate* date) {
@@ -643,15 +660,17 @@ Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
         Utils::ToLocal(handle(String::cast(inner_value), isolate_));
     uint32_t utf8_length = api_string->Utf8Length();
     WriteVarint(utf8_length);
-    api_string->WriteUtf8(reinterpret_cast<char*>(ReserveRawBytes(utf8_length)),
-                          utf8_length, nullptr,
-                          v8::String::NO_NULL_TERMINATION);
+    uint8_t* dest;
+    if (ReserveRawBytes(utf8_length).To(&dest)) {
+      api_string->WriteUtf8(reinterpret_cast<char*>(dest), utf8_length, nullptr,
+                            v8::String::NO_NULL_TERMINATION);
+    }
   } else {
     DCHECK(inner_value->IsSymbol());
     ThrowDataCloneError(MessageTemplate::kDataCloneError, value);
     return Nothing<bool>();
   }
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
@@ -660,8 +679,11 @@ void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
       Utils::ToLocal(handle(regexp->Pattern(), isolate_));
   uint32_t utf8_length = api_string->Utf8Length();
   WriteVarint(utf8_length);
-  api_string->WriteUtf8(reinterpret_cast<char*>(ReserveRawBytes(utf8_length)),
-                        utf8_length, nullptr, v8::String::NO_NULL_TERMINATION);
+  uint8_t* dest;
+  if (ReserveRawBytes(utf8_length).To(&dest)) {
+    api_string->WriteUtf8(reinterpret_cast<char*>(dest), utf8_length, nullptr,
+                          v8::String::NO_NULL_TERMINATION);
+  }
   WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
 }
 
@@ -693,7 +715,7 @@ Maybe<bool> ValueSerializer::WriteJSMap(Handle<JSMap> map) {
   }
   WriteTag(SerializationTag::kEndJSMap);
   WriteVarint<uint32_t>(length);
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
@@ -723,7 +745,7 @@ Maybe<bool> ValueSerializer::WriteJSSet(Handle<JSSet> set) {
   }
   WriteTag(SerializationTag::kEndJSSet);
   WriteVarint<uint32_t>(length);
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
@@ -741,14 +763,14 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
 
     WriteTag(SerializationTag::kSharedArrayBuffer);
     WriteVarint(index.FromJust());
-    return Just(true);
+    return ThrowIfOutOfMemory();
   }
 
   uint32_t* transfer_entry = array_buffer_transfer_map_.Find(array_buffer);
   if (transfer_entry) {
     WriteTag(SerializationTag::kArrayBufferTransfer);
     WriteVarint(*transfer_entry);
-    return Just(true);
+    return ThrowIfOutOfMemory();
   }
   if (array_buffer->was_neutered()) {
     ThrowDataCloneError(MessageTemplate::kDataCloneErrorNeuteredArrayBuffer);
@@ -762,7 +784,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
   WriteTag(SerializationTag::kArrayBuffer);
   WriteVarint<uint32_t>(byte_length);
   WriteRawBytes(array_buffer->backing_store(), byte_length);
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
@@ -784,7 +806,7 @@ Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
   WriteVarint(static_cast<uint8_t>(tag));
   WriteVarint(NumberToUint32(view->byte_offset()));
   WriteVarint(NumberToUint32(view->byte_length()));
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
@@ -797,8 +819,10 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
   Handle<String> wire_bytes(compiled_part->module_bytes(), isolate_);
   int wire_bytes_length = wire_bytes->length();
   WriteVarint<uint32_t>(wire_bytes_length);
-  uint8_t* destination = ReserveRawBytes(wire_bytes_length);
-  String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
+  uint8_t* destination;
+  if (ReserveRawBytes(wire_bytes_length).To(&destination)) {
+    String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
+  }
 
   std::unique_ptr<ScriptData> script_data =
       WasmCompiledModuleSerializer::SerializeWasmModule(isolate_,
@@ -807,7 +831,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
   WriteVarint<uint32_t>(script_data_length);
   WriteRawBytes(script_data->data(), script_data_length);
 
-  return Just(true);
+  return ThrowIfOutOfMemory();
 }
 
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
@@ -856,6 +880,14 @@ void ValueSerializer::ThrowDataCloneError(
     MessageTemplate::Template template_index) {
   return ThrowDataCloneError(template_index,
                              isolate_->factory()->empty_string());
+}
+
+Maybe<bool> ValueSerializer::ThrowIfOutOfMemory() {
+  if (out_of_memory_) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneErrorOutOfMemory);
+    return Nothing<bool>();
+  }
+  return Just(true);
 }
 
 void ValueSerializer::ThrowDataCloneError(
