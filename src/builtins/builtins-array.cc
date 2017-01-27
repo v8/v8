@@ -270,6 +270,15 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     assembler.CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
                           assembler.SmiConstant(STRICT));
     assembler.Increment(arg_index);
+    // The runtime SetProperty call could have converted the array to dictionary
+    // mode, which must be detected to abort the fast-path.
+    Node* map = assembler.LoadMap(receiver);
+    Node* bit_field2 = assembler.LoadMapBitField2(map);
+    Node* kind = assembler.DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    assembler.GotoIf(assembler.Word32Equal(
+                         kind, assembler.Int32Constant(DICTIONARY_ELEMENTS)),
+                     &default_label);
+
     assembler.GotoIfNotNumber(arg, &object_push);
     assembler.Goto(&double_push);
   }
@@ -310,6 +319,14 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
     assembler.CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
                           assembler.SmiConstant(STRICT));
     assembler.Increment(arg_index);
+    // The runtime SetProperty call could have converted the array to dictionary
+    // mode, which must be detected to abort the fast-path.
+    Node* map = assembler.LoadMap(receiver);
+    Node* bit_field2 = assembler.LoadMapBitField2(map);
+    Node* kind = assembler.DecodeWord32<Map::ElementsKindBits>(bit_field2);
+    assembler.GotoIf(assembler.Word32Equal(
+                         kind, assembler.Int32Constant(DICTIONARY_ELEMENTS)),
+                     &default_label);
     assembler.Goto(&object_push);
   }
 
