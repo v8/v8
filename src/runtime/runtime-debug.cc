@@ -27,28 +27,23 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
+  isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
-
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return *isolate->debug()->return_value();
+  return isolate->debug()->return_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
+  isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
-
-  // If live-edit has dropped frames, we are not going back to dispatch.
-  if (LiveEdit::SetAfterBreakTarget(isolate->debug())) return Smi::kZero;
 
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
@@ -632,7 +627,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // to the frame information.
   Handle<Object> return_value = isolate->factory()->undefined_value();
   if (at_return) {
-    return_value = isolate->debug()->return_value();
+    return_value = handle(isolate->debug()->return_value(), isolate);
   }
 
   // Now advance to the arguments adapter frame (if any). It contains all
@@ -1440,26 +1435,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
   } else {
     return *JSFunction::GetDebugName(Handle<JSFunction>::cast(function));
   }
-}
-
-
-// Calls specified function with or without entering the debugger.
-// This is used in unit tests to run code as if debugger is entered or simply
-// to have a stack with C++ frame in the middle.
-RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  DebugScope debug_scope(isolate->debug());
-  if (debug_scope.failed()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
-  }
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, function,
-                               handle(function->global_proxy()), 0, NULL));
 }
 
 

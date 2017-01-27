@@ -100,6 +100,7 @@ class PlatformInterfaceDescriptor;
   V(InterpreterPushArgsAndConstructArray) \
   V(InterpreterCEntry)                    \
   V(ResumeGenerator)                      \
+  V(FrameDropperTrampoline)               \
   V(PromiseHandleReject)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -889,6 +890,11 @@ class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
+};
+
+class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FrameDropperTrampolineDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {

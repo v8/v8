@@ -401,10 +401,10 @@ void Debug::ThreadInit() {
   thread_local_.last_statement_position_ = kNoSourcePosition;
   thread_local_.last_fp_ = 0;
   thread_local_.target_fp_ = 0;
-  thread_local_.return_value_ = Handle<Object>();
+  thread_local_.return_value_ = Smi::kZero;
   thread_local_.async_task_count_ = 0;
   clear_suspended_generator();
-  // TODO(isolates): frames_are_dropped_?
+  thread_local_.restart_fp_ = nullptr;
   base::NoBarrier_Store(&thread_local_.current_debug_scope_,
                         static_cast<base::AtomicWord>(0));
   UpdateHookOnFunctionCall();
@@ -427,6 +427,7 @@ char* Debug::RestoreDebug(char* storage) {
 int Debug::ArchiveSpacePerThread() { return 0; }
 
 void Debug::Iterate(ObjectVisitor* v) {
+  v->VisitPointer(&thread_local_.return_value_);
   v->VisitPointer(&thread_local_.suspended_generator_);
 }
 
@@ -1585,14 +1586,6 @@ void Debug::RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info) {
   UNREACHABLE();
 }
 
-void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
-  after_break_target_ = NULL;
-  if (!LiveEdit::SetAfterBreakTarget(this)) {
-    // Continue just after the slot.
-    after_break_target_ = frame->pc();
-  }
-}
-
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
@@ -1608,12 +1601,25 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   return location.IsReturn() || location.IsTailCall();
 }
 
-void Debug::FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                                  LiveEditFrameDropMode mode) {
-  if (mode != LIVE_EDIT_CURRENTLY_SET_MODE) {
-    thread_local_.frame_drop_mode_ = mode;
+void Debug::ScheduleFrameRestart(StackFrame* frame) {
+  // Set a target FP for the FrameDropperTrampoline builtin to drop to once
+  // we return from the debugger.
+  DCHECK(frame->is_java_script());
+  // Only reschedule to a frame further below a frame we already scheduled for.
+  if (frame->fp() <= thread_local_.restart_fp_) return;
+  // If the frame is optimized, trigger a deopt and jump into the
+  // FrameDropperTrampoline in the deoptimizer.
+  thread_local_.restart_fp_ = frame->fp();
+
+  // Reset break frame ID to the frame below the restarted frame.
+  StackTraceFrameIterator it(isolate_);
+  thread_local_.break_frame_id_ = StackFrame::NO_ID;
+  for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
+    if (it.frame()->fp() > thread_local_.restart_fp_) {
+      thread_local_.break_frame_id_ = it.frame()->id();
+      return;
+    }
   }
-  thread_local_.break_frame_id_ = new_break_frame_id;
 }
 
 
@@ -2202,6 +2208,8 @@ MaybeHandle<Object> Debug::Call(Handle<Object> fun, Handle<Object> data) {
 
 
 void Debug::HandleDebugBreak() {
+  // Initialize LiveEdit.
+  LiveEdit::InitializeThreadLocal(this);
   // Ignore debug break during bootstrapping.
   if (isolate_->bootstrapper()->IsActive()) return;
   // Just continue if breaks are disabled.
@@ -2303,7 +2311,7 @@ DebugScope::DebugScope(Debug* debug)
   // Store the previous break id, frame id and return value.
   break_id_ = debug_->break_id();
   break_frame_id_ = debug_->break_frame_id();
-  return_value_ = debug_->return_value();
+  return_value_ = handle(debug_->return_value(), isolate());
 
   // Create the new break info. If there is no proper frames there is no break
   // frame id.
@@ -2337,7 +2345,7 @@ DebugScope::~DebugScope() {
   // Restore to the previous break state.
   debug_->thread_local_.break_frame_id_ = break_frame_id_;
   debug_->thread_local_.break_id_ = break_id_;
-  debug_->thread_local_.return_value_ = return_value_;
+  debug_->thread_local_.return_value_ = *return_value_;
 
   debug_->UpdateState();
 }

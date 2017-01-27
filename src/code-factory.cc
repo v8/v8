@@ -312,6 +312,18 @@ Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::FrameDropperTrampoline(Isolate* isolate) {
+  return Callable(isolate->builtins()->FrameDropperTrampoline(),
+                  FrameDropperTrampolineDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::HandleDebuggerStatement(Isolate* isolate) {
+  return Callable(isolate->builtins()->HandleDebuggerStatement(),
+                  ContextOnlyDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::FastCloneShallowArray(
     Isolate* isolate, AllocationSiteMode allocation_mode) {
   return Callable(isolate->builtins()->NewCloneShallowArray(allocation_mode),

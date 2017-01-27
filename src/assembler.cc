@@ -1579,12 +1579,6 @@ ExternalReference ExternalReference::debug_hook_on_function_call_address(
   return ExternalReference(isolate->debug()->hook_on_function_call_address());
 }
 
-ExternalReference ExternalReference::debug_after_break_target_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->after_break_target_address());
-}
-
-
 ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
   return ExternalReference(
@@ -1663,6 +1657,11 @@ ExternalReference ExternalReference::debug_last_step_action_address(
 ExternalReference ExternalReference::debug_suspended_generator_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->suspended_generator_address());
+}
+
+ExternalReference ExternalReference::debug_restart_fp_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {

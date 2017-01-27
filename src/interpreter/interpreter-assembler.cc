@@ -1223,6 +1223,26 @@ void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
   Bind(&ok);
 }
 
+void InterpreterAssembler::MaybeDropFrames(Node* context) {
+  Node* restart_fp_address =
+      ExternalConstant(ExternalReference::debug_restart_fp_address(isolate()));
+
+  Node* restart_fp = Load(MachineType::Pointer(), restart_fp_address);
+  Node* null = IntPtrConstant(0);
+
+  Label ok(this), drop_frames(this);
+  Branch(IntPtrEqual(restart_fp, null), &ok, &drop_frames);
+
+  Bind(&drop_frames);
+  // We don't expect this call to return since the frame dropper tears down
+  // the stack and jumps into the function on the target frame to restart it.
+  CallStub(CodeFactory::FrameDropperTrampoline(isolate()), context, restart_fp);
+  Abort(kUnexpectedReturnFromFrameDropper);
+  Goto(&ok);
+
+  Bind(&ok);
+}
+
 void InterpreterAssembler::TraceBytecode(Runtime::FunctionId function_id) {
   CallRuntime(function_id, GetContext(), BytecodeArrayTaggedPointer(),
               SmiTag(BytecodeOffset()), GetAccumulatorUnchecked());

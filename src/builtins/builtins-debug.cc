@@ -19,8 +19,12 @@ void Builtins::Generate_Slot_DebugBreak(MacroAssembler* masm) {
                                        DebugCodegen::IGNORE_RESULT_REGISTER);
 }
 
-void Builtins::Generate_FrameDropper_LiveEdit(MacroAssembler* masm) {
-  DebugCodegen::GenerateFrameDropperLiveEdit(masm);
+void Builtins::Generate_FrameDropperTrampoline(MacroAssembler* masm) {
+  DebugCodegen::GenerateFrameDropperTrampoline(masm);
+}
+
+void Builtins::Generate_HandleDebuggerStatement(MacroAssembler* masm) {
+  DebugCodegen::GenerateHandleDebuggerStatement(masm);
 }
 
 }  // namespace internal

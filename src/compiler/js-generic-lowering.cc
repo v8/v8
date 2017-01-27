@@ -668,6 +668,11 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kStackGuard);
 }
 
+void JSGenericLowering::LowerJSDebugger(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::HandleDebuggerStatement(isolate());
+  ReplaceWithStubCall(node, callable, flags);
+}
 
 Zone* JSGenericLowering::zone() const { return graph()->zone(); }
 

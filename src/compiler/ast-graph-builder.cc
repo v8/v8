@@ -1285,8 +1285,7 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  Node* node =
-      NewNode(javascript()->CallRuntime(Runtime::kHandleDebuggerStatement));
+  Node* node = NewNode(javascript()->Debugger());
   PrepareFrameState(node, stmt->DebugBreakId());
   environment()->MarkAllLocalsLive();
 }

@@ -1819,9 +1819,8 @@ void BytecodeGraphBuilder::VisitReturn() {
 
 void BytecodeGraphBuilder::VisitDebugger() {
   PrepareEagerCheckpoint();
-  Node* call =
-      NewNode(javascript()->CallRuntime(Runtime::kHandleDebuggerStatement));
-  environment()->BindAccumulator(call, Environment::kAttachFrameState);
+  Node* call = NewNode(javascript()->Debugger());
+  environment()->RecordAfterState(call, Environment::kAttachFrameState);
 }
 
 // We cannot create a graph from the debugger copy of the bytecode array.

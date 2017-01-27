@@ -175,7 +175,8 @@
   V(JSGeneratorStore)               \
   V(JSGeneratorRestoreContinuation) \
   V(JSGeneratorRestoreRegister)     \
-  V(JSStackCheck)
+  V(JSStackCheck)                   \
+  V(JSDebugger)
 
 #define JS_OP_LIST(V)     \
   JS_SIMPLE_BINOP_LIST(V) \
@@ -775,7 +776,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for JavaScript operator.
   static bool IsJsOpcode(Value value) {
-    return kJSEqual <= value && value <= kJSStackCheck;
+    return kJSEqual <= value && value <= kJSDebugger;
   }
 
   // Returns true if opcode for constant operator.

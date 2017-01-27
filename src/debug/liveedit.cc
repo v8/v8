@@ -652,33 +652,7 @@ Handle<SharedFunctionInfo> SharedInfoWrapper::GetInfo() {
 
 
 void LiveEdit::InitializeThreadLocal(Debug* debug) {
-  debug->thread_local_.frame_drop_mode_ = LIVE_EDIT_FRAMES_UNTOUCHED;
-}
-
-
-bool LiveEdit::SetAfterBreakTarget(Debug* debug) {
-  Code* code = NULL;
-  Isolate* isolate = debug->isolate_;
-  switch (debug->thread_local_.frame_drop_mode_) {
-    case LIVE_EDIT_FRAMES_UNTOUCHED:
-      return false;
-    case LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL:
-      // Debug break slot stub does not return normally, instead it manually
-      // cleans the stack and jumps. We should patch the jump address.
-      code = isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit);
-      break;
-    case LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL:
-      // Nothing to do, after_break_target is not used here.
-      return true;
-    case LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL:
-      code = isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit);
-      break;
-    case LIVE_EDIT_CURRENTLY_SET_MODE:
-      UNREACHABLE();
-      break;
-  }
-  debug->after_break_target_ = code->entry();
-  return true;
+  debug->thread_local_.restart_fp_ = 0;
 }
 
 
@@ -745,47 +719,6 @@ MaybeHandle<JSArray> LiveEdit::GatherCompileInfo(Handle<Script> script,
   }
 }
 
-
-// Visitor that finds all references to a particular code object,
-// including "CODE_TARGET" references in other code objects and replaces
-// them on the fly.
-class ReplacingVisitor : public ObjectVisitor {
- public:
-  explicit ReplacingVisitor(Code* original, Code* substitution)
-    : original_(original), substitution_(substitution) {
-  }
-
-  void VisitPointers(Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      if (*p == original_) {
-        *p = substitution_;
-      }
-    }
-  }
-
-  void VisitCodeEntry(Address entry) override {
-    if (Code::GetObjectFromEntryAddress(entry) == original_) {
-      Address substitution_entry = substitution_->instruction_start();
-      Memory::Address_at(entry) = substitution_entry;
-    }
-  }
-
-  void VisitCodeTarget(RelocInfo* rinfo) override {
-    if (RelocInfo::IsCodeTarget(rinfo->rmode()) &&
-        Code::GetCodeFromTargetAddress(rinfo->target_address()) == original_) {
-      Address substitution_entry = substitution_->instruction_start();
-      rinfo->set_target_address(substitution_entry);
-    }
-  }
-
-  void VisitDebugTarget(RelocInfo* rinfo) override { VisitCodeTarget(rinfo); }
-
- private:
-  Code* original_;
-  Code* substitution_;
-};
-
-
 // Finds all references to original and replaces them with substitution.
 static void ReplaceCodeObject(Handle<Code> original,
                               Handle<Code> substitution) {
@@ -796,20 +729,16 @@ static void ReplaceCodeObject(Handle<Code> original,
   // write barriers.
   Heap* heap = original->GetHeap();
   HeapIterator iterator(heap);
-
-  DCHECK(!heap->InNewSpace(*substitution));
-
-  ReplacingVisitor visitor(*original, *substitution);
-
-  // Iterate over all roots. Stack frames may have pointer into original code,
-  // so temporary replace the pointers with offset numbers
-  // in prologue/epilogue.
-  heap->IterateRoots(&visitor, VISIT_ALL);
-
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    obj->Iterate(&visitor);
+    if (obj->IsJSFunction()) {
+      JSFunction* fun = JSFunction::cast(obj);
+      if (fun->code() == *original) fun->ReplaceCode(*substitution);
+    } else if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* info = SharedFunctionInfo::cast(obj);
+      if (info->code() == *original) info->set_code(*substitution);
+    }
   }
 }
 
@@ -1277,185 +1206,6 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
   return false;
 }
 
-
-// Iterates over handler chain and removes all elements that are inside
-// frames being dropped.
-static bool FixTryCatchHandler(StackFrame* top_frame,
-                               StackFrame* bottom_frame) {
-  Address* pointer_address =
-      &Memory::Address_at(top_frame->isolate()->get_address_from_id(
-          Isolate::kHandlerAddress));
-
-  while (*pointer_address < top_frame->sp()) {
-    pointer_address = &Memory::Address_at(*pointer_address);
-  }
-  Address* above_frame_address = pointer_address;
-  while (*pointer_address < bottom_frame->fp()) {
-    pointer_address = &Memory::Address_at(*pointer_address);
-  }
-  bool change = *above_frame_address != *pointer_address;
-  *above_frame_address = *pointer_address;
-  return change;
-}
-
-
-// Initializes an artificial stack frame. The data it contains is used for:
-//  a. successful work of frame dropper code which eventually gets control,
-//  b. being compatible with a typed frame structure for various stack
-//     iterators.
-// Frame structure (conforms to InternalFrame structure):
-//   -- function
-//   -- code
-//   -- SMI marker
-//   -- frame base
-static void SetUpFrameDropperFrame(StackFrame* bottom_js_frame,
-                                   Handle<Code> code) {
-  DCHECK(bottom_js_frame->is_java_script());
-  Address fp = bottom_js_frame->fp();
-  Memory::Object_at(fp + FrameDropperFrameConstants::kFunctionOffset) =
-      Memory::Object_at(fp + StandardFrameConstants::kFunctionOffset);
-  Memory::Object_at(fp + FrameDropperFrameConstants::kFrameTypeOffset) =
-      Smi::FromInt(StackFrame::INTERNAL);
-  Memory::Object_at(fp + FrameDropperFrameConstants::kCodeOffset) = *code;
-}
-
-
-// Removes specified range of frames from stack. There may be 1 or more
-// frames in range. Anyway the bottom frame is restarted rather than dropped,
-// and therefore has to be a JavaScript frame.
-// Returns error message or NULL.
-static const char* DropFrames(Vector<StackFrame*> frames, int top_frame_index,
-                              int bottom_js_frame_index,
-                              LiveEditFrameDropMode* mode) {
-  if (!LiveEdit::kFrameDropperSupported) {
-    return "Stack manipulations are not supported in this architecture.";
-  }
-
-  StackFrame* pre_top_frame = frames[top_frame_index - 1];
-  StackFrame* top_frame = frames[top_frame_index];
-  StackFrame* bottom_js_frame = frames[bottom_js_frame_index];
-
-  DCHECK(bottom_js_frame->is_java_script());
-
-  // Check the nature of the top frame.
-  Isolate* isolate = bottom_js_frame->isolate();
-  Code* pre_top_frame_code = pre_top_frame->LookupCode();
-  bool frame_has_padding = true;
-  if (pre_top_frame_code ==
-      isolate->builtins()->builtin(Builtins::kSlot_DebugBreak)) {
-    // OK, we can drop debug break slot.
-    *mode = LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL;
-  } else if (pre_top_frame_code ==
-             isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit)) {
-    // OK, we can drop our own code.
-    pre_top_frame = frames[top_frame_index - 2];
-    top_frame = frames[top_frame_index - 1];
-    *mode = LIVE_EDIT_CURRENTLY_SET_MODE;
-    frame_has_padding = false;
-  } else if (pre_top_frame_code ==
-             isolate->builtins()->builtin(Builtins::kReturn_DebugBreak)) {
-    *mode = LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL;
-  } else if (pre_top_frame_code->kind() == Code::STUB &&
-             CodeStub::GetMajorKey(pre_top_frame_code) == CodeStub::CEntry) {
-    // Entry from our unit tests on 'debugger' statement.
-    // It's fine, we support this case.
-    *mode = LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL;
-    // We don't have a padding from 'debugger' statement call.
-    // Here the stub is CEntry, it's not debug-only and can't be padded.
-    // If anyone would complain, a proxy padded stub could be added.
-    frame_has_padding = false;
-  } else if (pre_top_frame->type() == StackFrame::ARGUMENTS_ADAPTOR) {
-    // This must be adaptor that remain from the frame dropping that
-    // is still on stack. A frame dropper frame must be above it.
-    DCHECK(frames[top_frame_index - 2]->LookupCode() ==
-           isolate->builtins()->builtin(Builtins::kFrameDropper_LiveEdit));
-    pre_top_frame = frames[top_frame_index - 3];
-    top_frame = frames[top_frame_index - 2];
-    *mode = LIVE_EDIT_CURRENTLY_SET_MODE;
-    frame_has_padding = false;
-  } else if (pre_top_frame_code->kind() == Code::BYTECODE_HANDLER) {
-    // Interpreted bytecode takes up two stack frames, one for the bytecode
-    // handler and one for the interpreter entry trampoline. Therefore we shift
-    // up by one frame.
-    *mode = LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL;
-    pre_top_frame = frames[top_frame_index - 2];
-    top_frame = frames[top_frame_index - 1];
-  } else {
-    return "Unknown structure of stack above changing function";
-  }
-
-  Address unused_stack_top = top_frame->sp();
-  Address unused_stack_bottom =
-      bottom_js_frame->fp() - FrameDropperFrameConstants::kFixedFrameSize +
-      2 * kPointerSize;  // Bigger address end is exclusive.
-
-  Address* top_frame_pc_address = top_frame->pc_address();
-
-  // top_frame may be damaged below this point. Do not used it.
-  DCHECK(!(top_frame = NULL));
-
-  if (unused_stack_top > unused_stack_bottom) {
-    if (frame_has_padding) {
-      int shortage_bytes =
-          static_cast<int>(unused_stack_top - unused_stack_bottom);
-
-      Address padding_start =
-          pre_top_frame->fp() -
-          (FrameDropperFrameConstants::kFixedFrameSize - kPointerSize);
-
-      Address padding_pointer = padding_start;
-      Smi* padding_object = Smi::FromInt(LiveEdit::kFramePaddingValue);
-      while (Memory::Object_at(padding_pointer) == padding_object) {
-        padding_pointer -= kPointerSize;
-      }
-      int padding_counter =
-          Smi::cast(Memory::Object_at(padding_pointer))->value();
-      if (padding_counter * kPointerSize < shortage_bytes) {
-        return "Not enough space for frame dropper frame "
-            "(even with padding frame)";
-      }
-      Memory::Object_at(padding_pointer) =
-          Smi::FromInt(padding_counter - shortage_bytes / kPointerSize);
-
-      StackFrame* pre_pre_frame = frames[top_frame_index - 2];
-
-      MemMove(padding_start + kPointerSize - shortage_bytes,
-              padding_start + kPointerSize,
-              FrameDropperFrameConstants::kFixedFrameSize - kPointerSize);
-
-      pre_top_frame->UpdateFp(pre_top_frame->fp() - shortage_bytes);
-      pre_pre_frame->SetCallerFp(pre_top_frame->fp());
-      unused_stack_top -= shortage_bytes;
-
-      STATIC_ASSERT(sizeof(Address) == kPointerSize);
-      top_frame_pc_address -= shortage_bytes / kPointerSize;
-    } else {
-      return "Not enough space for frame dropper frame";
-    }
-  }
-
-  // Committing now. After this point we should return only NULL value.
-
-  FixTryCatchHandler(pre_top_frame, bottom_js_frame);
-  // Make sure FixTryCatchHandler is idempotent.
-  DCHECK(!FixTryCatchHandler(pre_top_frame, bottom_js_frame));
-
-  Handle<Code> code = isolate->builtins()->FrameDropper_LiveEdit();
-  *top_frame_pc_address = code->entry();
-  pre_top_frame->SetCallerFp(bottom_js_frame->fp());
-
-  SetUpFrameDropperFrame(bottom_js_frame, code);
-
-  for (Address a = unused_stack_top;
-      a < unused_stack_bottom;
-      a += kPointerSize) {
-    Memory::Object_at(a) = Smi::kZero;
-  }
-
-  return NULL;
-}
-
-
 // Describes a set of call frames that execute any of listed functions.
 // Finding no such frames does not mean error.
 class MultipleFunctionTarget {
@@ -1543,7 +1293,6 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
   Zone zone(isolate->allocator(), ZONE_NAME);
   Vector<StackFrame*> frames = CreateStackMap(isolate, &zone);
 
-
   int top_frame_index = -1;
   int frame_index = 0;
   for (; frame_index < frames.length(); frame_index++) {
@@ -1628,24 +1377,11 @@ static const char* DropActivationsInActiveThreadImpl(Isolate* isolate,
     return target.GetNotFoundMessage();
   }
 
-  LiveEditFrameDropMode drop_mode = LIVE_EDIT_FRAMES_UNTOUCHED;
-  const char* error_message =
-      DropFrames(frames, top_frame_index, bottom_js_frame_index, &drop_mode);
-
-  if (error_message != NULL) {
-    return error_message;
+  if (!LiveEdit::kFrameDropperSupported) {
+    return "Stack manipulations are not supported in this architecture.";
   }
 
-  // Adjust break_frame after some frames has been dropped.
-  StackFrame::Id new_id = StackFrame::NO_ID;
-  for (int i = bottom_js_frame_index + 1; i < frames.length(); i++) {
-    if (frames[i]->type() == StackFrame::JAVA_SCRIPT ||
-        frames[i]->type() == StackFrame::INTERPRETED) {
-      new_id = frames[i]->id();
-      break;
-    }
-  }
-  debug->FramesHaveBeenDropped(new_id, drop_mode);
+  debug->ScheduleFrameRestart(frames[bottom_js_frame_index]);
   return NULL;
 }
 

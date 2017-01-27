@@ -217,6 +217,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                            BailoutReason bailout_reason);
 
+  // Dispatch to frame dropper trampoline if necessary.
+  void MaybeDropFrames(compiler::Node* context);
+
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   compiler::Node* BytecodeOffset();
 

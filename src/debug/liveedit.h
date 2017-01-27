@@ -74,8 +74,6 @@ class LiveEdit : AllStatic {
  public:
   static void InitializeThreadLocal(Debug* debug);
 
-  static bool SetAfterBreakTarget(Debug* debug);
-
   MUST_USE_RESULT static MaybeHandle<JSArray> GatherCompileInfo(
       Handle<Script> script,
       Handle<String> source);
@@ -146,40 +144,6 @@ class LiveEdit : AllStatic {
 
   // Architecture-specific constant.
   static const bool kFrameDropperSupported;
-
-  /**
-   * Defines layout of a stack frame that supports padding. This is a regular
-   * internal frame that has a flexible stack structure. LiveEdit can shift
-   * its lower part up the stack, taking up the 'padding' space when additional
-   * stack memory is required.
-   * Such frame is expected immediately above the topmost JavaScript frame.
-   *
-   * Stack Layout:
-   *   --- Top
-   *   LiveEdit routine frames
-   *   ---
-   *   C frames of debug handler
-   *   ---
-   *   ...
-   *   ---
-   *      An internal frame that has n padding words:
-   *      - any number of words as needed by code -- upper part of frame
-   *      - padding size: a Smi storing n -- current size of padding
-   *      - padding: n words filled with kPaddingValue in form of Smi
-   *      - 3 context/type words of a regular InternalFrame
-   *      - fp
-   *   ---
-   *      Topmost JavaScript frame
-   *   ---
-   *   ...
-   *   --- Bottom
-   */
-  // A number of words that should be reserved on stack for the LiveEdit use.
-  // Stored on stack in form of Smi.
-  static const int kFramePaddingInitialSize = 1;
-  // A value that padding words are filled with (in form of Smi). Going
-  // bottom-top, the first word not having this value is a counter word.
-  static const int kFramePaddingValue = kFramePaddingInitialSize + 1;
 };
 
 

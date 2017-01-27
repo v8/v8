@@ -2898,6 +2898,16 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  Mov(x1, Operand(restart_fp));
+  Ldr(x1, MemOperand(x1));
+  Tst(x1, x1);
+  Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
+       ne);
+}
 
 void MacroAssembler::PushStackHandler() {
   DCHECK(jssp.Is(StackPointer()));

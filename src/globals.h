@@ -1274,20 +1274,6 @@ class CompareOperationFeedback {
   };
 };
 
-// Describes how exactly a frame has been dropped from stack.
-enum LiveEditFrameDropMode {
-  // No frame has been dropped.
-  LIVE_EDIT_FRAMES_UNTOUCHED,
-  // The top JS frame had been calling debug break slot stub. Patch the
-  // address this stub jumps to in the end.
-  LIVE_EDIT_FRAME_DROPPED_IN_DEBUG_SLOT_CALL,
-  // The top JS frame had been calling some C++ function. The return address
-  // gets patched automatically.
-  LIVE_EDIT_FRAME_DROPPED_IN_DIRECT_CALL,
-  LIVE_EDIT_FRAME_DROPPED_IN_RETURN_CALL,
-  LIVE_EDIT_CURRENTLY_SET_MODE
-};
-
 enum class UnicodeEncoding : uint8_t {
   // Different unicode encodings in a |word32|:
   UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate

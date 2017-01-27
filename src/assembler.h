@@ -1011,6 +1011,9 @@ class ExternalReference BASE_EMBEDDED {
   // Used to check for suspended generator, used for stepping across await call.
   static ExternalReference debug_suspended_generator_address(Isolate* isolate);
 
+  // Used to store the frame pointer to drop to when restarting a frame.
+  static ExternalReference debug_restart_fp_address(Isolate* isolate);
+
 #ifndef V8_INTERPRETED_REGEXP
   // C functions called from RegExp generated code.
 

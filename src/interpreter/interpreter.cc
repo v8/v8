@@ -3023,7 +3023,7 @@ void Interpreter::DoReturn(InterpreterAssembler* assembler) {
 // Call runtime to handle debugger statement.
 void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
-  __ CallRuntime(Runtime::kHandleDebuggerStatement, context);
+  __ CallStub(CodeFactory::HandleDebuggerStatement(isolate_), context);
   __ Dispatch();
 }
 
@@ -3036,6 +3036,7 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
     Node* accumulator = __ GetAccumulator();                                  \
     Node* original_handler =                                                  \
         __ CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator); \
+    __ MaybeDropFrames(context);                                              \
     __ DispatchToBytecodeHandler(original_handler);                           \
   }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);

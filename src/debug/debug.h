@@ -311,7 +311,6 @@ class Debug {
   // Internal logic
   bool Load();
   void Break(JavaScriptFrame* frame);
-  void SetAfterBreakTarget(JavaScriptFrame* frame);
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
@@ -384,8 +383,7 @@ class Debug {
   bool IsBreakAtReturn(JavaScriptFrame* frame);
 
   // Support for LiveEdit
-  void FramesHaveBeenDropped(StackFrame::Id new_break_frame_id,
-                             LiveEditFrameDropMode mode);
+  void ScheduleFrameRestart(StackFrame* frame);
 
   bool IsFrameBlackboxed(JavaScriptFrame* frame);
 
@@ -430,10 +428,8 @@ class Debug {
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
 
-  Handle<Object> return_value() { return thread_local_.return_value_; }
-  void set_return_value(Handle<Object> value) {
-    thread_local_.return_value_ = value;
-  }
+  Object* return_value() { return thread_local_.return_value_; }
+  void set_return_value(Object* value) { thread_local_.return_value_ = value; }
 
   // Support for embedding into generated code.
   Address is_active_address() {
@@ -444,16 +440,16 @@ class Debug {
     return reinterpret_cast<Address>(&hook_on_function_call_);
   }
 
-  Address after_break_target_address() {
-    return reinterpret_cast<Address>(&after_break_target_);
-  }
-
   Address last_step_action_address() {
     return reinterpret_cast<Address>(&thread_local_.last_step_action_);
   }
 
   Address suspended_generator_address() {
     return reinterpret_cast<Address>(&thread_local_.suspended_generator_);
+  }
+
+  Address restart_fp_address() {
+    return reinterpret_cast<Address>(&thread_local_.restart_fp_);
   }
 
   StepAction last_step_action() { return thread_local_.last_step_action_; }
@@ -586,11 +582,6 @@ class Debug {
   // List of active debug info objects.
   DebugInfoListNode* debug_info_list_;
 
-  // Storage location for jump when exiting debug break calls.
-  // Note that this address is not GC safe.  It should be computed immediately
-  // before returning to the DebugBreakCallHelper.
-  Address after_break_target_;
-
   // Used to collect histogram data on debugger feature usage.
   DebugFeatureTracker feature_tracker_;
 
@@ -621,15 +612,14 @@ class Debug {
     // Frame pointer of the target frame we want to arrive at.
     Address target_fp_;
 
-    // Stores the way how LiveEdit has patched the stack. It is used when
-    // debugger returns control back to user script.
-    LiveEditFrameDropMode frame_drop_mode_;
+    // Value of the accumulator at the point of entering the debugger.
+    Object* return_value_;
 
-    // Value of accumulator in interpreter frames. In non-interpreter frames
-    // this value will be the hole.
-    Handle<Object> return_value_;
-
+    // The suspended generator object to track when stepping.
     Object* suspended_generator_;
+
+    // The new frame pointer to drop to when restarting a frame.
+    Address restart_fp_;
 
     int async_task_count_;
   };
@@ -747,14 +737,14 @@ class DebugCodegen : public AllStatic {
   static void GenerateDebugBreakStub(MacroAssembler* masm,
                                      DebugBreakCallHelperMode mode);
 
-  // FrameDropper is a code replacement for a JavaScript frame with possibly
-  // several frames above.
-  // There is no calling conventions here, because it never actually gets
-  // called, it only gets returned to.
-  static void GenerateFrameDropperLiveEdit(MacroAssembler* masm);
-
-
   static void GenerateSlot(MacroAssembler* masm, RelocInfo::Mode mode);
+
+  // Builtin to drop frames to restart function.
+  static void GenerateFrameDropperTrampoline(MacroAssembler* masm);
+
+  // Builtin to atomically (wrt deopts) handle debugger statement and
+  // drop frames to restart function if necessary.
+  static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
 
   static void PatchDebugBreakSlot(Isolate* isolate, Address pc,
                                   Handle<Code> code);

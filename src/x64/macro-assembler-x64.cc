@@ -4088,14 +4088,19 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-
 void MacroAssembler::DebugBreak() {
-  Set(rax, 0);  // No arguments.
-  LoadAddress(rbx,
-              ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
+  Call(isolate()->builtins()->HandleDebuggerStatement(),
+       RelocInfo::DEBUGGER_STATEMENT);
+}
+
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  Load(rbx, restart_fp);
+  testp(rbx, rbx);
+  j(not_zero, isolate()->builtins()->FrameDropperTrampoline(),
+    RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
@@ -4297,6 +4302,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       DCHECK(actual.reg().is(rax));
       DCHECK(expected.reg().is(rbx));
     } else {
+      definitely_matches = true;
       Move(rax, actual.reg());
     }
   }

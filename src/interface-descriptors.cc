@@ -607,5 +607,13 @@ void InterpreterCEntryDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void FrameDropperTrampolineDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // New FP value.
+  MachineType machine_types[] = {MachineType::Pointer()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 }  // namespace internal
 }  // namespace v8

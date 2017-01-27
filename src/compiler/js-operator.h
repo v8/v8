@@ -674,6 +674,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* GeneratorRestoreRegister(int index);
 
   const Operator* StackCheck();
+  const Operator* Debugger();
 
   const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,

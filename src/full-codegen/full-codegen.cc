@@ -1232,7 +1232,7 @@ void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
   SetStatementPosition(stmt);
 
   __ DebugBreak();
-  // Ignore the return value.
+  __ MaybeDropFrames();
 
   PrepareForBailoutForId(stmt->DebugBreakId(), BailoutState::NO_REGISTERS);
 }

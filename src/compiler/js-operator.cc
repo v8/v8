@@ -573,6 +573,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0) \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)     \
   V(StackCheck, Operator::kNoWrite, 0, 0)                       \
+  V(Debugger, Operator::kNoProperties, 0, 0)                    \
   V(GetSuperConstructor, Operator::kNoWrite, 1, 1)
 
 #define BINARY_OP_LIST(V) \

@@ -192,7 +192,8 @@ namespace internal {
       NewArgumentsElements)                                                    \
                                                                                \
   /* Debugger */                                                               \
-  DBG(FrameDropper_LiveEdit)                                                   \
+  DBG(FrameDropperTrampoline)                                                  \
+  DBG(HandleDebuggerStatement)                                                 \
   DBG(Return_DebugBreak)                                                       \
   DBG(Slot_DebugBreak)                                                         \
                                                                                \
