@@ -112,8 +112,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       return IntPtrOpName(a, b);                         \
     }                                                    \
   }
+  PARAMETER_BINOP(IntPtrOrSmiMin, IntPtrMin, SmiMin)
   PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd)
+  PARAMETER_BINOP(IntPtrOrSmiSub, IntPtrSub, SmiSub)
   PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
+  PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
+                  SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual,
                   SmiGreaterThanOrEqual)
@@ -207,6 +211,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
   }
   SMI_COMPARISON_OP(SmiEqual, WordEqual)
+  SMI_COMPARISON_OP(SmiNotEqual, WordNotEqual)
   SMI_COMPARISON_OP(SmiAbove, UintPtrGreaterThan)
   SMI_COMPARISON_OP(SmiAboveOrEqual, UintPtrGreaterThanOrEqual)
   SMI_COMPARISON_OP(SmiBelow, UintPtrLessThan)
