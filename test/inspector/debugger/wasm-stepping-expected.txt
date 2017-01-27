@@ -77,7 +77,7 @@ Paused at wasm://wasm/wasm-ccfaf3fa/wasm-ccfaf3fa-0:2:2:   >nop
 Step action: stepInto
 Paused at wasm://wasm/wasm-ccfaf3fa/wasm-ccfaf3fa-0:3:0: >end
 Step action: stepInto
-Paused at wasm://wasm/wasm-ccfaf3fa/wasm-ccfaf3fa-0:0:0: >func $wasm_A
+Paused at wasm://wasm/wasm-ccfaf3fa/wasm-ccfaf3fa-1:9:6:       >br 1
 Step action: resume
 exports.main returned!
 Finished!

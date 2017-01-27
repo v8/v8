@@ -1183,15 +1183,7 @@ class ThreadImpl {
 #define PAUSE_IF_BREAK_FLAG(flag) \
   if (V8_UNLIKELY(break_flags_ & WasmInterpreter::BreakFlag::flag)) max = 0;
 
-      if (pc >= limit) {
-        // Fell off end of code; do an implicit return.
-        TRACE("@%-3zu: ImplicitReturn\n", pc);
-        if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
-          return;
-        decoder.Reset(code->start, code->end);
-        PAUSE_IF_BREAK_FLAG(AfterReturn);
-        continue;
-      }
+      DCHECK_GT(limit, pc);
 
       const char* skip = "        ";
       int len = 1;
@@ -1635,6 +1627,14 @@ class ThreadImpl {
       }
 
       pc += len;
+      if (pc == limit) {
+        // Fell off end of code; do an implicit return.
+        TRACE("@%-3zu: ImplicitReturn\n", pc);
+        if (!DoReturn(&code, &pc, &limit, code->function->sig->return_count()))
+          return;
+        decoder.Reset(code->start, code->end);
+        PAUSE_IF_BREAK_FLAG(AfterReturn);
+      }
     }
     // Set break_pc_, even though we might have stopped because max was reached.
     // We don't want to stop after executing zero instructions next time.
