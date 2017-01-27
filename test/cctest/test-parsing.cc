@@ -9066,6 +9066,15 @@ TEST(PreParserScopeAnalysis) {
       {"", "const var1 = 5;"},
       {"", "if (true) { const var1 = 5; }"},
       {"", "const var1 = 5; function f() { var1; }"},
+
+      {"", "var var1; var var1;"},
+      {"", "var var1; var var1; var1 = 5;"},
+      {"", "var var1; if (true) { var var1; }"},
+      {"", "if (true) { var var1; var var1; }"},
+      {"", "var var1; if (true) { var var1; var1 = 5; }"},
+      {"", "if (true) { var var1; var var1; var1 = 5; }"},
+      {"", "var var1; var var1; function f() { var1; }"},
+      {"", "var var1; var var1; function f() { var1 = 5; }"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {

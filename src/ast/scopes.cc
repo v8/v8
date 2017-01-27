@@ -1083,8 +1083,14 @@ void Scope::DeclareVariableName(const AstRawString* name, VariableMode mode) {
   // Declare the variable in the declaration scope.
   if (FLAG_preparser_scope_analysis) {
     Variable* var = LookupLocal(name);
+    DCHECK_NE(var, kDummyPreParserLexicalVariable);
+    DCHECK_NE(var, kDummyPreParserVariable);
     if (var == nullptr) {
       var = DeclareLocal(name, mode);
+    } else if (!IsLexicalVariableMode(var->mode()) &&
+               !IsLexicalVariableMode(mode)) {
+      DCHECK_EQ(mode, VAR);
+      var->set_maybe_assigned();
     }
     var->set_is_used();
   } else {
