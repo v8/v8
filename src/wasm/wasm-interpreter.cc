@@ -159,8 +159,6 @@ namespace wasm {
   V(F64UConvertI64, uint64_t)    \
   V(F64ConvertF32, float)        \
   V(F64ReinterpretI64, int64_t)  \
-  V(I32ReinterpretF32, float)    \
-  V(I64ReinterpretF64, double)   \
   V(I32AsmjsSConvertF32, float)  \
   V(I32AsmjsUConvertF32, float)  \
   V(I32AsmjsSConvertF64, double) \
@@ -606,12 +604,12 @@ static inline double ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
   return bit_cast<double>(a);
 }
 
-static inline int32_t ExecuteI32ReinterpretF32(float a, TrapReason* trap) {
-  return bit_cast<int32_t>(a);
+static inline int32_t ExecuteI32ReinterpretF32(WasmVal a) {
+  return a.to_unchecked<int32_t>();
 }
 
-static inline int64_t ExecuteI64ReinterpretF64(double a, TrapReason* trap) {
-  return bit_cast<int64_t>(a);
+static inline int64_t ExecuteI64ReinterpretF64(WasmVal a) {
+  return a.to_unchecked<int64_t>();
 }
 
 static inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
@@ -1552,6 +1550,19 @@ class ThreadImpl : public WasmInterpreter::Thread {
           Push(pc, WasmVal(static_cast<uint32_t>(instance()->mem_size /
                                                  WasmModule::kPageSize)));
           len = 1 + operand.length;
+          break;
+        }
+        // We need to treat kExprI32ReinterpretF32 and kExprI64ReinterpretF64
+        // specially to guarantee that the quiet bit of a NaN is preserved on
+        // ia32 by the reinterpret casts.
+        case kExprI32ReinterpretF32: {
+          WasmVal result(ExecuteI32ReinterpretF32(Pop()));
+          Push(pc, result);
+          break;
+        }
+        case kExprI64ReinterpretF64: {
+          WasmVal result(ExecuteI64ReinterpretF64(Pop()));
+          Push(pc, result);
           break;
         }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)             \
