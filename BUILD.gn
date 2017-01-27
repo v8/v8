@@ -47,6 +47,9 @@ declare_args() {
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
 
+  # Enable code-generation-time checking of types in the CodeStubAssembler.
+  v8_enable_verify_csa = false
+
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
   v8_interpreted_regexp = false
@@ -378,6 +381,10 @@ config("toolchain") {
     }
   } else if (dcheck_always_on) {
     defines += [ "DEBUG" ]
+  }
+
+  if (v8_enable_verify_csa) {
+    defines += [ "ENABLE_VERIFY_CSA" ]
   }
 
   if (v8_no_inline) {

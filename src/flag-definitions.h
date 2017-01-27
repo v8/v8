@@ -452,9 +452,16 @@ DEFINE_BOOL(turbo_asm, true, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_STRING(turbo_verify_machine_graph, nullptr,
               "verify TurboFan machine graph before instruction selection")
-DEFINE_BOOL(csa_verify, DEBUG_BOOL,
+#ifdef ENABLE_VERIFY_CSA
+DEFINE_BOOL(verify_csa, DEBUG_BOOL,
             "verify TurboFan machine graph of code stubs")
-DEFINE_BOOL(trace_csa_verify, false, "trace code stubs verification")
+#else
+// Define the flag as read-only-false so that code still compiles even in the
+// non-ENABLE_VERIFY_CSA configuration.
+DEFINE_BOOL_READONLY(verify_csa, false,
+                     "verify TurboFan machine graph of code stubs")
+#endif
+DEFINE_BOOL(trace_verify_csa, false, "trace code stubs verification")
 DEFINE_STRING(csa_trap_on_node, nullptr,
               "trigger break point when a node with given id is created in "
               "given stub. The format is: StubName,NodeId")

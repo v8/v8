@@ -1662,7 +1662,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
-  data.set_verify_graph(FLAG_csa_verify);
+  data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1797,7 +1797,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
       (FLAG_turbo_verify_machine_graph != nullptr &&
        (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
         !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
-    if (FLAG_trace_csa_verify) {
+    if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
       CompilationInfo* info = data->info();
       CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
