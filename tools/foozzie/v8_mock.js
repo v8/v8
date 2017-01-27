@@ -55,7 +55,8 @@ var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
 Error.prepareStackTrace = function (error, structuredStackTrace) {
   return "";
 };
-Object.freeze(Error)
+Object.defineProperty(
+    Error, 'prepareStackTrace', { configurable: false, writable: false });
 
 // Mock buffer access in float typed arrays because of varying NaN patterns.
 // Note, for now we just use noop forwarding proxies, because they already
