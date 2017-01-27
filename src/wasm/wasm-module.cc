@@ -1286,6 +1286,11 @@ class WasmInstanceBuilder {
     InitGlobals();
 
     //--------------------------------------------------------------------------
+    // Set up the indirect function tables for the new instance.
+    //--------------------------------------------------------------------------
+    if (function_table_count > 0) InitializeTables(code_table, instance);
+
+    //--------------------------------------------------------------------------
     // Set up the memory for the new instance.
     //--------------------------------------------------------------------------
     MaybeHandle<JSArrayBuffer> old_memory;
@@ -1304,6 +1309,37 @@ class WasmInstanceBuilder {
       if (memory_.is_null()) return nothing;  // failed to allocate memory
     }
 
+    //--------------------------------------------------------------------------
+    // Check that indirect function table segments are within bounds.
+    //--------------------------------------------------------------------------
+    for (WasmTableInit& table_init : module_->table_inits) {
+      DCHECK(table_init.table_index < table_instances_.size());
+      uint32_t base = EvalUint32InitExpr(table_init.offset);
+      uint32_t table_size =
+          table_instances_[table_init.table_index].function_table->length();
+      if (!in_bounds(base, static_cast<uint32_t>(table_init.entries.size()),
+                     table_size)) {
+        thrower_->LinkError("table initializer is out of bounds");
+        return nothing;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Check that memory segments are within bounds.
+    //--------------------------------------------------------------------------
+    for (WasmDataSegment& seg : module_->data_segments) {
+      uint32_t base = EvalUint32InitExpr(seg.dest_addr);
+      uint32_t mem_size = memory_.is_null()
+          ? 0 : static_cast<uint32_t>(memory_->byte_length()->Number());
+      if (!in_bounds(base, seg.source_size, mem_size)) {
+        thrower_->LinkError("data segment is out of bounds");
+        return nothing;
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Initialize memory.
+    //--------------------------------------------------------------------------
     if (!memory_.is_null()) {
       instance->set_memory_buffer(*memory_);
       Address mem_start = static_cast<Address>(memory_->backing_store());
@@ -1321,8 +1357,6 @@ class WasmInstanceBuilder {
           code_table, module_->num_imported_functions, old_mem_start, mem_start,
           old_mem_size, mem_size);
       compiled_module_->set_memory(memory_);
-    } else {
-      LoadDataSegments(nullptr, 0);
     }
 
     //--------------------------------------------------------------------------
@@ -1356,9 +1390,9 @@ class WasmInstanceBuilder {
     }
 
     //--------------------------------------------------------------------------
-    // Set up the indirect function tables for the new instance.
+    // Initialize the indirect function tables.
     //--------------------------------------------------------------------------
-    if (function_table_count > 0) InitializeTables(code_table, instance);
+    if (function_table_count > 0) LoadTableSegments(code_table, instance);
 
     // Patch new call sites and the context.
     PatchDirectCallsAndContext(code_table, compiled_module_, module_,
@@ -1554,6 +1588,10 @@ class WasmInstanceBuilder {
     }
   }
 
+  bool in_bounds(uint32_t offset, uint32_t size, uint32_t upper) {
+    return offset + size <= upper && offset + size >= offset;
+  }
+
   // Load data segments into the memory.
   void LoadDataSegments(Address mem_addr, size_t mem_size) {
     Handle<SeqOneByteString> module_bytes(compiled_module_->module_bytes(),
@@ -1563,13 +1601,8 @@ class WasmInstanceBuilder {
       // Segments of size == 0 are just nops.
       if (source_size == 0) continue;
       uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
-      if (dest_offset >= mem_size || source_size >= mem_size ||
-          dest_offset > (mem_size - source_size)) {
-        thrower_->LinkError("data segment (start = %" PRIu32 ", size = %" PRIu32
-                            ") does not fit into memory (size = %" PRIuS ")",
-                            dest_offset, source_size, mem_size);
-        return;
-      }
+      DCHECK(in_bounds(dest_offset, source_size,
+                       static_cast<uint32_t>(mem_size)));
       byte* dest = mem_addr + dest_offset;
       const byte* src = reinterpret_cast<const byte*>(
           module_bytes->GetCharsAddress() + segment.source_offset);
@@ -2038,10 +2071,6 @@ class WasmInstanceBuilder {
 
   void InitializeTables(Handle<FixedArray> code_table,
                         Handle<WasmInstanceObject> instance) {
-    Handle<FixedArray> old_function_tables =
-        compiled_module_->function_tables();
-    Handle<FixedArray> old_signature_tables =
-        compiled_module_->signature_tables();
     int function_table_count =
         static_cast<int>(module_->function_tables.size());
     Handle<FixedArray> new_function_tables =
@@ -2071,6 +2100,36 @@ class WasmInstanceBuilder {
                                *table_instance.function_table);
       new_signature_tables->set(static_cast<int>(index),
                                 *table_instance.signature_table);
+    }
+
+    // Patch all code that has references to the old indirect tables.
+    Handle<FixedArray> old_function_tables =
+        compiled_module_->function_tables();
+    Handle<FixedArray> old_signature_tables =
+        compiled_module_->signature_tables();
+    for (int i = 0; i < code_table->length(); ++i) {
+      if (!code_table->get(i)->IsCode()) continue;
+      Handle<Code> code(Code::cast(code_table->get(i)), isolate_);
+      for (int j = 0; j < function_table_count; ++j) {
+        ReplaceReferenceInCode(
+            code, Handle<Object>(old_function_tables->get(j), isolate_),
+            Handle<Object>(new_function_tables->get(j), isolate_));
+        ReplaceReferenceInCode(
+            code, Handle<Object>(old_signature_tables->get(j), isolate_),
+            Handle<Object>(new_signature_tables->get(j), isolate_));
+      }
+    }
+    compiled_module_->set_function_tables(new_function_tables);
+    compiled_module_->set_signature_tables(new_signature_tables);
+  }
+
+  void LoadTableSegments(Handle<FixedArray> code_table,
+                         Handle<WasmInstanceObject> instance) {
+    int function_table_count =
+        static_cast<int>(module_->function_tables.size());
+    for (int index = 0; index < function_table_count; ++index) {
+      WasmIndirectFunctionTable& table = module_->function_tables[index];
+      TableInstance& table_instance = table_instances_[index];
 
       Handle<FixedArray> all_dispatch_tables;
       if (!table_instance.table_object.is_null()) {
@@ -2085,12 +2144,8 @@ class WasmInstanceBuilder {
       // since initializations are not sorted by table index.
       for (auto table_init : module_->table_inits) {
         uint32_t base = EvalUint32InitExpr(table_init.offset);
-        if (base > static_cast<uint32_t>(table_size) ||
-            (base + table_init.entries.size() >
-             static_cast<uint32_t>(table_size))) {
-          thrower_->LinkError("table initializer is out of bounds");
-          continue;
-        }
+        DCHECK(in_bounds(base, static_cast<uint32_t>(table_init.entries.size()),
+                         table_instance.function_table->length()));
         for (int i = 0; i < static_cast<int>(table_init.entries.size()); ++i) {
           uint32_t func_index = table_init.entries[i];
           WasmFunction* function = &module_->functions[func_index];
@@ -2153,21 +2208,6 @@ class WasmInstanceBuilder {
             table_instance.function_table, table_instance.signature_table);
       }
     }
-    // Patch all code that has references to the old indirect tables.
-    for (int i = 0; i < code_table->length(); ++i) {
-      if (!code_table->get(i)->IsCode()) continue;
-      Handle<Code> code(Code::cast(code_table->get(i)), isolate_);
-      for (int j = 0; j < function_table_count; ++j) {
-        ReplaceReferenceInCode(
-            code, Handle<Object>(old_function_tables->get(j), isolate_),
-            Handle<Object>(new_function_tables->get(j), isolate_));
-        ReplaceReferenceInCode(
-            code, Handle<Object>(old_signature_tables->get(j), isolate_),
-            Handle<Object>(new_signature_tables->get(j), isolate_));
-      }
-    }
-    compiled_module_->set_function_tables(new_function_tables);
-    compiled_module_->set_signature_tables(new_signature_tables);
   }
 };
 
