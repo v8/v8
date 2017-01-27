@@ -173,6 +173,22 @@ TEST(AssemblerX64CmpbOperation) {
   CHECK_EQ(0, result);
 }
 
+TEST(Regression684407) {
+  CcTest::InitializeVM();
+  // Allocate an executable page of memory.
+  size_t actual_size;
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      Assembler::kMinimalBufferSize, &actual_size, true));
+  CHECK(buffer);
+  Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
+  Address before = assm.pc();
+  __ cmpl(Operand(arg1, 0),
+          Immediate(0, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+  Address after = assm.pc();
+  size_t instruction_size = static_cast<size_t>(after - before);
+  // Check that the immediate is not encoded as uint8.
+  CHECK_LT(sizeof(uint32_t), instruction_size);
+}
 
 TEST(AssemblerX64ImulOperation) {
   CcTest::InitializeVM();
