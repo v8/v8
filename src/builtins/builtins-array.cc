@@ -201,7 +201,7 @@ void Builtins::Generate_FastArrayPush(compiler::CodeAssemblerState* state) {
   Node* context = assembler.Parameter(BuiltinDescriptor::kContext);
   Node* new_target = assembler.Parameter(BuiltinDescriptor::kNewTarget);
 
-  CodeStubArguments args(&assembler, argc);
+  CodeStubArguments args(&assembler, assembler.ChangeInt32ToIntPtr(argc));
   Node* receiver = args.GetReceiver();
   Node* kind = nullptr;
 

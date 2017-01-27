@@ -267,7 +267,7 @@ void Builtins::Generate_FastFunctionPrototypeBind(
   Node* context = assembler.Parameter(BuiltinDescriptor::kContext);
   Node* new_target = assembler.Parameter(BuiltinDescriptor::kNewTarget);
 
-  CodeStubArguments args(&assembler, argc);
+  CodeStubArguments args(&assembler, assembler.ChangeInt32ToIntPtr(argc));
 
   // Check that receiver has instance type of JS_FUNCTION_TYPE
   Node* receiver = args.GetReceiver();

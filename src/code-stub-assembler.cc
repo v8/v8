@@ -8212,14 +8212,16 @@ Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
   return IsSetWord32<JSArrayBuffer::WasNeutered>(buffer_bit_field);
 }
 
-CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
+CodeStubArguments::CodeStubArguments(CodeStubAssembler* assembler, Node* argc,
+                                     Node* fp,
+                                     CodeStubAssembler::ParameterMode mode)
     : assembler_(assembler),
+      argc_mode_(mode),
       argc_(argc),
       arguments_(nullptr),
-      fp_(assembler->LoadFramePointer()) {
-  argc_ = assembler->ChangeUint32ToWord(argc_);
+      fp_(fp != nullptr ? fp : assembler->LoadFramePointer()) {
   Node* offset = assembler->ElementOffsetFromIndex(
-      argc_, FAST_ELEMENTS, CodeStubAssembler::INTPTR_PARAMETERS,
+      argc_, FAST_ELEMENTS, mode,
       (StandardFrameConstants::kFixedSlotCountAboveFp - 1) * kPointerSize);
   arguments_ = assembler_->IntPtrAdd(fp_, offset);
 }
@@ -8229,19 +8231,22 @@ Node* CodeStubArguments::GetReceiver() const {
                           assembler_->IntPtrConstant(kPointerSize));
 }
 
-Node* CodeStubArguments::AtIndex(Node* index,
-                                 CodeStubAssembler::ParameterMode mode) const {
+Node* CodeStubArguments::AtIndexPtr(
+    Node* index, CodeStubAssembler::ParameterMode mode) const {
   typedef compiler::Node Node;
-  CSA_ASSERT(assembler_, assembler_->UintPtrLessThan(
-                             mode == CodeStubAssembler::INTPTR_PARAMETERS
-                                 ? index
-                                 : assembler_->SmiUntag(index),
-                             GetLength()));
-  Node* negated_index =
-      assembler_->IntPtrSub(assembler_->IntPtrOrSmiConstant(0, mode), index);
+  Node* negated_index = assembler_->IntPtrOrSmiSub(
+      assembler_->IntPtrOrSmiConstant(0, mode), index, mode);
   Node* offset =
       assembler_->ElementOffsetFromIndex(negated_index, FAST_ELEMENTS, mode, 0);
-  return assembler_->Load(MachineType::AnyTagged(), arguments_, offset);
+  return assembler_->IntPtrAdd(arguments_, offset);
+}
+
+Node* CodeStubArguments::AtIndex(Node* index,
+                                 CodeStubAssembler::ParameterMode mode) const {
+  DCHECK_EQ(argc_mode_, mode);
+  CSA_ASSERT(assembler_,
+             assembler_->UintPtrOrSmiLessThan(index, GetLength(), mode));
+  return assembler_->Load(MachineType::AnyTagged(), AtIndexPtr(index, mode));
 }
 
 Node* CodeStubArguments::AtIndex(int index) const {
@@ -8253,12 +8258,11 @@ void CodeStubArguments::ForEach(
     const CodeStubArguments::ForEachBodyFunction& body, Node* first, Node* last,
     CodeStubAssembler::ParameterMode mode) {
   assembler_->Comment("CodeStubArguments::ForEach");
-  DCHECK_IMPLIES(first == nullptr || last == nullptr,
-                 mode == CodeStubAssembler::INTPTR_PARAMETERS);
   if (first == nullptr) {
     first = assembler_->IntPtrOrSmiConstant(0, mode);
   }
   if (last == nullptr) {
+    DCHECK_EQ(mode, argc_mode_);
     last = argc_;
   }
   Node* start = assembler_->IntPtrSub(

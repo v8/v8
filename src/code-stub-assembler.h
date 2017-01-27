@@ -1228,9 +1228,16 @@ class CodeStubArguments {
 
   // |argc| is an uint32 value which specifies the number of arguments passed
   // to the builtin excluding the receiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc);
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
+      : CodeStubArguments(assembler, argc, nullptr,
+                          CodeStubAssembler::INTPTR_PARAMETERS) {}
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
+                    CodeStubAssembler::ParameterMode param_mode);
 
   Node* GetReceiver() const;
+
+  Node* AtIndexPtr(Node* index, CodeStubAssembler::ParameterMode mode =
+                                    CodeStubAssembler::INTPTR_PARAMETERS) const;
 
   // |index| is zero-based and does not include the receiver
   Node* AtIndex(Node* index, CodeStubAssembler::ParameterMode mode =
@@ -1262,6 +1269,7 @@ class CodeStubArguments {
   Node* GetArguments();
 
   CodeStubAssembler* assembler_;
+  CodeStubAssembler::ParameterMode argc_mode_;
   Node* argc_;
   Node* arguments_;
   Node* fp_;

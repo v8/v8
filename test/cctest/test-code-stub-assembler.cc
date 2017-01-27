@@ -1506,7 +1506,7 @@ TEST(Arguments) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.Int32Constant(3));
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CSA_ASSERT(
       &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
@@ -1536,7 +1536,7 @@ TEST(ArgumentsForEach) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.Int32Constant(3));
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CodeAssemblerVariable sum(&m, MachineRepresentation::kTagged);
   CodeAssemblerVariableList list({&sum}, m.zone());
@@ -1616,7 +1616,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     JSObject::SetElement(isolate, array, 1,
                          Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
         .Check();
-    CodeStubArguments args(this, Int32Constant(kNumParams));
+    CodeStubArguments args(this, IntPtrConstant(kNumParams));
     Variable arg_index(this, MachineType::PointerRepresentation());
     Label bailout(this);
     arg_index.Bind(IntPtrConstant(0));

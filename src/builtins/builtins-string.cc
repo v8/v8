@@ -420,7 +420,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
 
-  CodeStubArguments arguments(this, argc);
+  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   // From now on use word-size argc value.
   argc = arguments.GetLength();
 
@@ -886,7 +886,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
 
-  CodeStubArguments arguments(this, argc);
+  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   Node* receiver = arguments.GetReceiver();
   // From now on use word-size argc value.
   argc = arguments.GetLength();
