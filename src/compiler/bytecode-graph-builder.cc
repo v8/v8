@@ -1213,15 +1213,16 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
 
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   PrepareEagerCheckpoint();
-  Handle<FixedArray> constant_properties = Handle<FixedArray>::cast(
-      bytecode_iterator().GetConstantForIndexOperand(0));
+  Handle<BoilerplateDescription> constant_properties =
+      Handle<BoilerplateDescription>::cast(
+          bytecode_iterator().GetConstantForIndexOperand(0));
   int literal_index = bytecode_iterator().GetIndexOperand(1);
   int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   // TODO(mstarzinger): Thread through number of properties. The below number is
   // only an estimate and does not match {ObjectLiteral::properties_count}.
-  int number_of_properties = constant_properties->length() / 2;
+  int number_of_properties = constant_properties->size();
   Node* literal = NewNode(
       javascript()->CreateLiteralObject(constant_properties, literal_flags,
                                         literal_index, number_of_properties),

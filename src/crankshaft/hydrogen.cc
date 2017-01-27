@@ -5473,7 +5473,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     site_context.ExitScope(site, boilerplate);
   } else {
     NoObservableSideEffectsScope no_effects(this);
-    Handle<FixedArray> constant_properties =
+    Handle<BoilerplateDescription> constant_properties =
         expr->GetOrBuildConstantProperties(isolate());
     int literal_index = expr->literal_index();
     int flags = expr->ComputeFlags(true);

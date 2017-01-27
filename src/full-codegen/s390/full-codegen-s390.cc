@@ -1147,7 +1147,7 @@ void FullCodeGenerator::EmitAccessor(ObjectLiteralProperty* property) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  Handle<FixedArray> constant_properties =
+  Handle<BoilerplateDescription> constant_properties =
       expr->GetOrBuildConstantProperties(isolate());
   __ LoadP(r5, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ LoadSmiLiteral(r4, Smi::FromInt(expr->literal_index()));

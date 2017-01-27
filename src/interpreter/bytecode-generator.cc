@@ -650,7 +650,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
     if (object_literal->properties_count() > 0) {
       // If constant properties is an empty fixed array, we've already added it
       // to the constant pool when visiting the object literal.
-      Handle<FixedArray> constant_properties =
+      Handle<BoilerplateDescription> constant_properties =
           object_literal->GetOrBuildConstantProperties(isolate);
 
       builder()->InsertConstantPoolEntryAt(literal.second, constant_properties);

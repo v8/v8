@@ -1384,7 +1384,7 @@ class ObjectLiteral final : public MaterializedLiteral {
  public:
   typedef ObjectLiteralProperty Property;
 
-  Handle<FixedArray> constant_properties() const {
+  Handle<BoilerplateDescription> constant_properties() const {
     DCHECK(!constant_properties_.is_null());
     return constant_properties_;
   }
@@ -1409,7 +1409,8 @@ class ObjectLiteral final : public MaterializedLiteral {
   void InitDepthAndFlags();
 
   // Get the constant properties fixed array, populating it if necessary.
-  Handle<FixedArray> GetOrBuildConstantProperties(Isolate* isolate) {
+  Handle<BoilerplateDescription> GetOrBuildConstantProperties(
+      Isolate* isolate) {
     if (constant_properties_.is_null()) {
       BuildConstantProperties(isolate);
     }
@@ -1487,7 +1488,7 @@ class ObjectLiteral final : public MaterializedLiteral {
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   uint32_t boilerplate_properties_;
-  Handle<FixedArray> constant_properties_;
+  Handle<BoilerplateDescription> constant_properties_;
   ZoneList<Property*>* properties_;
 
   class FastElementsField
