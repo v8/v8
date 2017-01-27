@@ -406,9 +406,9 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetImports(Isolate* isolate,
                                              Handle<WasmModuleObject> module);
 V8_EXPORT_PRIVATE Handle<JSArray> GetExports(Isolate* isolate,
                                              Handle<WasmModuleObject> module);
-
-V8_EXPORT_PRIVATE Handle<JSArray> GetExports(Isolate* isolate,
-                                             Handle<WasmModuleObject> module);
+V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
+    Isolate* isolate, Handle<WasmModuleObject> module, Handle<String> name,
+    ErrorThrower* thrower);
 
 V8_EXPORT_PRIVATE bool ValidateModuleBytes(Isolate* isolate, const byte* start,
                                            const byte* end,
