@@ -1345,7 +1345,7 @@ class WasmInstanceBuilder {
       Address mem_start = static_cast<Address>(memory_->backing_store());
       uint32_t mem_size =
           static_cast<uint32_t>(memory_->byte_length()->Number());
-      LoadDataSegments(mem_start, mem_size);
+      if (!LoadDataSegments(mem_start, mem_size)) return nothing;
 
       uint32_t old_mem_size = compiled_module_->mem_size();
       Address old_mem_start =
@@ -1593,7 +1593,7 @@ class WasmInstanceBuilder {
   }
 
   // Load data segments into the memory.
-  void LoadDataSegments(Address mem_addr, size_t mem_size) {
+  bool LoadDataSegments(Address mem_addr, size_t mem_size) {
     Handle<SeqOneByteString> module_bytes(compiled_module_->module_bytes(),
                                           isolate_);
     for (const WasmDataSegment& segment : module_->data_segments) {
@@ -1608,6 +1608,7 @@ class WasmInstanceBuilder {
           module_bytes->GetCharsAddress() + segment.source_offset);
       memcpy(dest, src, source_size);
     }
+    return true;
   }
 
   void WriteGlobalValue(WasmGlobal& global, Handle<Object> value) {

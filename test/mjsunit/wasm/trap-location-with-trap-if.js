@@ -14,6 +14,8 @@ Error.prepareStackTrace = function(error, frames) {
 
 var builder = new WasmModuleBuilder();
 
+builder.addMemory(0, 1, false);
+
 var sig_index = builder.addType(kSig_i_v)
 
 // Build a function to resemble this code:

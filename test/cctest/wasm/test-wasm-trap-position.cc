@@ -101,6 +101,7 @@ TEST(IllegalLoad) {
   TestSignatures sigs;
   // Set the execution context, such that a runtime error can be thrown.
   r.SetModuleContext();
+  r.module().AddMemory(0L);
 
   BUILD(r, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
                                                     WASM_I32V_1(-3)),

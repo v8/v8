@@ -42,6 +42,8 @@ function STACK() {
 
 var builder = new WasmModuleBuilder();
 
+builder.addMemory(0, 1, false);
+
 builder.addImport("mod", "func", kSig_v_v);
 
 builder.addFunction("main", kSig_v_v)
@@ -70,8 +72,8 @@ var module = builder.instantiate({mod: {func: STACK}});
     // The line numbers below will change as this test gains / loses lines..
     "    at STACK (stack.js:39:11)\n" +           // --
     "    at main (<WASM>[1]+1)\n" +               // --
-    "    at testSimpleStack (stack.js:76:18)\n" + // --
-    "    at stack.js:78:3";                       // --
+    "    at testSimpleStack (stack.js:78:18)\n" + // --
+    "    at stack.js:80:3";                       // --
 
   module.exports.main();
   assertEquals(expected_string, stripPath(stack));
@@ -90,8 +92,8 @@ Error.prepareStackTrace = function(error, frames) {
       // isWasm           function   line  pos        file
       [   false,           "STACK",    39,   0, "stack.js"],
       [    true,            "main",     1,   1,       null],
-      [   false, "testStackFrames",    87,   0, "stack.js"],
-      [   false,              null,    96,   0, "stack.js"]
+      [   false, "testStackFrames",    89,   0, "stack.js"],
+      [   false,              null,    98,   0, "stack.js"]
   ]);
 })();
 
@@ -104,8 +106,8 @@ Error.prepareStackTrace = function(error, frames) {
     verifyStack(e.stack, [
         // isWasm               function   line  pos        file
         [    true,    "exec_unreachable",    2,    1,       null],
-        [   false, "testWasmUnreachable",  100,    0, "stack.js"],
-        [   false,                  null,  111,    0, "stack.js"]
+        [   false, "testWasmUnreachable",  102,    0, "stack.js"],
+        [   false,                  null,  113,    0, "stack.js"]
     ]);
   }
 })();
@@ -120,8 +122,8 @@ Error.prepareStackTrace = function(error, frames) {
         // isWasm                  function   line  pos        file
         [    true,                       "",     3,   3,       null],
         [    true, "call_mem_out_of_bounds",     4,   1,       null],
-        [   false, "testWasmMemOutOfBounds",   115,   0, "stack.js"],
-        [   false,                     null,   127,   0, "stack.js"]
+        [   false, "testWasmMemOutOfBounds",   117,   0, "stack.js"],
+        [   false,                     null,   129,   0, "stack.js"]
     ]);
   }
 })();

@@ -622,6 +622,13 @@ class WasmFullDecoder : public WasmDecoder {
     return bytes;
   }
 
+  bool CheckHasMemory() {
+    if (!module_->has_memory) {
+      error(pc_ - 1, "memory instruction with no memory");
+    }
+    return module_->has_memory;
+  }
+
   // Decodes the body of a function.
   void DecodeFunctionBody() {
     TRACE("wasm-decode %p...%p (module+%d, %d bytes) %s\n",
@@ -1112,6 +1119,7 @@ class WasmFullDecoder : public WasmDecoder {
             len = DecodeStoreMem(kWasmF64, MachineType::Float64());
             break;
           case kExprGrowMemory: {
+            if (!CheckHasMemory()) break;
             MemoryIndexOperand operand(this, pc_);
             DCHECK_NOT_NULL(module_);
             if (module_->origin != kAsmJsOrigin) {
@@ -1124,6 +1132,7 @@ class WasmFullDecoder : public WasmDecoder {
             break;
           }
           case kExprMemorySize: {
+            if (!CheckHasMemory()) break;
             MemoryIndexOperand operand(this, pc_);
             Push(kWasmI32, BUILD(CurrentMemoryPages));
             len = 1 + operand.length;
@@ -1304,6 +1313,7 @@ class WasmFullDecoder : public WasmDecoder {
   void PopControl() { control_.pop_back(); }
 
   int DecodeLoadMem(ValueType type, MachineType mem_type) {
+    if (!CheckHasMemory()) return 0;
     MemoryAccessOperand operand(this, pc_,
                                 ElementSizeLog2Of(mem_type.representation()));
 
@@ -1315,6 +1325,7 @@ class WasmFullDecoder : public WasmDecoder {
   }
 
   int DecodeStoreMem(ValueType type, MachineType mem_type) {
+    if (!CheckHasMemory()) return 0;
     MemoryAccessOperand operand(this, pc_,
                                 ElementSizeLog2Of(mem_type.representation()));
     Value val = Pop(1, type);
