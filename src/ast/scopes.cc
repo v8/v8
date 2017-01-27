@@ -1903,6 +1903,9 @@ VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
         if (!var->is_dynamic() && lookup != this) var->ForceContextAllocation();
       } else {
         var->set_is_used();
+        if (proxy->is_assigned()) {
+          var->set_maybe_assigned();
+        }
       }
     }
   }
