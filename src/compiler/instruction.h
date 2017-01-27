@@ -1065,14 +1065,31 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   float ToFloat32() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     DCHECK_EQ(kFloat32, type());
     return bit_cast<float>(static_cast<int32_t>(value_));
   }
 
+  uint32_t ToFloat32AsInt() const {
+    DCHECK_EQ(kFloat32, type());
+    return bit_cast<uint32_t>(static_cast<int32_t>(value_));
+  }
+
   double ToFloat64() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     if (type() == kInt32) return ToInt32();
     DCHECK_EQ(kFloat64, type());
     return bit_cast<double>(value_);
+  }
+
+  uint64_t ToFloat64AsInt() const {
+    if (type() == kInt32) return ToInt32();
+    DCHECK_EQ(kFloat64, type());
+    return bit_cast<uint64_t>(value_);
   }
 
   ExternalReference ToExternalReference() const {
