@@ -13,6 +13,7 @@
 #include "src/compiler/simplified-operator.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
+#include "src/objects/literal-objects.h"
 
 namespace v8 {
 namespace internal {

@@ -16,6 +16,7 @@
 #include "src/contexts.h"
 #include "src/conversions.h"
 #include "src/elements.h"
+#include "src/objects/literal-objects.h"
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
@@ -669,6 +670,10 @@ bool ObjectLiteral::IsFastCloningSupported() const {
   return fast_elements() && has_shallow_properties() &&
          properties_count() <= ConstructorBuiltinsAssembler::
                                    kMaximumClonedShallowObjectProperties;
+}
+
+ElementsKind ArrayLiteral::constant_elements_kind() const {
+  return static_cast<ElementsKind>(constant_elements()->elements_kind());
 }
 
 void ArrayLiteral::InitDepthAndFlags() {

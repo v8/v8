@@ -9837,46 +9837,6 @@ void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos, int len) {
   }
 }
 
-Object* BoilerplateDescription::name(int index) const {
-  // get() already checks for out of bounds access, but we do not want to allow
-  // access to the last element, if it is the number of properties.
-  DCHECK_NE(size(), index);
-  return get(2 * index);
-}
-
-Object* BoilerplateDescription::value(int index) const {
-  return get(2 * index + 1);
-}
-
-int BoilerplateDescription::size() const {
-  DCHECK_EQ(0, (length() - (this->has_number_of_properties() ? 1 : 0)) % 2);
-  // Rounding is intended.
-  return length() / 2;
-}
-
-int BoilerplateDescription::backing_store_size() const {
-  if (has_number_of_properties()) {
-    // If present, the last entry contains the number of properties.
-    return Smi::cast(this->get(length() - 1))->value();
-  }
-  // If the number is not given explicitly, we assume there are no
-  // properties with computed names.
-  return size();
-}
-
-void BoilerplateDescription::set_backing_store_size(Isolate* isolate,
-                                                    int backing_store_size) {
-  DCHECK(has_number_of_properties());
-  DCHECK_NE(size(), backing_store_size);
-  Handle<Object> backing_store_size_obj =
-      isolate->factory()->NewNumberFromInt(backing_store_size);
-  set(length() - 1, *backing_store_size_obj);
-}
-
-bool BoilerplateDescription::has_number_of_properties() const {
-  return length() % 2 != 0;
-}
-
 #ifdef DEBUG
 bool FixedArray::IsEqualTo(FixedArray* other) {
   if (length() != other->length()) return false;

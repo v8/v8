@@ -1554,9 +1554,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   Handle<ConstantElementsPair> constant_elements() const {
     return constant_elements_;
   }
-  ElementsKind constant_elements_kind() const {
-    return static_cast<ElementsKind>(constant_elements()->elements_kind());
-  }
+  ElementsKind constant_elements_kind() const;
 
   ZoneList<Expression*>* values() const { return values_; }
 

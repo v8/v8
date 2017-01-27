@@ -2919,30 +2919,6 @@ class FixedArray: public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
 };
 
-// BoilerplateDescription is a list of properties consisting of name value
-// pairs. In addition to the properties, it provides the projected number
-// of properties in the backing store. This number includes properties with
-// computed names that are not
-// in the list.
-class BoilerplateDescription : public FixedArray {
- public:
-  Object* name(int index) const;
-  Object* value(int index) const;
-
-  // The number of boilerplate properties.
-  int size() const;
-
-  // Number of boilerplate properties and properties with computed names.
-  int backing_store_size() const;
-
-  void set_backing_store_size(Isolate* isolate, int backing_store_size);
-
-  DECLARE_CAST(BoilerplateDescription)
-
- private:
-  bool has_number_of_properties() const;
-};
-
 // FixedDoubleArray describes fixed-sized arrays with element type double.
 class FixedDoubleArray: public FixedArrayBase {
  public:
@@ -6729,28 +6705,6 @@ class ContextExtension : public Struct {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ContextExtension);
-};
-
-// Pair of {ElementsKind} and an array of constant values for {ArrayLiteral}
-// expressions. Used to communicate with the runtime for literal boilerplate
-// creation within the {Runtime_CreateArrayLiteral} method.
-class ConstantElementsPair : public Struct {
- public:
-  DECL_INT_ACCESSORS(elements_kind)
-  DECL_ACCESSORS(constant_values, FixedArrayBase)
-
-  DECLARE_CAST(ConstantElementsPair)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(ConstantElementsPair)
-  DECLARE_VERIFIER(ConstantElementsPair)
-
-  static const int kElementsKindOffset = HeapObject::kHeaderSize;
-  static const int kConstantValuesOffset = kElementsKindOffset + kPointerSize;
-  static const int kSize = kConstantValuesOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ConstantElementsPair);
 };
 
 // Script describes a script which has been added to the VM.

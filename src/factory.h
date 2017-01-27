@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+class BoilerplateDescription;
+class ConstantElementsPair;
+
 enum FunctionMode {
   // With prototype.
   FUNCTION_WITH_WRITEABLE_PROTOTYPE,

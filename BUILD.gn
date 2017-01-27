@@ -1576,6 +1576,8 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
+    "src/objects/literal-objects.cc",
+    "src/objects/literal-objects.h",
     "src/objects/module-info.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",

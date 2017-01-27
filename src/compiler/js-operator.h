@@ -12,6 +12,10 @@
 
 namespace v8 {
 namespace internal {
+
+class BoilerplateDescription;
+class ConstantElementsPair;
+
 namespace compiler {
 
 // Forward declarations.

@@ -18,6 +18,7 @@
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/state-values-utils.h"
 #include "src/objects-inl.h"
+#include "src/objects/literal-objects.h"
 
 namespace v8 {
 namespace internal {
