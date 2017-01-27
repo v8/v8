@@ -170,6 +170,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (ValidateModule(isolate, args[0], &thrower)) {
     return_value.Set(v8::True(isolate));
   } else {
+    if (thrower.wasm_error()) thrower.Reify();  // Clear error.
     return_value.Set(v8::False(isolate));
   }
 }
