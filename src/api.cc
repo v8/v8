@@ -7834,6 +7834,10 @@ Local<Symbol> v8::Symbol::GetUnscopables(Isolate* isolate) {
   return Utils::ToLocal(i_isolate->factory()->unscopables_symbol());
 }
 
+Local<Symbol> v8::Symbol::GetToPrimitive(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  return Utils::ToLocal(i_isolate->factory()->to_primitive_symbol());
+}
 
 Local<Symbol> v8::Symbol::GetToStringTag(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
