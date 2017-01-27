@@ -2305,6 +2305,76 @@ void Builtins::Generate_Apply(MacroAssembler* masm) {
   }
 }
 
+// static
+void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
+                                           Handle<Code> code) {
+  // ----------- S t a t e -------------
+  //  -- r4    : the target to call (can be any Object)
+  //  -- r5    : start index (to support rest parameters)
+  //  -- lr    : return address.
+  //  -- sp[0] : thisArgument
+  // -----------------------------------
+
+  // Check if we have an arguments adaptor frame below the function frame.
+  Label arguments_adaptor, arguments_done;
+  __ LoadP(r6, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ LoadP(ip, MemOperand(r6, CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ CmpSmiLiteral(ip, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ beq(&arguments_adaptor);
+  {
+    __ LoadP(r3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+    __ LoadP(r3, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
+    __ LoadWordArith(
+        r3,
+        FieldMemOperand(r3, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ mr(r6, fp);
+  }
+  __ b(&arguments_done);
+  __ bind(&arguments_adaptor);
+  {
+    // Load the length from the ArgumentsAdaptorFrame.
+    __ LoadP(r3, MemOperand(r6, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  }
+  __ bind(&arguments_done);
+
+  Label stack_empty, stack_done, stack_overflow;
+  __ SmiUntag(r3);
+  __ sub(r3, r3, r5);
+  __ cmpi(r3, Operand::Zero());
+  __ ble(&stack_empty);
+  {
+    // Check for stack overflow.
+    Generate_StackOverflowCheck(masm, r3, r5, &stack_overflow);
+
+    // Forward the arguments from the caller frame.
+    {
+      Label loop;
+      __ addi(r6, r6, Operand(kPointerSize));
+      __ mr(r5, r3);
+      __ bind(&loop);
+      {
+        __ ShiftLeftImm(ip, r5, Operand(kPointerSizeLog2));
+        __ LoadPX(ip, MemOperand(r6, ip));
+        __ push(ip);
+        __ subi(r5, r5, Operand(1));
+        __ cmpi(r5, Operand::Zero());
+        __ bne(&loop);
+      }
+    }
+  }
+  __ b(&stack_done);
+  __ bind(&stack_overflow);
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  __ bind(&stack_empty);
+  {
+    // We just pass the receiver, which is already on the stack.
+    __ mov(r3, Operand::Zero());
+  }
+  __ bind(&stack_done);
+
+  __ Jump(code, RelocInfo::CODE_TARGET);
+}
+
 namespace {
 
 // Drops top JavaScript frame and an arguments adaptor frame below it (if
