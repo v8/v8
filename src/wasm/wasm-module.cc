@@ -1766,6 +1766,11 @@ class WasmInstanceBuilder {
         case kExternalGlobal: {
           // Global imports are converted to numbers and written into the
           // {globals_} array buffer.
+          if (module_->globals[import.index].type == kWasmI64) {
+            ReportLinkError("global import cannot have type i64", index,
+                            module_name, import_name);
+            return -1;
+          }
           if (!value->IsNumber()) {
             ReportLinkError("global import must be a number", index,
                             module_name, import_name);
