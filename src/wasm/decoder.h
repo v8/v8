@@ -37,6 +37,12 @@ class Decoder {
         end_(end),
         error_pc_(nullptr),
         error_pt_(nullptr) {}
+  Decoder(const byte* start, const byte* pc, const byte* end)
+      : start_(start),
+        pc_(pc),
+        end_(end),
+        error_pc_(nullptr),
+        error_pt_(nullptr) {}
 
   virtual ~Decoder() {}
 
@@ -184,8 +190,13 @@ class Decoder {
 
   // Consume {size} bytes and send them to the bit bucket, advancing {pc_}.
   void consume_bytes(uint32_t size, const char* name = "skip") {
-    TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), name,
-          size);
+#if DEBUG
+    if (name) {
+      // Only trace if the name is not null.
+      TRACE("  +%d  %-20s: %d bytes\n", static_cast<int>(pc_ - start_), name,
+            size);
+    }
+#endif
     if (checkAvailable(size)) {
       pc_ += size;
     } else {
