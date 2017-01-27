@@ -606,12 +606,9 @@ void Assembler::immediate_arithmetic_op(byte subcode,
                                         int size) {
   EnsureSpace ensure_space(this);
   emit_rex(dst, size);
-  if (is_int8(src.value_)) {
+  if (is_int8(src.value_) && RelocInfo::IsNone(src.rmode_)) {
     emit(0x83);
     emit_operand(subcode, dst);
-    if (!RelocInfo::IsNone(src.rmode_)) {
-      RecordRelocInfo(src.rmode_);
-    }
     emit(src.value_);
   } else {
     emit(0x81);
