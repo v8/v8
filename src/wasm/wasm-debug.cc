@@ -165,7 +165,7 @@ class InterpreterHandle {
         return thread->Step();
       case StepOut:
         thread->AddBreakFlags(WasmInterpreter::BreakFlag::AfterReturn);
-        return thread->Step();
+        return thread->Run();
       case StepNext: {
         int stack_depth = thread->GetFrameCount();
         if (stack_depth == last_step_stack_depth_) return thread->Step();

@@ -20,7 +20,8 @@ Protocol = new Proxy({}, {
           var eventName = match[2];
           eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
           if (match[1])
-            return (args) => InspectorTest._waitForEventPromise(`${agentName}.${eventName}`, args || {});
+            return () => InspectorTest._waitForEventPromise(
+                       `${agentName}.${eventName}`);
           else
             return (listener) => { InspectorTest._eventHandler[`${agentName}.${eventName}`] = listener };
         }

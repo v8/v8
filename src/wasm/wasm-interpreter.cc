@@ -1203,13 +1203,11 @@ class ThreadImpl {
           // skip breakpoint by switching on original code.
           skip = "[skip]  ";
         } else {
-          state_ = WasmInterpreter::PAUSED;
           TRACE("@%-3zu: [break] %-24s:", pc,
                 WasmOpcodes::OpcodeName(static_cast<WasmOpcode>(orig)));
           TraceValueStack();
           TRACE("\n");
-          break_pc_ = pc;
-          return CommitPc(pc);
+          break;
         }
       }
 
@@ -1638,6 +1636,9 @@ class ThreadImpl {
 
       pc += len;
     }
+    // Set break_pc_, even though we might have stopped because max was reached.
+    // We don't want to stop after executing zero instructions next time.
+    break_pc_ = pc;
     state_ = WasmInterpreter::PAUSED;
     CommitPc(pc);
   }
