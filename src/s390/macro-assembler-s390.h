@@ -932,6 +932,7 @@ class MacroAssembler : public Assembler {
   // Debugger Support
 
   void DebugBreak();
+  void MaybeDropFrames();
 
   // ---------------------------------------------------------------------------
   // Exception handling

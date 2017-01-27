@@ -1576,6 +1576,16 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  mov(r4, Operand(restart_fp));
+  LoadWordArith(r4, MemOperand(r4));
+  cmpi(r4, Operand::Zero());
+  Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
+       ne);
+}
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
