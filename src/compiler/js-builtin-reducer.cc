@@ -1725,39 +1725,29 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
 Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
-  int arg_count = node->op()->ValueInputCount();
-  if (arg_count != 3 && arg_count != 4) return NoChange();
-  Node* receiver;
-  if (!(receiver = GetStringWitness(node))) return NoChange();
-  Node* search_string = NodeProperties::GetValueInput(node, 2);
-  if (!NodeProperties::GetType(search_string)->Is(Type::String())) {
-    return NoChange();
+  // We need at least target, receiver and search_string parameters.
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* search_string = NodeProperties::GetValueInput(node, 2);
+    Type* search_string_type = NodeProperties::GetType(search_string);
+    Node* position = (node->op()->ValueInputCount() >= 4)
+                         ? NodeProperties::GetValueInput(node, 3)
+                         : jsgraph()->ZeroConstant();
+    Type* position_type = NodeProperties::GetType(position);
+
+    if (search_string_type->Is(Type::String()) &&
+        position_type->Is(Type::SignedSmall())) {
+      if (Node* receiver = GetStringWitness(node)) {
+        RelaxEffectsAndControls(node);
+        node->ReplaceInput(0, receiver);
+        node->ReplaceInput(1, search_string);
+        node->ReplaceInput(2, position);
+        node->TrimInputCount(3);
+        NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
+        return Changed(node);
+      }
+    }
   }
-  // Replace the current JSFunctionCall to String.prototype.indexOf with a
-  // simple Call to the unchecked StringIndexOf builtin.
-  Callable callable = CodeFactory::StringIndexOf(isolate());
-  const CallInterfaceDescriptor& descriptor = callable.descriptor();
-  CallDescriptor* desc =
-      Linkage::GetStubCallDescriptor(isolate(), graph()->zone(), descriptor,
-                                     descriptor.GetStackParameterCount(),
-                                     CallDescriptor::kNoFlags, Operator::kPure);
-  Node* stub_code = jsgraph()->HeapConstant(callable.code());
-  // The Call Operator doesn't require an effect nor a control input.
-  RelaxEffectsAndControls(node);
-  // Remove framestate since StringIndexOf cannot deopt.
-  node->RemoveInput(arg_count + 1);
-  // Remove the control input.
-  node->RemoveInput(arg_count + 2);
-  // Replace the JSFunction from the JSFunctionCall node with the CodeStub.
-  node->ReplaceInput(0, stub_code);
-  if (arg_count == 3) {
-    // Insert the missing position argument.
-    node->InsertInput(graph()->zone(), 3, jsgraph()->ZeroConstant());
-  }
-  const Operator* op = common()->Call(desc);
-  node->TrimInputCount(op->ValueInputCount());
-  NodeProperties::ChangeOp(node, op);
-  return Changed(node);
+  return NoChange();
 }
 
 Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {

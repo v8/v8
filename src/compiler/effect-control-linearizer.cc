@@ -750,6 +750,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringFromCodePoint:
       result = LowerStringFromCodePoint(node);
       break;
+    case IrOpcode::kStringIndexOf:
+      result = LowerStringIndexOf(node);
+      break;
     case IrOpcode::kStringCharAt:
       result = LowerStringCharAt(node);
       break;
@@ -2054,6 +2057,20 @@ Node* EffectControlLinearizer::LowerStringFromCodePoint(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
+  Node* subject = node->InputAt(0);
+  Node* search_string = node->InputAt(1);
+  Node* position = node->InputAt(2);
+
+  Callable callable = CodeFactory::StringIndexOf(isolate());
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(desc, __ HeapConstant(callable.code()), subject, search_string,
+                 position, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,

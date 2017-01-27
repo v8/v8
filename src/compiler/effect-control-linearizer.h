@@ -93,6 +93,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerStringCharCodeAt(Node* node);
   Node* LowerStringFromCharCode(Node* node);
   Node* LowerStringFromCodePoint(Node* node);
+  Node* LowerStringIndexOf(Node* node);
   Node* LowerStringEqual(Node* node);
   Node* LowerStringLessThan(Node* node);
   Node* LowerStringLessThanOrEqual(Node* node);

@@ -1766,6 +1766,10 @@ Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
   return TypeUnaryOp(node, StringFromCodePointTyper);
 }
 
+Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
+  return Type::Range(-1.0, String::kMaxLength - 1.0, zone());
+}
+
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);

@@ -308,6 +308,7 @@
   V(StringCharCodeAt)               \
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \
+  V(StringIndexOf)                  \
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \

@@ -2240,6 +2240,13 @@ class RepresentationSelector {
                   MachineRepresentation::kTaggedPointer);
         return;
       }
+      case IrOpcode::kStringIndexOf: {
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        ProcessInput(node, 1, UseInfo::AnyTagged());
+        ProcessInput(node, 2, UseInfo::TaggedSigned());
+        SetOutput(node, MachineRepresentation::kTaggedSigned);
+        return;
+      }
 
       case IrOpcode::kCheckBounds: {
         Type* index_type = TypeOf(node->InputAt(0));

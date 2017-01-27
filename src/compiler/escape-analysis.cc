@@ -820,6 +820,7 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToFloat64:
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
+      case IrOpcode::kStringIndexOf:
       case IrOpcode::kObjectIsCallable:
       case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:

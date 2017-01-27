@@ -864,8 +864,6 @@ TF_BUILTIN(StringIndexOf, StringBuiltinsAssembler) {
   Node* search_string = Parameter(1);
   Node* position = Parameter(2);
 
-  Label call_runtime(this);
-
   Node* instance_type = LoadInstanceType(receiver);
   Node* search_string_instance_type = LoadInstanceType(search_string);
 
