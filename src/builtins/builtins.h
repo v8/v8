@@ -6,10 +6,14 @@
 #define V8_BUILTINS_BUILTINS_H_
 
 #include "src/base/flags.h"
-#include "src/handles.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
+class Isolate;
 
 #define CODE_AGE_LIST_WITH_ARG(V, A) \
   V(Quadragenarian, A)               \

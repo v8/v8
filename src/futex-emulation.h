@@ -13,7 +13,6 @@
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
-#include "src/handles.h"
 
 // Support for emulating futexes, a low-level synchronization primitive. They
 // are natively supported by Linux, but must be emulated for other platforms.
@@ -31,6 +30,8 @@ class TimeDelta;
 
 namespace internal {
 
+template <typename T>
+class Handle;
 class Isolate;
 class JSArrayBuffer;
 

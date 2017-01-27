@@ -7,11 +7,13 @@
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
-#include "src/handles.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
 
 class Execution final : public AllStatic {
  public:
