@@ -306,6 +306,14 @@ class WasmSerializationTest {
   }
 
   void SetUp() {
+    WasmModuleBuilder* builder = new (zone()) WasmModuleBuilder(zone());
+    TestSignatures sigs;
+
+    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
+    EMIT_CODE_WITH_END(f, code);
+    f->ExportAs(CStrVector(kFunctionName));
+
     ZoneBuffer buffer(&zone_);
     WasmSerializationTest::BuildWireBytes(zone(), &buffer);
 
