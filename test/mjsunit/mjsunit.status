@@ -406,6 +406,17 @@
 }],  # 'arch == arm or arch == android_arm'
 
 ##############################################################################
+['(arch == mipsel or arch == mips or arch == mips64el or arch == mips64) and simulator_run != True', {
+  # These tests fail occasionally on the buildbots because they consume
+  # a large amount of memory if executed in parallel. Therefore we
+  # run only a single instance of these tests
+  'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
+  'regress/regress-599717': [PASS, NO_VARIANTS],
+  'regress/regress-599414-array-concat-fast-path': [PASS, NO_VARIANTS],
+  'array-functions-prototype-misc': [PASS, NO_VARIANTS],
+}],  # 'arch == mipsel or arch == mips or arch == mips64el or arch == mips64'
+
+##############################################################################
 ['arch == mipsel or arch == mips', {
 
   # Slow tests which times out in debug mode.
