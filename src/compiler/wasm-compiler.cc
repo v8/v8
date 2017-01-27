@@ -3717,8 +3717,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
     OFStream os(stdout);
-    PrintWasmCode(isolate_->allocator(), body, module_env_->module, os,
-                  nullptr);
+    PrintRawWasmCode(isolate_->allocator(), body, module_env_->module);
   }
   if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
     OFStream os(stdout);

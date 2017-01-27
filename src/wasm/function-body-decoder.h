@@ -336,12 +336,11 @@ V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               FunctionBody& body);
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
-bool PrintWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                   const wasm::WasmModule* module, std::ostream& os,
-                   std::vector<std::tuple<uint32_t, int, int>>* offset_table);
+bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
+                      const wasm::WasmModule* module);
 
 // A simplified form of AST printing, e.g. from a debugger.
-void PrintWasmCodeForDebugging(const byte* start, const byte* end);
+void PrintRawWasmCode(const byte* start, const byte* end);
 
 inline DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                    const WasmModule* module, FunctionSig* sig,
