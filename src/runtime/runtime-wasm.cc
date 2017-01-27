@@ -169,6 +169,10 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(arg_buffer_obj->IsSmi());
   uint8_t* arg_buffer = reinterpret_cast<uint8_t*>(*arg_buffer_obj);
 
+  // Set the current isolate's context, saving the previous one.
+  SaveContext save(isolate);
+  isolate->set_context(*instance->compiled_module()->native_context());
+
   instance->debug_info()->RunInterpreter(func_index, arg_buffer);
   return isolate->heap()->undefined_value();
 }

@@ -9151,8 +9151,9 @@ bool debug::Script::GetPossibleBreakpoints(
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    // TODO(clemensh): Return the proper thing once we support wasm breakpoints.
-    return false;
+    i::Handle<i::WasmCompiledModule> compiled_module(
+        i::WasmCompiledModule::cast(script->wasm_compiled_module()));
+    return compiled_module->GetPossibleBreakpoints(start, end, locations);
   }
 
   i::Script::InitLineEnds(script);
@@ -9248,8 +9249,26 @@ int debug::WasmScript::NumImportedFunctions() const {
   return static_cast<int>(compiled_module->module()->num_imported_functions);
 }
 
+std::pair<int, int> debug::WasmScript::GetFunctionRange(
+    int function_index) const {
+  i::DisallowHeapAllocation no_gc;
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  i::WasmCompiledModule* compiled_module =
+      i::WasmCompiledModule::cast(script->wasm_compiled_module());
+  DCHECK_LE(0, function_index);
+  DCHECK_GT(compiled_module->module()->functions.size(), function_index);
+  i::wasm::WasmFunction& func =
+      compiled_module->module()->functions[function_index];
+  DCHECK_GE(i::kMaxInt, func.code_start_offset);
+  DCHECK_GE(i::kMaxInt, func.code_end_offset);
+  return std::make_pair(static_cast<int>(func.code_start_offset),
+                        static_cast<int>(func.code_end_offset));
+}
+
 debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
     int function_index) const {
+  i::DisallowHeapAllocation no_gc;
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmCompiledModule* compiled_module =

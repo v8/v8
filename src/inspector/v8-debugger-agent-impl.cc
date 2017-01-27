@@ -473,6 +473,7 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
       scriptIterator->second->endLine() < breakpoint.line_number)
     return nullptr;
 
+  // Translate from protocol location to v8 location for the debugger.
   ScriptBreakpoint translatedBreakpoint = breakpoint;
   m_debugger->wasmTranslation()->TranslateProtocolLocationToWasmScriptLocation(
       &translatedBreakpoint.script_id, &translatedBreakpoint.line_number,
@@ -483,6 +484,10 @@ V8DebuggerAgentImpl::resolveBreakpoint(const String16& breakpointId,
   String16 debuggerBreakpointId = m_debugger->setBreakpoint(
       translatedBreakpoint, &actualLineNumber, &actualColumnNumber);
   if (debuggerBreakpointId.isEmpty()) return nullptr;
+
+  // Translate back from v8 location to protocol location for the return value.
+  m_debugger->wasmTranslation()->TranslateWasmScriptLocationToProtocolLocation(
+      &translatedBreakpoint.script_id, &actualLineNumber, &actualColumnNumber);
 
   m_serverBreakpoints[debuggerBreakpointId] =
       std::make_pair(breakpointId, source);

@@ -139,6 +139,8 @@ class WasmScript : public Script {
   int NumFunctions() const;
   int NumImportedFunctions() const;
 
+  std::pair<int, int> GetFunctionRange(int function_index) const;
+
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
 };
 
