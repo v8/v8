@@ -156,8 +156,6 @@ class V8_EXPORT V8InspectorSession {
   virtual void releaseObjectGroup(const StringView&) = 0;
 };
 
-enum class V8ConsoleAPIType { kClear, kDebug, kLog, kInfo, kWarning, kError };
-
 class V8_EXPORT V8InspectorClient {
  public:
   virtual ~V8InspectorClient() {}
@@ -189,11 +187,6 @@ class V8_EXPORT V8InspectorClient {
 
   virtual void installAdditionalCommandLineAPI(v8::Local<v8::Context>,
                                                v8::Local<v8::Object>) {}
-  // Deprecated, to be replaced with v8::Isolate::MessageErrorLevel version.
-  virtual void consoleAPIMessage(int contextGroupId, V8ConsoleAPIType,
-                                 const StringView& message,
-                                 const StringView& url, unsigned lineNumber,
-                                 unsigned columnNumber, V8StackTrace*) {}
   virtual void consoleAPIMessage(int contextGroupId,
                                  v8::Isolate::MessageErrorLevel level,
                                  const StringView& message,

@@ -377,30 +377,18 @@ std::unique_ptr<V8ConsoleMessage> V8ConsoleMessage::createForConsoleAPI(
   if (arguments.size())
     message->m_message = V8ValueStringBuilder::toString(arguments[0], context);
 
-  V8ConsoleAPIType clientType = V8ConsoleAPIType::kLog;
   v8::Isolate::MessageErrorLevel clientLevel = v8::Isolate::kMessageInfo;
   if (type == ConsoleAPIType::kDebug || type == ConsoleAPIType::kCount ||
       type == ConsoleAPIType::kTimeEnd) {
-    clientType = V8ConsoleAPIType::kDebug;
     clientLevel = v8::Isolate::kMessageDebug;
   } else if (type == ConsoleAPIType::kError ||
              type == ConsoleAPIType::kAssert) {
-    clientType = V8ConsoleAPIType::kError;
     clientLevel = v8::Isolate::kMessageError;
   } else if (type == ConsoleAPIType::kWarning) {
-    clientType = V8ConsoleAPIType::kWarning;
     clientLevel = v8::Isolate::kMessageWarning;
   } else if (type == ConsoleAPIType::kInfo || type == ConsoleAPIType::kLog) {
-    clientType = V8ConsoleAPIType::kInfo;
     clientLevel = v8::Isolate::kMessageInfo;
-  } else if (type == ConsoleAPIType::kClear) {
-    clientType = V8ConsoleAPIType::kClear;
   }
-
-  inspector->client()->consoleAPIMessage(
-      contextGroupId, clientType, toStringView(message->m_message),
-      toStringView(message->m_url), message->m_lineNumber,
-      message->m_columnNumber, message->m_stackTrace.get());
 
   if (type != ConsoleAPIType::kClear) {
     inspector->client()->consoleAPIMessage(
