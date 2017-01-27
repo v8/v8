@@ -500,6 +500,12 @@ var isTurboFanned;
     assertFalse((opt_status & V8OptimizationStatus.kAlwaysOptimize) !== 0,
                 "test does not make sense with --always-opt");
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0, name_opt);
+    if ((opt_status & V8OptimizationStatus.kMaybeDeopted) !== 0) {
+      // When --deopt-every-n-times flag is specified it's no longer guaranteed
+      // that particular function is still deoptimized, so keep running the test
+      // to stress test the deoptimizer.
+      return;
+    }
     assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
