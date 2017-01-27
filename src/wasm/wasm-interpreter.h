@@ -56,21 +56,12 @@ struct WasmVal {
 #undef DECLARE_CONSTRUCTOR
 
   template <typename T>
-  inline T to() {
-    UNREACHABLE();
-  }
-
-  template <typename T>
-  inline T to_unchecked() {
+  T to() {
     UNREACHABLE();
   }
 };
 
 #define DECLARE_CAST(field, localtype, ctype) \
-  template <>                                 \
-  inline ctype WasmVal::to_unchecked() {      \
-    return val.field;                         \
-  }                                           \
   template <>                                 \
   inline ctype WasmVal::to() {                \
     CHECK_EQ(localtype, type);                \
@@ -78,6 +69,11 @@ struct WasmVal {
   }
 FOREACH_UNION_MEMBER(DECLARE_CAST)
 #undef DECLARE_CAST
+
+template <>
+inline void WasmVal::to() {
+  CHECK_EQ(kWasmStmt, type);
+}
 
 // Representation of frames within the interpreter.
 class WasmFrame {

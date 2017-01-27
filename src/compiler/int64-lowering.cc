@@ -237,7 +237,9 @@ void Int64Lowering::LowerNode(Node* node) {
         NodeProperties::ChangeOp(node, store_op);
         ReplaceNode(node, node, high_node);
       } else {
-        DefaultLowering(node);
+        if (HasReplacementLow(node->InputAt(2))) {
+          node->ReplaceInput(2, GetReplacementLow(node->InputAt(2)));
+        }
       }
       break;
     }
