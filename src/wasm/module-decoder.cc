@@ -304,6 +304,7 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalTable: {
             // ===== Imported table ==========================================
+            if (!AddTable(module)) break;
             import->index =
                 static_cast<uint32_t>(module->function_tables.size());
             module->function_tables.push_back({0, 0, false,
@@ -319,11 +320,11 @@ class ModuleDecoder : public Decoder {
           }
           case kExternalMemory: {
             // ===== Imported memory =========================================
+            if (!AddMemory(module)) break;
             consume_resizable_limits(
                 "memory", "pages", kV8MaxWasmMemoryPages,
                 &module->min_mem_pages, &module->has_max_mem,
                 kSpecMaxWasmMemoryPages, &module->max_mem_pages);
-            SetHasMemory(module);
             break;
           }
           case kExternalGlobal: {
@@ -373,12 +374,11 @@ class ModuleDecoder : public Decoder {
     // ===== Table section ===================================================
     if (section_iter.section_code() == kTableSectionCode) {
       uint32_t table_count = consume_count("table count", kV8MaxWasmTables);
-      if (module->function_tables.size() < 1) {
-        module->function_tables.push_back({0, 0, false, std::vector<int32_t>(),
-                                           false, false, SignatureMap()});
-      }
 
       for (uint32_t i = 0; ok() && i < table_count; i++) {
+        if (!AddTable(module)) break;
+        module->function_tables.push_back({0, 0, false, std::vector<int32_t>(),
+                                           false, false, SignatureMap()});
         WasmIndirectFunctionTable* table = &module->function_tables.back();
         expect_u8("table type", kWasmAnyFunctionTypeForm);
         consume_resizable_limits(
@@ -393,12 +393,12 @@ class ModuleDecoder : public Decoder {
       uint32_t memory_count = consume_count("memory count", kV8MaxWasmMemories);
 
       for (uint32_t i = 0; ok() && i < memory_count; i++) {
+        if (!AddMemory(module)) break;
         consume_resizable_limits("memory", "pages", kV8MaxWasmMemoryPages,
                                  &module->min_mem_pages, &module->has_max_mem,
                                  kSpecMaxWasmMemoryPages,
                                  &module->max_mem_pages);
       }
-      SetHasMemory(module);
       section_iter.advance();
     }
 
@@ -683,11 +683,22 @@ class ModuleDecoder : public Decoder {
 
   uint32_t off(const byte* ptr) { return static_cast<uint32_t>(ptr - start_); }
 
-  void SetHasMemory(WasmModule* module) {
+  bool AddTable(WasmModule* module) {
+    if (module->function_tables.size() > 0) {
+      error("At most one table is supported");
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  bool AddMemory(WasmModule* module) {
     if (module->has_memory) {
-      error("At most one memory object is supported");
+      error("At most one memory is supported");
+      return false;
     } else {
       module->has_memory = true;
+      return true;
     }
   }
 

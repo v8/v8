@@ -319,9 +319,8 @@ function js_div(a, b) { return (a / b) | 0; }
       kExprCallIndirect, sig_index2, kTableZero])  // --
     .exportAs("main");
 
-  builder.setFunctionTableLength(kTableSize);
-  builder.addFunctionTableInit(1, false, [f2.index]);
   builder.addImportedTable("z", "table", kTableSize, kTableSize);
+  builder.addFunctionTableInit(1, false, [f2.index], true);
 
   var m2 = new WebAssembly.Module(builder.toBuffer());
 
