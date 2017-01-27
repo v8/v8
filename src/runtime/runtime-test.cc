@@ -699,6 +699,21 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
   return isolate->heap()->true_value();
 }
 
+namespace {
+bool DisallowCodegenFromStringsCallback(v8::Local<v8::Context> context) {
+  return false;
+}
+}
+
+RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8_isolate->SetAllowCodeGenerationFromStringsCallback(
+      DisallowCodegenFromStringsCallback);
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

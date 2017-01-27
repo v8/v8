@@ -243,9 +243,13 @@ std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
 
 MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
+  MaybeHandle<FixedArray> nothing;
+  if (!wasm::IsWasmCodegenAllowed(isolate, isolate->native_context())) {
+    return nothing;
+  }
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
-  MaybeHandle<FixedArray> nothing;
+
   const SerializedCodeData scd = SerializedCodeData::FromCachedData(
       isolate, data, 0, &sanity_check_result);
 
