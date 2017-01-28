@@ -273,22 +273,19 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
                           foreign, NONE);
   }
 
-  i::MaybeHandle<i::JSObject> maybe_module_object =
+  i::MaybeHandle<i::Object> maybe_module_object =
       i::wasm::WasmModule::Instantiate(isolate, &thrower, module, ffi_object,
                                        memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }
+  i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
 
   i::Handle<i::Name> init_name(isolate->factory()->InternalizeUtf8String(
       wasm::AsmWasmBuilder::foreign_init_name));
+  i::Handle<i::Object> init =
+      i::Object::GetProperty(module_object, init_name).ToHandleChecked();
 
-  i::Handle<i::Object> module_object = maybe_module_object.ToHandleChecked();
-  i::MaybeHandle<i::Object> maybe_init =
-      i::Object::GetProperty(module_object, init_name);
-  DCHECK(!maybe_init.is_null());
-
-  i::Handle<i::Object> init = maybe_init.ToHandleChecked();
   i::Handle<i::Object> undefined(isolate->heap()->undefined_value(), isolate);
   i::Handle<i::Object>* foreign_args_array =
       new i::Handle<i::Object>[foreign_globals->length()];
@@ -347,7 +344,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
     MessageHandler::ReportMessage(isolate, &location, message);
   }
 
-  return module_object;
+  Handle<String> exports_name =
+      isolate->factory()->InternalizeUtf8String("exports");
+  return i::Object::GetProperty(module_object, exports_name);
 }
 
 }  // namespace internal

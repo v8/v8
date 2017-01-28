@@ -476,3 +476,23 @@ function assertValidAsm(func) {
   Module();
   assertFalse(% IsAsmWasmCode(Module));
 })();
+
+(function TestAsmIsRegular() {
+  function Module() {
+    'use asm';
+    var g = 123;
+    function foo() {
+      return g | 0;
+    }
+    return {x: foo};
+  }
+  var o = Module();
+  assertValidAsm(Module);
+  assertFalse(o instanceof WebAssembly.Instance);
+  assertTrue(o instanceof Object);
+  assertTrue(o.__proto__ === Object.prototype);
+  o.x = 5;
+  assertTrue(typeof o.x === 'number');
+  assertTrue(o.__single_function__ === undefined);
+  assertTrue(o.__foreign_init__ === undefined);
+})();

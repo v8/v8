@@ -16,6 +16,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/v8.h"
 
+#include "src/asmjs/asm-wasm-builder.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
@@ -1918,17 +1919,30 @@ class WasmInstanceBuilder {
                           Handle<JSFunction>::null());
     }
 
-    Handle<JSObject> exports_object = instance;
+    Handle<JSObject> exports_object;
     if (module_->origin == kWasmOrigin) {
       // Create the "exports" object.
       exports_object = isolate_->factory()->NewJSObjectWithNullProto();
-      Handle<String> exports_name =
-          isolate_->factory()->InternalizeUtf8String("exports");
-      JSObject::AddProperty(instance, exports_name, exports_object, NONE);
+    } else if (module_->origin == kAsmJsOrigin) {
+      Handle<JSFunction> object_function = Handle<JSFunction>(
+          isolate_->native_context()->object_function(), isolate_);
+      exports_object = isolate_->factory()->NewJSObject(object_function);
+    } else {
+      UNREACHABLE();
     }
+    Handle<String> exports_name =
+        isolate_->factory()->InternalizeUtf8String("exports");
+    JSObject::AddProperty(instance, exports_name, exports_object, NONE);
+
+    Handle<String> foreign_init_name =
+        isolate_->factory()->InternalizeUtf8String(
+            wasm::AsmWasmBuilder::foreign_init_name);
+    Handle<String> single_function_name =
+        isolate_->factory()->InternalizeUtf8String(
+            wasm::AsmWasmBuilder::single_function_name);
 
     PropertyDescriptor desc;
-    desc.set_writable(false);
+    desc.set_writable(module_->origin == kAsmJsOrigin);
     desc.set_enumerable(true);
 
     // Count up export indexes.
@@ -1957,6 +1971,15 @@ class WasmInstanceBuilder {
           WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
               isolate_, compiled_module_, exp.name_offset, exp.name_length)
               .ToHandleChecked();
+      Handle<JSObject> export_to;
+      if (module_->origin == kAsmJsOrigin && exp.kind == kExternalFunction &&
+          (String::Equals(name, foreign_init_name) ||
+           String::Equals(name, single_function_name))) {
+        export_to = instance;
+      } else {
+        export_to = exports_object;
+      }
+
       switch (exp.kind) {
         case kExternalFunction: {
           // Wrap and export the code as a JSFunction.
@@ -2053,14 +2076,13 @@ class WasmInstanceBuilder {
 
       // Skip duplicates for asm.js.
       if (module_->origin == kAsmJsOrigin) {
-        v8::Maybe<bool> status =
-            JSReceiver::HasOwnProperty(exports_object, name);
+        v8::Maybe<bool> status = JSReceiver::HasOwnProperty(export_to, name);
         if (status.FromMaybe(false)) {
           continue;
         }
       }
       v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
-          isolate_, exports_object, name, &desc, Object::THROW_ON_ERROR);
+          isolate_, export_to, name, &desc, Object::THROW_ON_ERROR);
       if (!status.IsJust()) {
         thrower_->LinkError("export of %.*s failed.", name->length(),
                             name->ToCString().get());
