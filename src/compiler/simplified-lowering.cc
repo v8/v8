@@ -980,7 +980,7 @@ class RepresentationSelector {
     }
   }
 
-  MachineSemantic DeoptValueSemanticOf(Type* type) {
+  static MachineSemantic DeoptValueSemanticOf(Type* type) {
     // We only need signedness to do deopt correctly.
     if (type->Is(Type::Signed32())) {
       return MachineSemantic::kInt32;
@@ -989,6 +989,29 @@ class RepresentationSelector {
     } else {
       return MachineSemantic::kAny;
     }
+  }
+
+  static MachineType DeoptMachineTypeOf(MachineRepresentation rep, Type* type) {
+    if (!type->IsInhabited()) {
+      return MachineType::None();
+    }
+    // TODO(turbofan): Special treatment for ExternalPointer here,
+    // to avoid incompatible truncations. We really need a story
+    // for the JSFunction::entry field.
+    if (type->Is(Type::ExternalPointer())) {
+      return MachineType::Pointer();
+    }
+    // Do not distinguish between various Tagged variations.
+    if (IsAnyTagged(rep)) {
+      return MachineType::AnyTagged();
+    }
+    MachineType machine_type(rep, DeoptValueSemanticOf(type));
+    DCHECK(machine_type.representation() != MachineRepresentation::kWord32 ||
+           machine_type.semantic() == MachineSemantic::kInt32 ||
+           machine_type.semantic() == MachineSemantic::kUint32);
+    DCHECK(machine_type.representation() != MachineRepresentation::kBit ||
+           type->Is(Type::Boolean()));
+    return machine_type;
   }
 
   void VisitStateValues(Node* node) {
@@ -1003,17 +1026,8 @@ class RepresentationSelector {
               ZoneVector<MachineType>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
-        NodeInfo* input_info = GetInfo(input);
-        Type* input_type = TypeOf(input);
-        MachineRepresentation rep = input_type->IsInhabited()
-                                        ? input_info->representation()
-                                        : MachineRepresentation::kNone;
-        MachineType machine_type(rep, DeoptValueSemanticOf(input_type));
-        DCHECK(machine_type.representation() !=
-                   MachineRepresentation::kWord32 ||
-               machine_type.semantic() == MachineSemantic::kInt32 ||
-               machine_type.semantic() == MachineSemantic::kUint32);
-        (*types)[i] = machine_type;
+        (*types)[i] =
+            DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
       }
       SparseInputMask mask = SparseInputMaskOf(node->op());
       NodeProperties::ChangeOp(
@@ -1047,28 +1061,8 @@ class RepresentationSelector {
               ZoneVector<MachineType>(node->InputCount(), zone);
       for (int i = 0; i < node->InputCount(); i++) {
         Node* input = node->InputAt(i);
-        NodeInfo* input_info = GetInfo(input);
-        Type* input_type = TypeOf(input);
-        // TODO(turbofan): Special treatment for ExternalPointer here,
-        // to avoid incompatible truncations. We really need a story
-        // for the JSFunction::entry field.
-        if (!input_type->IsInhabited()) {
-          (*types)[i] = MachineType::None();
-        } else if (input_type->Is(Type::ExternalPointer())) {
-          (*types)[i] = MachineType::Pointer();
-        } else {
-          MachineRepresentation rep = input_type->IsInhabited()
-                                          ? input_info->representation()
-                                          : MachineRepresentation::kNone;
-          MachineType machine_type(rep, DeoptValueSemanticOf(input_type));
-          DCHECK(machine_type.representation() !=
-                     MachineRepresentation::kWord32 ||
-                 machine_type.semantic() == MachineSemantic::kInt32 ||
-                 machine_type.semantic() == MachineSemantic::kUint32);
-          DCHECK(machine_type.representation() != MachineRepresentation::kBit ||
-                 input_type->Is(Type::Boolean()));
-          (*types)[i] = machine_type;
-        }
+        (*types)[i] =
+            DeoptMachineTypeOf(GetInfo(input)->representation(), TypeOf(input));
       }
       NodeProperties::ChangeOp(node,
                                jsgraph_->common()->TypedObjectState(types));
