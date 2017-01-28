@@ -232,6 +232,7 @@ class ValueDeserializer {
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
   MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadOneByteString() WARN_UNUSED_RESULT;
   MaybeHandle<String> ReadTwoByteString() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadJSObject() WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadSparseJSArray() WARN_UNUSED_RESULT;

@@ -23,7 +23,10 @@
 namespace v8 {
 namespace internal {
 
-static const uint32_t kLatestVersion = 9;
+// Version 9: (imported from Blink)
+// Version 10: one-byte (Latin-1) strings
+static const uint32_t kLatestVersion = 10;
+
 static const int kPretenureThreshold = 100 * KB;
 
 template <typename T>
@@ -61,6 +64,7 @@ enum class SerializationTag : uint8_t {
   kDouble = 'N',
   // byteLength:uint32_t, then raw data
   kUtf8String = 'S',
+  kOneByteString = '"',
   kTwoByteString = 'c',
   // Reference to a serialized object. objectID:uint32_t
   kObjectReference = '^',
@@ -372,24 +376,9 @@ void ValueSerializer::WriteString(Handle<String> string) {
   String::FlatContent flat = string->GetFlatContent();
   DCHECK(flat.IsFlat());
   if (flat.IsOneByte()) {
-    // The existing format uses UTF-8, rather than Latin-1. As a result we must
-    // to do work to encode strings that have characters outside ASCII.
-    // TODO(jbroman): In a future format version, consider adding a tag for
-    // Latin-1 strings, so that this can be skipped.
-    WriteTag(SerializationTag::kUtf8String);
     Vector<const uint8_t> chars = flat.ToOneByteVector();
-    if (String::IsAscii(chars.begin(), chars.length())) {
-      WriteOneByteString(chars);
-    } else {
-      v8::Local<v8::String> api_string = Utils::ToLocal(string);
-      uint32_t utf8_length = api_string->Utf8Length();
-      WriteVarint(utf8_length);
-      uint8_t* dest;
-      if (ReserveRawBytes(utf8_length).To(&dest)) {
-        api_string->WriteUtf8(reinterpret_cast<char*>(dest), utf8_length,
-                              nullptr, v8::String::NO_NULL_TERMINATION);
-      }
-    }
+    WriteTag(SerializationTag::kOneByteString);
+    WriteOneByteString(chars);
   } else if (flat.IsTwoByte()) {
     Vector<const uc16> chars = flat.ToUC16Vector();
     uint32_t byte_length = chars.length() * sizeof(uc16);
@@ -1116,6 +1105,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kUtf8String:
       return ReadUtf8String();
+    case SerializationTag::kOneByteString:
+      return ReadOneByteString();
     case SerializationTag::kTwoByteString:
       return ReadTwoByteString();
     case SerializationTag::kObjectReference: {
@@ -1173,6 +1164,18 @@ MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
   }
   return isolate_->factory()->NewStringFromUtf8(
       Vector<const char>::cast(utf8_bytes), pretenure_);
+}
+
+MaybeHandle<String> ValueDeserializer::ReadOneByteString() {
+  uint32_t byte_length;
+  Vector<const uint8_t> bytes;
+  if (!ReadVarint<uint32_t>().To(&byte_length) ||
+      byte_length >
+          static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
+      !ReadRawBytes(byte_length).To(&bytes)) {
+    return MaybeHandle<String>();
+  }
+  return isolate_->factory()->NewStringFromOneByte(bytes, pretenure_);
 }
 
 MaybeHandle<String> ValueDeserializer::ReadTwoByteString() {

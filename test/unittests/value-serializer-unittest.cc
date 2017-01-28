@@ -467,6 +467,24 @@ TEST_F(ValueSerializerTest, DecodeString) {
                EXPECT_EQ(kEmojiString, Utf8Value(value));
              });
 
+  // And from Latin-1 (for the ones that fit).
+  DecodeTest({0xff, 0x0a, 0x22, 0x00}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsString());
+    EXPECT_EQ(0, String::Cast(*value)->Length());
+  });
+  DecodeTest({0xff, 0x0a, 0x22, 0x05, 'H', 'e', 'l', 'l', 'o'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(5, String::Cast(*value)->Length());
+               EXPECT_EQ(kHelloString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x0a, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(6, String::Cast(*value)->Length());
+               EXPECT_EQ(kQuebecString, Utf8Value(value));
+             });
+
 // And from two-byte strings (endianness dependent).
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x63, 0x00},
@@ -501,6 +519,8 @@ TEST_F(ValueSerializerTest, DecodeString) {
 TEST_F(ValueSerializerTest, DecodeInvalidString) {
   // UTF-8 string with too few bytes available.
   InvalidDecodeTest({0xff, 0x09, 0x53, 0x10, 'v', '8'});
+  // One-byte string with too few bytes available.
+  InvalidDecodeTest({0xff, 0x0a, 0x22, 0x10, 'v', '8'});
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   // Two-byte string with too few bytes available.
   InvalidDecodeTest({0xff, 0x09, 0x63, 0x10, 'v', '\0', '8', '\0'});
@@ -525,12 +545,16 @@ TEST_F(ValueSerializerTest, EncodeTwoByteStringUsesPadding) {
         return StringFromUtf8(string.c_str());
       },
       [](const std::vector<uint8_t>& data) {
-        // This is a sufficient but not necessary condition to be aligned.
-        // Note that the third byte (0x00) is padding.
-        const uint8_t expected_prefix[] = {0xff, 0x09, 0x00, 0x63, 0x94, 0x03};
-        ASSERT_GT(data.size(), sizeof(expected_prefix) / sizeof(uint8_t));
+        // This is a sufficient but not necessary condition. This test assumes
+        // that the wire format version is one byte long, but is flexible to
+        // what that value may be.
+        const uint8_t expected_prefix[] = {0x00, 0x63, 0x94, 0x03};
+        ASSERT_GT(data.size(), sizeof(expected_prefix) + 2);
+        EXPECT_EQ(0xff, data[0]);
+        EXPECT_GE(data[1], 0x09);
+        EXPECT_LE(data[1], 0x7f);
         EXPECT_TRUE(std::equal(std::begin(expected_prefix),
-                               std::end(expected_prefix), data.begin()));
+                               std::end(expected_prefix), data.begin() + 2));
       });
 }
 
