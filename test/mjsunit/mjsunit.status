@@ -169,6 +169,9 @@
 
   # BUG(v8:5807): Flaky data race.
   'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
+
+  # BUG(v8:5906).
+  'regress/regress-crbug-514081': [PASS, ['system == linux', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
