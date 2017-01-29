@@ -8389,7 +8389,7 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
     CallRuntime(Runtime::kGlobalPrint, NoContextConstant(),
                 HeapConstant(string));
   }
-  CallRuntime(Runtime::kGlobalPrint, NoContextConstant(), tagged_value);
+  CallRuntime(Runtime::kDebugPrint, NoContextConstant(), tagged_value);
 #endif
 }
 
