@@ -240,10 +240,6 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
-
-  #BUG(v8:5683)
-  'wasm/import-memory': [SKIP],
-
 }],  # 'gc_stress == True'
 
 ##############################################################################
