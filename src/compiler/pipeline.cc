@@ -781,7 +781,8 @@ struct InliningPhase {
       call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               call_reducer_flags, data->native_context());
+                               call_reducer_flags, data->native_context(),
+                               data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()

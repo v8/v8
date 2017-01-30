@@ -6,6 +6,7 @@
 
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -21,6 +22,8 @@ Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSCallConstruct:
       return ReduceJSCallConstruct(node);
+    case IrOpcode::kJSCallConstructWithSpread:
+      return ReduceJSCallConstructWithSpread(node);
     case IrOpcode::kJSCallFunction:
       return ReduceJSCallFunction(node);
     default:
@@ -691,9 +694,84 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   return NoChange();
 }
 
+Reduction JSCallReducer::ReduceJSCallConstructWithSpread(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCallConstructWithSpread, node->opcode());
+  CallConstructWithSpreadParameters const& p =
+      CallConstructWithSpreadParametersOf(node->op());
+  DCHECK_LE(3u, p.arity());
+  int arity = static_cast<int>(p.arity() - 2);
+
+  // Do check to make sure we can actually avoid iteration.
+  if (!isolate()->initial_array_iterator_prototype_map()->is_stable()) {
+    return NoChange();
+  }
+
+  Node* spread = NodeProperties::GetValueInput(node, arity);
+
+  // Check if spread is an arguments object, and {node} is the only value user
+  // of spread (except for value uses in frame states).
+  if (spread->opcode() != IrOpcode::kJSCreateArguments) return NoChange();
+  for (Edge edge : spread->use_edges()) {
+    if (edge.from()->opcode() == IrOpcode::kStateValues) continue;
+    if (!NodeProperties::IsValueEdge(edge)) continue;
+    if (edge.from() == node) continue;
+    return NoChange();
+  }
+
+  // Get to the actual frame state from which to extract the arguments;
+  // we can only optimize this in case the {node} was already inlined into
+  // some other function (and same for the {spread}).
+  CreateArgumentsType type = CreateArgumentsTypeOf(spread->op());
+  Node* frame_state = NodeProperties::GetFrameStateInput(spread);
+  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
+  if (outer_state->opcode() != IrOpcode::kFrameState) return NoChange();
+  FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
+  if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
+    // Need to take the parameters from the arguments adaptor.
+    frame_state = outer_state;
+  }
+  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  int start_index = 0;
+  if (type == CreateArgumentsType::kMappedArguments) {
+    // Mapped arguments (sloppy mode) cannot be handled if they are aliased.
+    Handle<SharedFunctionInfo> shared;
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    if (shared->internal_formal_parameter_count() != 0) return NoChange();
+  } else if (type == CreateArgumentsType::kRestParameter) {
+    Handle<SharedFunctionInfo> shared;
+    if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+    start_index = shared->internal_formal_parameter_count();
+
+    // Only check the array iterator protector when we have a rest object.
+    if (!isolate()->IsArrayIteratorLookupChainIntact()) return NoChange();
+    // Add a code dependency on the array iterator protector.
+    dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
+  }
+
+  dependencies()->AssumeMapStable(
+      isolate()->initial_array_iterator_prototype_map());
+
+  // Remove the spread input from the {node}.
+  node->RemoveInput(arity--);
+
+  // Add the actual parameters to the {node}, skipping the receiver.
+  Node* const parameters = frame_state->InputAt(kFrameStateParametersInput);
+  for (int i = start_index + 1; i < state_info.parameter_count(); ++i) {
+    node->InsertInput(graph()->zone(), static_cast<int>(++arity),
+                      parameters->InputAt(i));
+  }
+
+  NodeProperties::ChangeOp(
+      node, javascript()->CallConstruct(arity + 2, 7, VectorSlotPair()));
+
+  return Changed(node);
+}
+
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }
 
 Isolate* JSCallReducer::isolate() const { return jsgraph()->isolate(); }
+
+Factory* JSCallReducer::factory() const { return isolate()->factory(); }
 
 CommonOperatorBuilder* JSCallReducer::common() const {
   return jsgraph()->common();
