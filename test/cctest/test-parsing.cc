@@ -9075,6 +9075,31 @@ TEST(PreParserScopeAnalysis) {
       {"", "if (true) { var var1; var var1; var1 = 5; }"},
       {"", "var var1; var var1; function f() { var1; }"},
       {"", "var var1; var var1; function f() { var1 = 5; }"},
+
+      {"", "arguments;"},
+      {"", "arguments = 5;"},
+      {"", "function f() { arguments; }"},
+      {"", "function f() { arguments = 5; }"},
+
+      {"", "var arguments;"},
+      {"", "var arguments; arguments = 5;"},
+      {"", "if (true) { var arguments; }"},
+      {"", "if (true) { var arguments; arguments = 5; }"},
+      {"", "var arguments; function f() { arguments; }"},
+      {"", "var arguments; arguments = 5; function f() { arguments; }"},
+      {"", "var arguments; function f() { arguments = 5; }"},
+
+      {"", "let arguments;"},
+      {"", "let arguments; arguments = 5;"},
+      {"", "if (true) { let arguments; }"},
+      {"", "if (true) { let arguments; arguments = 5; }"},
+      {"", "let arguments; function f() { arguments; }"},
+      {"", "let arguments; arguments = 5; function f() { arguments; }"},
+      {"", "let arguments; function f() { arguments = 5; }"},
+
+      {"", "const arguments = 5;"},
+      {"", "if (true) { const arguments = 5; }"},
+      {"", "const arguments = 5; function f() { arguments; }"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {
