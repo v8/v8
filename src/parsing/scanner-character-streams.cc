@@ -15,6 +15,10 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+const unibrow::uchar kUtf8Bom = 0xfeff;
+}  // namespace
+
 // ----------------------------------------------------------------------------
 // BufferedUtf16CharacterStreams
 //
@@ -263,7 +267,9 @@ bool Utf8ExternalStreamingStream::SkipToPosition(size_t position) {
   while (it < chunk.length && chars < position) {
     unibrow::uchar t =
         unibrow::Utf8::ValueOfIncremental(chunk.data[it], &incomplete_char);
-    if (t != unibrow::Utf8::kIncomplete) {
+    if (t == kUtf8Bom && current_.pos.chars == 0) {
+      // BOM detected at beginning of the stream. Don't copy it.
+    } else if (t != unibrow::Utf8::kIncomplete) {
       chars++;
       if (t > unibrow::Utf16::kMaxNonSurrogateCharCode) chars++;
     }
@@ -303,8 +309,6 @@ void Utf8ExternalStreamingStream::FillBufferFromCurrentChunk() {
     }
     return;
   }
-
-  static const unibrow::uchar kUtf8Bom = 0xfeff;
 
   unibrow::Utf8::Utf8IncrementalBuffer incomplete_char =
       current_.pos.incomplete_char;
