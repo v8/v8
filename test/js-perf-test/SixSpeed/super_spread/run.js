@@ -16,7 +16,7 @@ function PrintError(name, error) {
   success = false;
 }
 
-BenchmarkSuite.config.doWarmup = undefined;
+BenchmarkSuite.config.doWarmup = true;
 BenchmarkSuite.config.doDeterministic = undefined;
 
 BenchmarkSuite.RunSuites({NotifyResult: PrintResult, NotifyError: PrintError});
