@@ -477,3 +477,49 @@ function js_div(a, b) { return (a / b) | 0; }
   assertThrows(() => builder.instantiate({t: {t: new WebAssembly.Table(
     {element: "anyfunc", initial: 1})}}));
 })();
+
+(function TableImportLargerThanCompiled() {
+  print("TableImportLargerThanCompiled...");
+  var kMaxSize = 30, kInitSize = 5;
+  var builder = new WasmModuleBuilder();
+  builder.addImportedTable("x", "table", 1, 35);
+  let table = new WebAssembly.Table({element: "anyfunc",
+    initial: kInitSize, maximum: kMaxSize});
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module, {x: {base: 1, table: table}});
+  for (var i = 0; i < kInitSize; ++i) table.set(i, null);
+  for (var i = 0; i < kInitSize; ++i) assertEquals(null, table.get(i));
+  assertThrows(() => table.set(kInitSize, null));
+})();
+
+(function ModulesShareTableAndGrow() {
+  print("ModulesShareTableAndGrow...");
+  let module1 = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addImportedTable("x", "table", 1, 35);
+    return new WebAssembly.Module(builder.toBuffer());
+  })();
+  let module2 = (() => {
+    let builder = new WasmModuleBuilder();
+    builder.addImportedTable("x", "table", 2, 40);
+    return new WebAssembly.Module(builder.toBuffer());
+  })();
+
+  var kMaxSize = 30, kInitSize = 5;
+  let table = new WebAssembly.Table({element: "anyfunc",
+    initial: kInitSize, maximum: kMaxSize});
+  let instance1 = new WebAssembly.Instance(
+      module1, {x: {base: 1, table: table}});
+  let instance2 = new WebAssembly.Instance(
+      module2, {x: {base: 1, table: table}});
+
+  for (var i = 0; i < kInitSize; ++i) table.set(i, null);
+  for (var i = 0; i < kInitSize; ++i) assertEquals(null, table.get(i));
+  assertThrows(() => table.set(kInitSize, null));
+  assertEquals(kInitSize, table.grow(5));
+  for (var i = 0; i < 2*kInitSize; ++i) table.set(i, null);
+  for (var i = 0; i < 2*kInitSize; ++i) assertEquals(null, table.get(i));
+  assertThrows(() => table.set(2*kInitSize, null));
+  // Try to grow past imported maximum
+  assertThrows(() => table.grow(21));
+})();

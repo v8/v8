@@ -2123,6 +2123,13 @@ class WasmInstanceBuilder {
           table_instance.signature_table->set(i,
                                               Smi::FromInt(kInvalidSigIndex));
         }
+      } else {
+        // Table is imported, patch table bounds check
+        DCHECK(table_size <= table_instance.function_table->length());
+        if (table_size < table_instance.function_table->length()) {
+          RelocateTableSizeReferences(code_table, table_size,
+                                      table_instance.function_table->length());
+        }
       }
 
       new_function_tables->set(static_cast<int>(index),
