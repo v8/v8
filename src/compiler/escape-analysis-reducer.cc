@@ -121,6 +121,13 @@ Node* MaybeGuard(JSGraph* jsgraph, Zone* zone, Node* original,
   return replacement;
 }
 
+Node* SkipTypeGuards(Node* node) {
+  while (node->opcode() == IrOpcode::kTypeGuard) {
+    node = NodeProperties::GetValueInput(node, 0);
+  }
+  return node;
+}
+
 }  // namespace
 
 Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
@@ -129,7 +136,8 @@ Reduction EscapeAnalysisReducer::ReduceLoad(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
     fully_reduced_.Add(node->id());
   }
-  if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
+  if (escape_analysis()->IsVirtual(
+          SkipTypeGuards(NodeProperties::GetValueInput(node, 0)))) {
     if (Node* rep = escape_analysis()->GetReplacement(node)) {
       isolate()->counters()->turbo_escape_loads_replaced()->Increment();
       TRACE("Replaced #%d (%s) with #%d (%s)\n", node->id(),
@@ -149,7 +157,8 @@ Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
   if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
     fully_reduced_.Add(node->id());
   }
-  if (escape_analysis()->IsVirtual(NodeProperties::GetValueInput(node, 0))) {
+  if (escape_analysis()->IsVirtual(
+          SkipTypeGuards(NodeProperties::GetValueInput(node, 0)))) {
     TRACE("Removed #%d (%s) from effect chain\n", node->id(),
           node->op()->mnemonic());
     RelaxEffectsAndControls(node);
@@ -204,8 +213,8 @@ Reduction EscapeAnalysisReducer::ReduceFinishRegion(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kReferenceEqual);
-  Node* left = NodeProperties::GetValueInput(node, 0);
-  Node* right = NodeProperties::GetValueInput(node, 1);
+  Node* left = SkipTypeGuards(NodeProperties::GetValueInput(node, 0));
+  Node* right = SkipTypeGuards(NodeProperties::GetValueInput(node, 1));
   if (escape_analysis()->IsVirtual(left)) {
     if (escape_analysis()->IsVirtual(right) &&
         escape_analysis()->CompareVirtualObjects(left, right)) {
@@ -229,7 +238,7 @@ Reduction EscapeAnalysisReducer::ReduceReferenceEqual(Node* node) {
 
 Reduction EscapeAnalysisReducer::ReduceObjectIsSmi(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kObjectIsSmi);
-  Node* input = NodeProperties::GetValueInput(node, 0);
+  Node* input = SkipTypeGuards(NodeProperties::GetValueInput(node, 0));
   if (escape_analysis()->IsVirtual(input)) {
     ReplaceWithValue(node, jsgraph()->FalseConstant());
     TRACE("Replaced ObjectIsSmi #%d with false\n", node->id());
@@ -322,7 +331,7 @@ Node* EscapeAnalysisReducer::ReduceStateValueInput(Node* node, int node_index,
                                                    bool node_multiused,
                                                    bool already_cloned,
                                                    bool multiple_users) {
-  Node* input = NodeProperties::GetValueInput(node, node_index);
+  Node* input = SkipTypeGuards(NodeProperties::GetValueInput(node, node_index));
   if (node->id() < static_cast<NodeId>(fully_reduced_.length()) &&
       fully_reduced_.Contains(node->id())) {
     return nullptr;
