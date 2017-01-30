@@ -439,33 +439,11 @@
   # v8:5485
   'language/module-code/comment-multi-line-html*': [FAIL],
   'language/module-code/comment-single-line-html*': [FAIL],
-
-  # v8:5486
-  'language/module-code/instn-iee-star-cycle': [FAIL],
-  'language/module-code/instn-named-star-cycle': [FAIL],
-  'language/module-code/instn-star-star-cycle': [FAIL],
-
   # v8:5487
   'language/module-code/namespace/internals/get-own-property-str-found-uninit': [FAIL],
-
   # v8:5401
   'language/module-code/namespace/internals/set': [FAIL],
   'language/module-code/namespace/internals/define-own-property': [FAIL],
-
-  # Symbol.iterator on namespace objects was removed, tests need to be updated.
-  'language/module-code/namespace/Symbol.iterator/*': [SKIP],
-  'language/module-code/namespace/internals/get-own-property-sym': [SKIP],
-  'language/module-code/namespace/internals/get-sym-found': [SKIP],
-  'language/module-code/namespace/internals/has-property-sym-found': [SKIP],
-  'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
-  'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
-
-  # Symbol.toString on namespace objects was made non-configurable, tests need
-  # to be updated.
-  'language/module-code/namespace/Symbol.toStringTag': [SKIP],
-
-  # Possible spec bug, see comment in https://github.com/tc39/ecma262/pull/747.
-  'language/module-code/namespace/internals/delete-non-exported': [SKIP],
 
   # https://code.google.com/p/v8/issues/detail?id=4476
   'built-ins/String/prototype/toLowerCase/special_casing_conditional': ['--icu-case-mapping'],
@@ -556,6 +534,25 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5449
   'built-ins/Date/prototype/setFullYear/new-value-time-clip': [PASS, FAIL],
   'built-ins/Date/prototype/setMonth/new-value-time-clip': [PASS, FAIL],
+
+  # v8:5486
+  # Spec changed to be more permissive, tests need to be updated.
+  'language/module-code/instn-iee-star-cycle': [FAIL],
+  'language/module-code/instn-named-star-cycle': [FAIL],
+  'language/module-code/instn-star-star-cycle': [FAIL],
+
+  # Symbol.iterator on namespace objects was removed, tests need to be updated.
+  'language/module-code/namespace/Symbol.iterator/*': [SKIP],
+  'language/module-code/namespace/internals/get-own-property-sym': [SKIP],
+  'language/module-code/namespace/internals/get-sym-found': [SKIP],
+  'language/module-code/namespace/internals/has-property-sym-found': [SKIP],
+  'language/module-code/namespace/internals/own-property-keys-binding-types': [SKIP],
+  'language/module-code/namespace/internals/own-property-keys-sort': [SKIP],
+
+  # Symbol.toStringTag on namespace objects was made non-configurable, tests
+  # need to be updated.
+  'language/module-code/namespace/Symbol.toStringTag': [SKIP],
+  'language/module-code/namespace/internals/delete-non-exported': [SKIP],
 
   ############################ SKIPPED TESTS #############################
 
