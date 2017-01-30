@@ -12,6 +12,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -1066,6 +1067,19 @@ bool EscapeStatusAnalysis::IsEffectBranchPoint(Node* node) {
   return false;
 }
 
+namespace {
+
+bool HasFrameStateInput(const Operator* op) {
+  if (op->opcode() == IrOpcode::kCall || op->opcode() == IrOpcode::kTailCall) {
+    const CallDescriptor* d = CallDescriptorOf(op);
+    return d->NeedsFrameState();
+  } else {
+    return OperatorProperties::HasFrameStateInput(op);
+  }
+}
+
+}  // namespace
+
 bool EscapeAnalysis::Process(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kAllocate:
@@ -1102,7 +1116,7 @@ bool EscapeAnalysis::Process(Node* node) {
       ProcessAllocationUsers(node);
       break;
   }
-  if (OperatorProperties::HasFrameStateInput(node->op())) {
+  if (HasFrameStateInput(node->op())) {
     virtual_states_[node->id()]->SetCopyRequired();
   }
   return true;
