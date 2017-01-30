@@ -24,6 +24,9 @@
 #ifndef POWER_8
 #define POWER_8 0x10000
 #endif
+#ifndef POWER_9
+#define POWER_9 0x20000
+#endif
 #endif
 #if V8_OS_POSIX
 #include <unistd.h>  // sysconf()
