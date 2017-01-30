@@ -171,6 +171,16 @@ Node* CodeStubAssembler::IntPtrOrSmiConstant(int value, ParameterMode mode) {
   }
 }
 
+bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(Node* test) {
+  int32_t constant_test;
+  Smi* smi_test;
+  if ((ToInt32Constant(test, constant_test) && constant_test == 0) ||
+      (ToSmiConstant(test, smi_test) && smi_test->value() == 0)) {
+    return true;
+  }
+  return false;
+}
+
 Node* CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(Node* value) {
   Comment("IntPtrRoundUpToPowerOfTwo32");
   CSA_ASSERT(this, UintPtrLessThanOrEqual(value, IntPtrConstant(0x80000000u)));
@@ -2062,8 +2072,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                          Node* allocation_site,
                                          ParameterMode capacity_mode) {
   Node *array = nullptr, *elements = nullptr;
-  int32_t constant_capacity;
-  if (ToInt32Constant(capacity, constant_capacity) && constant_capacity == 0) {
+  if (IsIntPtrOrSmiConstantZero(capacity)) {
     // Array is empty. Use the shared empty fixed array instead of allocating a
     // new one.
     array = AllocateUninitializedJSArrayWithoutElements(kind, array_map, length,
