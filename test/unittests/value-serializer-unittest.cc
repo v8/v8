@@ -1245,36 +1245,6 @@ TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
       });
 }
 
-TEST_F(ValueSerializerTest, RoundTripDenseArrayContainingUndefined) {
-  // In previous serialization versions, this would be interpreted as an absent
-  // property.
-  RoundTripTest("[undefined]", [this](Local<Value> value) {
-    ASSERT_TRUE(value->IsArray());
-    EXPECT_EQ(1u, Array::Cast(*value)->Length());
-    EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty(0)"));
-    EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === undefined"));
-  });
-}
-
-TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
-  // In previous versions, "undefined" in a dense array signified absence of the
-  // element (for compatibility). In new versions, it has a separate encoding.
-  DecodeTest({0xff, 0x09, 0x41, 0x01, 0x5f, 0x24, 0x00, 0x01},
-             [this](Local<Value> value) {
-               EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
-             });
-  DecodeTest(
-      {0xff, 0x0b, 0x41, 0x01, 0x5f, 0x24, 0x00, 0x01},
-      [this](Local<Value> value) {
-        EXPECT_TRUE(EvaluateScriptForResultBool("0 in result"));
-        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === undefined"));
-      });
-  DecodeTest({0xff, 0x0b, 0x41, 0x01, 0x2d, 0x24, 0x00, 0x01},
-             [this](Local<Value> value) {
-               EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
-             });
-}
-
 TEST_F(ValueSerializerTest, RoundTripDate) {
   RoundTripTest("new Date(1e6)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
