@@ -55,9 +55,6 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
   ],
 
-  # crbug.com/681236
-  'crbug.com/681236': ['/v8/test/mjsunit/wasm/asm-wasm-switch.js'],
-
   # crbug.com/681241
   'crbug.com/681241': [
     '/v8/test/mjsunit/regress/regress-617526.js',
