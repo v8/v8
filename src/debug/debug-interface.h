@@ -175,6 +175,8 @@ void SetDebugDelegate(Isolate* isolate, DebugDelegate* listener);
 void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
 
+int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
+
 }  // namespace debug
 }  // namespace v8
 
