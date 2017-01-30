@@ -795,6 +795,10 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
     str = Handle<String>(slice->parent(), isolate());
     offset += slice->offset();
   }
+  if (str->IsThinString()) {
+    Handle<ThinString> thin = Handle<ThinString>::cast(str);
+    str = handle(thin->actual(), isolate());
+  }
 
   DCHECK(str->IsSeqString() || str->IsExternalString());
   Handle<Map> map = str->IsOneByteRepresentation()
