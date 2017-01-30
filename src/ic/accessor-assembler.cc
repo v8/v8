@@ -1403,7 +1403,8 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   Variable var_value(this, MachineRepresentation::kTagged);
   Label if_index(this), if_unique_name(this), if_element_hole(this),
       if_oob(this), slow(this), stub_cache_miss(this),
-      if_property_dictionary(this), if_found_on_receiver(this);
+      if_property_dictionary(this), if_found_on_receiver(this),
+      lookup_prototype_chain(this);
 
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &slow);
@@ -1528,7 +1529,8 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     Variable var_name_index(this, MachineType::PointerRepresentation());
     Label dictionary_found(this, &var_name_index);
     NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
-                                         &var_name_index, &slow);
+                                         &var_name_index,
+                                         &lookup_prototype_chain);
     Bind(&dictionary_found);
     {
       LoadPropertyFromNameDictionary(properties, var_name_index.value(),
@@ -1543,6 +1545,52 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
                                        p->context, receiver, &slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
     Return(value);
+  }
+
+  Bind(&lookup_prototype_chain);
+  {
+    Variable var_holder_map(this, MachineRepresentation::kTagged);
+    Variable var_holder_instance_type(this, MachineRepresentation::kWord32);
+    Label return_undefined(this);
+    Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
+    Label loop(this, arraysize(merged_variables), merged_variables);
+
+    var_holder_map.Bind(receiver_map);
+    var_holder_instance_type.Bind(instance_type);
+    // Private symbols must not be looked up on the prototype chain.
+    GotoIf(IsPrivateSymbol(var_unique.value()), &return_undefined);
+    Goto(&loop);
+    Bind(&loop);
+    {
+      // Bailout if it can be an integer indexed exotic case.
+      GotoIf(Word32Equal(var_holder_instance_type.value(),
+                         Int32Constant(JS_TYPED_ARRAY_TYPE)),
+             &slow);
+      Node* proto = LoadMapPrototype(var_holder_map.value());
+      GotoIf(WordEqual(proto, NullConstant()), &return_undefined);
+      Node* proto_map = LoadMap(proto);
+      Node* proto_instance_type = LoadMapInstanceType(proto_map);
+      var_holder_map.Bind(proto_map);
+      var_holder_instance_type.Bind(proto_instance_type);
+      Label next_proto(this), return_value(this, &var_value), goto_slow(this);
+      TryGetOwnProperty(p->context, receiver, proto, proto_map,
+                        proto_instance_type, var_unique.value(), &return_value,
+                        &var_value, &next_proto, &goto_slow);
+
+      // This trampoline and the next are required to appease Turbofan's
+      // variable merging.
+      Bind(&next_proto);
+      Goto(&loop);
+
+      Bind(&goto_slow);
+      Goto(&slow);
+
+      Bind(&return_value);
+      Return(var_value.value());
+    }
+
+    Bind(&return_undefined);
+    Return(UndefinedConstant());
   }
 
   Bind(&slow);
