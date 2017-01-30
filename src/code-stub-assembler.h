@@ -1075,16 +1075,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef std::function<void(Node* index)> FastLoopBody;
 
-  void BuildFastLoop(const VariableList& var_list,
-                     MachineRepresentation index_rep, Node* start_index,
-                     Node* end_index, const FastLoopBody& body, int increment,
-                     IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+  Node* BuildFastLoop(const VariableList& var_list,
+                      MachineRepresentation index_rep, Node* start_index,
+                      Node* end_index, const FastLoopBody& body, int increment,
+                      IndexAdvanceMode mode = IndexAdvanceMode::kPre);
 
-  void BuildFastLoop(MachineRepresentation index_rep, Node* start_index,
-                     Node* end_index, const FastLoopBody& body, int increment,
-                     IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
-    BuildFastLoop(VariableList(0, zone()), index_rep, start_index, end_index,
-                  body, increment, mode);
+  Node* BuildFastLoop(MachineRepresentation index_rep, Node* start_index,
+                      Node* end_index, const FastLoopBody& body, int increment,
+                      IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
+    return BuildFastLoop(VariableList(0, zone()), index_rep, start_index,
+                         end_index, body, increment, mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };

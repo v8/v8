@@ -6258,7 +6258,7 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
   return cell;
 }
 
-void CodeStubAssembler::BuildFastLoop(
+Node* CodeStubAssembler::BuildFastLoop(
     const CodeStubAssembler::VariableList& vars,
     MachineRepresentation index_rep, Node* start_index, Node* end_index,
     const FastLoopBody& body, int increment, IndexAdvanceMode mode) {
@@ -6287,6 +6287,7 @@ void CodeStubAssembler::BuildFastLoop(
     Branch(WordNotEqual(var.value(), end_index), &loop, &after_loop);
   }
   Bind(&after_loop);
+  return var.value();
 }
 
 void CodeStubAssembler::BuildFastFixedArrayForEach(
