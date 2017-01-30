@@ -154,7 +154,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 //
 // Each of the three phases can either fail or succeed. The current state of
 // the job can be checked using {state()}.
-class CompilationJob {
+class V8_EXPORT_PRIVATE CompilationJob {
  public:
   enum Status { SUCCEEDED, FAILED };
   enum class State {

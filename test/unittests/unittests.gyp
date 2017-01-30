@@ -87,6 +87,7 @@
       'compiler-dispatcher/compiler-dispatcher-job-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-unittest.cc',
+      'compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc',
       'counters-unittest.cc',
       'eh-frame-iterator-unittest.cc',
       'eh-frame-writer-unittest.cc',

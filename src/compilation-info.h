@@ -9,6 +9,7 @@
 
 #include "src/compilation-dependencies.h"
 #include "src/frames.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/source-position-table.h"
@@ -28,7 +29,7 @@ class Zone;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
-class CompilationInfo final {
+class V8_EXPORT_PRIVATE CompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
   // of the compiled code produced by a compilation.
