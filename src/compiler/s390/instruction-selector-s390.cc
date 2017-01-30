@@ -246,8 +246,11 @@ bool AutoZeroExtendsWord32ToWord64(Node* node) {
     case IrOpcode::kInt32Div:
     case IrOpcode::kUint32Div:
     case IrOpcode::kInt32MulHigh:
+    case IrOpcode::kUint32MulHigh:
     case IrOpcode::kInt32Mod:
     case IrOpcode::kUint32Mod:
+    case IrOpcode::kWord32Clz:
+    case IrOpcode::kWord32Popcnt:
       return true;
     default:
       return false;
@@ -276,6 +279,7 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
     case IrOpcode::kInt32MulHigh:
     case IrOpcode::kInt32Mod:
     case IrOpcode::kUint32Mod:
+    case IrOpcode::kWord32Popcnt:
       return true;
     // TODO(john.yan): consider the following case to be valid
     // case IrOpcode::kWord32Equal:
@@ -1148,9 +1152,7 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
 #endif
 
 void InstructionSelector::VisitWord32Clz(Node* node) {
-  S390OperandGenerator g(this);
-  Emit(kS390_Cntlz32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  VisitRR(this, kS390_Cntlz32, node);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -1163,8 +1165,8 @@ void InstructionSelector::VisitWord64Clz(Node* node) {
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) {
   S390OperandGenerator g(this);
-  Emit(kS390_Popcnt32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+  Node* value = node->InputAt(0);
+  Emit(kS390_Popcnt32, g.DefineAsRegister(node), g.UseRegister(value));
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -1331,15 +1333,8 @@ void InstructionSelector::VisitInt32MulHigh(Node* node) {
 }
 
 void InstructionSelector::VisitUint32MulHigh(Node* node) {
-  S390OperandGenerator g(this);
-  Int32BinopMatcher m(node);
-  Node* left = m.left().node();
-  Node* right = m.right().node();
-  if (g.CanBeBetterLeftOperand(right)) {
-    std::swap(left, right);
-  }
-  Emit(kS390_MulHighU32, g.DefineAsRegister(node), g.UseRegister(left),
-       g.Use(right));
+  VisitBin32op(this, node, kS390_MulHighU32,
+               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
 }
 
 void InstructionSelector::VisitInt32Div(Node* node) {
@@ -1365,7 +1360,8 @@ void InstructionSelector::VisitUint64Div(Node* node) {
 #endif
 
 void InstructionSelector::VisitInt32Mod(Node* node) {
-  VisitRRR(this, kS390_Mod32, node);
+  VisitBin32op(this, node, kS390_Mod32,
+               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -1375,7 +1371,8 @@ void InstructionSelector::VisitInt64Mod(Node* node) {
 #endif
 
 void InstructionSelector::VisitUint32Mod(Node* node) {
-  VisitRRR(this, kS390_ModU32, node);
+  VisitBin32op(this, node, kS390_ModU32,
+               OperandMode::kAllowRRM | OperandMode::kAllowRRR);
 }
 
 #if V8_TARGET_ARCH_S390X

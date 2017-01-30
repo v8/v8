@@ -1531,22 +1531,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_MulHigh32:
       ASSEMBLE_BIN_OP(MulHigh32, MulHigh32, MulHigh32);
       break;
-    case kS390_Mul32WithHigh32:
-      __ LoadRR(r1, i.InputRegister(0));
-      __ mr_z(r0, i.InputRegister(1));
-      __ LoadW(i.OutputRegister(0), r1);  // low
-      __ LoadW(i.OutputRegister(1), r0);  // high
-      break;
     case kS390_MulHighU32:
-      __ LoadRR(r1, i.InputRegister(0));
-      if (HasRegisterInput(instr, 1)) {
-        __ mlr(r0, i.InputRegister(1));
-      } else if (HasStackSlotInput(instr, 1)) {
-        __ ml(r0, i.InputStackSlot32(1));
-      } else {
-        UNIMPLEMENTED();
-      }
-      __ LoadlW(i.OutputRegister(), r0);
+      ASSEMBLE_BIN_OP(MulHighU32, MulHighU32, MulHighU32);
       break;
     case kS390_MulFloat:
       // Ensure we don't clobber right
@@ -1576,20 +1562,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_Div32: {
-      AddressingMode mode = AddressingModeField::decode(instr->opcode());
-      __ lgfr(r1, i.InputRegister(0));
-      if (mode != kMode_None) {
-        size_t first_index = 1;
-        MemOperand operand = i.MemoryOperand(&mode, &first_index);
-        __ dsgf(r0, operand);
-      } else if (HasRegisterInput(instr, 1)) {
-        __ dsgfr(r0, i.InputRegister(1));
-      } else if (HasStackSlotInput(instr, 1)) {
-        __ dsgf(r0, i.InputStackSlot32(1));
-      } else {
-        UNREACHABLE();
-      }
-      __ LoadlW(i.OutputRegister(), r1);
+      ASSEMBLE_BIN_OP(Div32, Div32, Div32);
       break;
     }
 #if V8_TARGET_ARCH_S390X
@@ -1601,21 +1574,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_DivU32: {
-      __ lr(r0, i.InputRegister(0));
-      __ srdl(r0, Operand(32));
-      AddressingMode mode = AddressingModeField::decode(instr->opcode());
-      if (mode != kMode_None) {
-        size_t first_index = 1;
-        MemOperand operand = i.MemoryOperand(&mode, &first_index);
-        __ dl(r0, operand);
-      } else if (HasRegisterInput(instr, 1)) {
-        __ dlr(r0, i.InputRegister(1));
-      } else if (HasStackSlotInput(instr, 1)) {
-        __ dl(r0, i.InputStackSlot32(1));
-      } else {
-        UNREACHABLE();
-      }
-      __ LoadlW(i.OutputRegister(), r1);
+      ASSEMBLE_BIN_OP(DivU32, DivU32, DivU32);
       break;
     }
     case kS390_DivFloat:
@@ -1643,10 +1602,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kS390_Mod32:
-      ASSEMBLE_MODULO(dr, srda);
+      ASSEMBLE_BIN_OP(Mod32, Mod32, Mod32);
       break;
     case kS390_ModU32:
-      ASSEMBLE_MODULO(dlr, srdl);
+      ASSEMBLE_BIN_OP(ModU32, ModU32, ModU32);
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_Mod64:
@@ -1799,14 +1758,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Cntlz32: {
       __ llgfr(i.OutputRegister(), i.InputRegister(0));
       __ flogr(r0, i.OutputRegister());
-      __ LoadRR(i.OutputRegister(), r0);
-      __ SubP(i.OutputRegister(), Operand(32));
-    } break;
+      __ Add32(i.OutputRegister(), r0, Operand(-32));
+      // No need to zero-ext b/c llgfr is done already
+      break;
+    }
 #if V8_TARGET_ARCH_S390X
     case kS390_Cntlz64: {
       __ flogr(r0, i.InputRegister(0));
       __ LoadRR(i.OutputRegister(), r0);
-    } break;
+      break;
+    }
 #endif
     case kS390_Popcnt32:
       __ Popcnt32(i.OutputRegister(), i.InputRegister(0));

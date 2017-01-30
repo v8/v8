@@ -10367,9 +10367,13 @@ EVALUATE(FLOGR) {
 }
 
 EVALUATE(LLGCR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLGCR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  uint64_t r2_val = get_low_register<uint64_t>(r2);
+  r2_val <<= 56;
+  r2_val >>= 56;
+  set_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(LLGHR) {
@@ -10447,9 +10451,13 @@ EVALUATE(TROO) {
 }
 
 EVALUATE(LLCR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLCR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  uint32_t r2_val = get_low_register<uint32_t>(r2);
+  r2_val <<= 24;
+  r2_val >>= 24;
+  set_low_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(LLHR) {

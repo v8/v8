@@ -325,6 +325,9 @@ class MacroAssembler : public Assembler {
   void MulHigh32(Register dst, Register src1, const MemOperand& src2);
   void MulHigh32(Register dst, Register src1, Register src2);
   void MulHigh32(Register dst, Register src1, const Operand& src2);
+  void MulHighU32(Register dst, Register src1, const MemOperand& src2);
+  void MulHighU32(Register dst, Register src1, Register src2);
+  void MulHighU32(Register dst, Register src1, const Operand& src2);
   void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                     const MemOperand& src2);
   void Mul32WithOverflowIfCCUnequal(Register dst, Register src1, Register src2);
@@ -336,6 +339,20 @@ class MacroAssembler : public Assembler {
 
   // Divide
   void DivP(Register dividend, Register divider);
+  void Div32(Register dst, Register src1, const MemOperand& src2);
+  void Div32(Register dst, Register src1, Register src2);
+  void Div32(Register dst, Register src1, const Operand& src2);
+  void DivU32(Register dst, Register src1, const MemOperand& src2);
+  void DivU32(Register dst, Register src1, Register src2);
+  void DivU32(Register dst, Register src1, const Operand& src2);
+
+  // Mod
+  void Mod32(Register dst, Register src1, const MemOperand& src2);
+  void Mod32(Register dst, Register src1, Register src2);
+  void Mod32(Register dst, Register src1, const Operand& src2);
+  void ModU32(Register dst, Register src1, const MemOperand& src2);
+  void ModU32(Register dst, Register src1, Register src2);
+  void ModU32(Register dst, Register src1, const Operand& src2);
 
   // Square root
   void Sqrt(DoubleRegister result, DoubleRegister input);
@@ -372,6 +389,7 @@ class MacroAssembler : public Assembler {
   void LoadB(Register dst, const MemOperand& opnd);
   void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
+  void LoadlB(Register dst, Register src);
 
   void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
   void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);

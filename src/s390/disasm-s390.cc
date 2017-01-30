@@ -724,6 +724,15 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case LLGFR:
       Format(instr, "llgfr\t'r5,'r6");
       break;
+    case POPCNT_Z:
+      Format(instr, "popcnt\t'r5,'r6");
+      break;
+    case LLGCR:
+      Format(instr, "llgcr\t'r5,'r6");
+      break;
+    case LLCR:
+      Format(instr, "llcr\t'r5,'r6");
+      break;
     case LBR:
       Format(instr, "lbr\t'r5,'r6");
       break;

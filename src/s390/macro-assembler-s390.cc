@@ -3280,34 +3280,68 @@ void MacroAssembler::Mul32(Register dst, const Operand& src1) {
   msfi(dst, src1);
 }
 
+#define Generate_MulHigh32(instr) \
+  {                               \
+    lgfr(dst, src1);              \
+    instr(dst, src2);             \
+    srlg(dst, dst, Operand(32));  \
+  }
+
 void MacroAssembler::MulHigh32(Register dst, Register src1,
                                const MemOperand& src2) {
-  lgfr(dst, src1);
-  msgf(dst, src2);
-  srlg(dst, dst, Operand(32));
+  Generate_MulHigh32(msgf);
 }
 
 void MacroAssembler::MulHigh32(Register dst, Register src1, Register src2) {
   if (dst.is(src2)) {
     std::swap(src1, src2);
   }
-  lgfr(dst, src1);
-  msgfr(dst, src2);
-  srlg(dst, dst, Operand(32));
+  Generate_MulHigh32(msgfr);
 }
 
 void MacroAssembler::MulHigh32(Register dst, Register src1,
                                const Operand& src2) {
-  lgfr(dst, src1);
-  msgfi(dst, src2);
-  srlg(dst, dst, Operand(32));
+  Generate_MulHigh32(msgfi);
 }
+
+#undef Generate_MulHigh32
+
+#define Generate_MulHighU32(instr) \
+  {                                \
+    lr(r1, src1);                  \
+    instr(r0, src2);               \
+    LoadlW(dst, r0);               \
+  }
+
+void MacroAssembler::MulHighU32(Register dst, Register src1,
+                                const MemOperand& src2) {
+  Generate_MulHighU32(ml);
+}
+
+void MacroAssembler::MulHighU32(Register dst, Register src1, Register src2) {
+  Generate_MulHighU32(mlr);
+}
+
+void MacroAssembler::MulHighU32(Register dst, Register src1,
+                                const Operand& src2) {
+  USE(dst);
+  USE(src1);
+  USE(src2);
+  UNREACHABLE();
+}
+
+#undef Generate_MulHighU32
+
+#define Generate_Mul32WithOverflowIfCCUnequal(instr) \
+  {                                                  \
+    lgfr(dst, src1);                                 \
+    instr(dst, src2);                                \
+    cgfr(dst, dst);                                  \
+  }
 
 void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                                   const MemOperand& src2) {
-  lgfr(dst, src1);
-  msgf(dst, src2);
-  cgfr(dst, dst);
+  Generate_Mul32WithOverflowIfCCUnequal(msgf);
 }
 
 void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
@@ -3315,17 +3349,15 @@ void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
   if (dst.is(src2)) {
     std::swap(src1, src2);
   }
-  lgfr(dst, src1);
-  msgfr(dst, src2);
-  cgfr(dst, dst);
+  Generate_Mul32WithOverflowIfCCUnequal(msgfr);
 }
 
 void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                                   const Operand& src2) {
-  lgfr(dst, src1);
-  msgfi(dst, src2);
-  cgfr(dst, dst);
+  Generate_Mul32WithOverflowIfCCUnequal(msgfi);
 }
+
+#undef Generate_Mul32WithOverflowIfCCUnequal
 
 void MacroAssembler::Mul64(Register dst, const MemOperand& src1) {
   if (is_int20(src1.offset())) {
@@ -3361,6 +3393,108 @@ void MacroAssembler::DivP(Register dividend, Register divider) {
   dr(dividend, divider);
 #endif
 }
+
+#define Generate_Div32(instr) \
+  {                           \
+    lgfr(r1, src1);           \
+    instr(r0, src2);          \
+    LoadlW(dst, r1);          \
+  }
+
+void MacroAssembler::Div32(Register dst, Register src1,
+                           const MemOperand& src2) {
+  Generate_Div32(dsgf);
+}
+
+void MacroAssembler::Div32(Register dst, Register src1, Register src2) {
+  Generate_Div32(dsgfr);
+}
+
+void MacroAssembler::Div32(Register dst, Register src1, const Operand& src2) {
+  USE(dst);
+  USE(src1);
+  USE(src2);
+  UNREACHABLE();
+}
+
+#undef Generate_Div32
+
+#define Generate_DivU32(instr) \
+  {                            \
+    lr(r0, src1);              \
+    srdl(r0, Operand(32));     \
+    instr(r0, src2);           \
+    LoadlW(dst, r1);           \
+  }
+
+void MacroAssembler::DivU32(Register dst, Register src1,
+                            const MemOperand& src2) {
+  Generate_DivU32(dl);
+}
+
+void MacroAssembler::DivU32(Register dst, Register src1, Register src2) {
+  Generate_DivU32(dlr);
+}
+
+void MacroAssembler::DivU32(Register dst, Register src1, const Operand& src2) {
+  USE(dst);
+  USE(src1);
+  USE(src2);
+  UNREACHABLE();
+}
+
+#undef Generate_DivU32
+
+#define Generate_Mod32(instr) \
+  {                           \
+    lgfr(r1, src1);           \
+    instr(r0, src2);          \
+    LoadlW(dst, r0);          \
+  }
+
+void MacroAssembler::Mod32(Register dst, Register src1,
+                           const MemOperand& src2) {
+  Generate_Mod32(dsgf);
+}
+
+void MacroAssembler::Mod32(Register dst, Register src1, Register src2) {
+  Generate_Mod32(dsgfr);
+}
+
+void MacroAssembler::Mod32(Register dst, Register src1, const Operand& src2) {
+  USE(dst);
+  USE(src1);
+  USE(src2);
+  UNREACHABLE();
+}
+
+#undef Generate_Mod32
+
+#define Generate_ModU32(instr) \
+  {                            \
+    lr(r0, src1);              \
+    srdl(r0, Operand(32));     \
+    instr(r0, src2);           \
+    LoadlW(dst, r0);           \
+  }
+
+void MacroAssembler::ModU32(Register dst, Register src1,
+                            const MemOperand& src2) {
+  Generate_ModU32(dl);
+}
+
+void MacroAssembler::ModU32(Register dst, Register src1, Register src2) {
+  Generate_ModU32(dlr);
+}
+
+void MacroAssembler::ModU32(Register dst, Register src1, const Operand& src2) {
+  USE(dst);
+  USE(src1);
+  USE(src2);
+  UNREACHABLE();
+}
+
+#undef Generate_ModU32
 
 void MacroAssembler::MulP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
@@ -4765,6 +4899,14 @@ void MacroAssembler::LoadlB(Register dst, const MemOperand& mem) {
 #endif
 }
 
+void MacroAssembler::LoadlB(Register dst, Register src) {
+#if V8_TARGET_ARCH_S390X
+  llgcr(dst, src);
+#else
+  llcr(dst, src);
+#endif
+}
+
 void MacroAssembler::LoadLogicalReversedWordP(Register dst,
                                               const MemOperand& mem) {
   lrv(dst, mem);
@@ -5120,7 +5262,7 @@ void MacroAssembler::Popcnt32(Register dst, Register src) {
   ar(dst, r0);
   ShiftRight(r0, dst, Operand(8));
   ar(dst, r0);
-  LoadB(dst, dst);
+  LoadlB(dst, dst);
 }
 
 #ifdef V8_TARGET_ARCH_S390X
@@ -5135,7 +5277,7 @@ void MacroAssembler::Popcnt64(Register dst, Register src) {
   AddP(dst, r0);
   ShiftRightP(r0, dst, Operand(8));
   AddP(dst, r0);
-  LoadB(dst, dst);
+  LoadlB(dst, dst);
 }
 #endif
 
