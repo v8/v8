@@ -1112,9 +1112,10 @@ void V8HeapExplorer::ExtractJSObjectReferences(
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
-    TagObject(js_fun->literals(), "(function literals)");
-    SetInternalReference(js_fun, entry, "literals", js_fun->literals(),
-                         JSFunction::kLiteralsOffset);
+    TagObject(js_fun->feedback_vector(), "(function feedback vector)");
+    SetInternalReference(js_fun, entry, "feedback_vector",
+                         js_fun->feedback_vector(),
+                         JSFunction::kFeedbackVectorOffset);
     TagObject(shared_info, "(shared function info)");
     SetInternalReference(js_fun, entry,
                          "shared", shared_info,

@@ -164,6 +164,8 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "STORE_DATA_PROPERTY_IN_LITERAL_IC";
     case FeedbackVectorSlotKind::CREATE_CLOSURE:
       return "CREATE_CLOSURE";
+    case FeedbackVectorSlotKind::LITERAL:
+      return "LITERAL";
     case FeedbackVectorSlotKind::GENERAL:
       return "STUB";
     case FeedbackVectorSlotKind::KINDS_NUMBER:
@@ -202,8 +204,9 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
 
     if (kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
-      // TODO(mvstanton): Root literal arrays in this location.
-      array->set(index, *factory->empty_literals_array(), SKIP_WRITE_BARRIER);
+      // TODO(mvstanton): Root feedback vectors in this location.
+      array->set(index, *factory->empty_type_feedback_vector(),
+                 SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
@@ -212,6 +215,7 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
+  Handle<Oddball> undefined_value = factory->undefined_value();
   DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
   for (int i = 0; i < slot_count;) {
     FeedbackVectorSlot slot(i);
@@ -225,6 +229,8 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
                kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
       value = Smi::kZero;
+    } else if (kind == FeedbackVectorSlotKind::LITERAL) {
+      value = *undefined_value;
     } else {
       value = *uninitialized_sentinel;
     }
@@ -241,14 +247,6 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   }
   return Handle<TypeFeedbackVector>::cast(array);
 }
-
-
-// static
-int TypeFeedbackVector::GetIndexFromSpec(const FeedbackVectorSpec* spec,
-                                         FeedbackVectorSlot slot) {
-  return kReservedIndexCount + slot.ToInt();
-}
-
 
 // static
 Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
@@ -276,6 +274,7 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
 
   Object* uninitialized_sentinel =
       TypeFeedbackVector::RawUninitializedSentinel(isolate);
+  Oddball* undefined_value = isolate->heap()->undefined_value();
 
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
@@ -323,11 +322,6 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           break;
         }
         case FeedbackVectorSlotKind::CREATE_CLOSURE: {
-          // Fill the array with undefined.
-          FixedArray* array = FixedArray::cast(Get(slot));
-          for (int i = 1; i < array->length(); i++) {
-            array->set_undefined(i);
-          }
           break;
         }
         case FeedbackVectorSlotKind::GENERAL: {
@@ -341,6 +335,10 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
               Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
             }
           }
+          break;
+        }
+        case FeedbackVectorSlotKind::LITERAL: {
+          Set(slot, undefined_value, SKIP_WRITE_BARRIER);
           break;
         }
         case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {

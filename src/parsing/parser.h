@@ -1078,8 +1078,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                             Scanner::Location* duplicate_loc,
                                             bool* ok);
 
-  void ReindexLiterals(const ParserFormalParameters& parameters);
-
   V8_INLINE Expression* NoTemplateTag() { return NULL; }
   V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
     return tag != NULL;

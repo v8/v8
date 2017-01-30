@@ -774,9 +774,7 @@ class LiteralFixer {
         Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
         Handle<TypeFeedbackVector> vector =
             TypeFeedbackVector::New(isolate, feedback_metadata);
-        Handle<LiteralsArray> new_literals =
-            LiteralsArray::New(isolate, vector, new_literal_count);
-        fun->set_literals(*new_literals);
+        fun->set_feedback_vector(*vector);
       }
 
       shared_info->set_num_literals(new_literal_count);
@@ -821,11 +819,8 @@ class LiteralFixer {
   class ClearValuesVisitor {
    public:
     void visit(JSFunction* fun) {
-      LiteralsArray* literals = fun->literals();
-      int len = literals->literals_count();
-      for (int j = 0; j < len; j++) {
-        literals->set_literal_undefined(j);
-      }
+      TypeFeedbackVector* vector = fun->feedback_vector();
+      vector->ClearSlots(fun->shared());
     }
   };
 

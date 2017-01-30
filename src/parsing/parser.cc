@@ -9,7 +9,6 @@
 #include "src/api.h"
 #include "src/ast/ast-expression-rewriter.h"
 #include "src/ast/ast-function-literal-id-reindexer.h"
-#include "src/ast/ast-literal-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
 #include "src/bailout-reason.h"
@@ -2464,19 +2463,6 @@ void Parser::DeclareArrowFunctionFormalParameters(
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
 
-void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
-  if (function_state_->materialized_literal_count() > 0) {
-    AstLiteralReindexer reindexer;
-
-    for (auto p : parameters.params) {
-      if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
-      if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
-    }
-
-    DCHECK(reindexer.count() <= function_state_->materialized_literal_count());
-  }
-}
-
 void Parser::PrepareGeneratorVariables() {
   // For generators, allocating variables in contexts is currently a win because
   // it minimizes the work needed to suspend and resume an activation.  The
@@ -3533,19 +3519,18 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   } else {
     uint32_t hash = ComputeTemplateLiteralHash(lit);
 
-    int cooked_idx = function_state_->NextMaterializedLiteralIndex();
-    int raw_idx = function_state_->NextMaterializedLiteralIndex();
+    // cooked and raw indexes.
+    function_state_->NextMaterializedLiteralIndex();
+    function_state_->NextMaterializedLiteralIndex();
 
     // $getTemplateCallSite
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
     args->Add(factory()->NewArrayLiteral(
-                  const_cast<ZoneList<Expression*>*>(cooked_strings),
-                  cooked_idx, pos),
+                  const_cast<ZoneList<Expression*>*>(cooked_strings), pos),
               zone());
-    args->Add(
-        factory()->NewArrayLiteral(
-            const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
-        zone());
+    args->Add(factory()->NewArrayLiteral(
+                  const_cast<ZoneList<Expression*>*>(raw_strings), pos),
+              zone());
 
     // Truncate hash to Smi-range.
     Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
@@ -3642,9 +3627,8 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
         while (i < n && !list->at(i)->IsSpread()) {
           unspread->Add(list->at(i++), zone());
         }
-        int literal_index = function_state_->NextMaterializedLiteralIndex();
-        args->Add(factory()->NewArrayLiteral(unspread, literal_index,
-                                             kNoSourcePosition),
+        function_state_->NextMaterializedLiteralIndex();
+        args->Add(factory()->NewArrayLiteral(unspread, kNoSourcePosition),
                   zone());
 
         if (i == n) break;

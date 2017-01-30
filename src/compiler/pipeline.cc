@@ -904,10 +904,11 @@ struct TypedLoweringPhase {
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies(), data->native_context());
-    Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
+    Handle<TypeFeedbackVector> feedback_vector(
+        data->info()->closure()->feedback_vector());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        literals_array, data->native_context(), temp_zone);
+        feedback_vector, data->native_context(), temp_zone);
     JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;

@@ -136,8 +136,7 @@ void FullCodeGenerator::Generate() {
   // Increment invocation count for the function.
   {
     Comment cmnt(masm_, "[ Increment invocation count");
-    __ Ldr(x11, FieldMemOperand(x1, JSFunction::kLiteralsOffset));
-    __ Ldr(x11, FieldMemOperand(x11, LiteralsArray::kFeedbackVectorOffset));
+    __ Ldr(x11, FieldMemOperand(x1, JSFunction::kFeedbackVectorOffset));
     __ Ldr(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
                                              kPointerSize +
                                          TypeFeedbackVector::kHeaderSize));
@@ -1203,7 +1202,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Handle<BoilerplateDescription> constant_properties =
       expr->GetOrBuildConstantProperties(isolate());
   __ Ldr(x3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
-  __ Mov(x2, Smi::FromInt(expr->literal_index()));
+  __ Mov(x2, SmiFromSlot(expr->literal_slot()));
   __ Mov(x1, Operand(constant_properties));
   int flags = expr->ComputeFlags();
   __ Mov(x0, Smi::FromInt(flags));
@@ -1343,7 +1342,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
 
   __ Ldr(x3, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  __ Mov(x2, Smi::FromInt(expr->literal_index()));
+  __ Mov(x2, SmiFromSlot(expr->literal_slot()));
   __ Mov(x1, Operand(constant_elements));
   if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ Mov(x0, Smi::FromInt(expr->ComputeFlags()));

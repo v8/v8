@@ -2800,14 +2800,6 @@ void Heap::CreateInitialObjects() {
                                     Smi::kZero);
     empty_type_feedback_vector->set_map(type_feedback_vector_map());
     set_empty_type_feedback_vector(*empty_type_feedback_vector);
-
-    // We use a canonical empty LiteralsArray for all functions that neither
-    // have literals nor need a TypeFeedbackVector (besides the invocation
-    // count special slot).
-    Handle<FixedArray> empty_literals_array =
-        factory->NewFixedArray(1, TENURED);
-    empty_literals_array->set(0, *empty_type_feedback_vector);
-    set_empty_literals_array(*empty_literals_array);
   }
 
   {

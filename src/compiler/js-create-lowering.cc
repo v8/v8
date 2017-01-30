@@ -769,7 +769,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   Node* compile_entry = jsgraph()->PointerConstant(
       jsgraph()->isolate()->builtins()->CompileLazy()->entry());
   Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-  Node* empty_literals_array = jsgraph()->EmptyLiteralsArrayConstant();
+  Node* empty_feedback_vector = jsgraph()->EmptyFeedbackVectorConstant();
   Node* the_hole = jsgraph()->TheHoleConstant();
   Node* undefined = jsgraph()->UndefinedConstant();
   AllocationBuilder a(jsgraph(), effect, control);
@@ -778,7 +778,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
   a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
-  a.Store(AccessBuilder::ForJSFunctionLiterals(), empty_literals_array);
+  a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), empty_feedback_vector);
   a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(), the_hole);
   a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
   a.Store(AccessBuilder::ForJSFunctionContext(), context);
@@ -850,9 +850,10 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<LiteralsArray> literals_array;
-  if (GetSpecializationLiterals(node).ToHandle(&literals_array)) {
-    Handle<Object> literal(literals_array->literal(p.index()), isolate());
+  Handle<TypeFeedbackVector> feedback_vector;
+  if (GetSpecializationTypeFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackVectorSlot slot(TypeFeedbackVector::ToSlot(p.index()));
+    Handle<Object> literal(feedback_vector->Get(slot), isolate());
     if (literal->IsAllocationSite()) {
       Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);
       Handle<JSObject> boilerplate(JSObject::cast(site->transition_info()),
@@ -1343,13 +1344,13 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   return builder.Finish();
 }
 
-MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
-    Node* node) {
+MaybeHandle<TypeFeedbackVector>
+JSCreateLowering::GetSpecializationTypeFeedbackVector(Node* node) {
   Node* const closure = NodeProperties::GetValueInput(node, 0);
   switch (closure->opcode()) {
     case IrOpcode::kHeapConstant: {
       Handle<HeapObject> object = OpParameter<Handle<HeapObject>>(closure);
-      return handle(Handle<JSFunction>::cast(object)->literals());
+      return handle(Handle<JSFunction>::cast(object)->feedback_vector());
     }
     case IrOpcode::kParameter: {
       int const index = ParameterIndexOf(closure->op());
@@ -1357,14 +1358,14 @@ MaybeHandle<LiteralsArray> JSCreateLowering::GetSpecializationLiterals(
       // {Parameter} indices start at -1, so value outputs of {Start} look like
       // this: closure, receiver, param0, ..., paramN, context.
       if (index == -1) {
-        return literals_array_;
+        return feedback_vector_;
       }
       break;
     }
     default:
       break;
   }
-  return MaybeHandle<LiteralsArray>();
+  return MaybeHandle<TypeFeedbackVector>();
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }

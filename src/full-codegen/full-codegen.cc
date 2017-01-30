@@ -1307,7 +1307,7 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   LoadFromFrameField(JavaScriptFrameConstants::kFunctionOffset,
                      descriptor.GetRegisterParameter(0));
   __ Move(descriptor.GetRegisterParameter(1),
-          Smi::FromInt(expr->literal_index()));
+          SmiFromSlot(expr->literal_slot()));
   __ Move(descriptor.GetRegisterParameter(2), expr->pattern());
   __ Move(descriptor.GetRegisterParameter(3), Smi::FromInt(expr->flags()));
   __ Call(callable.code(), RelocInfo::CODE_TARGET);

@@ -1058,17 +1058,17 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ cmp(temp, native_context);
   __ j(not_equal, &loop_bottom);
-  // Literals available?
+  // Feedback vector available?
   __ mov(temp, FieldOperand(map, index, times_half_pointer_size,
                             SharedFunctionInfo::kOffsetToPreviousLiterals));
   __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ JumpIfSmi(temp, &gotta_call_runtime);
 
-  // Save the literals in the closure.
+  // Save the vector in the closure.
   __ mov(ecx, Operand(esp, 0));
-  __ mov(FieldOperand(ecx, JSFunction::kLiteralsOffset), temp);
+  __ mov(FieldOperand(ecx, JSFunction::kFeedbackVectorOffset), temp);
   __ push(index);
-  __ RecordWriteField(ecx, JSFunction::kLiteralsOffset, temp, index,
+  __ RecordWriteField(ecx, JSFunction::kFeedbackVectorOffset, temp, index,
                       kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ pop(index);
 

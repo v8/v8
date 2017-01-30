@@ -1417,7 +1417,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_code(info->code());
   function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
-  function->set_literals(LiteralsArray::cast(*empty_literals_array()));
+  function->set_feedback_vector(
+      TypeFeedbackVector::cast(*empty_type_feedback_vector()));
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
@@ -1550,12 +1551,12 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<LiteralsArray> literals, PretenureFlag pretenure) {
+    Handle<TypeFeedbackVector> vector, PretenureFlag pretenure) {
   int map_index =
       Context::FunctionMapIndex(info->language_mode(), info->kind());
   Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
 
-  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, literals,
+  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, vector,
                                            pretenure);
 }
 
@@ -1580,13 +1581,13 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+    Handle<Object> context_or_undefined, Handle<TypeFeedbackVector> vector,
     PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  result->set_literals(*literals);
+  result->set_feedback_vector(*vector);
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }

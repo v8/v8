@@ -56,6 +56,7 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
   if (kind == FeedbackVectorSlotKind::GENERAL ||
       kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC ||
       kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
+      kind == FeedbackVectorSlotKind::LITERAL ||
       kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
     return 1;
   }
@@ -204,6 +205,7 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       }
       case FeedbackVectorSlotKind::CREATE_CLOSURE:
       case FeedbackVectorSlotKind::GENERAL:
+      case FeedbackVectorSlotKind::LITERAL:
         break;
       case FeedbackVectorSlotKind::INVALID:
       case FeedbackVectorSlotKind::KINDS_NUMBER:

@@ -150,6 +150,7 @@ void AstNumberingVisitor::VisitLiteral(Literal* node) {
 void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(RegExpLiteral::num_ids()));
+  ReserveFeedbackSlots(node);
 }
 
 

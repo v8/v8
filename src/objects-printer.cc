@@ -802,6 +802,7 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         break;
       }
       case FeedbackVectorSlotKind::CREATE_CLOSURE:
+      case FeedbackVectorSlotKind::LITERAL:
       case FeedbackVectorSlotKind::GENERAL:
         break;
       case FeedbackVectorSlotKind::INVALID:
@@ -1051,7 +1052,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "\n   - async";
   }
   os << "\n - context = " << Brief(context());
-  os << "\n - literals = " << Brief(literals());
+  os << "\n - feedback vector = " << Brief(feedback_vector());
   os << "\n - code = " << Brief(code());
   JSObjectPrintBody(os, this);
 }

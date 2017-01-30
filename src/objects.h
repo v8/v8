@@ -81,7 +81,6 @@
 //       - FixedArray
 //         - DescriptorArray
 //         - FrameArray
-//         - LiteralsArray
 //         - HashTable
 //           - Dictionary
 //           - StringTable
@@ -897,7 +896,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(HANDLER_TABLE_SUB_TYPE)                      \
   V(JS_COLLECTION_SUB_TYPE)                      \
   V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
-  V(LITERALS_ARRAY_SUB_TYPE)                     \
   V(MAP_CODE_CACHE_SUB_TYPE)                     \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
   V(NUMBER_STRING_CACHE_SUB_TYPE)                \
@@ -961,7 +959,6 @@ class FunctionLiteral;
 class JSGlobalObject;
 class KeyAccumulator;
 class LayoutDescriptor;
-class LiteralsArray;
 class LookupIterator;
 class FieldType;
 class Module;
@@ -1050,7 +1047,6 @@ template <class C> inline bool Is(Object* obj);
   V(DescriptorArray)             \
   V(FrameArray)                  \
   V(TransitionArray)             \
-  V(LiteralsArray)               \
   V(TypeFeedbackMetadata)        \
   V(TypeFeedbackVector)          \
   V(DeoptimizationInputData)     \
@@ -4935,42 +4931,6 @@ class DeoptimizationOutputData: public FixedArray {
 #endif
 };
 
-
-// A literals array contains the literals for a JSFunction. It also holds
-// the type feedback vector.
-class LiteralsArray : public FixedArray {
- public:
-  static const int kVectorIndex = 0;
-  static const int kFirstLiteralIndex = 1;
-  V8_EXPORT_PRIVATE static const int kFeedbackVectorOffset;
-  static const int kOffsetToFirstLiteral;
-
-  static int OffsetOfLiteralAt(int index) {
-    return OffsetOfElementAt(index + kFirstLiteralIndex);
-  }
-
-  inline TypeFeedbackVector* feedback_vector() const;
-  inline void set_feedback_vector(TypeFeedbackVector* vector);
-  inline Object* literal(int literal_index) const;
-  inline void set_literal(int literal_index, Object* literal);
-  inline void set_literal_undefined(int literal_index);
-  inline int literals_count() const;
-
-  static Handle<LiteralsArray> New(Isolate* isolate,
-                                   Handle<TypeFeedbackVector> vector,
-                                   int number_of_literals,
-                                   PretenureFlag pretenure = TENURED);
-
-  DECLARE_CAST(LiteralsArray)
-
- private:
-  inline Object* get(int index) const;
-  inline void set(int index, Object* value);
-  inline void set(int index, Smi* value);
-  inline void set(int index, Object* value, WriteBarrierMode mode);
-};
-
-
 class TemplateList : public FixedArray {
  public:
   static Handle<TemplateList> New(Isolate* isolate, int size);
@@ -7086,10 +7046,10 @@ enum BuiltinFunctionId {
 };
 
 // Result of searching in an optimized code map of a SharedFunctionInfo. Note
-// that both {code} and {literals} can be NULL to pass search result status.
-struct CodeAndLiterals {
-  Code* code;               // Cached optimized code.
-  LiteralsArray* literals;  // Cached literals array.
+// that both {code} and {vector} can be NULL to pass search result status.
+struct CodeAndVector {
+  Code* code;                  // Cached optimized code.
+  TypeFeedbackVector* vector;  // Cached feedback vector.
 };
 
 // SharedFunctionInfo describes the JSFunction information that can be
@@ -7125,8 +7085,8 @@ class SharedFunctionInfo: public HeapObject {
   // Note that {code == nullptr, literals == nullptr} indicates no matching
   // entry has been found, whereas {code, literals == nullptr} indicates that
   // code is context-independent.
-  CodeAndLiterals SearchOptimizedCodeMap(Context* native_context,
-                                         BailoutId osr_ast_id);
+  CodeAndVector SearchOptimizedCodeMap(Context* native_context,
+                                       BailoutId osr_ast_id);
 
   // Clear optimized code map.
   void ClearOptimizedCodeMap();
@@ -7144,7 +7104,7 @@ class SharedFunctionInfo: public HeapObject {
   // the entry itself is left in the map in order to proceed sharing literals.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
-  static Handle<LiteralsArray> FindOrCreateLiterals(
+  static Handle<TypeFeedbackVector> FindOrCreateVector(
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
   // Add or update entry in the optimized code map for context-dependent code.
@@ -7152,7 +7112,7 @@ class SharedFunctionInfo: public HeapObject {
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
                                     MaybeHandle<Code> code,
-                                    Handle<LiteralsArray> literals,
+                                    Handle<TypeFeedbackVector> vector,
                                     BailoutId osr_ast_id);
 
   // Set up the link between shared function info and the script. The shared
@@ -7164,7 +7124,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kEntriesStart = 0;
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
-  static const int kLiteralsOffset = 2;
+  static const int kFeedbackVectorOffset = 2;
   static const int kEntryLength = 3;
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
@@ -7178,7 +7138,8 @@ class SharedFunctionInfo: public HeapObject {
       FixedArray::kHeaderSize +
       kPointerSize * (kCachedCodeOffset - kEntryLength);
   static const int kOffsetToPreviousLiterals =
-      FixedArray::kHeaderSize + kPointerSize * (kLiteralsOffset - kEntryLength);
+      FixedArray::kHeaderSize +
+      kPointerSize * (kFeedbackVectorOffset - kEntryLength);
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -8138,19 +8099,10 @@ class JSFunction: public JSObject {
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
-  // [literals]: Fixed array holding the materialized literals.
-  //
-  // If the function contains object, regexp or array literals, the
-  // literals array prefix contains the object, regexp, and array
-  // function to be used when creating these literals.  This is
-  // necessary so that we do not dynamically lookup the object, regexp
-  // or array functions.  Performing a dynamic lookup, we might end up
-  // using the functions from a new context that we should not have
-  // access to. For API objects we store the boilerplate in the literal array.
-  DECL_ACCESSORS(literals, LiteralsArray)
+  // [feedback_vector]: Fixed array holding the feedback vector.
+  DECL_ACCESSORS(feedback_vector, TypeFeedbackVector)
 
   static void EnsureLiterals(Handle<JSFunction> function);
-  inline TypeFeedbackVector* feedback_vector();
 
   // Unconditionally clear the type feedback vector (including vector ICs).
   void ClearTypeFeedbackInfo();
@@ -8266,8 +8218,9 @@ class JSFunction: public JSObject {
   static const int kSharedFunctionInfoOffset =
       kPrototypeOrInitialMapOffset + kPointerSize;
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
-  static const int kLiteralsOffset = kContextOffset + kPointerSize;
-  static const int kNonWeakFieldsEndOffset = kLiteralsOffset + kPointerSize;
+  static const int kFeedbackVectorOffset = kContextOffset + kPointerSize;
+  static const int kNonWeakFieldsEndOffset =
+      kFeedbackVectorOffset + kPointerSize;
   static const int kCodeEntryOffset = kNonWeakFieldsEndOffset;
   static const int kNextFunctionLinkOffset = kCodeEntryOffset + kPointerSize;
   static const int kSize = kNextFunctionLinkOffset + kPointerSize;

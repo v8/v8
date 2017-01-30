@@ -5354,7 +5354,8 @@ void HOptimizedGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   DCHECK(current_block() != NULL);
   DCHECK(current_block()->HasPredecessor());
   Callable callable = CodeFactory::FastCloneRegExp(isolate());
-  HValue* values[] = {AddThisFunction(), Add<HConstant>(expr->literal_index()),
+  int index = TypeFeedbackVector::GetIndex(expr->literal_slot());
+  HValue* values[] = {AddThisFunction(), Add<HConstant>(index),
                       Add<HConstant>(expr->pattern()),
                       Add<HConstant>(expr->flags())};
   HConstant* stub_value = Add<HConstant>(callable.code());
@@ -5455,7 +5456,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Check whether to use fast or slow deep-copying for boilerplate.
   int max_properties = kMaxFastLiteralProperties;
   Handle<Object> literals_cell(
-      closure->literals()->literal(expr->literal_index()), isolate());
+      closure->feedback_vector()->Get(expr->literal_slot()), isolate());
   Handle<AllocationSite> site;
   Handle<JSObject> boilerplate;
   if (!literals_cell->IsUndefined(isolate())) {
@@ -5475,7 +5476,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
     NoObservableSideEffectsScope no_effects(this);
     Handle<BoilerplateDescription> constant_properties =
         expr->GetOrBuildConstantProperties(isolate());
-    int literal_index = expr->literal_index();
+    int literal_index = TypeFeedbackVector::GetIndex(expr->literal_slot());
     int flags = expr->ComputeFlags(true);
 
     Add<HPushArguments>(AddThisFunction(), Add<HConstant>(literal_index),
@@ -5574,10 +5575,9 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   HInstruction* literal;
 
   Handle<AllocationSite> site;
-  Handle<LiteralsArray> literals(environment()->closure()->literals(),
-                                 isolate());
-  Handle<Object> literals_cell(literals->literal(expr->literal_index()),
-                               isolate());
+  Handle<TypeFeedbackVector> vector(environment()->closure()->feedback_vector(),
+                                    isolate());
+  Handle<Object> literals_cell(vector->Get(expr->literal_slot()), isolate());
   Handle<JSObject> boilerplate_object;
   if (!literals_cell->IsUndefined(isolate())) {
     DCHECK(literals_cell->IsAllocationSite());
@@ -5600,7 +5600,7 @@ void HOptimizedGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
     NoObservableSideEffectsScope no_effects(this);
     Handle<ConstantElementsPair> constants =
         expr->GetOrBuildConstantElements(isolate());
-    int literal_index = expr->literal_index();
+    int literal_index = TypeFeedbackVector::GetIndex(expr->literal_slot());
     int flags = expr->ComputeFlags(true);
 
     Add<HPushArguments>(AddThisFunction(), Add<HConstant>(literal_index),

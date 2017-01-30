@@ -378,8 +378,6 @@ bool HeapObject::IsTypeFeedbackVector() const {
 
 bool HeapObject::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
 
-bool HeapObject::IsLiteralsArray() const { return IsFixedArray(); }
-
 bool HeapObject::IsDeoptimizationInputData() const {
   // Must be a fixed array.
   if (!IsFixedArray()) return false;
@@ -3462,66 +3460,6 @@ void DeoptimizationOutputData::SetPcAndState(int index, Smi* offset) {
   set(1 + index * 2, offset);
 }
 
-
-Object* LiteralsArray::get(int index) const { return FixedArray::get(index); }
-
-
-void LiteralsArray::set(int index, Object* value) {
-  FixedArray::set(index, value);
-}
-
-
-void LiteralsArray::set(int index, Smi* value) {
-  FixedArray::set(index, value);
-}
-
-
-void LiteralsArray::set(int index, Object* value, WriteBarrierMode mode) {
-  FixedArray::set(index, value, mode);
-}
-
-
-LiteralsArray* LiteralsArray::cast(Object* object) {
-  SLOW_DCHECK(object->IsLiteralsArray());
-  return reinterpret_cast<LiteralsArray*>(object);
-}
-
-
-TypeFeedbackVector* LiteralsArray::feedback_vector() const {
-  if (length() == 0) {
-    return TypeFeedbackVector::cast(
-        const_cast<FixedArray*>(FixedArray::cast(this)));
-  }
-  return TypeFeedbackVector::cast(get(kVectorIndex));
-}
-
-
-void LiteralsArray::set_feedback_vector(TypeFeedbackVector* vector) {
-  if (length() <= kVectorIndex) {
-    DCHECK(vector->length() == 0);
-    return;
-  }
-  set(kVectorIndex, vector);
-}
-
-
-Object* LiteralsArray::literal(int literal_index) const {
-  return get(kFirstLiteralIndex + literal_index);
-}
-
-
-void LiteralsArray::set_literal(int literal_index, Object* literal) {
-  set(kFirstLiteralIndex + literal_index, literal);
-}
-
-void LiteralsArray::set_literal_undefined(int literal_index) {
-  set_undefined(kFirstLiteralIndex + literal_index);
-}
-
-int LiteralsArray::literals_count() const {
-  return length() - kFirstLiteralIndex;
-}
-
 int HandlerTable::GetRangeStart(int index) const {
   return Smi::cast(get(index * kRangeEntrySize + kRangeStartIndex))->value();
 }
@@ -5717,7 +5655,8 @@ ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, literals, LiteralsArray, kLiteralsOffset)
+ACCESSORS(JSFunction, feedback_vector, TypeFeedbackVector,
+          kFeedbackVectorOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
@@ -6723,11 +6662,6 @@ bool JSFunction::is_compiled() {
          code() != builtins->builtin(Builtins::kCompileBaseline) &&
          code() != builtins->builtin(Builtins::kCompileOptimized) &&
          code() != builtins->builtin(Builtins::kCompileOptimizedConcurrent);
-}
-
-TypeFeedbackVector* JSFunction::feedback_vector() {
-  LiteralsArray* array = literals();
-  return array->feedback_vector();
 }
 
 ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)

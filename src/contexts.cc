@@ -412,7 +412,7 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
 static const int kSharedOffset = 0;
 static const int kCachedCodeOffset = 1;
-static const int kLiteralsOffset = 2;
+static const int kFeedbackVectorOffset = 2;
 static const int kOsrAstIdOffset = 3;
 static const int kEntryLength = 4;
 static const int kInitialLength = kEntryLength;
@@ -438,30 +438,30 @@ int Context::SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
 
 void Context::SearchOptimizedCodeMap(SharedFunctionInfo* shared,
                                      BailoutId osr_ast_id, Code** pcode,
-                                     LiteralsArray** pliterals) {
+                                     TypeFeedbackVector** pvector) {
   DCHECK(this->IsNativeContext());
   int entry = SearchOptimizedCodeMapEntry(shared, osr_ast_id);
   if (entry != -1) {
     FixedArray* code_map = osr_code_table();
     DCHECK_LE(entry + kEntryLength, code_map->length());
     WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
-    WeakCell* literals_cell =
-        WeakCell::cast(code_map->get(entry + kLiteralsOffset));
+    WeakCell* vector_cell =
+        WeakCell::cast(code_map->get(entry + kFeedbackVectorOffset));
 
     *pcode = cell->cleared() ? nullptr : Code::cast(cell->value());
-    *pliterals = literals_cell->cleared()
-                     ? nullptr
-                     : LiteralsArray::cast(literals_cell->value());
+    *pvector = vector_cell->cleared()
+                   ? nullptr
+                   : TypeFeedbackVector::cast(vector_cell->value());
   } else {
     *pcode = nullptr;
-    *pliterals = nullptr;
+    *pvector = nullptr;
   }
 }
 
 void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
                                     Handle<SharedFunctionInfo> shared,
                                     Handle<Code> code,
-                                    Handle<LiteralsArray> literals,
+                                    Handle<TypeFeedbackVector> vector,
                                     BailoutId osr_ast_id) {
   DCHECK(native_context->IsNativeContext());
   Isolate* isolate = native_context->GetIsolate();
@@ -481,9 +481,8 @@ void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
       // Just set the code and literals of the entry.
       Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
       old_code_map->set(entry + kCachedCodeOffset, *code_cell);
-      Handle<WeakCell> literals_cell =
-          isolate->factory()->NewWeakCell(literals);
-      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
+      Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
+      old_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
       return;
     }
 
@@ -507,12 +506,12 @@ void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
   }
 
   Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
-  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
   Handle<WeakCell> shared_cell = isolate->factory()->NewWeakCell(shared);
 
   new_code_map->set(entry + kSharedOffset, *shared_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
-  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
+  new_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
   new_code_map->set(entry + kOsrAstIdOffset, Smi::FromInt(osr_ast_id.ToInt()));
 
 #ifdef DEBUG
@@ -523,7 +522,7 @@ void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
-    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
+    cell = WeakCell::cast(new_code_map->get(i + kFeedbackVectorOffset));
     DCHECK(cell->cleared() || cell->value()->IsFixedArray());
     DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
@@ -565,8 +564,8 @@ void Context::EvictFromOptimizedCodeMap(Code* optimized_code,
       code_map->set(dst + kSharedOffset, code_map->get(src + kSharedOffset));
       code_map->set(dst + kCachedCodeOffset,
                     code_map->get(src + kCachedCodeOffset));
-      code_map->set(dst + kLiteralsOffset,
-                    code_map->get(src + kLiteralsOffset));
+      code_map->set(dst + kFeedbackVectorOffset,
+                    code_map->get(src + kFeedbackVectorOffset));
       code_map->set(dst + kOsrAstIdOffset,
                     code_map->get(src + kOsrAstIdOffset));
     }

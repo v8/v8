@@ -1240,32 +1240,32 @@ class Literal final : public Expression {
   const AstValue* value_;
 };
 
-
-class AstLiteralReindexer;
-
-// Base class for literals that needs space in the corresponding JSFunction.
+// Base class for literals that need space in the type feedback vector.
 class MaterializedLiteral : public Expression {
  public:
-  int literal_index() { return literal_index_; }
-
   int depth() const {
     // only callable after initialization.
     DCHECK(depth_ >= 1);
     return depth_;
   }
 
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache) {
+    literal_slot_ = spec->AddLiteralSlot();
+  }
+
+  FeedbackVectorSlot literal_slot() const { return literal_slot_; }
+
  private:
   int depth_ : 31;
-  int literal_index_;
-
-  friend class AstLiteralReindexer;
+  FeedbackVectorSlot literal_slot_;
 
   class IsSimpleField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
 
  protected:
-  MaterializedLiteral(int literal_index, int pos, NodeType type)
-      : Expression(pos, type), depth_(0), literal_index_(literal_index) {
+  MaterializedLiteral(int pos, NodeType type)
+      : Expression(pos, type), depth_(0) {
     bit_field_ |= IsSimpleField::encode(false);
   }
 
@@ -1472,10 +1472,10 @@ class ObjectLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  ObjectLiteral(ZoneList<Property*>* properties, int literal_index,
+  ObjectLiteral(ZoneList<Property*>* properties,
                 uint32_t boilerplate_properties, int pos,
                 bool has_rest_property)
-      : MaterializedLiteral(literal_index, pos, kObjectLiteral),
+      : MaterializedLiteral(pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
         properties_(properties) {
     bit_field_ |= FastElementsField::encode(false) |
@@ -1534,9 +1534,8 @@ class RegExpLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  RegExpLiteral(const AstRawString* pattern, int flags, int literal_index,
-                int pos)
-      : MaterializedLiteral(literal_index, pos, kRegExpLiteral),
+  RegExpLiteral(const AstRawString* pattern, int flags, int pos)
+      : MaterializedLiteral(pos, kRegExpLiteral),
         flags_(flags),
         pattern_(pattern) {
     set_depth(1);
@@ -1619,9 +1618,8 @@ class ArrayLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  ArrayLiteral(ZoneList<Expression*>* values, int first_spread_index,
-               int literal_index, int pos)
-      : MaterializedLiteral(literal_index, pos, kArrayLiteral),
+  ArrayLiteral(ZoneList<Expression*>* values, int first_spread_index, int pos)
+      : MaterializedLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
         values_(values) {}
 
@@ -3333,11 +3331,10 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   ObjectLiteral* NewObjectLiteral(
-      ZoneList<ObjectLiteral::Property*>* properties, int literal_index,
+      ZoneList<ObjectLiteral::Property*>* properties,
       uint32_t boilerplate_properties, int pos, bool has_rest_property) {
-    return new (zone_)
-        ObjectLiteral(properties, literal_index, boilerplate_properties, pos,
-                      has_rest_property);
+    return new (zone_) ObjectLiteral(properties, boilerplate_properties, pos,
+                                     has_rest_property);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3355,21 +3352,18 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern, int flags,
-                                  int literal_index, int pos) {
-    return new (zone_) RegExpLiteral(pattern, flags, literal_index, pos);
+                                  int pos) {
+    return new (zone_) RegExpLiteral(pattern, flags, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
-                                int literal_index,
                                 int pos) {
-    return new (zone_) ArrayLiteral(values, -1, literal_index, pos);
+    return new (zone_) ArrayLiteral(values, -1, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
-                                int first_spread_index, int literal_index,
-                                int pos) {
-    return new (zone_)
-        ArrayLiteral(values, first_spread_index, literal_index, pos);
+                                int first_spread_index, int pos) {
+    return new (zone_) ArrayLiteral(values, first_spread_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,

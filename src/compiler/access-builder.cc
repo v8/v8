@@ -143,8 +143,8 @@ FieldAccess AccessBuilder::ForJSFunctionSharedFunctionInfo() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionLiterals() {
-  FieldAccess access = {kTaggedBase,         JSFunction::kLiteralsOffset,
+FieldAccess AccessBuilder::ForJSFunctionFeedbackVector() {
+  FieldAccess access = {kTaggedBase,         JSFunction::kFeedbackVectorOffset,
                         Handle<Name>(),      MaybeHandle<Map>(),
                         Type::Internal(),    MachineType::TaggedPointer(),
                         kPointerWriteBarrier};

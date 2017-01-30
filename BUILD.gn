@@ -933,8 +933,6 @@ v8_source_set("v8_base") {
     "src/ast/ast-expression-rewriter.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
-    "src/ast/ast-literal-reindexer.cc",
-    "src/ast/ast-literal-reindexer.h",
     "src/ast/ast-numbering.cc",
     "src/ast/ast-numbering.h",
     "src/ast/ast-traversal-visitor.h",

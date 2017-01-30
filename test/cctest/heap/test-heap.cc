@@ -4299,8 +4299,6 @@ TEST(Regress513507) {
 
   Handle<TypeFeedbackVector> vector =
       TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> lit =
-      LiteralsArray::New(isolate, vector, shared->num_literals());
   Handle<Context> context(isolate->context());
 
   // Add the new code several times to the optimized code map and also set an
@@ -4309,7 +4307,8 @@ TEST(Regress513507) {
   FLAG_gc_interval = 1000;
   for (int i = 0; i < 10; ++i) {
     BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, vector,
+                                              id);
   }
 }
 #endif  // DEBUG
@@ -4358,19 +4357,18 @@ TEST(Regress514122) {
 
   Handle<TypeFeedbackVector> vector =
       TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> lit =
-      LiteralsArray::New(isolate, vector, shared->num_literals(), TENURED);
   Handle<Context> context(isolate->context());
 
   // Add the code several times to the optimized code map.
   for (int i = 0; i < 3; ++i) {
     HandleScope inner_scope(isolate);
     BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, vector,
+                                              id);
   }
   shared->optimized_code_map()->Print();
 
-  // Add the code with a literals array to be evacuated.
+  // Add the code with a feedback vector to be evacuated.
   Page* evac_page;
   {
     HandleScope inner_scope(isolate);
@@ -4379,11 +4377,12 @@ TEST(Regress514122) {
     heap::SimulateFullSpace(heap->old_space());
 
     // Make sure there the number of literals is > 0.
-    Handle<LiteralsArray> lit = LiteralsArray::New(isolate, vector, 23);
-
-    evac_page = Page::FromAddress(lit->address());
+    Handle<TypeFeedbackVector> vector =
+        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+    evac_page = Page::FromAddress(vector->address());
     BailoutId id = BailoutId(100);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, vector,
+                                              id);
   }
 
   // Heap is ready, force {lit_page} to become an evacuation candidate and
@@ -4400,7 +4399,8 @@ TEST(Regress514122) {
   for (int i = 3; i < 6; ++i) {
     HandleScope inner_scope(isolate);
     BailoutId id = BailoutId(i);
-    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, lit, id);
+    SharedFunctionInfo::AddToOptimizedCodeMap(shared, context, code, vector,
+                                              id);
   }
 
   // Trigger a GC to flush out the bug.
@@ -4559,7 +4559,7 @@ TEST(Regress513496) {
   }
 
   // Lookup the optimized code and keep it alive.
-  CodeAndLiterals result = shared->SearchOptimizedCodeMap(
+  CodeAndVector result = shared->SearchOptimizedCodeMap(
       isolate->context()->native_context(), BailoutId::None());
   Handle<Code> optimized_code(result.code, isolate);
 

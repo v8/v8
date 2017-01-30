@@ -439,8 +439,6 @@
         'ast/ast-expression-rewriter.h',
         'ast/ast-function-literal-id-reindexer.cc',
         'ast/ast-function-literal-id-reindexer.h',
-        'ast/ast-literal-reindexer.cc',
-        'ast/ast-literal-reindexer.h',
         'ast/ast-numbering.cc',
         'ast/ast-numbering.h',
         'ast/ast-traversal-visitor.h',

@@ -1640,8 +1640,8 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
 
 void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // Materialize a regular expression literal.
-  builder()->CreateRegExpLiteral(expr->pattern(), expr->literal_index(),
-                                 expr->flags());
+  builder()->CreateRegExpLiteral(
+      expr->pattern(), feedback_index(expr->literal_slot()), expr->flags());
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
@@ -1662,7 +1662,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     entry = builder()->AllocateConstantPoolEntry();
     object_literals_.push_back(std::make_pair(expr, entry));
   }
-  builder()->CreateObjectLiteral(entry, expr->literal_index(), flags, literal);
+  builder()->CreateObjectLiteral(entry, feedback_index(expr->literal_slot()),
+                                 flags, literal);
 
   // Store computed values into the literal.
   int property_index = 0;
@@ -1846,7 +1847,8 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       expr->IsFastCloningSupported(), expr->ComputeFlags());
 
   size_t entry = builder()->AllocateConstantPoolEntry();
-  builder()->CreateArrayLiteral(entry, expr->literal_index(), flags);
+  builder()->CreateArrayLiteral(entry, feedback_index(expr->literal_slot()),
+                                flags);
   array_literals_.push_back(std::make_pair(expr, entry));
 
   Register index, literal;

@@ -425,6 +425,8 @@ bool ObjectLiteral::Property::emit_store() const { return emit_store_; }
 
 void ObjectLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                               FeedbackVectorSlotCache* cache) {
+  MaterializedLiteral::AssignFeedbackVectorSlots(spec, cache);
+
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitObjectLiteral.
   int property_index = 0;
@@ -778,6 +780,8 @@ bool ArrayLiteral::IsFastCloningSupported() const {
 
 void ArrayLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
+  MaterializedLiteral::AssignFeedbackVectorSlots(spec, cache);
+
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitArrayLiteral.
   for (int array_index = 0; array_index < values()->length(); array_index++) {

@@ -32,6 +32,7 @@ enum class FeedbackVectorSlotKind {
   INTERPRETER_COMPARE_IC,
   STORE_DATA_PROPERTY_IN_LITERAL_IC,
   CREATE_CLOSURE,
+  LITERAL,
   // This is a general purpose slot that occupies one feedback vector element.
   GENERAL,
 
@@ -84,6 +85,10 @@ class FeedbackVectorSpecBase {
 
   FeedbackVectorSlot AddGeneralSlot() {
     return AddSlot(FeedbackVectorSlotKind::GENERAL);
+  }
+
+  FeedbackVectorSlot AddLiteralSlot() {
+    return AddSlot(FeedbackVectorSlotKind::LITERAL);
   }
 
   FeedbackVectorSlot AddStoreDataPropertyInLiteralICSlot() {
@@ -238,8 +243,6 @@ class TypeFeedbackVector : public FixedArray {
   static int GetIndex(FeedbackVectorSlot slot) {
     return kReservedIndexCount + slot.ToInt();
   }
-  static int GetIndexFromSpec(const FeedbackVectorSpec* spec,
-                              FeedbackVectorSlot slot);
 
   // Conversion from an integer index to the underlying array to a slot.
   static inline FeedbackVectorSlot ToSlot(int index);

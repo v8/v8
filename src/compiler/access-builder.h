@@ -64,8 +64,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to JSFunction::shared() field.
   static FieldAccess ForJSFunctionSharedFunctionInfo();
 
-  // Provides access to JSFunction::literals() field.
-  static FieldAccess ForJSFunctionLiterals();
+  // Provides access to JSFunction::feedback_vector() field.
+  static FieldAccess ForJSFunctionFeedbackVector();
 
   // Provides access to JSFunction::code() field.
   static FieldAccess ForJSFunctionCodeEntry();

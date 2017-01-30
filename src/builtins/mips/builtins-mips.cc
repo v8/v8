@@ -1017,8 +1017,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
             Operand(masm->CodeObject()));  // Self-reference to this code.
 
   // Increment invocation count for the function.
-  __ lw(a0, FieldMemOperand(a1, JSFunction::kLiteralsOffset));
-  __ lw(a0, FieldMemOperand(a0, LiteralsArray::kFeedbackVectorOffset));
+  __ lw(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
   __ lw(t0, FieldMemOperand(
                 a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
                         TypeFeedbackVector::kHeaderSize));
@@ -1384,17 +1383,17 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
                               SharedFunctionInfo::kOffsetToPreviousContext));
   __ lw(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ Branch(&loop_bottom, ne, temp, Operand(native_context));
-  // Literals available?
+  // Feedback vector available?
   __ lw(temp, FieldMemOperand(array_pointer,
                               SharedFunctionInfo::kOffsetToPreviousLiterals));
   __ lw(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ JumpIfSmi(temp, &gotta_call_runtime);
 
-  // Save the literals in the closure.
+  // Save the feedback vector in the closure.
   __ lw(t0, MemOperand(sp, 0));
-  __ sw(temp, FieldMemOperand(t0, JSFunction::kLiteralsOffset));
+  __ sw(temp, FieldMemOperand(t0, JSFunction::kFeedbackVectorOffset));
   __ push(index);
-  __ RecordWriteField(t0, JSFunction::kLiteralsOffset, temp, index,
+  __ RecordWriteField(t0, JSFunction::kFeedbackVectorOffset, temp, index,
                       kRAHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
   __ pop(index);

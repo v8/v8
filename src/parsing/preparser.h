@@ -566,13 +566,11 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
   PreParserExpression NewRegExpLiteral(PreParserIdentifier js_pattern,
-                                       int js_flags, int literal_index,
-                                       int pos) {
+                                       int js_flags, int pos) {
     return PreParserExpression::Default();
   }
   PreParserExpression NewArrayLiteral(PreParserExpressionList values,
-                                      int first_spread_index, int literal_index,
-                                      int pos) {
+                                      int first_spread_index, int pos) {
     return PreParserExpression::ArrayLiteral(values.variables_);
   }
   PreParserExpression NewClassLiteralProperty(PreParserExpression key,
@@ -594,7 +592,6 @@ class PreParserFactory {
     return PreParserExpression::Default(value.variables_);
   }
   PreParserExpression NewObjectLiteral(PreParserExpressionList properties,
-                                       int literal_index,
                                        int boilerplate_properties, int pos,
                                        bool has_rest_property) {
     return PreParserExpression::ObjectLiteral(properties.variables_);
@@ -1584,8 +1581,6 @@ class PreParser : public ParserBase<PreParser> {
       }
     }
   }
-
-  V8_INLINE void ReindexLiterals(const PreParserFormalParameters& parameters) {}
 
   V8_INLINE PreParserExpression NoTemplateTag() {
     return PreParserExpression::NoTemplateTag();

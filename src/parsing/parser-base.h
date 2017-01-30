@@ -1714,7 +1714,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral(
     return impl()->EmptyExpression();
   }
 
-  int literal_index = function_state_->NextMaterializedLiteralIndex();
+  function_state_->NextMaterializedLiteralIndex();
 
   IdentifierT js_pattern = impl()->GetNextSymbol();
   Maybe<RegExp::Flags> flags = scanner()->ScanRegExpFlags();
@@ -1726,7 +1726,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral(
   }
   int js_flags = flags.FromJust();
   Next();
-  return factory()->NewRegExpLiteral(js_pattern, js_flags, literal_index, pos);
+  return factory()->NewRegExpLiteral(js_pattern, js_flags, pos);
 }
 
 template <typename Impl>
@@ -2004,10 +2004,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   Expect(Token::RBRACK, CHECK_OK);
 
   // Update the scope information before the pre-parsing bailout.
-  int literal_index = function_state_->NextMaterializedLiteralIndex();
+  function_state_->NextMaterializedLiteralIndex();
 
-  ExpressionT result = factory()->NewArrayLiteral(values, first_spread_index,
-                                                  literal_index, pos);
+  ExpressionT result =
+      factory()->NewArrayLiteral(values, first_spread_index, pos);
   if (first_spread_index >= 0) {
     result = factory()->NewRewritableExpression(result);
     impl()->QueueNonPatternForRewriting(result, ok);
@@ -2605,7 +2605,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   Expect(Token::RBRACE, CHECK_OK);
 
   // Computation of literal_index must happen before pre parse bailout.
-  int literal_index = function_state_->NextMaterializedLiteralIndex();
+  function_state_->NextMaterializedLiteralIndex();
 
   // In pattern rewriter, we rewrite rest property to call out to a
   // runtime function passing all the other properties as arguments to
@@ -2617,9 +2617,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
                                            MessageTemplate::kTooManyArguments);
   }
 
-  return factory()->NewObjectLiteral(properties, literal_index,
-                                     number_of_boilerplate_properties, pos,
-                                     has_rest_property);
+  return factory()->NewObjectLiteral(
+      properties, number_of_boilerplate_properties, pos, has_rest_property);
 }
 
 template <typename Impl>
@@ -4159,8 +4158,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
 
     function_state.SkipMaterializedLiterals(
         formal_parameters.materialized_literals_count);
-
-    impl()->ReindexLiterals(formal_parameters);
 
     Expect(Token::ARROW, CHECK_OK);
 

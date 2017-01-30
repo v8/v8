@@ -562,11 +562,8 @@ void Parser::PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     Variable* array;
     {
       auto empty_exprs = new (zone()) ZoneList<Expression*>(0, zone());
-      array = CreateTempVar(factory()->NewArrayLiteral(
-          empty_exprs,
-          // Reuse pattern's literal index - it is unused since there is no
-          // actual literal allocated.
-          node->literal_index(), kNoSourcePosition));
+      array = CreateTempVar(
+          factory()->NewArrayLiteral(empty_exprs, kNoSourcePosition));
     }
 
     // done = true;

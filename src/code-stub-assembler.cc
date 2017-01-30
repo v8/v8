@@ -5541,8 +5541,7 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
 Node* CodeStubAssembler::LoadTypeFeedbackVectorForStub() {
   Node* function =
       LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset);
-  Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
-  return LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
+  return LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
 }
 
 void CodeStubAssembler::UpdateFeedback(Node* feedback,
@@ -8341,8 +8340,8 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(fun, JSObject::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldRoot(fun, JSFunction::kLiteralsOffset,
-                       Heap::kEmptyLiteralsArrayRootIndex);
+  StoreObjectFieldRoot(fun, JSFunction::kFeedbackVectorOffset,
+                       Heap::kEmptyTypeFeedbackVectorRootIndex);
   StoreObjectFieldRoot(fun, JSFunction::kPrototypeOrInitialMapOffset,
                        Heap::kTheHoleValueRootIndex);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,

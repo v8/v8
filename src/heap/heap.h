@@ -58,7 +58,7 @@ using v8::MemoryPressureLevel;
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
-  V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
+  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
@@ -66,8 +66,6 @@ using v8::MemoryPressureLevel;
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
-  /* Empty scope info */                                                       \
-  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   /* Oddballs */                                                               \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \

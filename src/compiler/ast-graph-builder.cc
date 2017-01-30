@@ -1359,7 +1359,8 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
 
   // Create node to materialize a regular expression literal.
   const Operator* op = javascript()->CreateLiteralRegExp(
-      expr->pattern(), expr->flags(), expr->literal_index());
+      expr->pattern(), expr->flags(),
+      TypeFeedbackVector::GetIndex(expr->literal_slot()));
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(expr, literal);
@@ -1372,7 +1373,8 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralObject(
       expr->GetOrBuildConstantProperties(isolate()), expr->ComputeFlags(true),
-      expr->literal_index(), expr->properties_count());
+      TypeFeedbackVector::GetIndex(expr->literal_slot()),
+      expr->properties_count());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -1501,7 +1503,8 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralArray(
       expr->GetOrBuildConstantElements(isolate()), expr->ComputeFlags(true),
-      expr->literal_index(), expr->values()->length());
+      TypeFeedbackVector::GetIndex(expr->literal_slot()),
+      expr->values()->length());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());

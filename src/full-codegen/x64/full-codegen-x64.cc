@@ -121,8 +121,7 @@ void FullCodeGenerator::Generate() {
   // Increment invocation count for the function.
   {
     Comment cmnt(masm_, "[ Increment invocation count");
-    __ movp(rcx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
-    __ movp(rcx, FieldOperand(rcx, LiteralsArray::kFeedbackVectorOffset));
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
     __ SmiAddConstant(
         FieldOperand(rcx,
                      TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
@@ -1175,13 +1174,13 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   int flags = expr->ComputeFlags();
   if (MustCreateObjectLiteralWithRuntime(expr)) {
     __ Push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Push(Smi::FromInt(expr->literal_index()));
+    __ Push(SmiFromSlot(expr->literal_slot()));
     __ Push(constant_properties);
     __ Push(Smi::FromInt(flags));
     __ CallRuntime(Runtime::kCreateObjectLiteral);
   } else {
     __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Move(rbx, Smi::FromInt(expr->literal_index()));
+    __ Move(rbx, SmiFromSlot(expr->literal_slot()));
     __ Move(rcx, constant_properties);
     __ Move(rdx, Smi::FromInt(flags));
     Callable callable = CodeFactory::FastCloneShallowObject(
@@ -1311,13 +1310,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ Push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Push(Smi::FromInt(expr->literal_index()));
+    __ Push(SmiFromSlot(expr->literal_slot()));
     __ Push(constant_elements);
     __ Push(Smi::FromInt(expr->ComputeFlags()));
     __ CallRuntime(Runtime::kCreateArrayLiteral);
   } else {
     __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Move(rbx, Smi::FromInt(expr->literal_index()));
+    __ Move(rbx, SmiFromSlot(expr->literal_slot()));
     __ Move(rcx, constant_elements);
     Callable callable =
         CodeFactory::FastCloneShallowArray(isolate(), allocation_site_mode);

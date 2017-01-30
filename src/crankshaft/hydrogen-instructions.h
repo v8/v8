@@ -5124,10 +5124,6 @@ class HObjectAccess final {
     return HObjectAccess(kElementsPointer, JSObject::kElementsOffset);
   }
 
-  static HObjectAccess ForLiteralsPointer() {
-    return HObjectAccess(kInobject, JSFunction::kLiteralsOffset);
-  }
-
   static HObjectAccess ForNextFunctionLinkPointer() {
     return HObjectAccess(kInobject, JSFunction::kNextFunctionLinkOffset);
   }

@@ -121,8 +121,7 @@ void FullCodeGenerator::Generate() {
   // Increment invocation count for the function.
   {
     Comment cmnt(masm_, "[ Increment invocation count");
-    __ mov(ecx, FieldOperand(edi, JSFunction::kLiteralsOffset));
-    __ mov(ecx, FieldOperand(ecx, LiteralsArray::kFeedbackVectorOffset));
+    __ mov(ecx, FieldOperand(edi, JSFunction::kFeedbackVectorOffset));
     __ add(FieldOperand(
                ecx, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
                         TypeFeedbackVector::kHeaderSize),
@@ -1146,13 +1145,13 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // allow it.
   if (MustCreateObjectLiteralWithRuntime(expr)) {
     __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ push(Immediate(Smi::FromInt(expr->literal_index())));
+    __ push(Immediate(SmiFromSlot(expr->literal_slot())));
     __ push(Immediate(constant_properties));
     __ push(Immediate(Smi::FromInt(flags)));
     __ CallRuntime(Runtime::kCreateObjectLiteral);
   } else {
     __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
+    __ mov(ebx, Immediate(SmiFromSlot(expr->literal_slot())));
     __ mov(ecx, Immediate(constant_properties));
     __ mov(edx, Immediate(Smi::FromInt(flags)));
     Callable callable = CodeFactory::FastCloneShallowObject(
@@ -1283,13 +1282,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ push(Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ push(Immediate(Smi::FromInt(expr->literal_index())));
+    __ push(Immediate(SmiFromSlot(expr->literal_slot())));
     __ push(Immediate(constant_elements));
     __ push(Immediate(Smi::FromInt(expr->ComputeFlags())));
     __ CallRuntime(Runtime::kCreateArrayLiteral);
   } else {
     __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-    __ mov(ebx, Immediate(Smi::FromInt(expr->literal_index())));
+    __ mov(ebx, Immediate(SmiFromSlot(expr->literal_slot())));
     __ mov(ecx, Immediate(constant_elements));
     Callable callable =
         CodeFactory::FastCloneShallowArray(isolate(), allocation_site_mode);

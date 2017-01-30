@@ -631,11 +631,11 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
       &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
-  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+  CodeAndVector cached = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), osr_ast_id);
   if (cached.code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    if (cached.literals != nullptr) function->set_literals(cached.literals);
+    if (cached.vector != nullptr) function->set_feedback_vector(cached.vector);
     DCHECK(!cached.code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
     return Handle<Code>(cached.code);
@@ -660,10 +660,10 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Cache optimized context-specific code.
   Handle<JSFunction> function = info->closure();
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<LiteralsArray> literals(function->literals());
+  Handle<TypeFeedbackVector> vector(function->feedback_vector());
   Handle<Context> native_context(function->context()->native_context());
   SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
-                                            literals, info->osr_ast_id());
+                                            vector, info->osr_ast_id());
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
@@ -1788,7 +1788,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     function->MarkForOptimization();
   }
 
-  CodeAndLiterals cached = shared->SearchOptimizedCodeMap(
+  CodeAndVector cached = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), BailoutId::None());
   if (cached.code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
@@ -1797,9 +1797,9 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     function->ReplaceCode(cached.code);
   }
 
-  if (cached.literals != nullptr) {
+  if (cached.vector != nullptr) {
     DCHECK(shared->is_compiled());
-    function->set_literals(cached.literals);
+    function->set_feedback_vector(cached.vector);
   } else if (shared->is_compiled()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);

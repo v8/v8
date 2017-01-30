@@ -10263,28 +10263,6 @@ SharedFunctionInfo* DeoptimizationInputData::GetInlinedFunction(int index) {
   }
 }
 
-const int LiteralsArray::kFeedbackVectorOffset =
-    LiteralsArray::OffsetOfElementAt(LiteralsArray::kVectorIndex);
-
-const int LiteralsArray::kOffsetToFirstLiteral =
-    LiteralsArray::OffsetOfElementAt(LiteralsArray::kFirstLiteralIndex);
-
-// static
-Handle<LiteralsArray> LiteralsArray::New(Isolate* isolate,
-                                         Handle<TypeFeedbackVector> vector,
-                                         int number_of_literals,
-                                         PretenureFlag pretenure) {
-  if (vector->is_empty() && number_of_literals == 0) {
-    return Handle<LiteralsArray>::cast(
-        isolate->factory()->empty_literals_array());
-  }
-  Handle<FixedArray> literals = isolate->factory()->NewFixedArray(
-      number_of_literals + kFirstLiteralIndex, pretenure);
-  Handle<LiteralsArray> casted_literals = Handle<LiteralsArray>::cast(literals);
-  casted_literals->set_feedback_vector(*vector);
-  return casted_literals;
-}
-
 int HandlerTable::LookupRange(int pc_offset, int* data_out,
                               CatchPrediction* prediction_out) {
   int innermost_handler = -1;
@@ -12009,34 +11987,32 @@ void JSFunction::AttemptConcurrentOptimization() {
 }
 
 // static
-Handle<LiteralsArray> SharedFunctionInfo::FindOrCreateLiterals(
+Handle<TypeFeedbackVector> SharedFunctionInfo::FindOrCreateVector(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context) {
   Isolate* isolate = shared->GetIsolate();
-  CodeAndLiterals result =
+  CodeAndVector result =
       shared->SearchOptimizedCodeMap(*native_context, BailoutId::None());
-  if (result.literals != nullptr) {
+  if (result.vector != nullptr) {
     DCHECK(shared->feedback_metadata()->is_empty() ||
-           !result.literals->feedback_vector()->is_empty());
-    return handle(result.literals, isolate);
+           !result.vector->is_empty());
+    return handle(result.vector, isolate);
   }
 
-  Handle<TypeFeedbackVector> feedback_vector =
+  Handle<TypeFeedbackVector> vector =
       TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<LiteralsArray> literals =
-      LiteralsArray::New(isolate, feedback_vector, shared->num_literals());
   Handle<Code> code;
   if (result.code != nullptr) {
     code = Handle<Code>(result.code, isolate);
   }
-  AddToOptimizedCodeMap(shared, native_context, code, literals,
+  AddToOptimizedCodeMap(shared, native_context, code, vector,
                         BailoutId::None());
-  return literals;
+  return vector;
 }
 
 // static
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    MaybeHandle<Code> code, Handle<LiteralsArray> literals,
+    MaybeHandle<Code> code, Handle<TypeFeedbackVector> vector,
     BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
   if (isolate->serializer_enabled()) return;
@@ -12048,8 +12024,8 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   int entry;
 
   if (!osr_ast_id.IsNone()) {
-    Context::AddToOptimizedCodeMap(
-        native_context, shared, code.ToHandleChecked(), literals, osr_ast_id);
+    Context::AddToOptimizedCodeMap(native_context, shared,
+                                   code.ToHandleChecked(), vector, osr_ast_id);
     return;
   }
 
@@ -12061,15 +12037,14 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context);
     if (entry >= kEntriesStart) {
-      // Just set the code and literals of the entry.
+      // Just set the code and vector of the entry.
       if (!code.is_null()) {
         Handle<WeakCell> code_cell =
             isolate->factory()->NewWeakCell(code.ToHandleChecked());
         old_code_map->set(entry + kCachedCodeOffset, *code_cell);
       }
-      Handle<WeakCell> literals_cell =
-          isolate->factory()->NewWeakCell(literals);
-      old_code_map->set(entry + kLiteralsOffset, *literals_cell);
+      Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
+      old_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
       return;
     }
 
@@ -12100,12 +12075,12 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
   Handle<WeakCell> code_cell =
       code.is_null() ? isolate->factory()->empty_weak_cell()
                      : isolate->factory()->NewWeakCell(code.ToHandleChecked());
-  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
   WeakCell* context_cell = native_context->self_weak_cell();
 
   new_code_map->set(entry + kContextOffset, context_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
-  new_code_map->set(entry + kLiteralsOffset, *literals_cell);
+  new_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
 
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
@@ -12115,7 +12090,7 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
-    cell = WeakCell::cast(new_code_map->get(i + kLiteralsOffset));
+    cell = WeakCell::cast(new_code_map->get(i + kFeedbackVectorOffset));
     DCHECK(cell->cleared() || cell->value()->IsFixedArray());
   }
 #endif
@@ -12154,7 +12129,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
           ShortPrint();
           PrintF("]\n");
         }
-        // Just clear the code in order to continue sharing literals.
+        // Just clear the code in order to continue sharing a feedback vector.
         code_map->set(src + kCachedCodeOffset, heap->empty_weak_cell(),
                       SKIP_WRITE_BARRIER);
       }
@@ -12171,11 +12146,11 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
 void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<Context> native_context(function->context()->native_context());
-  if (function->literals() ==
-      function->GetIsolate()->heap()->empty_literals_array()) {
-    Handle<LiteralsArray> literals =
-        SharedFunctionInfo::FindOrCreateLiterals(shared, native_context);
-    function->set_literals(*literals);
+  if (function->feedback_vector() ==
+      function->GetIsolate()->heap()->empty_type_feedback_vector()) {
+    Handle<TypeFeedbackVector> vector =
+        SharedFunctionInfo::FindOrCreateVector(shared, native_context);
+    function->set_feedback_vector(*vector);
   }
 }
 
@@ -13755,14 +13730,14 @@ void SharedFunctionInfo::ClearCodeFromOptimizedCodeMap() {
   }
 }
 
-CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
+CodeAndVector SharedFunctionInfo::SearchOptimizedCodeMap(
     Context* native_context, BailoutId osr_ast_id) {
-  CodeAndLiterals result = {nullptr, nullptr};
+  CodeAndVector result = {nullptr, nullptr};
   if (!osr_ast_id.IsNone()) {
     Code* code;
-    LiteralsArray* literals;
-    native_context->SearchOptimizedCodeMap(this, osr_ast_id, &code, &literals);
-    result = {code, literals};
+    TypeFeedbackVector* vector;
+    native_context->SearchOptimizedCodeMap(this, osr_ast_id, &code, &vector);
+    result = {code, vector};
     return result;
   }
 
@@ -13772,12 +13747,12 @@ CodeAndLiterals SharedFunctionInfo::SearchOptimizedCodeMap(
     FixedArray* code_map = optimized_code_map();
     DCHECK_LE(entry + kEntryLength, code_map->length());
     WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
-    WeakCell* literals_cell =
-        WeakCell::cast(code_map->get(entry + kLiteralsOffset));
+    WeakCell* vector_cell =
+        WeakCell::cast(code_map->get(entry + kFeedbackVectorOffset));
 
     result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
-              literals_cell->cleared() ? nullptr : LiteralsArray::cast(
-                                                       literals_cell->value())};
+              vector_cell->cleared() ? nullptr : TypeFeedbackVector::cast(
+                                                     vector_cell->value())};
   }
   return result;
 }
