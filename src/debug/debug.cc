@@ -1414,7 +1414,8 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
           was_compiled = true;
         }
       }
-      if (!candidates[i]->HasDebugInfo()) CreateDebugInfo(candidates[i]);
+      if (!EnsureDebugInfo(candidates[i], Handle<JSFunction>::null()))
+        return false;
     }
     if (was_compiled) continue;
 
