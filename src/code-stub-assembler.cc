@@ -3386,7 +3386,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
 
   // The subject string is a sliced, cons, or thin string.
 
-  Label sliced_string(this), thin_or_sliced(this);
+  Label thin_string(this), thin_or_sliced(this);
   var_representation.Bind(
       Word32And(instance_type, Int32Constant(kStringRepresentationMask)));
   GotoIf(
@@ -3410,23 +3410,15 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     Branch(Word32Equal(Word32And(var_instance_type.value(),
                                  Int32Constant(kIsIndirectStringMask)),
                        Int32Constant(0)),
-           &underlying_unpacked, &thin_or_sliced);
+           &underlying_unpacked, &thin_string);
   }
 
   Bind(&thin_or_sliced);
   {
-    GotoIf(Word32Equal(var_representation.value(),
-                       Int32Constant(kSlicedStringTag)),
-           &sliced_string);
-    Node* actual_string =
-        LoadObjectField(var_string.value(), ThinString::kActualOffset);
-    var_string.Bind(actual_string);
-    var_instance_type.Bind(LoadInstanceType(actual_string));
-    Goto(&underlying_unpacked);
-  }
-
-  Bind(&sliced_string);
-  {
+    GotoIf(
+        Word32Equal(var_representation.value(), Int32Constant(kThinStringTag)),
+        &thin_string);
+    // Otherwise it's a sliced string.
     // Fetch parent and correct start index by offset.
     Node* sliced_offset =
         LoadObjectField(var_string.value(), SlicedString::kOffsetOffset);
@@ -3438,6 +3430,19 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     Node* slice_parent_instance_type = LoadInstanceType(slice_parent);
     var_instance_type.Bind(slice_parent_instance_type);
 
+    // The loaded parent might be a thin string.
+    Branch(Word32Equal(Word32And(var_instance_type.value(),
+                                 Int32Constant(kIsIndirectStringMask)),
+                       Int32Constant(0)),
+           &underlying_unpacked, &thin_string);
+  }
+
+  Bind(&thin_string);
+  {
+    Node* actual_string =
+        LoadObjectField(var_string.value(), ThinString::kActualOffset);
+    var_string.Bind(actual_string);
+    var_instance_type.Bind(LoadInstanceType(actual_string));
     Goto(&underlying_unpacked);
   }
 
