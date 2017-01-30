@@ -3672,7 +3672,6 @@ void MacroAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
 
 void MacroAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
   subi(sp, sp, Operand(kFloatSize));
-  frsp(src, src);
   stfs(src, MemOperand(sp, 0));
   nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
   lwz(dst, MemOperand(sp, 0));

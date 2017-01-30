@@ -2346,8 +2346,23 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       DoubleRegister dst = destination->IsFPRegister()
                                ? g.ToDoubleRegister(destination)
                                : kScratchDoubleReg;
-      double value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
-                                                        : src.ToFloat64();
+      double value;
+// bit_cast of snan is converted to qnan on ia32/x64
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+      intptr_t valueInt = (src.type() == Constant::kFloat32)
+                              ? src.ToFloat32AsInt()
+                              : src.ToFloat64AsInt();
+      if (valueInt == ((src.type() == Constant::kFloat32)
+                           ? 0x7fa00000
+                           : 0x7fa0000000000000)) {
+        value = bit_cast<double, int64_t>(0x7ff4000000000000L);
+      } else {
+#endif
+        value = (src.type() == Constant::kFloat32) ? src.ToFloat32()
+                                                   : src.ToFloat64();
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+      }
+#endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
       if (destination->IsFPStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination), r0);
