@@ -6290,7 +6290,8 @@ void CodeStubAssembler::BuildFastLoop(
 }
 
 void CodeStubAssembler::BuildFastFixedArrayForEach(
-    Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
+    const CodeStubAssembler::VariableList& vars, Node* fixed_array,
+    ElementsKind kind, Node* first_element_inclusive,
     Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
     ParameterMode mode, ForEachDirection direction) {
   STATIC_ASSERT(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
@@ -6333,7 +6334,7 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
 
   int increment = IsFastDoubleElementsKind(kind) ? kDoubleSize : kPointerSize;
   BuildFastLoop(
-      MachineType::PointerRepresentation(), start, limit,
+      vars, MachineType::PointerRepresentation(), start, limit,
       [fixed_array, &body](Node* offset) { body(fixed_array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre

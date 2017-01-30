@@ -1093,10 +1093,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       FastFixedArrayForEachBody;
 
   void BuildFastFixedArrayForEach(
-      Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
+      const CodeStubAssembler::VariableList& vars, Node* fixed_array,
+      ElementsKind kind, Node* first_element_inclusive,
       Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
       ParameterMode mode = INTPTR_PARAMETERS,
       ForEachDirection direction = ForEachDirection::kReverse);
+
+  void BuildFastFixedArrayForEach(
+      Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
+      Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
+      ParameterMode mode = INTPTR_PARAMETERS,
+      ForEachDirection direction = ForEachDirection::kReverse) {
+    CodeStubAssembler::VariableList list(0, zone());
+    BuildFastFixedArrayForEach(list, fixed_array, kind, first_element_inclusive,
+                               last_element_exclusive, body, mode, direction);
+  }
 
   Node* GetArrayAllocationSize(Node* element_count, ElementsKind kind,
                                ParameterMode mode, int header_size) {
