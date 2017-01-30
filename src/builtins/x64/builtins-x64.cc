@@ -2849,7 +2849,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
   __ LoadRoot(rcx, Heap::kArrayIteratorProtectorRootIndex);
-  __ Cmp(FieldOperand(rcx, Cell::kValueOffset),
+  __ Cmp(FieldOperand(rcx, PropertyCell::kValueOffset),
          Smi::FromInt(Isolate::kProtectorValid));
   __ j(not_equal, &runtime_call);
 

@@ -2741,7 +2741,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
   __ LoadRoot(scratch, Heap::kArrayIteratorProtectorRootIndex);
-  __ cmp(FieldOperand(scratch, Cell::kValueOffset),
+  __ cmp(FieldOperand(scratch, PropertyCell::kValueOffset),
          Immediate(Smi::FromInt(Isolate::kProtectorValid)));
   __ j(not_equal, &runtime_call);
 

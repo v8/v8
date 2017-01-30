@@ -2864,6 +2864,10 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_has_instance_protector(*cell);
 
+  cell = factory->NewPropertyCell();
+  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
+  set_array_iterator_protector(*cell);
+
   Handle<Cell> is_concat_spreadable_cell = factory->NewCell(
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_is_concat_spreadable_protector(*is_concat_spreadable_cell);
@@ -2879,10 +2883,6 @@ void Heap::CreateInitialObjects() {
   Handle<Cell> fast_array_iteration_cell = factory->NewCell(
       handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
   set_fast_array_iteration_protector(*fast_array_iteration_cell);
-
-  Handle<Cell> array_iterator_cell = factory->NewCell(
-      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
-  set_array_iterator_protector(*array_iterator_cell);
 
   cell = factory->NewPropertyCell();
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
