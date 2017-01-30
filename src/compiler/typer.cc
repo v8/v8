@@ -1641,7 +1641,7 @@ Type* Typer::Visitor::TypeJSConvertReceiver(Node* node) {
 
 
 Type* Typer::Visitor::TypeJSForInNext(Node* node) {
-  return Type::Union(Type::Name(), Type::Undefined(), zone());
+  return Type::Union(Type::String(), Type::Undefined(), zone());
 }
 
 
