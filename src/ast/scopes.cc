@@ -1883,6 +1883,11 @@ void Scope::ResolveVariablesRecursively(ParseInfo* info) {
 VariableProxy* Scope::FetchFreeVariables(DeclarationScope* max_outer_scope,
                                          ParseInfo* info,
                                          VariableProxy* stack) {
+  // Module variables must be allocated before variable resolution
+  // to ensure that AccessNeedsHoleCheck() can detect import variables.
+  if (info != nullptr && is_module_scope()) {
+    AsModuleScope()->AllocateModuleVariables();
+  }
   // Lazy parsed declaration scopes are already partially analyzed. If there are
   // unresolved references remaining, they just need to be resolved in outer
   // scopes.

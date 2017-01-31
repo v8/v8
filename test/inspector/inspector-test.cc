@@ -198,17 +198,18 @@ class UtilsExtension : public v8::Extension {
 
   static void CompileAndRunWithOrigin(
       const v8::FunctionCallbackInfo<v8::Value>& args) {
-    if (args.Length() != 4 || !args[0]->IsString() || !args[1]->IsString() ||
-        !args[2]->IsInt32() || !args[3]->IsInt32()) {
+    if (args.Length() != 5 || !args[0]->IsString() || !args[1]->IsString() ||
+        !args[2]->IsInt32() || !args[3]->IsInt32() || !args[4]->IsBoolean()) {
       fprintf(stderr,
               "Internal error: compileAndRunWithOrigin(source, name, line, "
-              "column).");
+              "column, is_module).");
       Exit();
     }
 
     backend_runner_->Append(new ExecuteStringTask(
         ToVector(args[0].As<v8::String>()), args[1].As<v8::String>(),
-        args[2].As<v8::Int32>(), args[3].As<v8::Int32>(), nullptr, nullptr));
+        args[2].As<v8::Int32>(), args[3].As<v8::Int32>(),
+        args[4].As<v8::Boolean>(), nullptr, nullptr));
   }
 
   static void SetCurrentTimeMSForTest(
@@ -313,7 +314,7 @@ class SetTimeoutExtension : public v8::Extension {
       task.reset(new ExecuteStringTask(
           ToVector(args[0].As<v8::String>()), v8::String::Empty(isolate),
           v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0),
-          "setTimeout", inspector));
+          v8::Boolean::New(isolate, false), "setTimeout", inspector));
     }
     TaskRunner::FromContext(context)->Append(task.release());
   }
@@ -455,10 +456,10 @@ class FrontendChannelImpl : public InspectorClientImpl::FrontendChannel {
     v8::Local<v8::String> result = v8::String::Concat(prefix, message_string);
     result = v8::String::Concat(result, suffix);
 
-    frontend_task_runner_->Append(
-        new ExecuteStringTask(ToVector(result), v8::String::Empty(isolate),
-                              v8::Integer::New(isolate, 0),
-                              v8::Integer::New(isolate, 0), nullptr, nullptr));
+    frontend_task_runner_->Append(new ExecuteStringTask(
+        ToVector(result), v8::String::Empty(isolate),
+        v8::Integer::New(isolate, 0), v8::Integer::New(isolate, 0),
+        v8::Boolean::New(isolate, false), nullptr, nullptr));
   }
 
  private:
