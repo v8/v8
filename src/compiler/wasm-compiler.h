@@ -68,7 +68,6 @@ class WasmCompilationUnit final {
 
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
-  Handle<FixedArray> PackProtectedInstructions() const;
 
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;

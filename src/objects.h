@@ -5021,10 +5021,6 @@ class Code: public HeapObject {
   // [source_position_table]: ByteArray for the source positions table.
   DECL_ACCESSORS(source_position_table, ByteArray)
 
-  // [protected_instructions]: Fixed array containing protected instruction and
-  // corresponding landing pad offsets.
-  DECL_ACCESSORS(protected_instructions, FixedArray)
-
   // [raw_type_feedback_info]: This field stores various things, depending on
   // the kind of the code object.
   //   FUNCTION           => type feedback information.
@@ -5401,10 +5397,7 @@ class Code: public HeapObject {
   // For FUNCTION kind, we store the type feedback info here.
   static const int kTypeFeedbackInfoOffset =
       kSourcePositionTableOffset + kPointerSize;
-  static const int kProtectedInstructionOffset =
-      kTypeFeedbackInfoOffset + kPointerSize;
-  static const int kNextCodeLinkOffset =
-      kProtectedInstructionOffset + kPointerSize;
+  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kGCMetadataOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kInstructionSizeOffset = kGCMetadataOffset + kPointerSize;
   static const int kICAgeOffset = kInstructionSizeOffset + kIntSize;

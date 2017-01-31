@@ -361,8 +361,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   STATIC_ASSERT(kSourcePositionTableOffset + kPointerSize ==
                 kTypeFeedbackInfoOffset);
   STATIC_ASSERT(kTypeFeedbackInfoOffset + kPointerSize ==
-                kProtectedInstructionOffset);
-  STATIC_ASSERT(kProtectedInstructionOffset + kPointerSize ==
                 kNextCodeLinkOffset);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {

@@ -4020,25 +4020,7 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
            compile_ms);
   }
 
-  Handle<FixedArray> protected_instructions = PackProtectedInstructions();
-  code->set_protected_instructions(*protected_instructions);
-
   return code;
-}
-
-Handle<FixedArray> WasmCompilationUnit::PackProtectedInstructions() const {
-  const int num_instructions = static_cast<int>(protected_instructions_.size());
-  Handle<FixedArray> fn_protected = isolate_->factory()->NewFixedArray(
-      num_instructions * Code::kTrapDataSize, TENURED);
-  for (unsigned i = 0; i < protected_instructions_.size(); ++i) {
-    const trap_handler::ProtectedInstructionData& instruction =
-        protected_instructions_[i];
-    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapCodeOffset,
-                      Smi::FromInt(instruction.instr_offset));
-    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapLandingOffset,
-                      Smi::FromInt(instruction.landing_offset));
-  }
-  return fn_protected;
 }
 
 }  // namespace compiler

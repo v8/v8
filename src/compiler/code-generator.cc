@@ -33,10 +33,8 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(
-    Frame* frame, Linkage* linkage, InstructionSequence* code,
-    CompilationInfo* info,
-    ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions)
+CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
+                             InstructionSequence* code, CompilationInfo* info)
     : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
@@ -60,8 +58,7 @@ CodeGenerator::CodeGenerator(
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
       source_position_table_builder_(code->zone(),
-                                     info->SourcePositionRecordingMode()),
-      protected_instructions_(protected_instructions) {
+                                     info->SourcePositionRecordingMode()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -75,14 +72,6 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
 }
 
-void CodeGenerator::AddProtectedInstruction(int instr_offset,
-                                            int landing_offset) {
-  if (protected_instructions_ != nullptr) {
-    trap_handler::ProtectedInstructionData data = {instr_offset,
-                                                   landing_offset};
-    protected_instructions_->emplace_back(data);
-  }
-}
 
 Handle<Code> CodeGenerator::GenerateCode() {
   CompilationInfo* info = this->info();

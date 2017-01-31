@@ -477,7 +477,8 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
-               RelocInfo::IsDeoptPosition(rmode)) {
+               RelocInfo::IsDeoptPosition(rmode) ||
+               RelocInfo::IsWasmProtectedLanding(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -626,7 +627,8 @@ void RelocIterator::next() {
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
-                   RelocInfo::IsDeoptPosition(rmode)) {
+                   RelocInfo::IsDeoptPosition(rmode) ||
+                   RelocInfo::IsWasmProtectedLanding(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -771,6 +773,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm global value reference";
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
       return "wasm function table size reference";
+    case WASM_PROTECTED_INSTRUCTION_LANDING:
+      return "wasm protected instruction landing";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -869,6 +873,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
+    case WASM_PROTECTED_INSTRUCTION_LANDING:
+    // TODO(eholk): make sure the protected instruction is in range.
     case NONE32:
     case NONE64:
       break;

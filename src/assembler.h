@@ -324,6 +324,7 @@ class RelocInfo {
     WASM_GLOBAL_REFERENCE,
     WASM_MEMORY_SIZE_REFERENCE,
     WASM_FUNCTION_TABLE_SIZE_REFERENCE,
+    WASM_PROTECTED_INSTRUCTION_LANDING,
     CELL,
 
     // Everything after runtime_entry (inclusive) is not GC'ed.
@@ -473,6 +474,9 @@ class RelocInfo {
   }
   static inline bool IsWasmPtrReference(Mode mode) {
     return mode == WASM_MEMORY_REFERENCE || mode == WASM_GLOBAL_REFERENCE;
+  }
+  static inline bool IsWasmProtectedLanding(Mode mode) {
+    return mode == WASM_PROTECTED_INSTRUCTION_LANDING;
   }
 
   static inline int ModeMask(Mode mode) { return 1 << mode; }

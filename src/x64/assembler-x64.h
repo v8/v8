@@ -2000,6 +2000,8 @@ class Assembler : public AssemblerBase {
     UNREACHABLE();
   }
 
+  void RecordProtectedInstruction(int pc_offset, byte* landing_offset);
+
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
   void db(uint8_t data);

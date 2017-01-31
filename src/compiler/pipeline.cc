@@ -1423,7 +1423,7 @@ struct GenerateCodePhase {
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     CodeGenerator generator(data->frame(), linkage, data->sequence(),
-                            data->info(), data->protected_instructions());
+                            data->info());
     data->set_code(generator.GenerateCode());
   }
 };

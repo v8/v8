@@ -6772,7 +6772,6 @@ CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(handler_table, FixedArray, kHandlerTableOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, ByteArray, kSourcePositionTableOffset)
-CODE_ACCESSORS(protected_instructions, FixedArray, kProtectedInstructionOffset)
 CODE_ACCESSORS(raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
 #undef CODE_ACCESSORS
@@ -6788,7 +6787,6 @@ void Code::WipeOutHeader() {
   }
   WRITE_FIELD(this, kNextCodeLinkOffset, NULL);
   WRITE_FIELD(this, kGCMetadataOffset, NULL);
-  WRITE_FIELD(this, kProtectedInstructionOffset, NULL);
 }
 
 
@@ -6872,7 +6870,6 @@ int Code::SizeIncludingMetadata() {
   size += deoptimization_data()->Size();
   size += handler_table()->Size();
   if (kind() == FUNCTION) size += source_position_table()->Size();
-  size += protected_instructions()->Size();
   return size;
 }
 

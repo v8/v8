@@ -1407,7 +1407,7 @@ class WasmInstanceBuilder {
     //--------------------------------------------------------------------------
     // Unpack and notify signal handler of protected instructions.
     //--------------------------------------------------------------------------
-    {
+    if (FLAG_wasm_trap_handler) {
       for (int i = 0; i < code_table->length(); ++i) {
         Handle<Code> code = code_table->GetValueChecked<Code>(isolate_, i);
 
@@ -1415,21 +1415,17 @@ class WasmInstanceBuilder {
           continue;
         }
 
-        FixedArray* protected_instructions = code->protected_instructions();
-        DCHECK(protected_instructions != nullptr);
+        const intptr_t base = reinterpret_cast<intptr_t>(code->entry());
+
         Zone zone(isolate_->allocator(), "Wasm Module");
         ZoneVector<trap_handler::ProtectedInstructionData> unpacked(&zone);
-        for (int i = 0; i < protected_instructions->length();
-             i += Code::kTrapDataSize) {
+        const int mode_mask =
+            RelocInfo::ModeMask(RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING);
+        for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
           trap_handler::ProtectedInstructionData data;
-          data.instr_offset =
-              protected_instructions
-                  ->GetValueChecked<Smi>(isolate_, i + Code::kTrapCodeOffset)
-                  ->value();
+          data.instr_offset = it.rinfo()->data();
           data.landing_offset =
-              protected_instructions
-                  ->GetValueChecked<Smi>(isolate_, i + Code::kTrapLandingOffset)
-                  ->value();
+              reinterpret_cast<intptr_t>(it.rinfo()->pc()) - base;
           unpacked.emplace_back(data);
         }
         // TODO(eholk): Register the protected instruction information once the

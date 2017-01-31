@@ -4664,6 +4664,14 @@ void Assembler::emit_sse_operand(XMMRegister dst) {
   emit(0xD8 | dst.low_bits());
 }
 
+void Assembler::RecordProtectedInstruction(int pc_offset, byte* landing) {
+  EnsureSpace ensure_space(this);
+  RelocInfo rinfo(isolate(), landing,
+                  RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING, pc_offset,
+                  nullptr);
+  reloc_info_writer.Write(&rinfo);
+}
+
 
 void Assembler::db(uint8_t data) {
   EnsureSpace ensure_space(this);
