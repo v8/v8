@@ -25,7 +25,8 @@ namespace internal {
 
 // Version 9: (imported from Blink)
 // Version 10: one-byte (Latin-1) strings
-static const uint32_t kLatestVersion = 10;
+// Version 11: properly separate undefined from the hole in arrays
+static const uint32_t kLatestVersion = 11;
 
 static const int kPretenureThreshold = 100 * KB;
 
@@ -49,6 +50,7 @@ enum class SerializationTag : uint8_t {
   // refTableSize:uint32_t (previously used for sanity checks; safe to ignore)
   kVerifyObjectCount = '?',
   // Oddballs (no data).
+  kTheHole = '-',
   kUndefined = '_',
   kNull = '0',
   kTrue = 'T',
@@ -538,10 +540,6 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
 
   if (should_serialize_densely) {
     DCHECK_LE(length, static_cast<uint32_t>(FixedArray::kMaxLength));
-
-    // TODO(jbroman): Distinguish between undefined and a hole (this can happen
-    // if serializing one of the elements deletes another). This requires wire
-    // format changes.
     WriteTag(SerializationTag::kBeginDenseJSArray);
     WriteVarint<uint32_t>(length);
     uint32_t i = 0;
@@ -589,6 +587,13 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
       // with.
       Handle<Object> element;
       LookupIterator it(isolate_, array, i, array, LookupIterator::OWN);
+      if (!it.IsFound()) {
+        // This can happen in the case where an array that was originally dense
+        // became sparse during serialization. It's too late to switch to the
+        // sparse format, but we can mark the elements as absent.
+        WriteTag(SerializationTag::kTheHole);
+        continue;
+      }
       if (!Object::GetProperty(&it).ToHandle(&element) ||
           !WriteObject(element).FromMaybe(false)) {
         return Nothing<bool>();
@@ -1320,10 +1325,20 @@ MaybeHandle<JSArray> ValueDeserializer::ReadDenseJSArray() {
 
   Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate_);
   for (uint32_t i = 0; i < length; i++) {
+    SerializationTag tag;
+    if (PeekTag().To(&tag) && tag == SerializationTag::kTheHole) {
+      ConsumeTag(SerializationTag::kTheHole);
+      continue;
+    }
+
     Handle<Object> element;
     if (!ReadObject().ToHandle(&element)) return MaybeHandle<JSArray>();
-    // TODO(jbroman): Distinguish between undefined and a hole.
-    if (element->IsUndefined(isolate_)) continue;
+
+    // Serialization versions less than 11 encode the hole the same as
+    // undefined. For consistency with previous behavior, store these as the
+    // hole. Past version 11, undefined means undefined.
+    if (version_ < 11 && element->IsUndefined(isolate_)) continue;
+
     elements->set(i, *element);
   }
 
