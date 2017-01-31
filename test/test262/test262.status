@@ -341,28 +341,6 @@
   'built-ins/Number/S9.3.1_A3_T1_U180E': [FAIL],
   'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5051
-  'language/expressions/arrow-function/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/expressions/arrow-function/params-trailing-comma-length': ['--harmony-trailing-commas'],
-  'language/expressions/call/trailing-comma': ['--harmony-trailing-commas'],
-  'language/expressions/function/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/expressions/function/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
-  'language/expressions/function/params-trailing-comma-length': ['--harmony-trailing-commas'],
-  'language/expressions/generators/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/expressions/generators/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
-  'language/expressions/generators/params-trailing-comma-length': ['--harmony-trailing-commas'],
-  'language/expressions/object/method-definition/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/expressions/object/method-definition/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
-  'language/expressions/object/method-definition/params-trailing-comma-length': ['--harmony-trailing-commas'],
-  'language/statements/class/definition/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/statements/class/definition/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
-  'language/statements/class/definition/params-trailing-comma-length': ['--harmony-trailing-commas'],
-  'language/statements/function/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/statements/function/params-trailing-comma-arguments': ['--harmony-trailing-commas'],
-  'language/statements/function/params-trailing-comma-length': ['--harmony-trailing-commas'],
-  'language/statements/generators/params-trailing-comma': ['--harmony-trailing-commas'],
-  'language/statements/generators/params-trailing-comma-length': ['--harmony-trailing-commas'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4698
   'language/expressions/call/tco-call-args': ['--harmony-tailcalls'],
   'language/expressions/call/tco-member-args': ['--harmony-tailcalls'],
