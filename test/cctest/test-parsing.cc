@@ -8844,7 +8844,9 @@ class ScopeTestHelper {
     int inner_scope_count = 0;
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      ++inner_scope_count;
+      if (!inner->is_hidden()) {
+        ++inner_scope_count;
+      }
     }
     CHECK_EQ(data->backing_store_[index++], inner_scope_count);
 
@@ -8876,7 +8878,9 @@ class ScopeTestHelper {
 
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      CompareScopeToData(inner, data, index);
+      if (!inner->is_hidden()) {
+        CompareScopeToData(inner, data, index);
+      }
     }
   }
 };
@@ -9249,6 +9253,36 @@ TEST(PreParserScopeAnalysis) {
       {"", "const arguments = 5;"},
       {"", "if (true) { const arguments = 5; }"},
       {"", "const arguments = 5; function f() { arguments; }"},
+
+      {"", "var [var1, var2] = [1, 2];"},
+      {"", "var [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
+      {"", "var [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
+      {"", "var [var1, ...var2] = [1, 2, 3];"},
+
+      {"", "var {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
+      {"",
+       "var {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
+      {"", "var {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
+
+      {"", "let [var1, var2] = [1, 2];"},
+      {"", "let [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
+      {"", "let [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
+      {"", "let [var1, ...var2] = [1, 2, 3];"},
+
+      {"", "let {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
+      {"",
+       "let {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
+      {"", "let {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
+
+      {"", "const [var1, var2] = [1, 2];"},
+      {"", "const [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
+      {"", "const [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
+      {"", "const [var1, ...var2] = [1, 2, 3];"},
+
+      {"", "const {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
+      {"",
+       "const {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
+      {"", "const {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {
