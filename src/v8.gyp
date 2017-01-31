@@ -632,8 +632,6 @@
         'compiler/js-frame-specialization.h',
         'compiler/js-generic-lowering.cc',
         'compiler/js-generic-lowering.h',
-        'compiler/js-global-object-specialization.cc',
-        'compiler/js-global-object-specialization.h',
         'compiler/js-graph.cc',
         'compiler/js-graph.h',
         'compiler/js-inlining.cc',

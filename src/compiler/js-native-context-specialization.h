@@ -57,6 +57,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
+  Reduction ReduceJSLoadGlobal(Node* node);
+  Reduction ReduceJSStoreGlobal(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSStoreNamed(Node* node);
   Reduction ReduceJSLoadProperty(Node* node);
@@ -84,6 +86,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               LanguageMode language_mode,
                               Handle<TypeFeedbackVector> vector,
                               FeedbackVectorSlot slot, Node* index = nullptr);
+  Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
+                               Handle<Name> name, AccessMode access_mode);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
@@ -156,6 +160,11 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
       Handle<SharedFunctionInfo> shared_info,
       Handle<FunctionTemplateInfo> function_template_info);
 
+  // Script context lookup logic.
+  struct ScriptContextTableLookupResult;
+  bool LookupInScriptContextTable(Handle<Name> name,
+                                  ScriptContextTableLookupResult* result);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
@@ -165,12 +174,16 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   SimplifiedOperatorBuilder* simplified() const;
   MachineOperatorBuilder* machine() const;
   Flags flags() const { return flags_; }
+  Handle<JSGlobalObject> global_object() const { return global_object_; }
+  Handle<JSGlobalProxy> global_proxy() const { return global_proxy_; }
   Handle<Context> native_context() const { return native_context_; }
   CompilationDependencies* dependencies() const { return dependencies_; }
   Zone* zone() const { return zone_; }
 
   JSGraph* const jsgraph_;
   Flags const flags_;
+  Handle<JSGlobalObject> global_object_;
+  Handle<JSGlobalProxy> global_proxy_;
   Handle<Context> native_context_;
   CompilationDependencies* const dependencies_;
   Zone* const zone_;
