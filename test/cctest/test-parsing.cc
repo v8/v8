@@ -9229,6 +9229,13 @@ TEST(PreParserScopeAnalysis) {
       {"", "var var1; var var1; function f() { var1; }"},
       {"", "var var1; var var1; function f() { var1 = 5; }"},
 
+      {"", "var var1; if (true) { var var1; }"},
+      {"", "var var1; if (true) { let var1; }"},
+      {"", "let var1; if (true) { let var1; }"},
+
+      {"", "var var1; if (true) { const var1 = 0; }"},
+      {"", "const var1 = 0; if (true) { const var1 = 0; }"},
+
       {"", "arguments;"},
       {"", "arguments = 5;"},
       {"", "function f() { arguments; }"},
@@ -9283,6 +9290,27 @@ TEST(PreParserScopeAnalysis) {
       {"",
        "const {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
       {"", "const {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
+
+      {"", "inner;"},
+      {"", "function f1() { f1; }"},
+      {"", "function f1() { inner; }"},
+      {"", "function f1() { function f2() { f1; } }"},
+      {"", "function arguments() {}"},
+      {"", "function f1() {} function f1() {}"},
+      {"", "var f1; function f1() {}"},
+
+      {"", "inner = 3;"},
+      {"", "function f1() { f1 = 3; }"},
+      {"", "function f1() { f1; } f1 = 3;"},
+      {"", "function arguments() {} arguments = 8"},
+      {"", "function f1() {} f1 = 3; function f1() {}"},
+
+      {"", "var var1; eval('');"},
+      {"", "var var1; function f1() { eval(''); }"},
+      {"", "let var1; eval('');"},
+      {"", "let var1; function f1() { eval(''); }"},
+      {"", "const var1 = 10; eval('');"},
+      {"", "const var1 = 10; function f1() { eval(''); }"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {
