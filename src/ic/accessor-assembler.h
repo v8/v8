@@ -150,6 +150,15 @@ class AccessorAssembler : public CodeStubAssembler {
                                  Representation representation, Node* value,
                                  Node* transition, Label* miss);
 
+  // KeyedLoadIC_Generic implementation.
+
+  void GenericElementLoad(Node* receiver, Node* receiver_map,
+                          Node* instance_type, Node* index, Label* slow);
+
+  void GenericPropertyLoad(Node* receiver, Node* receiver_map,
+                           Node* instance_type, Node* key,
+                           const LoadICParameters* p, Label* slow);
+
   // Low-level helpers.
 
   Node* PrepareValueForStore(Node* handler_word, Node* holder,

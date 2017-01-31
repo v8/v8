@@ -1098,6 +1098,222 @@ void AccessorAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
   Bind(&done);
 }
 
+void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
+                                           Node* instance_type, Node* index,
+                                           Label* slow) {
+  Comment("integer index");
+  Label if_element_hole(this), if_oob(this);
+  // Receivers requiring non-standard element accesses (interceptors, access
+  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  GotoIf(Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
+         slow);
+  Node* elements = LoadElements(receiver);
+  Node* elements_kind = LoadMapElementsKind(receiver_map);
+  Node* is_jsarray_condition =
+      Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
+  Variable var_double_value(this, MachineRepresentation::kFloat64);
+  Label rebox_double(this, &var_double_value);
+
+  // Unimplemented elements kinds fall back to a runtime call.
+  Label* unimplemented_elements_kind = slow;
+  IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
+  EmitElementLoad(receiver, elements, elements_kind, index,
+                  is_jsarray_condition, &if_element_hole, &rebox_double,
+                  &var_double_value, unimplemented_elements_kind, &if_oob,
+                  slow);
+
+  Bind(&rebox_double);
+  Return(AllocateHeapNumberWithValue(var_double_value.value()));
+
+  Bind(&if_oob);
+  {
+    Comment("out of bounds");
+    // Negative keys can't take the fast OOB path.
+    GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), slow);
+    // Positive OOB indices are effectively the same as hole loads.
+    Goto(&if_element_hole);
+  }
+
+  Bind(&if_element_hole);
+  {
+    Comment("found the hole");
+    Label return_undefined(this);
+    BranchIfPrototypesHaveNoElements(receiver_map, &return_undefined, slow);
+
+    Bind(&return_undefined);
+    Return(UndefinedConstant());
+  }
+}
+
+void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
+                                            Node* instance_type, Node* key,
+                                            const LoadICParameters* p,
+                                            Label* slow) {
+  Comment("key is unique name");
+  Label if_found_on_receiver(this), if_property_dictionary(this),
+      lookup_prototype_chain(this);
+  Variable var_details(this, MachineRepresentation::kWord32);
+  Variable var_value(this, MachineRepresentation::kTagged);
+
+  // Receivers requiring non-standard accesses (interceptors, access
+  // checks, string wrappers, proxies) are handled in the runtime.
+  // We special-case strings here, to support loading <Symbol.split> etc.
+  Variable var_receiver(this, MachineRepresentation::kTagged);
+  Variable var_receiver_map(this, MachineRepresentation::kTagged);
+  Variable var_instance_type(this, MachineRepresentation::kWord32);
+  var_receiver.Bind(receiver);
+  var_receiver_map.Bind(receiver_map);
+  var_instance_type.Bind(instance_type);
+  Label normal_receiver(this);
+  GotoIf(Int32GreaterThan(instance_type,
+                          Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
+         &normal_receiver);
+  GotoIf(Int32GreaterThanOrEqual(instance_type,
+                                 Int32Constant(FIRST_NONSTRING_TYPE)),
+         slow);
+  CSA_ASSERT(this, WordEqual(LoadMapConstructorFunctionIndex(receiver_map),
+                             IntPtrConstant(Context::STRING_FUNCTION_INDEX)));
+  Node* native_context = LoadNativeContext(p->context);
+  Node* constructor_function =
+      LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
+  Node* initial_map = LoadObjectField(constructor_function,
+                                      JSFunction::kPrototypeOrInitialMapOffset);
+  var_receiver.Bind(LoadMapPrototype(initial_map));
+  var_receiver_map.Bind(LoadMap(var_receiver.value()));
+  var_instance_type.Bind(LoadMapInstanceType(var_receiver_map.value()));
+  Goto(&normal_receiver);
+
+  Bind(&normal_receiver);
+  receiver = var_receiver.value();
+  receiver_map = var_receiver_map.value();
+  instance_type = var_instance_type.value();
+  // Check if the receiver has fast or slow properties.
+  Node* properties = LoadProperties(receiver);
+  Node* properties_map = LoadMap(properties);
+  GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
+         &if_property_dictionary);
+
+  // Try looking up the property on the receiver; if unsuccessful, look
+  // for a handler in the stub cache.
+  Comment("DescriptorArray lookup");
+
+  // Skip linear search if there are too many descriptors.
+  // TODO(jkummerow): Consider implementing binary search.
+  // See also TryLookupProperty() which has the same limitation.
+  const int32_t kMaxLinear = 210;
+  Label stub_cache(this);
+  Node* bitfield3 = LoadMapBitField3(var_receiver_map.value());
+  Node* nof = DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+  GotoIf(UintPtrLessThan(IntPtrConstant(kMaxLinear), nof), &stub_cache);
+  Node* descriptors = LoadMapDescriptors(var_receiver_map.value());
+  Variable var_name_index(this, MachineType::PointerRepresentation());
+  Label if_descriptor_found(this);
+  DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
+                         &var_name_index, &stub_cache);
+
+  Bind(&if_descriptor_found);
+  {
+    LoadPropertyFromFastObject(receiver, var_receiver_map.value(), descriptors,
+                               var_name_index.value(), &var_details,
+                               &var_value);
+    Goto(&if_found_on_receiver);
+  }
+
+  Bind(&stub_cache);
+  {
+    Comment("stub cache probe for fast property load");
+    Variable var_handler(this, MachineRepresentation::kTagged);
+    Label found_handler(this, &var_handler), stub_cache_miss(this);
+    TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
+                      &found_handler, &var_handler, &stub_cache_miss);
+    Bind(&found_handler);
+    { HandleLoadICHandlerCase(p, var_handler.value(), slow); }
+
+    Bind(&stub_cache_miss);
+    {
+      // TODO(jkummerow): Check if the property exists on the prototype
+      // chain. If it doesn't, then there's no point in missing.
+      Comment("KeyedLoadGeneric_miss");
+      TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
+                      p->name, p->slot, p->vector);
+    }
+  }
+
+  Bind(&if_property_dictionary);
+  {
+    Comment("dictionary property load");
+    // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
+    // seeing global objects here (which would need special handling).
+
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    Label dictionary_found(this, &var_name_index);
+    NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
+                                         &var_name_index,
+                                         &lookup_prototype_chain);
+    Bind(&dictionary_found);
+    {
+      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
+                                     &var_details, &var_value);
+      Goto(&if_found_on_receiver);
+    }
+  }
+
+  Bind(&if_found_on_receiver);
+  {
+    Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
+                                       p->context, var_receiver.value(), slow);
+    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
+    Return(value);
+  }
+
+  Bind(&lookup_prototype_chain);
+  {
+    Variable var_holder_map(this, MachineRepresentation::kTagged);
+    Variable var_holder_instance_type(this, MachineRepresentation::kWord32);
+    Label return_undefined(this);
+    Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
+    Label loop(this, arraysize(merged_variables), merged_variables);
+
+    var_holder_map.Bind(var_receiver_map.value());
+    var_holder_instance_type.Bind(var_instance_type.value());
+    // Private symbols must not be looked up on the prototype chain.
+    GotoIf(IsPrivateSymbol(key), &return_undefined);
+    Goto(&loop);
+    Bind(&loop);
+    {
+      // Bailout if it can be an integer indexed exotic case.
+      GotoIf(Word32Equal(var_holder_instance_type.value(),
+                         Int32Constant(JS_TYPED_ARRAY_TYPE)),
+             slow);
+      Node* proto = LoadMapPrototype(var_holder_map.value());
+      GotoIf(WordEqual(proto, NullConstant()), &return_undefined);
+      Node* proto_map = LoadMap(proto);
+      Node* proto_instance_type = LoadMapInstanceType(proto_map);
+      var_holder_map.Bind(proto_map);
+      var_holder_instance_type.Bind(proto_instance_type);
+      Label next_proto(this), return_value(this, &var_value), goto_slow(this);
+      TryGetOwnProperty(p->context, var_receiver.value(), proto, proto_map,
+                        proto_instance_type, key, &return_value, &var_value,
+                        &next_proto, &goto_slow);
+
+      // This trampoline and the next are required to appease Turbofan's
+      // variable merging.
+      Bind(&next_proto);
+      Goto(&loop);
+
+      Bind(&goto_slow);
+      Goto(slow);
+
+      Bind(&return_value);
+      Return(var_value.value());
+    }
+
+    Bind(&return_undefined);
+    Return(UndefinedConstant());
+  }
+}
+
 //////////////////// Stub cache access helpers.
 
 enum AccessorAssembler::StubCacheTable : int {
@@ -1399,198 +1615,26 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   Variable var_index(this, MachineType::PointerRepresentation());
   Variable var_unique(this, MachineRepresentation::kTagged);
   var_unique.Bind(p->name);  // Dummy initialization.
-  Variable var_details(this, MachineRepresentation::kWord32);
-  Variable var_value(this, MachineRepresentation::kTagged);
-  Label if_index(this), if_unique_name(this), if_element_hole(this),
-      if_oob(this), slow(this), stub_cache_miss(this),
-      if_property_dictionary(this), if_found_on_receiver(this),
-      lookup_prototype_chain(this);
+  Label if_index(this), if_unique_name(this), slow(this);
 
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &slow);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
-  // Receivers requiring non-standard element accesses (interceptors, access
-  // checks, strings and string wrappers, proxies) are handled in the runtime.
-  GotoIf(Int32LessThanOrEqual(instance_type,
-                              Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-         &slow);
 
   TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
             &slow);
 
   Bind(&if_index);
   {
-    Comment("integer index");
-    Node* index = var_index.value();
-    Node* elements = LoadElements(receiver);
-    Node* elements_kind = LoadMapElementsKind(receiver_map);
-    Node* is_jsarray_condition =
-        Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
-    Variable var_double_value(this, MachineRepresentation::kFloat64);
-    Label rebox_double(this, &var_double_value);
-
-    // Unimplemented elements kinds fall back to a runtime call.
-    Label* unimplemented_elements_kind = &slow;
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
-    EmitElementLoad(receiver, elements, elements_kind, index,
-                    is_jsarray_condition, &if_element_hole, &rebox_double,
-                    &var_double_value, unimplemented_elements_kind, &if_oob,
-                    &slow);
-
-    Bind(&rebox_double);
-    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    GenericElementLoad(receiver, receiver_map, instance_type, var_index.value(),
+                       &slow);
   }
 
-  Bind(&if_oob);
-  {
-    Comment("out of bounds");
-    Node* index = var_index.value();
-    // Negative keys can't take the fast OOB path.
-    GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), &slow);
-    // Positive OOB indices are effectively the same as hole loads.
-    Goto(&if_element_hole);
-  }
-
-  Bind(&if_element_hole);
-  {
-    Comment("found the hole");
-    Label return_undefined(this);
-    BranchIfPrototypesHaveNoElements(receiver_map, &return_undefined, &slow);
-
-    Bind(&return_undefined);
-    Return(UndefinedConstant());
-  }
-
-  Node* properties = nullptr;
   Bind(&if_unique_name);
   {
-    Comment("key is unique name");
-    Node* key = var_unique.value();
-    // Check if the receiver has fast or slow properties.
-    properties = LoadProperties(receiver);
-    Node* properties_map = LoadMap(properties);
-    GotoIf(WordEqual(properties_map, LoadRoot(Heap::kHashTableMapRootIndex)),
-           &if_property_dictionary);
-
-    // Try looking up the property on the receiver; if unsuccessful, look
-    // for a handler in the stub cache.
-    Comment("DescriptorArray lookup");
-
-    // Skip linear search if there are too many descriptors.
-    // TODO(jkummerow): Consider implementing binary search.
-    // See also TryLookupProperty() which has the same limitation.
-    const int32_t kMaxLinear = 210;
-    Label stub_cache(this);
-    Node* bitfield3 = LoadMapBitField3(receiver_map);
-    Node* nof =
-        DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
-    GotoIf(UintPtrLessThan(IntPtrConstant(kMaxLinear), nof), &stub_cache);
-    Node* descriptors = LoadMapDescriptors(receiver_map);
-    Variable var_name_index(this, MachineType::PointerRepresentation());
-    Label if_descriptor_found(this);
-    DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
-                           &var_name_index, &stub_cache);
-
-    Bind(&if_descriptor_found);
-    {
-      LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
-                                 var_name_index.value(), &var_details,
-                                 &var_value);
-      Goto(&if_found_on_receiver);
-    }
-
-    Bind(&stub_cache);
-    {
-      Comment("stub cache probe for fast property load");
-      Variable var_handler(this, MachineRepresentation::kTagged);
-      Label found_handler(this, &var_handler), stub_cache_miss(this);
-      TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
-                        &found_handler, &var_handler, &stub_cache_miss);
-      Bind(&found_handler);
-      { HandleLoadICHandlerCase(p, var_handler.value(), &slow); }
-
-      Bind(&stub_cache_miss);
-      {
-        Comment("KeyedLoadGeneric_miss");
-        TailCallRuntime(Runtime::kKeyedLoadIC_Miss, p->context, p->receiver,
-                        p->name, p->slot, p->vector);
-      }
-    }
-  }
-
-  Bind(&if_property_dictionary);
-  {
-    Comment("dictionary property load");
-    // We checked for LAST_CUSTOM_ELEMENTS_RECEIVER before, which rules out
-    // seeing global objects here (which would need special handling).
-
-    Node* key = var_unique.value();
-    Variable var_name_index(this, MachineType::PointerRepresentation());
-    Label dictionary_found(this, &var_name_index);
-    NameDictionaryLookup<NameDictionary>(properties, key, &dictionary_found,
-                                         &var_name_index,
-                                         &lookup_prototype_chain);
-    Bind(&dictionary_found);
-    {
-      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
-                                     &var_details, &var_value);
-      Goto(&if_found_on_receiver);
-    }
-  }
-
-  Bind(&if_found_on_receiver);
-  {
-    Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
-                                       p->context, receiver, &slow);
-    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
-    Return(value);
-  }
-
-  Bind(&lookup_prototype_chain);
-  {
-    Variable var_holder_map(this, MachineRepresentation::kTagged);
-    Variable var_holder_instance_type(this, MachineRepresentation::kWord32);
-    Label return_undefined(this);
-    Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
-    Label loop(this, arraysize(merged_variables), merged_variables);
-
-    var_holder_map.Bind(receiver_map);
-    var_holder_instance_type.Bind(instance_type);
-    // Private symbols must not be looked up on the prototype chain.
-    GotoIf(IsPrivateSymbol(var_unique.value()), &return_undefined);
-    Goto(&loop);
-    Bind(&loop);
-    {
-      // Bailout if it can be an integer indexed exotic case.
-      GotoIf(Word32Equal(var_holder_instance_type.value(),
-                         Int32Constant(JS_TYPED_ARRAY_TYPE)),
-             &slow);
-      Node* proto = LoadMapPrototype(var_holder_map.value());
-      GotoIf(WordEqual(proto, NullConstant()), &return_undefined);
-      Node* proto_map = LoadMap(proto);
-      Node* proto_instance_type = LoadMapInstanceType(proto_map);
-      var_holder_map.Bind(proto_map);
-      var_holder_instance_type.Bind(proto_instance_type);
-      Label next_proto(this), return_value(this, &var_value), goto_slow(this);
-      TryGetOwnProperty(p->context, receiver, proto, proto_map,
-                        proto_instance_type, var_unique.value(), &return_value,
-                        &var_value, &next_proto, &goto_slow);
-
-      // This trampoline and the next are required to appease Turbofan's
-      // variable merging.
-      Bind(&next_proto);
-      Goto(&loop);
-
-      Bind(&goto_slow);
-      Goto(&slow);
-
-      Bind(&return_value);
-      Return(var_value.value());
-    }
-
-    Bind(&return_undefined);
-    Return(UndefinedConstant());
+    GenericPropertyLoad(receiver, receiver_map, instance_type,
+                        var_unique.value(), p, &slow);
   }
 
   Bind(&slow);
