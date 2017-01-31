@@ -2901,8 +2901,7 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
 
 
 bool Isolate::use_crankshaft() const {
-  return FLAG_crankshaft &&
-         !serializer_enabled_ &&
+  return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
          CpuFeatures::SupportsCrankshaft();
 }
 
