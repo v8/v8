@@ -40,10 +40,6 @@ deps = {
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
     Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "960cc3ec8c679adad9b6f9019f737c8cd9ad0a75",
-# TODO(eholk): once the Wasm JS API Conformance Suite is finalized, mirror it in
-# a chromium repo like the other deps.
-  "v8/test/wasm-js":
-    "https://github.com/bnjbvr/wasm-spec.git" + "@" + "190bd270e148a532082f6eb1b97dea5302800485",
 }
 
 deps_os = {

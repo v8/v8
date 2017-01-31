@@ -14,8 +14,7 @@
       '../../tools/profviz/composer.js',
       '../../tools/splaytree.js',
       '../../tools/tickprocessor.js',
-      '../../tools/dumpcpp.js',
-      '../wasm-js/',
+      '../../tools/dumpcpp.js'
     ],
   },
   'includes': [
