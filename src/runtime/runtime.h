@@ -289,9 +289,6 @@ namespace internal {
   F(AllocateSeqTwoByteString, 1, 1)                 \
   F(CheckIsBootstrapping, 0, 1)                     \
   F(CreateListFromArrayLike, 1, 1)                  \
-  F(EnqueueMicrotask, 1, 1)                         \
-  F(EnqueuePromiseReactionJob, 1, 1)                \
-  F(EnqueuePromiseResolveThenableJob, 1, 1)         \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(ExportExperimentalFromRuntime, 1, 1)            \
   F(ExportFromRuntime, 1, 1)                        \
@@ -303,16 +300,6 @@ namespace internal {
   F(NewSyntaxError, 2, 1)                           \
   F(NewTypeError, 2, 1)                             \
   F(OrdinaryHasInstance, 2, 1)                      \
-  F(ReportPromiseReject, 2, 1)                      \
-  F(PromiseHookInit, 2, 1)                          \
-  F(PromiseHookResolve, 1, 1)                       \
-  F(PromiseHookBefore, 1, 1)                        \
-  F(PromiseHookAfter, 1, 1)                         \
-  F(PromiseMarkAsHandled, 1, 1)                     \
-  F(PromiseRejectEventFromStack, 2, 1)              \
-  F(PromiseRevokeReject, 1, 1)                      \
-  F(PromiseResult, 1, 1)                            \
-  F(PromiseStatus, 1, 1)                            \
   F(PromoteScheduledException, 0, 1)                \
   F(ReThrow, 1, 1)                                  \
   F(RunMicrotasks, 0, 1)                            \
@@ -456,6 +443,21 @@ namespace internal {
   F(LessThanOrEqual, 2, 1)              \
   F(GreaterThanOrEqual, 2, 1)           \
   F(InstanceOf, 2, 1)
+
+#define FOR_EACH_INTRINSIC_PROMISE(F)       \
+  F(EnqueueMicrotask, 1, 1)                 \
+  F(EnqueuePromiseReactionJob, 1, 1)        \
+  F(EnqueuePromiseResolveThenableJob, 1, 1) \
+  F(PromiseHookInit, 2, 1)                  \
+  F(PromiseHookResolve, 1, 1)               \
+  F(PromiseHookBefore, 1, 1)                \
+  F(PromiseHookAfter, 1, 1)                 \
+  F(PromiseMarkAsHandled, 1, 1)             \
+  F(PromiseRejectEventFromStack, 2, 1)      \
+  F(PromiseRevokeReject, 1, 1)              \
+  F(PromiseResult, 1, 1)                    \
+  F(PromiseStatus, 1, 1)                    \
+  F(ReportPromiseReject, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F)     \
   F(IsJSProxy, 1, 1)                    \
@@ -1000,6 +1002,7 @@ namespace internal {
   FOR_EACH_INTRINSIC_NUMBERS(F)             \
   FOR_EACH_INTRINSIC_OBJECT(F)              \
   FOR_EACH_INTRINSIC_OPERATORS(F)           \
+  FOR_EACH_INTRINSIC_PROMISE(F)             \
   FOR_EACH_INTRINSIC_PROXY(F)               \
   FOR_EACH_INTRINSIC_REGEXP(F)              \
   FOR_EACH_INTRINSIC_SCOPES(F)              \
