@@ -11640,7 +11640,7 @@ EVALUATE(ML) {
 }
 
 EVALUATE(DL) {
-  DCHECK_OPCODE(ML);
+  DCHECK_OPCODE(DL);
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
