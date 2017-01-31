@@ -1767,7 +1767,6 @@ JSNativeContextSpecialization::BuildElementAccess(
                                         effect, control);
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
-      DCHECK_EQ(STANDARD_STORE, store_mode);
       index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
                                         length, effect, control);
     }
@@ -1825,7 +1824,6 @@ JSNativeContextSpecialization::BuildElementAccess(
               graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
         } else {
           // Perform the actual store
-          DCHECK_EQ(STANDARD_STORE, store_mode);
           effect = graph()->NewNode(
               simplified()->StoreTypedElement(external_array_type), buffer,
               base_pointer, external_pointer, index, value, effect, control);
