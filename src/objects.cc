@@ -16292,13 +16292,16 @@ class InternalizedStringKey : public HashTableKey {
       DCHECK(string_->IsInternalizedString());
       return string_;
     }
-    // External strings get special treatment, to avoid copying their contents.
-    if (string_->IsExternalOneByteString()) {
-      return isolate->factory()
-          ->InternalizeExternalString<ExternalOneByteString>(string_);
-    } else if (string_->IsExternalTwoByteString()) {
-      return isolate->factory()
-          ->InternalizeExternalString<ExternalTwoByteString>(string_);
+    if (FLAG_thin_strings) {
+      // External strings get special treatment, to avoid copying their
+      // contents.
+      if (string_->IsExternalOneByteString()) {
+        return isolate->factory()
+            ->InternalizeExternalString<ExternalOneByteString>(string_);
+      } else if (string_->IsExternalTwoByteString()) {
+        return isolate->factory()
+            ->InternalizeExternalString<ExternalTwoByteString>(string_);
+      }
     }
     // Otherwise allocate a new internalized string.
     return isolate->factory()->NewInternalizedStringImpl(
@@ -17329,40 +17332,61 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   InternalizedStringKey key(string);
   Handle<String> result = LookupKey(isolate, &key);
 
-  if (string->IsExternalString()) {
-    if (result->IsExternalOneByteString()) {
-      MigrateExternalStringResource<ExternalOneByteString>(isolate, string,
-                                                           result);
-    } else if (result->IsExternalTwoByteString()) {
-      MigrateExternalStringResource<ExternalTwoByteString>(isolate, string,
-                                                           result);
-    } else {
-      // If the external string is duped into an existing non-external
-      // internalized string, free its resource (it's about to be rewritten
-      // into a ThinString below).
-      isolate->heap()->FinalizeExternalString(*string);
+  if (FLAG_thin_strings) {
+    if (string->IsExternalString()) {
+      if (result->IsExternalOneByteString()) {
+        MigrateExternalStringResource<ExternalOneByteString>(isolate, string,
+                                                             result);
+      } else if (result->IsExternalTwoByteString()) {
+        MigrateExternalStringResource<ExternalTwoByteString>(isolate, string,
+                                                             result);
+      } else {
+        // If the external string is duped into an existing non-external
+        // internalized string, free its resource (it's about to be rewritten
+        // into a ThinString below).
+        isolate->heap()->FinalizeExternalString(*string);
+      }
     }
-  }
 
-  // The LookupKey() call above tries to internalize the string in-place.
-  // In cases where that wasn't possible (e.g. new-space strings), turn them
-  // into ThinStrings referring to their internalized versions now.
-  if (!string->IsInternalizedString()) {
-    DisallowHeapAllocation no_gc;
-    bool one_byte = result->IsOneByteRepresentation();
-    Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
-                               : isolate->factory()->thin_string_map();
-    int old_size = string->Size();
-    DCHECK(old_size >= ThinString::kSize);
-    string->synchronized_set_map(*map);
-    Handle<ThinString> thin = Handle<ThinString>::cast(string);
-    thin->set_actual(*result);
-    Address thin_end = thin->address() + ThinString::kSize;
-    int size_delta = old_size - ThinString::kSize;
-    if (size_delta != 0) {
-      Heap* heap = isolate->heap();
-      heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
-      heap->AdjustLiveBytes(*thin, -size_delta);
+    // The LookupKey() call above tries to internalize the string in-place.
+    // In cases where that wasn't possible (e.g. new-space strings), turn them
+    // into ThinStrings referring to their internalized versions now.
+    if (!string->IsInternalizedString()) {
+      DisallowHeapAllocation no_gc;
+      bool one_byte = result->IsOneByteRepresentation();
+      Handle<Map> map = one_byte
+                            ? isolate->factory()->thin_one_byte_string_map()
+                            : isolate->factory()->thin_string_map();
+      int old_size = string->Size();
+      DCHECK(old_size >= ThinString::kSize);
+      string->synchronized_set_map(*map);
+      Handle<ThinString> thin = Handle<ThinString>::cast(string);
+      thin->set_actual(*result);
+      Address thin_end = thin->address() + ThinString::kSize;
+      int size_delta = old_size - ThinString::kSize;
+      if (size_delta != 0) {
+        Heap* heap = isolate->heap();
+        heap->CreateFillerObjectAt(thin_end, size_delta,
+                                   ClearRecordedSlots::kNo);
+        heap->AdjustLiveBytes(*thin, -size_delta);
+      }
+    }
+  } else {  // !FLAG_thin_strings
+    if (string->IsConsString()) {
+      Handle<ConsString> cons = Handle<ConsString>::cast(string);
+      cons->set_first(*result);
+      cons->set_second(isolate->heap()->empty_string());
+    } else if (string->IsSlicedString()) {
+      STATIC_ASSERT(ConsString::kSize == SlicedString::kSize);
+      DisallowHeapAllocation no_gc;
+      bool one_byte = result->IsOneByteRepresentation();
+      Handle<Map> map = one_byte
+                            ? isolate->factory()->cons_one_byte_string_map()
+                            : isolate->factory()->cons_string_map();
+      string->set_map(*map);
+      Handle<ConsString> cons = Handle<ConsString>::cast(string);
+      cons->set_first(*result);
+      cons->set_second(isolate->heap()->empty_string());
     }
   }
   return result;
