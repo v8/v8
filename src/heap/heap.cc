@@ -864,7 +864,8 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   if (isolate()->concurrent_recompilation_enabled()) {
     // The optimizing compiler may be unnecessarily holding on to memory.
     DisallowHeapAllocation no_recursive_gc;
-    isolate()->optimizing_compile_dispatcher()->Flush();
+    isolate()->optimizing_compile_dispatcher()->Flush(
+        OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
   }
   isolate()->ClearSerializerData();
   set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
@@ -1061,7 +1062,8 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
   }
   if (isolate()->concurrent_recompilation_enabled()) {
     // Flush the queued recompilation tasks.
-    isolate()->optimizing_compile_dispatcher()->Flush();
+    isolate()->optimizing_compile_dispatcher()->Flush(
+        OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
   }
   AgeInlineCaches();
   number_of_disposed_maps_ = retained_maps()->Length();
@@ -4408,7 +4410,8 @@ void Heap::CheckMemoryPressure() {
     if (isolate()->concurrent_recompilation_enabled()) {
       // The optimizing compiler may be unnecessarily holding on to memory.
       DisallowHeapAllocation no_recursive_gc;
-      isolate()->optimizing_compile_dispatcher()->Flush();
+      isolate()->optimizing_compile_dispatcher()->Flush(
+          OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
     }
   }
   if (memory_pressure_level_.Value() == MemoryPressureLevel::kCritical) {

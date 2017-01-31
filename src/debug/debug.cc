@@ -1263,7 +1263,8 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
   DCHECK(shared->is_compiled());
 
   if (isolate_->concurrent_recompilation_enabled()) {
-    isolate_->optimizing_compile_dispatcher()->Flush();
+    isolate_->optimizing_compile_dispatcher()->Flush(
+        OptimizingCompileDispatcher::BlockingBehavior::kBlock);
   }
 
   List<Handle<JSFunction> > functions;
