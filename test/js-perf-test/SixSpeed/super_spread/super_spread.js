@@ -6,15 +6,15 @@
 // Copyright 2014 Kevin Decker <https://github.com/kpdecker/six-speed/>
 
 new BenchmarkSuite('SuperSpread-ES5', [1000], [
-  new Benchmark('ES5', true, true, 150000, ES5),
+  new Benchmark('ES5', false, false, 0, ES5),
 ]);
 
 new BenchmarkSuite('SuperSpread-Babel', [1000], [
-  new Benchmark('Babel', true, true, 150000, Babel),
+  new Benchmark('Babel', false, false, 0, Babel),
 ]);
 
 new BenchmarkSuite('SuperSpread-ES6', [1000], [
-  new Benchmark('ES6', true, true, 150000, ES6),
+  new Benchmark('ES6', false, false, 0, ES6),
 ]);
 
 // ----------------------------------------------------------------------------
