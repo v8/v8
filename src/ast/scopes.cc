@@ -1844,7 +1844,6 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
 #endif
 
   DCHECK_NOT_NULL(var);
-  if (proxy->is_assigned()) var->set_maybe_assigned();
   if (AccessNeedsHoleCheck(var, proxy, this)) proxy->set_needs_hole_check();
   proxy->BindTo(var);
 }

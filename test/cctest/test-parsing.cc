@@ -3525,7 +3525,10 @@ TEST(MaybeAssignedTopLevel) {
   const char* prefixes[] = {
       "let foo; ",          "let foo = 0; ",
       "let [foo] = [1]; ",  "let {foo} = {foo: 2}; ",
-      "let {foo=3} = {}; ",
+      "let {foo=3} = {}; ", "function foo() {}; ",
+      "var foo; ",          "var foo = 0; ",
+      "var [foo] = [1]; ",  "var {foo} = {foo: 2}; ",
+      "var {foo=3} = {}; ", "function* foo() {}; ",
   };
   const char* sources[] = {
       "function bar() {foo = 42}; ext(bar); ext(foo)",

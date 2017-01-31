@@ -1480,6 +1480,10 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                    bool* ok) {
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
+
+  DeclarationScope* target_scope = GetDeclarationScope();
+  MarkTopLevelVariableAsAssigned(target_scope, proxy);
+
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, function, scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
@@ -1488,7 +1492,6 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
         factory()->NewSloppyBlockFunctionStatement();
-    DeclarationScope* target_scope = GetDeclarationScope();
     target_scope->DeclareSloppyBlockFunction(variable_name, scope(), statement);
     return statement;
   }

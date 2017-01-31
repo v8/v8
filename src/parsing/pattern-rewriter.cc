@@ -162,6 +162,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     names_->Add(name, zone());
   }
 
+  Scope* var_init_scope = descriptor_->scope;
+  MarkTopLevelVariableAsAssigned(var_init_scope, proxy);
+
   // If there's no initializer, we're done.
   if (value == nullptr) return;
 
@@ -177,7 +180,6 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // 'v' than the 'v' in the declaration (e.g., if we are inside a
   // 'with' statement or 'catch' block). Global var declarations
   // also need special treatment.
-  Scope* var_init_scope = descriptor_->scope;
 
   if (descriptor_->mode == VAR && var_init_scope->is_script_scope()) {
     // Global variable declarations must be compiled in a specific
@@ -220,19 +222,9 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     // But for var declarations we need to do a new lookup.
     if (descriptor_->mode == VAR) {
       proxy = var_init_scope->NewUnresolved(factory(), name);
-      // TODO(neis): Set is_assigned on proxy.
     } else {
       DCHECK_NOT_NULL(proxy);
       DCHECK_NOT_NULL(proxy->var());
-      if (var_init_scope->is_script_scope() ||
-          var_init_scope->is_module_scope()) {
-        // We have to pessimistically assume that top-level variables will be
-        // assigned.  This is because they might be accessed by a lazily parsed
-        // top-level function, which, for efficiency, we preparse without
-        // variable tracking.  In the case of a script (not a module), they
-        // might also get accessed by another script.
-        proxy->set_is_assigned();
-      }
     }
     // Add break location for destructured sub-pattern.
     int pos = IsSubPattern() ? pattern->position() : value->position();

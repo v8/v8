@@ -218,6 +218,7 @@ void VariableProxy::BindTo(Variable* var) {
   set_var(var);
   set_is_resolved();
   var->set_is_used();
+  if (is_assigned()) var->set_maybe_assigned();
 }
 
 void VariableProxy::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
