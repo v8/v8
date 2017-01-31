@@ -403,14 +403,7 @@ def SetupEnvironment(options):
   )
 
   if options.asan:
-    os.environ['ASAN_OPTIONS'] = ":".join([
-      'detect_leaks=1',
-      symbolizer,
-    ])
-    os.environ['LSAN_OPTIONS'] = ":".join([
-      'suppressions=%s' % os.path.join(
-          BASE_DIR, 'tools', 'memory', 'lsan', 'suppressions.txt'),
-    ])
+    os.environ['ASAN_OPTIONS'] = symbolizer
 
   if options.sancov_dir:
     assert os.path.exists(options.sancov_dir)
