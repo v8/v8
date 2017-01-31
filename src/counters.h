@@ -983,6 +983,8 @@ class RuntimeCallTimerScope {
   HT(wasm_compile_module_time, V8.WasmCompileModuleMicroSeconds, 1000000,      \
      MICROSECOND)                                                              \
   HT(wasm_compile_function_time, V8.WasmCompileFunctionMicroSeconds, 1000000,  \
+     MICROSECOND)                                                              \
+  HT(asm_wasm_translation_time, V8.AsmWasmTranslationMicroSeconds, 1000000,    \
      MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \

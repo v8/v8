@@ -1994,6 +1994,9 @@ AsmWasmBuilder::AsmWasmBuilder(CompilationInfo* info)
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
 AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
+  HistogramTimerScope asm_wasm_time_scope(
+      info_->isolate()->counters()->asm_wasm_translation_time());
+
   Zone* zone = info_->zone();
   AsmWasmBuilderImpl impl(info_->isolate(), zone, info_,
                           info_->parse_info()->ast_value_factory(),
