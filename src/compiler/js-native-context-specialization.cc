@@ -1080,12 +1080,21 @@ JSNativeContextSpecialization::BuildPropertyAccess(
       // Optimize immutable property loads.
       HeapObjectMatcher m(receiver);
       if (m.HasValue() && m.Value()->IsJSObject()) {
+        // TODO(ishell): Use something simpler like
+        //
+        // Handle<Object> value =
+        //     JSObject::FastPropertyAt(Handle<JSObject>::cast(m.Value()),
+        //                              Representation::Tagged(), field_index);
+        //
+        // here, once we have the immutable bit in the access_info.
+
         // TODO(turbofan): Given that we already have the field_index here, we
         // might be smarter in the future and not rely on the LookupIterator,
         // but for now let's just do what Crankshaft does.
         LookupIterator it(m.Value(), name,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
-        if (it.IsFound() && it.IsReadOnly() && !it.IsConfigurable()) {
+        if (it.state() == LookupIterator::DATA && it.IsReadOnly() &&
+            !it.IsConfigurable()) {
           Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
           return ValueEffectControl(value, effect, control);
         }
