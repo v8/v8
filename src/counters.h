@@ -1148,10 +1148,6 @@ class RuntimeCallTimerScope {
   SC(lo_space_bytes_available, V8.MemoryLoSpaceBytesAvailable)                 \
   SC(lo_space_bytes_committed, V8.MemoryLoSpaceBytesCommitted)                 \
   SC(lo_space_bytes_used, V8.MemoryLoSpaceBytesUsed)                           \
-  SC(turbo_escape_allocs_replaced, V8.TurboEscapeAllocsReplaced)               \
-  SC(crankshaft_escape_allocs_replaced, V8.CrankshaftEscapeAllocsReplaced)     \
-  SC(turbo_escape_loads_replaced, V8.TurboEscapeLoadsReplaced)                 \
-  SC(crankshaft_escape_loads_replaced, V8.CrankshaftEscapeLoadsReplaced)       \
   /* Total code size (including metadata) of baseline code or bytecode. */     \
   SC(total_baseline_code_size, V8.TotalBaselineCodeSize)                       \
   /* Total count of functions compiled using the baseline compiler. */         \
