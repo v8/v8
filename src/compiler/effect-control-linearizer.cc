@@ -2303,8 +2303,8 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
 
   auto done = __ MakeLabel<2>(MachineRepresentation::kTagged);
   auto done_grow = __ MakeLabel<2>(MachineRepresentation::kTagged);
+  auto if_grow = __ MakeDeferredLabel<1>();
   auto if_not_grow = __ MakeLabel<1>();
-  auto if_not_grow_backing_store = __ MakeLabel<1>();
 
   Node* check0 = (flags & GrowFastElementsFlag::kHoleyElements)
                      ? __ Uint32LessThanOrEqual(length, index)
@@ -2318,10 +2318,10 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
 
     // Check if we need to grow the {elements} backing store.
     Node* check1 = __ Uint32LessThan(index, elements_length);
-    __ GotoUnless(check1, &if_not_grow_backing_store);
+    __ GotoUnless(check1, &if_grow);
     __ Goto(&done_grow, elements);
 
-    __ Bind(&if_not_grow_backing_store);
+    __ Bind(&if_grow);
     // We need to grow the {elements} for {object}.
     Operator::Properties properties = Operator::kEliminatable;
     Callable callable =
