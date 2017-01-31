@@ -633,6 +633,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kChangeTaggedToFloat64:
       result = LowerChangeTaggedToFloat64(node);
       break;
+    case IrOpcode::kChangeTaggedToTaggedSigned:
+      result = LowerChangeTaggedToTaggedSigned(node);
+      break;
     case IrOpcode::kTruncateTaggedToBit:
       result = LowerTruncateTaggedToBit(node);
       break;
@@ -1030,6 +1033,27 @@ Node* EffectControlLinearizer::LowerChangeTaggedToUint32(Node* node) {
 
 Node* EffectControlLinearizer::LowerChangeTaggedToFloat64(Node* node) {
   return LowerTruncateTaggedToFloat64(node);
+}
+
+Node* EffectControlLinearizer::LowerChangeTaggedToTaggedSigned(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_not_smi = __ MakeDeferredLabel<1>();
+  auto done = __ MakeLabel<2>(MachineRepresentation::kWord32);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoUnless(check, &if_not_smi);
+  __ Goto(&done, value);
+
+  __ Bind(&if_not_smi);
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* vfalse = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  vfalse = __ ChangeFloat64ToInt32(vfalse);
+  vfalse = ChangeInt32ToSmi(vfalse);
+  __ Goto(&done, vfalse);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {

@@ -271,9 +271,15 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
     }
-  } else if (CanBeTaggedPointer(output_rep) &&
-             use_info.type_check() == TypeCheckKind::kSignedSmall) {
-    op = simplified()->CheckedTaggedToTaggedSigned();
+  } else if (CanBeTaggedPointer(output_rep)) {
+    if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
+      op = simplified()->CheckedTaggedToTaggedSigned();
+    } else if (output_type->Is(Type::SignedSmall())) {
+      op = simplified()->ChangeTaggedToTaggedSigned();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTaggedSigned);
+    }
   } else if (output_rep == MachineRepresentation::kBit &&
              use_info.type_check() == TypeCheckKind::kSignedSmall) {
     // TODO(turbofan): Consider adding a Bailout operator that just deopts.

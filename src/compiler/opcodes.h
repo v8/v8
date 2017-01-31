@@ -191,6 +191,7 @@
   V(ChangeTaggedToInt32)             \
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
+  V(ChangeTaggedToTaggedSigned)      \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeUint32ToTagged)            \
