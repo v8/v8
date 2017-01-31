@@ -350,6 +350,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MATHS(F) F(GenerateRandomNumbers, 0, 1)
 
 #define FOR_EACH_INTRINSIC_MODULE(F) \
+  F(DynamicImportCall, 1, 1)         \
   F(GetModuleNamespace, 1, 1)        \
   F(LoadModuleVariable, 1, 1)        \
   F(StoreModuleVariable, 2, 1)

@@ -1285,6 +1285,7 @@ enum ParserFlag {
   kAllowHarmonyTrailingCommas,
   kAllowHarmonyClassFields,
   kAllowHarmonyObjectRestSpread,
+  kAllowHarmonyDynamicImport,
 };
 
 enum ParserSyncTestResult {
@@ -1302,6 +1303,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
+  i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
 }
 
 void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
@@ -1316,13 +1318,15 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyClassFields));
   parser->set_allow_harmony_object_rest_spread(
       flags.Contains(kAllowHarmonyObjectRestSpread));
+  parser->set_allow_harmony_dynamic_import(
+      flags.Contains(kAllowHarmonyDynamicImport));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
                              i::EnumSet<ParserFlag> flags,
                              ParserSyncTestResult result,
-                             bool is_module = false,
-                             bool test_preparser = true) {
+                             bool is_module = false, bool test_preparser = true,
+                             bool ignore_error_msg = false) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
 
@@ -1399,7 +1403,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
       CHECK(false);
     }
     // Check that preparser and parser produce the same error.
-    if (test_preparser) {
+    if (test_preparser && !ignore_error_msg) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatMessage(CcTest::i_isolate());
       if (!i::String::Equals(message_string, preparser_message)) {
@@ -1446,7 +1450,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   }
 }
 
-
 void TestParserSync(const char* source, const ParserFlag* varying_flags,
                     size_t varying_flags_length,
                     ParserSyncTestResult result = kSuccessOrError,
@@ -1454,7 +1457,8 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
                     size_t always_true_flags_length = 0,
                     const ParserFlag* always_false_flags = NULL,
                     size_t always_false_flags_length = 0,
-                    bool is_module = false, bool test_preparser = true) {
+                    bool is_module = false, bool test_preparser = true,
+                    bool ignore_error_msg = false) {
   i::Handle<i::String> str =
       CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(source);
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
@@ -1471,7 +1475,8 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
          ++flag_index) {
       flags.Remove(always_false_flags[flag_index]);
     }
-    TestParserSyncWithFlags(str, flags, result, is_module, test_preparser);
+    TestParserSyncWithFlags(str, flags, result, is_module, test_preparser,
+                            ignore_error_msg);
   }
 }
 
@@ -1611,16 +1616,13 @@ TEST(StrictOctal) {
                   *exception));
 }
 
-
-void RunParserSyncTest(const char* context_data[][2],
-                       const char* statement_data[],
-                       ParserSyncTestResult result,
-                       const ParserFlag* flags = NULL, int flags_len = 0,
-                       const ParserFlag* always_true_flags = NULL,
-                       int always_true_len = 0,
-                       const ParserFlag* always_false_flags = NULL,
-                       int always_false_len = 0, bool is_module = false,
-                       bool test_preparser = true) {
+void RunParserSyncTest(
+    const char* context_data[][2], const char* statement_data[],
+    ParserSyncTestResult result, const ParserFlag* flags = NULL,
+    int flags_len = 0, const ParserFlag* always_true_flags = NULL,
+    int always_true_len = 0, const ParserFlag* always_false_flags = NULL,
+    int always_false_len = 0, bool is_module = false,
+    bool test_preparser = true, bool ignore_error_msg = false) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
@@ -1675,25 +1677,23 @@ void RunParserSyncTest(const char* context_data[][2],
       CHECK(length == kProgramSize);
       TestParserSync(program.start(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,
-                     always_false_len, is_module, test_preparser);
+                     always_false_len, is_module, test_preparser,
+                     ignore_error_msg);
     }
   }
   delete[] generated_flags;
 }
 
-
-void RunModuleParserSyncTest(const char* context_data[][2],
-                             const char* statement_data[],
-                             ParserSyncTestResult result,
-                             const ParserFlag* flags = NULL, int flags_len = 0,
-                             const ParserFlag* always_true_flags = NULL,
-                             int always_true_len = 0,
-                             const ParserFlag* always_false_flags = NULL,
-                             int always_false_len = 0,
-                             bool test_preparser = true) {
+void RunModuleParserSyncTest(
+    const char* context_data[][2], const char* statement_data[],
+    ParserSyncTestResult result, const ParserFlag* flags = NULL,
+    int flags_len = 0, const ParserFlag* always_true_flags = NULL,
+    int always_true_len = 0, const ParserFlag* always_false_flags = NULL,
+    int always_false_len = 0, bool test_preparser = true,
+    bool ignore_error_msg = false) {
   RunParserSyncTest(context_data, statement_data, result, flags, flags_len,
                     always_true_flags, always_true_len, always_false_flags,
-                    always_false_len, true, test_preparser);
+                    always_false_len, true, test_preparser, ignore_error_msg);
 }
 
 
@@ -4145,6 +4145,140 @@ TEST(SuperErrors) {
   RunParserSyncTest(context_data, expression_data, kError);
 }
 
+TEST(ImportExpressionSuccess) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {NULL, NULL}
+  };
+
+  const char* data[] = {
+    "new import(x)",
+    "import(1)",
+    "import(y=x)",
+    "f(...[import(y=x)])",
+    "x = {[import(y=x)]: 1}",
+    "var {[import(y=x)]: x} = {}",
+    "({[import(y=x)]: x} = {})",
+    "async () => { await import(x) }",
+    "() => { import(x) }",
+    "(import(y=x))",
+    "{import(y=x)}",
+    "import(import(x))",
+    "x = import(x)",
+    "var x = import(x)",
+    "let x = import(x)",
+    "for(x of import(x)) {}",
+    "import(x).then()",
+    NULL
+  };
+
+  // clang-format on
+
+  // We ignore test error messages because the error message from the
+  // parser/preparser is different for the same data depending on the
+  // context.
+  // For example, a top level "import(" is parsed as an
+  // import declaration. The parser parses the import token correctly
+  // and then shows an "Unexpected token (" error message. The
+  // preparser does not understand the import keyword (this test is
+  // run without kAllowHarmonyDynamicImport flag), so this results in
+  // an "Unexpected token import" error.
+  RunParserSyncTest(context_data, data, kError);
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
+                          true, true);
+  static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
+  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                    arraysize(flags));
+  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                          arraysize(flags));
+}
+
+TEST(ImportExpressionErrors) {
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"", ""},
+      {"var ", ""},
+      {"let ", ""},
+      {"new ", ""},
+      {NULL, NULL}
+    };
+
+    const char* data[] = {
+      "import(",
+      "import)",
+      "import()",
+      "import('x",
+      "import('x']",
+      "import['x')",
+      "import = x",
+      "import[",
+      "import[]",
+      "import]",
+      "import[x]",
+      "import{",
+      "import{x",
+      "import{x}",
+      "import(x, y)",
+      "import(...y)",
+      "import(x,)",
+      "import(,)",
+      "import(,y)",
+      "import(;)",
+      "[import]",
+      "{import}",
+      "import+",
+      "import = 1",
+      "import.wat",
+      NULL
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    // We ignore the error messages for the reason explained in the
+    // ImportExpressionSuccess test.
+    RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL,
+                            0, true, true);
+    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                      arraysize(flags));
+
+    // We ignore test error messages because the error message from
+    // the parser/preparser is different for the same data depending
+    // on the context.  For example, a top level "import{" is parsed
+    // as an import declaration. The parser parses the import token
+    // correctly and then shows an "Unexpected end of input" error
+    // message because of the '{'. The preparser shows an "Unexpected
+    // token {" because it's not a valid token in a CallExpression.
+    RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                            arraysize(flags), NULL, 0, true, true);
+  }
+
+  {
+    // clang-format off
+    const char* context_data[][2] = {
+      {"var ", ""},
+      {"let ", ""},
+      {NULL, NULL}
+    };
+
+    const char* data[] = {
+      "import('x')",
+      NULL
+    };
+
+    // clang-format on
+    RunParserSyncTest(context_data, data, kError);
+    RunModuleParserSyncTest(context_data, data, kError);
+
+    static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
+    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                      arraysize(flags));
+    RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                            arraysize(flags));
+  }
+}
 
 TEST(SuperCall) {
   const char* context_data[][2] = {{"", ""},

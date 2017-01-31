@@ -194,16 +194,17 @@ DEFINE_IMPLICATION(es_staging, harmony_regexp_lookbehind)
 DEFINE_IMPLICATION(es_staging, move_object_start)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS(V)                                            \
-  V(harmony_array_prototype_values, "harmony Array.prototype.values")    \
-  V(harmony_function_sent, "harmony function.sent")                      \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")              \
-  V(harmony_simd, "harmony simd")                                        \
-  V(harmony_do_expressions, "harmony do-expressions")                    \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")      \
-  V(harmony_regexp_property, "harmony unicode regexp property classes")  \
-  V(harmony_class_fields, "harmony public fields in class literals")     \
-  V(harmony_async_iteration, "harmony async iteration")
+#define HARMONY_INPROGRESS(V)                                           \
+  V(harmony_array_prototype_values, "harmony Array.prototype.values")   \
+  V(harmony_function_sent, "harmony function.sent")                     \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
+  V(harmony_simd, "harmony simd")                                       \
+  V(harmony_do_expressions, "harmony do-expressions")                   \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
+  V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(harmony_class_fields, "harmony public fields in class literals")    \
+  V(harmony_async_iteration, "harmony async iteration")                 \
+  V(harmony_dynamic_import, "harmony dynamic import")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                   \

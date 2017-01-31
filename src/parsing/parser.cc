@@ -553,6 +553,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
   set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
+  set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -962,15 +963,21 @@ Statement* Parser::ParseModuleItem(bool* ok) {
   //    ExportDeclaration
   //    StatementListItem
 
-  switch (peek()) {
-    case Token::IMPORT:
-      ParseImportDeclaration(CHECK_OK);
-      return factory()->NewEmptyStatement(kNoSourcePosition);
-    case Token::EXPORT:
-      return ParseExportDeclaration(ok);
-    default:
-      return ParseStatementListItem(ok);
+  Token::Value next = peek();
+
+  if (next == Token::EXPORT) {
+    return ParseExportDeclaration(ok);
   }
+
+  // We must be careful not to parse a dynamic import expression as an import
+  // declaration.
+  if (next == Token::IMPORT &&
+      (!allow_harmony_dynamic_import() || PeekAhead() != Token::LPAREN)) {
+    ParseImportDeclaration(CHECK_OK);
+    return factory()->NewEmptyStatement(kNoSourcePosition);
+  }
+
+  return ParseStatementListItem(ok);
 }
 
 
@@ -2795,6 +2802,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     SET_ALLOW(harmony_trailing_commas);
     SET_ALLOW(harmony_class_fields);
     SET_ALLOW(harmony_object_rest_spread);
+    SET_ALLOW(harmony_dynamic_import);
 #undef SET_ALLOW
   }
   // Aborting inner function preparsing would leave scopes in an inconsistent

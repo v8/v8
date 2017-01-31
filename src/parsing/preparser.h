@@ -759,6 +759,12 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
+  PreParserExpression NewCallRuntime(Runtime::FunctionId id,
+                                     ZoneList<PreParserExpression>* arguments,
+                                     int pos) {
+    return PreParserExpression::Default();
+  }
+
   // Return the object itself as AstVisitor and implement the needed
   // dummy method right in this class.
   PreParserFactory* visitor() { return this; }

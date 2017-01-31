@@ -224,7 +224,8 @@ class ParserBase {
         allow_harmony_restrictive_generators_(false),
         allow_harmony_trailing_commas_(false),
         allow_harmony_class_fields_(false),
-        allow_harmony_object_rest_spread_(false) {}
+        allow_harmony_object_rest_spread_(false),
+        allow_harmony_dynamic_import_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -238,6 +239,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_trailing_commas);
   ALLOW_ACCESSORS(harmony_class_fields);
   ALLOW_ACCESSORS(harmony_object_rest_spread);
+  ALLOW_ACCESSORS(harmony_dynamic_import);
 
 #undef ALLOW_ACCESSORS
 
@@ -1206,6 +1208,7 @@ class ParserBase {
                                 int class_token_pos, bool* ok);
   ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
+  ExpressionT ParseDynamicImportExpression(bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
 
   void ParseFormalParameter(FormalParametersT* parameters, bool* ok);
@@ -1484,6 +1487,7 @@ class ParserBase {
   bool allow_harmony_trailing_commas_;
   bool allow_harmony_class_fields_;
   bool allow_harmony_object_rest_spread_;
+  bool allow_harmony_dynamic_import_;
 
   friend class DiscardableZoneScope;
 };
@@ -3350,7 +3354,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
   // MemberExpression ::
   //   (PrimaryExpression | FunctionLiteral | ClassLiteral)
   //     ('[' Expression ']' | '.' Identifier | Arguments | TemplateLiteral)*
-
+  //
+  // CallExpression ::
+  //   (SuperCall | ImportCall)
+  //     ('[' Expression ']' | '.' Identifier | Arguments | TemplateLiteral)*
+  //
   // The '[' Expression ']' and '.' Identifier parts are parsed by
   // ParseMemberExpressionContinuation, and the Arguments part is parsed by the
   // caller.
@@ -3403,12 +3411,28 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
   } else if (peek() == Token::SUPER) {
     const bool is_new = false;
     result = ParseSuperExpression(is_new, CHECK_OK);
+  } else if (allow_harmony_dynamic_import() && peek() == Token::IMPORT) {
+    result = ParseDynamicImportExpression(CHECK_OK);
   } else {
     result = ParsePrimaryExpression(is_async, CHECK_OK);
   }
 
   result = ParseMemberExpressionContinuation(result, is_async, CHECK_OK);
   return result;
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseDynamicImportExpression(bool* ok) {
+  DCHECK(allow_harmony_dynamic_import());
+  Consume(Token::IMPORT);
+  int pos = position();
+  Expect(Token::LPAREN, CHECK_OK);
+  ExpressionT arg = ParseAssignmentExpression(true, CHECK_OK);
+  Expect(Token::RPAREN, CHECK_OK);
+  ZoneList<ExpressionT>* args = new (zone()) ZoneList<ExpressionT>(1, zone());
+  args->Add(arg, zone());
+  return factory()->NewCallRuntime(Runtime::kDynamicImportCall, args, pos);
 }
 
 template <typename Impl>
