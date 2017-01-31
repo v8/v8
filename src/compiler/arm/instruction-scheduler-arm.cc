@@ -117,8 +117,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmFloat32x4Neg:
     case kArmFloat32x4Add:
     case kArmFloat32x4Sub:
-    case kArmFloat32x4Eq:
-    case kArmFloat32x4Ne:
+    case kArmFloat32x4Equal:
+    case kArmFloat32x4NotEqual:
     case kArmInt32x4Splat:
     case kArmInt32x4ExtractLane:
     case kArmInt32x4ReplaceLane:
@@ -130,12 +130,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt32x4Mul:
     case kArmInt32x4Min:
     case kArmInt32x4Max:
-    case kArmInt32x4Eq:
-    case kArmInt32x4Ne:
-    case kArmInt32x4Gt:
-    case kArmInt32x4Ge:
-    case kArmUint32x4Gt:
-    case kArmUint32x4Ge:
+    case kArmInt32x4Equal:
+    case kArmInt32x4NotEqual:
+    case kArmInt32x4GreaterThan:
+    case kArmInt32x4GreaterThanOrEqual:
+    case kArmUint32x4GreaterThan:
+    case kArmUint32x4GreaterThanOrEqual:
     case kArmSimd32x4Select:
     case kArmInt16x8Splat:
     case kArmInt16x8ExtractLane:
@@ -146,12 +146,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt16x8Mul:
     case kArmInt16x8Min:
     case kArmInt16x8Max:
-    case kArmInt16x8Eq:
-    case kArmInt16x8Ne:
-    case kArmInt16x8Gt:
-    case kArmInt16x8Ge:
-    case kArmUint16x8Gt:
-    case kArmUint16x8Ge:
+    case kArmInt16x8Equal:
+    case kArmInt16x8NotEqual:
+    case kArmInt16x8GreaterThan:
+    case kArmInt16x8GreaterThanOrEqual:
+    case kArmUint16x8GreaterThan:
+    case kArmUint16x8GreaterThanOrEqual:
     case kArmInt8x16Splat:
     case kArmInt8x16ExtractLane:
     case kArmInt8x16ReplaceLane:
@@ -161,12 +161,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt8x16Mul:
     case kArmInt8x16Min:
     case kArmInt8x16Max:
-    case kArmInt8x16Eq:
-    case kArmInt8x16Ne:
-    case kArmInt8x16Gt:
-    case kArmInt8x16Ge:
-    case kArmUint8x16Gt:
-    case kArmUint8x16Ge:
+    case kArmInt8x16Equal:
+    case kArmInt8x16NotEqual:
+    case kArmInt8x16GreaterThan:
+    case kArmInt8x16GreaterThanOrEqual:
+    case kArmUint8x16GreaterThan:
+    case kArmUint8x16GreaterThanOrEqual:
       return kNoOpcodeFlags;
 
     case kArmVldrF32:

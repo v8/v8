@@ -1545,12 +1545,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Eq: {
+    case kArmFloat32x4Equal: {
       __ vceq(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmFloat32x4Ne: {
+    case kArmFloat32x4NotEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmvn(dst, dst);
@@ -1607,35 +1607,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Eq: {
+    case kArmInt32x4Equal: {
       __ vceq(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Ne: {
+    case kArmInt32x4NotEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(Neon32, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt32x4Gt: {
+    case kArmInt32x4GreaterThan: {
       __ vcgt(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt32x4Ge: {
+    case kArmInt32x4GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonS32, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint32x4Gt: {
+    case kArmUint32x4GreaterThan: {
       __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint32x4Ge: {
+    case kArmUint32x4GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonU32, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1693,35 +1693,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Eq: {
+    case kArmInt16x8Equal: {
       __ vceq(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Ne: {
+    case kArmInt16x8NotEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(Neon16, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt16x8Gt: {
+    case kArmInt16x8GreaterThan: {
       __ vcgt(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt16x8Ge: {
+    case kArmInt16x8GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonS16, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8Gt: {
+    case kArmUint16x8GreaterThan: {
       __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8Ge: {
+    case kArmUint16x8GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonU16, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1770,34 +1770,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Eq: {
+    case kArmInt8x16Equal: {
       __ vceq(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Ne: {
+    case kArmInt8x16NotEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(Neon8, dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt8x16Gt: {
+    case kArmInt8x16GreaterThan: {
       __ vcgt(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmInt8x16Ge: {
+    case kArmInt8x16GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonS8, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16Gt: {
+    case kArmUint8x16GreaterThan: {
       __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16Ge: {
+    case kArmUint8x16GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonU8, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
