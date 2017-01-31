@@ -57,6 +57,12 @@ static const int kMaxSizeEarlyOpt =
 static const int kMaxSizeEarlyOptIgnition =
     5 * interpreter::Interpreter::kCodeSizeMultiplier;
 
+// Certain functions are simply too big to be worth optimizing.
+// We aren't using the code size multiplier here because there is no
+// "kMaxSizeOpt" with which we would need to normalize. This constant is
+// only for optimization decisions coming into TurboFan from Ignition.
+static const int kMaxSizeOptIgnition = 250 * 1024;
+
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
   V(HotAndStable, "hot and stable")                            \
@@ -393,6 +399,10 @@ OptimizationReason RuntimeProfiler::ShouldOptimizeIgnition(
     JSFunction* function, JavaScriptFrame* frame) {
   SharedFunctionInfo* shared = function->shared();
   int ticks = shared->profiler_ticks();
+
+  if (shared->bytecode_array()->Size() > kMaxSizeOptIgnition) {
+    return OptimizationReason::kDoNotOptimize;
+  }
 
   if (ticks >= kProfilerTicksBeforeOptimization) {
     int typeinfo, generic, total, type_percentage, generic_percentage;
