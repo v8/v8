@@ -4718,6 +4718,15 @@ Genesis::Genesis(
       if (FLAG_experimental_extras) {
         if (!InstallExperimentalExtraNatives()) return;
       }
+
+      // Store String.prototype's map again in case it has been changed by
+      // experimental natives.
+      Handle<JSFunction> string_function(native_context()->string_function());
+      JSObject* string_function_prototype =
+          JSObject::cast(string_function->initial_map()->prototype());
+      DCHECK(string_function_prototype->HasFastProperties());
+      native_context()->set_string_function_prototype_map(
+          string_function_prototype->map());
     }
     // The serializer cannot serialize typed arrays. Reset those typed arrays
     // for each new context.

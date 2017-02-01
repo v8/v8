@@ -76,6 +76,37 @@ TEST(HeapMaps) {
   CheckMap(heap->string_map(), STRING_TYPE, kVariableSizeSentinel);
 }
 
+static void VerifyStoredPrototypeMap(Isolate* isolate,
+                                     int stored_map_context_index,
+                                     int stored_ctor_context_index) {
+  Handle<Context> context = isolate->native_context();
+
+  Handle<Map> this_map(Map::cast(context->get(stored_map_context_index)));
+
+  Handle<JSFunction> fun(
+      JSFunction::cast(context->get(stored_ctor_context_index)));
+  Handle<JSObject> proto(JSObject::cast(fun->initial_map()->prototype()));
+  Handle<Map> that_map(proto->map());
+
+  CHECK(proto->HasFastProperties());
+  CHECK_EQ(*this_map, *that_map);
+}
+
+// Checks that critical maps stored on the context (mostly used for fast-path
+// checks) are unchanged after initialization.
+TEST(ContextMaps) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  VerifyStoredPrototypeMap(isolate,
+                           Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX,
+                           Context::STRING_FUNCTION_INDEX);
+  VerifyStoredPrototypeMap(isolate, Context::REGEXP_PROTOTYPE_MAP_INDEX,
+                           Context::REGEXP_FUNCTION_INDEX);
+  VerifyStoredPrototypeMap(isolate, Context::PROMISE_PROTOTYPE_MAP_INDEX,
+                           Context::PROMISE_FUNCTION_INDEX);
+}
 
 static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
