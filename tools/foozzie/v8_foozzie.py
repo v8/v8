@@ -218,6 +218,7 @@ def main():
 
   def run_d8(d8, config_flags):
     args = [d8] + config_flags + PREAMBLE + [options.testcase]
+    print " ".join(args)
     if d8.endswith('.py'):
       # Wrap with python in tests.
       args = [sys.executable] + args
