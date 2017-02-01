@@ -2072,25 +2072,11 @@ void BytecodeGraphBuilder::BuildJumpIfEqual(Node* comperand) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfFalse() {
-  NewBranch(environment()->LookupAccumulator());
-  Environment* if_true_environment = environment()->Copy();
-  environment()->BindAccumulator(jsgraph()->FalseConstant());
-  NewIfFalse();
-  MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
-  if_true_environment->BindAccumulator(jsgraph()->TrueConstant());
-  set_environment(if_true_environment);
-  NewIfTrue();
+  BuildJumpIfNot(environment()->LookupAccumulator());
 }
 
 void BytecodeGraphBuilder::BuildJumpIfTrue() {
-  NewBranch(environment()->LookupAccumulator());
-  Environment* if_false_environment = environment()->Copy();
-  environment()->BindAccumulator(jsgraph()->TrueConstant());
-  NewIfTrue();
-  MergeIntoSuccessorEnvironment(bytecode_iterator().GetJumpTargetOffset());
-  if_false_environment->BindAccumulator(jsgraph()->FalseConstant());
-  set_environment(if_false_environment);
-  NewIfFalse();
+  BuildJumpIf(environment()->LookupAccumulator());
 }
 
 void BytecodeGraphBuilder::BuildJumpIfToBooleanTrue() {

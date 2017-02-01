@@ -2969,10 +2969,6 @@ Node* CodeStubAssembler::IsWeakCell(Node* object) {
   return HasInstanceType(object, WEAK_CELL_TYPE);
 }
 
-Node* CodeStubAssembler::IsBoolean(Node* object) {
-  return IsBooleanMap(LoadMap(object));
-}
-
 Node* CodeStubAssembler::IsName(Node* object) {
   return Int32LessThanOrEqual(LoadInstanceType(object),
                               Int32Constant(LAST_NAME_TYPE));

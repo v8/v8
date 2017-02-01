@@ -207,8 +207,6 @@ void Verifier::Visitor::Check(Node* node) {
       }
       CHECK_EQ(1, count_true);
       CHECK_EQ(1, count_false);
-      // Condition must be a Boolean.
-      CheckValueInputIs(node, 0, Type::Boolean());
       // Type is empty.
       CheckNotTyped(node);
       break;
