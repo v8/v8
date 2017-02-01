@@ -58,11 +58,11 @@ ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 
 // Defines the arity and the feedback for a JavaScript constructor call. This is
-// used as a parameter by JSCallConstruct operators.
-class CallConstructParameters final {
+// used as a parameter by JSConstruct operators.
+class ConstructParameters final {
  public:
-  CallConstructParameters(uint32_t arity, float frequency,
-                          VectorSlotPair const& feedback)
+  ConstructParameters(uint32_t arity, float frequency,
+                      VectorSlotPair const& feedback)
       : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
   uint32_t arity() const { return arity_; }
@@ -75,21 +75,21 @@ class CallConstructParameters final {
   VectorSlotPair const feedback_;
 };
 
-bool operator==(CallConstructParameters const&, CallConstructParameters const&);
-bool operator!=(CallConstructParameters const&, CallConstructParameters const&);
+bool operator==(ConstructParameters const&, ConstructParameters const&);
+bool operator!=(ConstructParameters const&, ConstructParameters const&);
 
-size_t hash_value(CallConstructParameters const&);
+size_t hash_value(ConstructParameters const&);
 
-std::ostream& operator<<(std::ostream&, CallConstructParameters const&);
+std::ostream& operator<<(std::ostream&, ConstructParameters const&);
 
-CallConstructParameters const& CallConstructParametersOf(Operator const*);
+ConstructParameters const& ConstructParametersOf(Operator const*);
 
 // Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSCallConstructWithSpread
+// parameters. This is used as a parameter by JSConstructWithSpread
 // operators.
-class CallConstructWithSpreadParameters final {
+class ConstructWithSpreadParameters final {
  public:
-  explicit CallConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+  explicit ConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
 
   uint32_t arity() const { return arity_; }
 
@@ -97,17 +97,16 @@ class CallConstructWithSpreadParameters final {
   uint32_t const arity_;
 };
 
-bool operator==(CallConstructWithSpreadParameters const&,
-                CallConstructWithSpreadParameters const&);
-bool operator!=(CallConstructWithSpreadParameters const&,
-                CallConstructWithSpreadParameters const&);
+bool operator==(ConstructWithSpreadParameters const&,
+                ConstructWithSpreadParameters const&);
+bool operator!=(ConstructWithSpreadParameters const&,
+                ConstructWithSpreadParameters const&);
 
-size_t hash_value(CallConstructWithSpreadParameters const&);
+size_t hash_value(ConstructWithSpreadParameters const&);
 
-std::ostream& operator<<(std::ostream&,
-                         CallConstructWithSpreadParameters const&);
+std::ostream& operator<<(std::ostream&, ConstructWithSpreadParameters const&);
 
-CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
+ConstructWithSpreadParameters const& ConstructWithSpreadParametersOf(
     Operator const*);
 
 // Defines the flags for a JavaScript call forwarding parameters. This
@@ -201,7 +200,7 @@ std::ostream& operator<<(std::ostream&, CallFunctionParameters const&);
 const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
 
 // Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSCallConstructWithSpread
+// parameters. This is used as a parameter by JSConstructWithSpread
 // operators.
 class CallFunctionWithSpreadParameters final {
  public:
@@ -624,9 +623,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
-  const Operator* CallConstruct(uint32_t arity, float frequency,
-                                VectorSlotPair const& feedback);
-  const Operator* CallConstructWithSpread(uint32_t arity);
+  const Operator* Construct(uint32_t arity, float frequency,
+                            VectorSlotPair const& feedback);
+  const Operator* ConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 

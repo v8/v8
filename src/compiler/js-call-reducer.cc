@@ -20,10 +20,10 @@ namespace compiler {
 
 Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
-    case IrOpcode::kJSCallConstruct:
-      return ReduceJSCallConstruct(node);
-    case IrOpcode::kJSCallConstructWithSpread:
-      return ReduceJSCallConstructWithSpread(node);
+    case IrOpcode::kJSConstruct:
+      return ReduceJSConstruct(node);
+    case IrOpcode::kJSConstructWithSpread:
+      return ReduceJSConstructWithSpread(node);
     case IrOpcode::kJSCallFunction:
       return ReduceJSCallFunction(node);
     default:
@@ -578,10 +578,9 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
   return NoChange();
 }
 
-
-Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallConstruct, node->opcode());
-  CallConstructParameters const& p = CallConstructParametersOf(node->op());
+Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
+  ConstructParameters const& p = ConstructParametersOf(node->op());
   DCHECK_LE(2u, p.arity());
   int const arity = static_cast<int>(p.arity() - 2);
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -589,7 +588,7 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Try to specialize JSCallConstruct {node}s with constant {target}s.
+  // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
     if (m.Value()->IsJSFunction()) {
@@ -678,15 +677,15 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
-      // Specialize the JSCallConstruct node to the {target_function}.
+      // Specialize the JSConstruct node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
       NodeProperties::ReplaceEffectInput(node, effect);
       if (target == new_target) {
         NodeProperties::ReplaceValueInput(node, target_function, arity + 1);
       }
 
-      // Try to further reduce the JSCallConstruct {node}.
-      Reduction const reduction = ReduceJSCallConstruct(node);
+      // Try to further reduce the JSConstruct {node}.
+      Reduction const reduction = ReduceJSConstruct(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
   }
@@ -694,10 +693,10 @@ Reduction JSCallReducer::ReduceJSCallConstruct(Node* node) {
   return NoChange();
 }
 
-Reduction JSCallReducer::ReduceJSCallConstructWithSpread(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallConstructWithSpread, node->opcode());
-  CallConstructWithSpreadParameters const& p =
-      CallConstructWithSpreadParametersOf(node->op());
+Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstructWithSpread, node->opcode());
+  ConstructWithSpreadParameters const& p =
+      ConstructWithSpreadParametersOf(node->op());
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 2);
 
@@ -762,7 +761,7 @@ Reduction JSCallReducer::ReduceJSCallConstructWithSpread(Node* node) {
   }
 
   NodeProperties::ChangeOp(
-      node, javascript()->CallConstruct(arity + 2, 7, VectorSlotPair()));
+      node, javascript()->Construct(arity + 2, 7, VectorSlotPair()));
 
   return Changed(node);
 }

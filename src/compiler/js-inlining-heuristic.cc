@@ -121,7 +121,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     CallFunctionParameters const p = CallFunctionParametersOf(node->op());
     candidate.frequency = p.frequency();
   } else {
-    CallConstructParameters const p = CallConstructParametersOf(node->op());
+    ConstructParameters const p = ConstructParametersOf(node->op());
     candidate.frequency = p.frequency();
   }
 
@@ -175,7 +175,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
     return reduction;
   }
 
-  // Expand the JSCallFunction/JSCallConstruct node to a subgraph first if
+  // Expand the JSCallFunction/JSConstruct node to a subgraph first if
   // we have multiple known target functions.
   DCHECK_LT(1, num_calls);
   Node* calls[kMaxCallPolymorphism + 1];

@@ -31,16 +31,16 @@ namespace compiler {
 
 
 // Provides convenience accessors for the common layout of nodes having either
-// the {JSCallFunction} or the {JSCallConstruct} operator.
+// the {JSCallFunction} or the {JSConstruct} operator.
 class JSCallAccessor {
  public:
   explicit JSCallAccessor(Node* call) : call_(call) {
     DCHECK(call->opcode() == IrOpcode::kJSCallFunction ||
-           call->opcode() == IrOpcode::kJSCallConstruct);
+           call->opcode() == IrOpcode::kJSConstruct);
   }
 
   Node* target() {
-    // Both, {JSCallFunction} and {JSCallConstruct}, have same layout here.
+    // Both, {JSCallFunction} and {JSConstruct}, have same layout here.
     return call_->InputAt(0);
   }
 
@@ -50,18 +50,18 @@ class JSCallAccessor {
   }
 
   Node* new_target() {
-    DCHECK_EQ(IrOpcode::kJSCallConstruct, call_->opcode());
+    DCHECK_EQ(IrOpcode::kJSConstruct, call_->opcode());
     return call_->InputAt(formal_arguments() + 1);
   }
 
   Node* frame_state() {
-    // Both, {JSCallFunction} and {JSCallConstruct}, have frame state.
+    // Both, {JSCallFunction} and {JSConstruct}, have frame state.
     return NodeProperties::GetFrameStateInput(call_);
   }
 
   int formal_arguments() {
-    // Both, {JSCallFunction} and {JSCallConstruct}, have two extra inputs:
-    //  - JSCallConstruct: Includes target function and new target.
+    // Both, {JSCallFunction} and {JSConstruct}, have two extra inputs:
+    //  - JSConstruct: Includes target function and new target.
     //  - JSCallFunction: Includes target function and receiver.
     return call_->op()->ValueInputCount() - 2;
   }
@@ -69,7 +69,7 @@ class JSCallAccessor {
   float frequency() const {
     return (call_->opcode() == IrOpcode::kJSCallFunction)
                ? CallFunctionParametersOf(call_->op()).frequency()
-               : CallConstructParametersOf(call_->op()).frequency();
+               : ConstructParametersOf(call_->op()).frequency();
   }
 
  private:
@@ -354,7 +354,7 @@ Reduction JSInliner::Reduce(Node* node) {
   // This reducer can handle both normal function calls as well a constructor
   // calls whenever the target is a constant function object, as follows:
   //  - JSCallFunction(target:constant, receiver, args...)
-  //  - JSCallConstruct(target:constant, args..., new.target)
+  //  - JSConstruct(target:constant, args..., new.target)
   HeapObjectMatcher match(node->InputAt(0));
   if (!match.HasValue() || !match.Value()->IsJSFunction()) return NoChange();
   Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
@@ -384,7 +384,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   }
 
   // Constructor must be constructable.
-  if (node->opcode() == IrOpcode::kJSCallConstruct &&
+  if (node->opcode() == IrOpcode::kJSConstruct &&
       IsNonConstructible(shared_info)) {
     TRACE("Not inlining %s into %s because constructor is not constructable.\n",
           shared_info->DebugName()->ToCString().get(),
@@ -550,8 +550,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   Node* frame_state = call.frame_state();
   Node* new_target = jsgraph()->UndefinedConstant();
 
-  // Inline {JSCallConstruct} requires some additional magic.
-  if (node->opcode() == IrOpcode::kJSCallConstruct) {
+  // Inline {JSConstruct} requires some additional magic.
+  if (node->opcode() == IrOpcode::kJSConstruct) {
     // Insert nodes around the call that model the behavior required for a
     // constructor dispatch (allocate implicit receiver and check return value).
     // This models the behavior usually accomplished by our {JSConstructStub}.
@@ -579,7 +579,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
       receiver = create;  // The implicit receiver.
     }
 
-    // Swizzle the inputs of the {JSCallConstruct} node to look like inputs to a
+    // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
     // normal {JSCallFunction} node so that the rest of the inlining machinery
     // behaves as if we were dealing with a regular function invocation.
     new_target = call.new_target();  // Retrieve new target value input.

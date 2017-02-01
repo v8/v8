@@ -1322,12 +1322,9 @@ Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
 
 // JS other operators.
 
+Type* Typer::Visitor::TypeJSConstruct(Node* node) { return Type::Receiver(); }
 
-Type* Typer::Visitor::TypeJSCallConstruct(Node* node) {
-  return Type::Receiver();
-}
-
-Type* Typer::Visitor::TypeJSCallConstructWithSpread(Node* node) {
+Type* Typer::Visitor::TypeJSConstructWithSpread(Node* node) {
   return Type::Receiver();
 }
 

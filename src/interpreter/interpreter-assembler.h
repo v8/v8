@@ -145,23 +145,21 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // |first_arg|. The |new_target| is the same as the
   // |constructor| for the new keyword, but differs for the super
   // keyword.
-  compiler::Node* CallConstruct(compiler::Node* constructor,
-                                compiler::Node* context,
-                                compiler::Node* new_target,
-                                compiler::Node* first_arg,
-                                compiler::Node* arg_count,
-                                compiler::Node* slot_id,
-                                compiler::Node* type_feedback_vector);
+  compiler::Node* Construct(compiler::Node* constructor,
+                            compiler::Node* context, compiler::Node* new_target,
+                            compiler::Node* first_arg,
+                            compiler::Node* arg_count, compiler::Node* slot_id,
+                            compiler::Node* type_feedback_vector);
 
   // Call constructor |constructor| with |arg_count| arguments (not including
   // receiver) and the first argument located at |first_arg|. The last argument
   // is always a spread. The |new_target| is the same as the |constructor| for
   // the new keyword, but differs for the super keyword.
-  compiler::Node* CallConstructWithSpread(compiler::Node* constructor,
-                                          compiler::Node* context,
-                                          compiler::Node* new_target,
-                                          compiler::Node* first_arg,
-                                          compiler::Node* arg_count);
+  compiler::Node* ConstructWithSpread(compiler::Node* constructor,
+                                      compiler::Node* context,
+                                      compiler::Node* new_target,
+                                      compiler::Node* first_arg,
+                                      compiler::Node* arg_count);
 
   // Call runtime function with |arg_count| arguments and the first argument
   // located at |first_arg|.

@@ -490,9 +490,8 @@ void JSGenericLowering::LowerJSCreateScriptContext(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kNewScriptContext);
 }
 
-
-void JSGenericLowering::LowerJSCallConstruct(Node* node) {
-  CallConstructParameters const& p = CallConstructParametersOf(node->op());
+void JSGenericLowering::LowerJSConstruct(Node* node) {
+  ConstructParameters const& p = ConstructParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::Construct(isolate());
@@ -510,9 +509,9 @@ void JSGenericLowering::LowerJSCallConstruct(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
-void JSGenericLowering::LowerJSCallConstructWithSpread(Node* node) {
-  CallConstructWithSpreadParameters const& p =
-      CallConstructWithSpreadParametersOf(node->op());
+void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
+  ConstructWithSpreadParameters const& p =
+      ConstructWithSpreadParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::ConstructWithSpread(isolate());

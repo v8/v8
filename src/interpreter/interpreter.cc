@@ -2213,8 +2213,8 @@ void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
   Node* first_arg = __ RegisterLocation(first_arg_reg);
   Node* args_count = __ BytecodeOperandCount(2);
   Node* context = __ GetContext();
-  Node* result = __ CallConstructWithSpread(constructor, context, new_target,
-                                            first_arg, args_count);
+  Node* result = __ ConstructWithSpread(constructor, context, new_target,
+                                        first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2235,8 +2235,8 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
   Node* slot_id = __ BytecodeOperandIdx(3);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallConstruct(constructor, context, new_target, first_arg,
-                                  args_count, slot_id, type_feedback_vector);
+  Node* result = __ Construct(constructor, context, new_target, first_arg,
+                              args_count, slot_id, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }

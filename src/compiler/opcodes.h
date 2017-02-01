@@ -159,8 +159,8 @@
   V(JSCreateScriptContext)
 
 #define JS_OTHER_OP_LIST(V)         \
-  V(JSCallConstruct)                \
-  V(JSCallConstructWithSpread)      \
+  V(JSConstruct)                    \
+  V(JSConstructWithSpread)          \
   V(JSCallForwardVarargs)           \
   V(JSCallFunction)                 \
   V(JSCallFunctionWithSpread)       \
@@ -800,7 +800,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode can be inlined.
   static bool IsInlineeOpcode(Value value) {
-    return value == kJSCallConstruct || value == kJSCallFunction;
+    return value == kJSConstruct || value == kJSCallFunction;
   }
 
   // Returns true if opcode for comparison operator.

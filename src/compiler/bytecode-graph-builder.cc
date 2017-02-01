@@ -1377,7 +1377,7 @@ void BytecodeGraphBuilder::VisitNewWithSpread() {
   Node* callee = environment()->LookupRegister(callee_reg);
 
   const Operator* op =
-      javascript()->CallConstructWithSpread(static_cast<int>(arg_count) + 2);
+      javascript()->ConstructWithSpread(static_cast<int>(arg_count) + 2);
   Node* value = ProcessCallNewWithSpreadArguments(op, callee, new_target,
                                                   first_arg, arg_count + 2);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
@@ -1426,7 +1426,7 @@ void BytecodeGraphBuilder::VisitNew() {
   Node* callee = environment()->LookupRegister(callee_reg);
 
   float const frequency = ComputeCallFrequency(slot_id);
-  const Operator* call = javascript()->CallConstruct(
+  const Operator* call = javascript()->Construct(
       static_cast<int>(arg_count) + 2, frequency, feedback);
   Node* value = ProcessCallNewArguments(call, callee, new_target, first_arg,
                                         arg_count + 2);

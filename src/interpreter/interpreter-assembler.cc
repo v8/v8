@@ -695,10 +695,10 @@ Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
                   first_arg, function);
 }
 
-Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
-                                          Node* new_target, Node* first_arg,
-                                          Node* arg_count, Node* slot_id,
-                                          Node* type_feedback_vector) {
+Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
+                                      Node* new_target, Node* first_arg,
+                                      Node* arg_count, Node* slot_id,
+                                      Node* type_feedback_vector) {
   Variable return_value(this, MachineRepresentation::kTagged);
   Variable allocation_feedback(this, MachineRepresentation::kTagged);
   Label call_construct_function(this, &allocation_feedback),
@@ -728,7 +728,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
   Bind(&call_construct_function);
   {
-    Comment("call using callConstructFunction");
+    Comment("call using ConstructFunction");
     IncrementCallCount(type_feedback_vector, slot_id);
     Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
         isolate(), InterpreterPushArgsMode::kJSFunction);
@@ -832,7 +832,7 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
   Bind(&call_construct);
   {
-    Comment("call using callConstruct builtin");
+    Comment("call using Construct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
         isolate(), InterpreterPushArgsMode::kOther);
     Node* code_target = HeapConstant(callable.code());
@@ -846,11 +846,10 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   return return_value.value();
 }
 
-Node* InterpreterAssembler::CallConstructWithSpread(Node* constructor,
-                                                    Node* context,
-                                                    Node* new_target,
-                                                    Node* first_arg,
-                                                    Node* arg_count) {
+Node* InterpreterAssembler::ConstructWithSpread(Node* constructor,
+                                                Node* context, Node* new_target,
+                                                Node* first_arg,
+                                                Node* arg_count) {
   Variable return_value(this, MachineRepresentation::kTagged);
   Comment("call using ConstructWithSpread");
   Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
