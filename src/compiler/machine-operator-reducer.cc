@@ -17,9 +17,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph)
-    : jsgraph_(jsgraph) {}
-
+MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph,
+                                               bool allow_signalling_nan)
+    : jsgraph_(jsgraph), allow_signalling_nan_(allow_signalling_nan) {}
 
 MachineOperatorReducer::~MachineOperatorReducer() {}
 
@@ -316,7 +316,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat32Sub: {
       Float32BinopMatcher m(node);
-      // TODO(ahaas): We could do x - 0.0 = x if we knew that x is not an sNaN.
+      if (allow_signalling_nan_ && m.right().Is(0) &&
+          (copysign(1.0, m.right().Value()) > 0)) {
+        return Replace(m.left().node());  // x - 0 => x
+      }
       if (m.right().IsNaN()) {  // x - NaN => NaN
         // Do some calculation to make a signalling NaN quiet.
         return ReplaceFloat32(m.right().Value() - m.right().Value());
@@ -360,7 +363,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Sub: {
       Float64BinopMatcher m(node);
-      // TODO(ahaas): We could do x - 0.0 = x if we knew that x is not an sNaN.
+      if (allow_signalling_nan_ && m.right().Is(0) &&
+          (Double(m.right().Value()).Sign() > 0)) {
+        return Replace(m.left().node());  // x - 0 => x
+      }
       if (m.right().IsNaN()) {  // x - NaN => NaN
         // Do some calculation to make a signalling NaN quiet.
         return ReplaceFloat64(m.right().Value() - m.right().Value());
@@ -393,7 +399,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Mul: {
       Float64BinopMatcher m(node);
-      // TODO(ahaas): We could do x * 1.0 = x if we knew that x is not an sNaN.
+      if (allow_signalling_nan_ && m.right().Is(1))
+        return Replace(m.left().node());  // x * 1.0 => x
       if (m.right().Is(-1)) {  // x * -1.0 => -0.0 - x
         node->ReplaceInput(0, Float64Constant(-0.0));
         node->ReplaceInput(1, m.left().node());
@@ -416,6 +423,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Div: {
       Float64BinopMatcher m(node);
+      if (allow_signalling_nan_ && m.right().Is(1))
+        return Replace(m.left().node());  // x / 1.0 => x
       // TODO(ahaas): We could do x / 1.0 = x if we knew that x is not an sNaN.
       if (m.right().IsNaN()) {                               // x / NaN => NaN
         // Do some calculation to make a signalling NaN quiet.
