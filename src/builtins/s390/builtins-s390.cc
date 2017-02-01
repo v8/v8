@@ -2822,7 +2822,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // For FastPacked kinds, iteration will have the same effect as simply
   // accessing each property in order.
   Label no_protector_check;
-  __ LoadP(scratch, FieldMemOperand(spread_map, Map::kBitField2Offset));
+  __ LoadlB(scratch, FieldMemOperand(spread_map, Map::kBitField2Offset));
   __ DecodeField<Map::ElementsKindBits>(scratch);
   __ CmpP(scratch, Operand(FAST_HOLEY_ELEMENTS));
   __ bgt(&runtime_call);
