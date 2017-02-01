@@ -536,7 +536,7 @@ void Assembler::load_label_offset(Register r1, Label* L) {
 void Assembler::branchOnCond(Condition c, int branch_offset, bool is_bound) {
   int offset_in_halfwords = branch_offset / 2;
   if (is_bound && is_int16(offset_in_halfwords)) {
-    brc(c, Operand(offset_in_halfwords & 0xFFFF));  // short jump
+    brc(c, Operand(offset_in_halfwords));  // short jump
   } else {
     brcl(c, Operand(offset_in_halfwords));  // long jump
   }
@@ -647,7 +647,7 @@ void Assembler::ri_form(Opcode op, Register r1, const Operand& i2) {
 void Assembler::ri_form(Opcode op, Condition m1, const Operand& i2) {
   DCHECK(is_uint12(op));
   DCHECK(is_uint4(m1));
-  DCHECK(is_uint16(i2.imm_));
+  DCHECK(op == BRC ? is_int16(i2.imm_) : is_uint16(i2.imm_));
   emit4bytes((op & 0xFF0) * B20 | m1 * B20 | (op & 0xF) * B16 |
              (i2.imm_ & 0xFFFF));
 }
