@@ -1997,12 +1997,12 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
   Comment("StoreFieldsNoWriteBarrier");
   CSA_ASSERT(this, WordIsWordAligned(start_address));
   CSA_ASSERT(this, WordIsWordAligned(end_address));
-  BuildFastLoop(
-      MachineType::PointerRepresentation(), start_address, end_address,
-      [this, value](Node* current) {
-        StoreNoWriteBarrier(MachineRepresentation::kTagged, current, value);
-      },
-      kPointerSize, IndexAdvanceMode::kPost);
+  BuildFastLoop(start_address, end_address,
+                [this, value](Node* current) {
+                  StoreNoWriteBarrier(MachineRepresentation::kTagged, current,
+                                      value);
+                },
+                kPointerSize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 }
 
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
@@ -2342,8 +2342,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                      (ToSmiConstant(from_index, from_index_smi) &&
                       ToSmiConstant(to_index, to_index_smi) &&
                       to_index_smi == from_index_smi));
-  BuildFastLoop(vars, MachineType::PointerRepresentation(), from_offset,
-                limit_offset,
+  BuildFastLoop(vars, from_offset, limit_offset,
                 [this, from_string, to_string, &current_to_offset, to_increment,
                  type, rep, index_same](Node* offset) {
                   Node* value = Load(type, from_string, offset);
@@ -2354,7 +2353,7 @@ void CodeStubAssembler::CopyStringCharacters(Node* from_string, Node* to_string,
                     Increment(current_to_offset, to_increment);
                   }
                 },
-                from_increment, IndexAdvanceMode::kPost);
+                from_increment, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 }
 
 Node* CodeStubAssembler::LoadElementAndPrepareForStore(Node* array,
@@ -3771,7 +3770,7 @@ Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
   var_result.Bind(SmiConstant(Smi::FromInt(-1)));
 
   BuildFastLoop(
-      MachineType::PointerRepresentation(), cursor, end,
+      cursor, end,
       [this, string, needle_char, begin, &var_result, &out](Node* cursor) {
         Label next(this);
         Node* value = Load(MachineType::Uint8(), string, cursor);
@@ -3784,7 +3783,7 @@ Node* CodeStubAssembler::StringIndexOfChar(Node* context, Node* string,
 
         Bind(&next);
       },
-      1, IndexAdvanceMode::kPost);
+      1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
   Goto(&out);
 
   Bind(&runtime);
@@ -4797,15 +4796,16 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
   Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
   Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
 
-  BuildFastLoop(
-      MachineType::PointerRepresentation(), last_exclusive, first_inclusive,
-      [this, descriptors, unique_name, if_found,
-       var_name_index](Node* name_index) {
-        Node* candidate_name = LoadFixedArrayElement(descriptors, name_index);
-        var_name_index->Bind(name_index);
-        GotoIf(WordEqual(candidate_name, unique_name), if_found);
-      },
-      -DescriptorArray::kDescriptorSize, IndexAdvanceMode::kPre);
+  BuildFastLoop(last_exclusive, first_inclusive,
+                [this, descriptors, unique_name, if_found,
+                 var_name_index](Node* name_index) {
+                  Node* candidate_name =
+                      LoadFixedArrayElement(descriptors, name_index);
+                  var_name_index->Bind(name_index);
+                  GotoIf(WordEqual(candidate_name, unique_name), if_found);
+                },
+                -DescriptorArray::kDescriptorSize, INTPTR_PARAMETERS,
+                IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
 
@@ -6264,9 +6264,12 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
 }
 
 Node* CodeStubAssembler::BuildFastLoop(
-    const CodeStubAssembler::VariableList& vars,
-    MachineRepresentation index_rep, Node* start_index, Node* end_index,
-    const FastLoopBody& body, int increment, IndexAdvanceMode mode) {
+    const CodeStubAssembler::VariableList& vars, Node* start_index,
+    Node* end_index, const FastLoopBody& body, int increment,
+    ParameterMode parameter_mode, IndexAdvanceMode advance_mode) {
+  MachineRepresentation index_rep = (parameter_mode == INTPTR_PARAMETERS)
+                                        ? MachineType::PointerRepresentation()
+                                        : MachineRepresentation::kTaggedSigned;
   Variable var(this, index_rep, start_index);
   VariableList vars_copy(vars, zone());
   vars_copy.Add(&var, zone());
@@ -6282,12 +6285,12 @@ Node* CodeStubAssembler::BuildFastLoop(
   Branch(WordEqual(var.value(), end_index), &after_loop, &loop);
   Bind(&loop);
   {
-    if (mode == IndexAdvanceMode::kPre) {
-      Increment(var, increment);
+    if (advance_mode == IndexAdvanceMode::kPre) {
+      Increment(var, increment, parameter_mode);
     }
     body(var.value());
-    if (mode == IndexAdvanceMode::kPost) {
-      Increment(var, increment);
+    if (advance_mode == IndexAdvanceMode::kPost) {
+      Increment(var, increment, parameter_mode);
     }
     Branch(WordNotEqual(var.value(), end_index), &loop, &after_loop);
   }
@@ -6340,9 +6343,10 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
 
   int increment = IsFastDoubleElementsKind(kind) ? kDoubleSize : kPointerSize;
   BuildFastLoop(
-      vars, MachineType::PointerRepresentation(), start, limit,
+      vars, start, limit,
       [fixed_array, &body](Node* offset) { body(fixed_array, offset); },
       direction == ForEachDirection::kReverse ? -increment : increment,
+      INTPTR_PARAMETERS,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
 }
@@ -6353,12 +6357,13 @@ void CodeStubAssembler::InitializeFieldsWithRoot(
   start_offset = IntPtrAdd(start_offset, IntPtrConstant(-kHeapObjectTag));
   end_offset = IntPtrAdd(end_offset, IntPtrConstant(-kHeapObjectTag));
   Node* root_value = LoadRoot(root_index);
-  BuildFastLoop(MachineType::PointerRepresentation(), end_offset, start_offset,
+  BuildFastLoop(end_offset, start_offset,
                 [this, object, root_value](Node* current) {
                   StoreNoWriteBarrier(MachineRepresentation::kTagged, object,
                                       current, root_value);
                 },
-                -kPointerSize, CodeStubAssembler::IndexAdvanceMode::kPre);
+                -kPointerSize, INTPTR_PARAMETERS,
+                CodeStubAssembler::IndexAdvanceMode::kPre);
 }
 
 void CodeStubAssembler::BranchIfNumericRelationalComparison(
@@ -8286,13 +8291,14 @@ void CodeStubArguments::ForEach(
   Node* end = assembler_->IntPtrSub(
       arguments_,
       assembler_->ElementOffsetFromIndex(last, FAST_ELEMENTS, mode));
-  assembler_->BuildFastLoop(
-      vars, MachineType::PointerRepresentation(), start, end,
-      [this, &body](Node* current) {
-        Node* arg = assembler_->Load(MachineType::AnyTagged(), current);
-        body(arg);
-      },
-      -kPointerSize, CodeStubAssembler::IndexAdvanceMode::kPost);
+  assembler_->BuildFastLoop(vars, start, end,
+                            [this, &body](Node* current) {
+                              Node* arg = assembler_->Load(
+                                  MachineType::AnyTagged(), current);
+                              body(arg);
+                            },
+                            -kPointerSize, CodeStubAssembler::INTPTR_PARAMETERS,
+                            CodeStubAssembler::IndexAdvanceMode::kPost);
 }
 
 void CodeStubArguments::PopAndReturn(Node* value) {

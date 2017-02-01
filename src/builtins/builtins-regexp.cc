@@ -2323,7 +2323,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     const int increment = 1;
 
     BuildFastLoop(
-        MachineType::PointerRepresentation(), from, to,
+        from, to,
         [this, res_elems, isolate, native_context, context, undefined,
          replace_callable](Node* index) {
           Node* const elem = LoadFixedArrayElement(res_elems, index);
@@ -2354,7 +2354,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           Goto(&do_continue);
           Bind(&do_continue);
         },
-        increment, CodeStubAssembler::IndexAdvanceMode::kPost);
+        increment, CodeStubAssembler::INTPTR_PARAMETERS,
+        CodeStubAssembler::IndexAdvanceMode::kPost);
 
     Goto(&create_result);
   }
