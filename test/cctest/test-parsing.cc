@@ -4153,7 +4153,6 @@ TEST(ImportExpressionSuccess) {
   };
 
   const char* data[] = {
-    "new import(x)",
     "import(1)",
     "import(y=x)",
     "f(...[import(y=x)])",
@@ -4231,6 +4230,7 @@ TEST(ImportExpressionErrors) {
       "import+",
       "import = 1",
       "import.wat",
+      "new import(x)",
       NULL
     };
 
