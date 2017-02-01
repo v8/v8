@@ -554,6 +554,9 @@ Maybe<bool> ValueSerializer::WriteJSArray(Handle<JSArray> array) {
         break;
       }
       case FAST_DOUBLE_ELEMENTS: {
+        // Elements are empty_fixed_array, not a FixedDoubleArray, if the array
+        // is empty. No elements to encode in this case anyhow.
+        if (length == 0) break;
         Handle<FixedDoubleArray> elements(
             FixedDoubleArray::cast(array->elements()), isolate_);
         for (; i < length; i++) {
