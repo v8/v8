@@ -830,6 +830,31 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   VisitWord64Shift(this, node, kX64Ror);
 }
 
+
+void InstructionSelector::VisitWord64Clz(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Lzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord32Clz(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Lzcnt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord64Ctz(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Tzcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord32Ctz(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Tzcnt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 
 
@@ -838,6 +863,18 @@ void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
+
+void InstructionSelector::VisitWord32Popcnt(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Popcnt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitWord64Popcnt(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Popcnt, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   X64OperandGenerator g(this);
@@ -1061,6 +1098,55 @@ void InstructionSelector::VisitUint32MulHigh(Node* node) {
   VisitMulHigh(this, node, kX64UmulHigh32);
 }
 
+
+void InstructionSelector::VisitChangeFloat32ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeInt32ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEInt32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeUint32ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEUint32ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeFloat64ToInt32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitChangeFloat64ToUint32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ToUint32 | MiscField::encode(1), g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ToUint32 | MiscField::encode(0), g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+void InstructionSelector::VisitTruncateFloat32ToInt32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32ToInt32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitTruncateFloat32ToUint32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat32ToUint32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand inputs[] = {g.UseRegister(node->InputAt(0))};
@@ -1278,65 +1364,15 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
 
 }  // namespace
 
-#define RO_OP_LIST(V)                                                    \
-  V(Word64Clz, kX64Lzcnt)                                                \
-  V(Word32Clz, kX64Lzcnt32)                                              \
-  V(Word64Ctz, kX64Tzcnt)                                                \
-  V(Word32Ctz, kX64Tzcnt32)                                              \
-  V(Word64Popcnt, kX64Popcnt)                                            \
-  V(Word32Popcnt, kX64Popcnt32)                                          \
-  V(Float64Sqrt, kSSEFloat64Sqrt)                                        \
-  V(Float32Sqrt, kSSEFloat32Sqrt)                                        \
-  V(ChangeFloat64ToInt32, kSSEFloat64ToInt32)                            \
-  V(ChangeFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(1))   \
-  V(TruncateFloat64ToUint32, kSSEFloat64ToUint32 | MiscField::encode(0)) \
-  V(TruncateFloat64ToFloat32, kSSEFloat64ToFloat32)                      \
-  V(ChangeFloat32ToFloat64, kSSEFloat32ToFloat64)                        \
-  V(TruncateFloat32ToInt32, kSSEFloat32ToInt32)                          \
-  V(TruncateFloat32ToUint32, kSSEFloat32ToUint32)                        \
-  V(ChangeInt32ToFloat64, kSSEInt32ToFloat64)                            \
-  V(ChangeUint32ToFloat64, kSSEUint32ToFloat64)                          \
-  V(RoundFloat64ToInt32, kSSEFloat64ToInt32)                             \
-  V(RoundInt32ToFloat32, kSSEInt32ToFloat32)                             \
-  V(RoundInt64ToFloat32, kSSEInt64ToFloat32)                             \
-  V(RoundInt64ToFloat64, kSSEInt64ToFloat64)                             \
-  V(RoundUint32ToFloat32, kSSEUint32ToFloat32)                           \
-  V(BitcastFloat32ToInt32, kX64BitcastFI)                                \
-  V(BitcastFloat64ToInt64, kX64BitcastDL)                                \
-  V(BitcastInt32ToFloat32, kX64BitcastIF)                                \
-  V(BitcastInt64ToFloat64, kX64BitcastLD)                                \
-  V(Float64ExtractLowWord32, kSSEFloat64ExtractLowWord32)                \
-  V(Float64ExtractHighWord32, kSSEFloat64ExtractHighWord32)              \
-  V(Float64SilenceNaN, kSSEFloat64SilenceNaN)
 
-#define RR_OP_LIST(V)                                                         \
-  V(Float32RoundDown, kSSEFloat32Round | MiscField::encode(kRoundDown))       \
-  V(Float64RoundDown, kSSEFloat64Round | MiscField::encode(kRoundDown))       \
-  V(Float32RoundUp, kSSEFloat32Round | MiscField::encode(kRoundUp))           \
-  V(Float64RoundUp, kSSEFloat64Round | MiscField::encode(kRoundUp))           \
-  V(Float32RoundTruncate, kSSEFloat32Round | MiscField::encode(kRoundToZero)) \
-  V(Float64RoundTruncate, kSSEFloat64Round | MiscField::encode(kRoundToZero)) \
-  V(Float32RoundTiesEven,                                                     \
-    kSSEFloat32Round | MiscField::encode(kRoundToNearest))                    \
-  V(Float64RoundTiesEven, kSSEFloat64Round | MiscField::encode(kRoundToNearest))
-
-#define RO_VISITOR(Name, opcode)                      \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRO(this, node, opcode);                      \
-  }
-RO_OP_LIST(RO_VISITOR)
-#undef RO_VISITOR
-
-#define RR_VISITOR(Name, opcode)                      \
-  void InstructionSelector::Visit##Name(Node* node) { \
-    VisitRR(this, node, opcode);                      \
-  }
-RR_OP_LIST(RR_VISITOR)
-#undef RR_VISITOR
+void InstructionSelector::VisitTruncateFloat64ToFloat32(Node* node) {
+  VisitRO(this, node, kSSEFloat64ToFloat32);
+}
 
 void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
   VisitRR(this, node, kArchTruncateDoubleToI);
 }
+
 
 void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   X64OperandGenerator g(this);
@@ -1363,6 +1399,34 @@ void InstructionSelector::VisitTruncateInt64ToInt32(Node* node) {
   Emit(kX64Movl, g.DefineAsRegister(node), g.Use(value));
 }
 
+void InstructionSelector::VisitRoundFloat64ToInt32(Node* node) {
+  VisitRO(this, node, kSSEFloat64ToInt32);
+}
+
+void InstructionSelector::VisitRoundInt32ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEInt32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitRoundInt64ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEInt64ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitRoundInt64ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEInt64ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitRoundUint32ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEUint32ToFloat32, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitRoundUint64ToFloat32(Node* node) {
   X64OperandGenerator g(this);
   InstructionOperand temps[] = {g.TempRegister()};
@@ -1377,6 +1441,31 @@ void InstructionSelector::VisitRoundUint64ToFloat64(Node* node) {
   Emit(kSSEUint64ToFloat64, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
        arraysize(temps), temps);
 }
+
+
+void InstructionSelector::VisitBitcastFloat32ToInt32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64BitcastFI, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64BitcastDL, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitBitcastInt32ToFloat32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64BitcastIF, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64BitcastLD, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
+
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
   VisitFloatBinop(this, node, kAVXFloat32Add, kSSEFloat32Add);
@@ -1401,6 +1490,10 @@ void InstructionSelector::VisitFloat32Abs(Node* node) {
   VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Abs, kSSEFloat32Abs);
 }
 
+
+void InstructionSelector::VisitFloat32Sqrt(Node* node) {
+  VisitRO(this, node, kSSEFloat32Sqrt);
+}
 
 void InstructionSelector::VisitFloat32Max(Node* node) {
   VisitRRO(this, node, kSSEFloat32Max);
@@ -1452,11 +1545,54 @@ void InstructionSelector::VisitFloat64Abs(Node* node) {
   VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat64Abs, kSSEFloat64Abs);
 }
 
+void InstructionSelector::VisitFloat64Sqrt(Node* node) {
+  VisitRO(this, node, kSSEFloat64Sqrt);
+}
+
+
+void InstructionSelector::VisitFloat32RoundDown(Node* node) {
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundDown));
+}
+
+
+void InstructionSelector::VisitFloat64RoundDown(Node* node) {
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundDown));
+}
+
+
+void InstructionSelector::VisitFloat32RoundUp(Node* node) {
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundUp));
+}
+
+
+void InstructionSelector::VisitFloat64RoundUp(Node* node) {
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundUp));
+}
+
+
+void InstructionSelector::VisitFloat32RoundTruncate(Node* node) {
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToZero));
+}
+
+
+void InstructionSelector::VisitFloat64RoundTruncate(Node* node) {
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToZero));
+}
+
 
 void InstructionSelector::VisitFloat64RoundTiesAway(Node* node) {
   UNREACHABLE();
 }
 
+
+void InstructionSelector::VisitFloat32RoundTiesEven(Node* node) {
+  VisitRR(this, node, kSSEFloat32Round | MiscField::encode(kRoundToNearest));
+}
+
+
+void InstructionSelector::VisitFloat64RoundTiesEven(Node* node) {
+  VisitRR(this, node, kSSEFloat64Round | MiscField::encode(kRoundToNearest));
+}
 
 void InstructionSelector::VisitFloat32Neg(Node* node) {
   VisitFloatUnop(this, node, node->InputAt(0), kAVXFloat32Neg, kSSEFloat32Neg);
@@ -2197,6 +2333,21 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
   VisitFloat64Compare(this, node, &cont);
 }
 
+
+void InstructionSelector::VisitFloat64ExtractLowWord32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ExtractLowWord32, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+
+void InstructionSelector::VisitFloat64ExtractHighWord32(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64ExtractHighWord32, g.DefineAsRegister(node),
+       g.Use(node->InputAt(0)));
+}
+
+
 void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
   X64OperandGenerator g(this);
   Node* left = node->InputAt(0);
@@ -2217,6 +2368,12 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
   Node* right = node->InputAt(1);
   Emit(kSSEFloat64InsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.Use(right));
+}
+
+void InstructionSelector::VisitFloat64SilenceNaN(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kSSEFloat64SilenceNaN, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitAtomicLoad(Node* node) {
