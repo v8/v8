@@ -33,8 +33,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void StoreLastIndex(Node* context, Node* regexp, Node* value,
                       bool is_fastpath);
 
-  Node* ConstructNewResultFromMatchInfo(Node* context, Node* match_info,
-                                        Node* string);
+  Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
+                                        Node* const match_info,
+                                        Node* const string);
 
   Node* RegExpPrototypeExecBodyWithoutResult(Node* const context,
                                              Node* const regexp,
@@ -141,10 +142,10 @@ void RegExpBuiltinsAssembler::StoreLastIndex(Node* context, Node* regexp,
   }
 }
 
-Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
-                                                               Node* match_info,
-                                                               Node* string) {
-  Label out(this);
+Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
+    Node* const context, Node* const regexp, Node* const match_info,
+    Node* const string) {
+  Label named_captures(this), out(this);
 
   Node* const num_indices = SmiUntag(LoadFixedArrayElement(
       match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
@@ -164,7 +165,8 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
 
   StoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
 
-  GotoIf(SmiEqual(num_results, SmiConstant(Smi::FromInt(1))), &out);
+  // If no captures exist we can skip named capture handling as well.
+  GotoIf(SmiEqual(num_results, SmiConstant(1)), &out);
 
   // Store all remaining captures.
   Node* const limit = IntPtrAdd(
@@ -187,7 +189,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
     Node* const start = LoadFixedArrayElement(match_info, from_cursor);
 
     Label next_iter(this);
-    GotoIf(SmiEqual(start, SmiConstant(Smi::FromInt(-1))), &next_iter);
+    GotoIf(SmiEqual(start, SmiConstant(-1)), &next_iter);
 
     Node* const from_cursor_plus1 = IntPtrAdd(from_cursor, IntPtrConstant(1));
     Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
@@ -199,7 +201,83 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
     Bind(&next_iter);
     var_from_cursor.Bind(IntPtrAdd(from_cursor, IntPtrConstant(2)));
     var_to_cursor.Bind(IntPtrAdd(to_cursor, IntPtrConstant(1)));
-    Branch(UintPtrLessThan(var_from_cursor.value(), limit), &loop, &out);
+    Branch(UintPtrLessThan(var_from_cursor.value(), limit), &loop,
+           &named_captures);
+  }
+
+  Bind(&named_captures);
+  {
+    // We reach this point only if captures exist, implying that this is an
+    // IRREGEXP JSRegExp.
+
+    CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
+    CSA_ASSERT(this, SmiGreaterThan(num_results, SmiConstant(1)));
+
+    // Preparations for named capture properties. Exit early if the result does
+    // not have any named captures to minimize performance impact.
+
+    Node* const data = LoadObjectField(regexp, JSRegExp::kDataOffset);
+    CSA_ASSERT(this, SmiEqual(LoadFixedArrayElement(data, JSRegExp::kTagIndex),
+                              SmiConstant(JSRegExp::IRREGEXP)));
+
+    // The names fixed array associates names at even indices with a capture
+    // index at odd indices.
+    Node* const names =
+        LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureNameMapIndex);
+    GotoIf(SmiEqual(names, SmiConstant(0)), &out);
+
+    // Allocate a new object to store the named capture properties.
+    // TODO(jgruber): Could be optimized by adding the object map to the heap
+    // root list.
+
+    Node* const native_context = LoadNativeContext(context);
+    Node* const map = LoadContextElement(
+        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP);
+    Node* const properties =
+        AllocateNameDictionary(NameDictionary::kInitialCapacity);
+
+    Node* const group_object = AllocateJSObjectFromMap(map, properties);
+
+    // Store it on the result as a 'group' property.
+
+    {
+      Node* const name = HeapConstant(isolate()->factory()->group_string());
+      CallRuntime(Runtime::kCreateDataProperty, context, result, name,
+                  group_object);
+    }
+
+    // One or more named captures exist, add a property for each one.
+
+    CSA_ASSERT(this, HasInstanceType(names, FIXED_ARRAY_TYPE));
+    Node* const names_length = LoadAndUntagFixedArrayBaseLength(names);
+    CSA_ASSERT(this, IntPtrGreaterThan(names_length, IntPtrConstant(0)));
+
+    Variable var_i(this, MachineType::PointerRepresentation());
+    var_i.Bind(IntPtrConstant(0));
+
+    Variable* vars[] = {&var_i};
+    const int vars_count = sizeof(vars) / sizeof(vars[0]);
+    Label loop(this, vars_count, vars);
+
+    Goto(&loop);
+    Bind(&loop);
+    {
+      Node* const i = var_i.value();
+      Node* const i_plus_1 = IntPtrAdd(i, IntPtrConstant(1));
+      Node* const i_plus_2 = IntPtrAdd(i_plus_1, IntPtrConstant(1));
+
+      Node* const name = LoadFixedArrayElement(names, i);
+      Node* const index = LoadFixedArrayElement(names, i_plus_1);
+      Node* const capture =
+          LoadFixedArrayElement(result_elements, SmiUntag(index));
+
+      CallRuntime(Runtime::kCreateDataProperty, context, group_object, name,
+                  capture);
+
+      var_i.Bind(i_plus_2);
+      Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length), &out,
+             &loop);
+    }
   }
 
   Bind(&out);
@@ -352,7 +430,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
   {
     Node* const match_indices = indices_or_null;
     Node* const result =
-        ConstructNewResultFromMatchInfo(context, match_indices, string);
+        ConstructNewResultFromMatchInfo(context, regexp, match_indices, string);
     var_result.Bind(result);
     Goto(&out);
   }
@@ -2510,7 +2588,7 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Bind(&if_matched);
   {
     Node* result =
-        ConstructNewResultFromMatchInfo(context, match_indices, string);
+        ConstructNewResultFromMatchInfo(context, regexp, match_indices, string);
     Return(result);
   }
 }
