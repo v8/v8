@@ -1862,7 +1862,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> new_promise_capability =
         SimpleCreateFunction(isolate, factory->empty_string(),
                              Builtins::kNewPromiseCapability, 2, false);
-    new_promise_capability->shared()->set_native(false);
     InstallWithIntrinsicDefaultProto(isolate, new_promise_capability,
                                      Context::NEW_PROMISE_CAPABILITY_INDEX);
   }
@@ -1934,7 +1933,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {  // Internal: IsPromise
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(), Builtins::kIsPromise, 1, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::IS_PROMISE_INDEX);
     }
@@ -1951,7 +1949,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     {  // Internal: PromiseHandle
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(), Builtins::kPromiseHandle, 5, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_HANDLE_INDEX);
       // Set up catch prediction
@@ -1963,7 +1960,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kPromiseHandleReject, 3, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(isolate, function,
                                        Context::PROMISE_HANDLE_REJECT_INDEX);
       // Set up catch prediction
@@ -3384,7 +3380,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionAwaitCaught, 3, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX);
     }
@@ -3393,7 +3388,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionAwaitUncaught, 3, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
     }
@@ -3422,7 +3416,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function =
           SimpleCreateFunction(isolate, factory->empty_string(),
                                Builtins::kAsyncFunctionPromiseCreate, 0, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX);
     }
@@ -3431,7 +3424,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
       Handle<JSFunction> function = SimpleCreateFunction(
           isolate, factory->empty_string(),
           Builtins::kAsyncFunctionPromiseRelease, 1, false);
-      function->shared()->set_native(false);
       InstallWithIntrinsicDefaultProto(
           isolate, function, Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX);
     }
