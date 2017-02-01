@@ -91,7 +91,9 @@ Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
   inputs[count++] = jsgraph->ExternalConstant(
       ExternalReference(f, jsgraph->isolate()));         // ref
   inputs[count++] = jsgraph->Int32Constant(fun->nargs);  // arity
-  inputs[count++] = jsgraph->HeapConstant(context);      // context
+  inputs[count++] = context.is_null()
+                        ? jsgraph->SmiConstant(0)
+                        : jsgraph->HeapConstant(context);  // context
   inputs[count++] = *effect_ptr;
   inputs[count++] = control;
 
@@ -328,7 +330,7 @@ class WasmTrapHelper : public ZoneObject {
       Node* parameters[] = {trap_reason_smi,     // message id
                             trap_position_smi};  // byte position
       BuildCallToRuntime(Runtime::kThrowWasmError, jsgraph(),
-                         module->instance->context, parameters,
+                         Handle<Context>::null(), parameters,
                          arraysize(parameters), effect_ptr, *control_ptr);
     }
     if (false) {

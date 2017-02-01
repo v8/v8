@@ -55,6 +55,14 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
 Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
                           bool patch_source_position) {
   HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  StackFrameIterator it(isolate);
+  it.Advance();
+  CHECK(it.frame()->is_wasm_compiled());
+  isolate->set_context(*WasmCompiledFrame::cast(it.frame())
+                            ->wasm_instance()
+                            ->compiled_module()
+                            ->native_context());
   Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
 

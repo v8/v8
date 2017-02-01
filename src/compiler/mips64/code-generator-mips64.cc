@@ -2113,7 +2113,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
             ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
             0);
       } else {
-        __ Move(cp, isolate()->native_context());
+        __ Move(cp, Smi::kZero);
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
       }

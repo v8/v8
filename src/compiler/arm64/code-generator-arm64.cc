@@ -1739,7 +1739,7 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
             0);
       } else {
         DCHECK(csp.Is(__ StackPointer()));
-        __ Move(cp, isolate()->native_context());
+        __ Move(cp, Smi::kZero);
         // Initialize the jssp because it is required for the runtime call.
         __ Mov(jssp, csp);
         gen_->AssembleSourcePosition(instr_);
