@@ -210,6 +210,8 @@ typedef std::function<void(debug::PromiseDebugActionType type, int id,
 void SetAsyncTaskListener(Isolate* isolate, AsyncTaskListener listener,
                           void* data);
 
+int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
+
 }  // namespace debug
 }  // namespace v8
 
