@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
+#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {
