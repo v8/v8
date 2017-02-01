@@ -1501,6 +1501,16 @@ TEST_F(ValueSerializerTest, DecodeValueObjects) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof String"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
+
+  // String object containing a Latin-1 string.
+  DecodeTest({0xff, 0x0c, 0x73, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c'},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === String.prototype"));
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.valueOf() === 'Qu\\xe9bec'"));
+               EXPECT_TRUE(EvaluateScriptForResultBool("result.length === 6"));
+             });
 }
 
 TEST_F(ValueSerializerTest, RoundTripRegExp) {
@@ -1559,6 +1569,15 @@ TEST_F(ValueSerializerTest, DecodeRegExp) {
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a instanceof RegExp"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+
+  // RegExp containing a Latin-1 string.
+  DecodeTest(
+      {0xff, 0x0c, 0x52, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c', 0x02},
+      [this](Local<Value> value) {
+        ASSERT_TRUE(value->IsRegExp());
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "result.toString() === '/Qu\\xe9bec/i'"));
       });
 }
 

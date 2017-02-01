@@ -26,7 +26,8 @@ namespace internal {
 // Version 9: (imported from Blink)
 // Version 10: one-byte (Latin-1) strings
 // Version 11: properly separate undefined from the hole in arrays
-static const uint32_t kLatestVersion = 11;
+// Version 12: regexp and string objects share normal string encoding
+static const uint32_t kLatestVersion = 12;
 
 static const int kPretenureThreshold = 100 * KB;
 
@@ -650,18 +651,8 @@ Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
     WriteTag(SerializationTag::kNumberObject);
     WriteDouble(inner_value->Number());
   } else if (inner_value->IsString()) {
-    // TODO(jbroman): Replace UTF-8 encoding with the same options available for
-    // ordinary strings.
     WriteTag(SerializationTag::kStringObject);
-    v8::Local<v8::String> api_string =
-        Utils::ToLocal(handle(String::cast(inner_value), isolate_));
-    uint32_t utf8_length = api_string->Utf8Length();
-    WriteVarint(utf8_length);
-    uint8_t* dest;
-    if (ReserveRawBytes(utf8_length).To(&dest)) {
-      api_string->WriteUtf8(reinterpret_cast<char*>(dest), utf8_length, nullptr,
-                            v8::String::NO_NULL_TERMINATION);
-    }
+    WriteString(handle(String::cast(inner_value), isolate_));
   } else {
     DCHECK(inner_value->IsSymbol());
     ThrowDataCloneError(MessageTemplate::kDataCloneError, value);
@@ -672,15 +663,7 @@ Maybe<bool> ValueSerializer::WriteJSValue(Handle<JSValue> value) {
 
 void ValueSerializer::WriteJSRegExp(JSRegExp* regexp) {
   WriteTag(SerializationTag::kRegExp);
-  v8::Local<v8::String> api_string =
-      Utils::ToLocal(handle(regexp->Pattern(), isolate_));
-  uint32_t utf8_length = api_string->Utf8Length();
-  WriteVarint(utf8_length);
-  uint8_t* dest;
-  if (ReserveRawBytes(utf8_length).To(&dest)) {
-    api_string->WriteUtf8(reinterpret_cast<char*>(dest), utf8_length, nullptr,
-                          v8::String::NO_NULL_TERMINATION);
-  }
+  WriteString(handle(regexp->Pattern(), isolate_));
   WriteVarint(static_cast<uint32_t>(regexp->GetFlags()));
 }
 
@@ -1161,6 +1144,15 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
   }
 }
 
+MaybeHandle<String> ValueDeserializer::ReadString() {
+  if (version_ < 12) return ReadUtf8String();
+  Handle<Object> object;
+  if (!ReadObject().ToHandle(&object) || !object->IsString()) {
+    return MaybeHandle<String>();
+  }
+  return Handle<String>::cast(object);
+}
+
 MaybeHandle<String> ValueDeserializer::ReadUtf8String() {
   uint32_t utf8_length;
   Vector<const uint8_t> utf8_bytes;
@@ -1399,7 +1391,7 @@ MaybeHandle<JSValue> ValueDeserializer::ReadJSValue(SerializationTag tag) {
     }
     case SerializationTag::kStringObject: {
       Handle<String> string;
-      if (!ReadUtf8String().ToHandle(&string)) return MaybeHandle<JSValue>();
+      if (!ReadString().ToHandle(&string)) return MaybeHandle<JSValue>();
       value = Handle<JSValue>::cast(isolate_->factory()->NewJSObject(
           isolate_->string_function(), pretenure_));
       value->set_value(*string);
@@ -1418,7 +1410,7 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
   Handle<String> pattern;
   uint32_t raw_flags;
   Handle<JSRegExp> regexp;
-  if (!ReadUtf8String().ToHandle(&pattern) ||
+  if (!ReadString().ToHandle(&pattern) ||
       !ReadVarint<uint32_t>().To(&raw_flags) ||
       !JSRegExp::New(pattern, static_cast<JSRegExp::Flags>(raw_flags))
            .ToHandle(&regexp)) {
