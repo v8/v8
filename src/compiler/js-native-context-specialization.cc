@@ -564,7 +564,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // We do not handle generic calls in try blocks.
       if (is_exceptional) return NoChange();
       // We only handle the generic store IC case.
-      if (vector->GetKind(slot) != FeedbackVectorSlotKind::STORE_IC) {
+      if (!vector->IsStoreIC(slot)) {
         return NoChange();
       }
     }
@@ -1556,7 +1556,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   } else {
     DCHECK(access_info.IsGeneric());
     DCHECK_EQ(AccessMode::kStore, access_mode);
-    DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
+    DCHECK(vector->IsStoreIC(slot));
     Callable callable =
         CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();

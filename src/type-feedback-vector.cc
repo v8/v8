@@ -197,19 +197,6 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   array->set_map_no_write_barrier(isolate->heap()->type_feedback_vector_map());
   array->set(kMetadataIndex, *metadata);
   array->set(kInvocationCountIndex, Smi::kZero);
-  for (int i = 0; i < slot_count;) {
-    FeedbackVectorSlot slot(i);
-    FeedbackVectorSlotKind kind = metadata->GetKind(slot);
-    int index = TypeFeedbackVector::GetIndex(slot);
-    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
-
-    if (kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
-      // TODO(mvstanton): Root feedback vectors in this location.
-      array->set(index, *factory->empty_type_feedback_vector(),
-                 SKIP_WRITE_BARRIER);
-    }
-    i += entry_size;
-  }
 
   DisallowHeapAllocation no_gc;
 
@@ -224,24 +211,44 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
 
     Object* value;
-    if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
-      value = isolate->heap()->empty_weak_cell();
-    } else if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
-               kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC) {
-      value = Smi::kZero;
-    } else if (kind == FeedbackVectorSlotKind::LITERAL) {
-      value = *undefined_value;
-    } else {
-      value = *uninitialized_sentinel;
-    }
+    Object* extra_value = *uninitialized_sentinel;
+    switch (kind) {
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+        value = isolate->heap()->empty_weak_cell();
+        break;
+      case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
+      case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+        value = Smi::kZero;
+        break;
+      case FeedbackVectorSlotKind::CREATE_CLOSURE:
+        // TODO(mvstanton): Root feedback vectors in this location.
+        value = isolate->heap()->empty_type_feedback_vector();
+        break;
+      case FeedbackVectorSlotKind::LITERAL:
+        value = *undefined_value;
+        break;
+      case FeedbackVectorSlotKind::CALL_IC:
+        value = *uninitialized_sentinel;
+        extra_value = Smi::kZero;
+        break;
+      case FeedbackVectorSlotKind::LOAD_IC:
+      case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+      case FeedbackVectorSlotKind::STORE_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_IC:
+      case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+      case FeedbackVectorSlotKind::GENERAL:
+        value = *uninitialized_sentinel;
+        break;
 
-    if (kind != FeedbackVectorSlotKind::CREATE_CLOSURE) {
-      array->set(index, value, SKIP_WRITE_BARRIER);
-      value = kind == FeedbackVectorSlotKind::CALL_IC ? Smi::kZero
-                                                      : *uninitialized_sentinel;
-      for (int j = 1; j < entry_size; j++) {
-        array->set(index + j, value, SKIP_WRITE_BARRIER);
-      }
+      case FeedbackVectorSlotKind::INVALID:
+      case FeedbackVectorSlotKind::KINDS_NUMBER:
+        UNREACHABLE();
+        value = Smi::kZero;
+        break;
+    }
+    array->set(index, value, SKIP_WRITE_BARRIER);
+    for (int j = 1; j < entry_size; j++) {
+      array->set(index + j, extra_value, SKIP_WRITE_BARRIER);
     }
     i += entry_size;
   }
@@ -418,8 +425,8 @@ void FeedbackNexus::ConfigurePremonomorphic() {
 
 void FeedbackNexus::ConfigureMegamorphic() {
   // Keyed ICs must use ConfigureMegamorphicKeyed.
-  DCHECK_NE(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector()->GetKind(slot()));
-  DCHECK_NE(FeedbackVectorSlotKind::KEYED_STORE_IC, vector()->GetKind(slot()));
+  DCHECK(!vector()->IsKeyedLoadIC(slot()));
+  DCHECK(!vector()->IsKeyedStoreIC(slot()));
 
   Isolate* isolate = GetIsolate();
   SetFeedback(*TypeFeedbackVector::MegamorphicSentinel(isolate),

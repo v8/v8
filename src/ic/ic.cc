@@ -2561,13 +2561,13 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
   // set up outside the IC, handle that here.
   FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
-  if (kind == FeedbackVectorSlotKind::LOAD_IC) {
+  if (IsLoadICKind(kind)) {
     LoadICNexus nexus(vector, vector_slot);
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 
-  } else if (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC) {
+  } else if (IsLoadGlobalICKind(kind)) {
     DCHECK_EQ(*isolate->global_object(), *receiver);
     LoadGlobalICNexus nexus(vector, vector_slot);
     LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2575,7 +2575,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(key));
 
   } else {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, kind);
+    DCHECK(IsKeyedLoadICKind(kind));
     KeyedLoadICNexus nexus(vector, vector_slot);
     KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
@@ -2671,14 +2671,13 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  if (vector->GetKind(vector_slot) == FeedbackVectorSlotKind::STORE_IC) {
+  if (vector->IsStoreIC(vector_slot)) {
     StoreICNexus nexus(vector, vector_slot);
     StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC,
-              vector->GetKind(vector_slot));
+    DCHECK(vector->IsKeyedStoreIC(vector_slot));
     KeyedStoreICNexus nexus(vector, vector_slot);
     KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
     ic.UpdateState(receiver, key);

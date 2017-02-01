@@ -3776,11 +3776,11 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
       Handle<TypeFeedbackVector>(f->feedback_vector());
   FeedbackVectorHelper helper(vector);
   FeedbackVectorSlot slot = helper.slot(slot_index);
-  if (vector->GetKind(slot) == FeedbackVectorSlotKind::LOAD_IC) {
+  if (vector->IsLoadIC(slot)) {
     LoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
   } else {
-    CHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
+    CHECK(vector->IsKeyedLoadIC(slot));
     KeyedLoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
   }

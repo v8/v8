@@ -75,10 +75,10 @@ InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
     FeedbackVectorSlot slot) {
   if (!slot.IsInvalid()) {
     FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
-    if (kind == FeedbackVectorSlotKind::LOAD_IC) {
+    if (IsLoadICKind(kind)) {
       LoadICNexus nexus(feedback_vector_, slot);
       return nexus.StateFromFeedback();
-    } else if (kind == FeedbackVectorSlotKind::KEYED_LOAD_IC) {
+    } else if (IsKeyedLoadICKind(kind)) {
       KeyedLoadICNexus nexus(feedback_vector_, slot);
       return nexus.StateFromFeedback();
     }
@@ -93,10 +93,10 @@ InlineCacheState TypeFeedbackOracle::LoadInlineCacheState(
 bool TypeFeedbackOracle::StoreIsUninitialized(FeedbackVectorSlot slot) {
   if (!slot.IsInvalid()) {
     FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
-    if (kind == FeedbackVectorSlotKind::STORE_IC) {
+    if (IsStoreICKind(kind)) {
       StoreICNexus nexus(feedback_vector_, slot);
       return nexus.StateFromFeedback() == UNINITIALIZED;
-    } else if (kind == FeedbackVectorSlotKind::KEYED_STORE_IC) {
+    } else if (IsKeyedStoreICKind(kind)) {
       KeyedStoreICNexus nexus(feedback_vector_, slot);
       return nexus.StateFromFeedback() == UNINITIALIZED;
     }
@@ -137,9 +137,7 @@ byte TypeFeedbackOracle::ForInType(FeedbackVectorSlot feedback_vector_slot) {
 void TypeFeedbackOracle::GetStoreModeAndKeyType(
     FeedbackVectorSlot slot, KeyedAccessStoreMode* store_mode,
     IcCheckType* key_type) {
-  if (!slot.IsInvalid() &&
-      feedback_vector_->GetKind(slot) ==
-          FeedbackVectorSlotKind::KEYED_STORE_IC) {
+  if (!slot.IsInvalid() && feedback_vector_->IsKeyedStoreIC(slot)) {
     KeyedStoreICNexus nexus(feedback_vector_, slot);
     *store_mode = nexus.GetKeyedAccessStoreMode();
     *key_type = nexus.GetKeyType();
@@ -477,12 +475,11 @@ void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
 
 void TypeFeedbackOracle::CollectReceiverTypes(FeedbackVectorSlot slot,
                                               SmallMapList* types) {
-  FeedbackVectorSlotKind kind = feedback_vector_->GetKind(slot);
-  if (kind == FeedbackVectorSlotKind::STORE_IC) {
+  if (feedback_vector_->IsStoreIC(slot)) {
     StoreICNexus nexus(feedback_vector_, slot);
     CollectReceiverTypes(&nexus, types);
   } else {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, kind);
+    DCHECK(feedback_vector_->IsKeyedStoreIC(slot));
     KeyedStoreICNexus nexus(feedback_vector_, slot);
     CollectReceiverTypes(&nexus, types);
   }

@@ -51,17 +51,29 @@ TypeFeedbackVector* TypeFeedbackVector::cast(Object* obj) {
 
 
 int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
-  DCHECK_NE(FeedbackVectorSlotKind::INVALID, kind);
-  DCHECK_NE(FeedbackVectorSlotKind::KINDS_NUMBER, kind);
-  if (kind == FeedbackVectorSlotKind::GENERAL ||
-      kind == FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC ||
-      kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC ||
-      kind == FeedbackVectorSlotKind::LITERAL ||
-      kind == FeedbackVectorSlotKind::CREATE_CLOSURE) {
-    return 1;
-  }
+  switch (kind) {
+    case FeedbackVectorSlotKind::GENERAL:
+    case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
+    case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+    case FeedbackVectorSlotKind::LITERAL:
+    case FeedbackVectorSlotKind::CREATE_CLOSURE:
+      return 1;
 
-  return 2;
+    case FeedbackVectorSlotKind::CALL_IC:
+    case FeedbackVectorSlotKind::LOAD_IC:
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+    case FeedbackVectorSlotKind::KEYED_LOAD_IC:
+    case FeedbackVectorSlotKind::STORE_IC:
+    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+    case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+      return 2;
+
+    case FeedbackVectorSlotKind::INVALID:
+    case FeedbackVectorSlotKind::KINDS_NUMBER:
+      UNREACHABLE();
+      break;
+  }
+  return 1;
 }
 
 bool TypeFeedbackVector::is_empty() const {
@@ -174,6 +186,21 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         break;
       }
       case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
+        // If we are not running interpreted code, we need to ignore the special
+        // IC slots for binaryop/compare used by the interpreter.
+        // TODO(mvstanton): Remove code_is_interpreted when full code is retired
+        // from service.
+        if (code_is_interpreted) {
+          int const feedback = Smi::cast(obj)->value();
+          BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
+          if (hint == BinaryOperationHint::kAny) {
+            gen++;
+          } else if (hint != BinaryOperationHint::kNone) {
+            with++;
+          }
+          total++;
+        }
+        break;
       case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
         // If we are not running interpreted code, we need to ignore the special
         // IC slots for binaryop/compare used by the interpreter.
@@ -181,23 +208,12 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         // from service.
         if (code_is_interpreted) {
           int const feedback = Smi::cast(obj)->value();
-          if (kind == FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC) {
-            CompareOperationHint hint =
-                CompareOperationHintFromFeedback(feedback);
-            if (hint == CompareOperationHint::kAny) {
-              gen++;
-            } else if (hint != CompareOperationHint::kNone) {
-              with++;
-            }
-          } else {
-            DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC, kind);
-            BinaryOperationHint hint =
-                BinaryOperationHintFromFeedback(feedback);
-            if (hint == BinaryOperationHint::kAny) {
-              gen++;
-            } else if (hint != BinaryOperationHint::kNone) {
-              with++;
-            }
+          CompareOperationHint hint =
+              CompareOperationHintFromFeedback(feedback);
+          if (hint == CompareOperationHint::kAny) {
+            gen++;
+          } else if (hint != CompareOperationHint::kNone) {
+            with++;
           }
           total++;
         }

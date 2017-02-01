@@ -6836,6 +6836,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
   if (access_type == LOAD) {
     HValue* values[] = {object, key, slot_value, vector_value};
     if (!expr->AsProperty()->key()->IsPropertyName()) {
+      DCHECK(vector->IsKeyedLoadIC(slot));
       // It's possible that a keyed load of a constant string was converted
       // to a named load. Here, at the last minute, we need to make sure to
       // use a generic Keyed Load if we are using the type vector, because
@@ -6847,6 +6848,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
                                    callable.descriptor(), ArrayVector(values));
       return result;
     }
+    DCHECK(vector->IsLoadIC(slot));
     Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
     HValue* stub = Add<HConstant>(callable.code());
     HCallWithDescriptor* result = New<HCallWithDescriptor>(
@@ -6855,7 +6857,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
 
   } else {
     HValue* values[] = {object, key, value, slot_value, vector_value};
-    if (vector->GetKind(slot) == FeedbackVectorSlotKind::KEYED_STORE_IC) {
+    if (vector->IsKeyedStoreIC(slot)) {
       // It's possible that a keyed store of a constant string was converted
       // to a named store. Here, at the last minute, we need to make sure to
       // use a generic Keyed Store if we are using the type vector, because
@@ -6868,6 +6870,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
                                    callable.descriptor(), ArrayVector(values));
       return result;
     }
+    DCHECK(vector->IsStoreIC(slot));
     Callable callable = CodeFactory::StoreICInOptimizedCode(
         isolate(), function_language_mode());
     HValue* stub = Add<HConstant>(callable.code());

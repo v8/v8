@@ -39,6 +39,30 @@ enum class FeedbackVectorSlotKind {
   KINDS_NUMBER  // Last value indicating number of kinds.
 };
 
+inline bool IsCallICKind(FeedbackVectorSlotKind kind) {
+  return kind == FeedbackVectorSlotKind::CALL_IC;
+}
+
+inline bool IsLoadICKind(FeedbackVectorSlotKind kind) {
+  return kind == FeedbackVectorSlotKind::LOAD_IC;
+}
+
+inline bool IsLoadGlobalICKind(FeedbackVectorSlotKind kind) {
+  return kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC;
+}
+
+inline bool IsKeyedLoadICKind(FeedbackVectorSlotKind kind) {
+  return kind == FeedbackVectorSlotKind::KEYED_LOAD_IC;
+}
+
+inline bool IsStoreICKind(FeedbackVectorSlotKind kind) {
+  return kind == FeedbackVectorSlotKind::STORE_IC;
+}
+
+inline bool IsKeyedStoreICKind(FeedbackVectorSlotKind kind) {
+  return kind == FeedbackVectorSlotKind::KEYED_STORE_IC;
+}
+
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind);
 
 
@@ -259,6 +283,17 @@ class TypeFeedbackVector : public FixedArray {
   static Handle<TypeFeedbackVector> Copy(Isolate* isolate,
                                          Handle<TypeFeedbackVector> vector);
 
+#define DEFINE_SLOT_KIND_PREDICATE(Name) \
+  bool Name(FeedbackVectorSlot slot) const { return Name##Kind(GetKind(slot)); }
+
+  DEFINE_SLOT_KIND_PREDICATE(IsCallIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsLoadIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsLoadGlobalIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsKeyedLoadIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
+#undef DEFINE_SLOT_KIND_PREDICATE
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
@@ -375,6 +410,7 @@ class FeedbackNexus {
     return vector_handle_.is_null() ? vector_ : *vector_handle_;
   }
   FeedbackVectorSlot slot() const { return slot_; }
+  FeedbackVectorSlotKind kind() const { return vector()->GetKind(slot()); }
 
   InlineCacheState ic_state() const { return StateFromFeedback(); }
   bool IsUninitialized() const { return StateFromFeedback() == UNINITIALIZED; }
@@ -430,11 +466,11 @@ class CallICNexus final : public FeedbackNexus {
  public:
   CallICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));
+    DCHECK(vector->IsCallIC(slot));
   }
   CallICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::CALL_IC, vector->GetKind(slot));
+    DCHECK(vector->IsCallIC(slot));
   }
 
   void Clear(Code* host);
@@ -471,7 +507,7 @@ class LoadICNexus : public FeedbackNexus {
  public:
   LoadICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::LOAD_IC, vector->GetKind(slot));
+    DCHECK(vector->IsLoadIC(slot));
   }
   explicit LoadICNexus(Isolate* isolate)
       : FeedbackNexus(
@@ -479,7 +515,7 @@ class LoadICNexus : public FeedbackNexus {
             FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot)) {}
   LoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::LOAD_IC, vector->GetKind(slot));
+    DCHECK(vector->IsLoadIC(slot));
   }
 
   void Clear(Code* host);
@@ -496,11 +532,11 @@ class LoadGlobalICNexus : public FeedbackNexus {
  public:
   LoadGlobalICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
+    DCHECK(vector->IsLoadGlobalIC(slot));
   }
   LoadGlobalICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC, vector->GetKind(slot));
+    DCHECK(vector->IsLoadGlobalIC(slot));
   }
 
   int ExtractMaps(MapHandleList* maps) const final {
@@ -529,7 +565,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
  public:
   KeyedLoadICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
+    DCHECK(vector->IsKeyedLoadIC(slot));
   }
   explicit KeyedLoadICNexus(Isolate* isolate)
       : FeedbackNexus(
@@ -537,7 +573,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
             FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot)) {}
   KeyedLoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_LOAD_IC, vector->GetKind(slot));
+    DCHECK(vector->IsKeyedLoadIC(slot));
   }
 
   void Clear(Code* host);
@@ -561,7 +597,7 @@ class StoreICNexus : public FeedbackNexus {
  public:
   StoreICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
+    DCHECK(vector->IsStoreIC(slot));
   }
   explicit StoreICNexus(Isolate* isolate)
       : FeedbackNexus(
@@ -569,7 +605,7 @@ class StoreICNexus : public FeedbackNexus {
             FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot)) {}
   StoreICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
+    DCHECK(vector->IsStoreIC(slot));
   }
 
   void Clear(Code* host);
@@ -587,7 +623,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
  public:
   KeyedStoreICNexus(Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, vector->GetKind(slot));
+    DCHECK(vector->IsKeyedStoreIC(slot));
   }
   explicit KeyedStoreICNexus(Isolate* isolate)
       : FeedbackNexus(
@@ -595,7 +631,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
             FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot)) {}
   KeyedStoreICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackVectorSlotKind::KEYED_STORE_IC, vector->GetKind(slot));
+    DCHECK(vector->IsKeyedStoreIC(slot));
   }
 
   void Clear(Code* host);
