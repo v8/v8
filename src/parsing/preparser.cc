@@ -307,14 +307,10 @@ void PreParser::DeclareAndInitializeVariables(
     ZoneList<const AstRawString*>* names, bool* ok) {
   if (declaration->pattern.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
-    Scope* scope = declaration_descriptor->hoist_scope;
-    if (scope == nullptr) {
-      scope = this->scope();
-    }
     for (auto variable : *(declaration->pattern.variables_)) {
       declaration_descriptor->scope->RemoveUnresolved(variable);
-      scope->DeclareVariableName(variable->raw_name(),
-                                 declaration_descriptor->mode);
+      scope()->DeclareVariableName(variable->raw_name(),
+                                   declaration_descriptor->mode);
     }
   }
 }
