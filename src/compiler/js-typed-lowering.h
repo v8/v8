@@ -72,7 +72,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSConvertReceiver(Node* node);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSCallForwardVarargs(Node* node);
-  Reduction ReduceJSCallFunction(Node* node);
+  Reduction ReduceJSCall(Node* node);
   Reduction ReduceJSForInNext(Node* node);
   Reduction ReduceJSLoadMessage(Node* node);
   Reduction ReduceJSStoreMessage(Node* node);

@@ -2052,9 +2052,9 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+Reduction JSTypedLowering::ReduceJSCall(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
   int const arity = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -2163,8 +2163,9 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   // Maybe we did at least learn something about the {receiver}.
   if (p.convert_mode() != convert_mode) {
     NodeProperties::ChangeOp(
-        node, javascript()->CallFunction(p.arity(), p.frequency(), p.feedback(),
-                                         convert_mode, p.tail_call_mode()));
+        node,
+        javascript()->Call(p.arity(), p.frequency(), p.feedback(), convert_mode,
+                           p.tail_call_mode()));
     return Changed(node);
   }
 
@@ -2416,8 +2417,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSConstruct(node);
     case IrOpcode::kJSCallForwardVarargs:
       return ReduceJSCallForwardVarargs(node);
-    case IrOpcode::kJSCallFunction:
-      return ReduceJSCallFunction(node);
+    case IrOpcode::kJSCall:
+      return ReduceJSCall(node);
     case IrOpcode::kJSForInNext:
       return ReduceJSForInNext(node);
     case IrOpcode::kJSLoadMessage:

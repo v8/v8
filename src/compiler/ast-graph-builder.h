@@ -248,7 +248,7 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   // Named and keyed loads require a VectorSlotPair for successful lowering.
   VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
 
-  // Computes the frequency for JSCallFunction and JSConstruct nodes.
+  // Computes the frequency for JSCall and JSConstruct nodes.
   float ComputeCallFrequency(FeedbackVectorSlot slot) const;
 
   // ===========================================================================

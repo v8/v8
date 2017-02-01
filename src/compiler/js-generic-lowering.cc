@@ -545,8 +545,8 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
-void JSGenericLowering::LowerJSCallFunction(Node* node) {
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+void JSGenericLowering::LowerJSCall(Node* node) {
+  CallParameters const& p = CallParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode const mode = p.convert_mode();
   Callable callable = CodeFactory::Call(isolate(), mode);
@@ -563,9 +563,8 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
-void JSGenericLowering::LowerJSCallFunctionWithSpread(Node* node) {
-  CallFunctionWithSpreadParameters const& p =
-      CallFunctionWithSpreadParametersOf(node->op());
+void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
+  CallWithSpreadParameters const& p = CallWithSpreadParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   Callable callable = CodeFactory::CallWithSpread(isolate());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

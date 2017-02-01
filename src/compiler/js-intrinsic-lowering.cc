@@ -300,9 +300,9 @@ Reduction JSIntrinsicLowering::ReduceToString(Node* node) {
 Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
   size_t const arity = CallRuntimeParametersOf(node->op()).arity();
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, 0.0f, VectorSlotPair(),
-                                       ConvertReceiverMode::kAny,
-                                       TailCallMode::kDisallow));
+      node,
+      javascript()->Call(arity, 0.0f, VectorSlotPair(),
+                         ConvertReceiverMode::kAny, TailCallMode::kDisallow));
   return Changed(node);
 }
 

@@ -117,8 +117,8 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   }
 
   // Gather feedback on how often this call site has been hit before.
-  if (node->opcode() == IrOpcode::kJSCallFunction) {
-    CallFunctionParameters const p = CallFunctionParametersOf(node->op());
+  if (node->opcode() == IrOpcode::kJSCall) {
+    CallParameters const p = CallParametersOf(node->op());
     candidate.frequency = p.frequency();
   } else {
     ConstructParameters const p = ConstructParametersOf(node->op());
@@ -175,7 +175,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate) {
     return reduction;
   }
 
-  // Expand the JSCallFunction/JSConstruct node to a subgraph first if
+  // Expand the JSCall/JSConstruct node to a subgraph first if
   // we have multiple known target functions.
   DCHECK_LT(1, num_calls);
   Node* calls[kMaxCallPolymorphism + 1];

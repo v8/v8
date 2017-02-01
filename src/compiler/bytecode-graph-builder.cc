@@ -1264,8 +1264,8 @@ void BytecodeGraphBuilder::BuildCall(TailCallMode tail_call_mode,
   VectorSlotPair feedback = CreateVectorSlotPair(slot_id);
 
   float const frequency = ComputeCallFrequency(slot_id);
-  const Operator* call = javascript()->CallFunction(
-      arg_count + 1, frequency, feedback, receiver_hint, tail_call_mode);
+  const Operator* call = javascript()->Call(arg_count + 1, frequency, feedback,
+                                            receiver_hint, tail_call_mode);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
@@ -1281,7 +1281,7 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
   const Operator* call =
-      javascript()->CallFunctionWithSpread(static_cast<int>(arg_count + 1));
+      javascript()->CallWithSpread(static_cast<int>(arg_count + 1));
 
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
@@ -1307,7 +1307,7 @@ void BytecodeGraphBuilder::VisitCallJSRuntime() {
   size_t arg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the JS runtime call.
-  const Operator* call = javascript()->CallFunction(arg_count + 1);
+  const Operator* call = javascript()->Call(arg_count + 1);
   Node* value = ProcessCallArguments(call, callee, receiver, arg_count + 1);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }

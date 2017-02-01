@@ -31,21 +31,21 @@ namespace compiler {
 
 
 // Provides convenience accessors for the common layout of nodes having either
-// the {JSCallFunction} or the {JSConstruct} operator.
+// the {JSCall} or the {JSConstruct} operator.
 class JSCallAccessor {
  public:
   explicit JSCallAccessor(Node* call) : call_(call) {
-    DCHECK(call->opcode() == IrOpcode::kJSCallFunction ||
+    DCHECK(call->opcode() == IrOpcode::kJSCall ||
            call->opcode() == IrOpcode::kJSConstruct);
   }
 
   Node* target() {
-    // Both, {JSCallFunction} and {JSConstruct}, have same layout here.
+    // Both, {JSCall} and {JSConstruct}, have same layout here.
     return call_->InputAt(0);
   }
 
   Node* receiver() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, call_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, call_->opcode());
     return call_->InputAt(1);
   }
 
@@ -55,20 +55,20 @@ class JSCallAccessor {
   }
 
   Node* frame_state() {
-    // Both, {JSCallFunction} and {JSConstruct}, have frame state.
+    // Both, {JSCall} and {JSConstruct}, have frame state.
     return NodeProperties::GetFrameStateInput(call_);
   }
 
   int formal_arguments() {
-    // Both, {JSCallFunction} and {JSConstruct}, have two extra inputs:
+    // Both, {JSCall} and {JSConstruct}, have two extra inputs:
     //  - JSConstruct: Includes target function and new target.
-    //  - JSCallFunction: Includes target function and receiver.
+    //  - JSCall: Includes target function and receiver.
     return call_->op()->ValueInputCount() - 2;
   }
 
   float frequency() const {
-    return (call_->opcode() == IrOpcode::kJSCallFunction)
-               ? CallFunctionParametersOf(call_->op()).frequency()
+    return (call_->opcode() == IrOpcode::kJSCall)
+               ? CallParametersOf(call_->op()).frequency()
                : ConstructParametersOf(call_->op()).frequency();
   }
 
@@ -353,7 +353,7 @@ Reduction JSInliner::Reduce(Node* node) {
 
   // This reducer can handle both normal function calls as well a constructor
   // calls whenever the target is a constant function object, as follows:
-  //  - JSCallFunction(target:constant, receiver, args...)
+  //  - JSCall(target:constant, receiver, args...)
   //  - JSConstruct(target:constant, args..., new.target)
   HeapObjectMatcher match(node->InputAt(0));
   if (!match.HasValue() || !match.Value()->IsJSFunction()) return NoChange();
@@ -394,7 +394,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
-  if (node->opcode() == IrOpcode::kJSCallFunction &&
+  if (node->opcode() == IrOpcode::kJSCall &&
       IsClassConstructor(shared_info->kind())) {
     TRACE("Not inlining %s into %s because callee is a class constructor.\n",
           shared_info->DebugName()->ToCString().get(),
@@ -580,7 +580,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     }
 
     // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
-    // normal {JSCallFunction} node so that the rest of the inlining machinery
+    // normal {JSCall} node so that the rest of the inlining machinery
     // behaves as if we were dealing with a regular function invocation.
     new_target = call.new_target();  // Retrieve new target value input.
     node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
@@ -605,11 +605,11 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // state _before_ the call; it is not necessary to fiddle with the receiver
   // in that frame state tho, as the conversion of the receiver can be repeated
   // any number of times, it's not observable.
-  if (node->opcode() == IrOpcode::kJSCallFunction &&
+  if (node->opcode() == IrOpcode::kJSCall &&
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NeedsConvertReceiver(call.receiver(), effect)) {
-      const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+      const CallParameters& p = CallParametersOf(node->op());
       Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
       Node* convert = effect = graph()->NewNode(
           javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
@@ -626,8 +626,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // the case when the outermost function inlines a tail call (it should remove
   // potential arguments adaptor frame that belongs to outermost function when
   // deopt happens).
-  if (node->opcode() == IrOpcode::kJSCallFunction) {
-    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+  if (node->opcode() == IrOpcode::kJSCall) {
+    const CallParameters& p = CallParametersOf(node->op());
     if (p.tail_call_mode() == TailCallMode::kAllow) {
       frame_state = CreateTailCallerFrameState(node, frame_state);
     }

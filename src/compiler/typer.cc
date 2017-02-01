@@ -297,7 +297,7 @@ class Typer::Visitor : public Reducer {
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
-  static Type* JSCallFunctionTyper(Type*, Typer*);
+  static Type* JSCallTyper(Type*, Typer*);
 
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* StringFromCharCodeTyper(Type*, Typer*);
@@ -1328,7 +1328,7 @@ Type* Typer::Visitor::TypeJSConstructWithSpread(Node* node) {
   return Type::Receiver();
 }
 
-Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
+Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
   if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(fun->AsHeapConstant()->Value());
@@ -1579,17 +1579,17 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
 }
 
 Type* Typer::Visitor::TypeJSCallForwardVarargs(Node* node) {
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
-Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
+Type* Typer::Visitor::TypeJSCall(Node* node) {
   // TODO(bmeurer): We could infer better types if we wouldn't ignore the
-  // argument types for the JSCallFunctionTyper above.
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+  // argument types for the JSCallTyper above.
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
-Type* Typer::Visitor::TypeJSCallFunctionWithSpread(Node* node) {
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+Type* Typer::Visitor::TypeJSCallWithSpread(Node* node) {
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
 Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {

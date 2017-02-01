@@ -210,8 +210,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     node->ReplaceInput(5, effect);
     NodeProperties::ChangeOp(
         node,
-        javascript()->CallFunction(3, 0.0f, VectorSlotPair(),
-                                   ConvertReceiverMode::kNotNullOrUndefined));
+        javascript()->Call(3, 0.0f, VectorSlotPair(),
+                           ConvertReceiverMode::kNotNullOrUndefined));
 
     // Rewire the value uses of {node} to ToBoolean conversion of the result.
     Node* value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
@@ -1323,9 +1323,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // Introduce the call to the getter function.
         if (access_info.constant()->IsJSFunction()) {
           value = effect = graph()->NewNode(
-              javascript()->CallFunction(
-                  2, 0.0f, VectorSlotPair(),
-                  ConvertReceiverMode::kNotNullOrUndefined),
+              javascript()->Call(2, 0.0f, VectorSlotPair(),
+                                 ConvertReceiverMode::kNotNullOrUndefined),
               target, receiver, context, frame_state0, effect, control);
           control = graph()->NewNode(common()->IfSuccess(), value);
         } else {
@@ -1361,9 +1360,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // Introduce the call to the setter function.
         if (access_info.constant()->IsJSFunction()) {
           effect = graph()->NewNode(
-              javascript()->CallFunction(
-                  3, 0.0f, VectorSlotPair(),
-                  ConvertReceiverMode::kNotNullOrUndefined),
+              javascript()->Call(3, 0.0f, VectorSlotPair(),
+                                 ConvertReceiverMode::kNotNullOrUndefined),
               target, receiver, value, context, frame_state0, effect, control);
           control = graph()->NewNode(common()->IfSuccess(), effect);
         } else {

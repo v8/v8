@@ -147,13 +147,11 @@ CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
     Operator const*) WARN_UNUSED_RESULT;
 
 // Defines the arity and the call flags for a JavaScript function call. This is
-// used as a parameter by JSCallFunction operators.
-class CallFunctionParameters final {
+// used as a parameter by JSCall operators.
+class CallParameters final {
  public:
-  CallFunctionParameters(size_t arity, float frequency,
-                         VectorSlotPair const& feedback,
-                         TailCallMode tail_call_mode,
-                         ConvertReceiverMode convert_mode)
+  CallParameters(size_t arity, float frequency, VectorSlotPair const& feedback,
+                 TailCallMode tail_call_mode, ConvertReceiverMode convert_mode)
       : bit_field_(ArityField::encode(arity) |
                    ConvertReceiverModeField::encode(convert_mode) |
                    TailCallModeField::encode(tail_call_mode)),
@@ -170,17 +168,15 @@ class CallFunctionParameters final {
   }
   VectorSlotPair const& feedback() const { return feedback_; }
 
-  bool operator==(CallFunctionParameters const& that) const {
+  bool operator==(CallParameters const& that) const {
     return this->bit_field_ == that.bit_field_ &&
            this->frequency_ == that.frequency_ &&
            this->feedback_ == that.feedback_;
   }
-  bool operator!=(CallFunctionParameters const& that) const {
-    return !(*this == that);
-  }
+  bool operator!=(CallParameters const& that) const { return !(*this == that); }
 
  private:
-  friend size_t hash_value(CallFunctionParameters const& p) {
+  friend size_t hash_value(CallParameters const& p) {
     return base::hash_combine(p.bit_field_, p.frequency_, p.feedback_);
   }
 
@@ -193,18 +189,18 @@ class CallFunctionParameters final {
   VectorSlotPair const feedback_;
 };
 
-size_t hash_value(CallFunctionParameters const&);
+size_t hash_value(CallParameters const&);
 
-std::ostream& operator<<(std::ostream&, CallFunctionParameters const&);
+std::ostream& operator<<(std::ostream&, CallParameters const&);
 
-const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
+const CallParameters& CallParametersOf(const Operator* op);
 
 // Defines the arity for a JavaScript constructor call with a spread as the last
 // parameters. This is used as a parameter by JSConstructWithSpread
 // operators.
-class CallFunctionWithSpreadParameters final {
+class CallWithSpreadParameters final {
  public:
-  explicit CallFunctionWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+  explicit CallWithSpreadParameters(uint32_t arity) : arity_(arity) {}
 
   uint32_t arity() const { return arity_; }
 
@@ -212,18 +208,16 @@ class CallFunctionWithSpreadParameters final {
   uint32_t const arity_;
 };
 
-bool operator==(CallFunctionWithSpreadParameters const&,
-                CallFunctionWithSpreadParameters const&);
-bool operator!=(CallFunctionWithSpreadParameters const&,
-                CallFunctionWithSpreadParameters const&);
+bool operator==(CallWithSpreadParameters const&,
+                CallWithSpreadParameters const&);
+bool operator!=(CallWithSpreadParameters const&,
+                CallWithSpreadParameters const&);
 
-size_t hash_value(CallFunctionWithSpreadParameters const&);
+size_t hash_value(CallWithSpreadParameters const&);
 
-std::ostream& operator<<(std::ostream&,
-                         CallFunctionWithSpreadParameters const&);
+std::ostream& operator<<(std::ostream&, CallWithSpreadParameters const&);
 
-CallFunctionWithSpreadParameters const& CallFunctionWithSpreadParametersOf(
-    Operator const*);
+CallWithSpreadParameters const& CallWithSpreadParametersOf(Operator const*);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
@@ -614,12 +608,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   const Operator* CallForwardVarargs(uint32_t start_index,
                                      TailCallMode tail_call_mode);
-  const Operator* CallFunction(
+  const Operator* Call(
       size_t arity, float frequency = 0.0f,
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
-  const Operator* CallFunctionWithSpread(uint32_t arity);
+  const Operator* CallWithSpread(uint32_t arity);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);

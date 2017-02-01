@@ -24,8 +24,8 @@ Reduction JSCallReducer::Reduce(Node* node) {
       return ReduceJSConstruct(node);
     case IrOpcode::kJSConstructWithSpread:
       return ReduceJSConstructWithSpread(node);
-    case IrOpcode::kJSCallFunction:
-      return ReduceJSCallFunction(node);
+    case IrOpcode::kJSCall:
+      return ReduceJSCall(node);
     default:
       break;
   }
@@ -35,9 +35,9 @@ Reduction JSCallReducer::Reduce(Node* node) {
 
 // ES6 section 22.1.1 The Array Constructor
 Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* target = NodeProperties::GetValueInput(node, 0);
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  CallParameters const& p = CallParametersOf(node->op());
 
   // Check if we have an allocation site from the CallIC.
   Handle<AllocationSite> site;
@@ -64,8 +64,8 @@ Reduction JSCallReducer::ReduceArrayConstructor(Node* node) {
 
 // ES6 section 20.1.1 The Number Constructor
 Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
 
   // Turn the {node} into a {JSToNumber} call.
   DCHECK_LE(2u, p.arity());
@@ -79,9 +79,9 @@ Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
 
 // ES6 section 19.2.3.1 Function.prototype.apply ( thisArg, argArray )
 Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* target = NodeProperties::GetValueInput(node, 0);
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  CallParameters const& p = CallParametersOf(node->op());
   // Tail calls to Function.prototype.apply are not properly supported
   // down the pipeline, so we disable this optimization completely for
   // tail calls (for now).
@@ -175,24 +175,25 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
   } else {
     return NoChange();
   }
-  // Change {node} to the new {JSCallFunction} operator.
+  // Change {node} to the new {JSCall} operator.
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, p.frequency(), VectorSlotPair(),
-                                       convert_mode, p.tail_call_mode()));
+      node,
+      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode,
+                         p.tail_call_mode()));
   // Change context of {node} to the Function.prototype.apply context,
   // to ensure any exception is thrown in the correct context.
   NodeProperties::ReplaceContextInput(
       node, jsgraph()->HeapConstant(handle(apply->context(), isolate())));
-  // Try to further reduce the JSCallFunction {node}.
-  Reduction const reduction = ReduceJSCallFunction(node);
+  // Try to further reduce the JSCall {node}.
+  Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
 }
 
 
 // ES6 section 19.2.3.3 Function.prototype.call (thisArg, ...args)
 Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
   Handle<JSFunction> call = Handle<JSFunction>::cast(
       HeapObjectMatcher(NodeProperties::GetValueInput(node, 0)).Value());
   // Change context of {node} to the Function.prototype.call context,
@@ -217,16 +218,17 @@ Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
     --arity;
   }
   NodeProperties::ChangeOp(
-      node, javascript()->CallFunction(arity, p.frequency(), VectorSlotPair(),
-                                       convert_mode, p.tail_call_mode()));
-  // Try to further reduce the JSCallFunction {node}.
-  Reduction const reduction = ReduceJSCallFunction(node);
+      node,
+      javascript()->Call(arity, p.frequency(), VectorSlotPair(), convert_mode,
+                         p.tail_call_mode()));
+  // Try to further reduce the JSCall {node}.
+  Reduction const reduction = ReduceJSCall(node);
   return reduction.Changed() ? reduction : Changed(node);
 }
 
 // ES6 section 19.2.3.6 Function.prototype [ @@hasInstance ] (V)
 Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* object = (node->op()->ValueInputCount() >= 3)
                      ? NodeProperties::GetValueInput(node, 2)
@@ -281,12 +283,12 @@ MaybeHandle<Map> InferReceiverMap(Node* node) {
 
 bool CanInlineApiCall(Isolate* isolate, Node* node,
                       Handle<FunctionTemplateInfo> function_template_info) {
-  DCHECK(node->opcode() == IrOpcode::kJSCallFunction);
+  DCHECK(node->opcode() == IrOpcode::kJSCall);
   if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
   if (function_template_info->call_code()->IsUndefined(isolate)) {
     return false;
   }
-  CallFunctionParameters const& params = CallFunctionParametersOf(node->op());
+  CallParameters const& params = CallParametersOf(node->op());
   // CallApiCallbackStub expects the target in a register, so we count it out,
   // and counts the receiver as an implicit argument, so we count the receiver
   // out too.
@@ -334,7 +336,7 @@ JSCallReducer::HolderLookup JSCallReducer::LookupHolder(
 
 // ES6 section B.2.2.1.1 get Object.prototype.__proto__
 Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
 
   // Try to determine the {receiver} map.
   Handle<Map> receiver_map;
@@ -368,7 +370,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<Object> data(call_handler_info->data(), isolate);
 
   Node* receiver_node = NodeProperties::GetValueInput(node, 1);
-  CallFunctionParameters const& params = CallFunctionParametersOf(node->op());
+  CallParameters const& params = CallParametersOf(node->op());
 
   Handle<HeapObject> receiver = HeapObjectMatcher(receiver_node).Value();
   bool const receiver_is_undefined = receiver->IsUndefined(isolate);
@@ -416,14 +418,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   return Changed(node);
 }
 
-Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+Reduction JSCallReducer::ReduceJSCall(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* control = NodeProperties::GetControlInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
 
-  // Try to specialize JSCallFunction {node}s with constant {target}s.
+  // Try to specialize JSCall {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
     if (m.Value()->IsJSFunction()) {
@@ -476,7 +478,7 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       Handle<Object> bound_this(function->bound_this(), isolate());
       Handle<FixedArray> bound_arguments(function->bound_arguments(),
                                          isolate());
-      CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+      CallParameters const& p = CallParametersOf(node->op());
       ConvertReceiverMode const convert_mode =
           (bound_this->IsNullOrUndefined(isolate()))
               ? ConvertReceiverMode::kNullOrUndefined
@@ -495,11 +497,12 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
             jsgraph()->Constant(handle(bound_arguments->get(i), isolate())));
         arity++;
       }
-      NodeProperties::ChangeOp(node, javascript()->CallFunction(
-                                         arity, p.frequency(), VectorSlotPair(),
-                                         convert_mode, p.tail_call_mode()));
-      // Try to further reduce the JSCallFunction {node}.
-      Reduction const reduction = ReduceJSCallFunction(node);
+      NodeProperties::ChangeOp(
+          node,
+          javascript()->Call(arity, p.frequency(), VectorSlotPair(),
+                             convert_mode, p.tail_call_mode()));
+      // Try to further reduce the JSCall {node}.
+      Reduction const reduction = ReduceJSCall(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
 
@@ -566,12 +569,12 @@ Reduction JSCallReducer::ReduceJSCallFunction(Node* node) {
       effect =
           graph()->NewNode(simplified()->CheckIf(), check, effect, control);
 
-      // Specialize the JSCallFunction node to the {target_function}.
+      // Specialize the JSCall node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
       NodeProperties::ReplaceEffectInput(node, effect);
 
-      // Try to further reduce the JSCallFunction {node}.
-      Reduction const reduction = ReduceJSCallFunction(node);
+      // Try to further reduce the JSCall {node}.
+      Reduction const reduction = ReduceJSCall(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
   }
