@@ -1374,9 +1374,13 @@ class Assembler : public AssemblerBase {
   void vadd(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+             QwNeonRegister src2);
   void vsub(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vsub(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
+  void vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+             QwNeonRegister src2);
   void vmul(QwNeonRegister dst, QwNeonRegister src1,
             QwNeonRegister src2);
   void vmul(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,

@@ -4272,7 +4272,19 @@ static Instr EncodeNeonBinOp(FPBinOp op, QwNeonRegister dst,
          vm | op_encoding;
 }
 
-enum IntegerBinOp { VADD, VSUB, VMUL, VMIN, VMAX, VTST, VCEQ, VCGE, VCGT };
+enum IntegerBinOp {
+  VADD,
+  VQADD,
+  VSUB,
+  VQSUB,
+  VMUL,
+  VMIN,
+  VMAX,
+  VTST,
+  VCEQ,
+  VCGE,
+  VCGT
+};
 
 static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
                              const QwNeonRegister dst,
@@ -4283,8 +4295,14 @@ static Instr EncodeNeonBinOp(IntegerBinOp op, NeonDataType dt,
     case VADD:
       op_encoding = 0x8 * B8;
       break;
+    case VQADD:
+      op_encoding = B4;
+      break;
     case VSUB:
       op_encoding = B24 | 0x8 * B8;
+      break;
+    case VQSUB:
+      op_encoding = 0x2 * B8 | B4;
       break;
     case VMUL:
       op_encoding = 0x9 * B8 | B4;
@@ -4348,6 +4366,14 @@ void Assembler::vadd(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   emit(EncodeNeonBinOp(VADD, size, dst, src1, src2));
 }
 
+void Assembler::vqadd(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                      QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vqadd(Qn, Qm) SIMD integer saturating addition.
+  // Instruction details available in ARM DDI 0406C.b, A8-996.
+  emit(EncodeNeonBinOp(VQADD, dt, dst, src1, src2));
+}
+
 void Assembler::vsub(QwNeonRegister dst, QwNeonRegister src1,
                      QwNeonRegister src2) {
   DCHECK(IsEnabled(NEON));
@@ -4362,6 +4388,14 @@ void Assembler::vsub(NeonSize size, QwNeonRegister dst, QwNeonRegister src1,
   // Qd = vsub(Qn, Qm) SIMD integer subtraction.
   // Instruction details available in ARM DDI 0406C.b, A8-1084.
   emit(EncodeNeonBinOp(VSUB, size, dst, src1, src2));
+}
+
+void Assembler::vqsub(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src1,
+                      QwNeonRegister src2) {
+  DCHECK(IsEnabled(NEON));
+  // Qd = vqsub(Qn, Qm) SIMD integer saturating subtraction.
+  // Instruction details available in ARM DDI 0406C.b, A8-1020.
+  emit(EncodeNeonBinOp(VQSUB, dt, dst, src1, src2));
 }
 
 void Assembler::vmul(QwNeonRegister dst, QwNeonRegister src1,
