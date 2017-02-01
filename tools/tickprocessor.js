@@ -40,7 +40,7 @@ inherits(V8Profile, Profile);
 
 
 V8Profile.IC_RE =
-    /^(Handler: )|(Stub: )|(Builtin: )|(BytecodeHandler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
+    /^(LoadGlobalIC: )|(Handler: )|(Stub: )|(Builtin: )|(BytecodeHandler: )|(?:CallIC|LoadIC|StoreIC)|(?:Builtin: (?:Keyed)?(?:Load|Store)IC_)/;
 
 
 /**
