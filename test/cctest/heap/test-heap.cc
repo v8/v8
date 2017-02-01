@@ -2338,6 +2338,10 @@ TEST(GrowAndShrinkNewSpace) {
     return;
   }
 
+  // Make sure we're in a consistent state to start out.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::CollectGarbage(NEW_SPACE);
+
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
