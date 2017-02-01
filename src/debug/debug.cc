@@ -328,7 +328,7 @@ DebugBreakType BytecodeArrayBreakIterator::GetDebugBreakType() {
     return isolate()->is_tail_call_elimination_enabled()
                ? DEBUG_BREAK_SLOT_AT_TAIL_CALL
                : DEBUG_BREAK_SLOT_AT_CALL;
-  } else if (interpreter::Bytecodes::IsCallOrNew(bytecode)) {
+  } else if (interpreter::Bytecodes::IsCallOrConstruct(bytecode)) {
     return DEBUG_BREAK_SLOT_AT_CALL;
   } else if (source_position_iterator_.is_statement()) {
     return DEBUG_BREAK_SLOT;

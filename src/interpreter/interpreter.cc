@@ -2199,13 +2199,13 @@ void Interpreter::DoCallWithSpread(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// NewWithSpread <first_arg> <arg_count>
+// ConstructWithSpread <first_arg> <arg_count>
 //
 // Call the constructor in |constructor| with the first argument in register
 // |first_arg| and |arg_count| arguments in subsequent registers. The final
 // argument is always a spread. The new.target is in the accumulator.
 //
-void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
+void Interpreter::DoConstructWithSpread(InterpreterAssembler* assembler) {
   Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
   Node* constructor = __ LoadRegister(constructor_reg);
@@ -2219,13 +2219,13 @@ void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// New <constructor> <first_arg> <arg_count>
+// Construct <constructor> <first_arg> <arg_count>
 //
-// Call operator new with |constructor| and the first argument in
+// Call operator construct with |constructor| and the first argument in
 // register |first_arg| and |arg_count| arguments in subsequent
 // registers. The new.target is in the accumulator.
 //
-void Interpreter::DoNew(InterpreterAssembler* assembler) {
+void Interpreter::DoConstruct(InterpreterAssembler* assembler) {
   Node* new_target = __ GetAccumulator();
   Node* constructor_reg = __ BytecodeOperandReg(0);
   Node* constructor = __ LoadRegister(constructor_reg);

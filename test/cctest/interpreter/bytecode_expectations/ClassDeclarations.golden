@@ -215,7 +215,7 @@ bytecodes: [
                 B(Star), R(1),
                 B(Star), R(2),
   /*   87 S> */ B(Nop),
-  /*   94 E> */ B(New), R(2), R(0), U8(0), U8(3),
+  /*   94 E> */ B(Construct), R(2), R(0), U8(0), U8(3),
   /*  103 S> */ B(Return),
 ]
 constant pool: [

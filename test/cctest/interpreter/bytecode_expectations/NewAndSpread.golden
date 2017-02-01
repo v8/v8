@@ -38,7 +38,7 @@ bytecodes: [
   /*   89 S> */ B(CreateArrayLiteral), U8(1), U8(5), U8(9),
                 B(Star), R(4),
                 B(Ldar), R(2),
-  /*   89 E> */ B(NewWithSpread), R(2), R(4), U8(1),
+  /*   89 E> */ B(ConstructWithSpread), R(2), R(4), U8(1),
                 B(LdaUndefined),
   /*  110 S> */ B(Return),
 ]
@@ -84,7 +84,7 @@ bytecodes: [
                 B(CreateArrayLiteral), U8(1), U8(5), U8(9),
                 B(Star), R(5),
                 B(Ldar), R(2),
-  /*   89 E> */ B(NewWithSpread), R(2), R(4), U8(2),
+  /*   89 E> */ B(ConstructWithSpread), R(2), R(4), U8(2),
                 B(LdaUndefined),
   /*  113 S> */ B(Return),
 ]

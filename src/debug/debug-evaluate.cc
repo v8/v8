@@ -306,7 +306,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
   typedef interpreter::Bytecodes Bytecodes;
   if (Bytecodes::IsWithoutExternalSideEffects(bytecode)) return true;
-  if (Bytecodes::IsCallOrNew(bytecode)) return true;
+  if (Bytecodes::IsCallOrConstruct(bytecode)) return true;
   if (Bytecodes::WritesBooleanToAccumulator(bytecode)) return true;
   if (Bytecodes::IsJumpIfToBoolean(bytecode)) return true;
   if (Bytecodes::IsPrefixScalingBytecode(bytecode)) return true;

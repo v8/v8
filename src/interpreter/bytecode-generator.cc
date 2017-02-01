@@ -2606,7 +2606,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   // if there is exactly one spread, and it is the last argument.
   if (expr->only_last_arg_is_spread()) {
     // TODO(petermarshall): Collect type on the feedback slot.
-    builder()->NewWithSpread(constructor, args_regs);
+    builder()->ConstructWithSpread(constructor, args_regs);
   } else {
     // Call construct.
     // TODO(turbofan): For now we do gather feedback on super constructor
@@ -2616,7 +2616,7 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // the job done for now. In the long run we might want to revisit this
     // and come up with a better way.
     int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-    builder()->New(constructor, args_regs, feedback_slot_index);
+    builder()->Construct(constructor, args_regs, feedback_slot_index);
   }
 }
 
@@ -2632,10 +2632,10 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
 
   if (expr->only_last_arg_is_spread()) {
     // TODO(petermarshall): Collect type on the feedback slot.
-    builder()->NewWithSpread(constructor, args);
+    builder()->ConstructWithSpread(constructor, args);
   } else {
-    builder()->New(constructor, args,
-                   feedback_index(expr->CallNewFeedbackSlot()));
+    builder()->Construct(constructor, args,
+                         feedback_index(expr->CallNewFeedbackSlot()));
   }
 }
 

@@ -30,7 +30,7 @@ bytecodes: [
   /*   93 S> */ B(Ldar), R(1),
                 B(GetSuperConstructor), R(3),
                 B(Ldar), R(0),
-  /*   93 E> */ B(NewWithSpread), R(3), R(2), U8(1),
+  /*   93 E> */ B(ConstructWithSpread), R(3), R(2), U8(1),
   /*   93 S> */ B(Return),
 ]
 constant pool: [
@@ -67,7 +67,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(Ldar), R(0),
                 B(Mov), R(2), R(5),
-  /*  140 E> */ B(NewWithSpread), R(3), R(4), U8(2),
+  /*  140 E> */ B(ConstructWithSpread), R(3), R(4), U8(2),
                 B(Star), R(3),
                 B(Ldar), R(this),
                 B(JumpIfNotHole), U8(4),

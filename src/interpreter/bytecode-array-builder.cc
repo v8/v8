@@ -905,10 +905,16 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallWithSpread(Register callable,
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::New(Register constructor,
-                                                RegisterList args,
-                                                int feedback_slot_id) {
-  OutputNew(constructor, args, args.register_count(), feedback_slot_id);
+BytecodeArrayBuilder& BytecodeArrayBuilder::Construct(Register constructor,
+                                                      RegisterList args,
+                                                      int feedback_slot_id) {
+  OutputConstruct(constructor, args, args.register_count(), feedback_slot_id);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::ConstructWithSpread(
+    Register constructor, RegisterList args) {
+  OutputConstructWithSpread(constructor, args, args.register_count());
   return *this;
 }
 
@@ -958,12 +964,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
                                                           RegisterList args) {
   OutputCallJSRuntime(context_index, args, args.register_count());
-  return *this;
-}
-
-BytecodeArrayBuilder& BytecodeArrayBuilder::NewWithSpread(Register constructor,
-                                                          RegisterList args) {
-  OutputNewWithSpread(constructor, args, args.register_count());
   return *this;
 }
 

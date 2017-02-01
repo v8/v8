@@ -218,15 +218,16 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // onwards. The final argument must be a spread.
   BytecodeArrayBuilder& CallWithSpread(Register callable, RegisterList args);
 
-  // Call the new operator. The accumulator holds the |new_target|.
+  // Call the Construct operator. The accumulator holds the |new_target|.
   // The |constructor| is in a register and arguments are in |args|.
-  BytecodeArrayBuilder& New(Register constructor, RegisterList args,
-                            int feedback_slot);
+  BytecodeArrayBuilder& Construct(Register constructor, RegisterList args,
+                                  int feedback_slot);
 
-  // Call the new operator for use with a spread. The accumulator holds the
-  // |new_target|. The |constructor| is in a register and arguments are in
+  // Call the Construct operator for use with a spread. The accumulator holds
+  // the |new_target|. The |constructor| is in a register and arguments are in
   // |args|. The final argument must be a spread.
-  BytecodeArrayBuilder& NewWithSpread(Register constructor, RegisterList args);
+  BytecodeArrayBuilder& ConstructWithSpread(Register constructor,
+                                            RegisterList args);
 
   // Call the runtime function with |function_id| and arguments |args|.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,

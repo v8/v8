@@ -1352,7 +1352,7 @@ void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
                                             Environment::kAttachFrameState);
 }
 
-Node* BytecodeGraphBuilder::ProcessCallNewWithSpreadArguments(
+Node* BytecodeGraphBuilder::ProcessConstructWithSpreadArguments(
     const Operator* op, Node* callee, Node* new_target,
     interpreter::Register first_arg, size_t arity) {
   Node** all = local_zone()->NewArray<Node*>(arity);
@@ -1367,7 +1367,7 @@ Node* BytecodeGraphBuilder::ProcessCallNewWithSpreadArguments(
   return value;
 }
 
-void BytecodeGraphBuilder::VisitNewWithSpread() {
+void BytecodeGraphBuilder::VisitConstructWithSpread() {
   PrepareEagerCheckpoint();
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
@@ -1378,8 +1378,8 @@ void BytecodeGraphBuilder::VisitNewWithSpread() {
 
   const Operator* op =
       javascript()->ConstructWithSpread(static_cast<int>(arg_count) + 2);
-  Node* value = ProcessCallNewWithSpreadArguments(op, callee, new_target,
-                                                  first_arg, arg_count + 2);
+  Node* value = ProcessConstructWithSpreadArguments(op, callee, new_target,
+                                                    first_arg, arg_count + 2);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
@@ -1396,7 +1396,7 @@ void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
-Node* BytecodeGraphBuilder::ProcessCallNewArguments(
+Node* BytecodeGraphBuilder::ProcessConstructArguments(
     const Operator* call_new_op, Node* callee, Node* new_target,
     interpreter::Register first_arg, size_t arity) {
   Node** all = local_zone()->NewArray<Node*>(arity);
@@ -1411,7 +1411,7 @@ Node* BytecodeGraphBuilder::ProcessCallNewArguments(
   return value;
 }
 
-void BytecodeGraphBuilder::VisitNew() {
+void BytecodeGraphBuilder::VisitConstruct() {
   PrepareEagerCheckpoint();
   interpreter::Register callee_reg = bytecode_iterator().GetRegisterOperand(0);
   interpreter::Register first_arg = bytecode_iterator().GetRegisterOperand(1);
@@ -1428,8 +1428,8 @@ void BytecodeGraphBuilder::VisitNew() {
   float const frequency = ComputeCallFrequency(slot_id);
   const Operator* call = javascript()->Construct(
       static_cast<int>(arg_count) + 2, frequency, feedback);
-  Node* value = ProcessCallNewArguments(call, callee, new_target, first_arg,
-                                        arg_count + 2);
+  Node* value = ProcessConstructArguments(call, callee, new_target, first_arg,
+                                          arg_count + 2);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
