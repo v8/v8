@@ -627,6 +627,7 @@ void DeclarationScope::Analyze(ParseInfo* info, AnalyzeMode mode) {
 #ifdef DEBUG
   if (info->script_is_native() ? FLAG_print_builtin_scopes
                                : FLAG_print_scopes) {
+    PrintF("Global scope:\n");
     scope->Print();
   }
   scope->CheckScopePositions();
@@ -1424,6 +1425,12 @@ void DeclarationScope::AnalyzePartially(
       CollectVariableData(preparsed_scope_data);
     }
   }
+#ifdef DEBUG
+  if (FLAG_print_scopes) {
+    PrintF("Inner function scope:\n");
+    Print();
+  }
+#endif
 
   ResetAfterPreparsing(ast_node_factory->ast_value_factory(), false);
 
@@ -1509,6 +1516,10 @@ void PrintMap(int indent, const char* label, VariableMap* map, bool locals,
   for (VariableMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
     if (var == function_var) continue;
+    if (var == kDummyPreParserVariable ||
+        var == kDummyPreParserLexicalVariable) {
+      continue;
+    }
     bool local = !IsDynamicVariableMode(var->mode());
     if ((locals ? local : !local) &&
         (var->is_used() || !var->IsUnallocated())) {
