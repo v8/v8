@@ -216,7 +216,6 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       RECURSE(Visit(stmt));
       if (typer_failed_) break;
-      if (stmt->IsJump()) break;
     }
   }
 
