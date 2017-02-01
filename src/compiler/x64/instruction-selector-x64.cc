@@ -2071,12 +2071,8 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
         break;
       case IrOpcode::kInt32Sub:
         return VisitWordCompare(selector, value, kX64Cmp32, cont);
-      case IrOpcode::kInt64Sub:
-        return VisitWord64Compare(selector, value, cont);
       case IrOpcode::kWord32And:
         return VisitWordCompare(selector, value, kX64Test32, cont);
-      case IrOpcode::kWord64And:
-        return VisitWordCompare(selector, value, kX64Test, cont);
       default:
         break;
     }
@@ -2155,32 +2151,7 @@ void InstructionSelector::VisitWord32Equal(Node* const node) {
   FlagsContinuation cont = FlagsContinuation::ForSet(kEqual, node);
   Int32BinopMatcher m(user);
   if (m.right().Is(0)) {
-    Node* value = m.left().node();
-
-    // Try to combine with comparisons against 0 by simply inverting the branch.
-    while (CanCover(user, value) && value->opcode() == IrOpcode::kWord32Equal) {
-      Int32BinopMatcher m(value);
-      if (m.right().Is(0)) {
-        user = value;
-        value = m.left().node();
-        cont.Negate();
-      } else {
-        break;
-      }
-    }
-
-    // Try to combine the branch with a comparison.
-    if (CanCover(user, value)) {
-      switch (value->opcode()) {
-        case IrOpcode::kInt32Sub:
-          return VisitWordCompare(this, value, kX64Cmp32, &cont);
-        case IrOpcode::kWord32And:
-          return VisitWordCompare(this, value, kX64Test32, &cont);
-        default:
-          break;
-      }
-    }
-    return VisitCompareZero(this, value, kX64Cmp32, &cont);
+    return VisitWordCompareZero(this, m.node(), m.left().node(), &cont);
   }
   VisitWordCompare(this, node, kX64Cmp32, &cont);
 }
