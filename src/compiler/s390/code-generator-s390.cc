@@ -1257,8 +1257,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_ShiftLeft32:
       if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-        AssembleBinOp(i, masm(), instr, &MacroAssembler::sllk,
-                      &MacroAssembler::sllk);
+        AssembleBinOp(i, masm(), instr, &MacroAssembler::ShiftLeft,
+                      &MacroAssembler::ShiftLeft);
       } else {
         AssembleBinOp(i, masm(), instr, &MacroAssembler::sll,
                       &MacroAssembler::sll);

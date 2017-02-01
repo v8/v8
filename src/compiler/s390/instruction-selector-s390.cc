@@ -31,7 +31,7 @@ enum class OperandMode : uint32_t {
   kAllowImmediate = kAllowRI | kAllowRRI,
   kAllowMemoryOperand = kAllowRM | kAllowRRM,
   kAllowDistinctOps = kAllowRRR | kAllowRRI | kAllowRRM,
-  kBitWiseCommonMode = kAllowRI | kUint32Imm,
+  kBitWiseCommonMode = kAllowRI,
   kArithmeticCommonMode = kAllowRM | kAllowRI
 };
 
@@ -42,11 +42,21 @@ OperandModes immediateModeMask =
     OperandMode::kInt32Imm | OperandMode::kInt32Imm_Negate |
     OperandMode::kUint32Imm | OperandMode::kInt20Imm;
 
-#define BitWiseOperandMode                  \
-  ((OperandMode::kBitWiseCommonMode |       \
-    (CpuFeatures::IsSupported(DISTINCT_OPS) \
-         ? OperandMode::kAllowRRR           \
+#define AndOperandMode                                              \
+  ((OperandMode::kBitWiseCommonMode | OperandMode::kUint32Imm |     \
+    OperandMode::kAllowRM | (CpuFeatures::IsSupported(DISTINCT_OPS) \
+                                 ? OperandMode::kAllowRRR           \
+                                 : OperandMode::kBitWiseCommonMode)))
+
+#define OrOperandMode AndOperandMode
+#define XorOperandMode AndOperandMode
+
+#define ShiftOperandMode                                         \
+  ((OperandMode::kBitWiseCommonMode | OperandMode::kShift64Imm | \
+    (CpuFeatures::IsSupported(DISTINCT_OPS)                      \
+         ? OperandMode::kAllowRRR                                \
          : OperandMode::kBitWiseCommonMode)))
+
 #define AddOperandMode                                            \
   ((OperandMode::kArithmeticCommonMode | OperandMode::kInt32Imm | \
     (CpuFeatures::IsSupported(DISTINCT_OPS)                       \
@@ -829,8 +839,7 @@ static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
 #endif
 
 void InstructionSelector::VisitWord32And(Node* node) {
-  VisitBin32op(this, node, kS390_And32,
-               BitWiseOperandMode | OperandMode::kAllowRM);
+  VisitBin32op(this, node, kS390_And32, AndOperandMode);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -888,8 +897,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
 #endif
 
 void InstructionSelector::VisitWord32Or(Node* node) {
-  VisitBin32op(this, node, kS390_Or32,
-               BitWiseOperandMode | OperandMode::kAllowRM);
+  VisitBin32op(this, node, kS390_Or32, OrOperandMode);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -901,8 +909,7 @@ void InstructionSelector::VisitWord64Or(Node* node) {
 #endif
 
 void InstructionSelector::VisitWord32Xor(Node* node) {
-  VisitBin32op(this, node, kS390_Xor32,
-               BitWiseOperandMode | OperandMode::kAllowRM);
+  VisitBin32op(this, node, kS390_Xor32, XorOperandMode);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -913,7 +920,7 @@ void InstructionSelector::VisitWord64Xor(Node* node) {
 #endif
 
 void InstructionSelector::VisitWord32Shl(Node* node) {
-  VisitBin32op(this, node, kS390_ShiftLeft32, BitWiseOperandMode);
+  VisitBin32op(this, node, kS390_ShiftLeft32, ShiftOperandMode);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -961,7 +968,7 @@ void InstructionSelector::VisitWord64Shl(Node* node) {
 #endif
 
 void InstructionSelector::VisitWord32Shr(Node* node) {
-  VisitBin32op(this, node, kS390_ShiftRight32, BitWiseOperandMode);
+  VisitBin32op(this, node, kS390_ShiftRight32, ShiftOperandMode);
 }
 
 #if V8_TARGET_ARCH_S390X
@@ -1024,7 +1031,7 @@ void InstructionSelector::VisitWord32Sar(Node* node) {
       return;
     }
   }
-  VisitBin32op(this, node, kS390_ShiftRightArith32, BitWiseOperandMode);
+  VisitBin32op(this, node, kS390_ShiftRightArith32, ShiftOperandMode);
 }
 
 #if !V8_TARGET_ARCH_S390X
