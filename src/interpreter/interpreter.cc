@@ -2407,46 +2407,58 @@ void Interpreter::DoJumpConstant(InterpreterAssembler* assembler) {
 // JumpIfTrue <imm>
 //
 // Jump by number of bytes represented by an immediate operand if the
-// accumulator contains true.
+// accumulator contains true. This only works for boolean inputs, and
+// will misbehave if passed arbitrary input values.
 void Interpreter::DoJumpIfTrue(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* true_value = __ BooleanConstant(true);
+  CSA_ASSERT(assembler, assembler->TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(assembler, assembler->IsBoolean(accumulator));
   __ JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
 
 // JumpIfTrueConstant <idx>
 //
 // Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the accumulator contains true.
+// if the accumulator contains true. This only works for boolean inputs, and
+// will misbehave if passed arbitrary input values.
 void Interpreter::DoJumpIfTrueConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
   Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Node* true_value = __ BooleanConstant(true);
+  CSA_ASSERT(assembler, assembler->TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(assembler, assembler->IsBoolean(accumulator));
   __ JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
 
 // JumpIfFalse <imm>
 //
 // Jump by number of bytes represented by an immediate operand if the
-// accumulator contains false.
+// accumulator contains false. This only works for boolean inputs, and
+// will misbehave if passed arbitrary input values.
 void Interpreter::DoJumpIfFalse(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* false_value = __ BooleanConstant(false);
+  CSA_ASSERT(assembler, assembler->TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(assembler, assembler->IsBoolean(accumulator));
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
 
 // JumpIfFalseConstant <idx>
 //
 // Jump by number of bytes in the Smi in the |idx| entry in the constant pool
-// if the accumulator contains false.
+// if the accumulator contains false. This only works for boolean inputs, and
+// will misbehave if passed arbitrary input values.
 void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* index = __ BytecodeOperandIdx(0);
   Node* relative_jump = __ LoadAndUntagConstantPoolEntry(index);
   Node* false_value = __ BooleanConstant(false);
+  CSA_ASSERT(assembler, assembler->TaggedIsNotSmi(accumulator));
+  CSA_ASSERT(assembler, assembler->IsBoolean(accumulator));
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
 

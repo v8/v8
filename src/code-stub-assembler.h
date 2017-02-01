@@ -685,6 +685,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSReceiver(Node* object);
   Node* IsMap(Node* object);
   Node* IsCallableMap(Node* map);
+  Node* IsBoolean(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbol(Node* object);
   Node* IsPrivateSymbol(Node* object);
