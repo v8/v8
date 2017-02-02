@@ -258,7 +258,7 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
 // save/restore them in the dispatcher.
 bool IC::ShouldPushPopSlotAndVector(Code::Kind kind) {
   if (kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
-      kind == Code::KEYED_LOAD_IC || kind == Code::CALL_IC) {
+      kind == Code::KEYED_LOAD_IC) {
     return true;
   }
   if (kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC) {

@@ -53,7 +53,6 @@ class IC {
   bool IsStoreStub() const {
     return kind_ == Code::STORE_IC || kind_ == Code::KEYED_STORE_IC;
   }
-  bool IsCallStub() const { return kind_ == Code::CALL_IC; }
 #endif
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
@@ -71,8 +70,8 @@ class IC {
 
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
-           kind == Code::KEYED_LOAD_IC || kind == Code::CALL_IC ||
-           kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
+           kind == Code::KEYED_LOAD_IC || kind == Code::STORE_IC ||
+           kind == Code::KEYED_STORE_IC;
   }
 
   // The ICs that don't pass slot and vector through the stack have to

@@ -1436,10 +1436,6 @@ void Logger::LogCodeObject(Object* object) {
       description = "A load global IC from the snapshot";
       tag = Logger::LOAD_GLOBAL_IC_TAG;
       break;
-    case AbstractCode::CALL_IC:
-      description = "A call IC from the snapshot";
-      tag = CodeEventListener::CALL_IC_TAG;
-      break;
     case AbstractCode::STORE_IC:
       description = "A store IC from the snapshot";
       tag = CodeEventListener::STORE_IC_TAG;

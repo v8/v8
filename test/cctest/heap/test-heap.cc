@@ -5397,8 +5397,7 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
 
 void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
              InlineCacheState state) {
-  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC ||
-      kind == Code::CALL_IC) {
+  if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
     TypeFeedbackVector* vector = function->feedback_vector();
     FeedbackVectorSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
@@ -5406,9 +5405,6 @@ void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
       CHECK_EQ(nexus.StateFromFeedback(), state);
     } else if (kind == Code::KEYED_LOAD_IC) {
       KeyedLoadICNexus nexus(vector, slot);
-      CHECK_EQ(nexus.StateFromFeedback(), state);
-    } else if (kind == Code::CALL_IC) {
-      CallICNexus nexus(vector, slot);
       CHECK_EQ(nexus.StateFromFeedback(), state);
     }
   } else {

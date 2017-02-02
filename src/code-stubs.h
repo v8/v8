@@ -922,12 +922,6 @@ class CallICStub : public TurboFanCodeStub {
                  TailCallModeBits::encode(tail_call_mode);
   }
 
-  Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
-  }
-
  protected:
   typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
   typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
@@ -1604,12 +1598,6 @@ class CallICTrampolineStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {
     minor_key_ = ConvertModeBits::encode(convert_mode) |
                  TailCallModeBits::encode(tail_call_mode);
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
-
-  ExtraICState GetExtraICState() const final {
-    return static_cast<ExtraICState>(minor_key_);
   }
 
  protected:
