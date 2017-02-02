@@ -628,7 +628,7 @@ class ModuleDecoder : public Decoder {
         }
 
         uint32_t local_names_count = inner.consume_u32v("local names count");
-        for (uint32_t j = 0; ok() && j < local_names_count; j++) {
+        for (uint32_t j = 0; inner.ok() && j < local_names_count; j++) {
           uint32_t length = inner.consume_u32v("string length");
           inner.consume_bytes(length, "string");
         }
