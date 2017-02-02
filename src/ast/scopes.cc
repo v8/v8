@@ -1569,6 +1569,9 @@ void Scope::Print(int n) {
   }
 
   PrintF(" { // (%d, %d)\n", start_position(), end_position());
+  if (is_hidden()) {
+    Indent(n1, "// is hidden\n");
+  }
 
   // Function name, if any (named function literals, only).
   if (function != nullptr) {
