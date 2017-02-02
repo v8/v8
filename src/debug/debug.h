@@ -50,10 +50,6 @@ enum ExceptionBreakType {
 };
 
 
-// Type of exception break.
-enum BreakLocatorType { ALL_BREAK_LOCATIONS, CALLS_AND_RETURNS };
-
-
 // The different types of breakpoint position alignments.
 // Must match Debug.BreakPositionAlignment in debug.js
 enum BreakPositionAlignment {
@@ -122,8 +118,7 @@ class BreakLocation {
 class BreakIterator {
  public:
   static std::unique_ptr<BreakIterator> GetIterator(
-      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code,
-      BreakLocatorType type = ALL_BREAK_LOCATIONS);
+      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code);
 
   virtual ~BreakIterator() {}
 
@@ -145,8 +140,7 @@ class BreakIterator {
   virtual void SetDebugBreak() = 0;
 
  protected:
-  explicit BreakIterator(Handle<DebugInfo> debug_info,
-                         BreakLocatorType break_locator_type);
+  explicit BreakIterator(Handle<DebugInfo> debug_info);
 
   int BreakIndexFromPosition(int position, BreakPositionAlignment alignment);
 
@@ -156,7 +150,6 @@ class BreakIterator {
   int break_index_;
   int position_;
   int statement_position_;
-  BreakLocatorType break_locator_type_;
 
  private:
   DisallowHeapAllocation no_gc_;
@@ -165,7 +158,7 @@ class BreakIterator {
 
 class CodeBreakIterator : public BreakIterator {
  public:
-  CodeBreakIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
+  explicit CodeBreakIterator(Handle<DebugInfo> debug_info);
   ~CodeBreakIterator() override {}
 
   BreakLocation GetBreakLocation() override;
@@ -184,7 +177,7 @@ class CodeBreakIterator : public BreakIterator {
   }
 
  private:
-  int GetModeMask(BreakLocatorType type);
+  int GetModeMask();
   DebugBreakType GetDebugBreakType();
 
   RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
@@ -197,8 +190,7 @@ class CodeBreakIterator : public BreakIterator {
 
 class BytecodeArrayBreakIterator : public BreakIterator {
  public:
-  BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info,
-                             BreakLocatorType type);
+  explicit BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info);
   ~BytecodeArrayBreakIterator() override {}
 
   BreakLocation GetBreakLocation() override;
@@ -357,11 +349,8 @@ class Debug {
 
   void SetDebugDelegate(debug::DebugDelegate* delegate);
 
-  // Returns whether the operation succeeded. Compilation can only be triggered
-  // if a valid closure is passed as the second argument, otherwise the shared
-  // function needs to be compiled already.
-  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
-                       Handle<JSFunction> function);
+  // Returns whether the operation succeeded.
+  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
   void CreateDebugInfo(Handle<SharedFunctionInfo> shared);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
 
@@ -466,6 +455,9 @@ class Debug {
     thread_local_.break_id_ = ++thread_local_.break_count_;
   }
 
+  // Return the number of virtual frames below debugger entry.
+  int CurrentFrameCount();
+
   inline bool ignore_events() const {
     return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
   }
@@ -492,7 +484,6 @@ class Debug {
     return !event_listener_.is_null() && !event_listener_->IsForeign();
   }
 
-  bool IsBlackboxed(SharedFunctionInfo* shared);
   bool IsExceptionBlackboxed(bool uncaught);
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
@@ -526,8 +517,7 @@ class Debug {
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
   // Instrument a function with one-shots.
-  void FloodWithOneShot(Handle<JSFunction> function,
-                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
+  void FloodWithOneShot(Handle<SharedFunctionInfo> function);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
@@ -607,10 +597,10 @@ class Debug {
     int last_statement_position_;
 
     // Frame pointer from last step next or step frame action.
-    Address last_fp_;
+    int last_frame_count_;
 
     // Frame pointer of the target frame we want to arrive at.
-    Address target_fp_;
+    int target_frame_count_;
 
     // Value of the accumulator at the point of entering the debugger.
     Object* return_value_;

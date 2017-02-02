@@ -954,6 +954,16 @@ void JavaScriptFrame::GetFunctions(List<SharedFunctionInfo*>* functions) const {
   functions->Add(function()->shared());
 }
 
+void JavaScriptFrame::GetFunctions(
+    List<Handle<SharedFunctionInfo>>* functions) const {
+  DCHECK(functions->length() == 0);
+  List<SharedFunctionInfo*> raw_functions;
+  GetFunctions(&raw_functions);
+  for (const auto& raw_function : raw_functions) {
+    functions->Add(Handle<SharedFunctionInfo>(raw_function));
+  }
+}
+
 void JavaScriptFrame::Summarize(List<FrameSummary>* functions,
                                 FrameSummary::Mode mode) const {
   DCHECK(functions->length() == 0);

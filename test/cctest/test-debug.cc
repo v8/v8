@@ -6456,14 +6456,13 @@ TEST(BreakLocationIterator) {
   Handle<i::SharedFunctionInfo> shared(function->shared());
 
   EnableDebugger(isolate);
-  CHECK(i_isolate->debug()->EnsureDebugInfo(shared, function));
+  CHECK(i_isolate->debug()->EnsureDebugInfo(shared));
 
   Handle<i::DebugInfo> debug_info(shared->GetDebugInfo());
   Handle<i::AbstractCode> abstract_code(shared->abstract_code());
 
   {
-    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
-                                                  i::ALL_BREAK_LOCATIONS);
+    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code);
     CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
     CHECK_EQ(17, iterator->GetBreakLocation().position());
     iterator->Next();
@@ -6475,18 +6474,6 @@ TEST(BreakLocationIterator) {
     iterator->Next();
     CHECK(iterator->GetBreakLocation().IsDebuggerStatement());
     CHECK_EQ(47, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->GetBreakLocation().IsReturn());
-    CHECK_EQ(60, iterator->GetBreakLocation().position());
-    iterator->Next();
-    CHECK(iterator->Done());
-  }
-
-  {
-    auto iterator = i::BreakIterator::GetIterator(debug_info, abstract_code,
-                                                  i::CALLS_AND_RETURNS);
-    CHECK(iterator->GetBreakLocation().IsCall());
-    CHECK_EQ(32, iterator->GetBreakLocation().position());
     iterator->Next();
     CHECK(iterator->GetBreakLocation().IsReturn());
     CHECK_EQ(60, iterator->GetBreakLocation().position());
