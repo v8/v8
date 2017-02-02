@@ -99,7 +99,8 @@ class V8Debugger {
   void compileDebuggerScript();
   v8::MaybeLocal<v8::Value> callDebuggerMethod(const char* functionName,
                                                int argc,
-                                               v8::Local<v8::Value> argv[]);
+                                               v8::Local<v8::Value> argv[],
+                                               bool catchExceptions);
   v8::Local<v8::Context> debuggerContext() const;
   void clearBreakpoints();
 
