@@ -108,6 +108,33 @@ TEST(ContextMaps) {
                            Context::PROMISE_FUNCTION_INDEX);
 }
 
+TEST(InitialObjects) {
+  LocalContext env;
+  HandleScope scope(CcTest::i_isolate());
+  Handle<Context> context = v8::Utils::OpenHandle(*env);
+  // Initial ArrayIterator prototype.
+  CHECK_EQ(
+      context->initial_array_iterator_prototype(),
+      *v8::Utils::OpenHandle(*CompileRun("[][Symbol.iterator]().__proto__")));
+  // Initial ArrayIterator prototype map.
+  CHECK_EQ(context->initial_array_iterator_prototype_map(),
+           context->initial_array_iterator_prototype()->map());
+  // Initial Array prototype.
+  CHECK_EQ(context->initial_array_prototype(),
+           *v8::Utils::OpenHandle(*CompileRun("Array.prototype")));
+  // Initial Generator prototype.
+  CHECK_EQ(context->initial_generator_prototype(),
+           *v8::Utils::OpenHandle(
+               *CompileRun("(function*(){}).__proto__.prototype")));
+  // Initial Iterator prototype.
+  CHECK_EQ(context->initial_iterator_prototype(),
+           *v8::Utils::OpenHandle(
+               *CompileRun("[][Symbol.iterator]().__proto__.__proto__")));
+  // Initial Object prototype.
+  CHECK_EQ(context->initial_object_prototype(),
+           *v8::Utils::OpenHandle(*CompileRun("Object.prototype")));
+}
+
 static void CheckOddball(Isolate* isolate, Object* obj, const char* string) {
   CHECK(obj->IsOddball());
   Handle<Object> handle(obj, isolate);
