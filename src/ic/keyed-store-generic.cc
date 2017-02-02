@@ -729,17 +729,20 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   Bind(&stub_cache);
   {
     Comment("stub cache probe");
-    // The stub cache lookup is opportunistic: if we find a handler, use it;
-    // otherwise take the slow path. Since this is a generic stub, compiling
-    // a handler (as KeyedStoreIC_Miss would do) is probably a waste of time.
     Variable var_handler(this, MachineRepresentation::kTagged);
-    Label found_handler(this, &var_handler);
+    Label found_handler(this, &var_handler), stub_cache_miss(this);
     TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
-                      &found_handler, &var_handler, slow);
+                      &found_handler, &var_handler, &stub_cache_miss);
     Bind(&found_handler);
     {
       Comment("KeyedStoreGeneric found handler");
-      HandleStoreICHandlerCase(p, var_handler.value(), slow);
+      HandleStoreICHandlerCase(p, var_handler.value(), &stub_cache_miss);
+    }
+    Bind(&stub_cache_miss);
+    {
+      Comment("KeyedStoreGeneric_miss");
+      TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value,
+                      p->slot, p->vector, p->receiver, p->name);
     }
   }
 }
