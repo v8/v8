@@ -22,38 +22,6 @@ class ICUtility : public AllStatic {
 };
 
 
-class CallICState final BASE_EMBEDDED {
- public:
-  explicit CallICState(ExtraICState extra_ic_state)
-      : bit_field_(extra_ic_state) {}
-  CallICState(ConvertReceiverMode convert_mode, TailCallMode tail_call_mode)
-      : bit_field_(ConvertModeBits::encode(convert_mode) |
-                   TailCallModeBits::encode(tail_call_mode)) {}
-
-  ExtraICState GetExtraICState() const { return bit_field_; }
-
-  static void GenerateAheadOfTime(Isolate*,
-                                  void (*Generate)(Isolate*,
-                                                   const CallICState&));
-
-  ConvertReceiverMode convert_mode() const {
-    return ConvertModeBits::decode(bit_field_);
-  }
-  TailCallMode tail_call_mode() const {
-    return TailCallModeBits::decode(bit_field_);
-  }
-
- private:
-  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
-  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
-
-  int const bit_field_;
-};
-
-
-std::ostream& operator<<(std::ostream& os, const CallICState& s);
-
-
 class BinaryOpICState final BASE_EMBEDDED {
  public:
   BinaryOpICState(Isolate* isolate, ExtraICState extra_ic_state);

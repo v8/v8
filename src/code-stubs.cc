@@ -1756,7 +1756,11 @@ void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
 }
 
 void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
-  os << state();
+  os << convert_mode() << ", " << tail_call_mode();
+}
+
+void CallICTrampolineStub::PrintState(std::ostream& os) const {  // NOLINT
+  os << convert_mode() << ", " << tail_call_mode();
 }
 
 void CallICTrampolineStub::GenerateAssembly(

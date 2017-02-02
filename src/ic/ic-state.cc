@@ -16,11 +16,6 @@ void ICUtility::Clear(Isolate* isolate, Address address,
 }
 
 
-std::ostream& operator<<(std::ostream& os, const CallICState& s) {
-  return os << "(" << s.convert_mode() << ", " << s.tail_call_mode() << ")";
-}
-
-
 // static
 STATIC_CONST_MEMBER_DEFINITION const int BinaryOpICState::FIRST_TOKEN;
 

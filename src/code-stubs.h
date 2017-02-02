@@ -916,9 +916,11 @@ class MathPowStub: public PlatformCodeStub {
 
 class CallICStub: public PlatformCodeStub {
  public:
-  CallICStub(Isolate* isolate, const CallICState& state)
+  CallICStub(Isolate* isolate, ConvertReceiverMode convert_mode,
+             TailCallMode tail_call_mode)
       : PlatformCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
+    minor_key_ = ConvertModeBits::encode(convert_mode) |
+                 TailCallModeBits::encode(tail_call_mode);
   }
 
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
@@ -928,10 +930,15 @@ class CallICStub: public PlatformCodeStub {
   }
 
  protected:
-  ConvertReceiverMode convert_mode() const { return state().convert_mode(); }
-  TailCallMode tail_call_mode() const { return state().tail_call_mode(); }
+  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
+  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
 
-  CallICState state() const { return CallICState(GetExtraICState()); }
+  ConvertReceiverMode convert_mode() const {
+    return ConvertModeBits::decode(minor_key_);
+  }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeBits::decode(minor_key_);
+  }
 
   // Code generation helpers.
   void GenerateMiss(MacroAssembler* masm);
@@ -1597,9 +1604,11 @@ class StringCharAtGenerator {
 
 class CallICTrampolineStub : public TurboFanCodeStub {
  public:
-  CallICTrampolineStub(Isolate* isolate, const CallICState& state)
+  CallICTrampolineStub(Isolate* isolate, ConvertReceiverMode convert_mode,
+                       TailCallMode tail_call_mode)
       : TurboFanCodeStub(isolate) {
-    minor_key_ = state.GetExtraICState();
+    minor_key_ = ConvertModeBits::encode(convert_mode) |
+                 TailCallModeBits::encode(tail_call_mode);
   }
 
   Code::Kind GetCodeKind() const override { return Code::CALL_IC; }
@@ -1609,11 +1618,18 @@ class CallICTrampolineStub : public TurboFanCodeStub {
   }
 
  protected:
-  ConvertReceiverMode convert_mode() const { return state().convert_mode(); }
-  TailCallMode tail_call_mode() const { return state().tail_call_mode(); }
-  CallICState state() const {
-    return CallICState(static_cast<ExtraICState>(minor_key_));
+  typedef BitField<ConvertReceiverMode, 0, 2> ConvertModeBits;
+  typedef BitField<TailCallMode, ConvertModeBits::kNext, 1> TailCallModeBits;
+
+  ConvertReceiverMode convert_mode() const {
+    return ConvertModeBits::decode(minor_key_);
   }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeBits::decode(minor_key_);
+  }
+
+ private:
+  void PrintState(std::ostream& os) const override;  // NOLINT
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
   DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, TurboFanCodeStub);
