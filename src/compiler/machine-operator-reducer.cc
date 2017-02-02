@@ -331,7 +331,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat32(m.left().Value() - m.right().Value());
       }
-      if (m.left().IsMinusZero()) {
+      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float32RoundUp().IsSupported() &&
             m.right().IsFloat32RoundDown()) {
@@ -378,7 +378,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat64(m.left().Value() - m.right().Value());
       }
-      if (m.left().IsMinusZero()) {
+      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float64RoundUp().IsSupported() &&
             m.right().IsFloat64RoundDown()) {
@@ -437,7 +437,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K / K => K
         return ReplaceFloat64(m.left().Value() / m.right().Value());
       }
-      if (m.right().Is(-1)) {  // x / -1.0 => -x
+      if (allow_signalling_nan_ && m.right().Is(-1)) {  // x / -1.0 => -x
         node->RemoveInput(1);
         NodeProperties::ChangeOp(node, machine()->Float64Neg());
         return Changed(node);
