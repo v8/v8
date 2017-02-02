@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-regexp.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -64,6 +65,32 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
   void StringIndexOf(Node* receiver, Node* instance_type, Node* search_string,
                      Node* search_string_instance_type, Node* position,
                      std::function<void(Node*)> f_return);
+
+  Node* IsNullOrUndefined(Node* const value);
+  void RequireObjectCoercible(Node* const context, Node* const value,
+                              const char* method_name);
+
+  Node* SmiIsNegative(Node* const value) {
+    return SmiLessThan(value, SmiConstant(0));
+  }
+
+  // Implements boilerplate logic for {match, split, replace, search} of the
+  // form:
+  //
+  //  if (!IS_NULL_OR_UNDEFINED(object)) {
+  //    var maybe_function = object[symbol];
+  //    if (!IS_UNDEFINED(maybe_function)) {
+  //      return %_Call(maybe_function, ...);
+  //    }
+  //  }
+  //
+  // Contains fast paths for Smi and RegExp objects.
+  typedef std::function<Node*()> NodeFunction0;
+  typedef std::function<Node*(Node* fn)> NodeFunction1;
+  void MaybeCallFunctionAtSymbol(Node* const context, Node* const object,
+                                 Handle<Symbol> symbol,
+                                 const NodeFunction0& regexp_call,
+                                 const NodeFunction1& generic_call);
 };
 
 void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
@@ -1036,6 +1063,339 @@ BUILTIN(StringPrototypeNormalize) {
   }
 
   return *string;
+}
+
+compiler::Node* StringBuiltinsAssembler::IsNullOrUndefined(Node* const value) {
+  return Word32Or(IsUndefined(value), IsNull(value));
+}
+
+void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
+                                                     Node* const value,
+                                                     const char* method_name) {
+  Label out(this), throw_exception(this, Label::kDeferred);
+  Branch(IsNullOrUndefined(value), &throw_exception, &out);
+
+  Bind(&throw_exception);
+  TailCallRuntime(
+      Runtime::kThrowCalledOnNullOrUndefined, context,
+      HeapConstant(factory()->NewStringFromAsciiChecked(method_name, TENURED)));
+
+  Bind(&out);
+}
+
+void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
+    Node* const context, Node* const object, Handle<Symbol> symbol,
+    const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
+  Label out(this);
+
+  // Smis definitely don't have an attached symbol.
+  GotoIf(TaggedIsSmi(object), &out);
+
+  Node* const object_map = LoadMap(object);
+
+  // Skip the slow lookup for Strings.
+  {
+    Label next(this);
+
+    GotoUnless(IsStringInstanceType(LoadMapInstanceType(object_map)), &next);
+
+    Node* const native_context = LoadNativeContext(context);
+    Node* const initial_proto_initial_map = LoadContextElement(
+        native_context, Context::STRING_FUNCTION_PROTOTYPE_MAP_INDEX);
+
+    Node* const string_fun =
+        LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
+    Node* const initial_map =
+        LoadObjectField(string_fun, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* const proto_map = LoadMap(LoadMapPrototype(initial_map));
+
+    Branch(WordEqual(proto_map, initial_proto_initial_map), &out, &next);
+
+    Bind(&next);
+  }
+
+  // Take the fast path for RegExps.
+  if (regexp_call != nullptr) {
+    Label stub_call(this), slow_lookup(this);
+
+    RegExpBuiltinsAssembler regexp_asm(state());
+    regexp_asm.BranchIfFastRegExp(context, object_map, &stub_call,
+                                  &slow_lookup);
+
+    Bind(&stub_call);
+    Return(regexp_call());
+
+    Bind(&slow_lookup);
+  }
+
+  GotoIf(IsNullOrUndefined(object), &out);
+
+  // Fall back to a slow lookup of {object[symbol]}.
+
+  Callable getproperty_callable = CodeFactory::GetProperty(isolate());
+  Node* const key = HeapConstant(symbol);
+  Node* const maybe_func = CallStub(getproperty_callable, context, object, key);
+
+  GotoIf(IsUndefined(maybe_func), &out);
+
+  // Attempt to call the function.
+
+  Node* const result = generic_call(maybe_func);
+  Return(result);
+
+  Bind(&out);
+}
+
+// ES6 section 21.1.3.16 String.prototype.replace ( search, replace )
+TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
+  Label out(this);
+
+  Node* const receiver = Parameter(0);
+  Node* const search = Parameter(1);
+  Node* const replace = Parameter(2);
+  Node* const context = Parameter(5);
+
+  Node* const smi_zero = SmiConstant(0);
+
+  RequireObjectCoercible(context, receiver, "String.prototype.replace");
+
+  // Redirect to replacer method if {search[@@replace]} is not undefined.
+  // TODO(jgruber): Call RegExp.p.replace stub for fast path.
+
+  MaybeCallFunctionAtSymbol(
+      context, search, isolate()->factory()->replace_symbol(), nullptr,
+      [=](Node* fn) {
+        Callable call_callable = CodeFactory::Call(isolate());
+        return CallJS(call_callable, context, fn, search, receiver, replace);
+      });
+
+  // Convert {receiver} and {search} to strings.
+
+  Callable tostring_callable = CodeFactory::ToString(isolate());
+  Node* const subject_string = CallStub(tostring_callable, context, receiver);
+  Node* const search_string = CallStub(tostring_callable, context, search);
+
+  Node* const subject_length = LoadStringLength(subject_string);
+  Node* const search_length = LoadStringLength(search_string);
+
+  // Fast-path single-char {search}, long {receiver}, and simple string
+  // {replace}.
+  {
+    Label next(this);
+
+    GotoUnless(SmiEqual(search_length, SmiConstant(1)), &next);
+    GotoUnless(SmiGreaterThan(subject_length, SmiConstant(0xFF)), &next);
+    GotoIf(TaggedIsSmi(replace), &next);
+    GotoUnless(IsString(replace), &next);
+
+    Node* const dollar_char = Int32Constant('$');
+    Node* const index_of_dollar =
+        StringIndexOfChar(context, replace, dollar_char, smi_zero);
+    GotoUnless(SmiIsNegative(index_of_dollar), &next);
+
+    // Searching by traversing a cons string tree and replace with cons of
+    // slices works only when the replaced string is a single character, being
+    // replaced by a simple string and only pays off for long strings.
+    // TODO(jgruber): Reevaluate if this is still beneficial.
+    TailCallRuntime(Runtime::kStringReplaceOneCharWithString, context,
+                    subject_string, search_string, replace);
+
+    Bind(&next);
+  }
+
+  // TODO(jgruber): Extend StringIndexOfChar to handle two-byte strings and
+  // longer substrings - we can handle up to 8 chars (one-byte) / 4 chars
+  // (2-byte).
+
+  Callable indexof_stub = CodeFactory::StringIndexOf(isolate());
+  Node* const match_start_index =
+      CallStub(indexof_stub, context, subject_string, search_string, smi_zero);
+  CSA_ASSERT(this, TaggedIsSmi(match_start_index));
+
+  // Early exit if no match found.
+  {
+    Label next(this), return_subject(this);
+
+    GotoUnless(SmiIsNegative(match_start_index), &next);
+
+    // The spec requires to perform ToString(replace) if the {replace} is not
+    // callable even if we are going to exit here.
+    // Since ToString() being applied to Smi does not have side effects for
+    // numbers we can skip it.
+    GotoIf(TaggedIsSmi(replace), &return_subject);
+    GotoIf(IsCallableMap(LoadMap(replace)), &return_subject);
+
+    // TODO(jgruber): Could introduce ToStringSideeffectsStub which only
+    // performs observable parts of ToString.
+    CallStub(tostring_callable, context, replace);
+    Goto(&return_subject);
+
+    Bind(&return_subject);
+    Return(subject_string);
+
+    Bind(&next);
+  }
+
+  Node* const match_end_index = SmiAdd(match_start_index, search_length);
+
+  Callable substring_callable = CodeFactory::SubString(isolate());
+  Callable stringadd_callable =
+      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+
+  Variable var_result(this, MachineRepresentation::kTagged,
+                      EmptyStringConstant());
+
+  // Compute the prefix.
+  {
+    Label next(this);
+
+    GotoIf(SmiEqual(match_start_index, smi_zero), &next);
+    Node* const prefix = CallStub(substring_callable, context, subject_string,
+                                  smi_zero, match_start_index);
+    var_result.Bind(prefix);
+
+    Goto(&next);
+    Bind(&next);
+  }
+
+  // Compute the string to replace with.
+
+  Label if_iscallablereplace(this), if_notcallablereplace(this);
+  GotoIf(TaggedIsSmi(replace), &if_notcallablereplace);
+  Branch(IsCallableMap(LoadMap(replace)), &if_iscallablereplace,
+         &if_notcallablereplace);
+
+  Bind(&if_iscallablereplace);
+  {
+    Callable call_callable = CodeFactory::Call(isolate());
+    Node* const replacement =
+        CallJS(call_callable, context, replace, UndefinedConstant(),
+               search_string, match_start_index, subject_string);
+    Node* const replacement_string =
+        CallStub(tostring_callable, context, replacement);
+    var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
+                             replacement_string));
+    Goto(&out);
+  }
+
+  Bind(&if_notcallablereplace);
+  {
+    Node* const replace_string = CallStub(tostring_callable, context, replace);
+
+    // TODO(jgruber): Simplified GetSubstitution implementation in CSA.
+    Node* const matched = CallStub(substring_callable, context, subject_string,
+                                   match_start_index, match_end_index);
+    Node* const replacement_string =
+        CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
+                    match_start_index, replace_string);
+    var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
+                             replacement_string));
+    Goto(&out);
+  }
+
+  Bind(&out);
+  {
+    Node* const suffix = CallStub(substring_callable, context, subject_string,
+                                  match_end_index, subject_length);
+    Node* const result =
+        CallStub(stringadd_callable, context, var_result.value(), suffix);
+    Return(result);
+  }
+}
+
+// ES6 section 21.1.3.19 String.prototype.split ( separator, limit )
+TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
+  Label out(this);
+
+  Node* const receiver = Parameter(0);
+  Node* const separator = Parameter(1);
+  Node* const limit = Parameter(2);
+  Node* const context = Parameter(5);
+
+  Node* const smi_zero = SmiConstant(0);
+
+  RequireObjectCoercible(context, receiver, "String.prototype.split");
+
+  // Redirect to splitter method if {separator[@@split]} is not undefined.
+  // TODO(jgruber): Call RegExp.p.split stub for fast path.
+
+  MaybeCallFunctionAtSymbol(
+      context, separator, isolate()->factory()->split_symbol(), nullptr,
+      [=](Node* fn) {
+        Callable call_callable = CodeFactory::Call(isolate());
+        return CallJS(call_callable, context, fn, separator, receiver, limit);
+      });
+
+  // String and integer conversions.
+  // TODO(jgruber): The old implementation used Uint32Max instead of SmiMax -
+  // but AFAIK there should not be a difference since arrays are capped at Smi
+  // lengths.
+
+  Callable tostring_callable = CodeFactory::ToString(isolate());
+  Node* const subject_string = CallStub(tostring_callable, context, receiver);
+  Node* const limit_number =
+      Select(IsUndefined(limit), [=]() { return SmiConstant(Smi::kMaxValue); },
+             [=]() { return ToUint32(context, limit); },
+             MachineRepresentation::kTagged);
+  Node* const separator_string =
+      CallStub(tostring_callable, context, separator);
+
+  // Shortcut for {limit} == 0.
+  {
+    Label next(this);
+    GotoUnless(SmiEqual(limit_number, smi_zero), &next);
+
+    const ElementsKind kind = FAST_ELEMENTS;
+    Node* const native_context = LoadNativeContext(context);
+    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+
+    Node* const length = smi_zero;
+    Node* const capacity = IntPtrConstant(0);
+    Node* const result = AllocateJSArray(kind, array_map, capacity, length);
+
+    Return(result);
+
+    Bind(&next);
+  }
+
+  // ECMA-262 says that if {separator} is undefined, the result should
+  // be an array of size 1 containing the entire string.
+  {
+    Label next(this);
+    GotoUnless(IsUndefined(separator), &next);
+
+    const ElementsKind kind = FAST_ELEMENTS;
+    Node* const native_context = LoadNativeContext(context);
+    Node* const array_map = LoadJSArrayElementsMap(kind, native_context);
+
+    Node* const length = SmiConstant(1);
+    Node* const capacity = IntPtrConstant(1);
+    Node* const result = AllocateJSArray(kind, array_map, capacity, length);
+
+    Node* const fixed_array = LoadElements(result);
+    StoreFixedArrayElement(fixed_array, 0, subject_string);
+
+    Return(result);
+
+    Bind(&next);
+  }
+
+  // If the separator string is empty then return the elements in the subject.
+  {
+    Label next(this);
+    GotoUnless(SmiEqual(LoadStringLength(separator_string), smi_zero), &next);
+
+    Node* const result = CallRuntime(Runtime::kStringToArray, context,
+                                     subject_string, limit_number);
+    Return(result);
+
+    Bind(&next);
+  }
+
+  Node* const result =
+      CallRuntime(Runtime::kStringSplit, context, subject_string,
+                  separator_string, limit_number);
+  Return(result);
 }
 
 // ES6 section B.2.3.1 String.prototype.substr ( start, length )
