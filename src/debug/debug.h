@@ -501,9 +501,6 @@ class Debug {
   MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<Smi> type,
                                                          Handle<Smi> id);
 
-  // Mirror cache handling.
-  void ClearMirrorCache();
-
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
   void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
 

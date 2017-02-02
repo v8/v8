@@ -1599,13 +1599,6 @@ bool Debug::IsDebugGlobal(JSGlobalObject* global) {
 }
 
 
-void Debug::ClearMirrorCache() {
-  PostponeInterruptsScope postpone(isolate_);
-  HandleScope scope(isolate_);
-  CallFunction("ClearMirrorCache", 0, NULL);
-}
-
-
 Handle<FixedArray> Debug::GetLoadedScripts() {
   isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
                                       GarbageCollectionReason::kDebugger);
@@ -2314,14 +2307,6 @@ DebugScope::DebugScope(Debug* debug)
 
 
 DebugScope::~DebugScope() {
-  if (!failed_ && prev_ == NULL) {
-    // Clear mirror cache when leaving the debugger. Skip this if there is a
-    // pending exception as clearing the mirror cache calls back into
-    // JavaScript. This can happen if the v8::Debug::Call is used in which
-    // case the exception should end up in the calling code.
-    if (!isolate()->has_pending_exception()) debug_->ClearMirrorCache();
-  }
-
   // Leaving this debugger entry.
   base::NoBarrier_Store(&debug_->thread_local_.current_debug_scope_,
                         reinterpret_cast<base::AtomicWord>(prev_));

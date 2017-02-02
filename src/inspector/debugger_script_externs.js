@@ -238,16 +238,11 @@ FrameDetails.prototype.returnValue = function() {}
 /** @return {number} */
 FrameDetails.prototype.scopeCount = function() {}
 
-
-/** @param {boolean} value */
-function ToggleMirrorCache(value) {}
-
 /**
  * @param {*} value
- * @param {boolean=} transient
  * @return {!Mirror}
  */
-function MakeMirror(value, transient) {}
+function MakeMirror(value) {}
 
 
 /** @interface */

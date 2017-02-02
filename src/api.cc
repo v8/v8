@@ -8925,26 +8925,6 @@ MaybeLocal<Value> Debug::Call(Local<Context> context,
 }
 
 
-MaybeLocal<Value> Debug::GetMirror(Local<Context> context,
-                                   v8::Local<v8::Value> obj) {
-  PREPARE_FOR_EXECUTION(context, Debug, GetMirror, Value);
-  i::Debug* isolate_debug = isolate->debug();
-  has_pending_exception = !isolate_debug->Load();
-  RETURN_ON_FAILED_EXECUTION(Value);
-  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global_object());
-  auto name = isolate->factory()->NewStringFromStaticChars("MakeMirror");
-  auto fun_obj = i::JSReceiver::GetProperty(debug, name).ToHandleChecked();
-  auto v8_fun = Utils::CallableToLocal(i::Handle<i::JSFunction>::cast(fun_obj));
-  const int kArgc = 1;
-  v8::Local<v8::Value> argv[kArgc] = {obj};
-  Local<Value> result;
-  has_pending_exception =
-      !v8_fun->Call(context, Utils::ToLocal(debug), kArgc, argv)
-           .ToLocal(&result);
-  RETURN_ON_FAILED_EXECUTION(Value);
-  RETURN_ESCAPED(result);
-}
-
 void Debug::ProcessDebugMessages(Isolate* isolate) {}
 
 Local<Context> Debug::GetDebugContext(Isolate* isolate) {

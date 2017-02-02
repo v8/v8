@@ -194,13 +194,6 @@ class V8_EXPORT Debug {
                                 v8::Local<v8::Function> fun,
                                 Local<Value> data = Local<Value>());
 
-  /**
-   * Returns a mirror object for the given object.
-   */
-  V8_DEPRECATED("No longer supported",
-                static MaybeLocal<Value> GetMirror(Local<Context> context,
-                                                   v8::Local<v8::Value> obj));
-
   // This is now a no-op.
   V8_DEPRECATED("No longer supported",
                 static void ProcessDebugMessages(Isolate* isolate));

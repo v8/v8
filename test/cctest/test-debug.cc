@@ -4422,7 +4422,7 @@ TEST(HiddenPrototypePropertyMirror) {
             .FromJust());
 
   // The prototype (__proto__) for o0 should be o3 as o1 and o2 are hidden.
-  CHECK(CompileRun("o0_mirror.protoObject() == o3_mirror")
+  CHECK(CompileRun("o0_mirror.protoObject().value() == o3_mirror.value()")
             ->BooleanValue(context)
             .FromJust());
 }

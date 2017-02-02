@@ -107,7 +107,7 @@ DebuggerScript.getGeneratorScopes = function(gen)
  */
 DebuggerScript.getGeneratorObjectLocation = function(object)
 {
-    var mirror = MakeMirror(object, true /* transient */);
+    var mirror = MakeMirror(object);
     if (!mirror.isGenerator())
         return null;
     var generatorMirror = /** @type {!GeneratorMirror} */(mirror);
@@ -132,7 +132,7 @@ DebuggerScript.getGeneratorObjectLocation = function(object)
  */
 DebuggerScript.getCollectionEntries = function(object)
 {
-    var mirror = MakeMirror(object, true /* transient */);
+    var mirror = MakeMirror(object);
     if (mirror.isMap())
         return /** @type {!MapMirror} */(mirror).entries();
     if (mirror.isSet() || mirror.isIterator()) {
@@ -548,7 +548,7 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
         // the same properties.
         // Reset scope object prototype to null so that the proto properties
         // don't appear in the local scope section.
-        var properties = /** @type {!ObjectMirror} */(MakeMirror(scopeObject, true /* transient */)).properties();
+        var properties = /** @type {!ObjectMirror} */(MakeMirror(scopeObject)).properties();
         // Almost always Script scope will be empty, so just filter out that noise.
         // Also drop empty Block, Eval and Script scopes, should we get any.
         if (!properties.length && (scopeType === ScopeType.Script ||
@@ -572,9 +572,6 @@ DebuggerScript._buildScopeObject = function(scopeType, scopeObject)
     }
     return result;
 }
-
-// We never resolve Mirror by its handle so to avoid memory leaks caused by Mirrors in the cache we disable it.
-ToggleMirrorCache(false);
 
 return DebuggerScript;
 })();
