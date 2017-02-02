@@ -1903,7 +1903,8 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     EmitProfilingCounterHandlingForReturnSequence(true);
   }
   Handle<Code> code =
-      CodeFactory::CallIC(isolate(), mode, expr->tail_call_mode()).code();
+      CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
+          .code();
   __ LoadSmiLiteral(r6, SmiFromSlot(expr->CallFeedbackICSlot()));
   __ LoadP(r4, MemOperand(sp, (arg_count + 1) * kPointerSize), r0);
   __ mov(r3, Operand(arg_count));

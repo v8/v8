@@ -7684,8 +7684,8 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
   HValue* vector_val = Add<HConstant>(vector);
 
   HValue* op_vals[] = {function, arity_val, index_val, vector_val};
-  Callable callable = CodeFactory::CallICInOptimizedCode(
-      isolate(), convert_mode, tail_call_mode);
+  Callable callable =
+      CodeFactory::CallIC(isolate(), convert_mode, tail_call_mode);
   HConstant* stub = Add<HConstant>(callable.code());
 
   return New<HCallWithDescriptor>(stub, argument_count, callable.descriptor(),

@@ -49,7 +49,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable CallIC(Isolate* isolate,
                          ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                          TailCallMode tail_call_mode = TailCallMode::kDisallow);
-  static Callable CallICInOptimizedCode(
+  static Callable CallICTrampoline(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable StoreIC(Isolate* isolate, LanguageMode mode);

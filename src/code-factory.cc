@@ -88,15 +88,15 @@ Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
 // static
 Callable CodeFactory::CallIC(Isolate* isolate, ConvertReceiverMode mode,
                              TailCallMode tail_call_mode) {
-  CallICTrampolineStub stub(isolate, CallICState(mode, tail_call_mode));
+  CallICStub stub(isolate, CallICState(mode, tail_call_mode));
   return make_callable(stub);
 }
 
 // static
-Callable CodeFactory::CallICInOptimizedCode(Isolate* isolate,
-                                            ConvertReceiverMode mode,
-                                            TailCallMode tail_call_mode) {
-  CallICStub stub(isolate, CallICState(mode, tail_call_mode));
+Callable CodeFactory::CallICTrampoline(Isolate* isolate,
+                                       ConvertReceiverMode mode,
+                                       TailCallMode tail_call_mode) {
+  CallICTrampolineStub stub(isolate, CallICState(mode, tail_call_mode));
   return make_callable(stub);
 }
 

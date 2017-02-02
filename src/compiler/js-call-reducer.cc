@@ -520,8 +520,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
     // Insert a CallIC here to collect feedback for uninitialized calls.
     int const arg_count = static_cast<int>(p.arity() - 2);
-    Callable callable =
-        CodeFactory::CallICInOptimizedCode(isolate(), p.convert_mode());
+    Callable callable = CodeFactory::CallIC(isolate(), p.convert_mode());
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), arg_count + 1,
