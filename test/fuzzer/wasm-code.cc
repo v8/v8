@@ -38,7 +38,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     os << std::endl;
     os << "(function() {" << std::endl;
     os << "  var builder = new WasmModuleBuilder();" << std::endl;
-    os << "  builder.addMemory(32, 32, false);" << std::endl;
+    os << "  builder.addMemory(16, 32, false);" << std::endl;
     os << "  builder.addFunction(\"test\", kSig_i_iii)" << std::endl;
     os << "    .addBodyWithEnd([" << std::endl;
   }
