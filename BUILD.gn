@@ -754,6 +754,7 @@ action("v8_dump_build_config") {
   ]
   args = [
     rebase_path("$root_out_dir/v8_build_config.json", root_build_dir),
+    "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$dcheck_always_on",
     "is_asan=$is_asan",
     "is_cfi=$is_cfi",
@@ -762,6 +763,7 @@ action("v8_dump_build_config") {
     "is_msan=$is_msan",
     "is_tsan=$is_tsan",
     "target_cpu=\"$target_cpu\"",
+    "v8_current_cpu=\"$v8_current_cpu\"",
     "v8_enable_i18n_support=$v8_enable_i18n_support",
     "v8_enable_inspector=$v8_enable_inspector",
     "v8_target_cpu=\"$v8_target_cpu\"",
@@ -2541,6 +2543,19 @@ group("gn_all") {
 
   if (v8_test_isolation_mode != "noop") {
     deps += [ ":d8_run" ]
+  }
+}
+
+group("v8_clusterfuzz") {
+  deps = [
+    ":d8",
+  ]
+
+  if (v8_multi_arch_build) {
+    deps += [
+      ":d8(//build/toolchain/linux:clang_x64)",
+      ":d8(//build/toolchain/linux:clang_x86)",
+    ]
   }
 }
 

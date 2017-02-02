@@ -92,15 +92,21 @@ ORIGINAL_SOURCE_HASH_LENGTH = 3
 # Placeholder string if no original source file could be determined.
 ORIGINAL_SOURCE_DEFAULT = 'none'
 
+
+def infer_arch(d8):
+  """Infer the V8 architecture from the build configuration next to the
+  executable.
+  """
+  with open(os.path.join(os.path.dirname(d8), 'v8_build_config.json')) as f:
+    arch = json.load(f)['v8_current_cpu']
+  return 'ia32' if arch == 'x86' else arch
+
+
 def parse_args():
   parser = argparse.ArgumentParser()
   parser.add_argument(
     '--random-seed', type=int, required=True,
     help='random seed passed to both runs')
-  parser.add_argument(
-      '--first-arch', help='first architecture', default='x64')
-  parser.add_argument(
-      '--second-arch', help='second architecture', default='x64')
   parser.add_argument(
       '--first-config', help='first configuration', default='fullcode')
   parser.add_argument(
@@ -114,15 +120,6 @@ def parse_args():
       help='optional path to second d8 executable, default: same as first')
   parser.add_argument('testcase', help='path to test case')
   options = parser.parse_args()
-
-  # Ensure we make a sane comparison.
-  assert (options.first_arch != options.second_arch or
-          options.first_config != options.second_config) , (
-      'Need either arch or config difference.')
-  assert options.first_arch in SUPPORTED_ARCHS
-  assert options.second_arch in SUPPORTED_ARCHS
-  assert options.first_config in CONFIGS
-  assert options.second_config in CONFIGS
 
   # Ensure we have a test case.
   assert (os.path.exists(options.testcase) and
@@ -142,11 +139,18 @@ def parse_args():
   assert os.path.exists(options.first_d8)
   assert os.path.exists(options.second_d8)
 
-  # Ensure we use different executables when we claim we compare
-  # different architectures.
-  # TODO(machenbach): Infer arch from gn's build output.
-  if options.first_arch != options.second_arch:
-    assert options.first_d8 != options.second_d8
+  # Infer architecture from build artifacts.
+  options.first_arch = infer_arch(options.first_d8)
+  options.second_arch = infer_arch(options.second_d8)
+
+  # Ensure we make a sane comparison.
+  assert (options.first_arch != options.second_arch or
+          options.first_config != options.second_config), (
+      'Need either arch or config difference.')
+  assert options.first_arch in SUPPORTED_ARCHS
+  assert options.second_arch in SUPPORTED_ARCHS
+  assert options.first_config in CONFIGS
+  assert options.second_config in CONFIGS
 
   return options
 

@@ -638,7 +638,7 @@
     },
 
     'v8_correctness_fuzzer': {
-      'gn_args': 'v8_correctness_fuzzer=true',
+      'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
     },
 
     'v8_disable_inspector': {

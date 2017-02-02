@@ -9,6 +9,9 @@ declare_args() {
   # Includes files needed for correctness fuzzing.
   v8_correctness_fuzzer = false
 
+  # Adds additional compile target for building multiple architectures at once.
+  v8_multi_arch_build = false
+
   # Indicate if valgrind was fetched as a custom deps to make it available on
   # swarming.
   v8_has_valgrind = false
