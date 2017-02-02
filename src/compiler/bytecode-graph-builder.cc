@@ -1213,7 +1213,6 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
-  PrepareEagerCheckpoint();
   Handle<BoilerplateDescription> constant_properties =
       Handle<BoilerplateDescription>::cast(
           bytecode_iterator().GetConstantForIndexOperand(0));
