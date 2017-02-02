@@ -463,9 +463,9 @@ void ConstructTrampolineDescriptor::InitializePlatformIndependent(
 
 void CallFunctionWithFeedbackDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kSlot
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::TaggedSigned()};
+  // kFunction, kActualArgumentsCount, kSlot
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
@@ -473,9 +473,9 @@ void CallFunctionWithFeedbackDescriptor::InitializePlatformIndependent(
 void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kActualArgumentsCount, kSlot, kVector
-  MachineType machine_types[] = {
-      MachineType::TaggedPointer(), MachineType::Int32(),
-      MachineType::TaggedSigned(), MachineType::AnyTagged()};
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged(),
+                                 MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

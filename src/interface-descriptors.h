@@ -595,7 +595,7 @@ class CallFunctionDescriptor : public CallInterfaceDescriptor {
 
 class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kSlot)
+  DEFINE_PARAMETERS(kFunction, kActualArgumentsCount, kSlot)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
       CallFunctionWithFeedbackDescriptor, CallInterfaceDescriptor)
 };

@@ -2862,12 +2862,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
   __ jmp(rcx);  // Return to IC Miss stub, continuation still on stack.
 }
 
-void CallICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(rbx);
-  CallICStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
-}
-
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != NULL) {

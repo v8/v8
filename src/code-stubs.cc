@@ -1759,6 +1759,21 @@ void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << state();
 }
 
+void CallICTrampolineStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
+
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* target = assembler.Parameter(Descriptor::kFunction);
+  Node* argc = assembler.Parameter(Descriptor::kActualArgumentsCount);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
+
+  Callable callable =
+      CodeFactory::CallIC(isolate(), convert_mode(), tail_call_mode());
+  assembler.TailCallStub(callable, context, target, argc, slot, vector);
+}
 
 void JSEntryStub::FinishCode(Handle<Code> code) {
   Handle<FixedArray> handler_table =

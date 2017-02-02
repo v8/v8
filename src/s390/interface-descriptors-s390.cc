@@ -130,7 +130,7 @@ void CallFunctionDescriptor::InitializePlatformSpecific(
 
 void CallFunctionWithFeedbackDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  Register registers[] = {r3, r5};
+  Register registers[] = {r3, r2, r5};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

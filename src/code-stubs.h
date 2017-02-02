@@ -1595,10 +1595,10 @@ class StringCharAtGenerator {
   DISALLOW_COPY_AND_ASSIGN(StringCharAtGenerator);
 };
 
-class CallICTrampolineStub : public PlatformCodeStub {
+class CallICTrampolineStub : public TurboFanCodeStub {
  public:
   CallICTrampolineStub(Isolate* isolate, const CallICState& state)
-      : PlatformCodeStub(isolate) {
+      : TurboFanCodeStub(isolate) {
     minor_key_ = state.GetExtraICState();
   }
 
@@ -1609,12 +1609,14 @@ class CallICTrampolineStub : public PlatformCodeStub {
   }
 
  protected:
+  ConvertReceiverMode convert_mode() const { return state().convert_mode(); }
+  TailCallMode tail_call_mode() const { return state().tail_call_mode(); }
   CallICState state() const {
     return CallICState(static_cast<ExtraICState>(minor_key_));
   }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
-  DEFINE_PLATFORM_CODE_STUB(CallICTrampoline, PlatformCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, TurboFanCodeStub);
 };
 
 class DoubleToIStub : public PlatformCodeStub {
