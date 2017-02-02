@@ -600,20 +600,15 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   Node* context = jsgraph()->Constant(handle(function->context()));
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
-  // passed into this node has to be the callees context (loaded above). Note
-  // that the frame state passed to the JSConvertReceiver must be the frame
-  // state _before_ the call; it is not necessary to fiddle with the receiver
-  // in that frame state tho, as the conversion of the receiver can be repeated
-  // any number of times, it's not observable.
+  // passed into this node has to be the callees context (loaded above).
   if (node->opcode() == IrOpcode::kJSCall &&
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NeedsConvertReceiver(call.receiver(), effect)) {
       const CallParameters& p = CallParametersOf(node->op());
-      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
-      Node* convert = effect = graph()->NewNode(
-          javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
-          context, frame_state_before, effect, start);
+      Node* convert = effect =
+          graph()->NewNode(javascript()->ConvertReceiver(p.convert_mode()),
+                           call.receiver(), context, effect, start);
       NodeProperties::ReplaceValueInput(node, convert, 1);
       NodeProperties::ReplaceEffectInput(node, effect);
     }

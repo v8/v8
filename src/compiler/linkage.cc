@@ -142,11 +142,11 @@ CallDescriptor* Linkage::ComputeIncoming(Zone* zone, CompilationInfo* info) {
 bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
   switch (function) {
     // Most runtime functions need a FrameState. A few chosen ones that we know
-    // not to call into arbitrary JavaScript, not to throw, and not to
-    // deoptimize
-    // are whitelisted here and can be called without a FrameState.
+    // not to call into arbitrary JavaScript, not to throw, and not to lazily
+    // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
+    case Runtime::kConvertReceiver:
     case Runtime::kCreateIterResultObject:
     case Runtime::kDefineGetterPropertyUnchecked:  // TODO(jarin): Is it safe?
     case Runtime::kDefineSetterPropertyUnchecked:  // TODO(jarin): Is it safe?

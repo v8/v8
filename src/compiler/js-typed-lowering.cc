@@ -1715,7 +1715,6 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* context = NodeProperties::GetContextInput(node);
   Type* context_type = NodeProperties::GetType(context);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -1762,14 +1761,15 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
     Node* efalse = effect;
     Node* rfalse;
     {
-      // Convert {receiver} using the ToObjectStub.
+      // Convert {receiver} using the ToObjectStub. The call does not require a
+      // frame-state in this case, because neither null nor undefined is passed.
       Callable callable = CodeFactory::ToObject(isolate());
       CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNeedsFrameState, node->op()->properties());
+          CallDescriptor::kNoFlags, node->op()->properties());
       rfalse = efalse = graph()->NewNode(
           common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-          receiver, context, frame_state, efalse);
+          receiver, context, efalse);
     }
 
     control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -1819,14 +1819,15 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Node* econvert = effect;
   Node* rconvert;
   {
-    // Convert {receiver} using the ToObjectStub.
+    // Convert {receiver} using the ToObjectStub. The call does not require a
+    // frame-state in this case, because neither null nor undefined is passed.
     Callable callable = CodeFactory::ToObject(isolate());
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNeedsFrameState, node->op()->properties());
+        CallDescriptor::kNoFlags, node->op()->properties());
     rconvert = econvert = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-        receiver, context, frame_state, econvert);
+        receiver, context, econvert);
   }
 
   // Replace {receiver} with global proxy of {context}.
@@ -2063,7 +2064,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Try to infer receiver {convert_mode} from {receiver} type.
   if (receiver_type->Is(Type::NullOrUndefined())) {
@@ -2096,7 +2096,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
         !receiver_type->Is(Type::Receiver())) {
       receiver = effect =
           graph()->NewNode(javascript()->ConvertReceiver(convert_mode),
-                           receiver, context, frame_state, effect, control);
+                           receiver, context, effect, control);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
 
