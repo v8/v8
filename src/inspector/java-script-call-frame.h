@@ -49,9 +49,6 @@ class JavaScriptCallFrame {
   }
   ~JavaScriptCallFrame();
 
-  int sourceID() const;
-  int line() const;
-  int column() const;
   int contextId() const;
 
   bool isAtReturn() const;

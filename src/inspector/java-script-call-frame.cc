@@ -61,18 +61,6 @@ int JavaScriptCallFrame::callV8FunctionReturnInt(const char* name) const {
   return result.As<v8::Int32>()->Value();
 }
 
-int JavaScriptCallFrame::sourceID() const {
-  return callV8FunctionReturnInt("sourceID");
-}
-
-int JavaScriptCallFrame::line() const {
-  return callV8FunctionReturnInt("line");
-}
-
-int JavaScriptCallFrame::column() const {
-  return callV8FunctionReturnInt("column");
-}
-
 int JavaScriptCallFrame::contextId() const {
   return callV8FunctionReturnInt("contextId");
 }

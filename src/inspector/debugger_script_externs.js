@@ -29,9 +29,6 @@ var RawLocation;
 var JavaScriptCallFrameDetails;
 
 /** @typedef {{
-        sourceID: function():(number),
-        line: function():number,
-        column: function():number,
         contextId: function():number,
         thisObject: !Object,
         evaluate: function(string):*,

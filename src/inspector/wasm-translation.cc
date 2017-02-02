@@ -36,6 +36,7 @@ class WasmTranslation::TranslatorImpl {
   virtual void Init(Isolate*, WasmTranslation*, V8DebuggerAgentImpl*) = 0;
   virtual void Translate(TransLocation*) = 0;
   virtual void TranslateBack(TransLocation*) = 0;
+  virtual ~TranslatorImpl() {}
 
   class RawTranslator;
   class DisassemblingTranslator;
@@ -60,7 +61,7 @@ class WasmTranslation::TranslatorImpl::DisassemblingTranslator
   void Init(Isolate* isolate, WasmTranslation* translation,
             V8DebuggerAgentImpl* agent) override {
     // Register fake scripts for each function in this wasm module/script.
-    Handle<debug::WasmScript> script = script_.Get(isolate);
+    Local<debug::WasmScript> script = script_.Get(isolate);
     int num_functions = script->NumFunctions();
     int num_imported_functions = script->NumImportedFunctions();
     DCHECK_LE(0, num_imported_functions);

@@ -152,6 +152,7 @@ String16 V8Debugger::setBreakpoint(const ScriptBreakpoint& breakpoint,
                       toV8String(m_isolate, breakpoint.condition))
                 .FromMaybe(false);
   DCHECK(success);
+  USE(success);
 
   v8::Local<v8::Function> setBreakpointFunction = v8::Local<v8::Function>::Cast(
       m_debuggerScript.Get(m_isolate)
@@ -186,6 +187,7 @@ void V8Debugger::removeBreakpoint(const String16& breakpointId) {
                 toV8String(m_isolate, breakpointId))
           .FromMaybe(false);
   DCHECK(success);
+  USE(success);
 
   v8::Local<v8::Function> removeBreakpointFunction =
       v8::Local<v8::Function>::Cast(
@@ -224,6 +226,7 @@ void V8Debugger::setBreakpointsActivated(bool activated) {
                       v8::Boolean::New(m_isolate, activated))
                 .FromMaybe(false);
   DCHECK(success);
+  USE(success);
   v8::Local<v8::Function> setBreakpointsActivated =
       v8::Local<v8::Function>::Cast(
           m_debuggerScript.Get(m_isolate)

@@ -390,8 +390,8 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
             details = {
                 "functionName": ensureFuncMirror().debugName(),
                 "location": {
-                    "lineNumber": line(),
-                    "columnNumber": column(),
+                    "lineNumber": ensureLocation().line,
+                    "columnNumber": ensureLocation().column,
                     "scriptId": String(script.id())
                 },
                 "this": thisObject,
@@ -452,22 +452,6 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     /**
      * @return {number}
      */
-    function line()
-    {
-        return ensureLocation().line;
-    }
-
-    /**
-     * @return {number}
-     */
-    function column()
-    {
-        return ensureLocation().column;
-    }
-
-    /**
-     * @return {number}
-     */
     function contextId()
     {
         var mirror = ensureFuncMirror();
@@ -475,15 +459,6 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
         if (context && context.data())
             return Number(context.data());
         return 0;
-    }
-
-    /**
-     * @return {number}
-     */
-    function sourceID()
-    {
-        var script = ensureScriptMirror();
-        return script.id();
     }
 
     /**
@@ -515,9 +490,6 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
     }
 
     return {
-        "sourceID": sourceID,
-        "line": line,
-        "column": column,
         "contextId": contextId,
         "thisObject": thisObject,
         "evaluate": evaluate,
