@@ -3271,43 +3271,18 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     }
   }
 
-  LifetimePosition pos = use_pos[reg];
-
-  if (pos < register_use->pos()) {
+  if (use_pos[reg] < register_use->pos()) {
+    // If there is a gap position before the next register use, we can
+    // spill until there. The gap position will then fit the fill move.
     if (LifetimePosition::ExistsGapPositionBetween(current->Start(),
                                                    register_use->pos())) {
       SpillBetween(current, current->Start(), register_use->pos());
-    } else {
-      // We can't spill up to the first register use, because there is no gap
-      // where the fill before the register use may happen. This happens when
-      // there is high register pressure, we are at the beginning of an
-      // instruction, we are the input to that instruction, and we can't hold
-      // on to the register past the instruction (we likely lose due to an
-      // output or a temp).
-      // We give the `reg` register to this range, but then we need to spill
-      // until the next register use, if any.
-      LifetimePosition after_this_reg_use = register_use->pos().NextFullStart();
-      if (after_this_reg_use >= current->End()) {
-        // The range ends at this instruction, since the end is at or before
-        // the next gap. It should follow that there is no other use either.
-        DCHECK_NULL(register_use->next());
-        SetLiveRangeAssignedRegister(current, reg);
-      } else {
-        const UsePosition* next_reg_pos = register_use->next();
-        for (; next_reg_pos != nullptr; next_reg_pos = next_reg_pos->next()) {
-          if (next_reg_pos->type() == UsePositionType::kRequiresRegister) break;
-        }
-        SetLiveRangeAssignedRegister(current, reg);
-        if (next_reg_pos == nullptr) {
-          SpillAfter(current, after_this_reg_use);
-        } else {
-          SpillBetween(current, after_this_reg_use, next_reg_pos->pos());
-        }
-      }
+      return;
     }
-    return;
   }
 
+  // We couldn't spill until the next register use. Split before the register
+  // is blocked, if applicable.
   if (block_pos[reg] < current->End()) {
     // Register becomes blocked before the current range end. Split before that
     // position.
