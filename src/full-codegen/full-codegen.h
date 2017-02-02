@@ -341,10 +341,16 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   void PrepareForBailout(Expression* node, Deoptimizer::BailoutState state);
   void PrepareForBailoutForId(BailoutId id, Deoptimizer::BailoutState state);
 
+  // Returns an int32 for the index into the FixedArray that backs the feedback
+  // vector
+  int32_t IntFromSlot(FeedbackVectorSlot slot) const {
+    return TypeFeedbackVector::GetIndex(slot);
+  }
+
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
   Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
-    return Smi::FromInt(TypeFeedbackVector::GetIndex(slot));
+    return Smi::FromInt(IntFromSlot(slot));
   }
 
   // Record a call's return site offset, used to rebuild the frame if the

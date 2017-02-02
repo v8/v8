@@ -398,8 +398,9 @@ Callable CodeFactory::CallWithSpread(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
-  return Callable(isolate->builtins()->CallFunction(mode),
+Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode,
+                                   TailCallMode tail_call_mode) {
+  return Callable(isolate->builtins()->CallFunction(mode, tail_call_mode),
                   CallTrampolineDescriptor(isolate));
 }
 
@@ -467,6 +468,12 @@ Callable CodeFactory::InterpreterCEntry(Isolate* isolate, int result_size) {
 Callable CodeFactory::InterpreterOnStackReplacement(Isolate* isolate) {
   return Callable(isolate->builtins()->InterpreterOnStackReplacement(),
                   ContextOnlyDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::ArrayConstructor(Isolate* isolate) {
+  ArrayConstructorStub stub(isolate);
+  return make_callable(stub);
 }
 
 // static

@@ -139,15 +139,13 @@ void CallFunctionDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void CallFunctionWithFeedbackDescriptor::InitializePlatformSpecific(
+void CallICTrampolineDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdi, rax, rdx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformSpecific(
+void CallICDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {rdi, rax, rdx, rbx};
   data->InitializePlatformSpecific(arraysize(registers), registers);
@@ -223,6 +221,13 @@ void AllocateHeapNumberDescriptor::InitializePlatformSpecific(
   }
 SIMD128_TYPES(SIMD128_ALLOC_DESC)
 #undef SIMD128_ALLOC_DESC
+
+void ArrayConstructorDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
+  Register registers[] = {rdi, rdx, rax, rbx};
+  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+}
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {

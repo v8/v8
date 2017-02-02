@@ -963,7 +963,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_IC(F)             \
   F(BinaryOpIC_Miss, 2, 1)                   \
   F(BinaryOpIC_MissWithAllocationSite, 3, 1) \
-  F(CallIC_Miss, 3, 1)                       \
   F(CompareIC_Miss, 3, 1)                    \
   F(ElementsTransitionAndStoreIC_Miss, 6, 1) \
   F(KeyedLoadIC_Miss, 4, 1)                  \

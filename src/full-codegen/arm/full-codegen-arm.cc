@@ -1892,7 +1892,7 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
   Handle<Code> code =
       CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
           .code();
-  __ mov(r3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
+  __ mov(r3, Operand(IntFromSlot(expr->CallFeedbackICSlot())));
   __ ldr(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ mov(r0, Operand(arg_count));
   CallIC(code);

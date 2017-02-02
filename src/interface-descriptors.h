@@ -44,8 +44,8 @@ class PlatformInterfaceDescriptor;
   V(CreateAllocationSite)                 \
   V(CreateWeakCell)                       \
   V(CallFunction)                         \
-  V(CallFunctionWithFeedback)             \
-  V(CallFunctionWithFeedbackAndVector)    \
+  V(CallIC)                               \
+  V(CallICTrampoline)                     \
   V(CallForwardVarargs)                   \
   V(CallConstruct)                        \
   V(CallTrampoline)                       \
@@ -66,6 +66,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateUint8x16)                     \
   V(AllocateBool8x16)                     \
   V(Builtin)                              \
+  V(ArrayConstructor)                     \
   V(ArrayNoArgumentConstructor)           \
   V(ArraySingleArgumentConstructor)       \
   V(ArrayNArgumentsConstructor)           \
@@ -592,23 +593,19 @@ class CallFunctionDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(CallFunctionDescriptor, CallInterfaceDescriptor)
 };
 
-
-class CallFunctionWithFeedbackDescriptor : public CallInterfaceDescriptor {
+class CallICDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kActualArgumentsCount, kSlot)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      CallFunctionWithFeedbackDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kSlot, kVector)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallICDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
-
-class CallFunctionWithFeedbackAndVectorDescriptor
-    : public CallInterfaceDescriptor {
+class CallICTrampolineDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kActualArgumentsCount, kSlot, kVector)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      CallFunctionWithFeedbackAndVectorDescriptor, CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kTarget, kActualArgumentsCount, kSlot)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallICTrampolineDescriptor,
+                                               CallInterfaceDescriptor)
 };
-
 
 class CallConstructDescriptor : public CallInterfaceDescriptor {
  public:
@@ -658,6 +655,13 @@ class BuiltinDescriptor : public CallInterfaceDescriptor {
   static const Register ArgumentsCountRegister();
   static const Register NewTargetRegister();
   static const Register TargetRegister();
+};
+
+class ArrayConstructorDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ArrayConstructorDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class ArrayNoArgumentConstructorDescriptor : public CallInterfaceDescriptor {

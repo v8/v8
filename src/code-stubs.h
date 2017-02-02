@@ -865,7 +865,7 @@ class ArrayConstructorStub: public PlatformCodeStub {
   void GenerateDispatchToArrayStub(MacroAssembler* masm,
                                    AllocationSiteOverrideMode mode);
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayNArgumentsConstructor);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(ArrayConstructor);
   DEFINE_PLATFORM_CODE_STUB(ArrayConstructor, PlatformCodeStub);
 };
 
@@ -913,12 +913,11 @@ class MathPowStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(MathPow, PlatformCodeStub);
 };
 
-
-class CallICStub: public PlatformCodeStub {
+class CallICStub : public TurboFanCodeStub {
  public:
   CallICStub(Isolate* isolate, ConvertReceiverMode convert_mode,
              TailCallMode tail_call_mode)
-      : PlatformCodeStub(isolate) {
+      : TurboFanCodeStub(isolate) {
     minor_key_ = ConvertModeBits::encode(convert_mode) |
                  TailCallModeBits::encode(tail_call_mode);
   }
@@ -940,15 +939,11 @@ class CallICStub: public PlatformCodeStub {
     return TailCallModeBits::decode(minor_key_);
   }
 
-  // Code generation helpers.
-  void GenerateMiss(MacroAssembler* masm);
-  void HandleArrayCase(MacroAssembler* masm, Label* miss);
-
  private:
-  void PrintState(std::ostream& os) const override;  // NOLINT
+  void PrintState(std::ostream& os) const final;  // NOLINT
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedbackAndVector);
-  DEFINE_PLATFORM_CODE_STUB(CallIC, PlatformCodeStub);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallIC);
+  DEFINE_TURBOFAN_CODE_STUB(CallIC, TurboFanCodeStub);
 };
 
 
@@ -1631,7 +1626,7 @@ class CallICTrampolineStub : public TurboFanCodeStub {
  private:
   void PrintState(std::ostream& os) const override;  // NOLINT
 
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallFunctionWithFeedback);
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(CallICTrampoline);
   DEFINE_TURBOFAN_CODE_STUB(CallICTrampoline, TurboFanCodeStub);
 };
 

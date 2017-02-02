@@ -171,7 +171,8 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                        TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
-      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+      Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny,
+      TailCallMode tail_call_mode = TailCallMode::kDisallow);
   static Callable CallForwardVarargs(Isolate* isolate);
   static Callable CallFunctionForwardVarargs(Isolate* isolate);
   static Callable Construct(Isolate* isolate);
@@ -190,6 +191,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);
 
+  static Callable ArrayConstructor(Isolate* isolate);
   static Callable ArrayPush(Isolate* isolate);
   static Callable FunctionPrototypeBind(Isolate* isolate);
   static Callable PromiseHandleReject(Isolate* isolate);

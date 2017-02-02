@@ -265,8 +265,6 @@ class CallIC : public IC {
     DCHECK(nexus != NULL);
   }
 
-  void HandleMiss(Handle<Object> function);
-
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
 

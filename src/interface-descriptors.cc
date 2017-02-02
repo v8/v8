@@ -461,21 +461,21 @@ void ConstructTrampolineDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void CallFunctionWithFeedbackDescriptor::InitializePlatformIndependent(
+void CallICDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kActualArgumentsCount, kSlot
+  // kTarget, kActualArgumentsCount, kSlot, kVector
   MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::Int32(),
                                  MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
 
-void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformIndependent(
+void CallICTrampolineDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kActualArgumentsCount, kSlot, kVector
+  // kTarget, kActualArgumentsCount, kSlot
   MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
-                                 MachineType::AnyTagged(),
-                                 MachineType::AnyTagged()};
+                                 MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
@@ -507,6 +507,16 @@ const Register BuiltinDescriptor::TargetRegister() {
   return kJSFunctionRegister;
 }
 
+void ArrayConstructorDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kAllocationSite, kActualArgumentsCount, kFunctionParameter
@@ -531,9 +541,8 @@ void ArraySingleArgumentConstructorDescriptor::InitializePlatformIndependent(
 void ArrayNArgumentsConstructorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kAllocationSite, kActualArgumentsCount
-  MachineType machine_types[] = {MachineType::TaggedPointer(),
-                                 MachineType::AnyTagged(),
-                                 MachineType::Int32()};
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

@@ -1759,6 +1759,179 @@ void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << convert_mode() << ", " << tail_call_mode();
 }
 
+void CallICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
+  typedef CodeStubAssembler::Label Label;
+  typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
+
+  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* target = assembler.Parameter(Descriptor::kTarget);
+  Node* argc = assembler.Parameter(Descriptor::kActualArgumentsCount);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+
+  // TODO(bmeurer): The slot should actually be an IntPtr, but TurboFan's
+  // SimplifiedLowering cannot deal with IntPtr machine type properly yet.
+  slot = assembler.ChangeInt32ToIntPtr(slot);
+
+  // Static checks to assert it is safe to examine the type feedback element.
+  // We don't know that we have a weak cell. We might have a private symbol
+  // or an AllocationSite, but the memory is safe to examine.
+  // AllocationSite::kTransitionInfoOffset - contains a Smi or pointer to
+  // FixedArray.
+  // WeakCell::kValueOffset - contains a JSFunction or Smi(0)
+  // Symbol::kHashFieldSlot - if the low bit is 1, then the hash is not
+  // computed, meaning that it can't appear to be a pointer. If the low bit is
+  // 0, then hash is computed, but the 0 bit prevents the field from appearing
+  // to be a pointer.
+  STATIC_ASSERT(WeakCell::kSize >= kPointerSize);
+  STATIC_ASSERT(AllocationSite::kTransitionInfoOffset ==
+                    WeakCell::kValueOffset &&
+                WeakCell::kValueOffset == Symbol::kHashFieldSlot);
+
+  // Increment the call count.
+  // TODO(bmeurer): Would it be beneficial to use Int32Add on 64-bit?
+  assembler.Comment("increment call count");
+  Node* call_count =
+      assembler.LoadFixedArrayElement(vector, slot, 1 * kPointerSize);
+  Node* new_count = assembler.SmiAdd(call_count, assembler.SmiConstant(1));
+  // Count is Smi, so we don't need a write barrier.
+  assembler.StoreFixedArrayElement(vector, slot, new_count, SKIP_WRITE_BARRIER,
+                                   1 * kPointerSize);
+
+  Label call_function(&assembler), extra_checks(&assembler), call(&assembler);
+
+  // The checks. First, does function match the recorded monomorphic target?
+  Node* feedback_element = assembler.LoadFixedArrayElement(vector, slot);
+  Node* feedback_value = assembler.LoadWeakCellValueUnchecked(feedback_element);
+  Node* is_monomorphic = assembler.WordEqual(target, feedback_value);
+  assembler.GotoUnless(is_monomorphic, &extra_checks);
+
+  // The compare above could have been a SMI/SMI comparison. Guard against
+  // this convincing us that we have a monomorphic JSFunction.
+  Node* is_smi = assembler.TaggedIsSmi(target);
+  assembler.Branch(is_smi, &extra_checks, &call_function);
+
+  assembler.Bind(&call_function);
+  {
+    // Call using CallFunction builtin.
+    Callable callable =
+        CodeFactory::CallFunction(isolate(), convert_mode(), tail_call_mode());
+    assembler.TailCallStub(callable, context, target, argc);
+  }
+
+  assembler.Bind(&extra_checks);
+  {
+    Label check_initialized(&assembler), mark_megamorphic(&assembler),
+        create_allocation_site(&assembler, Label::kDeferred),
+        create_weak_cell(&assembler, Label::kDeferred);
+
+    assembler.Comment("check if megamorphic");
+    // Check if it is a megamorphic target.
+    Node* is_megamorphic = assembler.WordEqual(
+        feedback_element,
+        assembler.HeapConstant(
+            TypeFeedbackVector::MegamorphicSentinel(isolate())));
+    assembler.GotoIf(is_megamorphic, &call);
+
+    assembler.Comment("check if it is an allocation site");
+    assembler.GotoUnless(
+        assembler.IsAllocationSiteMap(assembler.LoadMap(feedback_element)),
+        &check_initialized);
+
+    // If it is not the Array() function, mark megamorphic.
+    Node* context_slot = assembler.LoadContextElement(
+        assembler.LoadNativeContext(context), Context::ARRAY_FUNCTION_INDEX);
+    Node* is_array_function = assembler.WordEqual(context_slot, target);
+    assembler.GotoUnless(is_array_function, &mark_megamorphic);
+
+    // Call ArrayConstructorStub.
+    Callable callable = CodeFactory::ArrayConstructor(isolate());
+    assembler.TailCallStub(callable, context, target, target, argc,
+                           feedback_element);
+
+    assembler.Bind(&check_initialized);
+    {
+      assembler.Comment("check if uninitialized");
+      // Check if it is uninitialized target first.
+      Node* is_uninitialized = assembler.WordEqual(
+          feedback_element,
+          assembler.HeapConstant(
+              TypeFeedbackVector::UninitializedSentinel(isolate())));
+      assembler.GotoUnless(is_uninitialized, &mark_megamorphic);
+
+      assembler.Comment("handle unitinitialized");
+      // If it is not a JSFunction mark it as megamorphic.
+      Node* is_smi = assembler.TaggedIsSmi(target);
+      assembler.GotoIf(is_smi, &mark_megamorphic);
+
+      // Check if function is an object of JSFunction type.
+      Node* is_js_function = assembler.IsJSFunction(target);
+      assembler.GotoUnless(is_js_function, &mark_megamorphic);
+
+      // Check if it is the Array() function.
+      Node* context_slot = assembler.LoadContextElement(
+          assembler.LoadNativeContext(context), Context::ARRAY_FUNCTION_INDEX);
+      Node* is_array_function = assembler.WordEqual(context_slot, target);
+      assembler.GotoIf(is_array_function, &create_allocation_site);
+
+      // Check if the function belongs to the same native context.
+      Node* native_context = assembler.LoadNativeContext(
+          assembler.LoadObjectField(target, JSFunction::kContextOffset));
+      Node* is_same_native_context = assembler.WordEqual(
+          native_context, assembler.LoadNativeContext(context));
+      assembler.Branch(is_same_native_context, &create_weak_cell,
+                       &mark_megamorphic);
+    }
+
+    assembler.Bind(&create_weak_cell);
+    {
+      // Wrap the {target} in a WeakCell and remember it.
+      assembler.Comment("create weak cell");
+      assembler.CreateWeakCellInFeedbackVector(vector, assembler.SmiTag(slot),
+                                               target);
+
+      // Call using CallFunction builtin.
+      assembler.Goto(&call_function);
+    }
+
+    assembler.Bind(&create_allocation_site);
+    {
+      // Create an AllocationSite for the {target}.
+      assembler.Comment("create allocation site");
+      assembler.CreateAllocationSiteInFeedbackVector(vector,
+                                                     assembler.SmiTag(slot));
+
+      // Call using CallFunction builtin. CallICs have a PREMONOMORPHIC state.
+      // They start collecting feedback only when a call is executed the second
+      // time. So, do not pass any feedback here.
+      assembler.Goto(&call_function);
+    }
+
+    assembler.Bind(&mark_megamorphic);
+    {
+      // Mark it as a megamorphic.
+      // MegamorphicSentinel is created as a part of Heap::InitialObjects
+      // and will not move during a GC. So it is safe to skip write barrier.
+      DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
+      assembler.StoreFixedArrayElement(
+          vector, slot, assembler.HeapConstant(
+                            TypeFeedbackVector::MegamorphicSentinel(isolate())),
+          SKIP_WRITE_BARRIER);
+      assembler.Goto(&call);
+    }
+  }
+
+  assembler.Bind(&call);
+  {
+    // Call using call builtin.
+    assembler.Comment("call using Call builtin");
+    Callable callable_call =
+        CodeFactory::Call(isolate(), convert_mode(), tail_call_mode());
+    assembler.TailCallStub(callable_call, context, target, argc);
+  }
+}
+
 void CallICTrampolineStub::PrintState(std::ostream& os) const {  // NOLINT
   os << convert_mode() << ", " << tail_call_mode();
 }
@@ -1769,7 +1942,7 @@ void CallICTrampolineStub::GenerateAssembly(
   CodeStubAssembler assembler(state);
 
   Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* target = assembler.Parameter(Descriptor::kFunction);
+  Node* target = assembler.Parameter(Descriptor::kTarget);
   Node* argc = assembler.Parameter(Descriptor::kActualArgumentsCount);
   Node* slot = assembler.Parameter(Descriptor::kSlot);
   Node* vector = assembler.LoadTypeFeedbackVectorForStub();

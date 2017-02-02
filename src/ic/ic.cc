@@ -2482,70 +2482,12 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
 }
 
 
-void CallIC::HandleMiss(Handle<Object> function) {
-  Handle<Object> name = isolate()->factory()->empty_string();
-  CallICNexus* nexus = casted_nexus<CallICNexus>();
-  Object* feedback = nexus->GetFeedback();
-
-  // Hand-coded MISS handling is easier if CallIC slots don't contain smis.
-  DCHECK(!feedback->IsSmi());
-
-  if (feedback->IsWeakCell() || !function->IsJSFunction() ||
-      feedback->IsAllocationSite()) {
-    // We are going generic.
-    nexus->ConfigureMegamorphic();
-  } else {
-    DCHECK(feedback == *TypeFeedbackVector::UninitializedSentinel(isolate()));
-    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
-
-    Handle<JSFunction> array_function =
-        Handle<JSFunction>(isolate()->native_context()->array_function());
-    if (array_function.is_identical_to(js_function)) {
-      // Alter the slot.
-      nexus->ConfigureMonomorphicArray();
-    } else if (js_function->context()->native_context() !=
-               *isolate()->native_context()) {
-      // Don't collect cross-native context feedback for the CallIC.
-      // TODO(bmeurer): We should collect the SharedFunctionInfo as
-      // feedback in this case instead.
-      nexus->ConfigureMegamorphic();
-    } else {
-      nexus->ConfigureMonomorphic(js_function);
-    }
-  }
-
-  if (function->IsJSFunction()) {
-    Handle<JSFunction> js_function = Handle<JSFunction>::cast(function);
-    name = handle(js_function->shared()->name(), isolate());
-  }
-
-  OnTypeFeedbackChanged(isolate(), get_host());
-  TRACE_IC("CallIC", name);
-}
-
-
 #undef TRACE_IC
 
 
 // ----------------------------------------------------------------------------
 // Static IC stub generators.
 //
-
-// Used from ic-<arch>.cc.
-RUNTIME_FUNCTION(Runtime_CallIC_Miss) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  // Runtime functions don't follow the IC's calling convention.
-  Handle<Object> function = args.at(0);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(1);
-  Handle<Smi> slot = args.at<Smi>(2);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  CallICNexus nexus(vector, vector_slot);
-  CallIC ic(isolate, &nexus);
-  ic.HandleMiss(function);
-  return *function;
-}
-
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
