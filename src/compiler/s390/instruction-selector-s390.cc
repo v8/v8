@@ -569,6 +569,9 @@ void VisitBin32op(InstructionSelector* selector, Node* node,
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
                              cont->reason(), cont->frame_state());
+  } else if (cont->IsTrap()) {
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, output_count, outputs, input_count, inputs);
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
