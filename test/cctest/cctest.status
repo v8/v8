@@ -215,6 +215,9 @@
 
   # BUG(5193): Flaky timeout.
   'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
+
+  # BUG(5920): Flaky crash.
+  'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 }],  # 'system == windows'
 
 ##############################################################################
