@@ -2440,34 +2440,24 @@ class NewSpace : public Space {
   }
 
   size_t AllocatedSinceLastGC() {
-    bool seen_age_mark = false;
-    Address age_mark = to_space_.age_mark();
-    Page* current_page = to_space_.first_page();
-    Page* age_mark_page = Page::FromAddress(age_mark);
-    Page* last_page = Page::FromAddress(top() - kPointerSize);
-    if (age_mark_page == last_page) {
-      if (top() - age_mark >= 0) {
-        return top() - age_mark;
-      }
-      // Top was reset at some point, invalidating this metric.
-      return 0;
-    }
-    while (current_page != last_page) {
-      if (current_page == age_mark_page) {
-        seen_age_mark = true;
-        break;
-      }
+    const Address age_mark = to_space_.age_mark();
+    DCHECK_NOT_NULL(age_mark);
+    DCHECK_NOT_NULL(top());
+    Page* const age_mark_page = Page::FromAllocationAreaAddress(age_mark);
+    Page* const last_page = Page::FromAllocationAreaAddress(top());
+    Page* current_page = age_mark_page;
+    size_t allocated = 0;
+    if (current_page != last_page) {
+      DCHECK_EQ(current_page, age_mark_page);
+      DCHECK_GE(age_mark_page->area_end(), age_mark);
+      allocated += age_mark_page->area_end() - age_mark;
       current_page = current_page->next_page();
+    } else {
+      DCHECK_GE(top(), age_mark);
+      return top() - age_mark;
     }
-    if (!seen_age_mark) {
-      // Top was reset at some point, invalidating this metric.
-      return 0;
-    }
-    DCHECK_GE(age_mark_page->area_end(), age_mark);
-    size_t allocated = age_mark_page->area_end() - age_mark;
-    DCHECK_EQ(current_page, age_mark_page);
-    current_page = age_mark_page->next_page();
     while (current_page != last_page) {
+      DCHECK_NE(current_page, age_mark_page);
       allocated += Page::kAllocatableMemory;
       current_page = current_page->next_page();
     }
