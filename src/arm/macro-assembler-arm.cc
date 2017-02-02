@@ -1919,16 +1919,6 @@ void MacroAssembler::IsObjectNameType(Register object,
   b(hi, fail);
 }
 
-
-void MacroAssembler::DebugBreak() {
-  mov(r0, Operand::Zero());
-  mov(r1,
-      Operand(ExternalReference(Runtime::kHandleDebuggerStatement, isolate())));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =
