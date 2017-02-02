@@ -53,10 +53,7 @@ function listener(event, exec_state, event_data, data) {
         if (f == "normalize") continue;
         if (f == "match") continue;
         if (f == "search") continue;
-        if (f == "split" || f == "replace") {
-          fail(`'abcd'.${f}(2)`);
-          continue;
-        }
+        if (f == "split") continue;
         success("abcd"[f](2), `"abcd".${f}(2);`);
       }
     }

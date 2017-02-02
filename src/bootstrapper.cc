@@ -1587,10 +1587,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeLocaleCompare, 1, true);
     SimpleInstallFunction(prototype, "normalize",
                           Builtins::kStringPrototypeNormalize, 0, false);
-    SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
-                          2, true);
-    SimpleInstallFunction(prototype, "replace",
-                          Builtins::kStringPrototypeReplace, 2, true);
     SimpleInstallFunction(prototype, "substr", Builtins::kStringPrototypeSubstr,
                           2, true);
     SimpleInstallFunction(prototype, "substring",
@@ -3804,7 +3800,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   DCHECK(JSObject::cast(
       string_function->initial_map()->prototype())->HasFastProperties());
   native_context()->set_string_function_prototype_map(
-      HeapObject::cast(string_function->map()->prototype())->map());
+      HeapObject::cast(string_function->initial_map()->prototype())->map());
 
   Handle<JSGlobalObject> global_object =
       handle(native_context()->global_object());

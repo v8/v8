@@ -13,44 +13,6 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_GetSubstitution) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, matched, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, subject, 1);
-  CONVERT_SMI_ARG_CHECKED(position, 2);
-  CONVERT_ARG_HANDLE_CHECKED(String, replacement, 3);
-
-  // A simple match without captures.
-  class SimpleMatch : public String::Match {
-   public:
-    SimpleMatch(Handle<String> match, Handle<String> prefix,
-                Handle<String> suffix)
-        : match_(match), prefix_(prefix), suffix_(suffix) {}
-
-    Handle<String> GetMatch() override { return match_; }
-    MaybeHandle<String> GetCapture(int i, bool* capture_exists) override {
-      *capture_exists = false;
-      return match_;  // Return arbitrary string handle.
-    }
-    Handle<String> GetPrefix() override { return prefix_; }
-    Handle<String> GetSuffix() override { return suffix_; }
-    int CaptureCount() override { return 0; }
-
-   private:
-    Handle<String> match_, prefix_, suffix_;
-  };
-
-  Handle<String> prefix =
-      isolate->factory()->NewSubString(subject, 0, position);
-  Handle<String> suffix = isolate->factory()->NewSubString(
-      subject, position + matched->length(), subject->length());
-  SimpleMatch match(matched, prefix, suffix);
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, String::GetSubstitution(isolate, &match, replacement));
-}
-
 // This may return an empty MaybeHandle if an exception is thrown or
 // we abort due to reaching the recursion limit.
 MaybeHandle<String> StringReplaceOneCharWithString(

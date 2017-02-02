@@ -748,10 +748,6 @@ class Isolate;
   CPP(StringPrototypeLocaleCompare)                                            \
   /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */            \
   CPP(StringPrototypeNormalize)                                                \
-  /* ES6 section 21.1.3.16 String.prototype.replace ( search, replace ) */     \
-  TFJ(StringPrototypeReplace, 2)                                               \
-  /* ES6 section 21.1.3.19 String.prototype.split ( separator, limit )  */     \
-  TFJ(StringPrototypeSplit, 2)                                                 \
   /* ES6 section B.2.3.1 String.prototype.substr ( start, length ) */          \
   TFJ(StringPrototypeSubstr, 2)                                                \
   /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */        \
