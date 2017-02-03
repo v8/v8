@@ -257,6 +257,7 @@ DEFINE_BOOL(future, false,
 DEFINE_IMPLICATION(future, turbo)
 
 DEFINE_IMPLICATION(turbo, ignition_staging)
+DEFINE_IMPLICATION(turbo, enable_fast_array_builtins)
 
 // TODO(rmcilroy): Remove ignition-staging and set these implications directly
 // with the turbo flag.
@@ -644,6 +645,7 @@ DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
 
 // builtins.cc
+DEFINE_BOOL(enable_fast_array_builtins, false, "use optimized builtins")
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")
 

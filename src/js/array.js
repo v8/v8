@@ -1569,6 +1569,8 @@ utils.InstallFunctions(GlobalArray.prototype, DONT_ENUM, [
   iteratorSymbol, ArrayValues
 ]);
 
+utils.ForEachFunction = GlobalArray.prototype.forEach;
+
 %FunctionSetName(ArrayValues, "values");
 
 %FinishArrayPrototypeSetup(GlobalArray.prototype);

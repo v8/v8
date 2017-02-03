@@ -69,6 +69,7 @@ class PlatformInterfaceDescriptor;
   V(AllocateBool8x16)                     \
   V(Builtin)                              \
   V(ArrayConstructor)                     \
+  V(ForEach)                              \
   V(ArrayNoArgumentConstructor)           \
   V(ArraySingleArgumentConstructor)       \
   V(ArrayNArgumentsConstructor)           \
@@ -292,6 +293,41 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
                                                         \
     kParameterCount,                                    \
     kContext = kParameterCount /* implicit parameter */ \
+  };
+
+#define DECLARE_BUILTIN_DESCRIPTOR(name)                                \
+  DECLARE_DESCRIPTOR_WITH_BASE(name, BuiltinDescriptor)                 \
+ protected:                                                             \
+  void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
+      override {                                                        \
+    MachineType machine_types[] = {MachineType::AnyTagged(),            \
+                                   MachineType::AnyTagged(),            \
+                                   MachineType::Int32()};               \
+    int argc = kStackParameterCount + 1 - arraysize(machine_types);     \
+    data->InitializePlatformIndependent(arraysize(machine_types), argc, \
+                                        machine_types);                 \
+  }                                                                     \
+  void InitializePlatformSpecific(CallInterfaceDescriptorData* data)    \
+      override {                                                        \
+    Register registers[] = {TargetRegister(), NewTargetRegister(),      \
+                            ArgumentsCountRegister()};                  \
+    data->InitializePlatformSpecific(arraysize(registers), registers);  \
+  }                                                                     \
+                                                                        \
+ public:
+
+#define DEFINE_BUILTIN_PARAMETERS(...)                             \
+  enum ParameterIndices {                                          \
+    kReceiver,                                                     \
+    kBeforeFirstStackParameter = kReceiver,                        \
+    __VA_ARGS__,                                                   \
+    kAfterLastStackParameter,                                      \
+    kNewTarget = kAfterLastStackParameter,                         \
+    kArgumentsCount,                                               \
+    kContext, /* implicit parameter */                             \
+    kParameterCount = kContext,                                    \
+    kStackParameterCount =                                         \
+        kAfterLastStackParameter - kBeforeFirstStackParameter - 1, \
   };
 
 class VoidDescriptor : public CallInterfaceDescriptor {
@@ -671,6 +707,12 @@ class BuiltinDescriptor : public CallInterfaceDescriptor {
   static const Register ArgumentsCountRegister();
   static const Register NewTargetRegister();
   static const Register TargetRegister();
+};
+
+class ForEachDescriptor : public BuiltinDescriptor {
+ public:
+  DEFINE_BUILTIN_PARAMETERS(kCallback, kThisArg)
+  DECLARE_BUILTIN_DESCRIPTOR(ForEachDescriptor)
 };
 
 class ArrayConstructorDescriptor : public CallInterfaceDescriptor {

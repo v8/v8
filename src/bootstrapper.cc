@@ -217,6 +217,8 @@ class Genesis BASE_EMBEDDED {
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
 
+  void InitializeGlobal_enable_fast_array_builtins();
+
   Handle<JSFunction> InstallArrayBuffer(Handle<JSObject> target,
                                         const char* name, Builtins::Name call,
                                         BuiltinFunctionId id);
@@ -2911,6 +2913,8 @@ void Genesis::InitializeExperimentalGlobal() {
   HARMONY_STAGED(FEATURE_INITIALIZE_GLOBAL)
   HARMONY_SHIPPING(FEATURE_INITIALIZE_GLOBAL)
 #undef FEATURE_INITIALIZE_GLOBAL
+
+  InitializeGlobal_enable_fast_array_builtins();
 }
 
 
@@ -3541,6 +3545,28 @@ void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
   JSObject::AddProperty(symbol, name_string, value, attributes);
 }
 
+void Genesis::InitializeGlobal_enable_fast_array_builtins() {
+  if (!FLAG_enable_fast_array_builtins) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object());
+  Isolate* isolate = global->GetIsolate();
+  Factory* factory = isolate->factory();
+
+  LookupIterator it1(global, factory->NewStringFromAsciiChecked("Array"),
+                     LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Handle<Object> array_object = Object::GetProperty(&it1).ToHandleChecked();
+  LookupIterator it2(array_object,
+                     factory->NewStringFromAsciiChecked("prototype"),
+                     LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Handle<Object> array_prototype = Object::GetProperty(&it2).ToHandleChecked();
+  LookupIterator it3(array_prototype,
+                     factory->NewStringFromAsciiChecked("forEach"),
+                     LookupIterator::OWN_SKIP_INTERCEPTOR);
+  Handle<Object> for_each_function =
+      Object::GetProperty(&it3).ToHandleChecked();
+  Handle<JSFunction>::cast(for_each_function)
+      ->set_code(isolate->builtins()->builtin(Builtins::kArrayForEach));
+}
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   if (!FLAG_harmony_sharedarraybuffer) return;

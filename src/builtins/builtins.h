@@ -58,6 +58,7 @@ class Isolate;
   ASM(CompileLazy)                                                             \
   TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion)                      \
   TFS(FastNewObject, BUILTIN, kNoExtraICState, FastNewObject)                  \
+  TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty)                      \
                                                                                \
   /* Calls */                                                                  \
   ASM(ArgumentsAdaptorTrampoline)                                              \
@@ -273,6 +274,7 @@ class Isolate;
   CPP(ArraySlice)                                                              \
   CPP(ArraySplice)                                                             \
   CPP(ArrayUnshift)                                                            \
+  TFJ(ArrayForEach, 2)                                                         \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
   /* ES6 #sec-array.prototype.keys */                                          \
@@ -642,7 +644,6 @@ class Isolate;
   CPP(ObjectSeal)                                                              \
   CPP(ObjectValues)                                                            \
                                                                                \
-  TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty)                      \
   TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                           \
   TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare)                  \
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                      \
