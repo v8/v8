@@ -132,6 +132,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable SubString(Isolate* isolate);
   static Callable StringIndexOf(Isolate* isolate);
 
+  static Callable RegExpReplace(Isolate* isolate);
+  static Callable RegExpSplit(Isolate* isolate);
+
   static Callable ClassOf(Isolate* isolate);
   static Callable Typeof(Isolate* isolate);
   static Callable GetSuperConstructor(Isolate* isolate);

@@ -19,8 +19,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   explicit RegExpBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  void BranchIfFastRegExp(Node* context, Node* map, Label* if_isunmodified,
-                          Label* if_ismodified);
+  void BranchIfFastRegExp(Node* const context, Node* const map,
+                          Label* const if_isunmodified,
+                          Label* const if_ismodified);
 
  protected:
   Node* FastLoadLastIndex(Node* regexp);
@@ -47,6 +48,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
                              MessageTemplate::Template msg_template,
                              char const* method_name);
+
+  // Analogous to BranchIfFastRegExp, for use in asserts.
+  Node* IsFastRegExpMap(Node* const context, Node* const map);
 
   Node* IsInitialRegExpMap(Node* context, Node* map);
   void BranchIfFastRegExpResult(Node* context, Node* map,

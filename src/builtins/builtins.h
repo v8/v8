@@ -707,15 +707,19 @@ class Isolate;
   TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                      \
   TFJ(RegExpPrototypeMatch, 1)                                                 \
   TFJ(RegExpPrototypeMultilineGetter, 0)                                       \
-  TFJ(RegExpPrototypeReplace, 2)                                               \
   TFJ(RegExpPrototypeSearch, 1)                                                \
   TFJ(RegExpPrototypeSourceGetter, 0)                                          \
-  TFJ(RegExpPrototypeSplit, 2)                                                 \
   TFJ(RegExpPrototypeStickyGetter, 0)                                          \
   TFJ(RegExpPrototypeTest, 1)                                                  \
   CPP(RegExpPrototypeToString)                                                 \
   TFJ(RegExpPrototypeUnicodeGetter, 0)                                         \
   CPP(RegExpRightContextGetter)                                                \
+                                                                               \
+  TFS(RegExpReplace, BUILTIN, kNoExtraICState, RegExpReplace)                  \
+  TFJ(RegExpPrototypeReplace, 2)                                               \
+                                                                               \
+  TFS(RegExpSplit, BUILTIN, kNoExtraICState, RegExpSplit)                      \
+  TFJ(RegExpPrototypeSplit, 2)                                                 \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \

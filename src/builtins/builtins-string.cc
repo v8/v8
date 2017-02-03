@@ -1115,7 +1115,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   }
 
   // Take the fast path for RegExps.
-  if (regexp_call != nullptr) {
+  {
     Label stub_call(this), slow_lookup(this);
 
     RegExpBuiltinsAssembler regexp_asm(state());
@@ -1160,10 +1160,18 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, "String.prototype.replace");
 
   // Redirect to replacer method if {search[@@replace]} is not undefined.
-  // TODO(jgruber): Call RegExp.p.replace stub for fast path.
 
   MaybeCallFunctionAtSymbol(
-      context, search, isolate()->factory()->replace_symbol(), nullptr,
+      context, search, isolate()->factory()->replace_symbol(),
+      [=]() {
+        Callable tostring_callable = CodeFactory::ToString(isolate());
+        Node* const subject_string =
+            CallStub(tostring_callable, context, receiver);
+
+        Callable replace_callable = CodeFactory::RegExpReplace(isolate());
+        return CallStub(replace_callable, context, search, subject_string,
+                        replace);
+      },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
         return CallJS(call_callable, context, fn, search, receiver, replace);
@@ -1317,10 +1325,18 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, "String.prototype.split");
 
   // Redirect to splitter method if {separator[@@split]} is not undefined.
-  // TODO(jgruber): Call RegExp.p.split stub for fast path.
 
   MaybeCallFunctionAtSymbol(
-      context, separator, isolate()->factory()->split_symbol(), nullptr,
+      context, separator, isolate()->factory()->split_symbol(),
+      [=]() {
+        Callable tostring_callable = CodeFactory::ToString(isolate());
+        Node* const subject_string =
+            CallStub(tostring_callable, context, receiver);
+
+        Callable split_callable = CodeFactory::RegExpSplit(isolate());
+        return CallStub(split_callable, context, separator, subject_string,
+                        limit);
+      },
       [=](Node* fn) {
         Callable call_callable = CodeFactory::Call(isolate());
         return CallJS(call_callable, context, fn, separator, receiver, limit);
