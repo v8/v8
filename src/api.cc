@@ -9123,6 +9123,10 @@ bool debug::Script::IsWasm() const {
   return Utils::OpenHandle(this)->type() == i::Script::TYPE_WASM;
 }
 
+bool debug::Script::IsModule() const {
+  return Utils::OpenHandle(this)->origin_options().IsModule();
+}
+
 namespace {
 int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
   return i::Smi::cast(array->get(index))->value();

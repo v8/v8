@@ -123,6 +123,7 @@ class Script {
   MaybeLocal<Value> ContextData() const;
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
+  bool IsModule() const;
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
                               std::vector<debug::Location>* locations) const;

@@ -990,6 +990,7 @@ void V8DebuggerAgentImpl::didParseSource(
   }
   bool isLiveEdit = script->isLiveEdit();
   bool hasSourceURL = script->hasSourceURL();
+  bool isModule = script->isModule();
   String16 scriptId = script->scriptId();
   String16 scriptURL = script->sourceURL();
 
@@ -1009,18 +1010,20 @@ void V8DebuggerAgentImpl::didParseSource(
       std::move(executionContextAuxData));
   const bool* isLiveEditParam = isLiveEdit ? &isLiveEdit : nullptr;
   const bool* hasSourceURLParam = hasSourceURL ? &hasSourceURL : nullptr;
+  const bool* isModuleParam = isModule ? &isModule : nullptr;
   if (success)
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(m_isolate), std::move(executionContextAuxDataParam),
-        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam);
+        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
+        isModuleParam);
   else
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(m_isolate), std::move(executionContextAuxDataParam),
-        std::move(sourceMapURLParam), hasSourceURLParam);
+        std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam);
 
   if (scriptURL.isEmpty() || !success) return;
 

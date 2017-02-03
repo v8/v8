@@ -32,10 +32,7 @@ var module4 = '}';
 
 InspectorTest.setupScriptMap();
 // We get scriptParsed events for modules ..
-Protocol.Debugger.onScriptParsed(message => {
-  if (message.params.url === 'wait-pending-tasks.js') return;
-  InspectorTest.logMessage(message);
-});
+Protocol.Debugger.onScriptParsed(InspectorTest.logMessage);
 // .. scriptFailed to parse for modules with syntax error ..
 Protocol.Debugger.onScriptFailedToParse(InspectorTest.logMessage);
 // .. API messages from modules contain correct stack trace ..

@@ -233,6 +233,8 @@ InspectorTest._dispatchMessage = function(messageObject)
       var eventHandler = InspectorTest._eventHandler[eventName];
       if (InspectorTest._scriptMap && eventName === "Debugger.scriptParsed")
         InspectorTest._scriptMap.set(messageObject.params.scriptId, JSON.parse(JSON.stringify(messageObject.params)));
+      if (eventName === "Debugger.scriptParsed" && messageObject.params.url === "wait-pending-tasks.js")
+        return;
       if (eventHandler)
         eventHandler(messageObject);
     }
