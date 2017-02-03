@@ -727,13 +727,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  Variable* var_right, Node* right_instance_type,
                                  Label* did_something);
 
-  // Return the first index >= {from} at which {needle_char} was found in
-  // {string}, or -1 if such an index does not exist. The returned value is
-  // a Smi, {string} is expected to be a String, {needle_char} is an intptr,
-  // and {from} is expected to be tagged.
-  Node* StringIndexOfChar(Node* context, Node* string, Node* needle_char,
-                          Node* from);
-
   Node* StringFromCodePoint(Node* codepoint, UnicodeEncoding encoding);
 
   // Type conversion helpers.

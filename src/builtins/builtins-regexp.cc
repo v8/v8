@@ -2463,11 +2463,12 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
     Node* const replace_string =
         CallStub(tostring_callable, context, replace_value);
 
-    Node* const dollar_char = Int32Constant('$');
-    GotoUnless(SmiEqual(StringIndexOfChar(context, replace_string, dollar_char,
-                                          SmiConstant(0)),
-                        SmiConstant(-1)),
-               &runtime);
+    Callable indexof_callable = CodeFactory::StringIndexOf(isolate());
+    Node* const dollar_string = HeapConstant(
+        isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+    Node* const dollar_ix = CallStub(indexof_callable, context, replace_string,
+                                     dollar_string, SmiConstant(0));
+    GotoUnless(SmiEqual(dollar_ix, SmiConstant(-1)), &runtime);
 
     Return(
         ReplaceSimpleStringFastPath(context, regexp, string, replace_string));

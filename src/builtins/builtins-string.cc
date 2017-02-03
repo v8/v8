@@ -1180,6 +1180,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   // Convert {receiver} and {search} to strings.
 
   Callable tostring_callable = CodeFactory::ToString(isolate());
+  Callable indexof_callable = CodeFactory::StringIndexOf(isolate());
+
   Node* const subject_string = CallStub(tostring_callable, context, receiver);
   Node* const search_string = CallStub(tostring_callable, context, search);
 
@@ -1196,10 +1198,11 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     GotoIf(TaggedIsSmi(replace), &next);
     GotoUnless(IsString(replace), &next);
 
-    Node* const dollar_char = Int32Constant('$');
-    Node* const index_of_dollar =
-        StringIndexOfChar(context, replace, dollar_char, smi_zero);
-    GotoUnless(SmiIsNegative(index_of_dollar), &next);
+    Node* const dollar_string = HeapConstant(
+        isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+    Node* const dollar_ix =
+        CallStub(indexof_callable, context, replace, dollar_string, smi_zero);
+    GotoUnless(SmiIsNegative(dollar_ix), &next);
 
     // Searching by traversing a cons string tree and replace with cons of
     // slices works only when the replaced string is a single character, being
@@ -1211,13 +1214,12 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Bind(&next);
   }
 
-  // TODO(jgruber): Extend StringIndexOfChar to handle two-byte strings and
+  // TODO(jgruber): Extend StringIndexOf to handle two-byte strings and
   // longer substrings - we can handle up to 8 chars (one-byte) / 4 chars
   // (2-byte).
 
-  Callable indexof_stub = CodeFactory::StringIndexOf(isolate());
-  Node* const match_start_index =
-      CallStub(indexof_stub, context, subject_string, search_string, smi_zero);
+  Node* const match_start_index = CallStub(
+      indexof_callable, context, subject_string, search_string, smi_zero);
   CSA_ASSERT(this, TaggedIsSmi(match_start_index));
 
   // Early exit if no match found.
