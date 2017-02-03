@@ -270,10 +270,12 @@ def main():
         second_config_label=second_config_label,
         first_config_flags=' '.join(first_config_flags),
         second_config_flags=' '.join(second_config_flags),
-        first_config_output=first_config_output.stdout,
-        second_config_output=second_config_output.stdout,
+        first_config_output=
+            first_config_output.stdout.decode('ascii', 'replace'),
+        second_config_output=
+            second_config_output.stdout.decode('ascii', 'replace'),
         source=source,
-        difference=difference,
+        difference=difference.decode('ascii', 'replace'),
     )
     return RETURN_FAIL
 
