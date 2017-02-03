@@ -54,17 +54,24 @@
     {
       "name": "SuperSpread",
       "path": ["SixSpeed/super_spread"],
-      "main": "run.js",
-      "resources": [
-        "run.js",
-        "super_spread.js"
-      ],
       "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
-        {"name": "SuperSpread-ES5"},
-        {"name": "SuperSpread-Babel"},
-        {"name": "SuperSpread-ES6"}
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "test_flags": ["babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["es6"]
+        }
       ]
     }
   ]

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 load('../../base.js');
-load('super_spread.js');
+load(arguments[0] + '.js');
 
 var success = true;
 
