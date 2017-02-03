@@ -117,16 +117,18 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     CreateArgumentsType const type = CreateArgumentsTypeOf(arg_array->op());
     Node* frame_state = NodeProperties::GetFrameStateInput(arg_array);
     FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+    int formal_parameter_count;
     int start_index = 0;
+    {
+      Handle<SharedFunctionInfo> shared;
+      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
+      formal_parameter_count = shared->internal_formal_parameter_count();
+    }
     if (type == CreateArgumentsType::kMappedArguments) {
       // Mapped arguments (sloppy mode) cannot be handled if they are aliased.
-      Handle<SharedFunctionInfo> shared;
-      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-      if (shared->internal_formal_parameter_count() != 0) return NoChange();
+      if (formal_parameter_count != 0) return NoChange();
     } else if (type == CreateArgumentsType::kRestParameter) {
-      Handle<SharedFunctionInfo> shared;
-      if (!state_info.shared_info().ToHandle(&shared)) return NoChange();
-      start_index = shared->internal_formal_parameter_count();
+      start_index = formal_parameter_count;
     }
     // Check if are applying to inlined arguments or to the arguments of
     // the outermost function.
@@ -135,7 +137,10 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
       // TODO(jarin,bmeurer): Support the NewUnmappedArgumentsElement and
       // NewRestParameterElements in the EscapeAnalysis and Deoptimizer
       // instead, then we don't need this hack.
-      if (type != CreateArgumentsType::kRestParameter) {
+      // Only works with zero formal parameters because of lacking deoptimizer
+      // support.
+      if (type != CreateArgumentsType::kRestParameter &&
+          formal_parameter_count == 0) {
         // There are no other uses of the {arg_array} except in StateValues,
         // so we just replace {arg_array} with a marker for the Deoptimizer
         // that this refers to the arguments object.
