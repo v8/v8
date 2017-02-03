@@ -521,8 +521,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state_eager = NodeProperties::FindFrameStateBefore(node);
-  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -604,7 +603,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
-        receiver, value, context, frame_state_lazy, effect, control, name,
+        receiver, value, context, frame_state, effect, control, name,
         access_info, access_mode, language_mode, vector, slot);
     value = continuation.value();
     effect = continuation.effect();
@@ -704,20 +703,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_effect =
               graph()->NewNode(common()->EffectPhi(this_control_count),
                                this_control_count + 1, &this_effects.front());
-
-          // TODO(turbofan): The effect/control linearization will not find a
-          // FrameState after the EffectPhi that is generated above.
-          this_effect =
-              graph()->NewNode(common()->Checkpoint(), frame_state_eager,
-                               this_effect, this_control);
         }
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation = BuildPropertyAccess(
-          this_receiver, this_value, context, frame_state_lazy, this_effect,
-          this_control, name, access_info, access_mode, language_mode, vector,
-          slot);
+      ValueEffectControl continuation =
+          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
+                              this_effect, this_control, name, access_info,
+                              access_mode, language_mode, vector, slot);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -1059,11 +1052,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
             this_effect =
                 graph()->NewNode(common()->EffectPhi(this_control_count),
                                  this_control_count + 1, &this_effects.front());
-
-            // TODO(turbofan): The effect/control linearization will not find a
-            // FrameState after the EffectPhi that is generated above.
-            this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
-                                           this_effect, this_control);
           }
         }
 
