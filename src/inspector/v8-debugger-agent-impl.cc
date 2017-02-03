@@ -522,6 +522,15 @@ Response V8DebuggerAgentImpl::setScriptSource(
     Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
 
+  ScriptsMap::iterator it = m_scripts.find(scriptId);
+  if (it == m_scripts.end()) {
+    return Response::Error("No script with given id found");
+  }
+  if (it->second->isModule()) {
+    // TODO(kozyatinskiy): LiveEdit should support ES6 module
+    return Response::Error("Editing module's script is not supported.");
+  }
+
   v8::HandleScope handles(m_isolate);
   v8::Local<v8::String> newSource = toV8String(m_isolate, newContent);
   bool compileError = false;
@@ -530,9 +539,7 @@ Response V8DebuggerAgentImpl::setScriptSource(
       &m_pausedCallFrames, stackChanged, &compileError);
   if (!response.isSuccess() || compileError) return response;
 
-  ScriptsMap::iterator it = m_scripts.find(scriptId);
-  if (it != m_scripts.end()) it->second->setSource(newSource);
-
+  it->second->setSource(newSource);
   std::unique_ptr<Array<CallFrame>> callFrames;
   response = currentCallFrames(&callFrames);
   if (!response.isSuccess()) return response;
