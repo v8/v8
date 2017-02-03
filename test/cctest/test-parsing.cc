@@ -8835,6 +8835,20 @@ class ScopeTestHelper {
     return var->scope()->MustAllocateInContext(var);
   }
 
+  // True if the scope is and its entire subscope tree are hidden.
+  static bool ScopeTreeIsHidden(Scope* scope) {
+    if (!scope->is_hidden()) {
+      return false;
+    }
+    for (Scope* inner = scope->inner_scope(); inner != nullptr;
+         inner = inner->sibling()) {
+      if (!ScopeTreeIsHidden(inner)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   static void CompareScopeToData(Scope* scope, const PreParsedScopeData* data,
                                  size_t& index) {
     CHECK_EQ(data->backing_store_[index++], scope->scope_type());
@@ -8844,7 +8858,9 @@ class ScopeTestHelper {
     int inner_scope_count = 0;
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      if (!inner->is_hidden()) {
+      // FIXME(marja): This is probably not the right condition for knowing what
+      // scopes are present in the preparse data.
+      if (!ScopeTreeIsHidden(inner)) {
         ++inner_scope_count;
       }
     }
@@ -8878,7 +8894,7 @@ class ScopeTestHelper {
 
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      if (!inner->is_hidden()) {
+      if (!ScopeTreeIsHidden(inner)) {
         CompareScopeToData(inner, data, index);
       }
     }
@@ -9311,6 +9327,22 @@ TEST(PreParserScopeAnalysis) {
       {"", "let var1; function f1() { eval(''); }"},
       {"", "const var1 = 10; eval('');"},
       {"", "const var1 = 10; function f1() { eval(''); }"},
+
+      {"", "for (var var1 = 0; var1 < 10; ++var1) { }"},
+      {"", "for (let var1 = 0; var1 < 10; ++var1) { }"},
+      {"", "for (const var1 = 0; var1 < 10; ++var1) { }"},
+
+      // FIXME(marja): make the corresponding cases work when foo is a sloppy
+      // block function.
+      {"",
+       "'use strict'; for (var var1 = 0; var1 < 10; ++var1) { function foo() { "
+       "var1; } }"},
+      {"",
+       "'use strict'; for (let var1 = 0; var1 < 10; ++var1) { function foo() { "
+       "var1; } }"},
+      {"",
+       "'use strict'; for (const var1 = 0; var1 < 10; ++var1) { function foo() "
+       "{ var1; } }"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {

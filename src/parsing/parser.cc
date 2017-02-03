@@ -2383,7 +2383,6 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       inner_block->statements()->Add(ignore_completion_block, zone());
     }
 
-    inner_scope->set_end_position(scanner()->location().end_pos);
     inner_block->set_scope(inner_scope);
   }
 

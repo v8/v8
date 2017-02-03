@@ -1336,6 +1336,11 @@ class PreParser : public ParserBase<PreParser> {
       PreParserExpression cond, PreParserStatement next,
       PreParserStatement body, Scope* inner_scope, const ForInfo& for_info,
       bool* ok) {
+    // See Parser::DesugarLexicalBindingsInForStatement.
+    for (int i = 0; i < for_info.bound_names.length(); i++) {
+      inner_scope->DeclareVariableName(for_info.bound_names[i],
+                                       for_info.parsing_result.descriptor.mode);
+    }
     return loop;
   }
 

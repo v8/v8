@@ -5660,6 +5660,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     auto result = impl()->DesugarLexicalBindingsInForStatement(
         loop, init, cond, next, body, inner_scope, *for_info, CHECK_OK);
     for_state->set_end_position(scanner()->location().end_pos);
+    inner_scope->set_end_position(scanner()->location().end_pos);
     return result;
   }
 

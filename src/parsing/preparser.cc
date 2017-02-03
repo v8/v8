@@ -311,6 +311,9 @@ void PreParser::DeclareAndInitializeVariables(
       declaration_descriptor->scope->RemoveUnresolved(variable);
       scope()->DeclareVariableName(variable->raw_name(),
                                    declaration_descriptor->mode);
+      if (names) {
+        names->Add(variable->raw_name(), zone());
+      }
     }
   }
 }
