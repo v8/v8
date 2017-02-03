@@ -137,15 +137,15 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   LazyParsingResult result = ParseStatementListAndLogFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
 
+  if (is_sloppy(function_scope->language_mode())) {
+    function_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
   if (!IsArrowFunction(kind) && track_unresolved_variables_) {
     // Declare arguments after parsing the function since lexical 'arguments'
     // masks the arguments object. Declare arguments before declaring the
     // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
-  }
-
-  if (is_sloppy(function_scope->language_mode())) {
-    function_scope->HoistSloppyBlockFunctions(nullptr);
   }
 
   use_counts_ = nullptr;

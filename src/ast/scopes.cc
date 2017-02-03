@@ -66,8 +66,8 @@ Variable* VariableMap::Declare(Zone* zone, Scope* scope,
   return reinterpret_cast<Variable*>(p->value);
 }
 
-void VariableMap::DeclareName(Zone* zone, const AstRawString* name,
-                              VariableMode mode) {
+Variable* VariableMap::DeclareName(Zone* zone, const AstRawString* name,
+                                   VariableMode mode) {
   Entry* p =
       ZoneHashMap::LookupOrInsert(const_cast<AstRawString*>(name), name->hash(),
                                   ZoneAllocationPolicy(zone));
@@ -77,6 +77,7 @@ void VariableMap::DeclareName(Zone* zone, const AstRawString* name,
     p->value =
         mode == VAR ? kDummyPreParserVariable : kDummyPreParserLexicalVariable;
   }
+  return reinterpret_cast<Variable*>(p->value);
 }
 
 void VariableMap::Remove(Variable* var) {
@@ -508,7 +509,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       }
     }
 
-    bool var_created = false;
+    Variable* created_variable = nullptr;
 
     // Write in assignments to var for each block-scoped function declaration
     auto delegates = static_cast<SloppyBlockFunctionMap::Delegate*>(p->value);
@@ -543,9 +544,9 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       if (!should_hoist) continue;
 
       // Declare a var-style binding for the function in the outer scope
-      if (!var_created) {
-        var_created = true;
-        if (factory) {
+      if (factory) {
+        DCHECK(!is_being_lazily_parsed_);
+        if (created_variable == nullptr) {
           VariableProxy* proxy =
               factory->NewVariableProxy(name, NORMAL_VARIABLE);
           auto declaration =
@@ -554,22 +555,28 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
           // allow_harmony_restrictive_generators and
           // sloppy_mode_block_scope_function_redefinition.
           bool ok = true;
-          DeclareVariable(declaration, VAR,
-                          Variable::DefaultInitializationFlag(VAR), false,
-                          nullptr, &ok);
+          created_variable = DeclareVariable(
+              declaration, VAR, Variable::DefaultInitializationFlag(VAR), false,
+              nullptr, &ok);
           CHECK(ok);  // Based on the preceding check, this should not fail
-        } else {
-          DeclareVariableName(name, VAR);
         }
-      }
 
-      if (factory) {
         Expression* assignment = factory->NewAssignment(
             Token::ASSIGN, NewUnresolved(factory, name),
             delegate->scope()->NewUnresolved(factory, name), kNoSourcePosition);
         Statement* statement =
             factory->NewExpressionStatement(assignment, kNoSourcePosition);
         delegate->set_statement(statement);
+      } else {
+        DCHECK(is_being_lazily_parsed_);
+        if (created_variable == nullptr) {
+          created_variable = DeclareVariableName(name, VAR);
+          if (created_variable != kDummyPreParserVariable &&
+              created_variable != kDummyPreParserLexicalVariable) {
+            DCHECK(FLAG_preparser_scope_analysis);
+            created_variable->set_maybe_assigned();
+          }
+        }
       }
     }
   }
@@ -1063,7 +1070,8 @@ Variable* Scope::DeclareVariable(
   return var;
 }
 
-void Scope::DeclareVariableName(const AstRawString* name, VariableMode mode) {
+Variable* Scope::DeclareVariableName(const AstRawString* name,
+                                     VariableMode mode) {
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK(!already_resolved_);
   DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
@@ -1094,8 +1102,9 @@ void Scope::DeclareVariableName(const AstRawString* name, VariableMode mode) {
       var->set_maybe_assigned();
     }
     var->set_is_used();
+    return var;
   } else {
-    variables_.DeclareName(zone(), name, mode);
+    return variables_.DeclareName(zone(), name, mode);
   }
 }
 

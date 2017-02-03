@@ -39,7 +39,8 @@ class VariableMap: public ZoneHashMap {
 
   // Records that "name" exists (if not recorded yet) but doesn't create a
   // Variable. Useful for preparsing.
-  void DeclareName(Zone* zone, const AstRawString* name, VariableMode mode);
+  Variable* DeclareName(Zone* zone, const AstRawString* name,
+                        VariableMode mode);
 
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -180,7 +181,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
-  void DeclareVariableName(const AstRawString* name, VariableMode mode);
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
 
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }

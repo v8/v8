@@ -9332,8 +9332,12 @@ TEST(PreParserScopeAnalysis) {
       {"", "for (let var1 = 0; var1 < 10; ++var1) { }"},
       {"", "for (const var1 = 0; var1 < 10; ++var1) { }"},
 
-      // FIXME(marja): make the corresponding cases work when foo is a sloppy
-      // block function.
+      {"",
+       "for (var var1 = 0; var1 < 10; ++var1) { function foo() { var1; } }"},
+      {"",
+       "for (let var1 = 0; var1 < 10; ++var1) { function foo() { var1; } }"},
+      {"",
+       "for (const var1 = 0; var1 < 10; ++var1) { function foo() { var1; } }"},
       {"",
        "'use strict'; for (var var1 = 0; var1 < 10; ++var1) { function foo() { "
        "var1; } }"},
@@ -9343,6 +9347,34 @@ TEST(PreParserScopeAnalysis) {
       {"",
        "'use strict'; for (const var1 = 0; var1 < 10; ++var1) { function foo() "
        "{ var1; } }"},
+
+      {"", "if (true) { function f1() {} }"},
+      {"", "if (true) { function f1() {} function f1() {} }"},
+      {"", "if (true) { if (true) { function f1() {} } }"},
+      {"", "if (true) { if (true) { function f1() {} function f1() {} } }"},
+      {"", "if (true) { function f1() {} f1 = 3; }"},
+
+      {"", "if (true) { function f1() {} function foo() { f1; } }"},
+      {"", "if (true) { function f1() {} } function foo() { f1; }"},
+      {"",
+       "if (true) { function f1() {} function f1() {} function foo() { f1; } "
+       "}"},
+      {"",
+       "if (true) { function f1() {} function f1() {} } function foo() { f1; "
+       "}"},
+      {"",
+       "if (true) { if (true) { function f1() {} } function foo() { f1; } }"},
+      {"",
+       "if (true) { if (true) { function f1() {} function f1() {} } function "
+       "foo() { f1; } }"},
+      {"", "if (true) { function f1() {} f1 = 3; function foo() { f1; } }"},
+      {"", "if (true) { function f1() {} f1 = 3; } function foo() { f1; }"},
+
+      {"", "function inner2() { if (true) { function f1() {} } }"},
+      {"", "function inner2() { if (true) { function f1() {} f1 = 3; } }"},
+
+      {"", "var f1 = 1; if (true) { function f1() {} }"},
+      {"", "var f1 = 1; if (true) { function f1() {} } function foo() { f1; }"},
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {
