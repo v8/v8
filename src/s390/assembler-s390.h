@@ -702,6 +702,37 @@ class Assembler : public AssemblerBase {
         getfield<uint32_t, 4, 24, 28>(f3) | getfield<uint32_t, 4, 28, 32>(f4));
   }
 
+#define DECLARE_S390_RX_INSTRUCTIONS(name, op_name, op_value)        \
+  template <class R1>                                                \
+  inline void name(R1 r1, Register x2, Register b2, Disp d2) {       \
+    rx_format(op_name, r1.code(), x2.code(), b2.code(), d2);         \
+  }                                                                  \
+  template <class R1>                                                \
+  inline void name(R1 r1, const MemOperand& opnd) {                  \
+    name(r1, opnd.getIndexRegister(),                                \
+         opnd.getBaseRegister(), opnd.getDisplacement());            \
+  }
+
+  inline void rx_format(Opcode opcode, int f1, int f2, int f3, int f4) {
+    DCHECK(is_uint8(opcode));
+    DCHECK(is_uint12(f4));
+    emit4bytes(getfield<uint32_t, 4, 0, 8>(opcode) |
+               getfield<uint32_t, 4, 8, 12>(f1) |
+               getfield<uint32_t, 4, 12, 16>(f2) |
+               getfield<uint32_t, 4, 16, 20>(f3) |
+               getfield<uint32_t, 4, 20, 32>(f4));
+  }
+  S390_RX_A_OPCODE_LIST(DECLARE_S390_RX_INSTRUCTIONS)
+
+  void bc(Condition cond, const MemOperand& opnd) {
+    bc(cond, opnd.getIndexRegister(),
+       opnd.getBaseRegister(), opnd.getDisplacement());
+  }
+  void bc(Condition cond, Register x2, Register b2, Disp d2) {
+    rx_format(BC, cond, x2.code(), b2.code(), d2);
+  }
+#undef DECLARE_S390_RX_INSTRUCTIONS
+
   // Helper for unconditional branch to Label with update to save register
   void b(Register r, Label* l) {
     int32_t halfwords = branch_offset(l) / 2;
@@ -789,10 +820,6 @@ class Assembler : public AssemblerBase {
 #define RR_FORM(name) void name(Register r1, Register r2)
 
 #define RR2_FORM(name) void name(Condition m1, Register r2)
-
-#define RX_FORM(name)                                        \
-  void name(Register r1, Register x2, Register b2, Disp d2); \
-  void name(Register r1, const MemOperand& opnd)
 
 #define RI1_FORM(name) void name(Register r, const Operand& i)
 
@@ -957,21 +984,16 @@ class Assembler : public AssemblerBase {
   }
 
   // S390 instruction sets
-  RX_FORM(bc);
-  RX_FORM(cd);
   RXE_FORM(cdb);
   RXE_FORM(ceb);
   RXE_FORM(ddb);
   SS1_FORM(ed);
-  RX_FORM(ex);
   RRF2_FORM(fidbr);
-  RX_FORM(ic_z);
   RXY_FORM(icy);
   RI1_FORM(iihh);
   RI1_FORM(iihl);
   RI1_FORM(iilh);
   RI1_FORM(iill);
-  RX_FORM(le_z);
   RXY_FORM(ley);
   RSY1_FORM(loc);
   RXY_FORM(lrv);
@@ -994,7 +1016,6 @@ class Assembler : public AssemblerBase {
   RXE_FORM(sdb);
   RXY_FORM(slgf);
   RS1_FORM(srdl);
-  RX_FORM(ste);
   RXY_FORM(stey);
   RXY_FORM(strv);
   RXY_FORM(strvh);
@@ -1004,17 +1025,14 @@ class Assembler : public AssemblerBase {
   S_FORM(ts);
 
   // Load Address Instructions
-  void la(Register r, const MemOperand& opnd);
   void lay(Register r, const MemOperand& opnd);
   void larl(Register r, Label* l);
 
   // Load Instructions
   void lb(Register r, const MemOperand& src);
   void lgb(Register r, const MemOperand& src);
-  void lh(Register r, const MemOperand& src);
   void lhy(Register r, const MemOperand& src);
   void lgh(Register r, const MemOperand& src);
-  void l(Register r, const MemOperand& src);
   void ly(Register r, const MemOperand& src);
   void lg(Register r, const MemOperand& src);
   void lgf(Register r, const MemOperand& src);
@@ -1044,11 +1062,8 @@ class Assembler : public AssemblerBase {
   void locg(Condition m3, Register r1, const MemOperand& src);
 
   // Store Instructions
-  void st(Register r, const MemOperand& src);
-  void stc(Register r, const MemOperand& src);
   void stcy(Register r, const MemOperand& src);
   void stg(Register r, const MemOperand& src);
-  void sth(Register r, const MemOperand& src);
   void sthy(Register r, const MemOperand& src);
   void sty(Register r, const MemOperand& src);
 
@@ -1058,16 +1073,13 @@ class Assembler : public AssemblerBase {
   void stmg(Register r1, Register r2, const MemOperand& src);
 
   // Compare Instructions
-  void c(Register r, const MemOperand& opnd);
   void cy(Register r, const MemOperand& opnd);
   void cg(Register r, const MemOperand& opnd);
-  void ch(Register r, const MemOperand& opnd);
   void chy(Register r, const MemOperand& opnd);
   void chi(Register r, const Operand& opnd);
   void cghi(Register r, const Operand& opnd);
 
   // Compare Logical Instructions
-  void cl(Register r, const MemOperand& opnd);
   void cly(Register r, const MemOperand& opnd);
   void clg(Register r, const MemOperand& opnd);
   void cli(const MemOperand& mem, const Operand& imm);
@@ -1131,7 +1143,6 @@ class Assembler : public AssemblerBase {
   void mvc(const MemOperand& opnd1, const MemOperand& opnd2, uint32_t length);
 
   // Branch Instructions
-  void bct(Register r, const MemOperand& opnd);
   void bctg(Register r, const MemOperand& opnd);
   void bras(Register r, const Operand& opnd);
   void brc(Condition c, const Operand& opnd);
@@ -1139,9 +1150,7 @@ class Assembler : public AssemblerBase {
   void brctg(Register r1, const Operand& opnd);
 
   // 32-bit Add Instructions
-  void a(Register r1, const MemOperand& opnd);
   void ay(Register r1, const MemOperand& opnd);
-  void ah(Register r1, const MemOperand& opnd);
   void ahy(Register r1, const MemOperand& opnd);
   void ahi(Register r1, const Operand& opnd);
   void ahik(Register r1, Register r3, const Operand& opnd);
@@ -1157,7 +1166,6 @@ class Assembler : public AssemblerBase {
   void agsi(const MemOperand&, const Operand&);
 
   // 32-bit Add Logical Instructions
-  void al_z(Register r1, const MemOperand& opnd);
   void aly(Register r1, const MemOperand& opnd);
   void alrk(Register r1, Register r2, Register r3);
 
@@ -1166,9 +1174,7 @@ class Assembler : public AssemblerBase {
   void algrk(Register r1, Register r2, Register r3);
 
   // 32-bit Subtract Instructions
-  void s(Register r1, const MemOperand& opnd);
   void sy(Register r1, const MemOperand& opnd);
-  void sh(Register r1, const MemOperand& opnd);
   void shy(Register r1, const MemOperand& opnd);
   void srk(Register r1, Register r2, Register r3);
 
@@ -1178,7 +1184,6 @@ class Assembler : public AssemblerBase {
   void sgrk(Register r1, Register r2, Register r3);
 
   // 32-bit Subtract Logical Instructions
-  void sl(Register r1, const MemOperand& opnd);
   void sly(Register r1, const MemOperand& opnd);
   void slrk(Register r1, Register r2, Register r3);
 
@@ -1187,12 +1192,9 @@ class Assembler : public AssemblerBase {
   void slgrk(Register r1, Register r2, Register r3);
 
   // 32-bit Multiply Instructions
-  void m(Register r1, const MemOperand& opnd);
   void mfy(Register r1, const MemOperand& opnd);
   void ml(Register r1, const MemOperand& opnd);
-  void ms(Register r1, const MemOperand& opnd);
   void msy(Register r1, const MemOperand& opnd);
-  void mh(Register r1, const MemOperand& opnd);
   void mhy(Register r1, const MemOperand& opnd);
   void mhi(Register r1, const Operand& opnd);
 
@@ -1202,21 +1204,17 @@ class Assembler : public AssemblerBase {
   void msg(Register r1, const MemOperand& opnd);
 
   // 32-bit Divide Instructions
-  void d(Register r1, const MemOperand& opnd);
   void dl(Register r1, const MemOperand& opnd);
 
   // Bitwise Instructions (AND / OR / XOR)
-  void n(Register r1, const MemOperand& opnd);
   void ny(Register r1, const MemOperand& opnd);
   void nrk(Register r1, Register r2, Register r3);
   void ng(Register r1, const MemOperand& opnd);
   void ngrk(Register r1, Register r2, Register r3);
-  void o(Register r1, const MemOperand& opnd);
   void oy(Register r1, const MemOperand& opnd);
   void ork(Register r1, Register r2, Register r3);
   void og(Register r1, const MemOperand& opnd);
   void ogrk(Register r1, Register r2, Register r3);
-  void x(Register r1, const MemOperand& opnd);
   void xy(Register r1, const MemOperand& opnd);
   void xrk(Register r1, Register r2, Register r3);
   void xg(Register r1, const MemOperand& opnd);
@@ -1224,13 +1222,9 @@ class Assembler : public AssemblerBase {
   void xc(const MemOperand& opnd1, const MemOperand& opnd2, Length length);
 
   // Floating Point Load / Store Instructions
-  void ld(DoubleRegister r1, const MemOperand& opnd);
   void ldy(DoubleRegister r1, const MemOperand& opnd);
-  void le_z(DoubleRegister r1, const MemOperand& opnd);
   void ley(DoubleRegister r1, const MemOperand& opnd);
-  void std(DoubleRegister r1, const MemOperand& opnd);
   void stdy(DoubleRegister r1, const MemOperand& opnd);
-  void ste(DoubleRegister r1, const MemOperand& opnd);
   void stey(DoubleRegister r1, const MemOperand& opnd);
 
   // Floating <-> Fixed Point Conversion Instructions
@@ -1448,11 +1442,6 @@ class Assembler : public AssemblerBase {
   // Helpers to emit binary encoding for various instruction formats.
 
   inline void rr2_form(uint8_t op, Condition m1, Register r2);
-
-  inline void rx_form(Opcode op, Register r1, Register x2, Register b2,
-                      Disp d2);
-  inline void rx_form(Opcode op, DoubleRegister r1, Register x2, Register b2,
-                      Disp d2);
 
   inline void ri_form(Opcode op, Register r1, const Operand& i2);
   inline void ri_form(Opcode op, Condition m1, const Operand& i2);
