@@ -750,11 +750,13 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
   Node* const receiver = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
 
-  // Check if we are accessing the current native contexts' global proxy.
-  HeapObjectMatcher m(receiver);
-  if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
-    // Optimize accesses to the current native contexts' global proxy.
-    return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
+  if (flags() & kDeoptimizationEnabled) {
+    // Check if we are accessing the current native contexts' global proxy.
+    HeapObjectMatcher m(receiver);
+    if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
+      // Optimize accesses to the current native contexts' global proxy.
+      return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
+    }
   }
 
   // Check if the {nexus} reports type feedback for the IC.
