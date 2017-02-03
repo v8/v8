@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <type_traits>
+
 #include "src/wasm/wasm-interpreter.h"
 
 #include "src/utils.h"
@@ -77,12 +79,10 @@ namespace wasm {
   V(F64Lt, double, <)           \
   V(F64Le, double, <=)          \
   V(F64Gt, double, >)           \
-  V(F64Ge, double, >=)
-
-#define FOREACH_SIMPLE_BINOP_NAN(V) \
-  V(F32Mul, float, *)               \
-  V(F64Mul, double, *)              \
-  V(F32Div, float, /)               \
+  V(F64Ge, double, >=)          \
+  V(F32Mul, float, *)           \
+  V(F64Mul, double, *)          \
+  V(F32Div, float, /)           \
   V(F64Div, double, /)
 
 #define FOREACH_OTHER_BINOP(V) \
@@ -106,10 +106,8 @@ namespace wasm {
   V(I64Rol, int64_t)           \
   V(F32Min, float)             \
   V(F32Max, float)             \
-  V(F32CopySign, float)        \
   V(F64Min, double)            \
   V(F64Max, double)            \
-  V(F64CopySign, double)       \
   V(I32AsmjsDivS, int32_t)     \
   V(I32AsmjsDivU, uint32_t)    \
   V(I32AsmjsRemS, int32_t)     \
@@ -162,10 +160,8 @@ namespace wasm {
   V(I32AsmjsSConvertF32, float)  \
   V(I32AsmjsUConvertF32, float)  \
   V(I32AsmjsSConvertF64, double) \
-  V(I32AsmjsUConvertF64, double)
-
-#define FOREACH_OTHER_UNOP_NAN(V) \
-  V(F32Sqrt, float)               \
+  V(I32AsmjsUConvertF64, double) \
+  V(F32Sqrt, float)              \
   V(F64Sqrt, double)
 
 static inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
@@ -1176,6 +1172,49 @@ class ThreadImpl {
     stack_.resize(stack_.size() - pop_count);
   }
 
+  template <typename ctype, typename mtype>
+  bool ExecuteLoad(Decoder* decoder, InterpreterCode* code, pc_t pc, int& len) {
+    MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
+    uint32_t index = Pop().to<uint32_t>();
+    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);
+    if (operand.offset > effective_mem_size ||
+        index > (effective_mem_size - operand.offset)) {
+      DoTrap(kTrapMemOutOfBounds, pc);
+      return false;
+    }
+    byte* addr = instance()->mem_start + operand.offset + index;
+    WasmVal result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr)));
+
+    Push(pc, result);
+    len = 1 + operand.length;
+    return true;
+  }
+
+  template <typename ctype, typename mtype>
+  bool ExecuteStore(Decoder* decoder, InterpreterCode* code, pc_t pc,
+                    int& len) {
+    MemoryAccessOperand operand(decoder, code->at(pc), sizeof(ctype));
+    WasmVal val = Pop();
+
+    uint32_t index = Pop().to<uint32_t>();
+    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);
+    if (operand.offset > effective_mem_size ||
+        index > (effective_mem_size - operand.offset)) {
+      DoTrap(kTrapMemOutOfBounds, pc);
+      return false;
+    }
+    byte* addr = instance()->mem_start + operand.offset + index;
+    WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>()));
+    len = 1 + operand.length;
+
+    if (std::is_same<float, ctype>::value) {
+      possible_nondeterminism_ |= std::isnan(val.to<float>());
+    } else if (std::is_same<double, ctype>::value) {
+      possible_nondeterminism_ |= std::isnan(val.to<double>());
+    }
+    return true;
+  }
+
   void Execute(InterpreterCode* code, pc_t pc, int max) {
     Decoder decoder(code->start, code->end);
     pc_t limit = code->end - code->start;
@@ -1427,20 +1466,10 @@ class ThreadImpl {
           break;
         }
 
-#define LOAD_CASE(name, ctype, mtype)                                       \
-  case kExpr##name: {                                                       \
-    MemoryAccessOperand operand(&decoder, code->at(pc), sizeof(ctype));     \
-    uint32_t index = Pop().to<uint32_t>();                                  \
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);       \
-    if (operand.offset > effective_mem_size ||                              \
-        index > (effective_mem_size - operand.offset)) {                    \
-      return DoTrap(kTrapMemOutOfBounds, pc);                               \
-    }                                                                       \
-    byte* addr = instance()->mem_start + operand.offset + index;            \
-    WasmVal result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr))); \
-    Push(pc, result);                                                       \
-    len = 1 + operand.length;                                               \
-    break;                                                                  \
+#define LOAD_CASE(name, ctype, mtype)                                \
+  case kExpr##name: {                                                \
+    if (!ExecuteLoad<ctype, mtype>(&decoder, code, pc, len)) return; \
+    break;                                                           \
   }
 
           LOAD_CASE(I32LoadMem8S, int32_t, int8_t);
@@ -1459,20 +1488,10 @@ class ThreadImpl {
           LOAD_CASE(F64LoadMem, double, double);
 #undef LOAD_CASE
 
-#define STORE_CASE(name, ctype, mtype)                                        \
-  case kExpr##name: {                                                         \
-    MemoryAccessOperand operand(&decoder, code->at(pc), sizeof(ctype));       \
-    WasmVal val = Pop();                                                      \
-    uint32_t index = Pop().to<uint32_t>();                                    \
-    size_t effective_mem_size = instance()->mem_size - sizeof(mtype);         \
-    if (operand.offset > effective_mem_size ||                                \
-        index > (effective_mem_size - operand.offset)) {                      \
-      return DoTrap(kTrapMemOutOfBounds, pc);                                 \
-    }                                                                         \
-    byte* addr = instance()->mem_start + operand.offset + index;              \
-    WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>())); \
-    len = 1 + operand.length;                                                 \
-    break;                                                                    \
+#define STORE_CASE(name, ctype, mtype)                                \
+  case kExpr##name: {                                                 \
+    if (!ExecuteStore<ctype, mtype>(&decoder, code, pc, len)) return; \
+    break;                                                            \
   }
 
           STORE_CASE(I32StoreMem8, int32_t, int8_t);
@@ -1548,13 +1567,17 @@ class ThreadImpl {
         // specially to guarantee that the quiet bit of a NaN is preserved on
         // ia32 by the reinterpret casts.
         case kExprI32ReinterpretF32: {
-          WasmVal result(ExecuteI32ReinterpretF32(Pop()));
+          WasmVal val = Pop();
+          WasmVal result(ExecuteI32ReinterpretF32(val));
           Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(val.to<float>());
           break;
         }
         case kExprI64ReinterpretF64: {
-          WasmVal result(ExecuteI64ReinterpretF64(Pop()));
+          WasmVal val = Pop();
+          WasmVal result(ExecuteI64ReinterpretF64(val));
           Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(val.to<double>());
           break;
         }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)             \
@@ -1567,19 +1590,6 @@ class ThreadImpl {
   }
           FOREACH_SIMPLE_BINOP(EXECUTE_SIMPLE_BINOP)
 #undef EXECUTE_SIMPLE_BINOP
-
-#define EXECUTE_SIMPLE_BINOP_NAN(name, ctype, op)        \
-  case kExpr##name: {                                    \
-    WasmVal rval = Pop();                                \
-    WasmVal lval = Pop();                                \
-    ctype result = lval.to<ctype>() op rval.to<ctype>(); \
-    possible_nondeterminism_ |= std::isnan(result);      \
-    WasmVal result_val(result);                          \
-    Push(pc, result_val);                                \
-    break;                                               \
-  }
-          FOREACH_SIMPLE_BINOP_NAN(EXECUTE_SIMPLE_BINOP_NAN)
-#undef EXECUTE_SIMPLE_BINOP_NAN
 
 #define EXECUTE_OTHER_BINOP(name, ctype)              \
   case kExpr##name: {                                 \
@@ -1594,6 +1604,28 @@ class ThreadImpl {
           FOREACH_OTHER_BINOP(EXECUTE_OTHER_BINOP)
 #undef EXECUTE_OTHER_BINOP
 
+        case kExprF32CopySign: {
+          // Handle kExprF32CopySign separately because it may introduce
+          // observable non-determinism.
+          TrapReason trap = kTrapCount;
+          volatile float rval = Pop().to<float>();
+          volatile float lval = Pop().to<float>();
+          WasmVal result(ExecuteF32CopySign(lval, rval, &trap));
+          Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(rval);
+          break;
+        }
+        case kExprF64CopySign: {
+          // Handle kExprF32CopySign separately because it may introduce
+          // observable non-determinism.
+          TrapReason trap = kTrapCount;
+          volatile double rval = Pop().to<double>();
+          volatile double lval = Pop().to<double>();
+          WasmVal result(ExecuteF64CopySign(lval, rval, &trap));
+          Push(pc, result);
+          possible_nondeterminism_ |= std::isnan(rval);
+          break;
+        }
 #define EXECUTE_OTHER_UNOP(name, ctype)              \
   case kExpr##name: {                                \
     TrapReason trap = kTrapCount;                    \
@@ -1605,20 +1637,6 @@ class ThreadImpl {
   }
           FOREACH_OTHER_UNOP(EXECUTE_OTHER_UNOP)
 #undef EXECUTE_OTHER_UNOP
-
-#define EXECUTE_OTHER_UNOP_NAN(name, ctype)          \
-  case kExpr##name: {                                \
-    TrapReason trap = kTrapCount;                    \
-    volatile ctype val = Pop().to<ctype>();          \
-    ctype result = Execute##name(val, &trap);        \
-    possible_nondeterminism_ |= std::isnan(result);  \
-    WasmVal result_val(result);                      \
-    if (trap != kTrapCount) return DoTrap(trap, pc); \
-    Push(pc, result_val);                            \
-    break;                                           \
-  }
-          FOREACH_OTHER_UNOP_NAN(EXECUTE_OTHER_UNOP_NAN)
-#undef EXECUTE_OTHER_UNOP_NAN
 
         default:
           V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
