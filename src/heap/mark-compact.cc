@@ -66,13 +66,11 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 #ifdef VERIFY_HEAP
 class VerifyMarkingVisitor : public ObjectVisitor {
  public:
-  explicit VerifyMarkingVisitor(Heap* heap) : heap_(heap) {}
-
   void VisitPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK(heap_->mark_compact_collector()->IsMarked(object));
+        CHECK(ObjectMarking::IsBlackOrGrey(object));
       }
     }
   }
@@ -92,20 +90,17 @@ class VerifyMarkingVisitor : public ObjectVisitor {
       ObjectVisitor::VisitCell(rinfo);
     }
   }
-
- private:
-  Heap* heap_;
 };
 
 
 static void VerifyMarking(Heap* heap, Address bottom, Address top) {
-  VerifyMarkingVisitor visitor(heap);
+  VerifyMarkingVisitor visitor;
   HeapObject* object;
   Address next_object_must_be_here_or_later = bottom;
   for (Address current = bottom; current < top;) {
     object = HeapObject::FromAddress(current);
     // One word fillers at the end of a black area can be grey.
-    if (MarkCompactCollector::IsMarked(object) &&
+    if (ObjectMarking::IsBlackOrGrey(object) &&
         object->map() != heap->one_pointer_filler_map()) {
       CHECK(ObjectMarking::IsBlack(object));
       CHECK(current >= next_object_must_be_here_or_later);
@@ -157,11 +152,11 @@ static void VerifyMarking(Heap* heap) {
   VerifyMarking(heap->map_space());
   VerifyMarking(heap->new_space());
 
-  VerifyMarkingVisitor visitor(heap);
+  VerifyMarkingVisitor visitor;
 
   LargeObjectIterator it(heap->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    if (MarkCompactCollector::IsMarked(obj)) {
+    if (ObjectMarking::IsBlackOrGrey(obj)) {
       obj->Iterate(&visitor);
     }
   }
@@ -1101,7 +1096,7 @@ class StaticYoungGenerationMarkingVisitor
     if (check.HasOverflowed()) return false;
 
     if (ObjectMarking::IsBlackOrGrey(object)) return true;
-    heap->mark_compact_collector()->SetMark(object);
+    ObjectMarking::WhiteToBlack(object);
     IterateBody(object->map(), object);
     return true;
   }
@@ -1140,7 +1135,7 @@ class MarkCompactMarkingVisitor
   // Returns true if object needed marking and false otherwise.
   INLINE(static bool MarkObjectWithoutPush(Heap* heap, HeapObject* object)) {
     if (ObjectMarking::IsWhite(object)) {
-      heap->mark_compact_collector()->SetMark(object);
+      ObjectMarking::WhiteToBlack(object);
       return true;
     }
     return false;
@@ -1162,11 +1157,11 @@ class MarkCompactMarkingVisitor
                                          HeapObject* obj)) {
 #ifdef DEBUG
     DCHECK(collector->heap()->Contains(obj));
-    DCHECK(!collector->heap()->mark_compact_collector()->IsMarked(obj));
+    DCHECK(ObjectMarking::IsWhite(obj));
 #endif
     Map* map = obj->map();
     Heap* heap = obj->GetHeap();
-    heap->mark_compact_collector()->SetMark(obj);
+    ObjectMarking::WhiteToBlack(obj);
     // Mark the map pointer and the body.
     MarkBit map_mark = ObjectMarking::MarkBitFrom(map);
     heap->mark_compact_collector()->MarkObject(map, map_mark);
@@ -1391,7 +1386,7 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     Map* map = object->map();
     // Mark the object.
-    collector_->SetMark(object);
+    ObjectMarking::WhiteToBlack(object);
 
     switch (mode) {
       case MarkCompactMode::FULL: {
@@ -1479,7 +1474,7 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
       // space. These sites get a one-time reprieve.
       AllocationSite* site = AllocationSite::cast(object);
       site->MarkZombie();
-      site->GetHeap()->mark_compact_collector()->MarkAllocationSite(site);
+      ObjectMarking::WhiteToBlack(site);
       return object;
     } else {
       return NULL;
@@ -1980,16 +1975,11 @@ void MarkCompactCollector::MarkStringTable(
   // Mark the string table itself.
   if (ObjectMarking::IsWhite(string_table)) {
     // String table could have already been marked by visiting the handles list.
-    SetMark(string_table);
+    ObjectMarking::WhiteToBlack(string_table);
   }
   // Explicitly mark the prefix.
   string_table->IteratePrefix(visitor);
   ProcessMarkingDeque<MarkCompactMode::FULL>();
-}
-
-
-void MarkCompactCollector::MarkAllocationSite(AllocationSite* site) {
-  SetMark(site);
 }
 
 void MarkCompactCollector::MarkRoots(
@@ -2019,7 +2009,7 @@ void MarkCompactCollector::MarkImplicitRefGroups(
     ImplicitRefGroup* entry = ref_groups->at(i);
     DCHECK(entry != NULL);
 
-    if (!IsMarked(*entry->parent)) {
+    if (ObjectMarking::IsWhite(*entry->parent)) {
       (*ref_groups)[last++] = entry;
       continue;
     }
@@ -2325,7 +2315,7 @@ SlotCallbackResult MarkCompactCollector::CheckAndMarkObject(
     if (ObjectMarking::IsBlackOrGrey(heap_object)) {
       return KEEP_SLOT;
     }
-    heap->mark_compact_collector()->SetMark(heap_object);
+    ObjectMarking::WhiteToBlack(heap_object);
     StaticYoungGenerationMarkingVisitor::IterateBody(heap_object->map(),
                                                      heap_object);
     return KEEP_SLOT;
@@ -2777,11 +2767,11 @@ void MarkCompactCollector::ProcessWeakCollections() {
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    DCHECK(MarkCompactCollector::IsMarked(weak_collection));
+    DCHECK(ObjectMarking::IsBlackOrGrey(weak_collection));
     if (weak_collection->table()->IsHashTable()) {
       ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
       for (int i = 0; i < table->Capacity(); i++) {
-        if (MarkCompactCollector::IsMarked(HeapObject::cast(table->KeyAt(i)))) {
+        if (ObjectMarking::IsBlackOrGrey(HeapObject::cast(table->KeyAt(i)))) {
           Object** key_slot =
               table->RawFieldOfElementAt(ObjectHashTable::EntryToIndex(i));
           RecordSlot(table, key_slot, *key_slot);
@@ -2803,12 +2793,12 @@ void MarkCompactCollector::ClearWeakCollections() {
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =
         reinterpret_cast<JSWeakCollection*>(weak_collection_obj);
-    DCHECK(MarkCompactCollector::IsMarked(weak_collection));
+    DCHECK(ObjectMarking::IsBlackOrGrey(weak_collection));
     if (weak_collection->table()->IsHashTable()) {
       ObjectHashTable* table = ObjectHashTable::cast(weak_collection->table());
       for (int i = 0; i < table->Capacity(); i++) {
         HeapObject* key = HeapObject::cast(table->KeyAt(i));
-        if (!MarkCompactCollector::IsMarked(key)) {
+        if (!ObjectMarking::IsBlackOrGrey(key)) {
           table->RemoveEntry(i);
         }
       }
@@ -2849,7 +2839,7 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
     // We do not insert cleared weak cells into the list, so the value
     // cannot be a Smi here.
     HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (!MarkCompactCollector::IsMarked(value)) {
+    if (!ObjectMarking::IsBlackOrGrey(value)) {
       // Cells for new-space objects embedded in optimized code are wrapped in
       // WeakCell and put into Heap::weak_object_to_code_table.
       // Such cells do not have any strong references but we want to keep them
@@ -2858,9 +2848,9 @@ void MarkCompactCollector::ClearWeakCells(Object** non_live_map_list,
       if (value->IsCell()) {
         Object* cell_value = Cell::cast(value)->value();
         if (cell_value->IsHeapObject() &&
-            MarkCompactCollector::IsMarked(HeapObject::cast(cell_value))) {
+            ObjectMarking::IsBlackOrGrey(HeapObject::cast(cell_value))) {
           // Resurrect the cell.
-          SetMark(value);
+          ObjectMarking::WhiteToBlack(value);
           Object** slot = HeapObject::RawField(value, Cell::kValueOffset);
           RecordSlot(value, slot, *slot);
           slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);

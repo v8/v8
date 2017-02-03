@@ -342,7 +342,7 @@ void StaticMarkingVisitor<StaticVisitor>::VisitWeakCell(Map* map,
   // contain smi zero.
   if (weak_cell->next_cleared() && !weak_cell->cleared()) {
     HeapObject* value = HeapObject::cast(weak_cell->value());
-    if (MarkCompactCollector::IsMarked(value)) {
+    if (ObjectMarking::IsBlackOrGrey(value)) {
       // Weak cells with live values are directly processed here to reduce
       // the processing time of weak cells during the main GC pause.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
