@@ -237,16 +237,12 @@ def main():
   # Early bailout based on first run's output.
   if pass_bailout(first_config_output, 1):
     return RETURN_PASS
-  if fail_bailout(first_config_output, suppress.ignore_by_output1):
-    return RETURN_FAIL
 
   second_config_output = run_d8(options.second_d8, second_config_flags)
 
   # Bailout based on second run's output.
   if pass_bailout(second_config_output, 2):
     return RETURN_PASS
-  if fail_bailout(second_config_output, suppress.ignore_by_output2):
-    return RETURN_FAIL
 
   difference, source = suppress.diff(
       first_config_output.stdout, second_config_output.stdout)
@@ -258,6 +254,14 @@ def main():
     source_key = ORIGINAL_SOURCE_DEFAULT
 
   if difference:
+    # Only bail out due to suppressed output if there was a difference. If a
+    # suppression doesn't show up anymore in the statistics, we might want to
+    # remove it.
+    if fail_bailout(first_config_output, suppress.ignore_by_output1):
+      return RETURN_FAIL
+    if fail_bailout(second_config_output, suppress.ignore_by_output2):
+      return RETURN_FAIL
+
     # The first three entries will be parsed by clusterfuzz. Format changes
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
