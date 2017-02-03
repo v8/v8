@@ -180,22 +180,6 @@ void StackTraceFrameIterator::AdvanceToArgumentsFrame() {
   DCHECK(iterator_.frame()->is_arguments_adaptor());
 }
 
-static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
-  Code* interpreter_entry_trampoline =
-      isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
-  Code* interpreter_bytecode_advance =
-      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
-  Code* interpreter_bytecode_dispatch =
-      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-
-  return (pc >= interpreter_entry_trampoline->instruction_start() &&
-          pc < interpreter_entry_trampoline->instruction_end()) ||
-         (pc >= interpreter_bytecode_advance->instruction_start() &&
-          pc < interpreter_bytecode_advance->instruction_end()) ||
-         (pc >= interpreter_bytecode_dispatch->instruction_start() &&
-          pc < interpreter_bytecode_dispatch->instruction_end());
-}
-
 // -------------------------------------------------------------------------
 
 
@@ -210,7 +194,6 @@ SafeStackFrameIterator::SafeStackFrameIterator(
   StackFrame::State state;
   StackFrame::Type type;
   ThreadLocalTop* top = isolate->thread_local_top();
-  bool advance_frame = true;
   if (IsValidTop(top)) {
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
@@ -220,19 +203,6 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     state.sp = sp;
     state.pc_address = StackFrame::ResolveReturnAddressLocation(
         reinterpret_cast<Address*>(StandardFrame::ComputePCAddress(fp)));
-
-    // If the top of stack is a return address to the interpreter trampoline,
-    // then we are likely in a bytecode handler with elided frame. In that
-    // case, set the PC properly and make sure we do not drop the frame.
-    if (IsValidStackAddress(sp)) {
-      MSAN_MEMORY_IS_INITIALIZED(sp, kPointerSize);
-      Address tos = Memory::Address_at(reinterpret_cast<Address>(sp));
-      if (IsInterpreterFramePc(isolate, tos)) {
-        state.pc_address = reinterpret_cast<Address*>(sp);
-        advance_frame = false;
-      }
-    }
-
     // StackFrame::ComputeType will read both kContextOffset and kMarkerOffset,
     // we check only that kMarkerOffset is within the stack bounds and do
     // compile time check that kContextOffset slot is pushed on the stack before
@@ -243,10 +213,6 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     if (IsValidStackAddress(frame_marker)) {
       type = StackFrame::ComputeType(this, &state);
       top_frame_type_ = type;
-      // We only keep the top frame if we believe it to be interpreted frame.
-      if (type != StackFrame::INTERPRETED) {
-        advance_frame = true;
-      }
     } else {
       // Mark the frame as JAVA_SCRIPT if we cannot determine its type.
       // The frame anyways will be skipped.
@@ -258,7 +224,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     return;
   }
   frame_ = SingletonFor(type, &state);
-  if (advance_frame && frame_) Advance();
+  if (frame_) Advance();
 }
 
 
@@ -421,6 +387,22 @@ void StackFrame::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver resolver) {
   DCHECK(return_address_location_resolver_ == NULL);
   return_address_location_resolver_ = resolver;
+}
+
+static bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
+  Code* interpreter_entry_trampoline =
+      isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
+  Code* interpreter_bytecode_advance =
+      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeAdvance);
+  Code* interpreter_bytecode_dispatch =
+      isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+
+  return (pc >= interpreter_entry_trampoline->instruction_start() &&
+          pc < interpreter_entry_trampoline->instruction_end()) ||
+         (pc >= interpreter_bytecode_advance->instruction_start() &&
+          pc < interpreter_bytecode_advance->instruction_end()) ||
+         (pc >= interpreter_bytecode_dispatch->instruction_start() &&
+          pc < interpreter_bytecode_dispatch->instruction_end());
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
