@@ -3132,6 +3132,7 @@ void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
 
   // The utils object can be removed for cases that reach this point.
   native_context()->set_natives_utils_object(heap()->undefined_value());
+  native_context()->set_extras_utils_object(heap()->undefined_value());
 }
 
 
