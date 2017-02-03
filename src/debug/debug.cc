@@ -1764,6 +1764,7 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
     if (!break_on_exception_) return;
   }
 
+  bool empty_js_stack = false;
   {
     JavaScriptFrameIterator it(isolate_);
     // Check whether the top frame is blackboxed or the break location is muted.
@@ -1771,12 +1772,13 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
                        IsExceptionBlackboxed(uncaught))) {
       return;
     }
+    empty_js_stack = it.done();
   }
 
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return;
 
-  if (debug_delegate_) {
+  if (debug_delegate_ && !empty_js_stack) {
     HandleScope scope(isolate_);
 
     // Create the execution state.
@@ -1788,8 +1790,8 @@ void Debug::OnException(Handle<Object> exception, Handle<Object> promise) {
         GetDebugEventContext(isolate_),
         v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
         v8::Utils::ToLocal(exception), promise->IsJSObject(), uncaught);
-    if (!non_inspector_listener_exists()) return;
   }
+  if (debug_delegate_ && !non_inspector_listener_exists()) return;
 
   // Create the event data object.
   Handle<Object> event_data;

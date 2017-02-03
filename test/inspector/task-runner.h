@@ -99,7 +99,7 @@ class AsyncTask : public TaskRunner::Task {
   virtual void AsyncRun(v8::Isolate* isolate,
                         const v8::Global<v8::Context>& context) = 0;
 
- private:
+ protected:
   v8_inspector::V8Inspector* inspector_;
 };
 

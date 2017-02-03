@@ -65,7 +65,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void enable();
   void disable();
 
-  bool isPaused();
+  bool isPaused() const { return m_runningNestedMessageLoop; }
   v8::Local<v8::Context> pausedContext() { return m_pausedContext; }
 
   int maxAsyncCallChainDepth() { return m_maxAsyncCallStackDepth; }

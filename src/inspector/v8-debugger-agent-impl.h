@@ -127,7 +127,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void reset();
 
   // Interface for V8InspectorImpl
-  bool didPause(v8::Local<v8::Context>, v8::Local<v8::Value> exception,
+  void didPause(int contextId, v8::Local<v8::Value> exception,
                 const std::vector<String16>& hitBreakpoints,
                 bool isPromiseRejection, bool isUncaught, bool isOOMBreak);
   void didContinue();
@@ -138,6 +138,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool isFunctionBlackboxed(const String16& scriptId,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end);
+
+  bool skipAllPauses() const { return m_skipAllPauses; }
 
   v8::Isolate* isolate() { return m_isolate; }
 
@@ -165,6 +167,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response setBlackboxPattern(const String16& pattern);
   void resetBlackboxedStateCache();
 
+  bool isPaused() const;
+
   using ScriptsMap =
       protocol::HashMap<String16, std::unique_ptr<V8DebuggerScript>>;
   using BreakpointIdToDebuggerBreakpointIdsMap =
@@ -182,7 +186,6 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   protocol::DictionaryValue* m_state;
   protocol::Debugger::Frontend m_frontend;
   v8::Isolate* m_isolate;
-  v8::Global<v8::Context> m_pausedContext;
   JavaScriptCallFrames m_pausedCallFrames;
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
@@ -194,7 +197,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool m_javaScriptPauseScheduled;
 
   int m_recursionLevelForStepOut;
-  bool m_skipAllPauses;
+  bool m_skipAllPauses = false;
 
   std::unique_ptr<V8Regex> m_blackboxPattern;
   protocol::HashMap<String16, std::vector<std::pair<int, int>>>

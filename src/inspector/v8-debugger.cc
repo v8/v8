@@ -253,7 +253,7 @@ void V8Debugger::setPauseOnExceptionsState(
 }
 
 void V8Debugger::setPauseOnNextStatement(bool pause) {
-  if (m_runningNestedMessageLoop) return;
+  if (isPaused()) return;
   if (pause)
     v8::debug::DebugBreak(m_isolate);
   else
@@ -474,11 +474,11 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
                                     v8::Local<v8::Array> hitBreakpointNumbers,
                                     bool isPromiseRejection, bool isUncaught) {
   // Don't allow nested breaks.
-  if (m_runningNestedMessageLoop) return;
+  if (isPaused()) return;
 
   V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
       m_inspector->contextGroupId(pausedContext));
-  if (!agent) return;
+  if (!agent || (agent->skipAllPauses() && !m_scheduledOOMBreak)) return;
 
   std::vector<String16> breakpointIds;
   if (!hitBreakpointNumbers.IsEmpty()) {
@@ -494,24 +494,23 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;
-  bool shouldPause =
-      agent->didPause(pausedContext, exception, breakpointIds,
-                      isPromiseRejection, isUncaught, m_scheduledOOMBreak);
-  if (shouldPause) {
-    m_runningNestedMessageLoop = true;
-    int groupId = m_inspector->contextGroupId(pausedContext);
-    DCHECK(groupId);
+  m_runningNestedMessageLoop = true;
+  agent->didPause(InspectedContext::contextId(pausedContext), exception,
+                  breakpointIds, isPromiseRejection, isUncaught,
+                  m_scheduledOOMBreak);
+  int groupId = m_inspector->contextGroupId(pausedContext);
+  DCHECK(groupId);
+  {
     v8::Context::Scope scope(pausedContext);
     v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
     CHECK(!context.IsEmpty() &&
           context != v8::debug::GetDebugContext(m_isolate));
     m_inspector->client()->runMessageLoopOnPause(groupId);
-    // The agent may have been removed in the nested loop.
-    agent = m_inspector->enabledDebuggerAgentForGroup(
-        m_inspector->contextGroupId(pausedContext));
-    if (agent) agent->didContinue();
     m_runningNestedMessageLoop = false;
   }
+  // The agent may have been removed in the nested loop.
+  agent = m_inspector->enabledDebuggerAgentForGroup(groupId);
+  if (agent) agent->didContinue();
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
   m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
@@ -835,8 +834,6 @@ v8::Local<v8::Value> V8Debugger::functionLocation(
     return v8::Null(m_isolate);
   return location;
 }
-
-bool V8Debugger::isPaused() { return !m_pausedContext.IsEmpty(); }
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
     v8::Local<v8::StackTrace> stackTrace) {
