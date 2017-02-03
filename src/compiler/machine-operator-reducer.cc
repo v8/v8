@@ -606,7 +606,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeFloat32ToFloat64: {
       Float32Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(m.Value());
+      if (m.HasValue()) {
+        if (!allow_signalling_nan_ && std::isnan(m.Value())) {
+          // Do some calculation to make guarantee the value is a quiet NaN.
+          return ReplaceFloat64(m.Value() + m.Value());
+        }
+        return ReplaceFloat64(m.Value());
+      }
       break;
     }
     case IrOpcode::kChangeFloat64ToInt32: {
@@ -655,8 +661,15 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kTruncateFloat64ToFloat32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat32(DoubleToFloat32(m.Value()));
-      if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
+      if (m.HasValue()) {
+        if (!allow_signalling_nan_ && std::isnan(m.Value())) {
+          // Do some calculation to make guarantee the value is a quiet NaN.
+          return ReplaceFloat32(DoubleToFloat32(m.Value() + m.Value()));
+        }
+        return ReplaceFloat32(DoubleToFloat32(m.Value()));
+      }
+      if (allow_signalling_nan_ && m.IsChangeFloat32ToFloat64())
+        return Replace(m.node()->InputAt(0));
       break;
     }
     case IrOpcode::kRoundFloat64ToInt32: {
