@@ -401,10 +401,7 @@ Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
 i::List<Worker*> Shell::workers_;
-std::unordered_set<SharedArrayBuffer::Contents,
-                   Shell::SharedArrayBufferContentsHash,
-                   Shell::SharedArrayBufferContentsIsEqual>
-    Shell::externalized_shared_contents_;
+std::vector<ExternalizedContents> Shell::externalized_contents_;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -2115,21 +2112,8 @@ void SourceGroup::JoinThread() {
   thread_->Join();
 }
 
-SerializationData::~SerializationData() {
-  // Any ArrayBuffer::Contents are owned by this SerializationData object if
-  // ownership hasn't been transferred out.
-  // SharedArrayBuffer::Contents may be used by multiple threads, so must be
-  // cleaned up by the main thread in Shell::CleanupWorkers().
-  for (const auto& contents : array_buffer_contents_) {
-    if (contents.Data()) {
-      Shell::array_buffer_allocator->Free(contents.Data(),
-                                          contents.ByteLength());
-    }
-  }
-}
-
-void SerializationData::ClearTransferredArrayBuffers() {
-  array_buffer_contents_.clear();
+ExternalizedContents::~ExternalizedContents() {
+  Shell::array_buffer_allocator->Free(data_, size_);
 }
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
@@ -2595,6 +2579,17 @@ class Serializer : public ValueSerializer::Delegate {
     }
   }
 
+  template <typename T>
+  typename T::Contents MaybeExternalize(Local<T> array_buffer) {
+    if (array_buffer->IsExternal()) {
+      return array_buffer->GetContents();
+    } else {
+      typename T::Contents contents = array_buffer->Externalize();
+      data_->externalized_contents_.emplace_back(contents);
+      return contents;
+    }
+  }
+
   Maybe<bool> FinalizeTransfer() {
     for (const auto& global_array_buffer : array_buffers_) {
       Local<ArrayBuffer> array_buffer =
@@ -2604,10 +2599,7 @@ class Serializer : public ValueSerializer::Delegate {
         return Nothing<bool>();
       }
 
-      if (!array_buffer->IsExternal()) {
-        array_buffer->Externalize();
-      }
-      ArrayBuffer::Contents contents = array_buffer->GetContents();
+      ArrayBuffer::Contents contents = MaybeExternalize(array_buffer);
       array_buffer->Neuter();
       data_->array_buffer_contents_.push_back(contents);
     }
@@ -2615,11 +2607,8 @@ class Serializer : public ValueSerializer::Delegate {
     for (const auto& global_shared_array_buffer : shared_array_buffers_) {
       Local<SharedArrayBuffer> shared_array_buffer =
           Local<SharedArrayBuffer>::New(isolate_, global_shared_array_buffer);
-      if (!shared_array_buffer->IsExternal()) {
-        shared_array_buffer->Externalize();
-      }
       data_->shared_array_buffer_contents_.push_back(
-          shared_array_buffer->GetContents());
+          MaybeExternalize(shared_array_buffer));
     }
 
     return Just(true);
@@ -2663,11 +2652,7 @@ class Deserializer : public ValueDeserializer::Delegate {
       deserializer_.TransferSharedArrayBuffer(index++, shared_array_buffer);
     }
 
-    MaybeLocal<Value> result = deserializer_.ReadValue(context);
-    if (!result.IsEmpty()) {
-      data_->ClearTransferredArrayBuffers();
-    }
-    return result;
+    return deserializer_.ReadValue(context);
   }
 
  private:
@@ -2686,9 +2671,7 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     std::unique_ptr<SerializationData> data = serializer.Release();
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    for (const auto& contents : data->shared_array_buffer_contents()) {
-      externalized_shared_contents_.insert(contents);
-    }
+    data->AppendExternalizedContentsTo(&externalized_contents_);
     return data;
   }
   return nullptr;
@@ -2724,11 +2707,7 @@ void Shell::CleanupWorkers() {
   // Now that all workers are terminated, we can re-enable Worker creation.
   base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
   allow_new_workers_ = true;
-
-  for (const auto& contents : externalized_shared_contents_) {
-    Shell::array_buffer_allocator->Free(contents.Data(), contents.ByteLength());
-  }
-  externalized_shared_contents_.clear();
+  externalized_contents_.clear();
 }
 
 
