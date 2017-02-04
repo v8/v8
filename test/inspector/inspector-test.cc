@@ -320,6 +320,13 @@ class SetTimeoutExtension : public v8::Extension {
   }
 };
 
+bool StrictAccessCheck(v8::Local<v8::Context> accessing_context,
+                       v8::Local<v8::Object> accessed_object,
+                       v8::Local<v8::Value> data) {
+  CHECK(accessing_context.IsEmpty());
+  return accessing_context.IsEmpty();
+}
+
 class InspectorExtension : public v8::Extension {
  public:
   InspectorExtension()
@@ -327,7 +334,8 @@ class InspectorExtension : public v8::Extension {
                       "native function attachInspector();"
                       "native function detachInspector();"
                       "native function setMaxAsyncTaskStacks();"
-                      "native function breakProgram();") {}
+                      "native function breakProgram();"
+                      "native function createObjectWithStrictCheck();") {}
 
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -358,6 +366,13 @@ class InspectorExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate,
                                        InspectorExtension::BreakProgram);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "createObjectWithStrictCheck",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, InspectorExtension::CreateObjectWithStrictCheck);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -417,6 +432,20 @@ class InspectorExtension : public v8::Extension {
     v8::internal::Vector<uint16_t> details = ToVector(args[1].As<v8::String>());
     v8_inspector::StringView details_view(details.start(), details.length());
     session->breakProgram(reason_view, details_view);
+  }
+
+  static void CreateObjectWithStrictCheck(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: createObjectWithStrictCheck().");
+      Exit();
+    }
+    v8::Local<v8::ObjectTemplate> templ =
+        v8::ObjectTemplate::New(args.GetIsolate());
+    templ->SetAccessCheckCallback(&StrictAccessCheck);
+    args.GetReturnValue().Set(
+        templ->NewInstance(args.GetIsolate()->GetCurrentContext())
+            .ToLocalChecked());
   }
 };
 

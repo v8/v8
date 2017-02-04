@@ -2492,6 +2492,20 @@ HeapSnapshotGenerator::HeapSnapshotGenerator(
       heap_(heap) {
 }
 
+namespace {
+class NullContextScope {
+ public:
+  explicit NullContextScope(Isolate* isolate)
+      : isolate_(isolate), prev_(isolate->context()) {
+    isolate_->set_context(nullptr);
+  }
+  ~NullContextScope() { isolate_->set_context(prev_); }
+
+ private:
+  Isolate* isolate_;
+  Context* prev_;
+};
+}  //  namespace
 
 bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8_heap_explorer_.TagGlobalObjects();
@@ -2504,6 +2518,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
                            GarbageCollectionReason::kHeapProfiler);
   heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                            GarbageCollectionReason::kHeapProfiler);
+
+  NullContextScope null_context_scope(heap_->isolate());
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;
