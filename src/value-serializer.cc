@@ -233,7 +233,7 @@ void ValueSerializer::WriteRawBytes(const void* source, size_t length) {
 Maybe<uint8_t*> ValueSerializer::ReserveRawBytes(size_t bytes) {
   size_t old_size = buffer_size_;
   size_t new_size = old_size + bytes;
-  if (new_size > buffer_capacity_) {
+  if (V8_UNLIKELY(new_size > buffer_capacity_)) {
     bool ok;
     if (!ExpandBuffer(new_size).To(&ok)) {
       return Nothing<uint8_t*>();
