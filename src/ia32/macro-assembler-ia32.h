@@ -228,7 +228,10 @@ class MacroAssembler: public Assembler {
   void RecordWriteForMap(Register object, Handle<Map> map, Register scratch1,
                          Register scratch2, SaveFPRegsMode save_fp);
 
-  // Frame restart support
+  // ---------------------------------------------------------------------------
+  // Debugger Support
+
+  void DebugBreak();
   void MaybeDropFrames();
 
   // Generates function and stub prologue code.

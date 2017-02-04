@@ -1286,8 +1286,9 @@ void AstGraphBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void AstGraphBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  // Debugger statement is supported only by going through Ignition first.
-  UNREACHABLE();
+  Node* node = NewNode(javascript()->Debugger());
+  PrepareFrameState(node, stmt->DebugBreakId());
+  environment()->MarkAllLocalsLive();
 }
 
 

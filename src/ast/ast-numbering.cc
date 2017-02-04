@@ -119,7 +119,8 @@ void AstNumberingVisitor::VisitBreakStatement(BreakStatement* node) {
 
 void AstNumberingVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
   IncrementNodeCount();
-  DisableFullCodegenAndCrankshaft(kDebuggerStatement);
+  DisableOptimization(kDebuggerStatement);
+  node->set_base_id(ReserveIdRange(DebuggerStatement::num_ids()));
 }
 
 

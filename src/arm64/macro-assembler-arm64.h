@@ -1300,9 +1300,13 @@ class MacroAssembler : public Assembler {
     MacroAssembler* masm_;
   };
 
-  // Frame restart support
+  // ---------------------------------------------------------------------------
+  // Debugger Support
+
+  void DebugBreak();
   void MaybeDropFrames();
 
+  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.

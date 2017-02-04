@@ -323,7 +323,10 @@ class MacroAssembler: public Assembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  // Frame restart support.
+  // ---------------------------------------------------------------------------
+  // Debugger Support
+
+  void DebugBreak();
   void MaybeDropFrames();
 
   // Generates function and stub prologue code.
