@@ -568,6 +568,34 @@ THREADED_TEST(SetterCallbackFunctionDeclarationInterceptor) {
   CHECK_EQ(set_was_called_counter, 3);
 }
 
+namespace {
+void QueryCallbackSetDontDelete(
+    Local<Name> property, const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  info.GetReturnValue().Set(v8::PropertyAttribute::DontDelete);
+}
+
+}  // namespace
+
+// Regression for a Node.js test that fails in debug mode.
+THREADED_TEST(InterceptorFunctionRedeclareWithQueryCallback) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, nullptr, QueryCallbackSetDontDelete));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  // Declare and redeclare function.
+  v8::Local<v8::String> code = v8_str(
+      "function x() {return 42;};"
+      "function x() {return 43;};");
+  v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).ToLocalChecked();
+}
+
 // Check that function re-declarations throw if they are read-only.
 THREADED_TEST(SetterCallbackFunctionDeclarationInterceptorThrow) {
   v8::HandleScope scope(CcTest::isolate());

@@ -86,8 +86,7 @@ Object* DeclareGlobal(
 
       // Check whether we can reconfigure the existing property into a
       // function.
-      PropertyDetails old_details = it.property_details();
-      if (old_details.IsReadOnly() || old_details.IsDontEnum() ||
+      if (old_attributes & READ_ONLY || old_attributes & DONT_ENUM ||
           (it.state() == LookupIterator::ACCESSOR)) {
         // ECMA-262 section 15.1.11 GlobalDeclarationInstantiation 5.d:
         // If hasRestrictedGlobal is true, throw a SyntaxError exception.
