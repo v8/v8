@@ -1208,8 +1208,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     // slices works only when the replaced string is a single character, being
     // replaced by a simple string and only pays off for long strings.
     // TODO(jgruber): Reevaluate if this is still beneficial.
-    TailCallRuntime(Runtime::kStringReplaceOneCharWithString, context,
-                    subject_string, search_string, replace);
+    // TODO(jgruber): TailCallRuntime when it correctly handles adapter frames.
+    Return(CallRuntime(Runtime::kStringReplaceOneCharWithString, context,
+                       subject_string, search_string, replace));
 
     Bind(&next);
   }
