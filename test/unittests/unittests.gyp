@@ -130,6 +130,7 @@
       'value-serializer-unittest.cc',
       'zone/segmentpool-unittest.cc',
       'zone/zone-chunk-list-unittest.cc',
+      'zone/zone-unittest.cc',
       'wasm/asm-types-unittest.cc',
       'wasm/control-transfer-unittest.cc',
       'wasm/decoder-unittest.cc',
