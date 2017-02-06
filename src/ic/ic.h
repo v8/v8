@@ -432,12 +432,6 @@ class KeyedStoreIC : public StoreIC {
                                             Handle<Object> name,
                                             Handle<Object> value);
 
-  // Code generators for stub routines.  Only called once at startup.
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  LanguageMode language_mode);
-
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:

@@ -973,7 +973,7 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
     uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());
     CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
           major_key == CodeStub::StoreFastElement ||
-          major_key == CodeStub::StoreElement ||
+          major_key == CodeStub::StoreSlowElement ||
           major_key == CodeStub::ElementsTransitionAndStore ||
           major_key == CodeStub::NoCache);
     if (major_key != CodeStub::NoCache) {

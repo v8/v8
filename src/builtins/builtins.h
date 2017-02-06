@@ -234,8 +234,8 @@ class Isolate;
       StoreWithVector)                                                         \
   TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, kNoExtraICState,        \
       StoreWithVector)                                                         \
-  ASM(KeyedStoreIC_Miss)                                                       \
-  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                        \
+  TFS(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)            \
+  TFS(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC, StoreWithVector)       \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
   TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
   TFS(LoadField, HANDLER, Code::LOAD_IC, LoadField)                            \

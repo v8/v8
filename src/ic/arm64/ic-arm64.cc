@@ -13,32 +13,6 @@ namespace v8 {
 namespace internal {
 
 
-#define __ ACCESS_MASM(masm)
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  __ Push(StoreWithVectorDescriptor::ValueRegister(),
-          StoreWithVectorDescriptor::SlotRegister(),
-          StoreWithVectorDescriptor::VectorRegister(),
-          StoreWithVectorDescriptor::ReceiverRegister(),
-          StoreWithVectorDescriptor::NameRegister());
-}
-
-
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  ASM_LOCATION("KeyedStoreIC::GenerateMiss");
-  StoreIC_PushArgs(masm);
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
-}
-
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
-  ASM_LOCATION("KeyedStoreIC::GenerateSlow");
-  StoreIC_PushArgs(masm);
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
 Condition CompareIC::ComputeCondition(Token::Value op) {
   switch (op) {
     case Token::EQ_STRICT:

@@ -45,12 +45,34 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(
   KeyedStoreGenericGenerator::Generate(state, STRICT);
 }
 
-void Builtins::Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm);
+TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
+                  receiver, name);
 }
 
-void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
+TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, slot, vector,
+                  receiver, name);
 }
 
 TF_BUILTIN(LoadGlobalIC_Miss, CodeStubAssembler) {

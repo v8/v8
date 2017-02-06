@@ -47,7 +47,7 @@ class Node;
   V(RecordWrite)                              \
   V(RegExpExec)                               \
   V(StoreBufferOverflow)                      \
-  V(StoreElement)                             \
+  V(StoreSlowElement)                         \
   V(SubString)                                \
   V(FastNewRestParameter)                     \
   V(FastNewSloppyArguments)                   \
@@ -105,7 +105,6 @@ class Node;
   V(StoreFastElement)                         \
   V(StoreGlobal)                              \
   V(StoreInterceptor)                         \
-  V(LoadApiGetter)                            \
   V(LoadIndexedInterceptor)                   \
   V(GrowArrayElements)
 
@@ -1005,33 +1004,6 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(KeyedStoreSloppyArguments, TurboFanCodeStub);
 };
 
-class LoadApiGetterStub : public TurboFanCodeStub {
- public:
-  LoadApiGetterStub(Isolate* isolate, bool receiver_is_holder, int index)
-      : TurboFanCodeStub(isolate) {
-    // If that's not true, we need to ensure that the receiver is actually a
-    // JSReceiver. http://crbug.com/609134
-    DCHECK(receiver_is_holder);
-    minor_key_ = IndexBits::encode(index) |
-                 ReceiverIsHolderBits::encode(receiver_is_holder);
-  }
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
-
-  int index() const { return IndexBits::decode(minor_key_); }
-  bool receiver_is_holder() const {
-    return ReceiverIsHolderBits::decode(minor_key_);
-  }
-
- private:
-  class ReceiverIsHolderBits : public BitField<bool, 0, 1> {};
-  class IndexBits : public BitField<int, 1, kDescriptorIndexBitCount> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_TURBOFAN_CODE_STUB(LoadApiGetter, TurboFanCodeStub);
-};
-
 class StoreGlobalStub : public TurboFanCodeStub {
  public:
   StoreGlobalStub(Isolate* isolate, PropertyCellType type,
@@ -1928,31 +1900,19 @@ class ArrayNArgumentsConstructorStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(ArrayNArgumentsConstructor, PlatformCodeStub);
 };
 
-class StoreElementStub : public PlatformCodeStub {
+class StoreSlowElementStub : public TurboFanCodeStub {
  public:
-  StoreElementStub(Isolate* isolate, ElementsKind elements_kind,
-                   KeyedAccessStoreMode mode)
-      : PlatformCodeStub(isolate) {
-    // TODO(jkummerow): Rename this stub to StoreSlowElementStub,
-    // drop elements_kind parameter.
-    DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
-    minor_key_ = ElementsKindBits::encode(elements_kind) |
-                 CommonStoreModeBits::encode(mode);
+  StoreSlowElementStub(Isolate* isolate, KeyedAccessStoreMode mode)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = CommonStoreModeBits::encode(mode);
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
   ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(minor_key_);
-  }
-
-  class ElementsKindBits
-      : public BitField<ElementsKind, CommonStoreModeBits::kNext, 8> {};
-
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_PLATFORM_CODE_STUB(StoreElement, PlatformCodeStub);
+  DEFINE_TURBOFAN_CODE_STUB(StoreSlowElement, TurboFanCodeStub);
 };
 
 class ToBooleanICStub : public HydrogenCodeStub {

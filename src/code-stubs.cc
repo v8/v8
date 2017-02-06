@@ -1499,23 +1499,6 @@ void SubStringStub::GenerateAssembly(
                             assembler.Parameter(Descriptor::kContext)));
 }
 
-void LoadApiGetterStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  // For now we only support receiver_is_holder.
-  DCHECK(receiver_is_holder());
-  Node* holder = receiver;
-  Node* map = assembler.LoadMap(receiver);
-  Node* descriptors = assembler.LoadMapDescriptors(map);
-  Node* callback = assembler.LoadFixedArrayElement(
-      descriptors, DescriptorArray::ToValueIndex(index()));
-  assembler.TailCallStub(CodeFactory::ApiGetter(isolate()), context, receiver,
-                         holder, callback);
-}
-
 void StoreGlobalStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
@@ -2076,10 +2059,20 @@ void CreateWeakCellStub::GenerateAheadOfTime(Isolate* isolate) {
   stub.GetCode();
 }
 
+void StoreSlowElementStub::GenerateAssembly(
+    compiler::CodeAssemblerState* state) const {
+  typedef compiler::Node Node;
+  CodeStubAssembler assembler(state);
 
-void StoreElementStub::Generate(MacroAssembler* masm) {
-  DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind());
-  KeyedStoreIC::GenerateSlow(masm);
+  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
+  Node* name = assembler.Parameter(Descriptor::kName);
+  Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
+  Node* context = assembler.Parameter(Descriptor::kContext);
+
+  assembler.TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, slot,
+                            vector, receiver, name);
 }
 
 void StoreFastElementStub::GenerateAssembly(
