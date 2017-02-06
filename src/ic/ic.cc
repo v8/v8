@@ -2632,7 +2632,6 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   }
 }
 
-
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   HandleScope scope(isolate);

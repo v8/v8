@@ -212,35 +212,5 @@ void Builtins::Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
-namespace {
-void Generate_StoreIC_Slow(compiler::CodeAssemblerState* state,
-                           LanguageMode language_mode) {
-  typedef compiler::Node Node;
-  typedef StoreWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* lang_mode = assembler.SmiConstant(Smi::FromInt(language_mode));
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  assembler.TailCallRuntime(Runtime::kSetProperty, context, receiver, name,
-                            value, lang_mode);
-}
-}  // anonymous namespace
-
-void Builtins::Generate_StoreIC_SlowSloppy(
-    compiler::CodeAssemblerState* state) {
-  Generate_StoreIC_Slow(state, SLOPPY);
-}
-
-void Builtins::Generate_StoreIC_SlowStrict(
-    compiler::CodeAssemblerState* state) {
-  Generate_StoreIC_Slow(state, STRICT);
-}
-
 }  // namespace internal
 }  // namespace v8

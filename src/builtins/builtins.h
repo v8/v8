@@ -224,30 +224,27 @@ class Isolate;
   TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion)           \
                                                                                \
   /* Handlers */                                                               \
-  TFS(LoadICProtoArray, HANDLER, Code::LOAD_IC, LoadICProtoArray)              \
-  TFS(LoadICProtoArrayThrowIfNonexistent, HANDLER, Code::LOAD_IC,              \
+  TFS(LoadICProtoArray, BUILTIN, kNoExtraICState, LoadICProtoArray)            \
+  TFS(LoadICProtoArrayThrowIfNonexistent, BUILTIN, kNoExtraICState,            \
       LoadICProtoArray)                                                        \
-  TFS(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector) \
+  TFS(KeyedLoadIC_Megamorphic, BUILTIN, kNoExtraICState, LoadWithVector)       \
   TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)              \
-  TFS(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC, LoadWithVector)          \
-  TFS(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState,               \
-      StoreWithVector)                                                         \
-  TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, kNoExtraICState,        \
+  TFS(KeyedLoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                \
+  TFS(KeyedStoreIC_Megamorphic, BUILTIN, kNoExtraICState, StoreWithVector)     \
+  TFS(KeyedStoreIC_Megamorphic_Strict, BUILTIN, kNoExtraICState,               \
       StoreWithVector)                                                         \
   TFS(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)            \
-  TFS(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC, StoreWithVector)       \
+  TFS(KeyedStoreIC_Slow, HANDLER, Code::STORE_IC, StoreWithVector)             \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
   TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
-  TFS(LoadField, HANDLER, Code::LOAD_IC, LoadField)                            \
-  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
+  TFS(LoadField, BUILTIN, kNoExtraICState, LoadField)                          \
+  ASH(LoadIC_Getter_ForDeopt, BUILTIN, kNoExtraICState)                        \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                   \
   TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector)                   \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                     \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                 \
   TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector)                \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, kNoExtraICState)                      \
-  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)            \
-  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)            \
+  ASH(StoreIC_Setter_ForDeopt, BUILTIN, kNoExtraICState)                       \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \

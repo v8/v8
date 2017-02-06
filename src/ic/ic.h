@@ -380,19 +380,8 @@ class StoreIC : public IC {
  protected:
   // Stub accessors.
   Handle<Code> slow_stub() const {
-    // TODO(ishell): don't hard-code language mode into the handler because
-    // this handler can be re-used through megamorphic stub cache for wrong
-    // language mode.
-    // The slow stub must decode the language mode from the IC kind.
-    switch (language_mode()) {
-      case SLOPPY:
-        return isolate()->builtins()->StoreIC_SlowSloppy();
-      case STRICT:
-        return isolate()->builtins()->StoreIC_SlowStrict();
-      default:
-        UNREACHABLE();
-        return Handle<Code>();
-    }
+    // StoreIC and KeyedStoreIC share the same slow stub.
+    return isolate()->builtins()->KeyedStoreIC_Slow();
   }
 
   // Update the inline cache and the global stub cache based on the
