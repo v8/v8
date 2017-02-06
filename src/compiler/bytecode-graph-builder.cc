@@ -1029,6 +1029,7 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode) {
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
+  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()), language_mode);
   const Operator* op = javascript()->StoreNamed(language_mode, name, feedback);
   Node* node = NewNode(op, object, value);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
@@ -1052,6 +1053,7 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
 
+  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()), language_mode);
   const Operator* op = javascript()->StoreProperty(language_mode, feedback);
   Node* node = NewNode(op, object, key, value);
   environment()->RecordAfterState(node, Environment::kAttachFrameState);

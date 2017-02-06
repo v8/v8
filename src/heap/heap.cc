@@ -2759,17 +2759,7 @@ void Heap::CreateInitialObjects() {
     StaticFeedbackVectorSpec spec;
     FeedbackVectorSlot slot = spec.AddLoadICSlot();
     DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
-
-    slot = spec.AddKeyedLoadICSlot();
-    DCHECK_EQ(slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
-
-    slot = spec.AddStoreICSlot();
-    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot));
-
-    slot = spec.AddKeyedStoreICSlot();
-    DCHECK_EQ(slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
+    USE(slot);
 
     Handle<TypeFeedbackMetadata> dummy_metadata =
         TypeFeedbackMetadata::New(isolate(), &spec);
@@ -2780,9 +2770,6 @@ void Heap::CreateInitialObjects() {
 
     // Now initialize dummy vector's entries.
     LoadICNexus(isolate()).ConfigureMegamorphic();
-    StoreICNexus(isolate()).ConfigureMegamorphic();
-    KeyedLoadICNexus(isolate()).ConfigureMegamorphicKeyed(PROPERTY);
-    KeyedStoreICNexus(isolate()).ConfigureMegamorphicKeyed(PROPERTY);
   }
 
   {

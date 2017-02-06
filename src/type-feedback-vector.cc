@@ -66,10 +66,10 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
-    FeedbackVectorSlotKind kind = spec->GetKind(i);
+    FeedbackVectorSlotKind kind = spec->GetKind(FeedbackVectorSlot(i));
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
-      FeedbackVectorSlotKind kind = spec->GetKind(i + j);
+      FeedbackVectorSlotKind kind = spec->GetKind(FeedbackVectorSlot(i + j));
       DCHECK_EQ(FeedbackVectorSlotKind::INVALID, kind);
     }
     i += entry_size;
@@ -87,8 +87,9 @@ Handle<TypeFeedbackMetadata> TypeFeedbackMetadata::New(Isolate* isolate,
       Handle<TypeFeedbackMetadata>::cast(array);
 
   for (int i = 0; i < slot_count; i++) {
-    FeedbackVectorSlotKind kind = spec->GetKind(i);
-    metadata->SetKind(FeedbackVectorSlot(i), kind);
+    FeedbackVectorSlot slot(i);
+    FeedbackVectorSlotKind kind = spec->GetKind(slot);
+    metadata->SetKind(slot, kind);
   }
 
   // It's important that the TypeFeedbackMetadata have a COW map, since it's
@@ -113,7 +114,7 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
     FeedbackVectorSlotKind kind = GetKind(slot);
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
 
-    if (kind != other_spec->GetKind(i)) {
+    if (kind != other_spec->GetKind(slot)) {
       return true;
     }
     i += entry_size;
@@ -152,10 +153,14 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "LOAD_GLOBAL_IC";
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
       return "KEYED_LOAD_IC";
-    case FeedbackVectorSlotKind::STORE_IC:
-      return "STORE_IC";
-    case FeedbackVectorSlotKind::KEYED_STORE_IC:
-      return "KEYED_STORE_IC";
+    case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
+      return "STORE_SLOPPY_IC";
+    case FeedbackVectorSlotKind::STORE_STRICT_IC:
+      return "STORE_STRICT_IC";
+    case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
+      return "KEYED_STORE_SLOPPY_IC";
+    case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC:
+      return "KEYED_STORE_STRICT_IC";
     case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
       return "INTERPRETER_BINARYOP_IC";
     case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
@@ -233,8 +238,10 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
         break;
       case FeedbackVectorSlotKind::LOAD_IC:
       case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-      case FeedbackVectorSlotKind::STORE_IC:
-      case FeedbackVectorSlotKind::KEYED_STORE_IC:
+      case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
+      case FeedbackVectorSlotKind::STORE_STRICT_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC:
       case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
       case FeedbackVectorSlotKind::GENERAL:
         value = *uninitialized_sentinel;
@@ -311,12 +318,14 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackVectorSlotKind::STORE_IC: {
+        case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
+        case FeedbackVectorSlotKind::STORE_STRICT_IC: {
           StoreICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+        case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
+        case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC: {
           KeyedStoreICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;

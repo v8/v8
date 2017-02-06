@@ -486,15 +486,16 @@ TEST(ReferenceContextAllocatesNoSlots) {
         handle(f->feedback_vector(), isolate);
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(4, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_SLOPPY_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
-    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_SLOPPY_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
   }
 
   {
     CompileRun(
         "function testprop(x) {"
+        "  'use strict';"
         "  x.blue = a;"
         "}"
         "testprop({ blue: 3 });");
@@ -506,7 +507,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_STRICT_IC);
   }
 
   {
@@ -527,7 +528,7 @@ TEST(ReferenceContextAllocatesNoSlots) {
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
-    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_SLOPPY_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::CALL_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
   }
@@ -548,13 +549,35 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
+  }
+
+  {
+    CompileRun(
+        "function testkeyedprop(x) {"
+        "  'use strict';"
+        "  x[0] = a;"
+        "  return x[0];"
+        "}"
+        "testkeyedprop([0, 1, 2]);");
+
+    Handle<JSFunction> f = GetFunction("testkeyedprop");
+
+    // There should be 1 LOAD_GLOBAL_ICs for the load of a, and one
+    // KEYED_LOAD_IC for the load of x[0] in the return statement.
+    Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
+    FeedbackVectorHelper helper(feedback_vector);
+    CHECK_EQ(3, helper.slot_count());
+    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
 
   {
     CompileRun(
         "function testcompound(x) {"
+        "  'use strict';"
         "  x.old = x.young = x.in_between = a;"
         "  return x.old + x.young;"
         "}"
@@ -568,9 +591,9 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(7, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_IC);
-    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_IC);
-    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_IC);
+    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_STRICT_IC);
+    CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_STRICT_IC);
+    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_STRICT_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
     CHECK_SLOT_KIND(helper, 5, FeedbackVectorSlotKind::LOAD_IC);
     CHECK_SLOT_KIND(helper, 6, FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC);

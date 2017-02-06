@@ -1702,9 +1702,11 @@ void StoreInterceptorStub::GenerateAssembly(
   Node* receiver = assembler.Parameter(Descriptor::kReceiver);
   Node* name = assembler.Parameter(Descriptor::kName);
   Node* value = assembler.Parameter(Descriptor::kValue);
+  Node* slot = assembler.Parameter(Descriptor::kSlot);
+  Node* vector = assembler.Parameter(Descriptor::kVector);
   Node* context = assembler.Parameter(Descriptor::kContext);
   assembler.TailCallRuntime(Runtime::kStorePropertyWithInterceptor, context,
-                            receiver, name, value);
+                            value, slot, vector, receiver, name);
 }
 
 void LoadIndexedInterceptorStub::GenerateAssembly(

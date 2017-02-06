@@ -697,7 +697,7 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
   }
 
   for (int slot = 0; slot < slot_count;) {
-    FeedbackVectorSlotKind kind = This()->GetKind(slot);
+    FeedbackVectorSlotKind kind = This()->GetKind(FeedbackVectorSlot(slot));
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
     os << "\n Slot #" << slot << " " << kind;
@@ -776,12 +776,14 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::STORE_IC: {
+      case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
+      case FeedbackVectorSlotKind::STORE_STRICT_IC: {
         StoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+      case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC: {
         KeyedStoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;

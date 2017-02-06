@@ -6523,6 +6523,7 @@ void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
     HValue* name = Add<HConstant>(var->name());
     HValue* vector_value = Add<HConstant>(vector);
     HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
+    DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
     Callable callable = CodeFactory::StoreICInOptimizedCode(
         isolate(), function_language_mode());
     HValue* stub = Add<HConstant>(callable.code());
@@ -6856,6 +6857,7 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     return result;
 
   } else {
+    DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
     HValue* values[] = {object, key, value, slot_value, vector_value};
     if (vector->IsKeyedStoreIC(slot)) {
       // It's possible that a keyed store of a constant string was converted

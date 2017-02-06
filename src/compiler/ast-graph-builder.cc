@@ -2746,6 +2746,8 @@ Node* AstGraphBuilder::BuildNamedLoad(Node* object, Handle<Name> name,
 
 Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
                                        const VectorSlotPair& feedback) {
+  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()),
+            language_mode());
   const Operator* op = javascript()->StoreProperty(language_mode(), feedback);
   Node* node = NewNode(op, object, key, value);
   return node;
@@ -2755,6 +2757,8 @@ Node* AstGraphBuilder::BuildKeyedStore(Node* object, Node* key, Node* value,
 Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
                                        Node* value,
                                        const VectorSlotPair& feedback) {
+  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()),
+            language_mode());
   const Operator* op =
       javascript()->StoreNamed(language_mode(), name, feedback);
   Node* node = NewNode(op, object, value);

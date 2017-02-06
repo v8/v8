@@ -732,6 +732,7 @@ class ForInStatement final : public ForEachStatement {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot EachFeedbackSlot() const { return each_slot_; }
   FeedbackVectorSlot ForInFeedbackSlot() {
@@ -954,6 +955,7 @@ class CaseClause final : public Expression {
   // TypeFeedbackId to record the type information. TypeFeedbackId is used by
   // full codegen and the feedback vector slot is used by interpreter.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CompareOperationFeedbackSlot() {
@@ -1250,6 +1252,7 @@ class MaterializedLiteral : public Expression {
   }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache) {
     literal_slot_ = spec->AddLiteralSlot();
   }
@@ -1467,6 +1470,7 @@ class ObjectLiteral final : public MaterializedLiteral {
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
  private:
@@ -1612,6 +1616,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   };
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot LiteralFeedbackSlot() const { return literal_slot_; }
 
@@ -1690,6 +1695,7 @@ class VariableProxy final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot VariableFeedbackSlot() { return variable_feedback_slot_; }
@@ -1786,11 +1792,13 @@ class Property final : public Expression {
   bool IsSuperAccess() { return obj()->IsSuperPropertyReference(); }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache) {
-    FeedbackVectorSlotKind kind = key()->IsPropertyName()
-                                      ? FeedbackVectorSlotKind::LOAD_IC
-                                      : FeedbackVectorSlotKind::KEYED_LOAD_IC;
-    property_feedback_slot_ = spec->AddSlot(kind);
+    if (key()->IsPropertyName()) {
+      property_feedback_slot_ = spec->AddLoadICSlot();
+    } else {
+      property_feedback_slot_ = spec->AddKeyedLoadICSlot();
+    }
   }
 
   FeedbackVectorSlot PropertyFeedbackSlot() const {
@@ -1844,6 +1852,7 @@ class Call final : public Expression {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CallFeedbackICSlot() const { return ic_slot_; }
@@ -1966,6 +1975,7 @@ class CallNew final : public Expression {
 
   // Type feedback information.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache) {
     // CallNew stores feedback in the exact same way as Call. We can
     // piggyback on the type feedback infrastructure for calls.
@@ -2141,6 +2151,7 @@ class BinaryOperation final : public Expression {
   // TypeFeedbackId to record the type information. TypeFeedbackId is used
   // by full codegen and the feedback vector slot is used by interpreter.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot BinaryOperationFeedbackSlot() const {
@@ -2234,6 +2245,7 @@ class CountOperation final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot CountSlot() const { return slot_; }
 
@@ -2286,6 +2298,7 @@ class CompareOperation final : public Expression {
   // TypeFeedbackId to record the type information. TypeFeedbackId is used
   // by full codegen and the feedback vector slot is used by interpreter.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot CompareOperationFeedbackSlot() const {
@@ -2432,6 +2445,7 @@ class Assignment final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
   FeedbackVectorSlot AssignmentSlot() const { return slot_; }
 
@@ -2599,6 +2613,7 @@ class FunctionLiteral final : public Expression {
   LanguageMode language_mode() const;
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache) {
     literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
@@ -2815,6 +2830,7 @@ class ClassLiteral final : public Expression {
   // Object literals need one feedback slot for each non-trivial value, as well
   // as some slots for home objects.
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache);
 
   bool NeedsProxySlot() const {
@@ -2866,6 +2882,7 @@ class NativeFunctionLiteral final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache) {
     // TODO(mvstanton): The FeedbackVectorSlotCache can be adapted
     // to always return the same slot for this case.
@@ -2968,11 +2985,10 @@ class GetIterator final : public Expression {
   static int num_ids() { return parent_num_ids(); }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 LanguageMode language_mode,
                                  FeedbackVectorSlotCache* cache) {
-    iterator_property_feedback_slot_ =
-        spec->AddSlot(FeedbackVectorSlotKind::LOAD_IC);
-    iterator_call_feedback_slot_ =
-        spec->AddSlot(FeedbackVectorSlotKind::CALL_IC);
+    iterator_property_feedback_slot_ = spec->AddLoadICSlot();
+    iterator_call_feedback_slot_ = spec->AddCallICSlot();
   }
 
   FeedbackVectorSlot IteratorPropertyFeedbackSlot() const {

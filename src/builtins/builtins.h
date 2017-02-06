@@ -232,8 +232,8 @@ class Isolate;
   TFS(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC, LoadWithVector)          \
   TFS(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState,               \
       StoreWithVector)                                                         \
-  TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
-      StoreICState::kStrictModeState, StoreWithVector)                         \
+  TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC, kNoExtraICState,        \
+      StoreWithVector)                                                         \
   ASM(KeyedStoreIC_Miss)                                                       \
   ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                        \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
@@ -245,7 +245,7 @@ class Isolate;
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                     \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                 \
   TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector)                \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)       \
+  ASH(StoreIC_Setter_ForDeopt, STORE_IC, kNoExtraICState)                      \
   TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)            \
   TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)            \
                                                                                \
@@ -476,16 +476,12 @@ class Isolate;
   TFS(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load)             \
   TFS(StoreIC, STORE_IC, kNoExtraICState, StoreWithVector)                     \
   TFS(StoreICTrampoline, STORE_IC, kNoExtraICState, Store)                     \
-  TFS(StoreICStrict, STORE_IC, StoreICState::kStrictModeState,                 \
-      StoreWithVector)                                                         \
-  TFS(StoreICStrictTrampoline, STORE_IC, StoreICState::kStrictModeState,       \
-      Store)                                                                   \
+  TFS(StoreICStrict, STORE_IC, kNoExtraICState, StoreWithVector)               \
+  TFS(StoreICStrictTrampoline, STORE_IC, kNoExtraICState, Store)               \
   TFS(KeyedStoreIC, KEYED_STORE_IC, kNoExtraICState, StoreWithVector)          \
   TFS(KeyedStoreICTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)          \
-  TFS(KeyedStoreICStrict, KEYED_STORE_IC, StoreICState::kStrictModeState,      \
-      StoreWithVector)                                                         \
-  TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC,                            \
-      StoreICState::kStrictModeState, Store)                                   \
+  TFS(KeyedStoreICStrict, KEYED_STORE_IC, kNoExtraICState, StoreWithVector)    \
+  TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)    \
   TFS(LoadGlobalIC, LOAD_GLOBAL_IC, LoadGlobalICState::kNotInsideTypeOfState,  \
       LoadGlobalWithVector)                                                    \
   TFS(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC,                                \

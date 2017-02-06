@@ -21,6 +21,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         next_id_(BailoutId::FirstUsable().ToInt()),
         yield_count_(0),
         properties_(zone),
+        language_mode_(SLOPPY),
         slot_cache_(zone),
         disable_crankshaft_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
@@ -40,6 +41,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
 
+  void VisitStatementsAndDeclarations(Block* node);
   void VisitStatements(ZoneList<Statement*>* statements);
   void VisitDeclarations(Declaration::List* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
@@ -66,8 +68,22 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    node->AssignFeedbackVectorSlots(properties_.get_spec(), &slot_cache_);
+    node->AssignFeedbackVectorSlots(properties_.get_spec(), language_mode_,
+                                    &slot_cache_);
   }
+
+  class LanguageModeScope {
+   public:
+    LanguageModeScope(AstNumberingVisitor* visitor, LanguageMode language_mode)
+        : visitor_(visitor), outer_language_mode_(visitor->language_mode_) {
+      visitor_->language_mode_ = language_mode;
+    }
+    ~LanguageModeScope() { visitor_->language_mode_ = outer_language_mode_; }
+
+   private:
+    AstNumberingVisitor* visitor_;
+    LanguageMode outer_language_mode_;
+  };
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
@@ -78,6 +94,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   int next_id_;
   int yield_count_;
   AstProperties properties_;
+  LanguageMode language_mode_;
   // The slot cache allows us to reuse certain feedback vector slots.
   FeedbackVectorSlotCache slot_cache_;
   BailoutReason disable_crankshaft_reason_;
@@ -250,10 +267,22 @@ void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
 void AstNumberingVisitor::VisitBlock(Block* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Block::num_ids()));
-  if (node->scope() != NULL) VisitDeclarations(node->scope()->declarations());
-  VisitStatements(node->statements());
+  Scope* scope = node->scope();
+  // TODO(ishell): remove scope->NeedsContext() condition once v8:5927 is fixed.
+  // Current logic mimics what BytecodeGenerator::VisitBlock() does.
+  if (scope != NULL && scope->NeedsContext()) {
+    LanguageModeScope language_mode_scope(this, scope->language_mode());
+    VisitStatementsAndDeclarations(node);
+  } else {
+    VisitStatementsAndDeclarations(node);
+  }
 }
 
+void AstNumberingVisitor::VisitStatementsAndDeclarations(Block* node) {
+  Scope* scope = node->scope();
+  if (scope) VisitDeclarations(scope->declarations());
+  VisitStatements(node->statements());
+}
 
 void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
   IncrementNodeCount();
@@ -640,6 +669,8 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   if (IsClassConstructor(node->kind())) {
     DisableFullCodegenAndCrankshaft(kClassConstructorFunction);
   }
+
+  LanguageModeScope language_mode_scope(this, node->language_mode());
 
   VisitDeclarations(scope->declarations());
   VisitStatements(node->body());

@@ -1128,7 +1128,7 @@ TEST(InterpreterStoreNamedProperty) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddStoreICSlot(SLOPPY);
 
   Handle<i::TypeFeedbackMetadata> metadata =
       NewTypeFeedbackMetadata(isolate, &feedback_spec);
@@ -1186,7 +1186,7 @@ TEST(InterpreterStoreKeyedProperty) {
   Zone zone(isolate->allocator(), ZONE_NAME);
 
   FeedbackVectorSpec feedback_spec(&zone);
-  FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot();
+  FeedbackVectorSlot slot = feedback_spec.AddKeyedStoreICSlot(SLOPPY);
 
   Handle<i::TypeFeedbackMetadata> metadata =
       NewTypeFeedbackMetadata(isolate, &feedback_spec);

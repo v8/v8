@@ -26,8 +26,10 @@ enum class FeedbackVectorSlotKind {
   LOAD_IC,
   LOAD_GLOBAL_IC,
   KEYED_LOAD_IC,
-  STORE_IC,
-  KEYED_STORE_IC,
+  STORE_SLOPPY_IC,
+  STORE_STRICT_IC,
+  KEYED_STORE_SLOPPY_IC,
+  KEYED_STORE_STRICT_IC,
   INTERPRETER_BINARYOP_IC,
   INTERPRETER_COMPARE_IC,
   STORE_DATA_PROPERTY_IN_LITERAL_IC,
@@ -56,11 +58,21 @@ inline bool IsKeyedLoadICKind(FeedbackVectorSlotKind kind) {
 }
 
 inline bool IsStoreICKind(FeedbackVectorSlotKind kind) {
-  return kind == FeedbackVectorSlotKind::STORE_IC;
+  return kind == FeedbackVectorSlotKind::STORE_SLOPPY_IC ||
+         kind == FeedbackVectorSlotKind::STORE_STRICT_IC;
 }
 
 inline bool IsKeyedStoreICKind(FeedbackVectorSlotKind kind) {
-  return kind == FeedbackVectorSlotKind::KEYED_STORE_IC;
+  return kind == FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC ||
+         kind == FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC;
+}
+
+inline LanguageMode GetLanguageModeFromICKind(FeedbackVectorSlotKind kind) {
+  DCHECK(IsStoreICKind(kind) || IsKeyedStoreICKind(kind));
+  return (kind == FeedbackVectorSlotKind::STORE_SLOPPY_IC ||
+          kind == FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC)
+             ? SLOPPY
+             : STRICT;
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind);
@@ -69,8 +81,6 @@ std::ostream& operator<<(std::ostream& os, FeedbackVectorSlotKind kind);
 template <typename Derived>
 class FeedbackVectorSpecBase {
  public:
-  inline FeedbackVectorSlot AddSlot(FeedbackVectorSlotKind kind);
-
   FeedbackVectorSlot AddCallICSlot() {
     return AddSlot(FeedbackVectorSlotKind::CALL_IC);
   }
@@ -91,12 +101,18 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
 
-  FeedbackVectorSlot AddStoreICSlot() {
-    return AddSlot(FeedbackVectorSlotKind::STORE_IC);
+  FeedbackVectorSlot AddStoreICSlot(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 2);
+    return AddSlot(is_strict(language_mode)
+                       ? FeedbackVectorSlotKind::STORE_STRICT_IC
+                       : FeedbackVectorSlotKind::STORE_SLOPPY_IC);
   }
 
-  FeedbackVectorSlot AddKeyedStoreICSlot() {
-    return AddSlot(FeedbackVectorSlotKind::KEYED_STORE_IC);
+  FeedbackVectorSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
+    STATIC_ASSERT(LANGUAGE_END == 2);
+    return AddSlot(is_strict(language_mode)
+                       ? FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC
+                       : FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC);
   }
 
   FeedbackVectorSlot AddInterpreterBinaryOpICSlot() {
@@ -127,6 +143,8 @@ class FeedbackVectorSpecBase {
   DECLARE_PRINTER(FeedbackVectorSpec)
 
  private:
+  inline FeedbackVectorSlot AddSlot(FeedbackVectorSlotKind kind);
+
   Derived* This() { return static_cast<Derived*>(this); }
 };
 
@@ -138,9 +156,9 @@ class StaticFeedbackVectorSpec
 
   int slots() const { return slot_count_; }
 
-  FeedbackVectorSlotKind GetKind(int slot) const {
-    DCHECK(slot >= 0 && slot < slot_count_);
-    return kinds_[slot];
+  FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const {
+    DCHECK(slot.ToInt() >= 0 && slot.ToInt() < slot_count_);
+    return kinds_[slot.ToInt()];
   }
 
  private:
@@ -166,8 +184,8 @@ class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
 
   int slots() const { return static_cast<int>(slot_kinds_.size()); }
 
-  FeedbackVectorSlotKind GetKind(int slot) const {
-    return static_cast<FeedbackVectorSlotKind>(slot_kinds_.at(slot));
+  FeedbackVectorSlotKind GetKind(FeedbackVectorSlot slot) const {
+    return static_cast<FeedbackVectorSlotKind>(slot_kinds_.at(slot.ToInt()));
   }
 
  private:
@@ -294,6 +312,11 @@ class TypeFeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
 #undef DEFINE_SLOT_KIND_PREDICATE
 
+  // Returns language mode encoded into kind of given slot.
+  inline LanguageMode GetLanguageMode(FeedbackVectorSlot slot) const {
+    return GetLanguageModeFromICKind(GetKind(slot));
+  }
+
 #ifdef OBJECT_PRINT
   // For gdb debugging.
   void Print();
@@ -322,9 +345,6 @@ class TypeFeedbackVector : public FixedArray {
   static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
 
   static const int kDummyLoadICSlot = 0;
-  static const int kDummyKeyedLoadICSlot = 2;
-  static const int kDummyStoreICSlot = 4;
-  static const int kDummyKeyedStoreICSlot = 6;
 
   static Handle<TypeFeedbackVector> DummyVector(Isolate* isolate);
 
@@ -567,10 +587,6 @@ class KeyedLoadICNexus : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsKeyedLoadIC(slot));
   }
-  explicit KeyedLoadICNexus(Isolate* isolate)
-      : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot)) {}
   KeyedLoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsKeyedLoadIC(slot));
@@ -599,10 +615,6 @@ class StoreICNexus : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsStoreIC(slot));
   }
-  explicit StoreICNexus(Isolate* isolate)
-      : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot)) {}
   StoreICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsStoreIC(slot));
@@ -625,10 +637,6 @@ class KeyedStoreICNexus : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsKeyedStoreIC(slot));
   }
-  explicit KeyedStoreICNexus(Isolate* isolate)
-      : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot)) {}
   KeyedStoreICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsKeyedStoreIC(slot));

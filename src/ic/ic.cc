@@ -2108,6 +2108,11 @@ Handle<Object> StoreIC::CompileHandler(LookupIterator* lookup,
         DCHECK(!info->is_sloppy() || receiver->IsJSReceiver());
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
         NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
+        // TODO(ishell): don't hard-code language mode into the handler because
+        // this handler can be re-used through megamorphic stub cache for wrong
+        // language mode.
+        // Better pass vector/slot to Runtime::kStoreCallbackProperty and
+        // let it decode the language mode from the IC kind.
         Handle<Code> code = compiler.CompileStoreCallback(
             receiver, lookup->name(), info, language_mode());
         return code;
@@ -2651,13 +2656,12 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   DCHECK_EQ(5, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
-  // slot and vector parameters are not used.
+  Handle<Smi> slot = args.at<Smi>(1);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
   Handle<Object> object = args.at(3);
   Handle<Object> key = args.at(4);
-  LanguageMode language_mode;
-  KeyedStoreICNexus nexus(isolate);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-  language_mode = ic.language_mode();
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
@@ -2666,15 +2670,16 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
 
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   HandleScope scope(isolate);
+  DCHECK_EQ(6, args.length());
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> object = args.at(0);
   Handle<Object> key = args.at(1);
   Handle<Object> value = args.at(2);
   Handle<Map> map = args.at<Map>(3);
-  LanguageMode language_mode;
-  KeyedStoreICNexus nexus(isolate);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-  language_mode = ic.language_mode();
+  Handle<Smi> slot = args.at<Smi>(4);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(5);
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
@@ -3081,12 +3086,15 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
 RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 3);
-  StoreICNexus nexus(isolate);
-  StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-  Handle<JSObject> receiver = args.at<JSObject>(0);
-  Handle<Name> name = args.at<Name>(1);
-  Handle<Object> value = args.at(2);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<Smi> slot = args.at<Smi>(1);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<JSObject> receiver = args.at<JSObject>(3);
+  Handle<Name> name = args.at<Name>(4);
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
 
   DCHECK(receiver->HasNamedInterceptor());
   InterceptorInfo* interceptor = receiver->GetNamedInterceptor();
@@ -3111,7 +3119,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   DCHECK_EQ(LookupIterator::INTERCEPTOR, it.state());
   it.Next();
 
-  MAYBE_RETURN(Object::SetProperty(&it, value, ic.language_mode(),
+  MAYBE_RETURN(Object::SetProperty(&it, value, language_mode,
                                    JSReceiver::CERTAINLY_NOT_STORE_FROM_KEYED),
                isolate->heap()->exception());
   return *value;

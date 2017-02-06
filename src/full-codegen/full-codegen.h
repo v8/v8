@@ -570,6 +570,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   LanguageMode language_mode();
   bool has_simple_parameters();
   FunctionLiteral* literal() const;
+  const FeedbackVectorSpec* feedback_vector_spec() const;
   Scope* scope() { return scope_; }
 
   static Register context_register();

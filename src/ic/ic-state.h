@@ -212,36 +212,6 @@ class LoadGlobalICState final BASE_EMBEDDED {
                                                     << TypeofModeBits::kShift;
 };
 
-
-class StoreICState final BASE_EMBEDDED {
- public:
-  explicit StoreICState(ExtraICState extra_ic_state) : state_(extra_ic_state) {}
-
-  explicit StoreICState(LanguageMode mode)
-      : state_(LanguageModeState::encode(mode)) {}
-
-  ExtraICState GetExtraICState() const { return state_; }
-
-  LanguageMode language_mode() const {
-    return LanguageModeState::decode(state_);
-  }
-
-  static LanguageMode GetLanguageMode(ExtraICState state) {
-    return StoreICState(state).language_mode();
-  }
-
-  class LanguageModeState : public BitField<LanguageMode, 1, 1> {};
-  STATIC_ASSERT(i::LANGUAGE_END == 2);
-
-  // For convenience, a statically declared encoding of strict mode extra
-  // IC state.
-  static const ExtraICState kStrictModeState = STRICT
-                                               << LanguageModeState::kShift;
-
- private:
-  const ExtraICState state_;
-};
-
 }  // namespace internal
 }  // namespace v8
 

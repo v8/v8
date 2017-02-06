@@ -21,6 +21,7 @@ BytecodeArrayBuilder::BytecodeArrayBuilder(
     int locals_count, FunctionLiteral* literal,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),
+      literal_(literal),
       bytecode_generated_(false),
       constant_array_builder_(zone, isolate->factory()->the_hole_value()),
       handler_table_builder_(zone),
@@ -564,6 +565,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     Register object, const Handle<Name> name, int feedback_slot,
     LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that language mode is in sync with the IC slot kind if the function
+  // literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+             language_mode);
+  }
   if (language_mode == SLOPPY) {
     OutputStaNamedPropertySloppy(object, name_index, feedback_slot);
   } else {
@@ -576,6 +585,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {
+  // Ensure that language mode is in sync with the IC slot kind if the function
+  // literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+             language_mode);
+  }
   if (language_mode == SLOPPY) {
     OutputStaKeyedPropertySloppy(object, key, feedback_slot);
   } else {

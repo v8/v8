@@ -364,7 +364,7 @@ class StoreIC : public IC {
   }
 
   LanguageMode language_mode() const {
-    return StoreICState::GetLanguageMode(extra_ic_state());
+    return nexus()->vector()->GetLanguageMode(nexus()->slot());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
@@ -380,6 +380,10 @@ class StoreIC : public IC {
  protected:
   // Stub accessors.
   Handle<Code> slow_stub() const {
+    // TODO(ishell): don't hard-code language mode into the handler because
+    // this handler can be re-used through megamorphic stub cache for wrong
+    // language mode.
+    // The slow stub must decode the language mode from the IC kind.
     switch (language_mode()) {
       case SLOPPY:
         return isolate()->builtins()->StoreIC_SlowSloppy();

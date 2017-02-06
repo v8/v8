@@ -230,6 +230,9 @@ void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
+  // Ensure that language mode is in sync with the IC slot kind.
+  DCHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+            language_mode());
   Handle<Code> code = CodeFactory::StoreIC(isolate(), language_mode()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
@@ -245,6 +248,9 @@ void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
     EmitLoadSlot(StoreDescriptor::SlotRegister(), slot);
   }
 
+  // Ensure that language mode is in sync with the IC slot kind.
+  DCHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+            language_mode());
   Handle<Code> code =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
@@ -1604,6 +1610,10 @@ bool FullCodeGenerator::has_simple_parameters() {
 }
 
 FunctionLiteral* FullCodeGenerator::literal() const { return info_->literal(); }
+
+const FeedbackVectorSpec* FullCodeGenerator::feedback_vector_spec() const {
+  return literal()->feedback_vector_spec();
+}
 
 #undef __
 

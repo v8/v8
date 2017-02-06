@@ -204,9 +204,8 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   PropertyAccess const& p = PropertyAccessOf(node->op());
-  LanguageMode language_mode = p.language_mode();
   Callable callable =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), language_mode);
+      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), p.language_mode());
   Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
   typedef StoreWithVectorDescriptor Descriptor;
   node->InsertInputs(zone(), 0, 2);

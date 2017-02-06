@@ -976,7 +976,7 @@ namespace internal {
   F(LoadPropertyWithInterceptorOnly, 3, 1)   \
   F(StoreCallbackProperty, 6, 1)             \
   F(StoreIC_Miss, 5, 1)                      \
-  F(StorePropertyWithInterceptor, 3, 1)      \
+  F(StorePropertyWithInterceptor, 5, 1)      \
   F(ToBooleanIC_Miss, 1, 1)                  \
   F(Unreachable, 0, 1)
 

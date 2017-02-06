@@ -54,25 +54,13 @@ void IC::SetTargetAtAddress(Address address, Code* target,
                             Address constant_pool) {
   if (AddressIsDeoptimizedCode(target->GetIsolate(), address)) return;
 
-  DCHECK(target->is_inline_cache_stub() || target->is_compare_ic_stub());
-
-  DCHECK(!target->is_inline_cache_stub() ||
-         (target->kind() != Code::LOAD_IC &&
-          target->kind() != Code::KEYED_LOAD_IC &&
-          target->kind() != Code::STORE_IC &&
-          target->kind() != Code::KEYED_STORE_IC));
+  // Only these three old-style ICs still do code patching.
+  DCHECK(target->is_binary_op_stub() || target->is_compare_ic_stub() ||
+         target->is_to_boolean_ic_stub());
 
   Heap* heap = target->GetHeap();
   Code* old_target = GetTargetAtAddress(address, constant_pool);
-#ifdef DEBUG
-  // STORE_IC and KEYED_STORE_IC use Code::extra_ic_state() to mark
-  // ICs as language mode. The language mode of the IC must be preserved.
-  if (old_target->kind() == Code::STORE_IC ||
-      old_target->kind() == Code::KEYED_STORE_IC) {
-    DCHECK(StoreICState::GetLanguageMode(old_target->extra_ic_state()) ==
-           StoreICState::GetLanguageMode(target->extra_ic_state()));
-  }
-#endif
+
   Assembler::set_target_address_at(heap->isolate(), address, constant_pool,
                                    target->instruction_start());
   if (heap->gc_state() == Heap::MARK_COMPACT) {

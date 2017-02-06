@@ -385,6 +385,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
             OperandType... operand_types>
   friend class BytecodeNodeBuilder;
 
+  const FeedbackVectorSpec* feedback_vector_spec() const {
+    return literal_->feedback_vector_spec();
+  }
+
   // Returns the current source position for the given |bytecode|.
   INLINE(BytecodeSourceInfo CurrentSourcePosition(Bytecode bytecode));
 
@@ -427,6 +431,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   }
 
   Zone* zone_;
+  FunctionLiteral* literal_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;

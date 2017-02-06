@@ -1547,6 +1547,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     DCHECK(access_info.IsGeneric());
     DCHECK_EQ(AccessMode::kStore, access_mode);
     DCHECK(vector->IsStoreIC(slot));
+    DCHECK_EQ(vector->GetLanguageMode(slot), language_mode);
     Callable callable =
         CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();

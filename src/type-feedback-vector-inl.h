@@ -63,8 +63,10 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
     case FeedbackVectorSlotKind::LOAD_IC:
     case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-    case FeedbackVectorSlotKind::STORE_IC:
-    case FeedbackVectorSlotKind::KEYED_STORE_IC:
+    case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
+    case FeedbackVectorSlotKind::STORE_STRICT_IC:
+    case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
+    case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC:
     case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
       return 2;
 
@@ -174,8 +176,10 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       case FeedbackVectorSlotKind::LOAD_IC:
       case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
       case FeedbackVectorSlotKind::KEYED_LOAD_IC:
-      case FeedbackVectorSlotKind::STORE_IC:
-      case FeedbackVectorSlotKind::KEYED_STORE_IC:
+      case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
+      case FeedbackVectorSlotKind::STORE_STRICT_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
+      case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC:
       case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
         if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
           with++;
