@@ -1104,9 +1104,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserStatement DeclareFunction(
       PreParserIdentifier variable_name, PreParserExpression function,
-      VariableMode mode, int pos, bool is_generator, bool is_async,
-      bool is_sloppy_block_function, ZoneList<const AstRawString*>* names,
-      bool* ok) {
+      VariableMode mode, int pos, bool is_sloppy_block_function,
+      ZoneList<const AstRawString*>* names, bool* ok) {
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
       DCHECK(track_unresolved_variables_);

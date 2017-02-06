@@ -3881,7 +3881,6 @@ ParserBase<Impl>::ParseHoistableDeclaration(
       !is_async && !(allow_harmony_restrictive_generators() && is_generator);
 
   return impl()->DeclareFunction(variable_name, function, mode, pos,
-                                 is_generator, is_async,
                                  is_sloppy_block_function, names, ok);
 }
 
