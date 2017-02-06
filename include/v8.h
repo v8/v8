@@ -6806,9 +6806,9 @@ class V8_EXPORT Isolate {
    * for partially dependent handles only.
    */
   template <typename T>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetObjectGroupId(const Persistent<T>& object,
-                                          UniqueId id));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetObjectGroupId(const Persistent<T>& object,
+                                      UniqueId id));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6818,9 +6818,9 @@ class V8_EXPORT Isolate {
    * callback function.
    */
   template <typename T>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetReferenceFromGroup(UniqueId id,
-                                               const Persistent<T>& child));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetReferenceFromGroup(UniqueId id,
+                                           const Persistent<T>& child));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6829,9 +6829,9 @@ class V8_EXPORT Isolate {
    * is intended to be used in the before-garbage-collection callback function.
    */
   template <typename T, typename S>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetReference(const Persistent<T>& parent,
-                                      const Persistent<S>& child));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetReference(const Persistent<T>& parent,
+                                  const Persistent<S>& child));
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);
