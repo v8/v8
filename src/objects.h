@@ -188,19 +188,6 @@ enum MutableMode {
 };
 
 
-enum ExternalArrayType {
-  kExternalInt8Array = 1,
-  kExternalUint8Array,
-  kExternalInt16Array,
-  kExternalUint16Array,
-  kExternalInt32Array,
-  kExternalUint32Array,
-  kExternalFloat32Array,
-  kExternalFloat64Array,
-  kExternalUint8ClampedArray,
-};
-
-
 static inline bool IsTransitionStoreMode(KeyedAccessStoreMode store_mode) {
   return store_mode == STORE_TRANSITION_TO_OBJECT ||
          store_mode == STORE_TRANSITION_TO_DOUBLE ||

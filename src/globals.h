@@ -1321,6 +1321,18 @@ enum class DataPropertyInLiteralFlag {
 typedef base::Flags<DataPropertyInLiteralFlag> DataPropertyInLiteralFlags;
 DEFINE_OPERATORS_FOR_FLAGS(DataPropertyInLiteralFlags)
 
+enum ExternalArrayType {
+  kExternalInt8Array = 1,
+  kExternalUint8Array,
+  kExternalInt16Array,
+  kExternalUint16Array,
+  kExternalInt32Array,
+  kExternalUint32Array,
+  kExternalFloat32Array,
+  kExternalFloat64Array,
+  kExternalUint8ClampedArray,
+};
+
 }  // namespace internal
 }  // namespace v8
 

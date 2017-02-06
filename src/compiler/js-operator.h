@@ -7,14 +7,18 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
+#include "src/handles.h"
 #include "src/runtime/runtime.h"
 #include "src/type-hints.h"
 
 namespace v8 {
 namespace internal {
 
+class AllocationSite;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class SharedFunctionInfo;
+class TypeFeedbackVector;
 
 namespace compiler {
 
