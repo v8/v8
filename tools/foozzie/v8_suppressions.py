@@ -78,8 +78,6 @@ IGNORE_SOURCES = {
 # TODO(machenbach): Insert a JS sentinel between the two parts, because
 # comments are stripped during minimization.
 IGNORE_TEST_CASES = {
-  'crbug.com/679957':
-      re.compile(r'.*performance\.now.*', re.S),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used

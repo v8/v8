@@ -51,6 +51,11 @@ var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
   Date = new Proxy(Date, handler);
 })();
 
+// Mock performace.now().
+(function () {
+  performance.now = function () { return 1.2; }
+})();
+
 // Mock stack traces.
 Error.prepareStackTrace = function (error, structuredStackTrace) {
   return "";
