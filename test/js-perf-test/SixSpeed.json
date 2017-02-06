@@ -37,6 +37,20 @@
       ]
     },
     {
+      "name": "Defaults",
+      "path": ["SixSpeed/defaults"],
+      "main": "run.js",
+      "resources": [
+        "run.js",
+        "defaults.js"
+      ],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Defaults-ES5"},
+        {"name": "Defaults-ES6"}
+      ]
+    },
+    {
       "name": "Spread",
       "path": ["SixSpeed/spread"],
       "main": "run.js",
