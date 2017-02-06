@@ -59,6 +59,7 @@
     {
       "name": "Spread",
       "path": ["SixSpeed"],
+      "flags": ["--future"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
         {
