@@ -4088,6 +4088,11 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
+void MacroAssembler::DebugBreak() {
+  Call(isolate()->builtins()->HandleDebuggerStatement(),
+       RelocInfo::DEBUGGER_STATEMENT);
+}
+
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =

@@ -317,6 +317,7 @@ class RelocInfo {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,  // Code target which is not any of the above.
     CODE_TARGET_WITH_ID,
+    DEBUGGER_STATEMENT,  // Code target for the debugger statement.
     EMBEDDED_OBJECT,
     // To relocate pointers into the wasm memory embedded in wasm code
     WASM_MEMORY_REFERENCE,
@@ -365,7 +366,7 @@ class RelocInfo {
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
-    LAST_CODE_ENUM = CODE_TARGET_WITH_ID,
+    LAST_CODE_ENUM = DEBUGGER_STATEMENT,
     LAST_GCED_ENUM = WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     FIRST_SHAREABLE_RELOC_MODE = CELL,
   };
@@ -440,6 +441,9 @@ class RelocInfo {
   }
   static inline bool IsDebugBreakSlotAtTailCall(Mode mode) {
     return mode == DEBUG_BREAK_SLOT_AT_TAIL_CALL;
+  }
+  static inline bool IsDebuggerStatement(Mode mode) {
+    return mode == DEBUGGER_STATEMENT;
   }
   static inline bool IsNone(Mode mode) {
     return mode == NONE32 || mode == NONE64;

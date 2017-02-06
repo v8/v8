@@ -1080,9 +1080,13 @@ class MacroAssembler: public Assembler {
                         Register scratch,
                         Label* fail);
 
-  // Frame restart support.
+  // -------------------------------------------------------------------------
+  // Debugger Support.
+
+  void DebugBreak();
   void MaybeDropFrames();
 
+  // -------------------------------------------------------------------------
   // Exception handling.
 
   // Push a new stack handler and link into stack handler chain.

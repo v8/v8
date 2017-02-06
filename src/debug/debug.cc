@@ -186,6 +186,7 @@ int CodeBreakIterator::GetModeMask() {
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_CALL);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_TAIL_CALL);
   mask |= RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT_AT_POSITION);
+  mask |= RelocInfo::ModeMask(RelocInfo::DEBUGGER_STATEMENT);
   return mask;
 }
 
@@ -210,7 +211,8 @@ void CodeBreakIterator::Next() {
     source_position_iterator_.Advance();
   }
 
-  DCHECK(RelocInfo::IsDebugBreakSlot(rmode()));
+  DCHECK(RelocInfo::IsDebugBreakSlot(rmode()) ||
+         RelocInfo::IsDebuggerStatement(rmode()));
   break_index_++;
 }
 
@@ -223,6 +225,8 @@ DebugBreakType CodeBreakIterator::GetDebugBreakType() {
     return isolate()->is_tail_call_elimination_enabled()
                ? DEBUG_BREAK_SLOT_AT_TAIL_CALL
                : DEBUG_BREAK_SLOT_AT_CALL;
+  } else if (RelocInfo::IsDebuggerStatement(rmode())) {
+    return DEBUGGER_STATEMENT;
   } else if (RelocInfo::IsDebugBreakSlot(rmode())) {
     return DEBUG_BREAK_SLOT;
   } else {
@@ -238,6 +242,7 @@ void CodeBreakIterator::SkipToPosition(int position,
 
 void CodeBreakIterator::SetDebugBreak() {
   DebugBreakType debug_break_type = GetDebugBreakType();
+  if (debug_break_type == DEBUGGER_STATEMENT) return;
   DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
   Builtins* builtins = isolate()->builtins();
   Handle<Code> target = debug_break_type == DEBUG_BREAK_SLOT_AT_RETURN
@@ -247,12 +252,16 @@ void CodeBreakIterator::SetDebugBreak() {
 }
 
 void CodeBreakIterator::ClearDebugBreak() {
-  DCHECK(GetDebugBreakType() >= DEBUG_BREAK_SLOT);
+  DebugBreakType debug_break_type = GetDebugBreakType();
+  if (debug_break_type == DEBUGGER_STATEMENT) return;
+  DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
   DebugCodegen::ClearDebugBreakSlot(isolate(), rinfo()->pc());
 }
 
 bool CodeBreakIterator::IsDebugBreak() {
-  DCHECK(GetDebugBreakType() >= DEBUG_BREAK_SLOT);
+  DebugBreakType debug_break_type = GetDebugBreakType();
+  if (debug_break_type == DEBUGGER_STATEMENT) return false;
+  DCHECK(debug_break_type >= DEBUG_BREAK_SLOT);
   return DebugCodegen::DebugBreakSlotIsPatched(rinfo()->pc());
 }
 
