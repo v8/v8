@@ -122,6 +122,7 @@ void FullCodeGenerator::Generate() {
   {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
+    __ movp(rcx, FieldOperand(rcx, Cell::kValueOffset));
     __ SmiAddConstant(
         FieldOperand(rcx,
                      TypeFeedbackVector::kInvocationCountIndex * kPointerSize +

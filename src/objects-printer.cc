@@ -1054,7 +1054,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "\n   - async";
   }
   os << "\n - context = " << Brief(context());
-  os << "\n - feedback vector = " << Brief(feedback_vector());
+  os << "\n - feedback vector cell = " << Brief(feedback_vector_cell());
   os << "\n - code = " << Brief(code());
   JSObjectPrintBody(os, this);
 }
@@ -1684,6 +1684,14 @@ extern void _v8_internal_Print_Object(void* object) {
 extern void _v8_internal_Print_Code(void* object) {
   i::Isolate* isolate = i::Isolate::Current();
   isolate->FindCodeObject(reinterpret_cast<i::Address>(object))->Print();
+}
+
+extern void _v8_internal_Print_TypeFeedbackMetadata(void* object) {
+  if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
+    printf("Not a type feedback metadata object\n");
+  } else {
+    reinterpret_cast<i::TypeFeedbackMetadata*>(object)->Print();
+  }
 }
 
 extern void _v8_internal_Print_TypeFeedbackVector(void* object) {

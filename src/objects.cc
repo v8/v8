@@ -11987,45 +11987,19 @@ void JSFunction::AttemptConcurrentOptimization() {
 }
 
 // static
-Handle<TypeFeedbackVector> SharedFunctionInfo::FindOrCreateVector(
-    Handle<SharedFunctionInfo> shared, Handle<Context> native_context) {
-  Isolate* isolate = shared->GetIsolate();
-  CodeAndVector result =
-      shared->SearchOptimizedCodeMap(*native_context, BailoutId::None());
-  if (result.vector != nullptr) {
-    DCHECK(shared->feedback_metadata()->is_empty() ||
-           !result.vector->is_empty());
-    return handle(result.vector, isolate);
-  }
-
-  Handle<TypeFeedbackVector> vector =
-      TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
-  Handle<Code> code;
-  if (result.code != nullptr) {
-    code = Handle<Code>(result.code, isolate);
-  }
-  AddToOptimizedCodeMap(shared, native_context, code, vector,
-                        BailoutId::None());
-  return vector;
-}
-
-// static
 void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<SharedFunctionInfo> shared, Handle<Context> native_context,
-    MaybeHandle<Code> code, Handle<TypeFeedbackVector> vector,
-    BailoutId osr_ast_id) {
+    Handle<Code> code, BailoutId osr_ast_id) {
   Isolate* isolate = shared->GetIsolate();
   if (isolate->serializer_enabled()) return;
-  DCHECK(code.is_null() ||
-         code.ToHandleChecked()->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(native_context->IsNativeContext());
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(kEntryLength == 2);
   Handle<FixedArray> new_code_map;
   int entry;
 
   if (!osr_ast_id.IsNone()) {
-    Context::AddToOptimizedCodeMap(native_context, shared,
-                                   code.ToHandleChecked(), vector, osr_ast_id);
+    Context::AddToOptimizedCodeMap(native_context, shared, code, osr_ast_id);
     return;
   }
 
@@ -12037,14 +12011,9 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     Handle<FixedArray> old_code_map(shared->optimized_code_map(), isolate);
     entry = shared->SearchOptimizedCodeMapEntry(*native_context);
     if (entry >= kEntriesStart) {
-      // Just set the code and vector of the entry.
-      if (!code.is_null()) {
-        Handle<WeakCell> code_cell =
-            isolate->factory()->NewWeakCell(code.ToHandleChecked());
-        old_code_map->set(entry + kCachedCodeOffset, *code_cell);
-      }
-      Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
-      old_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
+      // Just set the code of the entry.
+      Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+      old_code_map->set(entry + kCachedCodeOffset, *code_cell);
       return;
     }
 
@@ -12072,15 +12041,11 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     }
   }
 
-  Handle<WeakCell> code_cell =
-      code.is_null() ? isolate->factory()->empty_weak_cell()
-                     : isolate->factory()->NewWeakCell(code.ToHandleChecked());
-  Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
+  Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
   WeakCell* context_cell = native_context->self_weak_cell();
 
   new_code_map->set(entry + kContextOffset, context_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
-  new_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
 
 #ifdef DEBUG
   for (int i = kEntriesStart; i < new_code_map->length(); i += kEntryLength) {
@@ -12090,8 +12055,6 @@ void SharedFunctionInfo::AddToOptimizedCodeMap(
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
-    cell = WeakCell::cast(new_code_map->get(i + kFeedbackVectorOffset));
-    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
   }
 #endif
 
@@ -12129,7 +12092,7 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
           ShortPrint();
           PrintF("]\n");
         }
-        // Just clear the code in order to continue sharing a feedback vector.
+        // Just clear the code.
         code_map->set(src + kCachedCodeOffset, heap->empty_weak_cell(),
                       SKIP_WRITE_BARRIER);
       }
@@ -12146,12 +12109,44 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
 void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<Context> native_context(function->context()->native_context());
-  if (function->feedback_vector() ==
-      function->GetIsolate()->heap()->empty_type_feedback_vector()) {
-    Handle<TypeFeedbackVector> vector =
-        SharedFunctionInfo::FindOrCreateVector(shared, native_context);
-    function->set_feedback_vector(*vector);
+  Isolate* isolate = shared->GetIsolate();
+
+  Cell* cell = function->feedback_vector_cell();
+  if (cell == isolate->heap()->undefined_cell()) {
+    if (FLAG_trace_strong_rooted_literals) {
+      PrintF("EnsureLiterals: Installing literals cell in %s %p\n",
+             shared->DebugName()->ToCString().get(),
+             reinterpret_cast<void*>(*function));
+    }
+    // Top level code didn't get it's literals installed.
+    Handle<TypeFeedbackVector> feedback_vector =
+        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+    Handle<Cell> new_cell = isolate->factory()->NewCell(feedback_vector);
+    function->set_feedback_vector_cell(*new_cell);
+  } else if (!cell->value()->IsTypeFeedbackVector() ||
+             !function->has_feedback_vector()) {
+    DCHECK(cell != isolate->heap()->undefined_cell());
+    if (FLAG_trace_strong_rooted_literals) {
+      PrintF("EnsureLiterals: Update literals cell in %s %p\n",
+             shared->DebugName()->ToCString().get(),
+             reinterpret_cast<void*>(*function));
+    }
+    Handle<TypeFeedbackVector> feedback_vector =
+        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+    // Re-get the feedback_vector() value as GC may have occurred.
+    function->feedback_vector_cell()->set_value(*feedback_vector);
+  } else {
+    if (FLAG_trace_strong_rooted_literals) {
+      PrintF("EnsureLiterals: did nothing for %s %p\n",
+             shared->DebugName()->ToCString().get(),
+             reinterpret_cast<void*>(*function));
+    }
   }
+
+  // No matter what, ensure some post-conditions.
+  DCHECK(shared->feedback_metadata()->slot_count() != 0 ||
+         function->feedback_vector() ==
+             shared->GetIsolate()->heap()->empty_type_feedback_vector());
 }
 
 static void GetMinInobjectSlack(Map* map, void* data) {
@@ -13730,15 +13725,11 @@ void SharedFunctionInfo::ClearCodeFromOptimizedCodeMap() {
   }
 }
 
-CodeAndVector SharedFunctionInfo::SearchOptimizedCodeMap(
-    Context* native_context, BailoutId osr_ast_id) {
-  CodeAndVector result = {nullptr, nullptr};
+Code* SharedFunctionInfo::SearchOptimizedCodeMap(Context* native_context,
+                                                 BailoutId osr_ast_id) {
+  Code* result = nullptr;
   if (!osr_ast_id.IsNone()) {
-    Code* code;
-    TypeFeedbackVector* vector;
-    native_context->SearchOptimizedCodeMap(this, osr_ast_id, &code, &vector);
-    result = {code, vector};
-    return result;
+    return native_context->SearchOptimizedCodeMap(this, osr_ast_id);
   }
 
   DCHECK(osr_ast_id.IsNone());
@@ -13747,12 +13738,7 @@ CodeAndVector SharedFunctionInfo::SearchOptimizedCodeMap(
     FixedArray* code_map = optimized_code_map();
     DCHECK_LE(entry + kEntryLength, code_map->length());
     WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
-    WeakCell* vector_cell =
-        WeakCell::cast(code_map->get(entry + kFeedbackVectorOffset));
-
-    result = {cell->cleared() ? nullptr : Code::cast(cell->value()),
-              vector_cell->cleared() ? nullptr : TypeFeedbackVector::cast(
-                                                     vector_cell->value())};
+    result = cell->cleared() ? nullptr : Code::cast(cell->value());
   }
   return result;
 }
@@ -14032,11 +14018,17 @@ int AbstractCode::SourceStatementPosition(int offset) {
 }
 
 void JSFunction::ClearTypeFeedbackInfo() {
-  feedback_vector()->ClearSlots(shared());
+  if (feedback_vector_cell()->value()->IsTypeFeedbackVector()) {
+    TypeFeedbackVector* vector = feedback_vector();
+    vector->ClearSlots(shared());
+  }
 }
 
 void JSFunction::ClearTypeFeedbackInfoAtGCTime() {
-  feedback_vector()->ClearSlotsAtGCTime(shared());
+  if (feedback_vector_cell()->value()->IsTypeFeedbackVector()) {
+    TypeFeedbackVector* vector = feedback_vector();
+    vector->ClearSlotsAtGCTime(shared());
+  }
 }
 
 BailoutId Code::TranslatePcOffsetToAstId(uint32_t pc_offset) {
@@ -17475,21 +17467,156 @@ Handle<Object> CompilationCacheTable::Lookup(Handle<String> src,
   return Handle<Object>(get(index + 1), isolate);
 }
 
+namespace {
 
-Handle<Object> CompilationCacheTable::LookupEval(
+const int kLiteralEntryLength = 2;
+const int kLiteralInitialLength = 2;
+const int kLiteralContextOffset = 0;
+const int kLiteralLiteralsOffset = 1;
+
+int SearchLiteralsMapEntry(CompilationCacheTable* cache, int cache_entry,
+                           Context* native_context) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(native_context->IsNativeContext());
+  Object* obj = cache->get(cache_entry);
+
+  if (obj->IsFixedArray()) {
+    FixedArray* literals_map = FixedArray::cast(obj);
+    int length = literals_map->length();
+    for (int i = 0; i < length; i += kLiteralEntryLength) {
+      if (WeakCell::cast(literals_map->get(i + kLiteralContextOffset))
+              ->value() == native_context) {
+        return i;
+      }
+    }
+  }
+  return -1;
+}
+
+void AddToLiteralsMap(Handle<CompilationCacheTable> cache, int cache_entry,
+                      Handle<Context> native_context, Handle<Cell> literals) {
+  Isolate* isolate = native_context->GetIsolate();
+  DCHECK(native_context->IsNativeContext());
+  STATIC_ASSERT(kLiteralEntryLength == 2);
+  Handle<FixedArray> new_literals_map;
+  int entry;
+
+  Object* obj = cache->get(cache_entry);
+
+  if (!obj->IsFixedArray() || FixedArray::cast(obj)->length() == 0) {
+    new_literals_map =
+        isolate->factory()->NewFixedArray(kLiteralInitialLength, TENURED);
+    entry = 0;
+  } else {
+    Handle<FixedArray> old_literals_map(FixedArray::cast(obj), isolate);
+    entry = SearchLiteralsMapEntry(*cache, cache_entry, *native_context);
+    if (entry >= 0) {
+      // Just set the code of the entry.
+      Handle<WeakCell> literals_cell =
+          isolate->factory()->NewWeakCell(literals);
+      old_literals_map->set(entry + kLiteralLiteralsOffset, *literals_cell);
+      return;
+    }
+
+    // Can we reuse an entry?
+    DCHECK(entry < 0);
+    int length = old_literals_map->length();
+    for (int i = 0; i < length; i += kLiteralEntryLength) {
+      if (WeakCell::cast(old_literals_map->get(i + kLiteralContextOffset))
+              ->cleared()) {
+        new_literals_map = old_literals_map;
+        entry = i;
+        break;
+      }
+    }
+
+    if (entry < 0) {
+      // Copy old optimized code map and append one new entry.
+      new_literals_map = isolate->factory()->CopyFixedArrayAndGrow(
+          old_literals_map, kLiteralEntryLength, TENURED);
+      entry = old_literals_map->length();
+    }
+  }
+
+  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  WeakCell* context_cell = native_context->self_weak_cell();
+
+  new_literals_map->set(entry + kLiteralContextOffset, context_cell);
+  new_literals_map->set(entry + kLiteralLiteralsOffset, *literals_cell);
+
+#ifdef DEBUG
+  for (int i = 0; i < new_literals_map->length(); i += kLiteralEntryLength) {
+    WeakCell* cell =
+        WeakCell::cast(new_literals_map->get(i + kLiteralContextOffset));
+    DCHECK(cell->cleared() || cell->value()->IsNativeContext());
+    cell = WeakCell::cast(new_literals_map->get(i + kLiteralLiteralsOffset));
+    DCHECK(cell->cleared() || (cell->value()->IsCell()));
+  }
+#endif
+
+  Object* old_literals_map = cache->get(cache_entry);
+  if (old_literals_map != *new_literals_map) {
+    cache->set(cache_entry, *new_literals_map);
+  }
+}
+
+Cell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
+                        Context* native_context) {
+  Cell* result = nullptr;
+  int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
+  if (entry >= 0) {
+    FixedArray* literals_map = FixedArray::cast(cache->get(cache_entry));
+    DCHECK_LE(entry + kLiteralEntryLength, literals_map->length());
+    WeakCell* cell =
+        WeakCell::cast(literals_map->get(entry + kLiteralLiteralsOffset));
+
+    result = cell->cleared() ? nullptr : Cell::cast(cell->value());
+  }
+  DCHECK(result == nullptr || result->IsCell());
+  return result;
+}
+
+}  // namespace
+
+InfoVectorPair CompilationCacheTable::LookupScript(Handle<String> src,
+                                                   Handle<Context> context,
+                                                   LanguageMode language_mode) {
+  InfoVectorPair empty_result;
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
+  int entry = FindEntry(&key);
+  if (entry == kNotFound) return empty_result;
+  int index = EntryToIndex(entry);
+  if (!get(index)->IsFixedArray()) return empty_result;
+  Object* obj = get(index + 1);
+  if (obj->IsSharedFunctionInfo()) {
+    Cell* literals =
+        SearchLiteralsMap(this, index + 2, context->native_context());
+    return InfoVectorPair(SharedFunctionInfo::cast(obj), literals);
+  }
+  return empty_result;
+}
+
+InfoVectorPair CompilationCacheTable::LookupEval(
     Handle<String> src, Handle<SharedFunctionInfo> outer_info,
-    LanguageMode language_mode, int scope_position) {
-  Isolate* isolate = GetIsolate();
+    Handle<Context> native_context, LanguageMode language_mode,
+    int scope_position) {
+  InfoVectorPair empty_result;
   // Cache key is the tuple (source, outer shared function info, scope position)
   // to unambiguously identify the context chain the cached eval code assumes.
   StringSharedKey key(src, outer_info, language_mode, scope_position);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return isolate->factory()->undefined_value();
+  if (entry == kNotFound) return empty_result;
   int index = EntryToIndex(entry);
-  if (!get(index)->IsFixedArray()) return isolate->factory()->undefined_value();
-  return Handle<Object>(get(EntryToIndex(entry) + 1), isolate);
+  if (!get(index)->IsFixedArray()) return empty_result;
+  Object* obj = get(EntryToIndex(entry) + 1);
+  if (obj->IsSharedFunctionInfo()) {
+    Cell* literals =
+        SearchLiteralsMap(this, EntryToIndex(entry) + 2, *native_context);
+    return InfoVectorPair(SharedFunctionInfo::cast(obj), literals);
+  }
+  return empty_result;
 }
-
 
 Handle<Object> CompilationCacheTable::LookupRegExp(Handle<String> src,
                                                    JSRegExp::Flags flags) {
@@ -17517,20 +17644,41 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
   return cache;
 }
 
+Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
+    Handle<CompilationCacheTable> cache, Handle<String> src,
+    Handle<Context> context, LanguageMode language_mode,
+    Handle<SharedFunctionInfo> value, Handle<Cell> literals) {
+  Isolate* isolate = cache->GetIsolate();
+  Handle<SharedFunctionInfo> shared(context->closure()->shared());
+  Handle<Context> native_context(context->native_context());
+  StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
+  Handle<Object> k = key.AsHandle(isolate);
+  cache = EnsureCapacity(cache, 1, &key);
+  int entry = cache->FindInsertionEntry(key.Hash());
+  cache->set(EntryToIndex(entry), *k);
+  cache->set(EntryToIndex(entry) + 1, *value);
+  AddToLiteralsMap(cache, EntryToIndex(entry) + 2, native_context, literals);
+  cache->ElementAdded();
+  return cache;
+}
 
 Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-    int scope_position) {
+    Handle<Context> native_context, Handle<Cell> literals, int scope_position) {
   Isolate* isolate = cache->GetIsolate();
   StringSharedKey key(src, outer_info, value->language_mode(), scope_position);
   {
     Handle<Object> k = key.AsHandle(isolate);
-    DisallowHeapAllocation no_allocation_scope;
     int entry = cache->FindEntry(&key);
     if (entry != kNotFound) {
       cache->set(EntryToIndex(entry), *k);
       cache->set(EntryToIndex(entry) + 1, *value);
+      // AddToLiteralsMap may allocate a new sub-array to live in the entry,
+      // but it won't change the cache array. Therefore EntryToIndex and
+      // entry remains correct.
+      AddToLiteralsMap(cache, EntryToIndex(entry) + 2, native_context,
+                       literals);
       return cache;
     }
   }
@@ -17585,8 +17733,9 @@ void CompilationCacheTable::Age() {
               ? info->bytecode_array()->IsOld()
               : info->code()->kind() != Code::FUNCTION || info->code()->IsOld();
       if (is_old) {
-        NoWriteBarrierSet(this, entry_index, the_hole_value);
-        NoWriteBarrierSet(this, value_index, the_hole_value);
+        for (int i = 0; i < kEntrySize; i++) {
+          NoWriteBarrierSet(this, entry_index + i, the_hole_value);
+        }
         ElementRemoved();
       }
     }
@@ -17601,8 +17750,9 @@ void CompilationCacheTable::Remove(Object* value) {
     int entry_index = EntryToIndex(entry);
     int value_index = entry_index + 1;
     if (get(value_index) == value) {
-      NoWriteBarrierSet(this, entry_index, the_hole_value);
-      NoWriteBarrierSet(this, value_index, the_hole_value);
+      for (int i = 0; i < kEntrySize; i++) {
+        NoWriteBarrierSet(this, entry_index + i, the_hole_value);
+      }
       ElementRemoved();
     }
   }

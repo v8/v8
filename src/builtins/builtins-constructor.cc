@@ -120,14 +120,14 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  Node* empty_feedback_vector =
-      HeapConstant(factory->empty_type_feedback_vector());
   StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
+  Node* literals_cell = LoadFixedArrayElement(
+      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
-                                 empty_feedback_vector);
+                                 literals_cell);
   StoreObjectFieldNoWriteBarrier(
       result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -401,9 +401,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
 
   Variable result(this, MachineRepresentation::kTagged);
 
-  Node* vector_array =
-      LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* boilerplate = LoadFixedArrayElement(vector_array, literal_index, 0,
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* literals_array = LoadObjectField(cell, Cell::kValueOffset);
+  Node* boilerplate = LoadFixedArrayElement(literals_array, literal_index, 0,
                                             CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(boilerplate), &call_runtime);
 
@@ -484,13 +484,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
       return_result(this);
   Variable result(this, MachineRepresentation::kTagged);
 
-  Node* vector_array =
-      LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* literals_array = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
-      vector_array, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      literals_array, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
 
   GotoIf(IsUndefined(allocation_site), call_runtime);
-  allocation_site = LoadFixedArrayElement(vector_array, literal_index, 0,
+  allocation_site = LoadFixedArrayElement(literals_array, literal_index, 0,
                                           CodeStubAssembler::SMI_PARAMETERS);
 
   Node* boilerplate =
@@ -642,10 +642,10 @@ int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     CodeAssemblerLabel* call_runtime, Node* closure, Node* literals_index,
     Node* properties_count) {
-  Node* vector_array =
-      LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* literals_array = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
-      vector_array, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      literals_array, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(allocation_site), call_runtime);
 
   // Calculate the object and allocation size based on the properties count.

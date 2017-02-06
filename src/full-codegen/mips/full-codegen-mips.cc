@@ -142,6 +142,7 @@ void FullCodeGenerator::Generate() {
   {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ lw(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
+    __ lw(a0, FieldMemOperand(a0, Cell::kValueOffset));
     __ lw(t0, FieldMemOperand(
                   a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
                           TypeFeedbackVector::kHeaderSize));

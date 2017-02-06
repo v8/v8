@@ -1018,6 +1018,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Increment invocation count for the function.
   __ lw(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
+  __ lw(a0, FieldMemOperand(a0, Cell::kValueOffset));
   __ lw(t0, FieldMemOperand(
                 a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
                         TypeFeedbackVector::kHeaderSize));
@@ -1352,18 +1353,24 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register argument_count = a0;
   Register closure = a1;
   Register new_target = a3;
+  Register map = a0;
+  Register index = a2;
+
+  // Do we have a valid feedback vector?
+  __ lw(index, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ lw(index, FieldMemOperand(index, Cell::kValueOffset));
+  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex,
+                &gotta_call_runtime_no_stack);
+
   __ push(argument_count);
   __ push(new_target);
   __ push(closure);
 
-  Register map = a0;
-  Register index = a2;
   __ lw(map, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ lw(map, FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ lw(index, FieldMemOperand(map, FixedArray::kLengthOffset));
-  __ Branch(&gotta_call_runtime, lt, index, Operand(Smi::FromInt(2)));
+  __ Branch(&try_shared, lt, index, Operand(Smi::FromInt(2)));
 
-  // Find literals.
   // a3  : native context
   // a2  : length / index
   // a0  : optimized code map
@@ -1383,20 +1390,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
                               SharedFunctionInfo::kOffsetToPreviousContext));
   __ lw(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ Branch(&loop_bottom, ne, temp, Operand(native_context));
-  // Feedback vector available?
-  __ lw(temp, FieldMemOperand(array_pointer,
-                              SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ lw(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the feedback vector in the closure.
-  __ lw(t0, MemOperand(sp, 0));
-  __ sw(temp, FieldMemOperand(t0, JSFunction::kFeedbackVectorOffset));
-  __ push(index);
-  __ RecordWriteField(t0, JSFunction::kFeedbackVectorOffset, temp, index,
-                      kRAHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
-  __ pop(index);
 
   // Code available?
   Register entry = t0;
@@ -1406,7 +1399,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ lw(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   __ pop(closure);
   // Store code entry in the closure.
   __ Addu(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -1441,9 +1434,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
           Operand(Smi::FromInt(SharedFunctionInfo::kEntryLength)));
   __ Branch(&loop_top, gt, index, Operand(Smi::FromInt(1)));
 
-  // We found neither literals nor code.
-  __ jmp(&gotta_call_runtime);
-
+  // We found no code.
   __ bind(&try_shared);
   __ pop(closure);
   __ pop(new_target);

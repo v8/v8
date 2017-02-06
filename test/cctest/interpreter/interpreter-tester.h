@@ -117,9 +117,6 @@ class InterpreterTester {
       function->shared()->set_function_data(*bytecode_.ToHandleChecked());
     }
     if (!feedback_metadata_.is_null()) {
-      // TODO(mvstanton): The call to ClearOptimizedCodeMap can be removed
-      // when we stop storing literals in the optimized code map (upcoming CL).
-      function->shared()->ClearOptimizedCodeMap();
       function->shared()->set_feedback_metadata(
           *feedback_metadata_.ToHandleChecked());
       JSFunction::EnsureLiterals(function);

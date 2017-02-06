@@ -361,7 +361,6 @@ TEST(FeedbackVectorUnaffectedByScopeChanges) {
   // If we are compiling lazily then it should not be compiled, and so no
   // feedback vector allocated yet.
   CHECK(!f->shared()->is_compiled());
-  CHECK(f->feedback_vector()->is_empty());
 
   CompileRun("morphing_call();");
 

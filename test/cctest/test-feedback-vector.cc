@@ -106,8 +106,8 @@ TEST(VectorStructure) {
     CHECK_EQ(1, TypeFeedbackMetadata::GetSlotSize(
                     FeedbackVectorSlotKind::CREATE_CLOSURE));
     FeedbackVectorSlot slot = helper.slot(1);
-    FixedArray* array = FixedArray::cast(vector->Get(slot));
-    CHECK_EQ(array, *factory->empty_type_feedback_vector());
+    Cell* cell = Cell::cast(vector->Get(slot));
+    CHECK_EQ(cell->value(), *factory->undefined_value());
   }
 }
 

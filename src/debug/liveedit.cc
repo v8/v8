@@ -742,43 +742,33 @@ static void ReplaceCodeObject(Handle<Code> original,
   }
 }
 
-
-// Patch function literals.
-// Name 'literals' is a misnomer. Rather it's a cache for complex object
-// boilerplates and for a native context. We must clean cached values.
-// Additionally we may need to allocate a new array if number of literals
-// changed.
-class LiteralFixer {
+// Patch function feedback vector.
+// The feedback vector is a cache for complex object boilerplates and for a
+// native context. We must clean cached values, or if the structure of the
+// vector itself changes we need to allocate a new one.
+class FeedbackVectorFixer {
  public:
-  static void PatchLiterals(FunctionInfoWrapper* compile_info_wrapper,
-                            Handle<SharedFunctionInfo> shared_info,
-                            bool feedback_metadata_changed, Isolate* isolate) {
+  static void PatchFeedbackVector(FunctionInfoWrapper* compile_info_wrapper,
+                                  Handle<SharedFunctionInfo> shared_info,
+                                  Isolate* isolate) {
     int new_literal_count = compile_info_wrapper->GetLiteralCount();
-    int old_literal_count = shared_info->num_literals();
 
-    if (old_literal_count == new_literal_count && !feedback_metadata_changed) {
-      // If literal count didn't change, simply go over all functions
-      // and clear literal arrays.
-      ClearValuesVisitor visitor;
-      IterateJSFunctions(shared_info, &visitor);
-    } else {
-      // When literal count changes, we have to create new array instances.
-      // Since we cannot create instances when iterating heap, we should first
-      // collect all functions and fix their literal arrays.
-      Handle<FixedArray> function_instances =
-          CollectJSFunctions(shared_info, isolate);
-      Handle<TypeFeedbackMetadata> feedback_metadata(
-          shared_info->feedback_metadata());
+    // When feedback metadata changes, we have to create new array instances.
+    // Since we cannot create instances when iterating heap, we should first
+    // collect all functions and fix their literal arrays.
+    Handle<FixedArray> function_instances =
+        CollectJSFunctions(shared_info, isolate);
+    Handle<TypeFeedbackMetadata> feedback_metadata(
+        shared_info->feedback_metadata());
 
-      for (int i = 0; i < function_instances->length(); i++) {
-        Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-        Handle<TypeFeedbackVector> vector =
-            TypeFeedbackVector::New(isolate, feedback_metadata);
-        fun->set_feedback_vector(*vector);
+    for (int i = 0; i < function_instances->length(); i++) {
+      Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
+      Handle<TypeFeedbackVector> vector =
+          TypeFeedbackVector::New(isolate, feedback_metadata);
+      fun->feedback_vector_cell()->set_value(*vector);
       }
 
       shared_info->set_num_literals(new_literal_count);
-    }
   }
 
  private:
@@ -815,14 +805,6 @@ class LiteralFixer {
     }
     return result;
   }
-
-  class ClearValuesVisitor {
-   public:
-    void visit(JSFunction* fun) {
-      TypeFeedbackVector* vector = fun->feedback_vector();
-      vector->ClearSlots(fun->shared());
-    }
-  };
 
   class CountVisitor {
    public:
@@ -896,7 +878,6 @@ void LiveEdit::ReplaceFunctionCode(
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
   Handle<SharedFunctionInfo> new_shared_info =
       compile_info_wrapper.GetSharedFunctionInfo();
-  bool feedback_metadata_changed = false;
 
   if (shared_info->is_compiled()) {
     // Take whatever code we can get from the new shared function info. We
@@ -943,8 +924,6 @@ void LiveEdit::ReplaceFunctionCode(
     // Update the type feedback vector, if needed.
     Handle<TypeFeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
-    feedback_metadata_changed =
-        new_feedback_metadata->DiffersFrom(shared_info->feedback_metadata());
     shared_info->set_feedback_metadata(*new_feedback_metadata);
   }
 
@@ -953,8 +932,8 @@ void LiveEdit::ReplaceFunctionCode(
   shared_info->set_start_position(start_position);
   shared_info->set_end_position(end_position);
 
-  LiteralFixer::PatchLiterals(&compile_info_wrapper, shared_info,
-                              feedback_metadata_changed, isolate);
+  FeedbackVectorFixer::PatchFeedbackVector(&compile_info_wrapper, shared_info,
+                                           isolate);
 
   DeoptimizeDependentFunctions(*shared_info);
   isolate->compilation_cache()->Remove(shared_info);

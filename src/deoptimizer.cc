@@ -3796,7 +3796,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> prototype = materializer.FieldAt(value_index);
       Handle<Object> shared = materializer.FieldAt(value_index);
       Handle<Object> context = materializer.FieldAt(value_index);
-      Handle<Object> vector = materializer.FieldAt(value_index);
+      Handle<Object> vector_cell = materializer.FieldAt(value_index);
       Handle<Object> entry = materializer.FieldAt(value_index);
       Handle<Object> next_link = materializer.FieldAt(value_index);
       object->ReplaceCode(*isolate_->builtins()->CompileLazy());
@@ -3806,7 +3806,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_prototype_or_initial_map(*prototype);
       object->set_shared(SharedFunctionInfo::cast(*shared));
       object->set_context(Context::cast(*context));
-      object->set_feedback_vector(TypeFeedbackVector::cast(*vector));
+      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
       CHECK(entry->IsNumber());  // Entry to compile lazy stub.
       CHECK(next_link->IsUndefined(isolate_));
       return object;

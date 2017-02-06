@@ -66,11 +66,6 @@ Node* JSGraph::EmptyFixedArrayConstant() {
                 HeapConstant(factory()->empty_fixed_array()));
 }
 
-Node* JSGraph::EmptyFeedbackVectorConstant() {
-  return CACHED(kEmptyFeedbackVectorConstant,
-                HeapConstant(factory()->empty_type_feedback_vector()));
-}
-
 Node* JSGraph::EmptyStringConstant() {
   return CACHED(kEmptyStringConstant, HeapConstant(factory()->empty_string()));
 }

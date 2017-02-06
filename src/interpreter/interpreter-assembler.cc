@@ -467,7 +467,8 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
 
 Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* function = LoadRegister(Register::function_closure());
-  Node* vector = LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
+  Node* cell = LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
+  Node* vector = LoadObjectField(cell, Cell::kValueOffset);
   return vector;
 }
 

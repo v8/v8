@@ -1028,6 +1028,12 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register new_target = edx;
   Register argument_count = eax;
 
+  // Do we have a valid feedback vector?
+  __ mov(ebx, FieldOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ mov(ebx, FieldOperand(ebx, Cell::kValueOffset));
+  __ JumpIfRoot(ebx, Heap::kUndefinedValueRootIndex,
+                &gotta_call_runtime_no_stack);
+
   __ push(argument_count);
   __ push(new_target);
   __ push(closure);
@@ -1038,9 +1044,8 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(map, FieldOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ mov(index, FieldOperand(map, FixedArray::kLengthOffset));
   __ cmp(index, Immediate(Smi::FromInt(2)));
-  __ j(less, &gotta_call_runtime);
+  __ j(less, &try_shared);
 
-  // Find literals.
   // edx : native context
   // ebx : length / index
   // eax : optimized code map
@@ -1058,19 +1063,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ cmp(temp, native_context);
   __ j(not_equal, &loop_bottom);
-  // Feedback vector available?
-  __ mov(temp, FieldOperand(map, index, times_half_pointer_size,
-                            SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the vector in the closure.
-  __ mov(ecx, Operand(esp, 0));
-  __ mov(FieldOperand(ecx, JSFunction::kFeedbackVectorOffset), temp);
-  __ push(index);
-  __ RecordWriteField(ecx, JSFunction::kFeedbackVectorOffset, temp, index,
-                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ pop(index);
 
   // Code available?
   Register entry = ecx;
@@ -1079,7 +1071,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(entry, FieldOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   __ pop(closure);
   // Store code entry in the closure.
   __ lea(entry, FieldOperand(entry, Code::kHeaderSize));
@@ -1113,9 +1105,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ cmp(index, Immediate(Smi::FromInt(1)));
   __ j(greater, &loop_top);
 
-  // We found neither literals nor code.
-  __ jmp(&gotta_call_runtime);
-
+  // We found no code.
   __ bind(&try_shared);
   __ pop(closure);
   __ pop(new_target);

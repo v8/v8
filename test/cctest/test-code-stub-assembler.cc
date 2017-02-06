@@ -2116,8 +2116,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->properties());
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
-  CHECK_EQ(isolate->heap()->empty_type_feedback_vector(),
-           fun->feedback_vector());
+  CHECK_EQ(isolate->heap()->undefined_cell(), fun->feedback_vector_cell());
   CHECK_EQ(isolate->heap()->the_hole_value(), fun->prototype_or_initial_map());
   CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
   CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());

@@ -972,6 +972,7 @@ void MacroAssembler::Prologue(bool code_pre_aging, Register base,
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   LoadP(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   LoadP(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
+  LoadP(vector, FieldMemOperand(vector, Cell::kValueOffset));
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,

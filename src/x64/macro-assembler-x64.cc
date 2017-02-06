@@ -4391,6 +4391,7 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   movp(vector, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   movp(vector, FieldOperand(vector, JSFunction::kFeedbackVectorOffset));
+  movp(vector, FieldOperand(vector, Cell::kValueOffset));
 }
 
 

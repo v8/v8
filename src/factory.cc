@@ -1163,7 +1163,6 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
                      FixedTypedArrayBase);
 }
 
-
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(
@@ -1171,7 +1170,6 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
       isolate()->heap()->AllocateCell(*value),
       Cell);
 }
-
 
 Handle<PropertyCell> Factory::NewPropertyCell() {
   CALL_HEAP_FUNCTION(
@@ -1421,8 +1419,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_code(info->code());
   function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
-  function->set_feedback_vector(
-      TypeFeedbackVector::cast(*empty_type_feedback_vector()));
+  function->set_feedback_vector_cell(*undefined_cell());
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
@@ -1555,7 +1552,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<TypeFeedbackVector> vector, PretenureFlag pretenure) {
+    Handle<Cell> vector, PretenureFlag pretenure) {
   int map_index =
       Context::FunctionMapIndex(info->language_mode(), info->kind());
   Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
@@ -1585,13 +1582,13 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, Handle<TypeFeedbackVector> vector,
+    Handle<Object> context_or_undefined, Handle<Cell> vector,
     PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  result->set_feedback_vector(*vector);
+  result->set_feedback_vector_cell(*vector);
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }

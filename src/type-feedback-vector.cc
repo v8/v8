@@ -203,37 +203,36 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
   array->set(kMetadataIndex, *metadata);
   array->set(kInvocationCountIndex, Smi::kZero);
 
-  DisallowHeapAllocation no_gc;
-
   // Ensure we can skip the write barrier
   Handle<Object> uninitialized_sentinel = UninitializedSentinel(isolate);
-  Handle<Oddball> undefined_value = factory->undefined_value();
   DCHECK_EQ(isolate->heap()->uninitialized_symbol(), *uninitialized_sentinel);
+  Handle<Oddball> undefined_value = factory->undefined_value();
   for (int i = 0; i < slot_count;) {
     FeedbackVectorSlot slot(i);
     FeedbackVectorSlotKind kind = metadata->GetKind(slot);
     int index = TypeFeedbackVector::GetIndex(slot);
     int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
 
-    Object* value;
     Object* extra_value = *uninitialized_sentinel;
     switch (kind) {
       case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
-        value = isolate->heap()->empty_weak_cell();
+        array->set(index, isolate->heap()->empty_weak_cell(),
+                   SKIP_WRITE_BARRIER);
         break;
       case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC:
       case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC:
-        value = Smi::kZero;
+        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
-      case FeedbackVectorSlotKind::CREATE_CLOSURE:
-        // TODO(mvstanton): Root feedback vectors in this location.
-        value = isolate->heap()->empty_type_feedback_vector();
+      case FeedbackVectorSlotKind::CREATE_CLOSURE: {
+        Handle<Cell> cell = factory->NewCell(undefined_value);
+        array->set(index, *cell);
         break;
+      }
       case FeedbackVectorSlotKind::LITERAL:
-        value = *undefined_value;
+        array->set(index, *undefined_value, SKIP_WRITE_BARRIER);
         break;
       case FeedbackVectorSlotKind::CALL_IC:
-        value = *uninitialized_sentinel;
+        array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         extra_value = Smi::kZero;
         break;
       case FeedbackVectorSlotKind::LOAD_IC:
@@ -244,16 +243,15 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
       case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC:
       case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
       case FeedbackVectorSlotKind::GENERAL:
-        value = *uninitialized_sentinel;
+        array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
       case FeedbackVectorSlotKind::INVALID:
       case FeedbackVectorSlotKind::KINDS_NUMBER:
         UNREACHABLE();
-        value = Smi::kZero;
+        array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
     }
-    array->set(index, value, SKIP_WRITE_BARRIER);
     for (int j = 1; j < entry_size; j++) {
       array->set(index + j, extra_value, SKIP_WRITE_BARRIER);
     }
@@ -271,13 +269,11 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::Copy(
   return result;
 }
 
-
 // This logic is copied from
 // StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
 static bool ClearLogic(Isolate* isolate) {
   return FLAG_cleanup_code_caches_at_gc && isolate->serializer_enabled();
 }
-
 
 void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
                                         bool force_clear) {

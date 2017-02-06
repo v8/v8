@@ -5654,8 +5654,7 @@ ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, feedback_vector, TypeFeedbackVector,
-          kFeedbackVectorOffset)
+ACCESSORS(JSFunction, feedback_vector_cell, Cell, kFeedbackVectorOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
@@ -6480,6 +6479,10 @@ bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
   return optimized_code_map() == GetHeap()->empty_fixed_array();
 }
 
+TypeFeedbackVector* JSFunction::feedback_vector() const {
+  DCHECK(feedback_vector_cell()->value()->IsTypeFeedbackVector());
+  return TypeFeedbackVector::cast(feedback_vector_cell()->value());
+}
 
 bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
@@ -6587,6 +6590,14 @@ void JSFunction::ReplaceCode(Code* code) {
   }
 }
 
+bool JSFunction::has_feedback_vector() const {
+  SharedFunctionInfo* shared = this->shared();
+
+  return (feedback_vector_cell()->value() !=
+              shared->GetIsolate()->heap()->empty_type_feedback_vector() ||
+          (shared->feedback_metadata()->slot_count() == 0 &&
+           shared->num_literals() == 0));
+}
 
 Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));

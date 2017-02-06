@@ -7073,11 +7073,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_ACCESSORS(optimized_code_map, FixedArray)
 
   // Returns entry from optimized code map for specified context and OSR entry.
-  // Note that {code == nullptr, literals == nullptr} indicates no matching
-  // entry has been found, whereas {code, literals == nullptr} indicates that
-  // code is context-independent.
-  CodeAndVector SearchOptimizedCodeMap(Context* native_context,
-                                       BailoutId osr_ast_id);
+  Code* SearchOptimizedCodeMap(Context* native_context, BailoutId osr_ast_id);
 
   // Clear optimized code map.
   void ClearOptimizedCodeMap();
@@ -7099,12 +7095,9 @@ class SharedFunctionInfo: public HeapObject {
       Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
 
   // Add or update entry in the optimized code map for context-dependent code.
-  // If {code} is not given, then an existing entry's code won't be overwritten.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,
-                                    MaybeHandle<Code> code,
-                                    Handle<TypeFeedbackVector> vector,
-                                    BailoutId osr_ast_id);
+                                    Handle<Code> code, BailoutId osr_ast_id);
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
@@ -7115,8 +7108,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kEntriesStart = 0;
   static const int kContextOffset = 0;
   static const int kCachedCodeOffset = 1;
-  static const int kFeedbackVectorOffset = 2;
-  static const int kEntryLength = 3;
+  static const int kEntryLength = 2;
   static const int kInitialLength = kEntriesStart + kEntryLength;
 
   static const int kNotFound = -1;
@@ -7128,9 +7120,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOffsetToPreviousCachedCode =
       FixedArray::kHeaderSize +
       kPointerSize * (kCachedCodeOffset - kEntryLength);
-  static const int kOffsetToPreviousLiterals =
-      FixedArray::kHeaderSize +
-      kPointerSize * (kFeedbackVectorOffset - kEntryLength);
 
   // [scope_info]: Scope info.
   DECL_ACCESSORS(scope_info, ScopeInfo)
@@ -8090,9 +8079,12 @@ class JSFunction: public JSObject {
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
-  // [feedback_vector]: Fixed array holding the feedback vector.
-  DECL_ACCESSORS(feedback_vector, TypeFeedbackVector)
+  // [feedback_vector_cell]: Fixed array holding the feedback vector.
+  DECL_ACCESSORS(feedback_vector_cell, Cell)
 
+  // feedback_vector() can be used once the function is compiled.
+  inline TypeFeedbackVector* feedback_vector() const;
+  inline bool has_feedback_vector() const;
   static void EnsureLiterals(Handle<JSFunction> function);
 
   // Unconditionally clear the type feedback vector (including vector ICs).
@@ -8738,9 +8730,25 @@ class CompilationCacheShape : public BaseShape<HashTableKey*> {
   static inline Handle<Object> AsHandle(Isolate* isolate, HashTableKey* key);
 
   static const int kPrefixSize = 0;
-  static const int kEntrySize = 2;
+  static const int kEntrySize = 3;
 };
 
+class InfoVectorPair {
+ public:
+  InfoVectorPair() : shared_(nullptr), vector_cell_(nullptr) {}
+  InfoVectorPair(SharedFunctionInfo* shared, Cell* vector_cell)
+      : shared_(shared), vector_cell_(vector_cell) {}
+
+  SharedFunctionInfo* shared() const { return shared_; }
+  Cell* vector() const { return vector_cell_; }
+
+  bool has_shared() const { return shared_ != nullptr; }
+  bool has_vector() const { return vector_cell_ != nullptr; }
+
+ private:
+  SharedFunctionInfo* shared_;
+  Cell* vector_cell_;
+};
 
 // This cache is used in two different variants. For regexp caching, it simply
 // maps identifying info of the regexp to the cached regexp object. Scripts and
@@ -8760,17 +8768,25 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
   // Find cached value for a string key, otherwise return null.
   Handle<Object> Lookup(
       Handle<String> src, Handle<Context> context, LanguageMode language_mode);
-  Handle<Object> LookupEval(
-      Handle<String> src, Handle<SharedFunctionInfo> shared,
-      LanguageMode language_mode, int scope_position);
+  InfoVectorPair LookupScript(Handle<String> src, Handle<Context> context,
+                              LanguageMode language_mode);
+  InfoVectorPair LookupEval(Handle<String> src,
+                            Handle<SharedFunctionInfo> shared,
+                            Handle<Context> native_context,
+                            LanguageMode language_mode, int scope_position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> Put(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<Context> context, LanguageMode language_mode,
       Handle<Object> value);
+  static Handle<CompilationCacheTable> PutScript(
+      Handle<CompilationCacheTable> cache, Handle<String> src,
+      Handle<Context> context, LanguageMode language_mode,
+      Handle<SharedFunctionInfo> value, Handle<Cell> literals);
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
-      Handle<SharedFunctionInfo> context, Handle<SharedFunctionInfo> value,
+      Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
+      Handle<Context> native_context, Handle<Cell> literals,
       int scope_position);
   static Handle<CompilationCacheTable> PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,

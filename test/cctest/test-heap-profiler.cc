@@ -2252,15 +2252,19 @@ TEST(AllocationSitesAreVisible) {
   const v8::HeapGraphNode* fun_code =
       GetProperty(global, v8::HeapGraphEdge::kProperty, "fun");
   CHECK(fun_code);
-  const v8::HeapGraphNode* literals =
-      GetProperty(fun_code, v8::HeapGraphEdge::kInternal, "literals");
-  CHECK(literals);
-  CHECK_EQ(v8::HeapGraphNode::kArray, literals->GetType());
-  CHECK_EQ(1, literals->GetChildrenCount());
+  const v8::HeapGraphNode* vector_cell = GetProperty(
+      fun_code, v8::HeapGraphEdge::kInternal, "feedback_vector_cell");
+  // TODO(mvstanton): I'm not sure if this is the best way to expose
+  // literals. Is it too much to expose the Cell?
+  CHECK(vector_cell);
+  const v8::HeapGraphNode* vector =
+      GetProperty(vector_cell, v8::HeapGraphEdge::kInternal, "value");
+  CHECK_EQ(v8::HeapGraphNode::kArray, vector->GetType());
+  CHECK_EQ(3, vector->GetChildrenCount());
 
-  // The first value in the literals array should be the boilerplate,
+  // The first value in the feedback vector should be the boilerplate,
   // after an AllocationSite.
-  const v8::HeapGraphEdge* prop = literals->GetChild(0);
+  const v8::HeapGraphEdge* prop = vector->GetChild(2);
   const v8::HeapGraphNode* allocation_site = prop->GetToNode();
   v8::String::Utf8Value name(allocation_site->GetName());
   CHECK_EQ(0, strcmp("system / AllocationSite", *name));

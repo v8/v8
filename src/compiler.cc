@@ -631,14 +631,13 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeMap(
       &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
-  CodeAndVector cached = shared->SearchOptimizedCodeMap(
+  Code* code = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), osr_ast_id);
-  if (cached.code != nullptr) {
+  if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    if (cached.vector != nullptr) function->set_feedback_vector(cached.vector);
-    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(!code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
-    return Handle<Code>(cached.code);
+    return Handle<Code>(code);
   }
   return MaybeHandle<Code>();
 }
@@ -660,10 +659,9 @@ void InsertCodeIntoOptimizedCodeMap(CompilationInfo* info) {
   // Cache optimized context-specific code.
   Handle<JSFunction> function = info->closure();
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<TypeFeedbackVector> vector(function->feedback_vector());
   Handle<Context> native_context(function->context()->native_context());
   SharedFunctionInfo::AddToOptimizedCodeMap(shared, native_context, code,
-                                            vector, info->osr_ast_id());
+                                            info->osr_ast_id());
 }
 
 bool GetOptimizedCodeNow(CompilationJob* job) {
@@ -899,10 +897,8 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
       RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG, info);
-      if (shared
-              ->SearchOptimizedCodeMap(info->context()->native_context(),
-                                       info->osr_ast_id())
-              .code == nullptr) {
+      if (shared->SearchOptimizedCodeMap(info->context()->native_context(),
+                                         info->osr_ast_id()) == nullptr) {
         InsertCodeIntoOptimizedCodeMap(info);
       }
       if (FLAG_trace_opt) {
@@ -1414,13 +1410,19 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   isolate->counters()->total_compile_size()->Increment(source_length);
 
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  MaybeHandle<SharedFunctionInfo> maybe_shared_info =
-      compilation_cache->LookupEval(source, outer_info, context, language_mode,
-                                    eval_scope_position);
+  InfoVectorPair eval_result = compilation_cache->LookupEval(
+      source, outer_info, context, language_mode, eval_scope_position);
   Handle<SharedFunctionInfo> shared_info;
+  if (eval_result.has_shared()) {
+    shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
+  }
+  Handle<Cell> vector;
+  if (eval_result.has_vector()) {
+    vector = Handle<Cell>(eval_result.vector(), isolate);
+  }
 
   Handle<Script> script;
-  if (!maybe_shared_info.ToHandle(&shared_info)) {
+  if (!eval_result.has_shared()) {
     script = isolate->factory()->NewScript(source);
     if (isolate->NeedsSourcePositionsForProfiling()) {
       Script::InitLineEnds(script);
@@ -1445,21 +1447,39 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
 
     shared_info = CompileToplevel(&info);
-
     if (shared_info.is_null()) {
       return MaybeHandle<JSFunction>();
-    } else {
-      // If caller is strict mode, the result must be in strict mode as well.
-      DCHECK(is_sloppy(language_mode) ||
-             is_strict(shared_info->language_mode()));
-      compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 eval_scope_position);
     }
   }
 
-  Handle<JSFunction> result =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, NOT_TENURED);
+  // If caller is strict mode, the result must be in strict mode as well.
+  DCHECK(is_sloppy(language_mode) || is_strict(shared_info->language_mode()));
+
+  Handle<JSFunction> result;
+  if (eval_result.has_shared()) {
+    if (eval_result.has_vector()) {
+      result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared_info, context, vector, NOT_TENURED);
+    } else {
+      result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared_info, context, isolate->factory()->undefined_cell(),
+          NOT_TENURED);
+      JSFunction::EnsureLiterals(result);
+      // Make sure to cache this result.
+      Handle<Cell> new_vector(result->feedback_vector_cell(), isolate);
+      compilation_cache->PutEval(source, outer_info, context, shared_info,
+                                 new_vector, eval_scope_position);
+    }
+  } else {
+    result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
+        shared_info, context, NOT_TENURED);
+    JSFunction::EnsureLiterals(result);
+    // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
+    // we didn't retrieve from there.
+    Handle<Cell> vector(result->feedback_vector_cell(), isolate);
+    compilation_cache->PutEval(source, outer_info, context, shared_info, vector,
+                               eval_scope_position);
+  }
 
   // OnAfterCompile has to be called after we create the JSFunction, which we
   // may require to recompile the eval for debugging, if we find a function
@@ -1552,14 +1572,14 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
-  MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<SharedFunctionInfo> result;
+  Handle<Cell> vector;
   if (extension == NULL) {
     // First check per-isolate compilation cache.
-    maybe_result = compilation_cache->LookupScript(
+    InfoVectorPair pair = compilation_cache->LookupScript(
         source, script_name, line_offset, column_offset, resource_options,
         context, language_mode);
-    if (maybe_result.is_null() && FLAG_serialize_toplevel &&
+    if (!pair.has_shared() && FLAG_serialize_toplevel &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
       // Then check cached code provided by embedder.
@@ -1568,14 +1588,27 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
                                          &RuntimeCallStats::CompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
-      Handle<SharedFunctionInfo> result;
+      Handle<SharedFunctionInfo> inner_result;
       if (CodeSerializer::Deserialize(isolate, *cached_data, source)
-              .ToHandle(&result)) {
+              .ToHandle(&inner_result)) {
         // Promote to per-isolate compilation cache.
-        compilation_cache->PutScript(source, context, language_mode, result);
-        return result;
+        // TODO(mvstanton): create a feedback vector array here.
+        DCHECK(inner_result->is_compiled());
+        Handle<TypeFeedbackVector> feedback_vector = TypeFeedbackVector::New(
+            isolate, handle(inner_result->feedback_metadata()));
+        vector = isolate->factory()->NewCell(feedback_vector);
+        compilation_cache->PutScript(source, context, language_mode,
+                                     inner_result, vector);
+        return inner_result;
       }
       // Deserializer failed. Fall through to compile.
+    } else {
+      if (pair.has_shared()) {
+        result = Handle<SharedFunctionInfo>(pair.shared(), isolate);
+      }
+      if (pair.has_vector()) {
+        vector = Handle<Cell>(pair.vector(), isolate);
+      }
     }
   }
 
@@ -1585,7 +1618,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     timer.Start();
   }
 
-  if (!maybe_result.ToHandle(&result) ||
+  if (result.is_null() ||
       (FLAG_serialize_toplevel &&
        compile_options == ScriptCompiler::kProduceCodeCache)) {
     // No cache entry found, or embedder wants a code cache. Compile the script.
@@ -1634,7 +1667,13 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         static_cast<LanguageMode>(parse_info.language_mode() | language_mode));
     result = CompileToplevel(&info);
     if (extension == NULL && !result.is_null()) {
-      compilation_cache->PutScript(source, context, language_mode, result);
+      // We need a feedback vector.
+      DCHECK(result->is_compiled());
+      Handle<TypeFeedbackVector> feedback_vector =
+          TypeFeedbackVector::New(isolate, handle(result->feedback_metadata()));
+      vector = isolate->factory()->NewCell(feedback_vector);
+      compilation_cache->PutScript(source, context, language_mode, result,
+                                   vector);
       if (FLAG_serialize_toplevel &&
           compile_options == ScriptCompiler::kProduceCodeCache &&
           !ContainsAsmModule(script)) {
@@ -1788,19 +1827,16 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     function->MarkForOptimization();
   }
 
-  CodeAndVector cached = shared->SearchOptimizedCodeMap(
+  Code* code = shared->SearchOptimizedCodeMap(
       function->context()->native_context(), BailoutId::None());
-  if (cached.code != nullptr) {
+  if (code != nullptr) {
     // Caching of optimized code enabled and optimized code found.
-    DCHECK(!cached.code->marked_for_deoptimization());
+    DCHECK(!code->marked_for_deoptimization());
     DCHECK(function->shared()->is_compiled());
-    function->ReplaceCode(cached.code);
+    function->ReplaceCode(code);
   }
 
-  if (cached.vector != nullptr) {
-    DCHECK(shared->is_compiled());
-    function->set_feedback_vector(cached.vector);
-  } else if (shared->is_compiled()) {
+  if (shared->is_compiled()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);
   }
