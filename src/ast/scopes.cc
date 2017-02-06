@@ -994,9 +994,8 @@ Variable* Scope::DeclareVariable(
     // with this new binding by doing the following:
     // The proxy is bound to a lookup variable to force a dynamic declaration
     // using the DeclareEvalVar or DeclareEvalFunction runtime functions.
-    VariableKind kind = NORMAL_VARIABLE;
-    // TODO(sigurds) figure out if kNotAssigned is OK here
-    var = new (zone()) Variable(this, name, mode, kind, init, kNotAssigned);
+    var = new (zone())
+        Variable(this, name, mode, NORMAL_VARIABLE, init, kMaybeAssigned);
     var->AllocateTo(VariableLocation::LOOKUP, -1);
   } else {
     // Declare the variable in the declaration scope.
@@ -1096,9 +1095,8 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
     DCHECK_NE(var, kDummyPreParserVariable);
     if (var == nullptr) {
       var = DeclareLocal(name, mode);
-    } else if (!IsLexicalVariableMode(var->mode()) &&
-               !IsLexicalVariableMode(mode)) {
-      DCHECK_EQ(mode, VAR);
+    } else if (mode == VAR) {
+      DCHECK_EQ(var->mode(), VAR);
       var->set_maybe_assigned();
     }
     var->set_is_used();
