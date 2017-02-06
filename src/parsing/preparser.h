@@ -1320,14 +1320,30 @@ class PreParser : public ParserBase<PreParser> {
       PreParserExpression* each_variable, bool* ok) {
     if (track_unresolved_variables_) {
       DCHECK(for_info->parsing_result.declarations.length() == 1);
+      bool is_for_var_of =
+          for_info->mode == ForEachStatement::ITERATE &&
+          for_info->parsing_result.descriptor.mode == VariableMode::VAR;
+      bool collect_names =
+          IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
+          is_for_var_of;
+
       DeclareAndInitializeVariables(
           PreParserStatement::Default(), &for_info->parsing_result.descriptor,
-          &for_info->parsing_result.declarations[0], nullptr, ok);
+          &for_info->parsing_result.declarations[0],
+          collect_names ? &for_info->bound_names : nullptr, ok);
     }
   }
 
   V8_INLINE PreParserStatement CreateForEachStatementTDZ(
       PreParserStatement init_block, const ForInfo& for_info, bool* ok) {
+    if (track_unresolved_variables_) {
+      if (IsLexicalVariableMode(for_info.parsing_result.descriptor.mode)) {
+        for (auto name : for_info.bound_names) {
+          scope()->DeclareVariableName(name, LET);
+        }
+        return PreParserStatement::Default();
+      }
+    }
     return init_block;
   }
 
@@ -1337,9 +1353,11 @@ class PreParser : public ParserBase<PreParser> {
       PreParserStatement body, Scope* inner_scope, const ForInfo& for_info,
       bool* ok) {
     // See Parser::DesugarLexicalBindingsInForStatement.
-    for (int i = 0; i < for_info.bound_names.length(); i++) {
-      inner_scope->DeclareVariableName(for_info.bound_names[i],
-                                       for_info.parsing_result.descriptor.mode);
+    if (track_unresolved_variables_) {
+      for (auto name : for_info.bound_names) {
+        inner_scope->DeclareVariableName(
+            name, for_info.parsing_result.descriptor.mode);
+      }
     }
     return loop;
   }

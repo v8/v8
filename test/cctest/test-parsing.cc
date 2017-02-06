@@ -9211,11 +9211,13 @@ TEST(PreParserScopeAnalysis) {
     const char* params;
     const char* source;
   } inners[] = {
+      // Simple cases
       {"", "var1;"},
       {"", "var1 = 5;"},
       {"", "if (true) {}"},
       {"", "function f1() {}"},
 
+      // Var declarations and assignments.
       {"", "var var1;"},
       {"", "var var1; var1 = 5;"},
       {"", "if (true) { var var1; }"},
@@ -9224,6 +9226,7 @@ TEST(PreParserScopeAnalysis) {
       {"", "var var1; var1 = 5; function f() { var1; }"},
       {"", "var var1; function f() { var1 = 5; }"},
 
+      // Let declarations and assignments.
       {"", "let var1;"},
       {"", "let var1; var1 = 5;"},
       {"", "if (true) { let var1; }"},
@@ -9232,10 +9235,12 @@ TEST(PreParserScopeAnalysis) {
       {"", "let var1; var1 = 5; function f() { var1; }"},
       {"", "let var1; function f() { var1 = 5; }"},
 
+      // Const declarations.
       {"", "const var1 = 5;"},
       {"", "if (true) { const var1 = 5; }"},
       {"", "const var1 = 5; function f() { var1; }"},
 
+      // Redeclarations.
       {"", "var var1; var var1;"},
       {"", "var var1; var var1; var1 = 5;"},
       {"", "var var1; if (true) { var var1; }"},
@@ -9245,6 +9250,7 @@ TEST(PreParserScopeAnalysis) {
       {"", "var var1; var var1; function f() { var1; }"},
       {"", "var var1; var var1; function f() { var1 = 5; }"},
 
+      // Shadowing declarations.
       {"", "var var1; if (true) { var var1; }"},
       {"", "var var1; if (true) { let var1; }"},
       {"", "let var1; if (true) { let var1; }"},
@@ -9252,6 +9258,7 @@ TEST(PreParserScopeAnalysis) {
       {"", "var var1; if (true) { const var1 = 0; }"},
       {"", "const var1 = 0; if (true) { const var1 = 0; }"},
 
+      // Variable called "arguments"
       {"", "arguments;"},
       {"", "arguments = 5;"},
       {"", "function f() { arguments; }"},
@@ -9277,6 +9284,7 @@ TEST(PreParserScopeAnalysis) {
       {"", "if (true) { const arguments = 5; }"},
       {"", "const arguments = 5; function f() { arguments; }"},
 
+      // Destructuring declarations.
       {"", "var [var1, var2] = [1, 2];"},
       {"", "var [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
       {"", "var [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
@@ -9307,6 +9315,7 @@ TEST(PreParserScopeAnalysis) {
        "const {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
       {"", "const {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
 
+      // Referencing the function variable.
       {"", "inner;"},
       {"", "function f1() { f1; }"},
       {"", "function f1() { inner; }"},
@@ -9315,12 +9324,14 @@ TEST(PreParserScopeAnalysis) {
       {"", "function f1() {} function f1() {}"},
       {"", "var f1; function f1() {}"},
 
+      // Assigning to the function variable.
       {"", "inner = 3;"},
       {"", "function f1() { f1 = 3; }"},
       {"", "function f1() { f1; } f1 = 3;"},
       {"", "function arguments() {} arguments = 8"},
       {"", "function f1() {} f1 = 3; function f1() {}"},
 
+      // Evals.
       {"", "var var1; eval('');"},
       {"", "var var1; function f1() { eval(''); }"},
       {"", "let var1; eval('');"},
@@ -9328,6 +9339,7 @@ TEST(PreParserScopeAnalysis) {
       {"", "const var1 = 10; eval('');"},
       {"", "const var1 = 10; function f1() { eval(''); }"},
 
+      // Standard for loops.
       {"", "for (var var1 = 0; var1 < 10; ++var1) { }"},
       {"", "for (let var1 = 0; var1 < 10; ++var1) { }"},
       {"", "for (const var1 = 0; var1 < 10; ++var1) { }"},
@@ -9348,6 +9360,85 @@ TEST(PreParserScopeAnalysis) {
        "'use strict'; for (const var1 = 0; var1 < 10; ++var1) { function foo() "
        "{ var1; } }"},
 
+      // For of loops
+      {"", "for (var1 of [1, 2]) { }"},
+      {"", "for (var var1 of [1, 2]) { }"},
+      {"", "for (let var1 of [1, 2]) { }"},
+      {"", "for (const var1 of [1, 2]) { }"},
+
+      {"", "for (var1 of [1, 2]) { var1; }"},
+      {"", "for (var var1 of [1, 2]) { var1; }"},
+      {"", "for (let var1 of [1, 2]) { var1; }"},
+      {"", "for (const var1 of [1, 2]) { var1; }"},
+
+      {"", "for (var1 of [1, 2]) { var1 = 0; }"},
+      {"", "for (var var1 of [1, 2]) { var1 = 0; }"},
+      {"", "for (let var1 of [1, 2]) { var1 = 0; }"},
+      {"", "for (const var1 of [1, 2]) { var1 = 0; }"},
+
+      {"", "for (var1 of [1, 2]) { function foo() { var1; } }"},
+      {"", "for (var var1 of [1, 2]) { function foo() { var1; } }"},
+      {"", "for (let var1 of [1, 2]) { function foo() { var1; } }"},
+      {"", "for (const var1 of [1, 2]) { function foo() { var1; } }"},
+
+      {"", "for (var1 of [1, 2]) { function foo() { var1 = 0; } }"},
+      {"", "for (var var1 of [1, 2]) { function foo() { var1 = 0; } }"},
+      {"", "for (let var1 of [1, 2]) { function foo() { var1 = 0; } }"},
+      {"", "for (const var1 of [1, 2]) { function foo() { var1 = 0; } }"},
+
+      // For in loops
+      {"", "for (var1 in {a: 6}) { }"},
+      {"", "for (var var1 in {a: 6}) { }"},
+      {"", "for (let var1 in {a: 6}) { }"},
+      {"", "for (const var1 in {a: 6}) { }"},
+
+      {"", "for (var1 in {a: 6}) { var1; }"},
+      {"", "for (var var1 in {a: 6}) { var1; }"},
+      {"", "for (let var1 in {a: 6}) { var1; }"},
+      {"", "for (const var1 in {a: 6}) { var1; }"},
+
+      {"", "for (var1 in {a: 6}) { var1 = 0; }"},
+      {"", "for (var var1 in {a: 6}) { var1 = 0; }"},
+      {"", "for (let var1 in {a: 6}) { var1 = 0; }"},
+      {"", "for (const var1 in {a: 6}) { var1 = 0; }"},
+
+      {"", "for (var1 in {a: 6}) { function foo() { var1; } }"},
+      {"", "for (var var1 in {a: 6}) { function foo() { var1; } }"},
+      {"", "for (let var1 in {a: 6}) { function foo() { var1; } }"},
+      {"", "for (const var1 in {a: 6}) { function foo() { var1; } }"},
+
+      {"", "for (var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+      {"", "for (var var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+      {"", "for (let var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+      {"", "for (const var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+
+      {"", "for (var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+      {"", "for (var var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+      {"", "for (let var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+      {"", "for (const var1 in {a: 6}) { function foo() { var1 = 0; } }"},
+
+      // Loops without declarations
+      {"", "var var1 = 0; for ( ; var1 < 2; ++var1) { }"},
+      {"",
+       "var var1 = 0; for ( ; var1 < 2; ++var1) { function foo() { var1; } }"},
+      {"", "var var1 = 0; for ( ; var1 > 2; ) { }"},
+      {"", "var var1 = 0; for ( ; var1 > 2; ) { function foo() { var1; } }"},
+      {"",
+       "var var1 = 0; for ( ; var1 > 2; ) { function foo() { var1 = 6; } }"},
+
+      {"", "var var1 = 0; for(var1; var1 < 2; ++var1) { }"},
+      {"",
+       "var var1 = 0; for (var1; var1 < 2; ++var1) { function foo() { var1; } "
+       "}"},
+      {"", "var var1 = 0; for (var1; var1 > 2; ) { }"},
+      {"", "var var1 = 0; for (var1; var1 > 2; ) { function foo() { var1; } }"},
+      {"",
+       "var var1 = 0; for (var1; var1 > 2; ) { function foo() { var1 = 6; } }"},
+
+      // FIXME(marja): Add test cases for special variables (this, arguments
+      // etc) referred to in the for loop conditions.
+
+      // Sloppy block functions.
       {"", "if (true) { function f1() {} }"},
       {"", "if (true) { function f1() {} function f1() {} }"},
       {"", "if (true) { if (true) { function f1() {} } }"},

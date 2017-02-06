@@ -1967,14 +1967,13 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
     bool is_for_var_of =
         for_info->mode == ForEachStatement::ITERATE &&
         for_info->parsing_result.descriptor.mode == VariableMode::VAR;
+    bool collect_names =
+        IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
+        is_for_var_of;
 
     PatternRewriter::DeclareAndInitializeVariables(
         this, each_initialization_block, &descriptor, &decl,
-        (IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
-         is_for_var_of)
-            ? &for_info->bound_names
-            : nullptr,
-        CHECK_OK_VOID);
+        collect_names ? &for_info->bound_names : nullptr, CHECK_OK_VOID);
 
     // Annex B.3.5 prohibits the form
     // `try {} catch(e) { for (var e of {}); }`
