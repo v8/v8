@@ -96,7 +96,12 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                       OrdinaryToPrimitiveHint hint);
   static Callable NumberToString(Isolate* isolate);
 
+  // Platform-dependent entry point into the generated irregexp matcher code.
   static Callable RegExpExec(Isolate* isolate);
+
+  // Implements part of the specced glue logic around RegExp.prototype.exec.
+  // Usually results in a call to CodeFactory::RegExpExec.
+  static Callable RegExpExecInternal(Isolate* isolate, bool is_fastpath);
 
   static Callable Add(Isolate* isolate);
   static Callable Subtract(Isolate* isolate);

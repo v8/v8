@@ -265,6 +265,14 @@ TFS_BUILTIN(StringGreaterThanOrEqual)
 #undef TFS_BUILTIN
 
 // static
+Callable CodeFactory::RegExpExecInternal(Isolate* isolate, bool is_fastpath) {
+  Handle<Code> code(is_fastpath
+                        ? isolate->builtins()->RegExpExecInternalFast()
+                        : isolate->builtins()->RegExpExecInternalSlow());
+  return Callable(code, RegExpExecInternalDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);
