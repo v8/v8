@@ -347,29 +347,120 @@ bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {
 
 }  // namespace
 
-
-Reduction JSInliner::Reduce(Node* node) {
-  if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
+// Determines whether the call target of the given call {node} is statically
+// known and can be used as an inlining candidate. The {SharedFunctionInfo} of
+// the call target is provided (the exact closure might be unknown).
+bool JSInliner::DetermineCallTarget(
+    Node* node, Handle<SharedFunctionInfo>& shared_info_out) {
+  DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  HeapObjectMatcher match(node->InputAt(0));
 
   // This reducer can handle both normal function calls as well a constructor
   // calls whenever the target is a constant function object, as follows:
   //  - JSCall(target:constant, receiver, args...)
   //  - JSConstruct(target:constant, args..., new.target)
-  HeapObjectMatcher match(node->InputAt(0));
-  if (!match.HasValue() || !match.Value()->IsJSFunction()) return NoChange();
-  Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
+  if (match.HasValue() && match.Value()->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
 
-  return ReduceJSCall(node, function);
+    // Disallow cross native-context inlining for now. This means that all parts
+    // of the resulting code will operate on the same global object. This also
+    // prevents cross context leaks, where we could inline functions from a
+    // different context and hold on to that context (and closure) from the code
+    // object.
+    // TODO(turbofan): We might want to revisit this restriction later when we
+    // have a need for this, and we know how to model different native contexts
+    // in the same graph in a compositional way.
+    if (function->context()->native_context() !=
+        info_->context()->native_context()) {
+      return false;
+    }
+
+    shared_info_out = handle(function->shared());
+    return true;
+  }
+
+  // This reducer can also handle calls where the target is statically known to
+  // be the result of a closure instantiation operation, as follows:
+  //  - JSCall(JSCreateClosure[shared](context), receiver, args...)
+  //  - JSConstruct(JSCreateClosure[shared](context), args..., new.target)
+  if (match.IsJSCreateClosure()) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
+
+    // Disallow inlining in case the instantiation site was never run and hence
+    // the vector cell does not contain a valid feedback vector for the call
+    // target.
+    // TODO(turbofan): We might consider to eagerly create the feedback vector
+    // in such a case (in {DetermineCallContext} below) eventually.
+    FeedbackVectorSlot slot = p.feedback().slot();
+    Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
+    if (!cell->value()->IsTypeFeedbackVector()) return false;
+
+    shared_info_out = p.shared_info();
+    return true;
+  }
+
+  return false;
 }
 
-Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
+// Determines statically known information about the call target (assuming that
+// the call target is known according to {DetermineCallTarget} above). The
+// following static information is provided:
+//  - context         : The context (as SSA value) bound by the call target.
+//  - feedback_vector : The target is guaranteed to use this feedback vector.
+void JSInliner::DetermineCallContext(
+    Node* node, Node*& context_out,
+    Handle<TypeFeedbackVector>& feedback_vector_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  HeapObjectMatcher match(node->InputAt(0));
+
+  if (match.HasValue() && match.Value()->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
+
+    // If the target function was never invoked, its literals array might not
+    // contain a feedback vector. We ensure at this point that it is created.
+    JSFunction::EnsureLiterals(function);
+
+    // The inlinee specializes to the context from the JSFunction object.
+    context_out = jsgraph()->Constant(handle(function->context()));
+    feedback_vector_out = handle(function->feedback_vector());
+    return;
+  }
+
+  if (match.IsJSCreateClosure()) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
+
+    // Load the feedback vector of the target by looking up its vector cell at
+    // the instantiation site (we only decide to inline if it's populated).
+    FeedbackVectorSlot slot = p.feedback().slot();
+    Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
+    DCHECK(cell->value()->IsTypeFeedbackVector());
+
+    // The inlinee uses the locally provided context at instantiation.
+    context_out = NodeProperties::GetContextInput(match.node());
+    feedback_vector_out = handle(TypeFeedbackVector::cast(cell->value()));
+    return;
+  }
+
+  // Must succeed.
+  UNREACHABLE();
+}
+
+Reduction JSInliner::Reduce(Node* node) {
+  if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
+  return ReduceJSCall(node);
+}
+
+Reduction JSInliner::ReduceJSCall(Node* node) {
+  DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  Handle<SharedFunctionInfo> shared_info;
   JSCallAccessor call(node);
-  Handle<SharedFunctionInfo> shared_info(function->shared());
+
+  // Determine the call target.
+  if (!DetermineCallTarget(node, shared_info)) return NoChange();
 
   // Inlining is only supported in the bytecode pipeline.
   if (!info_->is_optimizing_from_bytecode()) {
-    TRACE("Inlining %s into %s is not supported in the deprecated pipeline\n",
+    TRACE("Not inlining %s into %s due to use of the deprecated pipeline\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -405,22 +496,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // Function contains break points.
   if (shared_info->HasDebugInfo()) {
     TRACE("Not inlining %s into %s because callee may contain break points\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
-  // Disallow cross native-context inlining for now. This means that all parts
-  // of the resulting code will operate on the same global object.
-  // This also prevents cross context leaks for asm.js code, where we could
-  // inline functions from a different context and hold on to that context (and
-  // closure) from the code object.
-  // TODO(turbofan): We might want to revisit this restriction later when we
-  // have a need for this, and we know how to model different native contexts
-  // in the same graph in a compositional way.
-  if (function->context()->native_context() !=
-      info_->context()->native_context()) {
-    TRACE("Not inlining %s into %s because of different native contexts\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -504,8 +579,10 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
 
-  // If function was lazily compiled, its literals array may not yet be set up.
-  JSFunction::EnsureLiterals(function);
+  // Determine the targets feedback vector and its context.
+  Node* context;
+  Handle<TypeFeedbackVector> feedback_vector;
+  DetermineCallContext(node, context, feedback_vector);
 
   // Create the subgraph for the inlinee.
   Node* start;
@@ -514,9 +591,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilder graph_builder(
-        &zone, shared_info, handle(function->feedback_vector()),
-        BailoutId::None(), jsgraph(), call.frequency(), source_positions_,
-        inlining_id);
+        &zone, shared_info, feedback_vector, BailoutId::None(), jsgraph(),
+        call.frequency(), source_positions_, inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
@@ -592,12 +668,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         node, frame_state, call.formal_arguments(),
         FrameStateType::kConstructStub, info.shared_info());
   }
-
-  // The inlinee specializes to the context from the JSFunction object.
-  // TODO(turbofan): We might want to load the context from the JSFunction at
-  // runtime in case we only know the SharedFunctionInfo once we have dynamic
-  // type feedback in the compiler.
-  Node* context = jsgraph()->Constant(handle(function->context()));
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
   // passed into this node has to be the callees context (loaded above).

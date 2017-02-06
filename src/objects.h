@@ -7078,9 +7078,6 @@ class SharedFunctionInfo: public HeapObject {
   // the entry itself is left in the map in order to proceed sharing literals.
   void EvictFromOptimizedCodeMap(Code* optimized_code, const char* reason);
 
-  static Handle<TypeFeedbackVector> FindOrCreateVector(
-      Handle<SharedFunctionInfo> shared, Handle<Context> native_context);
-
   // Add or update entry in the optimized code map for context-dependent code.
   static void AddToOptimizedCodeMap(Handle<SharedFunctionInfo> shared,
                                     Handle<Context> native_context,

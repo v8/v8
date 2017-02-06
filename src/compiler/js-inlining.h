@@ -36,7 +36,7 @@ class JSInliner final : public AdvancedReducer {
 
   // Can be used by inlining heuristics or by testing code directly, without
   // using the above generic reducer interface of the inlining machinery.
-  Reduction ReduceJSCall(Node* node, Handle<JSFunction> function);
+  Reduction ReduceJSCall(Node* node);
 
  private:
   CommonOperatorBuilder* common() const;
@@ -49,6 +49,11 @@ class JSInliner final : public AdvancedReducer {
   CompilationInfo* info_;
   JSGraph* const jsgraph_;
   SourcePositionTable* const source_positions_;
+
+  bool DetermineCallTarget(Node* node,
+                           Handle<SharedFunctionInfo>& shared_info_out);
+  void DetermineCallContext(Node* node, Node*& context_out,
+                            Handle<TypeFeedbackVector>& feedback_vector_out);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count,
