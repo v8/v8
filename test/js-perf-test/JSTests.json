@@ -274,6 +274,18 @@
         {"name": "Object.hasOwnProperty--el-str"},
         {"name": "Object.hasOwnProperty--NE-el"}
       ]
+    },
+    {
+      "name": "TypedArrays",
+      "path": ["TypedArrays"],
+      "main": "run.js",
+      "resources": [
+        "typedarrays.js"
+      ],
+      "results_regexp": "^TypedArrays\\-%s\\(Scope\\): (.+)$",
+      "tests": [
+        {"name": "CopyWithin"}
+      ]
     }
   ]
 }
