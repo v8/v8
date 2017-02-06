@@ -44,16 +44,19 @@
     },
     {
       "name": "Defaults",
-      "path": ["SixSpeed/defaults"],
-      "main": "run.js",
-      "resources": [
-        "run.js",
-        "defaults.js"
-      ],
+      "path": ["SixSpeed"],
       "results_regexp": "^%s\\(Score\\): (.+)$",
       "tests": [
-        {"name": "Defaults-ES5"},
-        {"name": "Defaults-ES6"}
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["defaults/es5"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["defaults/es6"]
+        }
       ]
     },
     {
