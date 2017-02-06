@@ -15491,12 +15491,10 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
   ElementsAccessor* accessor = ElementsAccessor::ForKind(to);
   accessor->Add(object, index, value, attributes, new_capacity);
 
-  uint32_t new_length = old_length;
-  Handle<Object> new_length_handle;
   if (object->IsJSArray() && index >= old_length) {
-    new_length = index + 1;
-    new_length_handle = isolate->factory()->NewNumberFromUint(new_length);
-    JSArray::cast(*object)->set_length(*new_length_handle);
+    Handle<Object> new_length =
+        isolate->factory()->NewNumberFromUint(index + 1);
+    JSArray::cast(*object)->set_length(*new_length);
   }
 
   return Just(true);
