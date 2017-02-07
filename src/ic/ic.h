@@ -279,7 +279,7 @@ class LoadIC : public IC {
   }
 
   static bool ShouldThrowReferenceError(FeedbackSlotKind kind) {
-    return kind == FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC;
+    return kind == FeedbackSlotKind::kLoadGlobalNotInsideTypeof;
   }
 
   bool ShouldThrowReferenceError() const {

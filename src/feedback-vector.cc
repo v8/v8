@@ -62,7 +62,7 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
       FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i + j));
-      DCHECK_EQ(FeedbackSlotKind::INVALID, kind);
+      DCHECK_EQ(FeedbackSlotKind::kInvalid, kind);
     }
     i += entry_size;
   }
@@ -115,41 +115,41 @@ bool FeedbackMetadata::SpecDiffersFrom(
 
 const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
   switch (kind) {
-    case FeedbackSlotKind::INVALID:
+    case FeedbackSlotKind::kInvalid:
       return "INVALID";
-    case FeedbackSlotKind::CALL_IC:
+    case FeedbackSlotKind::kCall:
       return "CALL_IC";
-    case FeedbackSlotKind::LOAD_IC:
+    case FeedbackSlotKind::kLoadProperty:
       return "LOAD_IC";
-    case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       return "LOAD_GLOBAL_INSIDE_TYPEOF_IC";
-    case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
       return "LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC";
-    case FeedbackSlotKind::KEYED_LOAD_IC:
+    case FeedbackSlotKind::kLoadKeyed:
       return "KEYED_LOAD_IC";
-    case FeedbackSlotKind::STORE_SLOPPY_IC:
+    case FeedbackSlotKind::kStorePropertySloppy:
       return "STORE_SLOPPY_IC";
-    case FeedbackSlotKind::STORE_STRICT_IC:
+    case FeedbackSlotKind::kStorePropertyStrict:
       return "STORE_STRICT_IC";
-    case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
+    case FeedbackSlotKind::kStoreKeyedSloppy:
       return "KEYED_STORE_SLOPPY_IC";
-    case FeedbackSlotKind::KEYED_STORE_STRICT_IC:
+    case FeedbackSlotKind::kStoreKeyedStrict:
       return "KEYED_STORE_STRICT_IC";
-    case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
+    case FeedbackSlotKind::kBinaryOp:
       return "INTERPRETER_BINARYOP_IC";
-    case FeedbackSlotKind::INTERPRETER_COMPARE_IC:
+    case FeedbackSlotKind::kCompareOp:
       return "INTERPRETER_COMPARE_IC";
-    case FeedbackSlotKind::TO_BOOLEAN_IC:
+    case FeedbackSlotKind::kToBoolean:
       return "TO_BOOLEAN_IC";
-    case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       return "STORE_DATA_PROPERTY_IN_LITERAL_IC";
-    case FeedbackSlotKind::CREATE_CLOSURE:
-      return "CREATE_CLOSURE";
-    case FeedbackSlotKind::LITERAL:
+    case FeedbackSlotKind::kCreateClosure:
+      return "kCreateClosure";
+    case FeedbackSlotKind::kLiteral:
       return "LITERAL";
-    case FeedbackSlotKind::GENERAL:
+    case FeedbackSlotKind::kGeneral:
       return "STUB";
-    case FeedbackSlotKind::KINDS_NUMBER:
+    case FeedbackSlotKind::kKindsNumber:
       break;
   }
   UNREACHABLE();
@@ -186,41 +186,41 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
 
     Object* extra_value = *uninitialized_sentinel;
     switch (kind) {
-      case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
-      case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
+      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
         array->set(index, isolate->heap()->empty_weak_cell(),
                    SKIP_WRITE_BARRIER);
         break;
-      case FeedbackSlotKind::INTERPRETER_COMPARE_IC:
-      case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
-      case FeedbackSlotKind::TO_BOOLEAN_IC:
+      case FeedbackSlotKind::kCompareOp:
+      case FeedbackSlotKind::kBinaryOp:
+      case FeedbackSlotKind::kToBoolean:
         array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
-      case FeedbackSlotKind::CREATE_CLOSURE: {
+      case FeedbackSlotKind::kCreateClosure: {
         Handle<Cell> cell = factory->NewCell(undefined_value);
         array->set(index, *cell);
         break;
       }
-      case FeedbackSlotKind::LITERAL:
+      case FeedbackSlotKind::kLiteral:
         array->set(index, *undefined_value, SKIP_WRITE_BARRIER);
         break;
-      case FeedbackSlotKind::CALL_IC:
+      case FeedbackSlotKind::kCall:
         array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         extra_value = Smi::kZero;
         break;
-      case FeedbackSlotKind::LOAD_IC:
-      case FeedbackSlotKind::KEYED_LOAD_IC:
-      case FeedbackSlotKind::STORE_SLOPPY_IC:
-      case FeedbackSlotKind::STORE_STRICT_IC:
-      case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
-      case FeedbackSlotKind::KEYED_STORE_STRICT_IC:
-      case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
-      case FeedbackSlotKind::GENERAL:
+      case FeedbackSlotKind::kLoadProperty:
+      case FeedbackSlotKind::kLoadKeyed:
+      case FeedbackSlotKind::kStorePropertySloppy:
+      case FeedbackSlotKind::kStorePropertyStrict:
+      case FeedbackSlotKind::kStoreKeyedSloppy:
+      case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+      case FeedbackSlotKind::kGeneral:
         array->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
-      case FeedbackSlotKind::INVALID:
-      case FeedbackSlotKind::KINDS_NUMBER:
+      case FeedbackSlotKind::kInvalid:
+      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
         array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
@@ -265,50 +265,50 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
     Object* obj = Get(slot);
     if (obj != uninitialized_sentinel) {
       switch (kind) {
-        case FeedbackSlotKind::CALL_IC: {
+        case FeedbackSlotKind::kCall: {
           CallICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::LOAD_IC: {
+        case FeedbackSlotKind::kLoadProperty: {
           LoadICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
-        case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC: {
+        case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+        case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
           LoadGlobalICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::KEYED_LOAD_IC: {
+        case FeedbackSlotKind::kLoadKeyed: {
           KeyedLoadICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::STORE_SLOPPY_IC:
-        case FeedbackSlotKind::STORE_STRICT_IC: {
+        case FeedbackSlotKind::kStorePropertySloppy:
+        case FeedbackSlotKind::kStorePropertyStrict: {
           StoreICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
-        case FeedbackSlotKind::KEYED_STORE_STRICT_IC: {
+        case FeedbackSlotKind::kStoreKeyedSloppy:
+        case FeedbackSlotKind::kStoreKeyedStrict: {
           KeyedStoreICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
-        case FeedbackSlotKind::INTERPRETER_COMPARE_IC: {
+        case FeedbackSlotKind::kBinaryOp:
+        case FeedbackSlotKind::kCompareOp: {
           DCHECK(Get(slot)->IsSmi());
           // don't clear these smi slots.
           // Set(slot, Smi::kZero);
           break;
         }
-        case FeedbackSlotKind::CREATE_CLOSURE: {
+        case FeedbackSlotKind::kCreateClosure: {
           break;
         }
-        case FeedbackSlotKind::GENERAL: {
+        case FeedbackSlotKind::kGeneral: {
           if (obj->IsHeapObject()) {
             InstanceType instance_type =
                 HeapObject::cast(obj)->map()->instance_type();
@@ -321,18 +321,18 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           }
           break;
         }
-        case FeedbackSlotKind::LITERAL: {
+        case FeedbackSlotKind::kLiteral: {
           Set(slot, undefined_value, SKIP_WRITE_BARRIER);
           break;
         }
-        case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+        case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
           StoreDataPropertyInLiteralICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackSlotKind::TO_BOOLEAN_IC:
-        case FeedbackSlotKind::INVALID:
-        case FeedbackSlotKind::KINDS_NUMBER:
+        case FeedbackSlotKind::kToBoolean:
+        case FeedbackSlotKind::kInvalid:
+        case FeedbackSlotKind::kKindsNumber:
           UNREACHABLE();
           break;
       }

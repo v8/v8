@@ -20,67 +20,67 @@ enum class FeedbackSlotKind {
   // This kind means that the slot points to the middle of other slot
   // which occupies more than one feedback vector element.
   // There must be no such slots in the system.
-  INVALID,
+  kInvalid,
 
-  CALL_IC,
-  LOAD_IC,
-  LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC,
-  LOAD_GLOBAL_INSIDE_TYPEOF_IC,
-  KEYED_LOAD_IC,
-  STORE_SLOPPY_IC,
-  STORE_STRICT_IC,
-  KEYED_STORE_SLOPPY_IC,
-  KEYED_STORE_STRICT_IC,
-  INTERPRETER_BINARYOP_IC,
-  INTERPRETER_COMPARE_IC,
-  TO_BOOLEAN_IC,
-  STORE_DATA_PROPERTY_IN_LITERAL_IC,
-  CREATE_CLOSURE,
-  LITERAL,
+  kCall,
+  kLoadProperty,
+  kLoadGlobalNotInsideTypeof,
+  kLoadGlobalInsideTypeof,
+  kLoadKeyed,
+  kStorePropertySloppy,
+  kStorePropertyStrict,
+  kStoreKeyedSloppy,
+  kStoreKeyedStrict,
+  kBinaryOp,
+  kCompareOp,
+  kToBoolean,
+  kStoreDataPropertyInLiteral,
+  kCreateClosure,
+  kLiteral,
   // This is a general purpose slot that occupies one feedback vector element.
-  GENERAL,
+  kGeneral,
 
-  KINDS_NUMBER  // Last value indicating number of kinds.
+  kKindsNumber  // Last value indicating number of kinds.
 };
 
 inline bool IsCallICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::CALL_IC;
+  return kind == FeedbackSlotKind::kCall;
 }
 
 inline bool IsLoadICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::LOAD_IC;
+  return kind == FeedbackSlotKind::kLoadProperty;
 }
 
 inline bool IsLoadGlobalICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC ||
-         kind == FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC;
+  return kind == FeedbackSlotKind::kLoadGlobalNotInsideTypeof ||
+         kind == FeedbackSlotKind::kLoadGlobalInsideTypeof;
 }
 
 inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::KEYED_LOAD_IC;
+  return kind == FeedbackSlotKind::kLoadKeyed;
 }
 
 inline bool IsStoreICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::STORE_SLOPPY_IC ||
-         kind == FeedbackSlotKind::STORE_STRICT_IC;
+  return kind == FeedbackSlotKind::kStorePropertySloppy ||
+         kind == FeedbackSlotKind::kStorePropertyStrict;
 }
 
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::KEYED_STORE_SLOPPY_IC ||
-         kind == FeedbackSlotKind::KEYED_STORE_STRICT_IC;
+  return kind == FeedbackSlotKind::kStoreKeyedSloppy ||
+         kind == FeedbackSlotKind::kStoreKeyedStrict;
 }
 
 inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsLoadGlobalICKind(kind));
-  return (kind == FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC)
+  return (kind == FeedbackSlotKind::kLoadGlobalInsideTypeof)
              ? INSIDE_TYPEOF
              : NOT_INSIDE_TYPEOF;
 }
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsStoreICKind(kind) || IsKeyedStoreICKind(kind));
-  return (kind == FeedbackSlotKind::STORE_SLOPPY_IC ||
-          kind == FeedbackSlotKind::KEYED_STORE_SLOPPY_IC)
+  return (kind == FeedbackSlotKind::kStorePropertySloppy ||
+          kind == FeedbackSlotKind::kStoreKeyedSloppy)
              ? SLOPPY
              : STRICT;
 }
@@ -90,52 +90,54 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
 template <typename Derived>
 class FeedbackVectorSpecBase {
  public:
-  FeedbackSlot AddCallICSlot() { return AddSlot(FeedbackSlotKind::CALL_IC); }
+  FeedbackSlot AddCallICSlot() { return AddSlot(FeedbackSlotKind::kCall); }
 
-  FeedbackSlot AddLoadICSlot() { return AddSlot(FeedbackSlotKind::LOAD_IC); }
+  FeedbackSlot AddLoadICSlot() {
+    return AddSlot(FeedbackSlotKind::kLoadProperty);
+  }
 
   FeedbackSlot AddLoadGlobalICSlot(TypeofMode typeof_mode) {
     return AddSlot(typeof_mode == INSIDE_TYPEOF
-                       ? FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC
-                       : FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
+                       ? FeedbackSlotKind::kLoadGlobalInsideTypeof
+                       : FeedbackSlotKind::kLoadGlobalNotInsideTypeof);
   }
 
   FeedbackSlot AddCreateClosureSlot() {
-    return AddSlot(FeedbackSlotKind::CREATE_CLOSURE);
+    return AddSlot(FeedbackSlotKind::kCreateClosure);
   }
 
   FeedbackSlot AddKeyedLoadICSlot() {
-    return AddSlot(FeedbackSlotKind::KEYED_LOAD_IC);
+    return AddSlot(FeedbackSlotKind::kLoadKeyed);
   }
 
   FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 2);
     return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::STORE_STRICT_IC
-                       : FeedbackSlotKind::STORE_SLOPPY_IC);
+                       ? FeedbackSlotKind::kStorePropertyStrict
+                       : FeedbackSlotKind::kStorePropertySloppy);
   }
 
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 2);
     return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::KEYED_STORE_STRICT_IC
-                       : FeedbackSlotKind::KEYED_STORE_SLOPPY_IC);
+                       ? FeedbackSlotKind::kStoreKeyedStrict
+                       : FeedbackSlotKind::kStoreKeyedSloppy);
   }
 
   FeedbackSlot AddInterpreterBinaryOpICSlot() {
-    return AddSlot(FeedbackSlotKind::INTERPRETER_BINARYOP_IC);
+    return AddSlot(FeedbackSlotKind::kBinaryOp);
   }
 
   FeedbackSlot AddInterpreterCompareICSlot() {
-    return AddSlot(FeedbackSlotKind::INTERPRETER_COMPARE_IC);
+    return AddSlot(FeedbackSlotKind::kCompareOp);
   }
 
-  FeedbackSlot AddGeneralSlot() { return AddSlot(FeedbackSlotKind::GENERAL); }
+  FeedbackSlot AddGeneralSlot() { return AddSlot(FeedbackSlotKind::kGeneral); }
 
-  FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::LITERAL); }
+  FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::kLiteral); }
 
   FeedbackSlot AddStoreDataPropertyInLiteralICSlot() {
-    return AddSlot(FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC);
+    return AddSlot(FeedbackSlotKind::kStoreDataPropertyInLiteral);
   }
 
 #ifdef OBJECT_PRINT
@@ -240,7 +242,7 @@ class FeedbackMetadata : public FixedArray {
 
  private:
   static const int kFeedbackSlotKindBits = 5;
-  STATIC_ASSERT(static_cast<int>(FeedbackSlotKind::KINDS_NUMBER) <
+  STATIC_ASSERT(static_cast<int>(FeedbackSlotKind::kKindsNumber) <
                 (1 << kFeedbackSlotKindBits));
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
@@ -373,12 +375,12 @@ class FeedbackMetadataIterator {
   explicit FeedbackMetadataIterator(Handle<FeedbackMetadata> metadata)
       : metadata_handle_(metadata),
         next_slot_(FeedbackSlot(0)),
-        slot_kind_(FeedbackSlotKind::INVALID) {}
+        slot_kind_(FeedbackSlotKind::kInvalid) {}
 
   explicit FeedbackMetadataIterator(FeedbackMetadata* metadata)
       : metadata_(metadata),
         next_slot_(FeedbackSlot(0)),
-        slot_kind_(FeedbackSlotKind::INVALID) {}
+        slot_kind_(FeedbackSlotKind::kInvalid) {}
 
   inline bool HasNext() const;
 
@@ -386,8 +388,8 @@ class FeedbackMetadataIterator {
 
   // Returns slot kind of the last slot returned by Next().
   FeedbackSlotKind kind() const {
-    DCHECK_NE(FeedbackSlotKind::INVALID, slot_kind_);
-    DCHECK_NE(FeedbackSlotKind::KINDS_NUMBER, slot_kind_);
+    DCHECK_NE(FeedbackSlotKind::kInvalid, slot_kind_);
+    DCHECK_NE(FeedbackSlotKind::kKindsNumber, slot_kind_);
     return slot_kind_;
   }
 
@@ -655,11 +657,11 @@ class BinaryOpICNexus final : public FeedbackNexus {
  public:
   BinaryOpICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::INTERPRETER_BINARYOP_IC, vector->GetKind(slot));
+    DCHECK_EQ(FeedbackSlotKind::kBinaryOp, vector->GetKind(slot));
   }
   BinaryOpICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::INTERPRETER_BINARYOP_IC, vector->GetKind(slot));
+    DCHECK_EQ(FeedbackSlotKind::kBinaryOp, vector->GetKind(slot));
   }
 
   void Clear(Code* host);
@@ -684,11 +686,11 @@ class CompareICNexus final : public FeedbackNexus {
  public:
   CompareICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::INTERPRETER_COMPARE_IC, vector->GetKind(slot));
+    DCHECK_EQ(FeedbackSlotKind::kCompareOp, vector->GetKind(slot));
   }
   CompareICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::INTERPRETER_COMPARE_IC, vector->GetKind(slot));
+    DCHECK_EQ(FeedbackSlotKind::kCompareOp, vector->GetKind(slot));
   }
 
   void Clear(Code* host);
@@ -714,12 +716,12 @@ class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
   StoreDataPropertyInLiteralICNexus(Handle<FeedbackVector> vector,
                                     FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC,
+    DCHECK_EQ(FeedbackSlotKind::kStoreDataPropertyInLiteral,
               vector->GetKind(slot));
   }
   StoreDataPropertyInLiteralICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC,
+    DCHECK_EQ(FeedbackSlotKind::kStoreDataPropertyInLiteral,
               vector->GetKind(slot));
   }
 

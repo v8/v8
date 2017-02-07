@@ -1483,8 +1483,7 @@ BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
     int operand_index) {
   FeedbackSlot slot = feedback_vector()->ToSlot(
       bytecode_iterator().GetIndexOperand(operand_index));
-  DCHECK_EQ(FeedbackSlotKind::INTERPRETER_BINARYOP_IC,
-            feedback_vector()->GetKind(slot));
+  DCHECK_EQ(FeedbackSlotKind::kBinaryOp, feedback_vector()->GetKind(slot));
   BinaryOpICNexus nexus(feedback_vector(), slot);
   return nexus.GetBinaryOperationFeedback();
 }
@@ -1498,8 +1497,7 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   }
   FeedbackSlot slot =
       feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
-  DCHECK_EQ(FeedbackSlotKind::INTERPRETER_COMPARE_IC,
-            feedback_vector()->GetKind(slot));
+  DCHECK_EQ(FeedbackSlotKind::kCompareOp, feedback_vector()->GetKind(slot));
   CompareICNexus nexus(feedback_vector(), slot);
   return nexus.GetCompareOperationFeedback();
 }

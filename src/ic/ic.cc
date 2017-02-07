@@ -199,7 +199,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
     : isolate_(isolate),
       vector_set_(false),
-      kind_(FeedbackSlotKind::INVALID),
+      kind_(FeedbackSlotKind::kInvalid),
       target_maps_set_(false),
       nexus_(nexus) {
   // To improve the performance of the (much used) IC code, we unfold a few
@@ -256,14 +256,14 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
     Code* target = this->target();
     Code::Kind kind = target->kind();
     if (kind == Code::BINARY_OP_IC) {
-      kind_ = FeedbackSlotKind::INTERPRETER_BINARYOP_IC;
+      kind_ = FeedbackSlotKind::kBinaryOp;
     } else if (kind == Code::COMPARE_IC) {
-      kind_ = FeedbackSlotKind::INTERPRETER_COMPARE_IC;
+      kind_ = FeedbackSlotKind::kCompareOp;
     } else if (kind == Code::TO_BOOLEAN_IC) {
-      kind_ = FeedbackSlotKind::TO_BOOLEAN_IC;
+      kind_ = FeedbackSlotKind::kToBoolean;
     } else {
       UNREACHABLE();
-      kind_ = FeedbackSlotKind::INVALID;
+      kind_ = FeedbackSlotKind::kInvalid;
     }
     DCHECK(!UseVector());
     state_ = StateFromCode(target);

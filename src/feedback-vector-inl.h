@@ -18,7 +18,7 @@ FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
   int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
   This()->append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
-    This()->append(FeedbackSlotKind::INVALID);
+    This()->append(FeedbackSlotKind::kInvalid);
   }
   return FeedbackSlot(slot);
 }
@@ -48,28 +48,28 @@ FeedbackVector* FeedbackVector::cast(Object* obj) {
 
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
-    case FeedbackSlotKind::GENERAL:
-    case FeedbackSlotKind::INTERPRETER_COMPARE_IC:
-    case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
-    case FeedbackSlotKind::TO_BOOLEAN_IC:
-    case FeedbackSlotKind::LITERAL:
-    case FeedbackSlotKind::CREATE_CLOSURE:
+    case FeedbackSlotKind::kGeneral:
+    case FeedbackSlotKind::kCompareOp:
+    case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kToBoolean:
+    case FeedbackSlotKind::kLiteral:
+    case FeedbackSlotKind::kCreateClosure:
       return 1;
 
-    case FeedbackSlotKind::CALL_IC:
-    case FeedbackSlotKind::LOAD_IC:
-    case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
-    case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
-    case FeedbackSlotKind::KEYED_LOAD_IC:
-    case FeedbackSlotKind::STORE_SLOPPY_IC:
-    case FeedbackSlotKind::STORE_STRICT_IC:
-    case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
-    case FeedbackSlotKind::KEYED_STORE_STRICT_IC:
-    case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
+    case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kLoadProperty:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kLoadKeyed:
+    case FeedbackSlotKind::kStorePropertySloppy:
+    case FeedbackSlotKind::kStorePropertyStrict:
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       return 2;
 
-    case FeedbackSlotKind::INVALID:
-    case FeedbackSlotKind::KINDS_NUMBER:
+    case FeedbackSlotKind::kInvalid:
+    case FeedbackSlotKind::kKindsNumber:
       UNREACHABLE();
       break;
   }
@@ -171,16 +171,16 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
 
     Object* const obj = Get(slot);
     switch (kind) {
-      case FeedbackSlotKind::CALL_IC:
-      case FeedbackSlotKind::LOAD_IC:
-      case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
-      case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
-      case FeedbackSlotKind::KEYED_LOAD_IC:
-      case FeedbackSlotKind::STORE_SLOPPY_IC:
-      case FeedbackSlotKind::STORE_STRICT_IC:
-      case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
-      case FeedbackSlotKind::KEYED_STORE_STRICT_IC:
-      case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+      case FeedbackSlotKind::kCall:
+      case FeedbackSlotKind::kLoadProperty:
+      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+      case FeedbackSlotKind::kLoadKeyed:
+      case FeedbackSlotKind::kStorePropertySloppy:
+      case FeedbackSlotKind::kStorePropertyStrict:
+      case FeedbackSlotKind::kStoreKeyedSloppy:
+      case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
         if (obj->IsWeakCell() || obj->IsFixedArray() || obj->IsString()) {
           with++;
         } else if (obj == megamorphic_sentinel) {
@@ -190,7 +190,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         total++;
         break;
       }
-      case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
+      case FeedbackSlotKind::kBinaryOp:
         // If we are not running interpreted code, we need to ignore the special
         // IC slots for binaryop/compare used by the interpreter.
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
@@ -207,7 +207,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
           total++;
         }
         break;
-      case FeedbackSlotKind::INTERPRETER_COMPARE_IC: {
+      case FeedbackSlotKind::kCompareOp: {
         // If we are not running interpreted code, we need to ignore the special
         // IC slots for binaryop/compare used by the interpreter.
         // TODO(mvstanton): Remove code_is_interpreted when full code is retired
@@ -226,13 +226,13 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         }
         break;
       }
-      case FeedbackSlotKind::TO_BOOLEAN_IC:
-      case FeedbackSlotKind::CREATE_CLOSURE:
-      case FeedbackSlotKind::GENERAL:
-      case FeedbackSlotKind::LITERAL:
+      case FeedbackSlotKind::kToBoolean:
+      case FeedbackSlotKind::kCreateClosure:
+      case FeedbackSlotKind::kGeneral:
+      case FeedbackSlotKind::kLiteral:
         break;
-      case FeedbackSlotKind::INVALID:
-      case FeedbackSlotKind::KINDS_NUMBER:
+      case FeedbackSlotKind::kInvalid:
+      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
         break;
     }

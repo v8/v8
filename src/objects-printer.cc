@@ -752,61 +752,61 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     os << "\n Slot " << slot << " " << kind;
     os << " ";
     switch (kind) {
-      case FeedbackSlotKind::LOAD_IC: {
+      case FeedbackSlotKind::kLoadProperty: {
         LoadICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
-      case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC: {
+      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
         LoadGlobalICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::KEYED_LOAD_IC: {
+      case FeedbackSlotKind::kLoadKeyed: {
         KeyedLoadICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::CALL_IC: {
+      case FeedbackSlotKind::kCall: {
         CallICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::STORE_SLOPPY_IC:
-      case FeedbackSlotKind::STORE_STRICT_IC: {
+      case FeedbackSlotKind::kStorePropertySloppy:
+      case FeedbackSlotKind::kStorePropertyStrict: {
         StoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
-      case FeedbackSlotKind::KEYED_STORE_STRICT_IC: {
+      case FeedbackSlotKind::kStoreKeyedSloppy:
+      case FeedbackSlotKind::kStoreKeyedStrict: {
         KeyedStoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::INTERPRETER_BINARYOP_IC: {
+      case FeedbackSlotKind::kBinaryOp: {
         BinaryOpICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::INTERPRETER_COMPARE_IC: {
+      case FeedbackSlotKind::kCompareOp: {
         CompareICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
         StoreDataPropertyInLiteralICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackSlotKind::CREATE_CLOSURE:
-      case FeedbackSlotKind::LITERAL:
-      case FeedbackSlotKind::GENERAL:
+      case FeedbackSlotKind::kCreateClosure:
+      case FeedbackSlotKind::kLiteral:
+      case FeedbackSlotKind::kGeneral:
         break;
-      case FeedbackSlotKind::TO_BOOLEAN_IC:
-      case FeedbackSlotKind::INVALID:
-      case FeedbackSlotKind::KINDS_NUMBER:
+      case FeedbackSlotKind::kToBoolean:
+      case FeedbackSlotKind::kInvalid:
+      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
         break;
     }
