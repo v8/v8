@@ -33,7 +33,7 @@ struct TestHelper : public HandleAndZoneScope {
 
   void CheckLoopAssignedCount(int expected, const char* var_name) {
     // TODO(titzer): don't scope analyze every single time.
-    ParseInfo parse_info(handle(function->shared()));
+    ParseInfo parse_info(main_zone(), handle(function->shared()));
     CompilationInfo info(&parse_info, function);
 
     CHECK(parsing::ParseFunction(&parse_info));
