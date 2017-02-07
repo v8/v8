@@ -1156,37 +1156,11 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Variable var_value(this, MachineRepresentation::kTagged);
 
   // Receivers requiring non-standard accesses (interceptors, access
-  // checks, string wrappers, proxies) are handled in the runtime.
-  // We special-case strings here, to support loading <Symbol.split> etc.
-  Variable var_receiver(this, MachineRepresentation::kTagged);
-  Variable var_receiver_map(this, MachineRepresentation::kTagged);
-  Variable var_instance_type(this, MachineRepresentation::kWord32);
-  var_receiver.Bind(receiver);
-  var_receiver_map.Bind(receiver_map);
-  var_instance_type.Bind(instance_type);
-  Label normal_receiver(this);
-  GotoIf(Int32GreaterThan(instance_type,
-                          Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         &normal_receiver);
-  GotoIf(Int32GreaterThanOrEqual(instance_type,
-                                 Int32Constant(FIRST_NONSTRING_TYPE)),
+  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  GotoIf(Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
          slow);
-  CSA_ASSERT(this, WordEqual(LoadMapConstructorFunctionIndex(receiver_map),
-                             IntPtrConstant(Context::STRING_FUNCTION_INDEX)));
-  Node* native_context = LoadNativeContext(p->context);
-  Node* constructor_function =
-      LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
-  Node* initial_map = LoadObjectField(constructor_function,
-                                      JSFunction::kPrototypeOrInitialMapOffset);
-  var_receiver.Bind(LoadMapPrototype(initial_map));
-  var_receiver_map.Bind(LoadMap(var_receiver.value()));
-  var_instance_type.Bind(LoadMapInstanceType(var_receiver_map.value()));
-  Goto(&normal_receiver);
 
-  Bind(&normal_receiver);
-  receiver = var_receiver.value();
-  receiver_map = var_receiver_map.value();
-  instance_type = var_instance_type.value();
   // Check if the receiver has fast or slow properties.
   Node* properties = LoadProperties(receiver);
   Node* properties_map = LoadMap(properties);
@@ -1202,10 +1176,10 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   // See also TryLookupProperty() which has the same limitation.
   const int32_t kMaxLinear = 210;
   Label stub_cache(this);
-  Node* bitfield3 = LoadMapBitField3(var_receiver_map.value());
+  Node* bitfield3 = LoadMapBitField3(receiver_map);
   Node* nof = DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
   GotoIf(UintPtrLessThan(IntPtrConstant(kMaxLinear), nof), &stub_cache);
-  Node* descriptors = LoadMapDescriptors(var_receiver_map.value());
+  Node* descriptors = LoadMapDescriptors(receiver_map);
   Variable var_name_index(this, MachineType::PointerRepresentation());
   Label if_descriptor_found(this);
   DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
@@ -1213,7 +1187,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   Bind(&if_descriptor_found);
   {
-    LoadPropertyFromFastObject(receiver, var_receiver_map.value(), descriptors,
+    LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
                                var_name_index.value(), &var_details,
                                &var_value);
     Goto(&if_found_on_receiver);
@@ -1261,7 +1235,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Bind(&if_found_on_receiver);
   {
     Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
-                                       p->context, var_receiver.value(), slow);
+                                       p->context, receiver, slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
     Return(value);
   }
@@ -1274,8 +1248,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
     Label loop(this, arraysize(merged_variables), merged_variables);
 
-    var_holder_map.Bind(var_receiver_map.value());
-    var_holder_instance_type.Bind(var_instance_type.value());
+    var_holder_map.Bind(receiver_map);
+    var_holder_instance_type.Bind(instance_type);
     // Private symbols must not be looked up on the prototype chain.
     GotoIf(IsPrivateSymbol(key), &return_undefined);
     Goto(&loop);
@@ -1292,7 +1266,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
       var_holder_map.Bind(proto_map);
       var_holder_instance_type.Bind(proto_instance_type);
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
-      TryGetOwnProperty(p->context, var_receiver.value(), proto, proto_map,
+      TryGetOwnProperty(p->context, receiver, proto, proto_map,
                         proto_instance_type, key, &return_value, &var_value,
                         &next_proto, &goto_slow);
 
