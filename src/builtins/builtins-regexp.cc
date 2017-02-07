@@ -340,33 +340,6 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   return var_result.value();
 }
 
-// Wrapper around RegExpPrototypeExecBody to reduce code duplication.
-TF_BUILTIN(RegExpExecInternalFast, RegExpBuiltinsAssembler) {
-  typedef RegExpExecInternalDescriptor Descriptor;
-
-  Node* const regexp = Parameter(Descriptor::kReceiver);
-  Node* const string = Parameter(Descriptor::kString);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
-  CSA_ASSERT(this, IsString(string));
-
-  Return(RegExpPrototypeExecBody(context, regexp, string, true));
-}
-
-// Wrapper around RegExpPrototypeExecBody to reduce code duplication.
-TF_BUILTIN(RegExpExecInternalSlow, RegExpBuiltinsAssembler) {
-  typedef RegExpExecInternalDescriptor Descriptor;
-
-  Node* const regexp = Parameter(Descriptor::kReceiver);
-  Node* const string = Parameter(Descriptor::kString);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, IsString(string));
-
-  Return(RegExpPrototypeExecBody(context, regexp, string, false));
-}
-
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
 Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
@@ -525,14 +498,16 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
 
   Bind(&if_isfastpath);
   {
-    Callable exec_callable = CodeFactory::RegExpExecInternal(isolate(), true);
-    Return(CallStub(exec_callable, context, receiver, string));
+    Node* const result =
+        RegExpPrototypeExecBody(context, receiver, string, true);
+    Return(result);
   }
 
   Bind(&if_isslowpath);
   {
-    Callable exec_callable = CodeFactory::RegExpExecInternal(isolate(), false);
-    Return(CallStub(exec_callable, context, receiver, string));
+    Node* const result =
+        RegExpPrototypeExecBody(context, receiver, string, false);
+    Return(result);
   }
 }
 
@@ -1249,8 +1224,7 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
 
   Bind(&if_isfastpath);
   {
-    Callable exec_callable = CodeFactory::RegExpExecInternal(isolate, true);
-    Node* const result = CallStub(exec_callable, context, regexp, string);
+    Node* const result = RegExpPrototypeExecBody(context, regexp, string, true);
     var_result.Bind(result);
     Goto(&out);
   }
@@ -1292,8 +1266,8 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
       ThrowIfNotInstanceType(context, regexp, JS_REGEXP_TYPE,
                              "RegExp.prototype.exec");
 
-      Callable exec_callable = CodeFactory::RegExpExecInternal(isolate, false);
-      Node* const result = CallStub(exec_callable, context, regexp, string);
+      Node* const result =
+          RegExpPrototypeExecBody(context, regexp, string, false);
       var_result.Bind(result);
       Goto(&out);
     }
@@ -1550,12 +1524,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 
   Bind(&if_isnotglobal);
   {
-    if (is_fastpath) {
-      Callable exec_callable = CodeFactory::RegExpExecInternal(isolate, true);
-      Return(CallStub(exec_callable, context, regexp, string));
-    } else {
-      Return(RegExpExec(context, regexp, string));
-    }
+    Node* const result =
+        is_fastpath ? RegExpPrototypeExecBody(context, regexp, string, true)
+                    : RegExpExec(context, regexp, string);
+    Return(result);
   }
 
   Bind(&if_isglobal);

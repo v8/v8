@@ -52,7 +52,6 @@ class PlatformInterfaceDescriptor;
   V(ConstructStub)                        \
   V(ConstructTrampoline)                  \
   V(RegExpExec)                           \
-  V(RegExpExecInternal)                   \
   V(RegExpReplace)                        \
   V(RegExpSplit)                          \
   V(CopyFastSmiOrObjectElements)          \
@@ -656,13 +655,6 @@ class RegExpExecDescriptor : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kRegExpObject, kString, kPreviousIndex, kLastMatchInfo)
   DECLARE_DESCRIPTOR_WITH_STACK_ARGS(RegExpExecDescriptor,
                                      CallInterfaceDescriptor)
-};
-
-class RegExpExecInternalDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kString)
-  DECLARE_DEFAULT_DESCRIPTOR(RegExpExecInternalDescriptor,
-                             CallInterfaceDescriptor, kParameterCount)
 };
 
 class RegExpReplaceDescriptor : public CallInterfaceDescriptor {
