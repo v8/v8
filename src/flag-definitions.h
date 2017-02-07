@@ -269,9 +269,12 @@ DEFINE_IMPLICATION(ignition_staging, validate_asm)
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
             "pretenure with allocation sites")
+DEFINE_BOOL(mark_shared_functions_for_tier_up, false,
+            "mark shared functions for tier up")
 DEFINE_BOOL(page_promotion, true, "promote pages based on utilization")
 DEFINE_INT(page_promotion_threshold, 70,
            "min percentage of live bytes on a page to enable fast evacuation")
+DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
 DEFINE_BOOL(trace_pretenuring, false,
             "trace pretenuring decisions of HAllocate instructions")
 DEFINE_BOOL(trace_pretenuring_statistics, false,
@@ -286,9 +289,7 @@ DEFINE_IMPLICATION(track_computed_fields, track_fields)
 DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_IMPLICATION(track_field_types, track_fields)
 DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
-DEFINE_BOOL(smi_binop, true, "support smi representation in binary operations")
-DEFINE_BOOL(mark_shared_functions_for_tier_up, false,
-            "mark shared functions for tier up")
+DEFINE_BOOL(type_profile, false, "collect type information")
 
 // Flags for strongly rooting literal arrays in the feedback vector.
 DEFINE_BOOL(trace_strong_rooted_literals, false, "trace literal rooting")
