@@ -45,7 +45,6 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
-  # crbug.com/681088
   'crbug.com/681088': [
     '/v8/test/mjsunit/asm/asm-validation.js',
     '/v8/test/mjsunit/asm/b5528-comma.js',
@@ -60,10 +59,13 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
   ],
 
-  # crbug.com/681241
   'crbug.com/681241': [
     '/v8/test/mjsunit/regress/regress-617526.js',
     '/v8/test/mjsunit/regress/wasm/regression-02862.js',
+  ],
+
+  'crbug.com/688159': [
+    '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
 }
 
