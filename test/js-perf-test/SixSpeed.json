@@ -119,7 +119,7 @@
         {
           "name": "Babel",
           "main": "run.js",
-          "test_flags": ["super_spread/babel"]
+          "test_flags": ["spread_literal/babel"]
         },
         {
           "name": "ES6",
