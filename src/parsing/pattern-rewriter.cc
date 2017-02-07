@@ -177,6 +177,8 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   // If there's no initializer, we're done.
   if (value == nullptr) return;
 
+  MarkLoopVariableAsAssigned(var_init_scope, proxy->var());
+
   // A declaration of the form:
   //
   //    var v = x;
