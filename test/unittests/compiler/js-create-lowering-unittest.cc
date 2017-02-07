@@ -65,19 +65,24 @@ class JSCreateLoweringTest : public TypedGraphTest {
   CompilationDependencies deps_;
 };
 
+// -----------------------------------------------------------------------------
+// JSCreate
+
 TEST_F(JSCreateLoweringTest, JSCreate) {
   Handle<JSFunction> function = isolate()->object_function();
   Node* const target = Parameter(Type::HeapConstant(function, graph()->zone()));
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->Create(), target, target,
-                                        context, EmptyFrameState(), effect));
+  Node* const control = graph()->start();
+  Reduction r =
+      Reduce(graph()->NewNode(javascript()->Create(), target, target, context,
+                              EmptyFrameState(), effect, control));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(
       r.replacement(),
       IsFinishRegion(
           IsAllocate(IsNumberConstant(function->initial_map()->instance_size()),
-                     IsBeginRegion(effect), _),
+                     IsBeginRegion(effect), control),
           _));
 }
 

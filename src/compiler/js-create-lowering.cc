@@ -240,6 +240,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const new_target = NodeProperties::GetValueInput(node, 1);
   Type* const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
   if (target_type->IsHeapConstant() && new_target_type->IsHeapConstant() &&
       new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
@@ -267,7 +268,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 
       // Emit code to allocate the JSObject instance for the
       // {original_constructor}.
-      AllocationBuilder a(jsgraph(), effect, graph()->start());
+      AllocationBuilder a(jsgraph(), effect, control);
       a.Allocate(instance_size);
       a.Store(AccessBuilder::ForMap(), initial_map);
       a.Store(AccessBuilder::ForJSObjectProperties(),
@@ -278,6 +279,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
         a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
                 jsgraph()->UndefinedConstant());
       }
+      RelaxControls(node);
       a.FinishAndChange(node);
       return Changed(node);
     }

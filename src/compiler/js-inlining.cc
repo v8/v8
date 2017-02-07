@@ -636,10 +636,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     if (NeedsImplicitReceiver(shared_info)) {
       Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
       Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
       Node* context = NodeProperties::GetContextInput(node);
       Node* create = graph()->NewNode(javascript()->Create(), call.target(),
                                       call.new_target(), context,
-                                      frame_state_before, effect);
+                                      frame_state_before, effect, control);
+      Node* success = graph()->NewNode(common()->IfSuccess(), create);
+      uncaught_subcalls.push_back(create);  // Adds {IfException}.
+      NodeProperties::ReplaceControlInput(node, success);
       NodeProperties::ReplaceEffectInput(node, create);
       // Insert a check of the return value to determine whether the return
       // value or the implicit receiver should be selected as a result of the
