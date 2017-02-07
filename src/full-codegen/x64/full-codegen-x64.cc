@@ -260,14 +260,16 @@ void FullCodeGenerator::Generate() {
       __ movp(rdi, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
     }
     if (is_strict(language_mode()) || !has_simple_parameters()) {
-      FastNewStrictArgumentsStub stub(isolate());
-      __ CallStub(&stub);
+      __ call(isolate()->builtins()->FastNewStrictArguments(),
+              RelocInfo::CODE_TARGET);
+      RestoreContext();
     } else if (literal()->has_duplicate_parameters()) {
       __ Push(rdi);
       __ CallRuntime(Runtime::kNewSloppyArguments_Generic);
     } else {
-      FastNewSloppyArgumentsStub stub(isolate());
-      __ CallStub(&stub);
+      __ call(isolate()->builtins()->FastNewSloppyArguments(),
+              RelocInfo::CODE_TARGET);
+      RestoreContext();
     }
 
     SetVar(arguments, rax, rbx, rdx);

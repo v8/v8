@@ -33,9 +33,7 @@ class PlatformInterfaceDescriptor;
   V(FastNewClosure)                       \
   V(FastNewFunctionContext)               \
   V(FastNewObject)                        \
-  V(FastNewRestParameter)                 \
-  V(FastNewSloppyArguments)               \
-  V(FastNewStrictArguments)               \
+  V(FastNewArguments)                     \
   V(TypeConversion)                       \
   V(Typeof)                               \
   V(FastCloneRegExp)                      \
@@ -497,21 +495,11 @@ class FastNewObjectDescriptor : public CallInterfaceDescriptor {
   static const Register NewTargetRegister();
 };
 
-class FastNewRestParameterDescriptor : public CallInterfaceDescriptor {
+class FastNewArgumentsDescriptor : public CallInterfaceDescriptor {
  public:
-  DECLARE_DESCRIPTOR(FastNewRestParameterDescriptor, CallInterfaceDescriptor)
-};
-
-class FastNewSloppyArgumentsDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(FastNewSloppyArgumentsDescriptor,
-                     CallInterfaceDescriptor)
-};
-
-class FastNewStrictArgumentsDescriptor : public CallInterfaceDescriptor {
- public:
-  DECLARE_DESCRIPTOR(FastNewStrictArgumentsDescriptor,
-                     CallInterfaceDescriptor)
+  DEFINE_PARAMETERS(kFunction)
+  DECLARE_DESCRIPTOR(FastNewArgumentsDescriptor, CallInterfaceDescriptor)
+  static const Register TargetRegister();
 };
 
 class TypeConversionDescriptor final : public CallInterfaceDescriptor {

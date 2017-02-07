@@ -1201,6 +1201,25 @@ Node* CodeStubAssembler::LoadMapConstructor(Node* map) {
   return result.value();
 }
 
+Node* CodeStubAssembler::LoadSharedFunctionInfoSpecialField(
+    Node* shared, int offset, ParameterMode mode) {
+  if (Is64()) {
+    Node* result = LoadObjectField(shared, offset, MachineType::Int32());
+    if (mode == SMI_PARAMETERS) {
+      result = SmiTag(result);
+    } else {
+      result = ChangeUint32ToWord(result);
+    }
+    return result;
+  } else {
+    Node* result = LoadObjectField(shared, offset);
+    if (mode != SMI_PARAMETERS) {
+      result = SmiUntag(result);
+    }
+    return result;
+  }
+}
+
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
   CSA_ASSERT(this, IsName(name));
   return LoadObjectField(name, Name::kHashFieldOffset, MachineType::Uint32());
@@ -6285,6 +6304,16 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
       INTPTR_PARAMETERS,
       direction == ForEachDirection::kReverse ? IndexAdvanceMode::kPre
                                               : IndexAdvanceMode::kPost);
+}
+
+void CodeStubAssembler::GotoIfFixedArraySizeDoesntFitInNewSpace(
+    Node* element_count, Label* doesnt_fit, int base_size, ParameterMode mode) {
+  int max_newspace_parameters =
+      (kMaxRegularHeapObjectSize - base_size) / kPointerSize;
+  GotoIf(IntPtrOrSmiGreaterThan(
+             element_count, IntPtrOrSmiConstant(max_newspace_parameters, mode),
+             mode),
+         doesnt_fit);
 }
 
 void CodeStubAssembler::InitializeFieldsWithRoot(

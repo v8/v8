@@ -972,6 +972,8 @@ v8_source_set("v8_base") {
     "src/bootstrapper.cc",
     "src/bootstrapper.h",
     "src/builtins/builtins-api.cc",
+    "src/builtins/builtins-arguments.cc",
+    "src/builtins/builtins-arguments.h",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
     "src/builtins/builtins-async-function.cc",

@@ -589,12 +589,29 @@ RUNTIME_FUNCTION(Runtime_NewRestParameter) {
 
 RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, callee, 0);
-  Object** parameters = reinterpret_cast<Object**>(args[1]);
-  CONVERT_SMI_ARG_CHECKED(argument_count, 2);
+  StackFrameIterator iterator(isolate);
+
+  // Stub/interpreter handler frame
+  iterator.Advance();
+  DCHECK(iterator.frame()->type() == StackFrame::STUB);
+
+  // Function frame
+  iterator.Advance();
+  JavaScriptFrame* function_frame = JavaScriptFrame::cast(iterator.frame());
+  DCHECK(function_frame->is_java_script());
+  int argc = function_frame->GetArgumentsLength();
+  Address fp = function_frame->fp();
+  if (function_frame->has_adapted_arguments()) {
+    iterator.Advance();
+    fp = iterator.frame()->fp();
+  }
+
+  Object** parameters = reinterpret_cast<Object**>(
+      fp + argc * kPointerSize + StandardFrameConstants::kCallerSPOffset);
   ParameterArguments argument_getter(parameters);
-  return *NewSloppyArguments(isolate, callee, argument_getter, argument_count);
+  return *NewSloppyArguments(isolate, callee, argument_getter, argc);
 }
 
 RUNTIME_FUNCTION(Runtime_NewArgumentsElements) {

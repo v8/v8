@@ -103,6 +103,9 @@ class Isolate;
       FastNewFunctionContext)                                                  \
   TFS(FastNewFunctionContextFunction, BUILTIN, kNoExtraICState,                \
       FastNewFunctionContext)                                                  \
+  TFS(FastNewStrictArguments, BUILTIN, kNoExtraICState, FastNewArguments)      \
+  TFS(FastNewSloppyArguments, BUILTIN, kNoExtraICState, FastNewArguments)      \
+  TFS(FastNewRestParameter, BUILTIN, kNoExtraICState, FastNewArguments)        \
   TFS(FastCloneRegExp, BUILTIN, kNoExtraICState, FastCloneRegExp)              \
   TFS(FastCloneShallowArrayTrack, BUILTIN, kNoExtraICState,                    \
       FastCloneShallowArray)                                                   \

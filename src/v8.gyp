@@ -476,6 +476,8 @@
         'bootstrapper.cc',
         'bootstrapper.h',
         'builtins/builtins-api.cc',
+        'builtins/builtins-arguments.cc',
+        'builtins/builtins-arguments.h',
         'builtins/builtins-arraybuffer.cc',
         'builtins/builtins-array.cc',
         'builtins/builtins-async-function.cc',

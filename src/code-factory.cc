@@ -346,24 +346,21 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::FastNewRestParameter(Isolate* isolate,
-                                           bool skip_stub_frame) {
-  FastNewRestParameterStub stub(isolate, skip_stub_frame);
-  return make_callable(stub);
+Callable CodeFactory::FastNewRestParameter(Isolate* isolate) {
+  return Callable(isolate->builtins()->FastNewRestParameter(),
+                  FastNewRestParameterDescriptor(isolate));
 }
 
 // static
-Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate,
-                                             bool skip_stub_frame) {
-  FastNewSloppyArgumentsStub stub(isolate, skip_stub_frame);
-  return make_callable(stub);
+Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate) {
+  return Callable(isolate->builtins()->FastNewSloppyArguments(),
+                  FastNewRestParameterDescriptor(isolate));
 }
 
 // static
-Callable CodeFactory::FastNewStrictArguments(Isolate* isolate,
-                                             bool skip_stub_frame) {
-  FastNewStrictArgumentsStub stub(isolate, skip_stub_frame);
-  return make_callable(stub);
+Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
+  return Callable(isolate->builtins()->FastNewStrictArguments(),
+                  FastNewRestParameterDescriptor(isolate));
 }
 
 // static

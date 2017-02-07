@@ -8,6 +8,7 @@
 #include <memory>
 
 #include "src/ast/prettyprinter.h"
+#include "src/builtins/builtins-arguments.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
 #include "src/compilation-info.h"
@@ -2935,10 +2936,9 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 
   __ Bind(&if_not_duplicate_parameters);
   {
-    // TODO(rmcilroy): Inline FastNewSloppyArguments when it is a TurboFan stub.
-    Callable callable = CodeFactory::FastNewSloppyArguments(isolate_, true);
-    Node* target = __ HeapConstant(callable.code());
-    Node* result = __ CallStub(callable.descriptor(), target, context, closure);
+    ArgumentsBuiltinsAssembler constructor_assembler(assembler->state());
+    Node* result =
+        constructor_assembler.EmitFastNewSloppyArguments(context, closure);
     __ SetAccumulator(result);
     __ Dispatch();
   }
@@ -2956,12 +2956,11 @@ void Interpreter::DoCreateMappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new unmapped arguments object.
 void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
-  // TODO(rmcilroy): Inline FastNewStrictArguments when it is a TurboFan stub.
-  Callable callable = CodeFactory::FastNewStrictArguments(isolate_, true);
-  Node* target = __ HeapConstant(callable.code());
   Node* context = __ GetContext();
   Node* closure = __ LoadRegister(Register::function_closure());
-  Node* result = __ CallStub(callable.descriptor(), target, context, closure);
+  ArgumentsBuiltinsAssembler builtins_assembler(assembler->state());
+  Node* result =
+      builtins_assembler.EmitFastNewStrictArguments(context, closure);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2970,12 +2969,10 @@ void Interpreter::DoCreateUnmappedArguments(InterpreterAssembler* assembler) {
 //
 // Creates a new rest parameter array.
 void Interpreter::DoCreateRestParameter(InterpreterAssembler* assembler) {
-  // TODO(rmcilroy): Inline FastNewRestArguments when it is a TurboFan stub.
-  Callable callable = CodeFactory::FastNewRestParameter(isolate_, true);
-  Node* target = __ HeapConstant(callable.code());
   Node* closure = __ LoadRegister(Register::function_closure());
   Node* context = __ GetContext();
-  Node* result = __ CallStub(callable.descriptor(), target, context, closure);
+  ArgumentsBuiltinsAssembler builtins_assembler(assembler->state());
+  Node* result = builtins_assembler.EmitFastNewRestParameter(context, closure);
   __ SetAccumulator(result);
   __ Dispatch();
 }

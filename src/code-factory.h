@@ -148,12 +148,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                                          ScopeType scope_type);
   static Callable FastNewClosure(Isolate* isolate);
   static Callable FastNewObject(Isolate* isolate);
-  static Callable FastNewRestParameter(Isolate* isolate,
-                                       bool skip_stub_frame = false);
-  static Callable FastNewSloppyArguments(Isolate* isolate,
-                                         bool skip_stub_frame = false);
-  static Callable FastNewStrictArguments(Isolate* isolate,
-                                         bool skip_stub_frame = false);
+  static Callable FastNewRestParameter(Isolate* isolate);
+  static Callable FastNewSloppyArguments(Isolate* isolate);
+  static Callable FastNewStrictArguments(Isolate* isolate);
 
   static Callable CopyFastSmiOrObjectElements(Isolate* isolate);
   static Callable GrowFastDoubleElements(Isolate* isolate);

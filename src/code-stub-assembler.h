@@ -77,10 +77,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return Is64() ? INTPTR_PARAMETERS : SMI_PARAMETERS;
   }
 
+  MachineRepresentation ParameterRepresentation(ParameterMode mode) const {
+    return mode == INTPTR_PARAMETERS ? MachineType::PointerRepresentation()
+                                     : MachineRepresentation::kTaggedSigned;
+  }
+
   MachineRepresentation OptimalParameterRepresentation() const {
-    return OptimalParameterMode() == INTPTR_PARAMETERS
-               ? MachineType::PointerRepresentation()
-               : MachineRepresentation::kTaggedSigned;
+    return ParameterRepresentation(OptimalParameterMode());
   }
 
   Node* ParameterToWord(Node* value, ParameterMode mode) {
@@ -384,6 +387,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadMapConstructorFunctionIndex(Node* map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   Node* LoadMapConstructor(Node* map);
+  // Loads a value from the specially encoded integer fields in the
+  // SharedFunctionInfo object.
+  // TODO(danno): This currently only works for the integer fields that are
+  // mapped to the upper part of 64-bit words. We should customize
+  // SFI::BodyDescriptor and store int32 values directly.
+  Node* LoadSharedFunctionInfoSpecialField(Node* shared, int offset,
+                                           ParameterMode param_mode);
+
   // Check if the map is set for slow properties.
   Node* IsDictionaryMap(Node* map);
 
@@ -1113,6 +1124,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return GetArrayAllocationSize(element_count, kind, mode,
                                   FixedArray::kHeaderSize);
   }
+
+  void GotoIfFixedArraySizeDoesntFitInNewSpace(Node* element_count,
+                                               Label* doesnt_fit, int base_size,
+                                               ParameterMode mode);
 
   void InitializeFieldsWithRoot(Node* object, Node* start_offset,
                                 Node* end_offset, Heap::RootListIndex root);
