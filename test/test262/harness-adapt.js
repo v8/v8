@@ -104,4 +104,4 @@ function RealmOperators(realm) {
   return $;
 }
 
-var $262 = RealmOperators(Realm.current());
+var $ = RealmOperators(Realm.current());
