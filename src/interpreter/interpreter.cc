@@ -556,6 +556,15 @@ void Interpreter::DoLdaContextSlot(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
+// LdaImmutableContextSlot <context> <slot_index> <depth>
+//
+// Load the object in |slot_index| of the context at |depth| in the context
+// chain starting at |context| into the accumulator.
+void Interpreter::DoLdaImmutableContextSlot(InterpreterAssembler* assembler) {
+  // TODO(danno) Share the actual code object rather creating a duplicate one.
+  DoLdaContextSlot(assembler);
+}
+
 // LdaCurrentContextSlot <slot_index>
 //
 // Load the object in |slot_index| of the current context into the accumulator.
@@ -565,6 +574,15 @@ void Interpreter::DoLdaCurrentContextSlot(InterpreterAssembler* assembler) {
   Node* result = __ LoadContextElement(slot_context, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
+}
+
+// LdaImmutableCurrentContextSlot <slot_index>
+//
+// Load the object in |slot_index| of the current context into the accumulator.
+void Interpreter::DoLdaImmutableCurrentContextSlot(
+    InterpreterAssembler* assembler) {
+  // TODO(danno) Share the actual code object rather creating a duplicate one.
+  DoLdaCurrentContextSlot(assembler);
 }
 
 // StaContextSlot <context> <slot_index> <depth>
