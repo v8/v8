@@ -203,9 +203,10 @@ class PreParserExpression {
                                IsUseAsmField::encode(true));
   }
 
-  static PreParserExpression This() {
+  static PreParserExpression This(ZoneList<VariableProxy*>* variables) {
     return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kThisExpression));
+                                   ExpressionTypeField::encode(kThisExpression),
+                               variables);
   }
 
   static PreParserExpression ThisProperty() {
@@ -1494,7 +1495,19 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
-    return PreParserExpression::This();
+    ZoneList<VariableProxy*>* variables = nullptr;
+    if (track_unresolved_variables_) {
+      AstNodeFactory factory(ast_value_factory());
+      // Setting the Zone is necessary because zone_ might be the temp Zone, and
+      // AstValueFactory doesn't know about it.
+      factory.set_zone(zone());
+      VariableProxy* proxy = scope()->NewUnresolved(
+          &factory, ast_value_factory()->this_string(), pos, THIS_VARIABLE);
+
+      variables = new (zone()) ZoneList<VariableProxy*>(1, zone());
+      variables->Add(proxy, zone());
+    }
+    return PreParserExpression::This(variables);
   }
 
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {

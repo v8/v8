@@ -9258,12 +9258,19 @@ TEST(PreParserScopeAnalysis) {
       {"", "var var1; if (true) { const var1 = 0; }"},
       {"", "const var1 = 0; if (true) { const var1 = 0; }"},
 
-      // Variable called "arguments"
+      // Arguments and this.
       {"", "arguments;"},
       {"", "arguments = 5;"},
+      {"", "if (true) { arguments; }"},
+      {"", "if (true) { arguments = 5; }"},
       {"", "function f() { arguments; }"},
       {"", "function f() { arguments = 5; }"},
 
+      {"", "this;"},
+      {"", "if (true) { this; }"},
+      {"", "function f() { this; }"},
+
+      // Variable called "arguments"
       {"", "var arguments;"},
       {"", "var arguments; arguments = 5;"},
       {"", "if (true) { var arguments; }"},
@@ -9434,9 +9441,6 @@ TEST(PreParserScopeAnalysis) {
       {"", "var var1 = 0; for (var1; var1 > 2; ) { function foo() { var1; } }"},
       {"",
        "var var1 = 0; for (var1; var1 > 2; ) { function foo() { var1 = 6; } }"},
-
-      // FIXME(marja): Add test cases for special variables (this, arguments
-      // etc) referred to in the for loop conditions.
 
       // Sloppy block functions.
       {"", "if (true) { function f1() {} }"},
