@@ -230,8 +230,6 @@ class TypeFeedbackMetadata : public FixedArray {
 
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
-  bool DiffersFrom(const TypeFeedbackMetadata* other_metadata) const;
-
   inline bool is_empty() const;
 
   // Returns number of slots in the vector.

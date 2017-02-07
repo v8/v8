@@ -122,24 +122,6 @@ bool TypeFeedbackMetadata::SpecDiffersFrom(
   return false;
 }
 
-bool TypeFeedbackMetadata::DiffersFrom(
-    const TypeFeedbackMetadata* other_metadata) const {
-  if (other_metadata->slot_count() != slot_count()) {
-    return true;
-  }
-
-  int slots = slot_count();
-  for (int i = 0; i < slots;) {
-    FeedbackVectorSlot slot(i);
-    FeedbackVectorSlotKind kind = GetKind(slot);
-    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
-    if (GetKind(slot) != other_metadata->GetKind(slot)) {
-      return true;
-    }
-    i += entry_size;
-  }
-  return false;
-}
 
 const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
   switch (kind) {
