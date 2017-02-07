@@ -32,7 +32,7 @@ class ScopeTestHelper {
   }
 
   static void CompareScopeToData(Scope* scope, const PreParsedScopeData* data,
-                                 size_t& index, bool precise_maybe_assigned) {
+                                 size_t& index) {
     CHECK_EQ(data->backing_store_[index++], scope->scope_type());
     CHECK_EQ(data->backing_store_[index++], scope->start_position());
     CHECK_EQ(data->backing_store_[index++], scope->end_position());
@@ -70,19 +70,14 @@ class ScopeTestHelper {
         }
 #endif
         CHECK_EQ(data->backing_store_[index++], local->location());
-        if (precise_maybe_assigned) {
-          CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
-        } else {
-          STATIC_ASSERT(kMaybeAssigned > kNotAssigned);
-          CHECK_GE(data->backing_store_[index++], local->maybe_assigned());
-        }
+        CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
       }
     }
 
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
       if (!ScopeTreeIsHidden(inner)) {
-        CompareScopeToData(inner, data, index, precise_maybe_assigned);
+        CompareScopeToData(inner, data, index);
       }
     }
   }
