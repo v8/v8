@@ -251,16 +251,6 @@ Mirror.prototype.isFunction = function() {}
 /** @return {boolean} */
 Mirror.prototype.isGenerator = function() {}
 
-/** @return {boolean} */
-Mirror.prototype.isMap = function() {}
-
-/** @return {boolean} */
-Mirror.prototype.isSet = function() {}
-
-/** @return {boolean} */
-Mirror.prototype.isIterator = function() {}
-
-
 /**
  * @interface
  * @extends {Mirror}
@@ -309,46 +299,6 @@ FunctionMirror.prototype.context = function() {}
  * @param {*} value
  */
 function UnresolvedFunctionMirror(value) {}
-
-
-/**
- * @interface
- * @extends {ObjectMirror}
- */
-function MapMirror () {}
-
-/**
- * @param {number=} limit
- * @return {!Array<!{key: *, value: *}>}
- */
-MapMirror.prototype.entries = function(limit) {}
-
-
-/**
- * @interface
- * @extends {ObjectMirror}
- */
-function SetMirror () {}
-
-/**
- * @param {number=} limit
- * @return {!Array<*>}
- */
-SetMirror.prototype.values = function(limit) {}
-
-
-/**
- * @interface
- * @extends {ObjectMirror}
- */
-function IteratorMirror () {}
-
-/**
- * @param {number=} limit
- * @return {!Array<*>}
- */
-IteratorMirror.prototype.preview = function(limit) {}
-
 
 /**
  * @interface

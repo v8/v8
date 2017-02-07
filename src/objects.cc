@@ -18770,6 +18770,40 @@ bool JSWeakCollection::Delete(Handle<JSWeakCollection> weak_collection,
   return was_present;
 }
 
+Handle<JSArray> JSWeakCollection::GetEntries(Handle<JSWeakCollection> holder,
+                                             int max_entries) {
+  Isolate* isolate = holder->GetIsolate();
+  Handle<ObjectHashTable> table(ObjectHashTable::cast(holder->table()));
+  if (max_entries == 0 || max_entries > table->NumberOfElements()) {
+    max_entries = table->NumberOfElements();
+  }
+  int values_per_entry = holder->IsJSWeakMap() ? 2 : 1;
+  Handle<FixedArray> entries =
+      isolate->factory()->NewFixedArray(max_entries * values_per_entry);
+  // Recompute max_values because GC could have removed elements from the table.
+  if (max_entries > table->NumberOfElements()) {
+    max_entries = table->NumberOfElements();
+  }
+
+  {
+    DisallowHeapAllocation no_gc;
+    int count = 0;
+    for (int i = 0;
+         count / values_per_entry < max_entries && i < table->Capacity(); i++) {
+      Handle<Object> key(table->KeyAt(i), isolate);
+      if (table->IsKey(isolate, *key)) {
+        entries->set(count++, *key);
+        if (values_per_entry > 1) {
+          Object* value = table->Lookup(key);
+          entries->set(count++, value);
+        }
+      }
+    }
+    DCHECK_EQ(max_entries * values_per_entry, count);
+  }
+  return isolate->factory()->NewJSArrayWithElements(entries);
+}
+
 // Check if there is a break point at this source position.
 bool DebugInfo::HasBreakPoint(int source_position) {
   // Get the break point info object for this code offset.

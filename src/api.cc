@@ -7140,15 +7140,14 @@ Maybe<bool> Map::Delete(Local<Context> context, Local<Value> key) {
   return Just(result->IsTrue(isolate));
 }
 
-
-Local<Array> Map::AsArray() const {
-  i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
-  i::Isolate* isolate = obj->GetIsolate();
+namespace {
+i::Handle<i::JSArray> MapAsArray(i::Isolate* isolate, i::Object* table_obj,
+                                 int offset, int kind) {
   i::Factory* factory = isolate->factory();
-  LOG_API(isolate, Map, AsArray);
-  ENTER_V8(isolate);
-  i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(obj->table()));
-  int length = table->NumberOfElements() * 2;
+  i::Handle<i::OrderedHashMap> table(i::OrderedHashMap::cast(table_obj));
+  if (offset >= table->NumberOfElements()) return factory->NewJSArray(0);
+  int length = (table->NumberOfElements() - offset) *
+               (kind == i::JSMapIterator::kKindEntries ? 2 : 1);
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
   int result_index = 0;
   {
@@ -7158,15 +7157,30 @@ Local<Array> Map::AsArray() const {
     for (int i = 0; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
-      result->set(result_index++, key);
-      result->set(result_index++, table->ValueAt(i));
+      if (offset-- > 0) continue;
+      if (kind == i::JSMapIterator::kKindEntries ||
+          kind == i::JSMapIterator::kKindKeys) {
+        result->set(result_index++, key);
+      }
+      if (kind == i::JSMapIterator::kKindEntries ||
+          kind == i::JSMapIterator::kKindValues) {
+        result->set(result_index++, table->ValueAt(i));
+      }
     }
   }
   DCHECK_EQ(result_index, result->length());
   DCHECK_EQ(result_index, length);
-  i::Handle<i::JSArray> result_array =
-      factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
-  return Utils::ToLocal(result_array);
+  return factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
+}
+}  // namespace
+
+Local<Array> Map::AsArray() const {
+  i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  LOG_API(isolate, Map, AsArray);
+  ENTER_V8(isolate);
+  return Utils::ToLocal(
+      MapAsArray(isolate, obj->table(), 0, i::JSMapIterator::kKindEntries));
 }
 
 
@@ -7232,15 +7246,13 @@ Maybe<bool> Set::Delete(Local<Context> context, Local<Value> key) {
   return Just(result->IsTrue(isolate));
 }
 
-
-Local<Array> Set::AsArray() const {
-  i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
-  i::Isolate* isolate = obj->GetIsolate();
+namespace {
+i::Handle<i::JSArray> SetAsArray(i::Isolate* isolate, i::Object* table_obj,
+                                 int offset) {
   i::Factory* factory = isolate->factory();
-  LOG_API(isolate, Set, AsArray);
-  ENTER_V8(isolate);
-  i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(obj->table()));
-  int length = table->NumberOfElements();
+  i::Handle<i::OrderedHashSet> table(i::OrderedHashSet::cast(table_obj));
+  int length = table->NumberOfElements() - offset;
+  if (length <= 0) return factory->NewJSArray(0);
   i::Handle<i::FixedArray> result = factory->NewFixedArray(length);
   int result_index = 0;
   {
@@ -7250,14 +7262,22 @@ Local<Array> Set::AsArray() const {
     for (int i = 0; i < capacity; ++i) {
       i::Object* key = table->KeyAt(i);
       if (key == the_hole) continue;
+      if (offset-- > 0) continue;
       result->set(result_index++, key);
     }
   }
   DCHECK_EQ(result_index, result->length());
   DCHECK_EQ(result_index, length);
-  i::Handle<i::JSArray> result_array =
-      factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
-  return Utils::ToLocal(result_array);
+  return factory->NewJSArrayWithElements(result, i::FAST_ELEMENTS, length);
+}
+}  // namespace
+
+Local<Array> Set::AsArray() const {
+  i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  LOG_API(isolate, Set, AsArray);
+  ENTER_V8(isolate);
+  return Utils::ToLocal(SetAsArray(isolate, obj->table(), 0));
 }
 
 
@@ -9352,6 +9372,46 @@ int debug::EstimatedValueSize(Isolate* v8_isolate, v8::Local<v8::Value> value) {
   if (object->IsSmi()) return i::kPointerSize;
   CHECK(object->IsHeapObject());
   return i::Handle<i::HeapObject>::cast(object)->Size();
+}
+
+v8::MaybeLocal<v8::Array> debug::EntriesPreview(Isolate* v8_isolate,
+                                                v8::Local<v8::Value> value,
+                                                bool* is_key_value) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  if (value->IsMap()) {
+    *is_key_value = true;
+    return value.As<Map>()->AsArray();
+  }
+  if (value->IsSet()) {
+    *is_key_value = false;
+    return value.As<Set>()->AsArray();
+  }
+
+  i::Handle<i::Object> object = Utils::OpenHandle(*value);
+  if (object->IsJSWeakCollection()) {
+    *is_key_value = object->IsJSWeakMap();
+    return Utils::ToLocal(i::JSWeakCollection::GetEntries(
+        i::Handle<i::JSWeakCollection>::cast(object), 0));
+  }
+  if (object->IsJSMapIterator()) {
+    i::Handle<i::JSMapIterator> iterator =
+        i::Handle<i::JSMapIterator>::cast(object);
+    int iterator_kind = i::Smi::cast(iterator->kind())->value();
+    *is_key_value = iterator_kind == i::JSMapIterator::kKindEntries;
+    if (!iterator->HasMore()) return v8::Array::New(v8_isolate);
+    return Utils::ToLocal(MapAsArray(isolate, iterator->table(),
+                                     i::Smi::cast(iterator->index())->value(),
+                                     iterator_kind));
+  }
+  if (object->IsJSSetIterator()) {
+    i::Handle<i::JSSetIterator> it = i::Handle<i::JSSetIterator>::cast(object);
+    *is_key_value = false;
+    if (!it->HasMore()) return v8::Array::New(v8_isolate);
+    return Utils::ToLocal(
+        SetAsArray(isolate, it->table(), i::Smi::cast(it->index())->value()));
+  }
+  return v8::MaybeLocal<v8::Array>();
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {

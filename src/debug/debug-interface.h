@@ -178,6 +178,10 @@ void ResetBlackboxedStateCache(Isolate* isolate,
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
 
+v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
+                                         v8::Local<v8::Value> value,
+                                         bool* is_key_value);
+
 }  // namespace debug
 }  // namespace v8
 

@@ -113,8 +113,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
                           bool isPromiseRejection = false,
                           bool isUncaught = false);
 
-  v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>,
-                                         v8::Local<v8::Object>);
   v8::Local<v8::Value> generatorObjectLocation(v8::Local<v8::Context>,
                                                v8::Local<v8::Object>);
   v8::Local<v8::Value> functionLocation(v8::Local<v8::Context>,

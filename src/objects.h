@@ -10675,6 +10675,8 @@ class JSWeakCollection: public JSObject {
                   Handle<Object> value, int32_t hash);
   static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
                      int32_t hash);
+  static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
+                                    int max_entries);
 
   static const int kTableOffset = JSObject::kHeaderSize;
   static const int kNextOffset = kTableOffset + kPointerSize;

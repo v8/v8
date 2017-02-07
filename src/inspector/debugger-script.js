@@ -127,24 +127,6 @@ DebuggerScript.getGeneratorObjectLocation = function(object)
 }
 
 /**
- * @param {Object} object
- * @return {!Array<!{value: *}>|undefined}
- */
-DebuggerScript.getCollectionEntries = function(object)
-{
-    var mirror = MakeMirror(object);
-    if (mirror.isMap())
-        return /** @type {!MapMirror} */(mirror).entries();
-    if (mirror.isSet() || mirror.isIterator()) {
-        var result = [];
-        var values = mirror.isSet() ? /** @type {!SetMirror} */(mirror).values() : /** @type {!IteratorMirror} */(mirror).preview();
-        for (var i = 0; i < values.length; ++i)
-            result.push({ value: values[i] });
-        return result;
-    }
-}
-
-/**
  * @param {!ExecutionState} execState
  * @param {!BreakpointInfo} info
  * @return {string|undefined}
