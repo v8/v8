@@ -804,7 +804,8 @@ TEST(ScopeUsesArgumentsSuperThis) {
           factory->NewStringFromUtf8(i::CStrVector(program.start()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+      i::ParseInfo info(&zone, script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info));
@@ -860,7 +861,7 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
 
-  i::ParseInfo info(script);
+  i::ParseInfo info(handles.main_zone(), script);
   i::Parser parser(&info);
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
@@ -1158,7 +1159,8 @@ TEST(ScopePositions) {
         i::CStrVector(program.start())).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
     info.set_language_mode(source_data[i].language_mode);
     i::parsing::ParseProgram(&info);
     CHECK_NOT_NULL(info.literal());
@@ -1204,7 +1206,8 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::String> source_code =
         factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
-    i::ParseInfo info(script);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
     i::parsing::ParseProgram(&info);
     function = info.literal();
     CHECK_NOT_NULL(function);
@@ -1334,7 +1337,8 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::FunctionLiteral* function;
   {
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
     SetGlobalFlags(flags);
     if (is_module) info.set_module();
@@ -2461,7 +2465,8 @@ TEST(DontRegressPreParserDataSizes) {
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
     i::ScriptData* sd = NULL;
     info.set_cached_data(&sd);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
@@ -3348,6 +3353,7 @@ TEST(InnerAssignment) {
         i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
                     suffix);
 
+        i::Zone zone(isolate->allocator(), ZONE_NAME);
         std::unique_ptr<i::ParseInfo> info;
         if (lazy) {
           printf("%s\n", program.start());
@@ -3355,7 +3361,7 @@ TEST(InnerAssignment) {
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
           CHECK(i::parsing::ParseFunction(info.get()));
         } else {
           i::Handle<i::String> source =
@@ -3363,7 +3369,7 @@ TEST(InnerAssignment) {
           source->PrintOn(stdout);
           printf("\n");
           i::Handle<i::Script> script = factory->NewScript(source);
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
           info->set_allow_lazy_parsing(false);
           CHECK(i::parsing::ParseProgram(info.get()));
         }
@@ -3462,13 +3468,14 @@ TEST(MaybeAssignedParameters) {
       i::ScopedVector<char> program(Utf8LengthHelper(source) +
                                     Utf8LengthHelper(suffix) + 1);
       i::SNPrintF(program, "%s%s", source, suffix);
+      i::Zone zone(isolate->allocator(), ZONE_NAME);
       std::unique_ptr<i::ParseInfo> info;
       printf("%s\n", program.start());
       v8::Local<v8::Value> v = CompileRun(program.start());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
+      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get()));
       CHECK(i::Compiler::Analyze(info.get()));
@@ -3875,6 +3882,7 @@ TEST(MaybeAssignedTopLevel) {
       i::ScopedVector<char> program(Utf8LengthHelper(prefix) +
                                     Utf8LengthHelper(source) + 1);
       i::SNPrintF(program, "%s%s", prefix, source);
+      i::Zone zone(isolate->allocator(), ZONE_NAME);
 
       i::Handle<i::String> string =
           factory->InternalizeUtf8String(program.start());
@@ -3885,7 +3893,7 @@ TEST(MaybeAssignedTopLevel) {
       for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
         for (unsigned module = 0; module < 2; ++module) {
           std::unique_ptr<i::ParseInfo> info;
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
           info->set_module(module);
           info->set_allow_lazy_parsing(allow_lazy);
 
@@ -6338,7 +6346,8 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+      i::ParseInfo info(&zone, script);
       info.set_module();
       if (!i::parsing::ParseProgram(&info)) {
         i::Handle<i::JSObject> exception_handle(
@@ -6362,7 +6371,8 @@ TEST(BasicImportExportParsing) {
     // And that parsing a script does not.
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+      i::ParseInfo info(&zone, script);
       CHECK(!i::parsing::ParseProgram(&info));
       isolate->clear_pending_exception();
     }
@@ -6452,7 +6462,8 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
@@ -6488,7 +6499,8 @@ TEST(ModuleTopLevelFunctionDecl) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::ParseInfo info(script);
+    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+    i::ParseInfo info(&zone, script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
@@ -6685,7 +6697,8 @@ TEST(ModuleParsingInternals) {
       "export {foob};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::ParseInfo info(script);
+  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  i::ParseInfo info(&zone, script);
   info.set_module();
   CHECK(i::parsing::ParseProgram(&info));
   CHECK(i::Compiler::Analyze(&info));
@@ -6944,7 +6957,8 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::ParseInfo info(script);
+  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
+  i::ParseInfo info(&zone, script);
   i::parsing::ParseProgram(&info);
   CHECK(info.literal() != NULL);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
@@ -9418,7 +9432,8 @@ TEST(NoPessimisticContextAllocation) {
       printf("\n");
 
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::ParseInfo info(script);
+      i::Zone zone(isolate->allocator(), ZONE_NAME);
+      i::ParseInfo info(&zone, script);
 
       CHECK(i::parsing::ParseProgram(&info));
       CHECK(i::Compiler::Analyze(&info));

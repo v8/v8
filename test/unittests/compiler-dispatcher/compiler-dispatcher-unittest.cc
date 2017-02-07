@@ -14,6 +14,7 @@
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/v8.h"
+#include "src/zone/zone.h"
 #include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -814,7 +815,8 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
-  ParseInfo parse_info(shared);
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -839,7 +841,8 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
   Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
-  ParseInfo parse_info(shared);
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -875,7 +878,8 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
   ASSERT_FALSE(shared2->is_compiled());
 
   // Enqueue shared1 as already parsed.
-  ParseInfo parse_info(shared1);
+  Zone zone(i_isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared1);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
   ASSERT_TRUE(dispatcher.Enqueue(shared1, parse_info.literal()));
 

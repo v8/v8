@@ -352,7 +352,8 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    std::unique_ptr<ParseInfo> info(new ParseInfo(location.shared()));
+    Zone zone(isolate->allocator(), ZONE_NAME);
+    std::unique_ptr<ParseInfo> info(new ParseInfo(&zone, location.shared()));
     if (parsing::ParseAny(info.get())) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());

@@ -95,8 +95,9 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
-      parse_info_(
-          new ParseInfo(Handle<Script>(Script::cast(shared->script())))),
+      zone_(new Zone(isolate->allocator(), ZONE_NAME)),
+      parse_info_(new ParseInfo(
+          zone_.get(), Handle<Script>(Script::cast(shared->script())))),
       compile_info_(
           new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null())),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
@@ -133,11 +134,11 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   }
   HandleScope scope(isolate_);
   unicode_cache_.reset(new UnicodeCache());
+  zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
   Handle<Script> script(Script::cast(shared_->script()), isolate_);
   DCHECK(script->type() != Script::TYPE_NATIVE);
 
   Handle<String> source(String::cast(script->source()), isolate_);
-  parse_info_.reset(new ParseInfo(isolate_->allocator()));
   if (source->IsExternalTwoByteString() || source->IsExternalOneByteString()) {
     character_stream_.reset(ScannerStream::For(
         source, shared_->start_position(), shared_->end_position()));
@@ -168,7 +169,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
       offset = shared_->start_position();
 
       int byte_len = length * (source->IsOneByteRepresentation() ? 1 : 2);
-      data = parse_info_->zone()->New(byte_len);
+      data = zone_->New(byte_len);
 
       DisallowHeapAllocation no_allocation;
       String::FlatContent content = source->GetFlatContent();
@@ -206,6 +207,7 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
         ScannerStream::For(wrapper_, shared_->start_position() - offset,
                            shared_->end_position() - offset));
   }
+  parse_info_.reset(new ParseInfo(zone_.get()));
   parse_info_->set_isolate(isolate_);
   parse_info_->set_character_stream(character_stream_.get());
   parse_info_->set_hash_seed(isolate_->heap()->HashSeed());
@@ -391,6 +393,7 @@ bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
     return false;
   }
 
+  zone_.reset();
   compile_job_.reset();
   compile_info_.reset();
   handles_from_parsing_.reset();
@@ -414,6 +417,7 @@ void CompilerDispatcherJob::ResetOnMainThread() {
   character_stream_.reset();
   handles_from_parsing_.reset();
   parse_info_.reset();
+  zone_.reset();
 
   if (!source_.is_null()) {
     i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());

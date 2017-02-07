@@ -549,7 +549,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  ParseInfo parse_info(shared_info);
+  Zone zone(info_->isolate()->allocator(), ZONE_NAME);
+  ParseInfo parse_info(&zone, shared_info);
   CompilationInfo info(&parse_info, Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
@@ -590,8 +591,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilder graph_builder(
-        parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
-        jsgraph(), call.frequency(), source_positions_, inlining_id);
+        &zone, shared_info, feedback_vector, BailoutId::None(), jsgraph(),
+        call.frequency(), source_positions_, inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
