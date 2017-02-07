@@ -1582,6 +1582,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmInt32x4ShiftLeftByScalar: {
+      __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt5(1));
+      break;
+    }
+    case kArmInt32x4ShiftRightByScalar: {
+      __ vshr(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt5(1));
+      break;
+    }
     case kArmInt32x4Add: {
       __ vadd(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1630,6 +1640,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmUint32x4ShiftRightByScalar: {
+      __ vshr(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt5(1));
+      break;
+    }
+    case kArmUint32x4Min: {
+      __ vmin(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint32x4Max: {
+      __ vmax(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
     case kArmUint32x4GreaterThan: {
       __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1668,14 +1693,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmInt16x8ShiftLeftByScalar: {
+      __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt4(1));
+      break;
+    }
+    case kArmInt16x8ShiftRightByScalar: {
+      __ vshr(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt4(1));
+      break;
+    }
     case kArmInt16x8Add: {
       __ vadd(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
+    case kArmInt16x8AddSaturate: {
+      __ vqadd(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
     case kArmInt16x8Sub: {
       __ vsub(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt16x8SubSaturate: {
+      __ vqsub(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kArmInt16x8Mul: {
@@ -1716,6 +1761,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmUint16x8ShiftRightByScalar: {
+      __ vshr(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt4(1));
+      break;
+    }
+    case kArmUint16x8AddSaturate: {
+      __ vqadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint16x8SubSaturate: {
+      __ vqsub(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint16x8Min: {
+      __ vmin(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint16x8Max: {
+      __ vmax(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
     case kArmUint16x8GreaterThan: {
       __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1745,14 +1815,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmInt8x16ShiftLeftByScalar: {
+      __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt3(1));
+      break;
+    }
+    case kArmInt8x16ShiftRightByScalar: {
+      __ vshr(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt3(1));
+      break;
+    }
     case kArmInt8x16Add: {
       __ vadd(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
+    case kArmInt8x16AddSaturate: {
+      __ vqadd(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
     case kArmInt8x16Sub: {
       __ vsub(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt8x16SubSaturate: {
+      __ vqsub(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kArmInt8x16Mul: {
@@ -1789,6 +1879,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmInt8x16GreaterThanOrEqual: {
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonS8, dst, i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16ShiftRightByScalar: {
+      __ vshr(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt3(1));
+      break;
+    }
+    case kArmUint8x16AddSaturate: {
+      __ vqadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16SubSaturate: {
+      __ vqsub(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16Min: {
+      __ vmin(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16Max: {
+      __ vmax(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }

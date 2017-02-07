@@ -2190,10 +2190,14 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int32x4NotEqual)            \
   V(Int32x4GreaterThan)         \
   V(Int32x4GreaterThanOrEqual)  \
+  V(Uint32x4Min)                \
+  V(Uint32x4Max)                \
   V(Uint32x4GreaterThan)        \
   V(Uint32x4GreaterThanOrEqual) \
   V(Int16x8Add)                 \
+  V(Int16x8AddSaturate)         \
   V(Int16x8Sub)                 \
+  V(Int16x8SubSaturate)         \
   V(Int16x8Mul)                 \
   V(Int16x8Min)                 \
   V(Int16x8Max)                 \
@@ -2201,10 +2205,16 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int16x8NotEqual)            \
   V(Int16x8GreaterThan)         \
   V(Int16x8GreaterThanOrEqual)  \
+  V(Uint16x8AddSaturate)        \
+  V(Uint16x8SubSaturate)        \
+  V(Uint16x8Min)                \
+  V(Uint16x8Max)                \
   V(Uint16x8GreaterThan)        \
   V(Uint16x8GreaterThanOrEqual) \
   V(Int8x16Add)                 \
+  V(Int8x16AddSaturate)         \
   V(Int8x16Sub)                 \
+  V(Int8x16SubSaturate)         \
   V(Int8x16Mul)                 \
   V(Int8x16Min)                 \
   V(Int8x16Max)                 \
@@ -2212,8 +2222,23 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int8x16NotEqual)            \
   V(Int8x16GreaterThan)         \
   V(Int8x16GreaterThanOrEqual)  \
+  V(Uint8x16AddSaturate)        \
+  V(Uint8x16SubSaturate)        \
+  V(Uint8x16Min)                \
+  V(Uint8x16Max)                \
   V(Uint8x16GreaterThan)        \
   V(Uint8x16GreaterThanOrEqual)
+
+#define SIMD_SHIFT_OP_LIST(V)   \
+  V(Int32x4ShiftLeftByScalar)   \
+  V(Int32x4ShiftRightByScalar)  \
+  V(Uint32x4ShiftRightByScalar) \
+  V(Int16x8ShiftLeftByScalar)   \
+  V(Int16x8ShiftRightByScalar)  \
+  V(Uint16x8ShiftRightByScalar) \
+  V(Int8x16ShiftLeftByScalar)   \
+  V(Int8x16ShiftRightByScalar)  \
+  V(Uint8x16ShiftRightByScalar)
 
 #define SIMD_VISIT_SPLAT(Type)                              \
   void InstructionSelector::VisitCreate##Type(Node* node) { \
@@ -2249,6 +2274,13 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
+
+#define SIMD_VISIT_SHIFT_OP(Name)                     \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRRI(this, kArm##Name, node);                 \
+  }
+SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
+#undef SIMD_VISIT_SHIFT_OP
 
 void InstructionSelector::VisitSimd32x4Select(Node* node) {
   ArmOperandGenerator g(this);

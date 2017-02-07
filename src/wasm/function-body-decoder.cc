@@ -149,12 +149,24 @@ struct Control {
   (build() ? CheckForException(builder_->func(__VA_ARGS__)) : nullptr)
 #define BUILD0(func) (build() ? CheckForException(builder_->func()) : nullptr)
 
-struct LaneOperand {
+// Operand for SIMD lane operations.
+struct SimdLaneOperand {
   uint8_t lane;
   unsigned length;
 
-  inline LaneOperand(Decoder* decoder, const byte* pc) {
+  inline SimdLaneOperand(Decoder* decoder, const byte* pc) {
     lane = decoder->checked_read_u8(pc, 2, "lane");
+    length = 1;
+  }
+};
+
+// Operand for SIMD shift operations.
+struct SimdShiftOperand {
+  uint8_t shift;
+  unsigned length;
+
+  inline SimdShiftOperand(Decoder* decoder, const byte* pc) {
+    shift = decoder->checked_read_u8(pc, 2, "shift");
     length = 1;
   }
 };
@@ -350,7 +362,7 @@ class WasmDecoder : public Decoder {
   }
 
   inline bool Validate(const byte* pc, WasmOpcode opcode,
-                       LaneOperand& operand) {
+                       SimdLaneOperand& operand) {
     uint8_t num_lanes = 0;
     switch (opcode) {
       case kExprF32x4ExtractLane:
@@ -372,7 +384,38 @@ class WasmDecoder : public Decoder {
         break;
     }
     if (operand.lane < 0 || operand.lane >= num_lanes) {
-      error(pc_, pc_ + 2, "invalid lane value");
+      error(pc_, pc_ + 2, "invalid lane index");
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  inline bool Validate(const byte* pc, WasmOpcode opcode,
+                       SimdShiftOperand& operand) {
+    uint8_t max_shift = 0;
+    switch (opcode) {
+      case kExprI32x4Shl:
+      case kExprI32x4ShrS:
+      case kExprI32x4ShrU:
+        max_shift = 32;
+        break;
+      case kExprI16x8Shl:
+      case kExprI16x8ShrS:
+      case kExprI16x8ShrU:
+        max_shift = 16;
+        break;
+      case kExprI8x16Shl:
+      case kExprI8x16ShrS:
+      case kExprI8x16ShrU:
+        max_shift = 8;
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+    if (operand.shift < 0 || operand.shift >= max_shift) {
+      error(pc_, pc_ + 2, "invalid shift amount");
       return false;
     } else {
       return true;
@@ -1369,8 +1412,8 @@ class WasmFullDecoder : public WasmDecoder {
     return 1 + operand.length;
   }
 
-  unsigned ExtractLane(WasmOpcode opcode, ValueType type) {
-    LaneOperand operand(this, pc_);
+  unsigned SimdExtractLane(WasmOpcode opcode, ValueType type) {
+    SimdLaneOperand operand(this, pc_);
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(1, zone_);
       inputs[0] = Pop(0, ValueType::kSimd128).node;
@@ -1380,8 +1423,8 @@ class WasmFullDecoder : public WasmDecoder {
     return operand.length;
   }
 
-  unsigned ReplaceLane(WasmOpcode opcode, ValueType type) {
-    LaneOperand operand(this, pc_);
+  unsigned SimdReplaceLane(WasmOpcode opcode, ValueType type) {
+    SimdLaneOperand operand(this, pc_);
     if (Validate(pc_, opcode, operand)) {
       compiler::NodeVector inputs(2, zone_);
       inputs[1] = Pop(1, type).node;
@@ -1392,27 +1435,50 @@ class WasmFullDecoder : public WasmDecoder {
     return operand.length;
   }
 
+  unsigned SimdShiftOp(WasmOpcode opcode) {
+    SimdShiftOperand operand(this, pc_);
+    if (Validate(pc_, opcode, operand)) {
+      compiler::NodeVector inputs(1, zone_);
+      inputs[0] = Pop(0, ValueType::kSimd128).node;
+      TFNode* node = BUILD(SimdShiftOp, opcode, operand.shift, inputs);
+      Push(ValueType::kSimd128, node);
+    }
+    return operand.length;
+  }
+
   unsigned DecodeSimdOpcode(WasmOpcode opcode) {
     unsigned len = 0;
     switch (opcode) {
       case kExprF32x4ExtractLane: {
-        len = ExtractLane(opcode, ValueType::kFloat32);
+        len = SimdExtractLane(opcode, ValueType::kFloat32);
         break;
       }
       case kExprI32x4ExtractLane:
       case kExprI16x8ExtractLane:
       case kExprI8x16ExtractLane: {
-        len = ExtractLane(opcode, ValueType::kWord32);
+        len = SimdExtractLane(opcode, ValueType::kWord32);
         break;
       }
       case kExprF32x4ReplaceLane: {
-        len = ReplaceLane(opcode, ValueType::kFloat32);
+        len = SimdReplaceLane(opcode, ValueType::kFloat32);
         break;
       }
       case kExprI32x4ReplaceLane:
       case kExprI16x8ReplaceLane:
       case kExprI8x16ReplaceLane: {
-        len = ReplaceLane(opcode, ValueType::kWord32);
+        len = SimdReplaceLane(opcode, ValueType::kWord32);
+        break;
+      }
+      case kExprI32x4Shl:
+      case kExprI32x4ShrS:
+      case kExprI32x4ShrU:
+      case kExprI16x8Shl:
+      case kExprI16x8ShrS:
+      case kExprI16x8ShrU:
+      case kExprI8x16Shl:
+      case kExprI8x16ShrS:
+      case kExprI8x16ShrU: {
+        len = SimdShiftOp(opcode);
         break;
       }
       default: {

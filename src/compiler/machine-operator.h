@@ -459,8 +459,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int32x4Mul();
   const Operator* Int32x4Min();
   const Operator* Int32x4Max();
-  const Operator* Int32x4ShiftLeftByScalar();
-  const Operator* Int32x4ShiftRightByScalar();
+  const Operator* Int32x4ShiftLeftByScalar(int32_t);
+  const Operator* Int32x4ShiftRightByScalar(int32_t);
   const Operator* Int32x4Equal();
   const Operator* Int32x4NotEqual();
   const Operator* Int32x4LessThan();
@@ -471,8 +471,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   const Operator* Uint32x4Min();
   const Operator* Uint32x4Max();
-  const Operator* Uint32x4ShiftLeftByScalar();
-  const Operator* Uint32x4ShiftRightByScalar();
+  const Operator* Uint32x4ShiftRightByScalar(int32_t);
   const Operator* Uint32x4LessThan();
   const Operator* Uint32x4LessThanOrEqual();
   const Operator* Uint32x4GreaterThan();
@@ -480,8 +479,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint32x4FromFloat32x4();
 
   const Operator* CreateBool32x4();
-  const Operator* Bool32x4ExtractLane();
-  const Operator* Bool32x4ReplaceLane();
+  const Operator* Bool32x4ExtractLane(int32_t);
+  const Operator* Bool32x4ReplaceLane(int32_t);
   const Operator* Bool32x4And();
   const Operator* Bool32x4Or();
   const Operator* Bool32x4Xor();
@@ -504,8 +503,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int16x8Mul();
   const Operator* Int16x8Min();
   const Operator* Int16x8Max();
-  const Operator* Int16x8ShiftLeftByScalar();
-  const Operator* Int16x8ShiftRightByScalar();
+  const Operator* Int16x8ShiftLeftByScalar(int32_t);
+  const Operator* Int16x8ShiftRightByScalar(int32_t);
   const Operator* Int16x8Equal();
   const Operator* Int16x8NotEqual();
   const Operator* Int16x8LessThan();
@@ -520,16 +519,15 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint16x8SubSaturate();
   const Operator* Uint16x8Min();
   const Operator* Uint16x8Max();
-  const Operator* Uint16x8ShiftLeftByScalar();
-  const Operator* Uint16x8ShiftRightByScalar();
+  const Operator* Uint16x8ShiftRightByScalar(int32_t);
   const Operator* Uint16x8LessThan();
   const Operator* Uint16x8LessThanOrEqual();
   const Operator* Uint16x8GreaterThan();
   const Operator* Uint16x8GreaterThanOrEqual();
 
   const Operator* CreateBool16x8();
-  const Operator* Bool16x8ExtractLane();
-  const Operator* Bool16x8ReplaceLane();
+  const Operator* Bool16x8ExtractLane(int32_t);
+  const Operator* Bool16x8ReplaceLane(int32_t);
   const Operator* Bool16x8And();
   const Operator* Bool16x8Or();
   const Operator* Bool16x8Xor();
@@ -552,8 +550,8 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int8x16Mul();
   const Operator* Int8x16Min();
   const Operator* Int8x16Max();
-  const Operator* Int8x16ShiftLeftByScalar();
-  const Operator* Int8x16ShiftRightByScalar();
+  const Operator* Int8x16ShiftLeftByScalar(int32_t);
+  const Operator* Int8x16ShiftRightByScalar(int32_t);
   const Operator* Int8x16Equal();
   const Operator* Int8x16NotEqual();
   const Operator* Int8x16LessThan();
@@ -568,16 +566,15 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint8x16SubSaturate();
   const Operator* Uint8x16Min();
   const Operator* Uint8x16Max();
-  const Operator* Uint8x16ShiftLeftByScalar();
-  const Operator* Uint8x16ShiftRightByScalar();
+  const Operator* Uint8x16ShiftRightByScalar(int32_t);
   const Operator* Uint8x16LessThan();
   const Operator* Uint8x16LessThanOrEqual();
   const Operator* Uint8x16GreaterThan();
   const Operator* Uint8x16GreaterThanOrEqual();
 
   const Operator* CreateBool8x16();
-  const Operator* Bool8x16ExtractLane();
-  const Operator* Bool8x16ReplaceLane();
+  const Operator* Bool8x16ExtractLane(int32_t);
+  const Operator* Bool8x16ReplaceLane(int32_t);
   const Operator* Bool8x16And();
   const Operator* Bool8x16Or();
   const Operator* Bool8x16Xor();

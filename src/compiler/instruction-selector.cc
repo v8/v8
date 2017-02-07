@@ -1489,6 +1489,10 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitUint32x4FromFloat32x4(node);
     case IrOpcode::kInt32x4Neg:
       return MarkAsSimd128(node), VisitInt32x4Neg(node);
+    case IrOpcode::kInt32x4ShiftLeftByScalar:
+      return MarkAsSimd128(node), VisitInt32x4ShiftLeftByScalar(node);
+    case IrOpcode::kInt32x4ShiftRightByScalar:
+      return MarkAsSimd128(node), VisitInt32x4ShiftRightByScalar(node);
     case IrOpcode::kInt32x4Add:
       return MarkAsSimd128(node), VisitInt32x4Add(node);
     case IrOpcode::kInt32x4Sub:
@@ -1507,6 +1511,12 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitInt32x4GreaterThan(node);
     case IrOpcode::kInt32x4GreaterThanOrEqual:
       return MarkAsSimd128(node), VisitInt32x4GreaterThanOrEqual(node);
+    case IrOpcode::kUint32x4ShiftRightByScalar:
+      return MarkAsSimd128(node), VisitUint32x4ShiftRightByScalar(node);
+    case IrOpcode::kUint32x4Min:
+      return MarkAsSimd128(node), VisitUint32x4Min(node);
+    case IrOpcode::kUint32x4Max:
+      return MarkAsSimd128(node), VisitUint32x4Max(node);
     case IrOpcode::kUint32x4GreaterThan:
       return MarkAsSimd128(node), VisitUint32x4GreaterThan(node);
     case IrOpcode::kUint32x4GreaterThanOrEqual:
@@ -1521,10 +1531,18 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitInt16x8ReplaceLane(node);
     case IrOpcode::kInt16x8Neg:
       return MarkAsSimd128(node), VisitInt16x8Neg(node);
+    case IrOpcode::kInt16x8ShiftLeftByScalar:
+      return MarkAsSimd128(node), VisitInt16x8ShiftLeftByScalar(node);
+    case IrOpcode::kInt16x8ShiftRightByScalar:
+      return MarkAsSimd128(node), VisitInt16x8ShiftRightByScalar(node);
     case IrOpcode::kInt16x8Add:
       return MarkAsSimd128(node), VisitInt16x8Add(node);
+    case IrOpcode::kInt16x8AddSaturate:
+      return MarkAsSimd128(node), VisitInt16x8AddSaturate(node);
     case IrOpcode::kInt16x8Sub:
       return MarkAsSimd128(node), VisitInt16x8Sub(node);
+    case IrOpcode::kInt16x8SubSaturate:
+      return MarkAsSimd128(node), VisitInt16x8SubSaturate(node);
     case IrOpcode::kInt16x8Mul:
       return MarkAsSimd128(node), VisitInt16x8Mul(node);
     case IrOpcode::kInt16x8Min:
@@ -1539,6 +1557,16 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitInt16x8GreaterThan(node);
     case IrOpcode::kInt16x8GreaterThanOrEqual:
       return MarkAsSimd128(node), VisitInt16x8GreaterThanOrEqual(node);
+    case IrOpcode::kUint16x8ShiftRightByScalar:
+      return MarkAsSimd128(node), VisitUint16x8ShiftRightByScalar(node);
+    case IrOpcode::kUint16x8AddSaturate:
+      return MarkAsSimd128(node), VisitUint16x8AddSaturate(node);
+    case IrOpcode::kUint16x8SubSaturate:
+      return MarkAsSimd128(node), VisitUint16x8SubSaturate(node);
+    case IrOpcode::kUint16x8Min:
+      return MarkAsSimd128(node), VisitUint16x8Min(node);
+    case IrOpcode::kUint16x8Max:
+      return MarkAsSimd128(node), VisitUint16x8Max(node);
     case IrOpcode::kUint16x8GreaterThan:
       return MarkAsSimd128(node), VisitUint16x8GreaterThan(node);
     case IrOpcode::kUint16x8GreaterThanOrEqual:
@@ -1551,10 +1579,18 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitInt8x16ReplaceLane(node);
     case IrOpcode::kInt8x16Neg:
       return MarkAsSimd128(node), VisitInt8x16Neg(node);
+    case IrOpcode::kInt8x16ShiftLeftByScalar:
+      return MarkAsSimd128(node), VisitInt8x16ShiftLeftByScalar(node);
+    case IrOpcode::kInt8x16ShiftRightByScalar:
+      return MarkAsSimd128(node), VisitInt8x16ShiftRightByScalar(node);
     case IrOpcode::kInt8x16Add:
       return MarkAsSimd128(node), VisitInt8x16Add(node);
+    case IrOpcode::kInt8x16AddSaturate:
+      return MarkAsSimd128(node), VisitInt8x16AddSaturate(node);
     case IrOpcode::kInt8x16Sub:
       return MarkAsSimd128(node), VisitInt8x16Sub(node);
+    case IrOpcode::kInt8x16SubSaturate:
+      return MarkAsSimd128(node), VisitInt8x16SubSaturate(node);
     case IrOpcode::kInt8x16Mul:
       return MarkAsSimd128(node), VisitInt8x16Mul(node);
     case IrOpcode::kInt8x16Min:
@@ -1569,6 +1605,16 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitInt8x16GreaterThan(node);
     case IrOpcode::kInt8x16GreaterThanOrEqual:
       return MarkAsSimd128(node), VisitInt8x16GreaterThanOrEqual(node);
+    case IrOpcode::kUint8x16ShiftRightByScalar:
+      return MarkAsSimd128(node), VisitUint8x16ShiftRightByScalar(node);
+    case IrOpcode::kUint8x16AddSaturate:
+      return MarkAsSimd128(node), VisitUint8x16AddSaturate(node);
+    case IrOpcode::kUint8x16SubSaturate:
+      return MarkAsSimd128(node), VisitUint8x16SubSaturate(node);
+    case IrOpcode::kUint8x16Min:
+      return MarkAsSimd128(node), VisitUint8x16Min(node);
+    case IrOpcode::kUint8x16Max:
+      return MarkAsSimd128(node), VisitUint8x16Max(node);
     case IrOpcode::kUint8x16GreaterThan:
       return MarkAsSimd128(node), VisitUint8x16GreaterThan(node);
     case IrOpcode::kUint8x16GreaterThanOrEqual:
@@ -1959,6 +2005,14 @@ void InstructionSelector::VisitUint32x4FromFloat32x4(Node* node) {
 
 void InstructionSelector::VisitInt32x4Neg(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt32x4ShiftLeftByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitInt32x4ShiftRightByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt32x4Mul(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt32x4Max(Node* node) { UNIMPLEMENTED(); }
@@ -1983,6 +2037,14 @@ void InstructionSelector::VisitInt32x4GreaterThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitUint32x4ShiftRightByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint32x4Max(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint32x4Min(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitUint32x4GreaterThan(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2005,9 +2067,25 @@ void InstructionSelector::VisitInt16x8ReplaceLane(Node* node) {
 
 void InstructionSelector::VisitInt16x8Neg(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt16x8ShiftLeftByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitInt16x8ShiftRightByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt16x8Add(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt16x8AddSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt16x8Sub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt16x8SubSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitInt16x8Mul(Node* node) { UNIMPLEMENTED(); }
 
@@ -2033,6 +2111,22 @@ void InstructionSelector::VisitInt16x8GreaterThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
 
+void InstructionSelector::VisitUint16x8ShiftRightByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint16x8AddSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint16x8SubSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint16x8Max(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint16x8Min(Node* node) { UNIMPLEMENTED(); }
+
 void InstructionSelector::VisitUint16x8GreaterThan(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2053,9 +2147,25 @@ void InstructionSelector::VisitInt8x16ReplaceLane(Node* node) {
 
 void InstructionSelector::VisitInt8x16Neg(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt8x16ShiftLeftByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitInt8x16ShiftRightByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt8x16Add(Node* node) { UNIMPLEMENTED(); }
 
+void InstructionSelector::VisitInt8x16AddSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
+
 void InstructionSelector::VisitInt8x16Sub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitInt8x16SubSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
 
 void InstructionSelector::VisitInt8x16Mul(Node* node) { UNIMPLEMENTED(); }
 
@@ -2080,6 +2190,22 @@ void InstructionSelector::VisitInt8x16GreaterThan(Node* node) {
 void InstructionSelector::VisitInt8x16GreaterThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
+
+void InstructionSelector::VisitUint8x16ShiftRightByScalar(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint8x16AddSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint8x16SubSaturate(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitUint8x16Max(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitUint8x16Min(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitUint8x16GreaterThan(Node* node) {
   UNIMPLEMENTED();

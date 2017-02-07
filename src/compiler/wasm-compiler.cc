@@ -3423,6 +3423,12 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI32x4GeS:
       return graph()->NewNode(jsgraph()->machine()->Int32x4GreaterThanOrEqual(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI32x4MinU:
+      return graph()->NewNode(jsgraph()->machine()->Uint32x4Min(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI32x4MaxU:
+      return graph()->NewNode(jsgraph()->machine()->Uint32x4Max(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI32x4LtU:
       return graph()->NewNode(jsgraph()->machine()->Uint32x4GreaterThan(),
                               inputs[1], inputs[0]);
@@ -3449,9 +3455,15 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI16x8Add:
       return graph()->NewNode(jsgraph()->machine()->Int16x8Add(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI16x8AddSaturateS:
+      return graph()->NewNode(jsgraph()->machine()->Int16x8AddSaturate(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI16x8Sub:
       return graph()->NewNode(jsgraph()->machine()->Int16x8Sub(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI16x8SubSaturateS:
+      return graph()->NewNode(jsgraph()->machine()->Int16x8SubSaturate(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI16x8Mul:
       return graph()->NewNode(jsgraph()->machine()->Int16x8Mul(), inputs[0],
                               inputs[1]);
@@ -3479,6 +3491,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI16x8GeS:
       return graph()->NewNode(jsgraph()->machine()->Int16x8GreaterThanOrEqual(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI16x8AddSaturateU:
+      return graph()->NewNode(jsgraph()->machine()->Uint16x8AddSaturate(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprI16x8SubSaturateU:
+      return graph()->NewNode(jsgraph()->machine()->Uint16x8SubSaturate(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprI16x8MinU:
+      return graph()->NewNode(jsgraph()->machine()->Uint16x8Min(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI16x8MaxU:
+      return graph()->NewNode(jsgraph()->machine()->Uint16x8Max(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI16x8LtU:
       return graph()->NewNode(jsgraph()->machine()->Uint16x8GreaterThan(),
                               inputs[1], inputs[0]);
@@ -3504,9 +3528,15 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI8x16Add:
       return graph()->NewNode(jsgraph()->machine()->Int8x16Add(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI8x16AddSaturateS:
+      return graph()->NewNode(jsgraph()->machine()->Int8x16AddSaturate(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI8x16Sub:
       return graph()->NewNode(jsgraph()->machine()->Int8x16Sub(), inputs[0],
                               inputs[1]);
+    case wasm::kExprI8x16SubSaturateS:
+      return graph()->NewNode(jsgraph()->machine()->Int8x16SubSaturate(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI8x16Mul:
       return graph()->NewNode(jsgraph()->machine()->Int8x16Mul(), inputs[0],
                               inputs[1]);
@@ -3534,6 +3564,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprI8x16GeS:
       return graph()->NewNode(jsgraph()->machine()->Int8x16GreaterThanOrEqual(),
                               inputs[0], inputs[1]);
+    case wasm::kExprI8x16AddSaturateU:
+      return graph()->NewNode(jsgraph()->machine()->Uint8x16AddSaturate(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprI8x16SubSaturateU:
+      return graph()->NewNode(jsgraph()->machine()->Uint8x16SubSaturate(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprI8x16MinU:
+      return graph()->NewNode(jsgraph()->machine()->Uint8x16Min(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprI8x16MaxU:
+      return graph()->NewNode(jsgraph()->machine()->Uint8x16Max(), inputs[0],
+                              inputs[1]);
     case wasm::kExprI8x16LtU:
       return graph()->NewNode(jsgraph()->machine()->Uint8x16GreaterThan(),
                               inputs[1], inputs[0]);
@@ -3581,6 +3623,42 @@ Node* WasmGraphBuilder::SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
     case wasm::kExprI8x16ReplaceLane:
       return graph()->NewNode(jsgraph()->machine()->Int8x16ReplaceLane(lane),
                               inputs[0], inputs[1]);
+    default:
+      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+  }
+}
+
+Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
+                                    const NodeVector& inputs) {
+  has_simd_ = true;
+  switch (opcode) {
+    case wasm::kExprI32x4Shl:
+      return graph()->NewNode(
+          jsgraph()->machine()->Int32x4ShiftLeftByScalar(shift), inputs[0]);
+    case wasm::kExprI32x4ShrS:
+      return graph()->NewNode(
+          jsgraph()->machine()->Int32x4ShiftRightByScalar(shift), inputs[0]);
+    case wasm::kExprI32x4ShrU:
+      return graph()->NewNode(
+          jsgraph()->machine()->Uint32x4ShiftRightByScalar(shift), inputs[0]);
+    case wasm::kExprI16x8Shl:
+      return graph()->NewNode(
+          jsgraph()->machine()->Int16x8ShiftLeftByScalar(shift), inputs[0]);
+    case wasm::kExprI16x8ShrS:
+      return graph()->NewNode(
+          jsgraph()->machine()->Int16x8ShiftRightByScalar(shift), inputs[0]);
+    case wasm::kExprI16x8ShrU:
+      return graph()->NewNode(
+          jsgraph()->machine()->Uint16x8ShiftRightByScalar(shift), inputs[0]);
+    case wasm::kExprI8x16Shl:
+      return graph()->NewNode(
+          jsgraph()->machine()->Int8x16ShiftLeftByScalar(shift), inputs[0]);
+    case wasm::kExprI8x16ShrS:
+      return graph()->NewNode(
+          jsgraph()->machine()->Int8x16ShiftRightByScalar(shift), inputs[0]);
+    case wasm::kExprI8x16ShrU:
+      return graph()->NewNode(
+          jsgraph()->machine()->Uint8x16ShiftRightByScalar(shift), inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }

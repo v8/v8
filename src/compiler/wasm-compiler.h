@@ -232,6 +232,9 @@ class WasmGraphBuilder {
   Node* SimdLaneOp(wasm::WasmOpcode opcode, uint8_t lane,
                    const NodeVector& inputs);
 
+  Node* SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
+                    const NodeVector& inputs);
+
   bool has_simd() const { return has_simd_; }
 
   wasm::ModuleEnv* module_env() const { return module_; }
