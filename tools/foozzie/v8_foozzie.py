@@ -42,6 +42,7 @@ PREAMBLE = [
   os.path.join(BASE_PATH, 'v8_mock.js'),
   os.path.join(BASE_PATH, 'v8_suppressions.js'),
 ]
+ARCH_MOCKS = os.path.join(BASE_PATH, 'v8_mock_archs.js')
 
 FLAGS = ['--abort_on_stack_overflow', '--expose-gc', '--allow-natives-syntax',
          '--invoke-weak-callbacks', '--omit-quit', '--es-staging']
@@ -221,7 +222,10 @@ def main():
   second_config_flags = common_flags + CONFIGS[options.second_config]
 
   def run_d8(d8, config_flags):
-    args = [d8] + config_flags + PREAMBLE + [options.testcase]
+    preamble = PREAMBLE[:]
+    if options.first_arch != options.second_arch:
+      preamble.append(ARCH_MOCKS)
+    args = [d8] + config_flags + preamble + [options.testcase]
     print " ".join(args)
     if d8.endswith('.py'):
       # Wrap with python in tests.

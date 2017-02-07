@@ -66,17 +66,20 @@ Object.defineProperty(
 // Mock buffer access in float typed arrays because of varying NaN patterns.
 // Note, for now we just use noop forwarding proxies, because they already
 // turn off optimizations.
-function __MockTypedArray(arrayType) {
-  var array_creation_handler = {
-    construct: function(target, args) {
-      return new Proxy(new arrayType(args), {});
-    },
-  };
-  return new Proxy(arrayType, array_creation_handler);
-}
+(function () {
+  var mock = function(arrayType) {
+    var handler = {
+      construct: function(target, args) {
+        return new (
+            Function.prototype.bind.apply(arrayType, [null].concat(args)));
+      },
+    };
+    return new Proxy(arrayType, handler);
+  }
 
-Float32Array = __MockTypedArray(Float32Array);
-Float64Array = __MockTypedArray(Float64Array);
+  Float32Array = mock(Float32Array);
+  Float64Array = mock(Float64Array);
+})();
 
 // Mock Worker.
 (function () {

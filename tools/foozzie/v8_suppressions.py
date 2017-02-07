@@ -91,7 +91,7 @@ IGNORE_TEST_CASES = {
 IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
-        re.compile(r'RangeError', re.S),
+        re.compile(r'RangeError(?!: byte length)', re.S),
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
     'crbug.com/681806':
