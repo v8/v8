@@ -187,6 +187,7 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
           with++;
         } else if (obj == megamorphic_sentinel) {
           gen++;
+          if (code_is_interpreted) with++;
         }
         total++;
         break;
