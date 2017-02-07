@@ -51,6 +51,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::GENERAL:
     case FeedbackSlotKind::INTERPRETER_COMPARE_IC:
     case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
+    case FeedbackSlotKind::TO_BOOLEAN_IC:
     case FeedbackSlotKind::LITERAL:
     case FeedbackSlotKind::CREATE_CLOSURE:
       return 1;
@@ -225,6 +226,7 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
         }
         break;
       }
+      case FeedbackSlotKind::TO_BOOLEAN_IC:
       case FeedbackSlotKind::CREATE_CLOSURE:
       case FeedbackSlotKind::GENERAL:
       case FeedbackSlotKind::LITERAL:

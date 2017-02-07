@@ -4982,7 +4982,8 @@ bool Code::IsCodeStubOrIC() {
 }
 
 ExtraICState Code::extra_ic_state() {
-  DCHECK(is_inline_cache_stub() || is_debug_stub());
+  DCHECK(is_binary_op_stub() || is_compare_ic_stub() ||
+         is_to_boolean_ic_stub() || is_debug_stub());
   return ExtractExtraICStateFromFlags(flags());
 }
 
@@ -5279,6 +5280,7 @@ bool Code::is_debug_stub() {
   return false;
 }
 bool Code::is_handler() { return kind() == HANDLER; }
+bool Code::is_stub() { return kind() == STUB; }
 bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
 bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
 bool Code::is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }

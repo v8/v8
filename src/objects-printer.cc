@@ -804,6 +804,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
       case FeedbackSlotKind::LITERAL:
       case FeedbackSlotKind::GENERAL:
         break;
+      case FeedbackSlotKind::TO_BOOLEAN_IC:
       case FeedbackSlotKind::INVALID:
       case FeedbackSlotKind::KINDS_NUMBER:
         UNREACHABLE();

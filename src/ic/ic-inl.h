@@ -45,7 +45,10 @@ Code* IC::GetTargetAtAddress(Address address, Address constant_pool) {
   // Convert target address to the code object. Code::GetCodeFromTargetAddress
   // is safe for use during GC where the map might be marked.
   Code* result = Code::GetCodeFromTargetAddress(target);
-  DCHECK(result->is_inline_cache_stub());
+  // The result can be an IC dispatcher (for vector-based ICs), an IC handler
+  // (for old-style patching ICs) or CEntryStub (for IC dispatchers inlined to
+  // bytecode handlers).
+  DCHECK(result->is_inline_cache_stub() || result->is_stub());
   return result;
 }
 

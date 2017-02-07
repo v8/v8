@@ -139,6 +139,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "INTERPRETER_BINARYOP_IC";
     case FeedbackSlotKind::INTERPRETER_COMPARE_IC:
       return "INTERPRETER_COMPARE_IC";
+    case FeedbackSlotKind::TO_BOOLEAN_IC:
+      return "TO_BOOLEAN_IC";
     case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC:
       return "STORE_DATA_PROPERTY_IN_LITERAL_IC";
     case FeedbackSlotKind::CREATE_CLOSURE:
@@ -191,6 +193,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         break;
       case FeedbackSlotKind::INTERPRETER_COMPARE_IC:
       case FeedbackSlotKind::INTERPRETER_BINARYOP_IC:
+      case FeedbackSlotKind::TO_BOOLEAN_IC:
         array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::CREATE_CLOSURE: {
@@ -327,6 +330,7 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           nexus.Clear(shared->code());
           break;
         }
+        case FeedbackSlotKind::TO_BOOLEAN_IC:
         case FeedbackSlotKind::INVALID:
         case FeedbackSlotKind::KINDS_NUMBER:
           UNREACHABLE();

@@ -5059,6 +5059,7 @@ class Code: public HeapObject {
   inline bool is_inline_cache_stub();
   inline bool is_debug_stub();
   inline bool is_handler();
+  inline bool is_stub();
   inline bool is_binary_op_stub();
   inline bool is_compare_ic_stub();
   inline bool is_to_boolean_ic_stub();

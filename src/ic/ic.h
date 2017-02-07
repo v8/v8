@@ -45,15 +45,10 @@ class IC {
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address, Address constant_pool);
 
-#ifdef DEBUG
-  bool IsLoadStub() const {
-    return kind_ == Code::LOAD_IC || kind_ == Code::LOAD_GLOBAL_IC ||
-           kind_ == Code::KEYED_LOAD_IC;
+  bool IsAnyLoad() const {
+    return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
-  bool IsStoreStub() const {
-    return kind_ == Code::STORE_IC || kind_ == Code::KEYED_STORE_IC;
-  }
-#endif
+  bool IsAnyStore() const { return IsStoreIC() || IsKeyedStoreIC(); }
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
                                                   bool receiver_is_holder,
@@ -72,6 +67,11 @@ class IC {
     return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
            kind == Code::KEYED_LOAD_IC || kind == Code::STORE_IC ||
            kind == Code::KEYED_STORE_IC;
+  }
+  static bool ICUseVector(FeedbackSlotKind kind) {
+    return IsLoadICKind(kind) || IsLoadGlobalICKind(kind) ||
+           IsKeyedLoadICKind(kind) || IsStoreICKind(kind) ||
+           IsKeyedStoreICKind(kind);
   }
 
   // The ICs that don't pass slot and vector through the stack have to
@@ -164,15 +164,17 @@ class IC {
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<Name> name, Handle<Object> code);
-  Code::Kind kind() const { return kind_; }
-  bool is_keyed() const {
-    return kind_ == Code::KEYED_LOAD_IC || kind_ == Code::KEYED_STORE_IC;
-  }
+  FeedbackSlotKind kind() const { return kind_; }
+  bool IsLoadIC() const { return IsLoadICKind(kind_); }
+  bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
+  bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
+  bool IsStoreIC() const { return IsStoreICKind(kind_); }
+  bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
+  bool is_keyed() const { return IsKeyedLoadIC() || IsKeyedStoreIC(); }
   Code::Kind handler_kind() const {
-    if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
-    DCHECK(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
-           kind_ == Code::KEYED_STORE_IC);
-    return kind_;
+    if (IsAnyLoad()) return Code::LOAD_IC;
+    DCHECK(IsAnyStore());
+    return Code::STORE_IC;
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
@@ -243,7 +245,7 @@ class IC {
   bool vector_set_;
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
-  Code::Kind kind_;
+  FeedbackSlotKind kind_;
   Handle<Map> receiver_map_;
   MaybeHandle<Object> maybe_handler_;
 
@@ -273,7 +275,7 @@ class LoadIC : public IC {
   LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
     DCHECK(nexus != NULL);
-    DCHECK(IsLoadStub());
+    DCHECK(IsAnyLoad());
   }
 
   static bool ShouldThrowReferenceError(FeedbackSlotKind kind) {
@@ -281,8 +283,7 @@ class LoadIC : public IC {
   }
 
   bool ShouldThrowReferenceError() const {
-    return UseVector() && ShouldThrowReferenceError(
-                              nexus()->vector()->GetKind(nexus()->slot()));
+    return ShouldThrowReferenceError(kind());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
@@ -363,7 +364,7 @@ class StoreIC : public IC {
  public:
   StoreIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
       : IC(depth, isolate, nexus) {
-    DCHECK(IsStoreStub());
+    DCHECK(IsAnyStore());
   }
 
   LanguageMode language_mode() const {
