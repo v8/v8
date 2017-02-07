@@ -5287,10 +5287,11 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         return;
       } else {
         Handle<TypeFeedbackVector> vector(current_feedback_vector(), isolate());
+        FeedbackVectorSlot slot = expr->VariableFeedbackSlot();
+        DCHECK(vector->IsLoadGlobalIC(slot));
 
         HValue* vector_value = Add<HConstant>(vector);
-        HValue* slot_value =
-            Add<HConstant>(vector->GetIndex(expr->VariableFeedbackSlot()));
+        HValue* slot_value = Add<HConstant>(vector->GetIndex(slot));
         Callable callable = CodeFactory::LoadGlobalICInOptimizedCode(
             isolate(), ast_context()->typeof_mode());
         HValue* stub = Add<HConstant>(callable.code());

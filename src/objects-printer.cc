@@ -761,7 +761,8 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC: {
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC: {
         LoadGlobalICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;

@@ -129,24 +129,28 @@ AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 
 class FeedbackVectorSlotCache {
  public:
-  explicit FeedbackVectorSlotCache(Zone* zone)
-      : zone_(zone),
-        hash_map_(ZoneHashMap::kDefaultHashMapCapacity,
-                  ZoneAllocationPolicy(zone)) {}
+  typedef std::pair<TypeofMode, Variable*> Key;
 
-  void Put(Variable* variable, FeedbackVectorSlot slot) {
-    ZoneHashMap::Entry* entry = hash_map_.LookupOrInsert(
-        variable, ComputePointerHash(variable), ZoneAllocationPolicy(zone_));
-    entry->value = reinterpret_cast<void*>(slot.ToInt());
+  explicit FeedbackVectorSlotCache(Zone* zone) : map_(zone) {}
+
+  void Put(TypeofMode typeof_mode, Variable* variable,
+           FeedbackVectorSlot slot) {
+    Key key = std::make_pair(typeof_mode, variable);
+    auto entry = std::make_pair(key, slot);
+    map_.insert(entry);
   }
 
-  ZoneHashMap::Entry* Get(Variable* variable) const {
-    return hash_map_.Lookup(variable, ComputePointerHash(variable));
+  FeedbackVectorSlot Get(TypeofMode typeof_mode, Variable* variable) const {
+    Key key = std::make_pair(typeof_mode, variable);
+    auto iter = map_.find(key);
+    if (iter != map_.end()) {
+      return iter->second;
+    }
+    return FeedbackVectorSlot();
   }
 
  private:
-  Zone* zone_;
-  ZoneHashMap hash_map_;
+  ZoneMap<Key, FeedbackVectorSlot> map_;
 };
 
 
@@ -1695,7 +1699,7 @@ class VariableProxy final : public Expression {
   }
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
-                                 LanguageMode language_mode,
+                                 TypeofMode typeof_mode,
                                  FeedbackVectorSlotCache* cache);
 
   FeedbackVectorSlot VariableFeedbackSlot() { return variable_feedback_slot_; }

@@ -276,10 +276,13 @@ class LoadIC : public IC {
     DCHECK(IsLoadStub());
   }
 
+  static bool ShouldThrowReferenceError(FeedbackVectorSlotKind kind) {
+    return kind == FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC;
+  }
+
   bool ShouldThrowReferenceError() const {
-    return kind() == Code::LOAD_GLOBAL_IC &&
-           LoadGlobalICState::GetTypeofMode(extra_ic_state()) ==
-               NOT_INSIDE_TYPEOF;
+    return UseVector() && ShouldThrowReferenceError(
+                              nexus()->vector()->GetKind(nexus()->slot()));
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,

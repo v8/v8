@@ -2552,7 +2552,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
 
   Handle<Context> native_context = isolate->native_context();
@@ -2579,11 +2579,13 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
       isolate, result,
       Runtime::GetObjectProperty(isolate, global, name, &is_found));
   if (!is_found) {
-    LoadICNexus nexus(isolate);
-    LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    Handle<Smi> slot = args.at<Smi>(1);
+    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+    FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+    FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
     // It is actually a LoadGlobalICs here but the predicate handles this case
     // properly.
-    if (ic.ShouldThrowReferenceError()) {
+    if (LoadIC::ShouldThrowReferenceError(kind)) {
       THROW_NEW_ERROR_RETURN_FAILURE(
           isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
     }
@@ -3030,7 +3032,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptorOnly) {
  */
 RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength);
+  DCHECK(args.length() == NamedLoadHandlerCompiler::kInterceptorArgsLength + 2);
   Handle<Name> name =
       args.at<Name>(NamedLoadHandlerCompiler::kInterceptorArgsNameIndex);
   Handle<Object> receiver =
@@ -3069,11 +3071,13 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   if (it.IsFound()) return *result;
 
-  LoadICNexus nexus(isolate);
-  LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
-  // It could actually be any kind of LoadICs here but the predicate handles
-  // all the cases properly.
-  if (!ic.ShouldThrowReferenceError()) {
+  Handle<Smi> slot = args.at<Smi>(3);
+  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackVectorSlotKind slot_kind = vector->GetKind(vector_slot);
+  // It could actually be any kind of load IC slot here but the predicate
+  // handles all the cases properly.
+  if (!LoadIC::ShouldThrowReferenceError(slot_kind)) {
     return isolate->heap()->undefined_value();
   }
 

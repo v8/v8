@@ -448,6 +448,14 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::MoveRegister(Register from,
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
     const Handle<String> name, int feedback_slot, TypeofMode typeof_mode) {
   size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that typeof mode is in sync with the IC slot kind if the function
+  // literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(GetTypeofModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+             typeof_mode);
+  }
   if (typeof_mode == INSIDE_TYPEOF) {
     OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
   } else {

@@ -706,8 +706,7 @@ Node* BytecodeGraphBuilder::BuildLoadGlobal(Handle<Name> name,
                                             uint32_t feedback_slot_index,
                                             TypeofMode typeof_mode) {
   VectorSlotPair feedback = CreateVectorSlotPair(feedback_slot_index);
-  DCHECK_EQ(FeedbackVectorSlotKind::LOAD_GLOBAL_IC,
-            feedback_vector()->GetKind(feedback.slot()));
+  DCHECK(IsLoadGlobalICKind(feedback_vector()->GetKind(feedback.slot())));
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
   return NewNode(op);
 }

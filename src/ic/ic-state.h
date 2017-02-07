@@ -181,37 +181,6 @@ class CompareICState {
                            Handle<Object> y);
 };
 
-class LoadGlobalICState final BASE_EMBEDDED {
- private:
-  class TypeofModeBits : public BitField<TypeofMode, 0, 1> {};
-  STATIC_ASSERT(static_cast<int>(INSIDE_TYPEOF) == 0);
-  const ExtraICState state_;
-
- public:
-  static const uint32_t kNextBitFieldOffset = TypeofModeBits::kNext;
-
-  explicit LoadGlobalICState(ExtraICState extra_ic_state)
-      : state_(extra_ic_state) {}
-
-  explicit LoadGlobalICState(TypeofMode typeof_mode)
-      : state_(TypeofModeBits::encode(typeof_mode)) {}
-
-  ExtraICState GetExtraICState() const { return state_; }
-
-  TypeofMode typeof_mode() const { return TypeofModeBits::decode(state_); }
-
-  static TypeofMode GetTypeofMode(ExtraICState state) {
-    return LoadGlobalICState(state).typeof_mode();
-  }
-
-  // For convenience, a statically declared encoding of typeof mode
-  // IC state.
-  static const ExtraICState kInsideTypeOfState = INSIDE_TYPEOF
-                                                 << TypeofModeBits::kShift;
-  static const ExtraICState kNotInsideTypeOfState = NOT_INSIDE_TYPEOF
-                                                    << TypeofModeBits::kShift;
-};
-
 }  // namespace internal
 }  // namespace v8
 

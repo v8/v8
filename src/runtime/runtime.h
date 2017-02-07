@@ -970,9 +970,9 @@ namespace internal {
   F(KeyedStoreIC_Slow, 5, 1)                 \
   F(LoadElementWithInterceptor, 2, 1)        \
   F(LoadGlobalIC_Miss, 3, 1)                 \
-  F(LoadGlobalIC_Slow, 1, 1)                 \
+  F(LoadGlobalIC_Slow, 3, 1)                 \
   F(LoadIC_Miss, 4, 1)                       \
-  F(LoadPropertyWithInterceptor, 3, 1)       \
+  F(LoadPropertyWithInterceptor, 5, 1)       \
   F(LoadPropertyWithInterceptorOnly, 3, 1)   \
   F(StoreCallbackProperty, 6, 1)             \
   F(StoreIC_Miss, 5, 1)                      \

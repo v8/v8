@@ -37,6 +37,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
+  void VisitVariableProxy(VariableProxy* node, TypeofMode typeof_mode);
   void VisitVariableProxyReference(VariableProxy* node);
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
@@ -187,10 +188,15 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
 
+void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node,
+                                             TypeofMode typeof_mode) {
+  VisitVariableProxyReference(node);
+  node->AssignFeedbackVectorSlots(properties_.get_spec(), typeof_mode,
+                                  &slot_cache_);
+}
 
 void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {
-  VisitVariableProxyReference(node);
-  ReserveFeedbackSlots(node);
+  VisitVariableProxy(node, NOT_INSIDE_TYPEOF);
 }
 
 
@@ -252,7 +258,12 @@ void AstNumberingVisitor::VisitThrow(Throw* node) {
 void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(UnaryOperation::num_ids()));
-  Visit(node->expression());
+  if ((node->op() == Token::TYPEOF) && node->expression()->IsVariableProxy()) {
+    VariableProxy* proxy = node->expression()->AsVariableProxy();
+    VisitVariableProxy(proxy, INSIDE_TYPEOF);
+  } else {
+    Visit(node->expression());
+  }
 }
 
 

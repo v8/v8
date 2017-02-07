@@ -222,20 +222,19 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 void VariableProxy::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
-                                              LanguageMode language_mode,
+                                              TypeofMode typeof_mode,
                                               FeedbackVectorSlotCache* cache) {
   if (UsesVariableFeedbackSlot()) {
     // VariableProxies that point to the same Variable within a function can
     // make their loads from the same IC slot.
     if (var()->IsUnallocated() || var()->mode() == DYNAMIC_GLOBAL) {
-      ZoneHashMap::Entry* entry = cache->Get(var());
-      if (entry != NULL) {
-        variable_feedback_slot_ = FeedbackVectorSlot(
-            static_cast<int>(reinterpret_cast<intptr_t>(entry->value)));
+      FeedbackVectorSlot slot = cache->Get(typeof_mode, var());
+      if (!slot.IsInvalid()) {
+        variable_feedback_slot_ = slot;
         return;
       }
-      variable_feedback_slot_ = spec->AddLoadGlobalICSlot();
-      cache->Put(var(), variable_feedback_slot_);
+      variable_feedback_slot_ = spec->AddLoadGlobalICSlot(typeof_mode);
+      cache->Put(typeof_mode, var(), variable_feedback_slot_);
     } else {
       variable_feedback_slot_ = spec->AddLoadICSlot();
     }

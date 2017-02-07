@@ -374,32 +374,40 @@ TEST(VectorLoadICStates) {
   CHECK_EQ(MEGAMORPHIC, nexus.StateFromFeedback());
 }
 
-
-TEST(VectorLoadICSlotSharing) {
+TEST(VectorLoadGlobalICSlotSharing) {
   if (i::FLAG_always_opt) return;
   CcTest::InitializeVM();
   LocalContext context;
   v8::HandleScope scope(context->GetIsolate());
   Isolate* isolate = CcTest::i_isolate();
 
-  // Function f has 3 LoadICs, one for each o, but the ICs share the same
-  // feedback vector IC slot.
+  // Function f has 5 LoadGlobalICs: 3 for {o} references outside of "typeof"
+  // operator and 2 for {o} references inside "typeof" operator.
   CompileRun(
       "o = 10;"
       "function f() {"
       "  var x = o || 10;"
-      "  return o , x , o;"
+      "  var y = typeof o;"
+      "  return o , typeof o, x , y, o;"
       "}"
       "f();");
   Handle<JSFunction> f = GetFunction("f");
-  // There should be one IC slot.
+  // There should be two IC slots for {o} references outside and inside
+  // typeof operator respectively.
   Handle<TypeFeedbackVector> feedback_vector =
       Handle<TypeFeedbackVector>(f->feedback_vector(), isolate);
   FeedbackVectorHelper helper(feedback_vector);
-  CHECK_EQ(1, helper.slot_count());
-  FeedbackVectorSlot slot(0);
-  LoadGlobalICNexus nexus(feedback_vector, slot);
-  CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
+  CHECK_EQ(2, helper.slot_count());
+  CHECK_SLOT_KIND(helper, 0,
+                  FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
+  CHECK_SLOT_KIND(helper, 1,
+                  FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC);
+  FeedbackVectorSlot slot1 = helper.slot(0);
+  FeedbackVectorSlot slot2 = helper.slot(1);
+  CHECK_EQ(MONOMORPHIC,
+           LoadGlobalICNexus(feedback_vector, slot1).StateFromFeedback());
+  CHECK_EQ(MONOMORPHIC,
+           LoadGlobalICNexus(feedback_vector, slot2).StateFromFeedback());
 }
 
 
@@ -487,9 +495,11 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(4, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::STORE_SLOPPY_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 1,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_SLOPPY_IC);
-    CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 3,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
   }
 
   {
@@ -506,7 +516,8 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(2, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 0,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_STRICT_IC);
   }
 
@@ -527,7 +538,8 @@ TEST(ReferenceContextAllocatesNoSlots) {
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(5, helper.slot_count());
     CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::CALL_IC);
-    CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 1,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_SLOPPY_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::CALL_IC);
     CHECK_SLOT_KIND(helper, 4, FeedbackVectorSlotKind::LOAD_IC);
@@ -548,7 +560,8 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 0,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
@@ -569,7 +582,8 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(3, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 0,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::KEYED_LOAD_IC);
   }
@@ -590,7 +604,8 @@ TEST(ReferenceContextAllocatesNoSlots) {
     Handle<TypeFeedbackVector> feedback_vector(f->feedback_vector());
     FeedbackVectorHelper helper(feedback_vector);
     CHECK_EQ(7, helper.slot_count());
-    CHECK_SLOT_KIND(helper, 0, FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+    CHECK_SLOT_KIND(helper, 0,
+                    FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
     CHECK_SLOT_KIND(helper, 1, FeedbackVectorSlotKind::STORE_STRICT_IC);
     CHECK_SLOT_KIND(helper, 2, FeedbackVectorSlotKind::STORE_STRICT_IC);
     CHECK_SLOT_KIND(helper, 3, FeedbackVectorSlotKind::STORE_STRICT_IC);

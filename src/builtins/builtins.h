@@ -479,14 +479,12 @@ class Isolate;
   TFS(KeyedStoreICTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)          \
   TFS(KeyedStoreICStrict, KEYED_STORE_IC, kNoExtraICState, StoreWithVector)    \
   TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)    \
-  TFS(LoadGlobalIC, LOAD_GLOBAL_IC, LoadGlobalICState::kNotInsideTypeOfState,  \
+  TFS(LoadGlobalIC, LOAD_GLOBAL_IC, kNoExtraICState, LoadGlobalWithVector)     \
+  TFS(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC, kNoExtraICState,               \
       LoadGlobalWithVector)                                                    \
-  TFS(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC,                                \
-      LoadGlobalICState::kInsideTypeOfState, LoadGlobalWithVector)             \
-  TFS(LoadGlobalICTrampoline, LOAD_GLOBAL_IC,                                  \
-      LoadGlobalICState::kNotInsideTypeOfState, LoadGlobal)                    \
-  TFS(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC,                      \
-      LoadGlobalICState::kInsideTypeOfState, LoadGlobal)                       \
+  TFS(LoadGlobalICTrampoline, LOAD_GLOBAL_IC, kNoExtraICState, LoadGlobal)     \
+  TFS(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, kNoExtraICState,     \
+      LoadGlobal)                                                              \
                                                                                \
   /* Math */                                                                   \
   /* ES6 section 20.2.2.1 Math.abs ( x ) */                                    \

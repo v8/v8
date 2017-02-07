@@ -149,8 +149,10 @@ const char* TypeFeedbackMetadata::Kind2String(FeedbackVectorSlotKind kind) {
       return "CALL_IC";
     case FeedbackVectorSlotKind::LOAD_IC:
       return "LOAD_IC";
-    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
-      return "LOAD_GLOBAL_IC";
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+      return "LOAD_GLOBAL_INSIDE_TYPEOF_IC";
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
+      return "LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC";
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
       return "KEYED_LOAD_IC";
     case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
@@ -215,7 +217,8 @@ Handle<TypeFeedbackVector> TypeFeedbackVector::New(
 
     Object* extra_value = *uninitialized_sentinel;
     switch (kind) {
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
         array->set(index, isolate->heap()->empty_weak_cell(),
                    SKIP_WRITE_BARRIER);
         break;
@@ -304,7 +307,8 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           nexus.Clear(shared->code());
           break;
         }
-        case FeedbackVectorSlotKind::LOAD_GLOBAL_IC: {
+        case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+        case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC: {
           LoadGlobalICNexus nexus(this, slot);
           nexus.Clear(shared->code());
           break;
@@ -365,12 +369,6 @@ void TypeFeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
       }
     }
   }
-}
-
-
-// static
-Handle<TypeFeedbackVector> TypeFeedbackVector::DummyVector(Isolate* isolate) {
-  return isolate->factory()->dummy_vector();
 }
 
 

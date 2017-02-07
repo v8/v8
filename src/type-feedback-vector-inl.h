@@ -61,7 +61,8 @@ int TypeFeedbackMetadata::GetSlotSize(FeedbackVectorSlotKind kind) {
 
     case FeedbackVectorSlotKind::CALL_IC:
     case FeedbackVectorSlotKind::LOAD_IC:
-    case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+    case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
     case FeedbackVectorSlotKind::KEYED_LOAD_IC:
     case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
     case FeedbackVectorSlotKind::STORE_STRICT_IC:
@@ -174,7 +175,8 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
     switch (kind) {
       case FeedbackVectorSlotKind::CALL_IC:
       case FeedbackVectorSlotKind::LOAD_IC:
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC:
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+      case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC:
       case FeedbackVectorSlotKind::KEYED_LOAD_IC:
       case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
       case FeedbackVectorSlotKind::STORE_STRICT_IC:

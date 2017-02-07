@@ -485,8 +485,12 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   DCHECK(var->IsUnallocated());
   __ Move(LoadDescriptor::NameRegister(), var->name());
 
-  EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(),
-               proxy->VariableFeedbackSlot());
+  FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+  // Ensure that typeof mode is in sync with the IC slot kind.
+  DCHECK_EQ(GetTypeofModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+            typeof_mode);
+
+  EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(), slot);
   Handle<Code> code = CodeFactory::LoadGlobalIC(isolate(), typeof_mode).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();

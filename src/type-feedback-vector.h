@@ -24,7 +24,8 @@ enum class FeedbackVectorSlotKind {
 
   CALL_IC,
   LOAD_IC,
-  LOAD_GLOBAL_IC,
+  LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC,
+  LOAD_GLOBAL_INSIDE_TYPEOF_IC,
   KEYED_LOAD_IC,
   STORE_SLOPPY_IC,
   STORE_STRICT_IC,
@@ -50,7 +51,8 @@ inline bool IsLoadICKind(FeedbackVectorSlotKind kind) {
 }
 
 inline bool IsLoadGlobalICKind(FeedbackVectorSlotKind kind) {
-  return kind == FeedbackVectorSlotKind::LOAD_GLOBAL_IC;
+  return kind == FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC ||
+         kind == FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC;
 }
 
 inline bool IsKeyedLoadICKind(FeedbackVectorSlotKind kind) {
@@ -65,6 +67,13 @@ inline bool IsStoreICKind(FeedbackVectorSlotKind kind) {
 inline bool IsKeyedStoreICKind(FeedbackVectorSlotKind kind) {
   return kind == FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC ||
          kind == FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC;
+}
+
+inline TypeofMode GetTypeofModeFromICKind(FeedbackVectorSlotKind kind) {
+  DCHECK(IsLoadGlobalICKind(kind));
+  return (kind == FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC)
+             ? INSIDE_TYPEOF
+             : NOT_INSIDE_TYPEOF;
 }
 
 inline LanguageMode GetLanguageModeFromICKind(FeedbackVectorSlotKind kind) {
@@ -89,8 +98,11 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackVectorSlotKind::LOAD_IC);
   }
 
-  FeedbackVectorSlot AddLoadGlobalICSlot() {
-    return AddSlot(FeedbackVectorSlotKind::LOAD_GLOBAL_IC);
+  FeedbackVectorSlot AddLoadGlobalICSlot(TypeofMode typeof_mode) {
+    return AddSlot(
+        typeof_mode == INSIDE_TYPEOF
+            ? FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC
+            : FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC);
   }
 
   FeedbackVectorSlot AddCreateClosureSlot() {
@@ -312,6 +324,11 @@ class TypeFeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
 #undef DEFINE_SLOT_KIND_PREDICATE
 
+  // Returns typeof mode encoded into kind of given slot.
+  inline TypeofMode GetTypeofMode(FeedbackVectorSlot slot) const {
+    return GetTypeofModeFromICKind(GetKind(slot));
+  }
+
   // Returns language mode encoded into kind of given slot.
   inline LanguageMode GetLanguageMode(FeedbackVectorSlot slot) const {
     return GetLanguageModeFromICKind(GetKind(slot));
@@ -343,10 +360,6 @@ class TypeFeedbackVector : public FixedArray {
   // A raw version of the uninitialized sentinel that's safe to read during
   // garbage collection (e.g., for patching the cache).
   static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
-
-  static const int kDummyLoadICSlot = 0;
-
-  static Handle<TypeFeedbackVector> DummyVector(Isolate* isolate);
 
  private:
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
@@ -529,10 +542,6 @@ class LoadICNexus : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsLoadIC(slot));
   }
-  explicit LoadICNexus(Isolate* isolate)
-      : FeedbackNexus(
-            TypeFeedbackVector::DummyVector(isolate),
-            FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot)) {}
   LoadICNexus(TypeFeedbackVector* vector, FeedbackVectorSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsLoadIC(slot));

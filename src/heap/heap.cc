@@ -2756,23 +2756,6 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   {
-    StaticFeedbackVectorSpec spec;
-    FeedbackVectorSlot slot = spec.AddLoadICSlot();
-    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
-    USE(slot);
-
-    Handle<TypeFeedbackMetadata> dummy_metadata =
-        TypeFeedbackMetadata::New(isolate(), &spec);
-    Handle<TypeFeedbackVector> dummy_vector =
-        TypeFeedbackVector::New(isolate(), dummy_metadata);
-
-    set_dummy_vector(*dummy_vector);
-
-    // Now initialize dummy vector's entries.
-    LoadICNexus(isolate()).ConfigureMegamorphic();
-  }
-
-  {
     // Create a canonical empty TypeFeedbackVector, which is shared by all
     // functions that don't need actual type feedback slots. Note however
     // that all these functions will share the same invocation count, but

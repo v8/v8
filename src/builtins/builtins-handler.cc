@@ -90,9 +90,11 @@ TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name);
+  TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name, slot, vector);
 }
 
 void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {

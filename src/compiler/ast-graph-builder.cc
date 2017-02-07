@@ -2770,6 +2770,7 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
 Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,
                                        TypeofMode typeof_mode) {
+  DCHECK_EQ(feedback.vector()->GetTypeofMode(feedback.slot()), typeof_mode);
   const Operator* op = javascript()->LoadGlobal(name, feedback, typeof_mode);
   Node* node = NewNode(op);
   return node;

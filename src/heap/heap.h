@@ -160,7 +160,6 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
     EmptySlowElementDictionary)                                                \
-  V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   /* Protectors */                                                             \
