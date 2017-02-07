@@ -53,7 +53,7 @@ class JSInliner final : public AdvancedReducer {
   bool DetermineCallTarget(Node* node,
                            Handle<SharedFunctionInfo>& shared_info_out);
   void DetermineCallContext(Node* node, Node*& context_out,
-                            Handle<TypeFeedbackVector>& feedback_vector_out);
+                            Handle<FeedbackVector>& feedback_vector_out);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                    int parameter_count,

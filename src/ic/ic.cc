@@ -2502,7 +2502,7 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   Handle<Object> receiver = args.at(0);
   Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
@@ -2538,7 +2538,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<String> name = args.at<String>(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
@@ -2580,7 +2580,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
       Runtime::GetObjectProperty(isolate, global, name, &is_found));
   if (!is_found) {
     Handle<Smi> slot = args.at<Smi>(1);
-    Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+    Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
     FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
     FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
     // It is actually a LoadGlobalICs here but the predicate handles this case
@@ -2601,7 +2601,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<Object> receiver = args.at(0);
   Handle<Object> key = args.at(1);
   Handle<Smi> slot = args.at<Smi>(2);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(3);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2616,7 +2616,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2641,7 +2641,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2658,7 +2658,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> object = args.at(3);
   Handle<Object> key = args.at(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
@@ -2678,7 +2678,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   Handle<Object> value = args.at(2);
   Handle<Map> map = args.at<Map>(3);
   Handle<Smi> slot = args.at<Smi>(4);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(5);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(5);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   if (object->IsJSObject()) {
@@ -3072,7 +3072,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
   if (it.IsFound()) return *result;
 
   Handle<Smi> slot = args.at<Smi>(3);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(4);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
   FeedbackVectorSlotKind slot_kind = vector->GetKind(vector_slot);
   // It could actually be any kind of load IC slot here but the predicate
@@ -3093,7 +3093,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   // Runtime functions don't follow the IC's calling convention.
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
-  Handle<TypeFeedbackVector> vector = args.at<TypeFeedbackVector>(2);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<JSObject> receiver = args.at<JSObject>(3);
   Handle<Name> name = args.at<Name>(4);
   FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());

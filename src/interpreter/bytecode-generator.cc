@@ -3368,7 +3368,7 @@ LanguageMode BytecodeGenerator::language_mode() const {
 }
 
 int BytecodeGenerator::feedback_index(FeedbackVectorSlot slot) const {
-  return TypeFeedbackVector::GetIndex(slot);
+  return FeedbackVector::GetIndex(slot);
 }
 
 Runtime::FunctionId BytecodeGenerator::StoreToSuperRuntimeId() {

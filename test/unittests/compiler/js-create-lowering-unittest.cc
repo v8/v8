@@ -11,8 +11,8 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/feedback-vector.h"
 #include "src/isolate-inl.h"
-#include "src/type-feedback-vector.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/graph-unittest.h"
 #include "test/unittests/compiler/node-test-utils.h"
@@ -41,8 +41,8 @@ class JSCreateLoweringTest : public TypedGraphTest {
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
     JSCreateLowering reducer(&graph_reducer, &deps_, &jsgraph,
-                             MaybeHandle<TypeFeedbackVector>(),
-                             native_context(), zone());
+                             MaybeHandle<FeedbackVector>(), native_context(),
+                             zone());
     return reducer.Reduce(node);
   }
 
@@ -154,10 +154,9 @@ TEST_F(JSCreateLoweringTest, JSCreateClosureViaInlinedAllocation) {
   // Create a mock feedback vector. It just has to be an array with an array
   // in slot 0.
   Handle<FixedArray> array = isolate()->factory()->NewFixedArray(
-      TypeFeedbackVector::kReservedIndexCount + 1);
-  array->set_map_no_write_barrier(
-      isolate()->heap()->type_feedback_vector_map());
-  Handle<TypeFeedbackVector> vector = Handle<TypeFeedbackVector>::cast(array);
+      FeedbackVector::kReservedIndexCount + 1);
+  array->set_map_no_write_barrier(isolate()->heap()->feedback_vector_map());
+  Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(array);
   FeedbackVectorSlot slot(0);
   vector->Set(slot, *vector);
   VectorSlotPair pair(vector, slot);

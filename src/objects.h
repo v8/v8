@@ -92,8 +92,8 @@
 //           - OrderedHashSet
 //           - OrderedHashMap
 //         - Context
-//         - TypeFeedbackMetadata
-//         - TypeFeedbackVector
+//         - FeedbackMetadata
+//         - FeedbackVector
 //         - TemplateList
 //         - TransitionArray
 //         - ScopeInfo
@@ -901,8 +901,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(STRING_SPLIT_CACHE_SUB_TYPE)                 \
   V(STRING_TABLE_SUB_TYPE)                       \
   V(TEMPLATE_INFO_SUB_TYPE)                      \
-  V(TYPE_FEEDBACK_VECTOR_SUB_TYPE)               \
-  V(TYPE_FEEDBACK_METADATA_SUB_TYPE)             \
+  V(FEEDBACK_VECTOR_SUB_TYPE)                    \
+  V(FEEDBACK_METADATA_SUB_TYPE)                  \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE)
 
 enum FixedArraySubInstanceType {
@@ -960,8 +960,8 @@ class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
 class TypeFeedbackInfo;
-class TypeFeedbackMetadata;
-class TypeFeedbackVector;
+class FeedbackMetadata;
+class FeedbackVector;
 class WeakCell;
 class TransitionArray;
 class TemplateList;
@@ -1034,8 +1034,8 @@ template <class C> inline bool Is(Object* obj);
   V(DescriptorArray)             \
   V(FrameArray)                  \
   V(TransitionArray)             \
-  V(TypeFeedbackMetadata)        \
-  V(TypeFeedbackVector)          \
+  V(FeedbackMetadata)            \
+  V(FeedbackVector)              \
   V(DeoptimizationInputData)     \
   V(DeoptimizationOutputData)    \
   V(DependentCode)               \
@@ -7027,7 +7027,7 @@ enum BuiltinFunctionId {
 // that both {code} and {vector} can be NULL to pass search result status.
 struct CodeAndVector {
   Code* code;                  // Cached optimized code.
-  TypeFeedbackVector* vector;  // Cached feedback vector.
+  FeedbackVector* vector;      // Cached feedback vector.
 };
 
 // SharedFunctionInfo describes the JSFunction information that can be
@@ -7144,7 +7144,7 @@ class SharedFunctionInfo: public HeapObject {
   // [feedback_metadata] - describes ast node feedback from full-codegen and
   // (increasingly) from crankshafted code where sufficient feedback isn't
   // available.
-  DECL_ACCESSORS(feedback_metadata, TypeFeedbackMetadata)
+  DECL_ACCESSORS(feedback_metadata, FeedbackMetadata)
 
   // [function_literal_id] - uniquely identifies the FunctionLiteral this
   // SharedFunctionInfo represents within its script, or -1 if this
@@ -8067,7 +8067,7 @@ class JSFunction: public JSObject {
   DECL_ACCESSORS(feedback_vector_cell, Cell)
 
   // feedback_vector() can be used once the function is compiled.
-  inline TypeFeedbackVector* feedback_vector() const;
+  inline FeedbackVector* feedback_vector() const;
   inline bool has_feedback_vector() const;
   static void EnsureLiterals(Handle<JSFunction> function);
 

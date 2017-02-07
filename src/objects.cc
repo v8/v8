@@ -12119,11 +12119,11 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
              reinterpret_cast<void*>(*function));
     }
     // Top level code didn't get it's literals installed.
-    Handle<TypeFeedbackVector> feedback_vector =
-        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+    Handle<FeedbackVector> feedback_vector =
+        FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
     Handle<Cell> new_cell = isolate->factory()->NewCell(feedback_vector);
     function->set_feedback_vector_cell(*new_cell);
-  } else if (!cell->value()->IsTypeFeedbackVector() ||
+  } else if (!cell->value()->IsFeedbackVector() ||
              !function->has_feedback_vector()) {
     DCHECK(cell != isolate->heap()->undefined_cell());
     if (FLAG_trace_strong_rooted_literals) {
@@ -12131,8 +12131,8 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
              shared->DebugName()->ToCString().get(),
              reinterpret_cast<void*>(*function));
     }
-    Handle<TypeFeedbackVector> feedback_vector =
-        TypeFeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+    Handle<FeedbackVector> feedback_vector =
+        FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
     // Re-get the feedback_vector() value as GC may have occurred.
     function->feedback_vector_cell()->set_value(*feedback_vector);
   } else {
@@ -12146,7 +12146,7 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   // No matter what, ensure some post-conditions.
   DCHECK(shared->feedback_metadata()->slot_count() != 0 ||
          function->feedback_vector() ==
-             shared->GetIsolate()->heap()->empty_type_feedback_vector());
+             shared->GetIsolate()->heap()->empty_feedback_vector());
 }
 
 static void GetMinInobjectSlack(Map* map, void* data) {
@@ -14018,15 +14018,15 @@ int AbstractCode::SourceStatementPosition(int offset) {
 }
 
 void JSFunction::ClearTypeFeedbackInfo() {
-  if (feedback_vector_cell()->value()->IsTypeFeedbackVector()) {
-    TypeFeedbackVector* vector = feedback_vector();
+  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
+    FeedbackVector* vector = feedback_vector();
     vector->ClearSlots(shared());
   }
 }
 
 void JSFunction::ClearTypeFeedbackInfoAtGCTime() {
-  if (feedback_vector_cell()->value()->IsTypeFeedbackVector()) {
-    TypeFeedbackVector* vector = feedback_vector();
+  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
+    FeedbackVector* vector = feedback_vector();
     vector->ClearSlotsAtGCTime(shared());
   }
 }

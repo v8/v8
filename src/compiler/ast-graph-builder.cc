@@ -17,9 +17,9 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/feedback-vector.h"
 #include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
-#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -1361,7 +1361,7 @@ void AstGraphBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
   // Create node to materialize a regular expression literal.
   const Operator* op = javascript()->CreateLiteralRegExp(
       expr->pattern(), expr->flags(),
-      TypeFeedbackVector::GetIndex(expr->literal_slot()));
+      FeedbackVector::GetIndex(expr->literal_slot()));
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->id(), ast_context()->GetStateCombine());
   ast_context()->ProduceValue(expr, literal);
@@ -1374,8 +1374,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralObject(
       expr->GetOrBuildConstantProperties(isolate()), expr->ComputeFlags(true),
-      TypeFeedbackVector::GetIndex(expr->literal_slot()),
-      expr->properties_count());
+      FeedbackVector::GetIndex(expr->literal_slot()), expr->properties_count());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -1504,8 +1503,7 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   // Create node to deep-copy the literal boilerplate.
   const Operator* op = javascript()->CreateLiteralArray(
       expr->GetOrBuildConstantElements(isolate()), expr->ComputeFlags(true),
-      TypeFeedbackVector::GetIndex(expr->literal_slot()),
-      expr->values()->length());
+      FeedbackVector::GetIndex(expr->literal_slot()), expr->values()->length());
   Node* literal = NewNode(op, closure);
   PrepareFrameState(literal, expr->CreateLiteralId(),
                     OutputFrameStateCombine::Push());
@@ -2213,8 +2211,7 @@ void AstGraphBuilder::VisitDeclarations(Declaration::List* declarations) {
   AstVisitor<AstGraphBuilder>::VisitDeclarations(declarations);
   if (globals()->empty()) return;
   int array_index = 0;
-  Handle<TypeFeedbackVector> feedback_vector(
-      info()->closure()->feedback_vector());
+  Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector());
   Handle<FixedArray> data = isolate()->factory()->NewFixedArray(
       static_cast<int>(globals()->size()), TENURED);
   for (Handle<Object> obj : *globals()) data->set(array_index++, *obj);
@@ -2383,8 +2380,8 @@ void AstGraphBuilder::VisitRewritableExpression(RewritableExpression* node) {
 
 float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
   if (slot.IsInvalid()) return 0.0f;
-  Handle<TypeFeedbackVector> feedback_vector(
-      info()->closure()->feedback_vector(), isolate());
+  Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector(),
+                                         isolate());
   CallICNexus nexus(feedback_vector, slot);
   return nexus.ComputeCallFrequency() * invocation_frequency_;
 }

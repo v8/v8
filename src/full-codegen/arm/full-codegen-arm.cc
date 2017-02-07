@@ -134,13 +134,13 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ ldr(r2, FieldMemOperand(r1, JSFunction::kFeedbackVectorOffset));
     __ ldr(r2, FieldMemOperand(r2, Cell::kValueOffset));
-    __ ldr(r9, FieldMemOperand(r2, TypeFeedbackVector::kInvocationCountIndex *
-                                           kPointerSize +
-                                       TypeFeedbackVector::kHeaderSize));
+    __ ldr(r9, FieldMemOperand(
+                   r2, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                           FeedbackVector::kHeaderSize));
     __ add(r9, r9, Operand(Smi::FromInt(1)));
-    __ str(r9, FieldMemOperand(r2, TypeFeedbackVector::kInvocationCountIndex *
-                                           kPointerSize +
-                                       TypeFeedbackVector::kHeaderSize));
+    __ str(r9, FieldMemOperand(
+                   r2, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                           FeedbackVector::kHeaderSize));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -853,7 +853,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ mov(r1, Operand(pairs));
   __ mov(r0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
-  __ EmitLoadTypeFeedbackVector(r2);
+  __ EmitLoadFeedbackVector(r2);
   __ Push(r1, r0, r2);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -1076,8 +1076,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(r3);
-  __ mov(r2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+  __ EmitLoadFeedbackVector(r3);
+  __ mov(r2, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
   __ str(r2, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(vector_index)));
 
   // r0 contains the key. The receiver in r1 is the second argument to the
@@ -1932,7 +1932,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(r2);
+  __ EmitLoadFeedbackVector(r2);
   __ mov(r3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate());

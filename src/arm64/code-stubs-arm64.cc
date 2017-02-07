@@ -1834,9 +1834,9 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
   //  index :           slot in feedback vector (smi)
   Label initialize, done, miss, megamorphic, not_array_function;
 
-  DCHECK_EQ(*TypeFeedbackVector::MegamorphicSentinel(masm->isolate()),
+  DCHECK_EQ(*FeedbackVector::MegamorphicSentinel(masm->isolate()),
             masm->isolate()->heap()->megamorphic_symbol());
-  DCHECK_EQ(*TypeFeedbackVector::UninitializedSentinel(masm->isolate()),
+  DCHECK_EQ(*FeedbackVector::UninitializedSentinel(masm->isolate()),
             masm->isolate()->heap()->uninitialized_symbol());
 
   // Load the cache state.
@@ -1851,7 +1851,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm, Register argc,
   // function without changing the state.
   // We don't know if feedback value is a WeakCell or a Symbol, but it's
   // harmless to read at this position in a symbol (see static asserts in
-  // type-feedback-vector.h).
+  // feedback-vector.h).
   Label check_allocation_site;
   __ Ldr(feedback_value, FieldMemOperand(feedback, WeakCell::kValueOffset));
   __ Cmp(function, feedback_value);

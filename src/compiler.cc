@@ -302,7 +302,7 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
   // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
   if (info->shared_info()->feedback_metadata()->length() == 0 ||
       !info->shared_info()->is_compiled()) {
-    Handle<TypeFeedbackMetadata> feedback_metadata = TypeFeedbackMetadata::New(
+    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         info->isolate(), info->literal()->feedback_vector_spec());
     info->shared_info()->set_feedback_metadata(*feedback_metadata);
   }
@@ -1587,7 +1587,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         // Promote to per-isolate compilation cache.
         // TODO(mvstanton): create a feedback vector array here.
         DCHECK(inner_result->is_compiled());
-        Handle<TypeFeedbackVector> feedback_vector = TypeFeedbackVector::New(
+        Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
             isolate, handle(inner_result->feedback_metadata()));
         vector = isolate->factory()->NewCell(feedback_vector);
         compilation_cache->PutScript(source, context, language_mode,
@@ -1661,8 +1661,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (extension == NULL && !result.is_null()) {
       // We need a feedback vector.
       DCHECK(result->is_compiled());
-      Handle<TypeFeedbackVector> feedback_vector =
-          TypeFeedbackVector::New(isolate, handle(result->feedback_metadata()));
+      Handle<FeedbackVector> feedback_vector =
+          FeedbackVector::New(isolate, handle(result->feedback_metadata()));
       vector = isolate->factory()->NewCell(feedback_vector);
       compilation_cache->PutScript(source, context, language_mode, result,
                                    vector);

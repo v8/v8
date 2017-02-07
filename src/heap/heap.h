@@ -59,7 +59,7 @@ using v8::MemoryPressureLevel;
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
   V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
-  V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
+  V(FixedArray, empty_feedback_vector, EmptyFeedbackVector)                    \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
@@ -93,7 +93,7 @@ using v8::MemoryPressureLevel;
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, module_info_map, ModuleInfoMap)                                       \
-  V(Map, type_feedback_vector_map, TypeFeedbackVectorMap)                      \
+  V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \

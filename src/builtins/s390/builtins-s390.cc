@@ -1040,13 +1040,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Increment invocation count for the function.
   __ LoadP(r6, FieldMemOperand(r3, JSFunction::kFeedbackVectorOffset));
   __ LoadP(r6, FieldMemOperand(r6, Cell::kValueOffset));
-  __ LoadP(r1, FieldMemOperand(r6, TypeFeedbackVector::kInvocationCountIndex *
-                                           kPointerSize +
-                                       TypeFeedbackVector::kHeaderSize));
+  __ LoadP(r1, FieldMemOperand(
+                   r6, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                           FeedbackVector::kHeaderSize));
   __ AddSmiLiteral(r1, r1, Smi::FromInt(1), r0);
-  __ StoreP(r1, FieldMemOperand(r6, TypeFeedbackVector::kInvocationCountIndex *
-                                            kPointerSize +
-                                        TypeFeedbackVector::kHeaderSize));
+  __ StoreP(r1, FieldMemOperand(
+                    r6, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {

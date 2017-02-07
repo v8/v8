@@ -452,7 +452,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(
   // literal is available (not a unit test case).
   // TODO(ishell): check only in debug mode.
   if (literal_) {
-    FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(feedback_slot);
+    FeedbackVectorSlot slot = FeedbackVector::ToSlot(feedback_slot);
     CHECK_EQ(GetTypeofModeFromICKind(feedback_vector_spec()->GetKind(slot)),
              typeof_mode);
   }
@@ -577,7 +577,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
   // literal is available (not a unit test case).
   // TODO(ishell): check only in debug mode.
   if (literal_) {
-    FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(feedback_slot);
+    FeedbackVectorSlot slot = FeedbackVector::ToSlot(feedback_slot);
     CHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
              language_mode);
   }
@@ -597,7 +597,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
   // literal is available (not a unit test case).
   // TODO(ishell): check only in debug mode.
   if (literal_) {
-    FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(feedback_slot);
+    FeedbackVectorSlot slot = FeedbackVector::ToSlot(feedback_slot);
     CHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
              language_mode);
   }

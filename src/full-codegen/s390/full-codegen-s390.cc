@@ -139,14 +139,13 @@ void FullCodeGenerator::Generate() {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ LoadP(r6, FieldMemOperand(r3, JSFunction::kFeedbackVectorOffset));
     __ LoadP(r6, FieldMemOperand(r6, Cell::kValueOffset));
-    __ LoadP(r1, FieldMemOperand(r6, TypeFeedbackVector::kInvocationCountIndex *
-                                             kPointerSize +
-                                         TypeFeedbackVector::kHeaderSize));
+    __ LoadP(r1, FieldMemOperand(
+                     r6, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                             FeedbackVector::kHeaderSize));
     __ AddSmiLiteral(r1, r1, Smi::FromInt(1), r0);
-    __ StoreP(r1,
-              FieldMemOperand(
-                  r6, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                          TypeFeedbackVector::kHeaderSize));
+    __ StoreP(r1, FieldMemOperand(
+                      r6, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                              FeedbackVector::kHeaderSize));
   }
 
   {
@@ -787,7 +786,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ mov(r3, Operand(pairs));
   __ LoadSmiLiteral(r2, Smi::FromInt(DeclareGlobalsFlags()));
-  __ EmitLoadTypeFeedbackVector(r4);
+  __ EmitLoadFeedbackVector(r4);
   __ Push(r3, r2, r4);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -1010,8 +1009,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(r2);
-  __ mov(r4, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+  __ EmitLoadFeedbackVector(r2);
+  __ mov(r4, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
   __ StoreP(
       r4, FieldMemOperand(r2, FixedArray::OffsetOfElementAt(vector_index)), r0);
 
@@ -1900,7 +1899,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ LoadP(r3, MemOperand(sp, arg_count * kPointerSize), r0);
 
   // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(r4);
+  __ EmitLoadFeedbackVector(r4);
   __ LoadSmiLiteral(r5, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate());

@@ -855,9 +855,9 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<TypeFeedbackVector> feedback_vector;
-  if (GetSpecializationTypeFeedbackVector(node).ToHandle(&feedback_vector)) {
-    FeedbackVectorSlot slot(TypeFeedbackVector::ToSlot(p.index()));
+  Handle<FeedbackVector> feedback_vector;
+  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackVectorSlot slot(FeedbackVector::ToSlot(p.index()));
     Handle<Object> literal(feedback_vector->Get(slot), isolate());
     if (literal->IsAllocationSite()) {
       Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);
@@ -1349,8 +1349,8 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   return builder.Finish();
 }
 
-MaybeHandle<TypeFeedbackVector>
-JSCreateLowering::GetSpecializationTypeFeedbackVector(Node* node) {
+MaybeHandle<FeedbackVector> JSCreateLowering::GetSpecializationFeedbackVector(
+    Node* node) {
   Node* const closure = NodeProperties::GetValueInput(node, 0);
   switch (closure->opcode()) {
     case IrOpcode::kHeapConstant: {
@@ -1370,7 +1370,7 @@ JSCreateLowering::GetSpecializationTypeFeedbackVector(Node* node) {
     default:
       break;
   }
-  return MaybeHandle<TypeFeedbackVector>();
+  return MaybeHandle<FeedbackVector>();
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }

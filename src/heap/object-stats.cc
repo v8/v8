@@ -330,7 +330,7 @@ static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
          array->map() != heap->fixed_double_array_map() &&
          array != heap->empty_fixed_array() &&
          array != heap->empty_byte_array() &&
-         array != heap->empty_type_feedback_vector() &&
+         array != heap->empty_feedback_vector() &&
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
          array != heap->empty_descriptor_array() &&
@@ -540,10 +540,10 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     SharedFunctionInfo* sfi) {
   FixedArray* scope_info = sfi->scope_info();
   RecordFixedArrayHelper(sfi, scope_info, SCOPE_INFO_SUB_TYPE, 0);
-  TypeFeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
+  FeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
   if (!feedback_metadata->is_empty()) {
-    RecordFixedArrayHelper(sfi, feedback_metadata,
-                           TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
+    RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
+                           0);
   }
 
   if (!sfi->OptimizedCodeMapIsCleared()) {
@@ -555,10 +555,10 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
 }
 
 void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
-  if (function->feedback_vector_cell()->value()->IsTypeFeedbackVector()) {
-    TypeFeedbackVector* feedback_vector = function->feedback_vector();
-    RecordFixedArrayHelper(function, feedback_vector,
-                           TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
+  if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
+    FeedbackVector* feedback_vector = function->feedback_vector();
+    RecordFixedArrayHelper(function, feedback_vector, FEEDBACK_VECTOR_SUB_TYPE,
+                           0);
   }
 }
 

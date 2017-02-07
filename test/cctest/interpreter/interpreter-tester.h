@@ -39,7 +39,7 @@ class InterpreterCallable {
     return CallInterpreter(isolate_, function_, args...);
   }
 
-  TypeFeedbackVector* vector() const { return function_->feedback_vector(); }
+  FeedbackVector* vector() const { return function_->feedback_vector(); }
 
  private:
   Isolate* isolate_;
@@ -54,12 +54,12 @@ class InterpreterTester {
  public:
   InterpreterTester(Isolate* isolate, const char* source,
                     MaybeHandle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackMetadata> feedback_metadata,
+                    MaybeHandle<FeedbackMetadata> feedback_metadata,
                     const char* filter);
 
   InterpreterTester(Isolate* isolate, Handle<BytecodeArray> bytecode,
-                    MaybeHandle<TypeFeedbackMetadata> feedback_metadata =
-                        MaybeHandle<TypeFeedbackMetadata>(),
+                    MaybeHandle<FeedbackMetadata> feedback_metadata =
+                        MaybeHandle<FeedbackMetadata>(),
                     const char* filter = kFunctionName);
 
   InterpreterTester(Isolate* isolate, const char* source,
@@ -86,7 +86,7 @@ class InterpreterTester {
   Isolate* isolate_;
   const char* source_;
   MaybeHandle<BytecodeArray> bytecode_;
-  MaybeHandle<TypeFeedbackMetadata> feedback_metadata_;
+  MaybeHandle<FeedbackMetadata> feedback_metadata_;
 
   template <class... A>
   Handle<JSFunction> GetBytecodeFunction() {

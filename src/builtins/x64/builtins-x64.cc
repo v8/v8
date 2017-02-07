@@ -625,9 +625,8 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
   __ movp(rcx, FieldOperand(rcx, Cell::kValueOffset));
   __ SmiAddConstant(
-      FieldOperand(rcx,
-                   TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                       TypeFeedbackVector::kHeaderSize),
+      FieldOperand(rcx, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize),
       Smi::FromInt(1));
 
   // Check function data field is actually a BytecodeArray object.

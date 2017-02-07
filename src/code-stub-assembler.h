@@ -28,7 +28,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
   V(EmptyFixedArray, EmptyFixedArray)                 \
-  V(EmptyTypeFeedbackVector, EmptyTypeFeedbackVector) \
+  V(EmptyFeedbackVector, EmptyFeedbackVector)         \
   V(FalseValue, False)                                \
   V(FixedArrayMap, FixedArrayMap)                     \
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
@@ -997,11 +997,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* OrdinaryHasInstance(Node* context, Node* callable, Node* object);
 
   // Load type feedback vector from the stub caller's frame.
-  Node* LoadTypeFeedbackVectorForStub();
+  Node* LoadFeedbackVectorForStub();
 
   // Update the type feedback vector.
-  void UpdateFeedback(Node* feedback, Node* type_feedback_vector,
-                      Node* slot_id);
+  void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
   Node* LoadReceiverMap(Node* receiver);
 

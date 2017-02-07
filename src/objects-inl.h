@@ -18,6 +18,7 @@
 #include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
 #include "src/factory.h"
+#include "src/feedback-vector-inl.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
 #include "src/handles-inl.h"
@@ -37,7 +38,6 @@
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
-#include "src/type-feedback-vector-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -372,11 +372,11 @@ bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
 }
 
-bool HeapObject::IsTypeFeedbackVector() const {
-  return map() == GetHeap()->type_feedback_vector_map();
+bool HeapObject::IsFeedbackVector() const {
+  return map() == GetHeap()->feedback_vector_map();
 }
 
-bool HeapObject::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
+bool HeapObject::IsFeedbackMetadata() const { return IsFixedArray(); }
 
 bool HeapObject::IsDeoptimizationInputData() const {
   // Must be a fixed array.
@@ -5971,7 +5971,7 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
           kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_metadata, TypeFeedbackMetadata,
+ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
 SMI_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if TRACE_MAPS
@@ -6479,9 +6479,9 @@ bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
   return optimized_code_map() == GetHeap()->empty_fixed_array();
 }
 
-TypeFeedbackVector* JSFunction::feedback_vector() const {
-  DCHECK(feedback_vector_cell()->value()->IsTypeFeedbackVector());
-  return TypeFeedbackVector::cast(feedback_vector_cell()->value());
+FeedbackVector* JSFunction::feedback_vector() const {
+  DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
+  return FeedbackVector::cast(feedback_vector_cell()->value());
 }
 
 bool JSFunction::IsOptimized() {
@@ -6594,7 +6594,7 @@ bool JSFunction::has_feedback_vector() const {
   SharedFunctionInfo* shared = this->shared();
 
   return (feedback_vector_cell()->value() !=
-              shared->GetIsolate()->heap()->empty_type_feedback_vector() ||
+              shared->GetIsolate()->heap()->empty_feedback_vector() ||
           (shared->feedback_metadata()->slot_count() == 0 &&
            shared->num_literals() == 0));
 }

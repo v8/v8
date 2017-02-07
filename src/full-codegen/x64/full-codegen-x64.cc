@@ -124,9 +124,8 @@ void FullCodeGenerator::Generate() {
     __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
     __ movp(rcx, FieldOperand(rcx, Cell::kValueOffset));
     __ SmiAddConstant(
-        FieldOperand(rcx,
-                     TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                         TypeFeedbackVector::kHeaderSize),
+        FieldOperand(rcx, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                              FeedbackVector::kHeaderSize),
         Smi::FromInt(1));
   }
 
@@ -814,7 +813,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ Push(pairs);
   __ Push(Smi::FromInt(DeclareGlobalsFlags()));
-  __ EmitLoadTypeFeedbackVector(rax);
+  __ EmitLoadFeedbackVector(rax);
   __ Push(rax);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -1036,9 +1035,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(rdx);
+  __ EmitLoadFeedbackVector(rdx);
   __ Move(FieldOperand(rdx, FixedArray::OffsetOfElementAt(vector_index)),
-          TypeFeedbackVector::MegamorphicSentinel(isolate()));
+          FeedbackVector::MegamorphicSentinel(isolate()));
 
   // rax contains the key. The receiver in rbx is the second argument to
   // ForInFilter. ForInFilter returns undefined if the receiver doesn't
@@ -1843,7 +1842,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ movp(rdi, Operand(rsp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code, but not in the snapshot.
-  __ EmitLoadTypeFeedbackVector(rbx);
+  __ EmitLoadFeedbackVector(rbx);
   __ Move(rdx, SmiFromSlot(expr->CallNewFeedbackSlot()));
 
   CallConstructStub stub(isolate());

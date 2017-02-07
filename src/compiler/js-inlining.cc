@@ -393,7 +393,7 @@ bool JSInliner::DetermineCallTarget(
     // in such a case (in {DetermineCallContext} below) eventually.
     FeedbackVectorSlot slot = p.feedback().slot();
     Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
-    if (!cell->value()->IsTypeFeedbackVector()) return false;
+    if (!cell->value()->IsFeedbackVector()) return false;
 
     shared_info_out = p.shared_info();
     return true;
@@ -409,7 +409,7 @@ bool JSInliner::DetermineCallTarget(
 //  - feedback_vector : The target is guaranteed to use this feedback vector.
 void JSInliner::DetermineCallContext(
     Node* node, Node*& context_out,
-    Handle<TypeFeedbackVector>& feedback_vector_out) {
+    Handle<FeedbackVector>& feedback_vector_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
   HeapObjectMatcher match(node->InputAt(0));
 
@@ -433,11 +433,11 @@ void JSInliner::DetermineCallContext(
     // the instantiation site (we only decide to inline if it's populated).
     FeedbackVectorSlot slot = p.feedback().slot();
     Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
-    DCHECK(cell->value()->IsTypeFeedbackVector());
+    DCHECK(cell->value()->IsFeedbackVector());
 
     // The inlinee uses the locally provided context at instantiation.
     context_out = NodeProperties::GetContextInput(match.node());
-    feedback_vector_out = handle(TypeFeedbackVector::cast(cell->value()));
+    feedback_vector_out = handle(FeedbackVector::cast(cell->value()));
     return;
   }
 
@@ -580,7 +580,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Determine the targets feedback vector and its context.
   Node* context;
-  Handle<TypeFeedbackVector> feedback_vector;
+  Handle<FeedbackVector> feedback_vector;
   DetermineCallContext(node, context, feedback_vector);
 
   // Create the subgraph for the inlinee.

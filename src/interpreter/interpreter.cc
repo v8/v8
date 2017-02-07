@@ -464,9 +464,9 @@ Node* Interpreter::BuildLoadGlobal(Callable ic, Node* context, Node* name_index,
   Node* code_target = __ HeapConstant(ic.code());
   Node* name = __ LoadConstantPoolEntry(name_index);
   Node* smi_slot = __ SmiTag(feedback_slot);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   return __ CallStub(ic.descriptor(), code_target, context, name, smi_slot,
-                     type_feedback_vector);
+                     feedback_vector);
 }
 
 // LdaGlobal <name_index> <slot>
@@ -517,9 +517,9 @@ void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* raw_slot = __ BytecodeOperandIdx(1);
   Node* smi_slot = __ SmiTag(raw_slot);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   __ CallStub(ic.descriptor(), code_target, context, global, name, value,
-              smi_slot, type_feedback_vector);
+              smi_slot, feedback_vector);
   __ Dispatch();
 }
 
@@ -761,10 +761,10 @@ void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
   Node* name = __ LoadConstantPoolEntry(constant_index);
   Node* raw_slot = __ BytecodeOperandIdx(2);
   Node* smi_slot = __ SmiTag(raw_slot);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
-                             name, smi_slot, type_feedback_vector);
+                             name, smi_slot, feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -781,10 +781,10 @@ void Interpreter::DoLdaKeyedProperty(InterpreterAssembler* assembler) {
   Node* name = __ GetAccumulator();
   Node* raw_slot = __ BytecodeOperandIdx(1);
   Node* smi_slot = __ SmiTag(raw_slot);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
-                             name, smi_slot, type_feedback_vector);
+                             name, smi_slot, feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -798,10 +798,10 @@ void Interpreter::DoStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* raw_slot = __ BytecodeOperandIdx(2);
   Node* smi_slot = __ SmiTag(raw_slot);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   __ CallStub(ic.descriptor(), code_target, context, object, name, value,
-              smi_slot, type_feedback_vector);
+              smi_slot, feedback_vector);
   __ Dispatch();
 }
 
@@ -834,10 +834,10 @@ void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* raw_slot = __ BytecodeOperandIdx(2);
   Node* smi_slot = __ SmiTag(raw_slot);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   __ CallStub(ic.descriptor(), code_target, context, object, name, value,
-              smi_slot, type_feedback_vector);
+              smi_slot, feedback_vector);
   __ Dispatch();
 }
 
@@ -874,11 +874,11 @@ void Interpreter::DoStaDataPropertyInLiteral(InterpreterAssembler* assembler) {
   Node* flags = __ SmiFromWord32(__ BytecodeOperandFlag(2));
   Node* vector_index = __ SmiTag(__ BytecodeOperandIdx(3));
 
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
 
   __ CallRuntime(Runtime::kDefineDataPropertyInLiteral, context, object, name,
-                 value, flags, type_feedback_vector, vector_index);
+                 value, flags, feedback_vector, vector_index);
   __ Dispatch();
 }
 
@@ -1016,9 +1016,9 @@ void Interpreter::DoBinaryOpWithFeedback(InterpreterAssembler* assembler) {
   Node* rhs = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* result = Generator::Generate(assembler, lhs, rhs, slot_index,
-                                     type_feedback_vector, context);
+                                     feedback_vector, context);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1030,7 +1030,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
   Node* rhs = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
 
   // TODO(interpreter): the only reason this check is here is because we
   // sometimes emit comparisons that shouldn't collect feedback (e.g.
@@ -1187,8 +1187,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
 
     __ Bind(&update_feedback);
     {
-      __ UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
-                        slot_index);
+      __ UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
       __ Goto(&do_compare);
     }
   }
@@ -1273,7 +1272,7 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
   Node* rhs = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(1);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
 
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned),
@@ -1332,7 +1331,7 @@ void Interpreter::DoBitwiseBinaryOp(Token::Value bitwise_op,
 
   Node* input_feedback =
       __ SmiOr(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
-  __ UpdateFeedback(__ SmiOr(result_type, input_feedback), type_feedback_vector,
+  __ UpdateFeedback(__ SmiOr(result_type, input_feedback), feedback_vector,
                     slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
@@ -1402,7 +1401,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
   Node* left = __ LoadRegister(reg_index);
   Node* right = __ BytecodeOperandImmSmi(0);
   Node* slot_index = __ BytecodeOperandIdx(2);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
@@ -1420,7 +1419,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
     __ Bind(&if_notoverflow);
     {
       __ UpdateFeedback(__ SmiConstant(BinaryOperationFeedback::kSignedSmall),
-                        type_feedback_vector, slot_index);
+                        feedback_vector, slot_index);
       var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
     }
@@ -1433,7 +1432,7 @@ void Interpreter::DoAddSmi(InterpreterAssembler* assembler) {
         Callable(stub.GetCode(), AddWithFeedbackStub::Descriptor(__ isolate()));
     var_result.Bind(__ CallStub(callable, context, left, right,
                                 __ TruncateWordToWord32(slot_index),
-                                type_feedback_vector));
+                                feedback_vector));
     __ Goto(&end);
   }
   __ Bind(&end);
@@ -1456,7 +1455,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
   Node* left = __ LoadRegister(reg_index);
   Node* right = __ BytecodeOperandImmSmi(0);
   Node* slot_index = __ BytecodeOperandIdx(2);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
 
   // {right} is known to be a Smi.
   // Check if the {left} is a Smi take the fast path.
@@ -1474,7 +1473,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
     __ Bind(&if_notoverflow);
     {
       __ UpdateFeedback(__ SmiConstant(BinaryOperationFeedback::kSignedSmall),
-                        type_feedback_vector, slot_index);
+                        feedback_vector, slot_index);
       var_result.Bind(__ BitcastWordToTaggedSigned(__ Projection(0, pair)));
       __ Goto(&end);
     }
@@ -1487,7 +1486,7 @@ void Interpreter::DoSubSmi(InterpreterAssembler* assembler) {
         stub.GetCode(), SubtractWithFeedbackStub::Descriptor(__ isolate()));
     var_result.Bind(__ CallStub(callable, context, left, right,
                                 __ TruncateWordToWord32(slot_index),
-                                type_feedback_vector));
+                                feedback_vector));
     __ Goto(&end);
   }
   __ Bind(&end);
@@ -1507,7 +1506,7 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
   Node* right = __ BytecodeOperandImmSmi(0);
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1519,7 +1518,7 @@ void Interpreter::DoBitwiseOrSmi(InterpreterAssembler* assembler) {
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
-                    type_feedback_vector, slot_index);
+                    feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1534,7 +1533,7 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
   Node* right = __ BytecodeOperandImmSmi(0);
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1546,7 +1545,7 @@ void Interpreter::DoBitwiseAndSmi(InterpreterAssembler* assembler) {
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
-                    type_feedback_vector, slot_index);
+                    feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1562,7 +1561,7 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
   Node* right = __ BytecodeOperandImmSmi(0);
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1575,7 +1574,7 @@ void Interpreter::DoShiftLeftSmi(InterpreterAssembler* assembler) {
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
-                    type_feedback_vector, slot_index);
+                    feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1591,7 +1590,7 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
   Node* right = __ BytecodeOperandImmSmi(0);
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(2);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Variable var_lhs_type_feedback(assembler,
                                  MachineRepresentation::kTaggedSigned);
   Node* lhs_value = __ TruncateTaggedToWord32WithFeedback(
@@ -1604,7 +1603,7 @@ void Interpreter::DoShiftRightSmi(InterpreterAssembler* assembler) {
       __ TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
       BinaryOperationFeedback::kNumber);
   __ UpdateFeedback(__ SmiOr(result_type, var_lhs_type_feedback.value()),
-                    type_feedback_vector, slot_index);
+                    feedback_vector, slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1622,9 +1621,9 @@ void Interpreter::DoUnaryOpWithFeedback(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(0);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
-  Node* result = Generator::Generate(assembler, value, context,
-                                     type_feedback_vector, slot_index);
+  Node* feedback_vector = __ LoadFeedbackVector();
+  Node* result = Generator::Generate(assembler, value, context, feedback_vector,
+                                     slot_index);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -1671,7 +1670,7 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(0);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
 
   // Shared entry for floating point increment.
   Label do_finc(assembler), end(assembler);
@@ -1791,7 +1790,7 @@ void Interpreter::DoInc(InterpreterAssembler* assembler) {
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_index);
 
   __ SetAccumulator(result_var.value());
@@ -1809,7 +1808,7 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
   Node* context = __ GetContext();
   Node* slot_index = __ BytecodeOperandIdx(0);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
 
   // Shared entry for floating point decrement.
   Label do_fdec(assembler), end(assembler);
@@ -1929,7 +1928,7 @@ void Interpreter::DoDec(InterpreterAssembler* assembler) {
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_index);
 
   __ SetAccumulator(result_var.value());
@@ -2055,11 +2054,11 @@ void Interpreter::DoJSCall(InterpreterAssembler* assembler,
   Node* receiver_count = __ Int32Constant(1);
   Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
   Node* slot_id = __ BytecodeOperandIdx(3);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   Node* result =
       __ CallJSWithFeedback(function, context, receiver_arg, args_count,
-                            slot_id, type_feedback_vector, tail_call_mode);
+                            slot_id, feedback_vector, tail_call_mode);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2233,10 +2232,10 @@ void Interpreter::DoConstruct(InterpreterAssembler* assembler) {
   Node* first_arg = __ RegisterLocation(first_arg_reg);
   Node* args_count = __ BytecodeOperandCount(2);
   Node* slot_id = __ BytecodeOperandIdx(3);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   Node* context = __ GetContext();
   Node* result = __ Construct(constructor, context, new_target, first_arg,
-                              args_count, slot_id, type_feedback_vector);
+                              args_count, slot_id, feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2796,9 +2795,9 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
   Node* vector_index = __ BytecodeOperandIdx(1);
   vector_index = __ SmiTag(vector_index);
-  Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+  Node* feedback_vector = __ LoadFeedbackVector();
   __ SetAccumulator(constructor_assembler.EmitFastNewClosure(
-      shared, type_feedback_vector, vector_index, context));
+      shared, feedback_vector, vector_index, context));
   __ Dispatch();
 
   __ Bind(&call_runtime);
@@ -2806,12 +2805,12 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
     Node* tenured_raw =
         __ DecodeWordFromWord32<CreateClosureFlags::PretenuredBit>(flags);
     Node* tenured = __ SmiTag(tenured_raw);
-    type_feedback_vector = __ LoadTypeFeedbackVector();
+    feedback_vector = __ LoadFeedbackVector();
     vector_index = __ BytecodeOperandIdx(1);
     vector_index = __ SmiTag(vector_index);
     Node* result =
         __ CallRuntime(Runtime::kInterpreterNewClosure, context, shared,
-                       type_feedback_vector, vector_index, tenured);
+                       feedback_vector, vector_index, tenured);
     __ SetAccumulator(result);
     __ Dispatch();
   }
@@ -3171,10 +3170,10 @@ void Interpreter::DoForInNext(InterpreterAssembler* assembler) {
   {
     // Record the fact that we hit the for-in slow path.
     Node* vector_index = __ BytecodeOperandIdx(3);
-    Node* type_feedback_vector = __ LoadTypeFeedbackVector();
+    Node* feedback_vector = __ LoadFeedbackVector();
     Node* megamorphic_sentinel =
-        __ HeapConstant(TypeFeedbackVector::MegamorphicSentinel(isolate_));
-    __ StoreFixedArrayElement(type_feedback_vector, vector_index,
+        __ HeapConstant(FeedbackVector::MegamorphicSentinel(isolate_));
+    __ StoreFixedArrayElement(feedback_vector, vector_index,
                               megamorphic_sentinel, SKIP_WRITE_BARRIER);
 
     // Need to filter the {key} for the {receiver}.

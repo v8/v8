@@ -530,10 +530,12 @@ BINARY_OP_STUB(ModulusWithFeedbackStub)
 #undef BINARY_OP_STUB
 
 // static
-compiler::Node* AddWithFeedbackStub::Generate(
-    CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
-    compiler::Node* context) {
+compiler::Node* AddWithFeedbackStub::Generate(CodeStubAssembler* assembler,
+                                              compiler::Node* lhs,
+                                              compiler::Node* rhs,
+                                              compiler::Node* slot_id,
+                                              compiler::Node* feedback_vector,
+                                              compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
   typedef CodeStubAssembler::Variable Variable;
@@ -731,7 +733,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -739,7 +741,7 @@ compiler::Node* AddWithFeedbackStub::Generate(
 // static
 compiler::Node* SubtractWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* slot_id, compiler::Node* feedback_vector,
     compiler::Node* context) {
   typedef CodeStubAssembler::Label Label;
   typedef compiler::Node Node;
@@ -924,7 +926,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -933,7 +935,7 @@ compiler::Node* SubtractWithFeedbackStub::Generate(
 // static
 compiler::Node* MultiplyWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* lhs, compiler::Node* rhs,
-    compiler::Node* slot_id, compiler::Node* type_feedback_vector,
+    compiler::Node* slot_id, compiler::Node* feedback_vector,
     compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
@@ -1085,7 +1087,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -1095,7 +1097,7 @@ compiler::Node* MultiplyWithFeedbackStub::Generate(
 compiler::Node* DivideWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* dividend,
     compiler::Node* divisor, compiler::Node* slot_id,
-    compiler::Node* type_feedback_vector, compiler::Node* context) {
+    compiler::Node* feedback_vector, compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -1305,7 +1307,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -1314,7 +1316,7 @@ compiler::Node* DivideWithFeedbackStub::Generate(
 compiler::Node* ModulusWithFeedbackStub::Generate(
     CodeStubAssembler* assembler, compiler::Node* dividend,
     compiler::Node* divisor, compiler::Node* slot_id,
-    compiler::Node* type_feedback_vector, compiler::Node* context) {
+    compiler::Node* feedback_vector, compiler::Node* context) {
   using compiler::Node;
   typedef CodeStubAssembler::Label Label;
   typedef CodeStubAssembler::Variable Variable;
@@ -1466,7 +1468,7 @@ compiler::Node* ModulusWithFeedbackStub::Generate(
   }
 
   assembler->Bind(&end);
-  assembler->UpdateFeedback(var_type_feedback.value(), type_feedback_vector,
+  assembler->UpdateFeedback(var_type_feedback.value(), feedback_vector,
                             slot_id);
   return var_result.value();
 }
@@ -1815,8 +1817,7 @@ void CallICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
     // Check if it is a megamorphic target.
     Node* is_megamorphic = assembler.WordEqual(
         feedback_element,
-        assembler.HeapConstant(
-            TypeFeedbackVector::MegamorphicSentinel(isolate())));
+        assembler.HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
     assembler.GotoIf(is_megamorphic, &call);
 
     assembler.Comment("check if it is an allocation site");
@@ -1842,7 +1843,7 @@ void CallICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
       Node* is_uninitialized = assembler.WordEqual(
           feedback_element,
           assembler.HeapConstant(
-              TypeFeedbackVector::UninitializedSentinel(isolate())));
+              FeedbackVector::UninitializedSentinel(isolate())));
       assembler.GotoUnless(is_uninitialized, &mark_megamorphic);
 
       assembler.Comment("handle unitinitialized");
@@ -1901,7 +1902,7 @@ void CallICStub::GenerateAssembly(compiler::CodeAssemblerState* state) const {
       DCHECK(Heap::RootIsImmortalImmovable(Heap::kmegamorphic_symbolRootIndex));
       assembler.StoreFixedArrayElement(
           vector, slot, assembler.HeapConstant(
-                            TypeFeedbackVector::MegamorphicSentinel(isolate())),
+                            FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
       assembler.Goto(&call);
     }
@@ -1930,7 +1931,7 @@ void CallICTrampolineStub::GenerateAssembly(
   Node* target = assembler.Parameter(Descriptor::kTarget);
   Node* argc = assembler.Parameter(Descriptor::kActualArgumentsCount);
   Node* slot = assembler.Parameter(Descriptor::kSlot);
-  Node* vector = assembler.LoadTypeFeedbackVectorForStub();
+  Node* vector = assembler.LoadFeedbackVectorForStub();
 
   Callable callable =
       CodeFactory::CallIC(isolate(), convert_mode(), tail_call_mode());
