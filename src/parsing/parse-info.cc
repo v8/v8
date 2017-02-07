@@ -9,12 +9,13 @@
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
-ParseInfo::ParseInfo(Zone* zone)
-    : zone_(zone),
+ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
+    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       source_stream_(nullptr),
       source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
@@ -37,8 +38,8 @@ ParseInfo::ParseInfo(Zone* zone)
       function_name_(nullptr),
       literal_(nullptr) {}
 
-ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
-    : ParseInfo(zone) {
+ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
+    : ParseInfo(shared->GetIsolate()->allocator()) {
   isolate_ = shared->GetIsolate();
 
   set_toplevel(shared->is_toplevel());
@@ -68,7 +69,14 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
   }
 }
 
-ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
+ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
+                     std::shared_ptr<Zone> zone)
+    : ParseInfo(shared) {
+  zone_.swap(zone);
+}
+
+ParseInfo::ParseInfo(Handle<Script> script)
+    : ParseInfo(script->GetIsolate()->allocator()) {
   isolate_ = script->GetIsolate();
 
   set_allow_lazy_parsing();
