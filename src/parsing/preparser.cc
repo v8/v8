@@ -310,14 +310,8 @@ void PreParser::DeclareAndInitializeVariables(
     DCHECK(track_unresolved_variables_);
     for (auto variable : *(declaration->pattern.variables_)) {
       declaration_descriptor->scope->RemoveUnresolved(variable);
-      Variable* var = scope()->DeclareVariableName(
-          variable->raw_name(), declaration_descriptor->mode);
-      if (FLAG_preparser_scope_analysis) {
-        MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
-        // This is only necessary if there is an initializer, but we don't have
-        // that information here.  Consequently, the preparser sometimes says
-        // maybe-assigned where the parser (correctly) says never-assigned.
-      }
+      scope()->DeclareVariableName(variable->raw_name(),
+                                   declaration_descriptor->mode);
       if (names) {
         names->Add(variable->raw_name(), zone());
       }

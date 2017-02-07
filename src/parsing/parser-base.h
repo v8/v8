@@ -1347,24 +1347,6 @@ class ParserBase {
     return expression->IsObjectLiteral() || expression->IsArrayLiteral();
   }
 
-  // Due to hoisting, the value of a 'var'-declared variable may actually change
-  // even if the code contains only the "initial" assignment, namely when that
-  // assignment occurs inside a loop.  For example:
-  //
-  //   let i = 10;
-  //   do { var x = i } while (i--):
-  //
-  // As a simple and very conservative approximation of this, we explicitly mark
-  // as maybe-assigned any non-lexical variable whose initializing "declaration"
-  // does not syntactically occur in the function scope.  (In the example above,
-  // it occurs in a block scope.)
-  //
-  // Note that non-lexical variables include temporaries, which may also get
-  // assigned inside a loop due to the various rewritings that the parser
-  // performs.
-  //
-  static void MarkLoopVariableAsAssigned(Scope* scope, Variable* var);
-
   // Keep track of eval() calls since they disable all local variable
   // optimizations. This checks if expression is an eval call, and if yes,
   // forwards the information to scope.
@@ -5716,12 +5698,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
   return loop;
 }
 
-template <typename Impl>
-void ParserBase<Impl>::MarkLoopVariableAsAssigned(Scope* scope, Variable* var) {
-  if (!IsLexicalVariableMode(var->mode()) && !scope->is_function_scope()) {
-    var->set_maybe_assigned();
-  }
-}
+#undef CHECK_OK
+#undef CHECK_OK_CUSTOM
 
 template <typename Impl>
 void ParserBase<Impl>::ObjectLiteralChecker::CheckDuplicateProto(
@@ -5773,8 +5751,6 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
   }
 }
 
-#undef CHECK_OK
-#undef CHECK_OK_CUSTOM
 #undef CHECK_OK_VOID
 
 }  // namespace internal

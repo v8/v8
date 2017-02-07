@@ -181,7 +181,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
-  // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
 
   // Declarations list.
