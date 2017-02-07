@@ -514,7 +514,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
     Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Handle<FeedbackVector> vector, FeedbackVectorSlot slot, Node* index) {
+    Handle<FeedbackVector> vector, FeedbackSlot slot, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1267,7 +1267,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
     AccessMode access_mode, LanguageMode language_mode,
-    Handle<FeedbackVector> vector, FeedbackVectorSlot slot) {
+    Handle<FeedbackVector> vector, FeedbackSlot slot) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {

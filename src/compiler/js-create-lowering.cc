@@ -766,7 +766,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   Node* function_map = jsgraph()->HeapConstant(
       handle(Map::cast(native_context()->get(function_map_index)), isolate()));
 
-  FeedbackVectorSlot slot = p.feedback().slot();
+  FeedbackSlot slot = p.feedback().slot();
   Node* literals_cell = jsgraph()->HeapConstant(
       handle(Cell::cast(p.feedback().vector()->Get(slot)), isolate()));
 
@@ -857,7 +857,7 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
 
   Handle<FeedbackVector> feedback_vector;
   if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
-    FeedbackVectorSlot slot(FeedbackVector::ToSlot(p.index()));
+    FeedbackSlot slot(FeedbackVector::ToSlot(p.index()));
     Handle<Object> literal(feedback_vector->Get(slot), isolate());
     if (literal->IsAllocationSite()) {
       Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);

@@ -69,8 +69,8 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    node->AssignFeedbackVectorSlots(properties_.get_spec(), language_mode_,
-                                    &slot_cache_);
+    node->AssignFeedbackSlots(properties_.get_spec(), language_mode_,
+                              &slot_cache_);
   }
 
   class LanguageModeScope {
@@ -96,8 +96,8 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   int yield_count_;
   AstProperties properties_;
   LanguageMode language_mode_;
-  // The slot cache allows us to reuse certain feedback vector slots.
-  FeedbackVectorSlotCache slot_cache_;
+  // The slot cache allows us to reuse certain feedback slots.
+  FeedbackSlotCache slot_cache_;
   BailoutReason disable_crankshaft_reason_;
   BailoutReason dont_optimize_reason_;
   HandlerTable::CatchPrediction catch_prediction_;
@@ -191,8 +191,7 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
 void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node,
                                              TypeofMode typeof_mode) {
   VisitVariableProxyReference(node);
-  node->AssignFeedbackVectorSlots(properties_.get_spec(), typeof_mode,
-                                  &slot_cache_);
+  node->AssignFeedbackSlots(properties_.get_spec(), typeof_mode, &slot_cache_);
 }
 
 void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {

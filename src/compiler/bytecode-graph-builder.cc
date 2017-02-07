@@ -521,7 +521,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  FeedbackVectorSlot slot;
+  FeedbackSlot slot;
   if (slot_id >= FeedbackVector::kReservedIndexCount) {
     slot = feedback_vector()->ToSlot(slot_id);
   }
@@ -1481,9 +1481,9 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* js_op) {
 // feedback.
 BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
     int operand_index) {
-  FeedbackVectorSlot slot = feedback_vector()->ToSlot(
+  FeedbackSlot slot = feedback_vector()->ToSlot(
       bytecode_iterator().GetIndexOperand(operand_index));
-  DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC,
+  DCHECK_EQ(FeedbackSlotKind::INTERPRETER_BINARYOP_IC,
             feedback_vector()->GetKind(slot));
   BinaryOpICNexus nexus(feedback_vector(), slot);
   return nexus.GetBinaryOperationFeedback();
@@ -1496,9 +1496,9 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   if (slot_index == 0) {
     return CompareOperationHint::kAny;
   }
-  FeedbackVectorSlot slot =
+  FeedbackSlot slot =
       feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
-  DCHECK_EQ(FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC,
+  DCHECK_EQ(FeedbackSlotKind::INTERPRETER_COMPARE_IC,
             feedback_vector()->GetKind(slot));
   CompareICNexus nexus(feedback_vector(), slot);
   return nexus.GetCompareOperationFeedback();

@@ -885,24 +885,21 @@ inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
   return lhs.ToInt() > rhs.ToInt();
 }
 
-
-class FeedbackVectorSlot {
+class FeedbackSlot {
  public:
-  FeedbackVectorSlot() : id_(kInvalidSlot) {}
-  explicit FeedbackVectorSlot(int id) : id_(id) {}
+  FeedbackSlot() : id_(kInvalidSlot) {}
+  explicit FeedbackSlot(int id) : id_(id) {}
 
   int ToInt() const { return id_; }
 
-  static FeedbackVectorSlot Invalid() { return FeedbackVectorSlot(); }
+  static FeedbackSlot Invalid() { return FeedbackSlot(); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  bool operator==(FeedbackVectorSlot that) const {
-    return this->id_ == that.id_;
-  }
-  bool operator!=(FeedbackVectorSlot that) const { return !(*this == that); }
+  bool operator==(FeedbackSlot that) const { return this->id_ == that.id_; }
+  bool operator!=(FeedbackSlot that) const { return !(*this == that); }
 
-  friend size_t hash_value(FeedbackVectorSlot slot) { return slot.ToInt(); }
-  friend std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot);
+  friend size_t hash_value(FeedbackSlot slot) { return slot.ToInt(); }
+  friend std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
  private:
   static const int kInvalidSlot = -1;

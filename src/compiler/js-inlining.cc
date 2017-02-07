@@ -391,7 +391,7 @@ bool JSInliner::DetermineCallTarget(
     // target.
     // TODO(turbofan): We might consider to eagerly create the feedback vector
     // in such a case (in {DetermineCallContext} below) eventually.
-    FeedbackVectorSlot slot = p.feedback().slot();
+    FeedbackSlot slot = p.feedback().slot();
     Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
     if (!cell->value()->IsFeedbackVector()) return false;
 
@@ -431,7 +431,7 @@ void JSInliner::DetermineCallContext(
 
     // Load the feedback vector of the target by looking up its vector cell at
     // the instantiation site (we only decide to inline if it's populated).
-    FeedbackVectorSlot slot = p.feedback().slot();
+    FeedbackSlot slot = p.feedback().slot();
     Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
     DCHECK(cell->value()->IsFeedbackVector());
 

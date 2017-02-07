@@ -200,7 +200,7 @@ class IC {
   }
 
   Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
-  FeedbackVectorSlot slot() const { return nexus()->slot(); }
+  FeedbackSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
     return state() == RECOMPUTE_HANDLER ? old_state_ : state();
   }
@@ -276,8 +276,8 @@ class LoadIC : public IC {
     DCHECK(IsLoadStub());
   }
 
-  static bool ShouldThrowReferenceError(FeedbackVectorSlotKind kind) {
-    return kind == FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC;
+  static bool ShouldThrowReferenceError(FeedbackSlotKind kind) {
+    return kind == FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC;
   }
 
   bool ShouldThrowReferenceError() const {

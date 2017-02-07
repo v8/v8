@@ -343,13 +343,13 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   // Returns an int32 for the index into the FixedArray that backs the feedback
   // vector
-  int32_t IntFromSlot(FeedbackVectorSlot slot) const {
+  int32_t IntFromSlot(FeedbackSlot slot) const {
     return FeedbackVector::GetIndex(slot);
   }
 
   // Returns a smi for the index into the FixedArray that backs the feedback
   // vector
-  Smi* SmiFromSlot(FeedbackVectorSlot slot) const {
+  Smi* SmiFromSlot(FeedbackSlot slot) const {
     return Smi::FromInt(IntFromSlot(slot));
   }
 
@@ -443,7 +443,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
 
   // Platform-specific support for allocating a new closure based on
   // the given function info.
-  void EmitNewClosure(Handle<SharedFunctionInfo> info, FeedbackVectorSlot slot,
+  void EmitNewClosure(Handle<SharedFunctionInfo> info, FeedbackSlot slot,
                       bool pretenure);
 
   // Re-usable portions of CallRuntime
@@ -472,12 +472,11 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // Assign to the given expression as if via '='. The right-hand-side value
   // is expected in the accumulator. slot is only used if FLAG_vector_stores
   // is true.
-  void EmitAssignment(Expression* expr, FeedbackVectorSlot slot);
+  void EmitAssignment(Expression* expr, FeedbackSlot slot);
 
   // Complete a variable assignment.  The right-hand-side value is expected
   // in the accumulator.
-  void EmitVariableAssignment(Variable* var, Token::Value op,
-                              FeedbackVectorSlot slot,
+  void EmitVariableAssignment(Variable* var, Token::Value op, FeedbackSlot slot,
                               HoleCheckMode hole_check_mode);
 
   // Helper functions to EmitVariableAssignment
@@ -501,22 +500,22 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   // The value of the initializer is expected to be at the top of the stack.
   // |offset| is the offset in the stack where the home object can be found.
   void EmitSetHomeObject(Expression* initializer, int offset,
-                         FeedbackVectorSlot slot);
+                         FeedbackSlot slot);
 
   void EmitSetHomeObjectAccumulator(Expression* initializer, int offset,
-                                    FeedbackVectorSlot slot);
+                                    FeedbackSlot slot);
 
   // Platform-specific code for loading a slot to a register.
-  void EmitLoadSlot(Register destination, FeedbackVectorSlot slot);
+  void EmitLoadSlot(Register destination, FeedbackSlot slot);
   // Platform-specific code for pushing a slot to the stack.
-  void EmitPushSlot(FeedbackVectorSlot slot);
+  void EmitPushSlot(FeedbackSlot slot);
 
   void CallIC(Handle<Code> code,
               TypeFeedbackId id = TypeFeedbackId::None());
 
-  void CallLoadIC(FeedbackVectorSlot slot, Handle<Object> name);
-  void CallStoreIC(FeedbackVectorSlot slot, Handle<Object> name);
-  void CallKeyedStoreIC(FeedbackVectorSlot slot);
+  void CallLoadIC(FeedbackSlot slot, Handle<Object> name);
+  void CallStoreIC(FeedbackSlot slot, Handle<Object> name);
+  void CallKeyedStoreIC(FeedbackSlot slot);
 
   void SetFunctionPosition(FunctionLiteral* fun);
   void SetReturnPosition(FunctionLiteral* fun);

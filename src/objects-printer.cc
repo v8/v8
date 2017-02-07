@@ -697,7 +697,7 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
   }
 
   for (int slot = 0; slot < slot_count;) {
-    FeedbackVectorSlotKind kind = This()->GetKind(FeedbackVectorSlot(slot));
+    FeedbackSlotKind kind = This()->GetKind(FeedbackSlot(slot));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
     os << "\n Slot #" << slot << " " << kind;
@@ -723,8 +723,8 @@ void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
 
   FeedbackMetadataIterator iter(this);
   while (iter.HasNext()) {
-    FeedbackVectorSlot slot = iter.Next();
-    FeedbackVectorSlotKind kind = iter.kind();
+    FeedbackSlot slot = iter.Next();
+    FeedbackSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
   }
   os << "\n";
@@ -746,66 +746,66 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
-    FeedbackVectorSlot slot = iter.Next();
-    FeedbackVectorSlotKind kind = iter.kind();
+    FeedbackSlot slot = iter.Next();
+    FeedbackSlotKind kind = iter.kind();
 
     os << "\n Slot " << slot << " " << kind;
     os << " ";
     switch (kind) {
-      case FeedbackVectorSlotKind::LOAD_IC: {
+      case FeedbackSlotKind::LOAD_IC: {
         LoadICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC: {
+      case FeedbackSlotKind::LOAD_GLOBAL_INSIDE_TYPEOF_IC:
+      case FeedbackSlotKind::LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC: {
         LoadGlobalICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+      case FeedbackSlotKind::KEYED_LOAD_IC: {
         KeyedLoadICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::CALL_IC: {
+      case FeedbackSlotKind::CALL_IC: {
         CallICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::STORE_SLOPPY_IC:
-      case FeedbackVectorSlotKind::STORE_STRICT_IC: {
+      case FeedbackSlotKind::STORE_SLOPPY_IC:
+      case FeedbackSlotKind::STORE_STRICT_IC: {
         StoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::KEYED_STORE_SLOPPY_IC:
-      case FeedbackVectorSlotKind::KEYED_STORE_STRICT_IC: {
+      case FeedbackSlotKind::KEYED_STORE_SLOPPY_IC:
+      case FeedbackSlotKind::KEYED_STORE_STRICT_IC: {
         KeyedStoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC: {
+      case FeedbackSlotKind::INTERPRETER_BINARYOP_IC: {
         BinaryOpICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+      case FeedbackSlotKind::INTERPRETER_COMPARE_IC: {
         CompareICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+      case FeedbackSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
         StoreDataPropertyInLiteralICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::CREATE_CLOSURE:
-      case FeedbackVectorSlotKind::LITERAL:
-      case FeedbackVectorSlotKind::GENERAL:
+      case FeedbackSlotKind::CREATE_CLOSURE:
+      case FeedbackSlotKind::LITERAL:
+      case FeedbackSlotKind::GENERAL:
         break;
-      case FeedbackVectorSlotKind::INVALID:
-      case FeedbackVectorSlotKind::KINDS_NUMBER:
+      case FeedbackSlotKind::INVALID:
+      case FeedbackSlotKind::KINDS_NUMBER:
         UNREACHABLE();
         break;
     }

@@ -931,7 +931,7 @@ void AstGraphBuilder::VisitVariableDeclaration(VariableDeclaration* decl) {
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       globals()->push_back(variable->name());
-      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      FeedbackSlot slot = decl->proxy()->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
       globals()->push_back(isolate()->factory()->undefined_value());
@@ -968,7 +968,7 @@ void AstGraphBuilder::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       // Check for stack-overflow exception.
       if (function.is_null()) return SetStackOverflow();
       globals()->push_back(variable->name());
-      FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
+      FeedbackSlot slot = decl->proxy()->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals()->push_back(handle(Smi::FromInt(slot.ToInt()), isolate()));
 
@@ -2367,9 +2367,7 @@ LanguageMode AstGraphBuilder::language_mode() const {
   return current_scope()->language_mode();
 }
 
-
-VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(
-    FeedbackVectorSlot slot) const {
+VectorSlotPair AstGraphBuilder::CreateVectorSlotPair(FeedbackSlot slot) const {
   return VectorSlotPair(handle(info()->closure()->feedback_vector()), slot);
 }
 
@@ -2378,7 +2376,7 @@ void AstGraphBuilder::VisitRewritableExpression(RewritableExpression* node) {
   Visit(node->expression());
 }
 
-float AstGraphBuilder::ComputeCallFrequency(FeedbackVectorSlot slot) const {
+float AstGraphBuilder::ComputeCallFrequency(FeedbackSlot slot) const {
   if (slot.IsInvalid()) return 0.0f;
   Handle<FeedbackVector> feedback_vector(info()->closure()->feedback_vector(),
                                          isolate());

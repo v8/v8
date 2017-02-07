@@ -26,24 +26,24 @@ namespace compiler {
 class Operator;
 struct JSOperatorGlobalCache;
 
-// Defines a pair of {FeedbackVector} and {FeedbackVectorSlot}, which
+// Defines a pair of {FeedbackVector} and {FeedbackSlot}, which
 // is used to access the type feedback for a certain {Node}.
 class V8_EXPORT_PRIVATE VectorSlotPair {
  public:
   VectorSlotPair();
-  VectorSlotPair(Handle<FeedbackVector> vector, FeedbackVectorSlot slot)
+  VectorSlotPair(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : vector_(vector), slot_(slot) {}
 
   bool IsValid() const { return !vector_.is_null() && !slot_.IsInvalid(); }
 
   Handle<FeedbackVector> vector() const { return vector_; }
-  FeedbackVectorSlot slot() const { return slot_; }
+  FeedbackSlot slot() const { return slot_; }
 
   int index() const;
 
  private:
   const Handle<FeedbackVector> vector_;
-  const FeedbackVectorSlot slot_;
+  const FeedbackSlot slot_;
 };
 
 bool operator==(VectorSlotPair const&, VectorSlotPair const&);

@@ -210,7 +210,7 @@ RUNTIME_FUNCTION(Runtime_CreateRegExpLiteral) {
   CONVERT_SMI_ARG_CHECKED(index, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
-  FeedbackVectorSlot literal_slot(FeedbackVector::ToSlot(index));
+  FeedbackSlot literal_slot(FeedbackVector::ToSlot(index));
 
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(closure->feedback_vector()->Get(literal_slot),
@@ -236,7 +236,7 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
   bool should_have_fast_elements = (flags & ObjectLiteral::kFastElements) != 0;
   bool enable_mementos = (flags & ObjectLiteral::kDisableMementos) == 0;
 
-  FeedbackVectorSlot literals_slot(FeedbackVector::ToSlot(literals_index));
+  FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   CHECK(literals_slot.ToInt() < vector->slot_count());
 
   // Check if boilerplate exists. If not, create it first.
@@ -274,8 +274,8 @@ RUNTIME_FUNCTION(Runtime_CreateObjectLiteral) {
 }
 
 MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
-    Isolate* isolate, Handle<FeedbackVector> vector,
-    FeedbackVectorSlot literals_slot, Handle<ConstantElementsPair> elements) {
+    Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot literals_slot,
+    Handle<ConstantElementsPair> elements) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> literal_site(vector->Get(literals_slot), isolate);
   Handle<AllocationSite> site;
@@ -303,9 +303,8 @@ MUST_USE_RESULT static MaybeHandle<AllocationSite> GetLiteralAllocationSite(
 }
 
 static MaybeHandle<JSObject> CreateArrayLiteralImpl(
-    Isolate* isolate, Handle<FeedbackVector> vector,
-    FeedbackVectorSlot literals_slot, Handle<ConstantElementsPair> elements,
-    int flags) {
+    Isolate* isolate, Handle<FeedbackVector> vector, FeedbackSlot literals_slot,
+    Handle<ConstantElementsPair> elements, int flags) {
   CHECK(literals_slot.ToInt() < vector->slot_count());
   Handle<AllocationSite> site;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -335,7 +334,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
   CONVERT_SMI_ARG_CHECKED(flags, 3);
 
-  FeedbackVectorSlot literals_slot(FeedbackVector::ToSlot(literals_index));
+  FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   Handle<FeedbackVector> vector(closure->feedback_vector(), isolate);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -351,7 +350,7 @@ RUNTIME_FUNCTION(Runtime_CreateArrayLiteralStubBailout) {
   CONVERT_ARG_HANDLE_CHECKED(ConstantElementsPair, elements, 2);
 
   Handle<FeedbackVector> vector(closure->feedback_vector(), isolate);
-  FeedbackVectorSlot literals_slot(FeedbackVector::ToSlot(literals_index));
+  FeedbackSlot literals_slot(FeedbackVector::ToSlot(literals_index));
   RETURN_RESULT_OR_FAILURE(
       isolate, CreateArrayLiteralImpl(isolate, vector, literals_slot, elements,
                                       ArrayLiteral::kShallowElements));

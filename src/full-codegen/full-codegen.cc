@@ -204,8 +204,7 @@ void FullCodeGenerator::CallIC(Handle<Code> code, TypeFeedbackId ast_id) {
   __ Call(code, RelocInfo::CODE_TARGET, ast_id);
 }
 
-void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot,
-                                   Handle<Object> name) {
+void FullCodeGenerator::CallLoadIC(FeedbackSlot slot, Handle<Object> name) {
   DCHECK(name->IsName());
   __ Move(LoadDescriptor::NameRegister(), name);
 
@@ -216,8 +215,7 @@ void FullCodeGenerator::CallLoadIC(FeedbackVectorSlot slot,
   RestoreContext();
 }
 
-void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
-                                    Handle<Object> name) {
+void FullCodeGenerator::CallStoreIC(FeedbackSlot slot, Handle<Object> name) {
   DCHECK(name->IsName());
   __ Move(StoreDescriptor::NameRegister(), name);
 
@@ -231,14 +229,14 @@ void FullCodeGenerator::CallStoreIC(FeedbackVectorSlot slot,
   }
 
   // Ensure that language mode is in sync with the IC slot kind.
-  DCHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+  DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
             language_mode());
   Handle<Code> code = CodeFactory::StoreIC(isolate(), language_mode()).code();
   __ Call(code, RelocInfo::CODE_TARGET);
   RestoreContext();
 }
 
-void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
+void FullCodeGenerator::CallKeyedStoreIC(FeedbackSlot slot) {
   STATIC_ASSERT(!StoreDescriptor::kPassLastArgsOnStack ||
                 StoreDescriptor::kStackArgumentsCount == 2);
   if (StoreDescriptor::kPassLastArgsOnStack) {
@@ -249,7 +247,7 @@ void FullCodeGenerator::CallKeyedStoreIC(FeedbackVectorSlot slot) {
   }
 
   // Ensure that language mode is in sync with the IC slot kind.
-  DCHECK_EQ(GetLanguageModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+  DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
             language_mode());
   Handle<Code> code =
       CodeFactory::KeyedStoreIC(isolate(), language_mode()).code();
@@ -485,9 +483,9 @@ void FullCodeGenerator::EmitGlobalVariableLoad(VariableProxy* proxy,
   DCHECK(var->IsUnallocated());
   __ Move(LoadDescriptor::NameRegister(), var->name());
 
-  FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+  FeedbackSlot slot = proxy->VariableFeedbackSlot();
   // Ensure that typeof mode is in sync with the IC slot kind.
-  DCHECK_EQ(GetTypeofModeFromICKind(feedback_vector_spec()->GetKind(slot)),
+  DCHECK_EQ(GetTypeofModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
             typeof_mode);
 
   EmitLoadSlot(LoadGlobalDescriptor::SlotRegister(), slot);
@@ -1026,8 +1024,7 @@ void FullCodeGenerator::EmitUnwindAndReturn() {
 }
 
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
-                                       FeedbackVectorSlot slot,
-                                       bool pretenure) {
+                                       FeedbackSlot slot, bool pretenure) {
   // If slot is invalid, then it's a native function literal and we
   // can pass the empty array or empty literal array, something like that...
 
@@ -1072,13 +1069,12 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   RestoreContext();
 }
 
-void FullCodeGenerator::EmitLoadSlot(Register destination,
-                                     FeedbackVectorSlot slot) {
+void FullCodeGenerator::EmitLoadSlot(Register destination, FeedbackSlot slot) {
   DCHECK(!slot.IsInvalid());
   __ Move(destination, SmiFromSlot(slot));
 }
 
-void FullCodeGenerator::EmitPushSlot(FeedbackVectorSlot slot) {
+void FullCodeGenerator::EmitPushSlot(FeedbackSlot slot) {
   __ Push(SmiFromSlot(slot));
 }
 

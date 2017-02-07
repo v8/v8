@@ -94,15 +94,14 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitPropertyLoadForRegister(Register obj, Property* expr,
                                     Register destination);
 
-  void BuildVariableLoad(Variable* variable, FeedbackVectorSlot slot,
+  void BuildVariableLoad(Variable* variable, FeedbackSlot slot,
                          HoleCheckMode hole_check_mode,
                          TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableLoadForAccumulatorValue(
-      Variable* variable, FeedbackVectorSlot slot,
-      HoleCheckMode hole_check_mode,
+      Variable* variable, FeedbackSlot slot, HoleCheckMode hole_check_mode,
       TypeofMode typeof_mode = NOT_INSIDE_TYPEOF);
   void BuildVariableAssignment(Variable* variable, Token::Value op,
-                               FeedbackVectorSlot slot,
+                               FeedbackSlot slot,
                                HoleCheckMode hole_check_mode);
 
   void BuildReturn();
@@ -140,7 +139,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitObjectLiteralAccessor(Register home_object,
                                   ObjectLiteralProperty* property,
                                   Register value_out);
-  void VisitForInAssignment(Expression* expr, FeedbackVectorSlot slot);
+  void VisitForInAssignment(Expression* expr, FeedbackSlot slot);
   void VisitModuleNamespaceImports();
 
   // Visit the header/body of a loop iteration.
@@ -192,7 +191,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   GlobalDeclarationsBuilder* globals_builder() { return globals_builder_; }
   inline LanguageMode language_mode() const;
-  int feedback_index(FeedbackVectorSlot slot) const;
+  int feedback_index(FeedbackSlot slot) const;
 
   Handle<Name> home_object_symbol() const { return home_object_symbol_; }
   Handle<Name> iterator_symbol() const { return iterator_symbol_; }

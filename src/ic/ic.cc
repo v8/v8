@@ -2503,11 +2503,11 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   Handle<Name> key = args.at<Name>(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   // A monomorphic or polymorphic KeyedLoadIC with a string key can call the
   // LoadIC miss handler if the handler misses. Since the vector Nexus is
   // set up outside the IC, handle that here.
-  FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
   if (IsLoadICKind(kind)) {
     LoadICNexus nexus(vector, vector_slot);
     LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2539,7 +2539,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   Handle<String> name = args.at<String>(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
   LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2581,8 +2581,8 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Slow) {
   if (!is_found) {
     Handle<Smi> slot = args.at<Smi>(1);
     Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-    FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-    FeedbackVectorSlotKind kind = vector->GetKind(vector_slot);
+    FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+    FeedbackSlotKind kind = vector->GetKind(vector_slot);
     // It is actually a LoadGlobalICs here but the predicate handles this case
     // properly.
     if (LoadIC::ShouldThrowReferenceError(kind)) {
@@ -2602,7 +2602,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<Object> key = args.at(1);
   Handle<Smi> slot = args.at<Smi>(2);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
   KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
@@ -2619,7 +2619,7 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   if (vector->IsStoreIC(vector_slot)) {
     StoreICNexus nexus(vector, vector_slot);
     StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
@@ -2644,7 +2644,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   KeyedStoreICNexus nexus(vector, vector_slot);
   KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
   ic.UpdateState(receiver, key);
@@ -2661,7 +2661,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<Object> object = args.at(3);
   Handle<Object> key = args.at(4);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate,
@@ -2679,7 +2679,7 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   Handle<Map> map = args.at<Map>(3);
   Handle<Smi> slot = args.at<Smi>(4);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(5);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
@@ -3073,8 +3073,8 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   Handle<Smi> slot = args.at<Smi>(3);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(4);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  FeedbackVectorSlotKind slot_kind = vector->GetKind(vector_slot);
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
   // It could actually be any kind of load IC slot here but the predicate
   // handles all the cases properly.
   if (!LoadIC::ShouldThrowReferenceError(slot_kind)) {
@@ -3096,7 +3096,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
   Handle<JSObject> receiver = args.at<JSObject>(3);
   Handle<Name> name = args.at<Name>(4);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
 
   DCHECK(receiver->HasNamedInterceptor());

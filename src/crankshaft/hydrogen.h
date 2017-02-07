@@ -2385,15 +2385,16 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                    TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
   void HandleGlobalVariableAssignment(Variable* var, HValue* value,
-                                      FeedbackVectorSlot slot,
-                                      BailoutId ast_id);
+                                      FeedbackSlot slot, BailoutId ast_id);
 
   void HandlePropertyAssignment(Assignment* expr);
   void HandleCompoundAssignment(Assignment* expr);
-  void HandlePolymorphicNamedFieldAccess(
-      PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
-      BailoutId ast_id, BailoutId return_id, HValue* object, HValue* value,
-      SmallMapList* types, Handle<Name> name);
+  void HandlePolymorphicNamedFieldAccess(PropertyAccessType access_type,
+                                         Expression* expr, FeedbackSlot slot,
+                                         BailoutId ast_id, BailoutId return_id,
+                                         HValue* object, HValue* value,
+                                         SmallMapList* types,
+                                         Handle<Name> name);
 
   HValue* BuildAllocateExternalElements(
       ExternalArrayType array_type,
@@ -2639,9 +2640,8 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
 
   HValue* BuildNamedAccess(PropertyAccessType access, BailoutId ast_id,
                            BailoutId reutrn_id, Expression* expr,
-                           FeedbackVectorSlot slot, HValue* object,
-                           Handle<Name> name, HValue* value,
-                           bool is_uninitialized = false);
+                           FeedbackSlot slot, HValue* object, Handle<Name> name,
+                           HValue* value, bool is_uninitialized = false);
 
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
@@ -2675,7 +2675,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
       PushBeforeSimulateBehavior push_sim_result);
   HInstruction* BuildIncrement(CountOperation* expr);
   HInstruction* BuildKeyedGeneric(PropertyAccessType access_type,
-                                  Expression* expr, FeedbackVectorSlot slot,
+                                  Expression* expr, FeedbackSlot slot,
                                   HValue* object, HValue* key, HValue* value);
 
   HInstruction* TryBuildConsolidatedElementLoad(HValue* object,
@@ -2693,19 +2693,21 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                                               PropertyAccessType access_type,
                                               KeyedAccessStoreMode store_mode);
 
-  HValue* HandlePolymorphicElementAccess(
-      Expression* expr, FeedbackVectorSlot slot, HValue* object, HValue* key,
-      HValue* val, SmallMapList* maps, PropertyAccessType access_type,
-      KeyedAccessStoreMode store_mode, bool* has_side_effects);
+  HValue* HandlePolymorphicElementAccess(Expression* expr, FeedbackSlot slot,
+                                         HValue* object, HValue* key,
+                                         HValue* val, SmallMapList* maps,
+                                         PropertyAccessType access_type,
+                                         KeyedAccessStoreMode store_mode,
+                                         bool* has_side_effects);
 
   HValue* HandleKeyedElementAccess(HValue* obj, HValue* key, HValue* val,
-                                   Expression* expr, FeedbackVectorSlot slot,
+                                   Expression* expr, FeedbackSlot slot,
                                    BailoutId ast_id, BailoutId return_id,
                                    PropertyAccessType access_type,
                                    bool* has_side_effects);
 
   HInstruction* BuildNamedGeneric(PropertyAccessType access, Expression* expr,
-                                  FeedbackVectorSlot slot, HValue* object,
+                                  FeedbackSlot slot, HValue* object,
                                   Handle<Name> name, HValue* value,
                                   bool is_uninitialized = false);
 
@@ -2718,13 +2720,13 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                 HValue* key);
 
   void BuildStoreForEffect(Expression* expression, Property* prop,
-                           FeedbackVectorSlot slot, BailoutId ast_id,
+                           FeedbackSlot slot, BailoutId ast_id,
                            BailoutId return_id, HValue* object, HValue* key,
                            HValue* value);
 
-  void BuildStore(Expression* expression, Property* prop,
-                  FeedbackVectorSlot slot, BailoutId ast_id,
-                  BailoutId return_id, bool is_uninitialized = false);
+  void BuildStore(Expression* expression, Property* prop, FeedbackSlot slot,
+                  BailoutId ast_id, BailoutId return_id,
+                  bool is_uninitialized = false);
 
   HInstruction* BuildLoadNamedField(PropertyAccessInfo* info,
                                     HValue* checked_object);
@@ -2776,7 +2778,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
                                      TailCallMode syntactic_tail_call_mode,
                                      ConvertReceiverMode convert_mode,
                                      TailCallMode tail_call_mode,
-                                     FeedbackVectorSlot slot);
+                                     FeedbackSlot slot);
 
   HInstruction* NewCallConstantFunction(Handle<JSFunction> target,
                                         int argument_count,

@@ -46,7 +46,7 @@ Object* DeclareGlobal(
     Handle<Object> value, PropertyAttributes attr, bool is_var,
     bool is_function_declaration, RedeclarationType redeclaration_type,
     Handle<FeedbackVector> feedback_vector = Handle<FeedbackVector>(),
-    FeedbackVectorSlot slot = FeedbackVectorSlot::Invalid()) {
+    FeedbackSlot slot = FeedbackSlot::Invalid()) {
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
   ScriptContextTable::LookupResult lookup;
@@ -138,7 +138,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
   int length = declarations->length();
   FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
-    FeedbackVectorSlot slot(Smi::cast(declarations->get(i + 1))->value());
+    FeedbackSlot slot(Smi::cast(declarations->get(i + 1))->value());
     Handle<Object> possibly_literal_slot(declarations->get(i + 2), isolate);
     Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
@@ -152,8 +152,7 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
       // Copy the function and update its context. Use it as value.
       Handle<SharedFunctionInfo> shared =
           Handle<SharedFunctionInfo>::cast(initial_value);
-      FeedbackVectorSlot literals_slot(
-          Smi::cast(*possibly_literal_slot)->value());
+      FeedbackSlot literals_slot(Smi::cast(*possibly_literal_slot)->value());
       Handle<Cell> literals(Cell::cast(feedback_vector->Get(literals_slot)),
                             isolate);
       Handle<JSFunction> function =
@@ -637,7 +636,7 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
   CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackVectorSlot slot = FeedbackVector::ToSlot(index);
+  FeedbackSlot slot = FeedbackVector::ToSlot(index);
   Handle<Cell> literals(Cell::cast(vector->Get(slot)), isolate);
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
@@ -653,7 +652,7 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 1);
   CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackVectorSlot slot = FeedbackVector::ToSlot(index);
+  FeedbackSlot slot = FeedbackVector::ToSlot(index);
   Handle<Cell> literals(Cell::cast(vector->Get(slot)), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.

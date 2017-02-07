@@ -440,9 +440,9 @@ void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
 
 #ifdef DEBUG
 
-// A helper for ast nodes that use FeedbackVectorSlots.
+// A helper for ast nodes that use FeedbackSlots.
 static int FormatSlotNode(Vector<char>* buf, Expression* node,
-                          const char* node_name, FeedbackVectorSlot slot) {
+                          const char* node_name, FeedbackSlot slot) {
   int pos = SNPrintF(*buf, "%s", node_name);
   if (!slot.IsInvalid()) {
     pos += SNPrintF(*buf + pos, " Slot(%d)", slot.ToInt());

@@ -312,7 +312,7 @@ TEST(FeedbackVectorPreservedAcrossRecompiles) {
 
   // Verify that we gathered feedback.
   CHECK(!feedback_vector->is_empty());
-  FeedbackVectorSlot slot_for_a(0);
+  FeedbackSlot slot_for_a(0);
   Object* object = feedback_vector->Get(slot_for_a);
   CHECK(object->IsWeakCell() &&
         WeakCell::cast(object)->value()->IsJSFunction());

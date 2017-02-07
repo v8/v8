@@ -5287,7 +5287,7 @@ void HOptimizedGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
         return;
       } else {
         Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
-        FeedbackVectorSlot slot = expr->VariableFeedbackSlot();
+        FeedbackSlot slot = expr->VariableFeedbackSlot();
         DCHECK(vector->IsLoadGlobalIC(slot));
 
         HValue* vector_value = Add<HConstant>(vector);
@@ -5515,7 +5515,7 @@ void HOptimizedGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Map> map = property->GetReceiverType();
             Handle<String> name = key->AsPropertyName();
             HValue* store;
-            FeedbackVectorSlot slot = property->GetSlot();
+            FeedbackSlot slot = property->GetSlot();
             if (map.is_null()) {
               // If we don't know the monomorphic type, do a generic store.
               CHECK_ALIVE(store = BuildNamedGeneric(STORE, NULL, slot, literal,
@@ -6152,9 +6152,8 @@ HValue* HOptimizedGraphBuilder::BuildMonomorphicAccess(
   }
 }
 
-
 void HOptimizedGraphBuilder::HandlePolymorphicNamedFieldAccess(
-    PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
+    PropertyAccessType access_type, Expression* expr, FeedbackSlot slot,
     BailoutId ast_id, BailoutId return_id, HValue* object, HValue* value,
     SmallMapList* maps, Handle<Name> name) {
   // Something did not match; must use a polymorphic load.
@@ -6352,8 +6351,8 @@ static bool AreStringTypes(SmallMapList* maps) {
 }
 
 void HOptimizedGraphBuilder::BuildStore(Expression* expr, Property* prop,
-                                        FeedbackVectorSlot slot,
-                                        BailoutId ast_id, BailoutId return_id,
+                                        FeedbackSlot slot, BailoutId ast_id,
+                                        BailoutId return_id,
                                         bool is_uninitialized) {
   if (!prop->key()->IsPropertyName()) {
     // Keyed store.
@@ -6472,8 +6471,10 @@ HInstruction* HOptimizedGraphBuilder::InlineGlobalPropertyStore(
 // Because not every expression has a position and there is not common
 // superclass of Assignment and CountOperation, we cannot just pass the
 // owning expression instead of position and ast_id separately.
-void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(
-    Variable* var, HValue* value, FeedbackVectorSlot slot, BailoutId ast_id) {
+void HOptimizedGraphBuilder::HandleGlobalVariableAssignment(Variable* var,
+                                                            HValue* value,
+                                                            FeedbackSlot slot,
+                                                            BailoutId ast_id) {
   Handle<JSGlobalObject> global(current_info()->global_object());
 
   // Lookup in script contexts.
@@ -6820,9 +6821,8 @@ HInstruction* HGraphBuilder::BuildLoadStringLength(HValue* string) {
                               HObjectAccess::ForStringLength());
 }
 
-
 HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
-    PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
+    PropertyAccessType access_type, Expression* expr, FeedbackSlot slot,
     HValue* object, Handle<Name> name, HValue* value, bool is_uninitialized) {
   if (is_uninitialized) {
     Add<HDeoptimize>(
@@ -6883,9 +6883,8 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
   }
 }
 
-
 HInstruction* HOptimizedGraphBuilder::BuildKeyedGeneric(
-    PropertyAccessType access_type, Expression* expr, FeedbackVectorSlot slot,
+    PropertyAccessType access_type, Expression* expr, FeedbackSlot slot,
     HValue* object, HValue* key, HValue* value) {
   Handle<FeedbackVector> vector(current_feedback_vector(), isolate());
   HValue* vector_value = Add<HConstant>(vector);
@@ -7080,9 +7079,8 @@ HInstruction* HOptimizedGraphBuilder::TryBuildConsolidatedElementLoad(
   return instr;
 }
 
-
 HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
-    Expression* expr, FeedbackVectorSlot slot, HValue* object, HValue* key,
+    Expression* expr, FeedbackSlot slot, HValue* object, HValue* key,
     HValue* val, SmallMapList* maps, PropertyAccessType access_type,
     KeyedAccessStoreMode store_mode, bool* has_side_effects) {
   *has_side_effects = false;
@@ -7217,9 +7215,9 @@ HValue* HOptimizedGraphBuilder::HandlePolymorphicElementAccess(
 }
 
 HValue* HOptimizedGraphBuilder::HandleKeyedElementAccess(
-    HValue* obj, HValue* key, HValue* val, Expression* expr,
-    FeedbackVectorSlot slot, BailoutId ast_id, BailoutId return_id,
-    PropertyAccessType access_type, bool* has_side_effects) {
+    HValue* obj, HValue* key, HValue* val, Expression* expr, FeedbackSlot slot,
+    BailoutId ast_id, BailoutId return_id, PropertyAccessType access_type,
+    bool* has_side_effects) {
   // A keyed name access with type feedback may contain the name.
   Handle<FeedbackVector> vector = handle(current_feedback_vector(), isolate());
   HValue* expected_key = key;
@@ -7445,8 +7443,8 @@ bool HOptimizedGraphBuilder::TryArgumentsAccess(Property* expr) {
 
 HValue* HOptimizedGraphBuilder::BuildNamedAccess(
     PropertyAccessType access, BailoutId ast_id, BailoutId return_id,
-    Expression* expr, FeedbackVectorSlot slot, HValue* object,
-    Handle<Name> name, HValue* value, bool is_uninitialized) {
+    Expression* expr, FeedbackSlot slot, HValue* object, Handle<Name> name,
+    HValue* value, bool is_uninitialized) {
   SmallMapList* maps;
   ComputeReceiverTypes(expr, object, &maps, this);
   DCHECK(maps != NULL);
@@ -7673,7 +7671,7 @@ HInstruction* HOptimizedGraphBuilder::NewCallFunction(
 HInstruction* HOptimizedGraphBuilder::NewCallFunctionViaIC(
     HValue* function, int argument_count, TailCallMode syntactic_tail_call_mode,
     ConvertReceiverMode convert_mode, TailCallMode tail_call_mode,
-    FeedbackVectorSlot slot) {
+    FeedbackSlot slot) {
   if (syntactic_tail_call_mode == TailCallMode::kAllow) {
     BuildEnsureCallable(function);
   } else {
@@ -10406,7 +10404,7 @@ HInstruction* HOptimizedGraphBuilder::BuildIncrement(CountOperation* expr) {
 }
 
 void HOptimizedGraphBuilder::BuildStoreForEffect(
-    Expression* expr, Property* prop, FeedbackVectorSlot slot, BailoutId ast_id,
+    Expression* expr, Property* prop, FeedbackSlot slot, BailoutId ast_id,
     BailoutId return_id, HValue* object, HValue* key, HValue* value) {
   EffectContext for_effect(this);
   Push(object);
@@ -11852,7 +11850,7 @@ void HOptimizedGraphBuilder::VisitVariableDeclaration(
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       globals_.Add(variable->name(), zone());
-      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      FeedbackSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_.Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
       globals_.Add(isolate()->factory()->undefined_value(), zone());
@@ -11892,7 +11890,7 @@ void HOptimizedGraphBuilder::VisitFunctionDeclaration(
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       globals_.Add(variable->name(), zone());
-      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      FeedbackSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_.Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
 

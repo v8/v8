@@ -3801,7 +3801,7 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
                           InlineCacheState desired_state) {
   Handle<FeedbackVector> vector = Handle<FeedbackVector>(f->feedback_vector());
   FeedbackVectorHelper helper(vector);
-  FeedbackVectorSlot slot = helper.slot(slot_index);
+  FeedbackSlot slot = helper.slot(slot_index);
   if (vector->IsLoadIC(slot)) {
     LoadICNexus nexus(vector, slot);
     CHECK(nexus.StateFromFeedback() == desired_state);
@@ -3828,12 +3828,12 @@ TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
           CcTest::global()->Get(ctx, v8_str("f")).ToLocalChecked())));
 
   Handle<FeedbackVector> vector(f->feedback_vector());
-  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakCell());
 
   heap::SimulateIncrementalMarking(CcTest::heap());
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
 
-  CHECK(vector->Get(FeedbackVectorSlot(0))->IsWeakCell());
+  CHECK(vector->Get(FeedbackSlot(0))->IsWeakCell());
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicIC) {
@@ -4992,18 +4992,18 @@ TEST(WeakFunctionInConstructor) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(createObj->feedback_vector(), CcTest::i_isolate());
   for (int i = 0; i < 20; i++) {
-    Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+    Object* slot_value = feedback_vector->Get(FeedbackSlot(0));
     CHECK(slot_value->IsWeakCell());
     if (WeakCell::cast(slot_value)->cleared()) break;
     CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   }
 
-  Object* slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+  Object* slot_value = feedback_vector->Get(FeedbackSlot(0));
   CHECK(slot_value->IsWeakCell() && WeakCell::cast(slot_value)->cleared());
   CompileRun(
       "function coat() { this.x = 6; }"
       "createObj(coat);");
-  slot_value = feedback_vector->Get(FeedbackVectorSlot(0));
+  slot_value = feedback_vector->Get(FeedbackSlot(0));
   CHECK(slot_value->IsWeakCell() && !WeakCell::cast(slot_value)->cleared());
 }
 
@@ -5194,7 +5194,7 @@ void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
              InlineCacheState state) {
   if (kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC) {
     FeedbackVector* vector = function->feedback_vector();
-    FeedbackVectorSlot slot(slot_index);
+    FeedbackSlot slot(slot_index);
     if (kind == Code::LOAD_IC) {
       LoadICNexus nexus(vector, slot);
       CHECK_EQ(nexus.StateFromFeedback(), state);

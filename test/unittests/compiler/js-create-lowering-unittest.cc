@@ -157,7 +157,7 @@ TEST_F(JSCreateLoweringTest, JSCreateClosureViaInlinedAllocation) {
       FeedbackVector::kReservedIndexCount + 1);
   array->set_map_no_write_barrier(isolate()->heap()->feedback_vector_map());
   Handle<FeedbackVector> vector = Handle<FeedbackVector>::cast(array);
-  FeedbackVectorSlot slot(0);
+  FeedbackSlot slot(0);
   vector->Set(slot, *vector);
   VectorSlotPair pair(vector, slot);
 
