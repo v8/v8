@@ -310,8 +310,7 @@ TEST(PreParserScopeAnalysis) {
     printf("\n");
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo lazy_info(&zone, script);
+    i::ParseInfo lazy_info(script);
 
     // No need to run scope analysis; preparser scope data is produced when
     // parsing.
@@ -336,7 +335,7 @@ TEST(PreParserScopeAnalysis) {
     printf("\n");
 
     script = factory->NewScript(source);
-    i::ParseInfo eager_info(&zone, script);
+    i::ParseInfo eager_info(script);
     eager_info.set_allow_lazy_parsing(false);
 
     CHECK(i::parsing::ParseProgram(&eager_info));
