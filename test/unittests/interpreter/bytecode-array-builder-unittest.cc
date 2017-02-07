@@ -86,12 +86,19 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit context operations.
   builder.PushContext(reg)
       .PopContext(reg)
-      .LoadContextSlot(reg, 1, 0)
-      .StoreContextSlot(reg, 1, 0);
+      .LoadContextSlot(reg, 1, 0, BytecodeArrayBuilder::kMutableSlot)
+      .StoreContextSlot(reg, 1, 0)
+      .LoadContextSlot(reg, 2, 0, BytecodeArrayBuilder::kImmutableSlot)
+      .StoreContextSlot(reg, 3, 0);
 
   // Emit context operations which operate on the local context.
-  builder.LoadContextSlot(Register::current_context(), 1, 0)
-      .StoreContextSlot(Register::current_context(), 1, 0);
+  builder
+      .LoadContextSlot(Register::current_context(), 1, 0,
+                       BytecodeArrayBuilder::kMutableSlot)
+      .StoreContextSlot(Register::current_context(), 1, 0)
+      .LoadContextSlot(Register::current_context(), 2, 0,
+                       BytecodeArrayBuilder::kImmutableSlot)
+      .StoreContextSlot(Register::current_context(), 3, 0);
 
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, 0)
@@ -327,7 +334,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                                      DataPropertyInLiteralFlag::kNoFlags, 0);
 
   // Emit wide context operations.
-  builder.LoadContextSlot(reg, 1024, 0).StoreContextSlot(reg, 1024, 0);
+  builder.LoadContextSlot(reg, 1024, 0, BytecodeArrayBuilder::kMutableSlot)
+      .StoreContextSlot(reg, 1024, 0);
 
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)

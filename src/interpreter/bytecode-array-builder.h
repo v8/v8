@@ -92,8 +92,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Load the object at |slot_index| at |depth| in the context chain starting
   // with |context| into the accumulator.
+  enum ContextSlotMutability { kImmutableSlot, kMutableSlot };
   BytecodeArrayBuilder& LoadContextSlot(Register context, int slot_index,
-                                        int depth);
+                                        int depth,
+                                        ContextSlotMutability immutable);
 
   // Stores the object in the accumulator into |slot_index| at |depth| in the
   // context chain starting with |context|.
