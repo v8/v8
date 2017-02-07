@@ -2901,10 +2901,6 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ bind(&push_args);
     // rax += r9 - 1. Subtract 1 for the spread itself.
     __ leap(rax, Operand(rax, r9, times_1, -1));
-
-    // Pop the return address and spread argument.
-    __ PopReturnAddressTo(r8);
-    __ Pop(rcx);
   }
 
   // Check for stack overflow.
@@ -2927,6 +2923,10 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
 
   // Put the evaluated spread onto the stack as additional arguments.
   {
+    // Pop the return address and spread argument.
+    __ PopReturnAddressTo(r8);
+    __ Pop(rcx);
+
     __ Set(rcx, 0);
     Label done, loop;
     __ bind(&loop);

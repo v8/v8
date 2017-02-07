@@ -2842,7 +2842,6 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ movd(xmm1, edi);
   }
 
-  Register return_address = edi;
   {
     // Calculate the new nargs including the result of the spread.
     __ mov(spread_len, FieldOperand(spread, FixedArray::kLengthOffset));
@@ -2851,10 +2850,6 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ bind(&push_args);
     // argc += spread_len - 1. Subtract 1 for the spread itself.
     __ lea(argc, Operand(argc, spread_len, times_1, -1));
-
-    // Pop the return address and spread argument.
-    __ PopReturnAddressTo(return_address);
-    __ Pop(scratch);
   }
 
   // Check for stack overflow.
@@ -2877,6 +2872,11 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
 
   // Put the evaluated spread onto the stack as additional arguments.
   {
+    Register return_address = edi;
+    // Pop the return address and spread argument.
+    __ PopReturnAddressTo(return_address);
+    __ Pop(scratch);
+
     Register scratch2 = esi;
     __ movd(xmm2, esi);
 
