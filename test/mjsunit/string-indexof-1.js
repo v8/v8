@@ -244,6 +244,24 @@ for (var lengthIndex = 0; lengthIndex < lengths.length; lengthIndex++) {
   assertEquals(3, f4());
   % OptimizeFunctionOnNextCall(f4);
   assertEquals(3, f4());
+
+  function f5() {
+    return 'abcbc'.indexOf('b', -1);
+  }
+  assertEquals(1, f5());
+  assertEquals(1, f5());
+  assertEquals(1, f5());
+  % OptimizeFunctionOnNextCall(f5);
+  assertEquals(1, f5());
+
+  function f6() {
+    return 'abcbc'.indexOf('b', -10737418);
+  }
+  assertEquals(1, f6());
+  assertEquals(1, f6());
+  assertEquals(1, f6());
+  % OptimizeFunctionOnNextCall(f6);
+  assertEquals(1, f6());
 })();
 
 (function optimizeOSR() {

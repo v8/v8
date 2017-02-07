@@ -832,7 +832,7 @@ void StringBuiltinsAssembler::StringIndexOf(
   GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
          &call_runtime_unchecked);
   Node* string_length = SmiUntag(LoadStringLength(receiver));
-  Node* start_position = SmiUntag(position);
+  Node* start_position = IntPtrMax(SmiUntag(position), IntPtrConstant(0));
 
   GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
   // Check that the needle fits in the start position.
@@ -940,7 +940,6 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     search_string.Bind(arguments.AtIndex(0));
     position.Bind(arguments.AtIndex(1));
     GotoUnless(TaggedIsSmi(position.value()), &call_runtime);
-    position.Bind(SmiMax(position.value(), SmiConstant(0)));
     Goto(&fast_path);
   }
 
