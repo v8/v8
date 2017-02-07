@@ -182,6 +182,19 @@ v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
                                          v8::Local<v8::Value> value,
                                          bool* is_key_value);
 
+/**
+ * Native wrapper around v8::internal::JSGeneratorObject object.
+ */
+class GeneratorObject {
+ public:
+  v8::MaybeLocal<debug::Script> Script();
+  v8::Local<v8::Function> Function();
+  debug::Location SuspendedLocation();
+  bool IsSuspended();
+
+  static v8::Local<debug::GeneratorObject> Cast(v8::Local<v8::Value> value);
+};
+
 }  // namespace debug
 }  // namespace v8
 

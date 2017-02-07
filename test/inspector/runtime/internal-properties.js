@@ -4,6 +4,14 @@
 
 print('Checks internal properties in Runtime.getProperties output');
 
+InspectorTest.addScript(`
+function* foo() {
+  yield 1;
+}
+var gen1 = foo();
+var gen2 = foo();
+//# sourceURL=test.js`, 7, 26);
+
 Protocol.Runtime.enable();
 Protocol.Debugger.enable();
 
@@ -31,7 +39,17 @@ InspectorTest.runTestSuite([
   },
 
   function generatorObject(next) {
-    checkExpression('(function* foo() { yield 1 })()')
+    checkExpression('gen1')
+      .then(() => checkExpression('gen1.next();gen1'))
+      .then(() => checkExpression('gen1.next();gen1'))
+      .then(next);
+  },
+
+  function generatorObjectDebuggerDisabled(next) {
+    Protocol.Debugger.disable()
+      .then(() => checkExpression('gen2'))
+      .then(() => checkExpression('gen2.next();gen2'))
+      .then(() => checkExpression('gen2.next();gen2'))
       .then(next);
   },
 

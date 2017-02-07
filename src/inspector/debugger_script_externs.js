@@ -306,15 +306,6 @@ function UnresolvedFunctionMirror(value) {}
  */
 function GeneratorMirror () {}
 
-/** @return {string} */
-GeneratorMirror.prototype.status = function() {}
-
-/** @return {!SourceLocation|undefined} */
-GeneratorMirror.prototype.sourceLocation = function() {}
-
-/** @return {!FunctionMirror} */
-GeneratorMirror.prototype.func = function() {}
-
 /** @return {number} */
 GeneratorMirror.prototype.scopeCount = function() {}
 

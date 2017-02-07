@@ -80,6 +80,62 @@ v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
   return wrappedEntries;
 }
 
+v8::MaybeLocal<v8::Object> buildLocation(v8::Local<v8::Context> context,
+                                         int scriptId, int lineNumber,
+                                         int columnNumber) {
+  if (scriptId == v8::UnboundScript::kNoScriptId)
+    return v8::MaybeLocal<v8::Object>();
+  if (lineNumber == v8::Function::kLineOffsetNotFound ||
+      columnNumber == v8::Function::kLineOffsetNotFound) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::Object> location = v8::Object::New(isolate);
+  if (!location->SetPrototype(context, v8::Null(isolate)).FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!createDataProperty(context, location,
+                          toV8StringInternalized(isolate, "scriptId"),
+                          toV8String(isolate, String16::fromInteger(scriptId)))
+           .FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!createDataProperty(context, location,
+                          toV8StringInternalized(isolate, "lineNumber"),
+                          v8::Integer::New(isolate, lineNumber))
+           .FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!createDataProperty(context, location,
+                          toV8StringInternalized(isolate, "columnNumber"),
+                          v8::Integer::New(isolate, columnNumber))
+           .FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!markAsInternal(context, location, V8InternalValueType::kLocation)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  return location;
+}
+
+v8::MaybeLocal<v8::Object> generatorObjectLocation(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
+  if (!value->IsGeneratorObject()) return v8::MaybeLocal<v8::Object>();
+  v8::Local<v8::debug::GeneratorObject> generatorObject =
+      v8::debug::GeneratorObject::Cast(value);
+  if (!generatorObject->IsSuspended()) {
+    v8::Local<v8::Function> func = generatorObject->Function();
+    return buildLocation(context, func->ScriptId(), func->GetScriptLineNumber(),
+                         func->GetScriptColumnNumber());
+  }
+  v8::Local<v8::debug::Script> script;
+  if (!generatorObject->Script().ToLocal(&script))
+    return v8::MaybeLocal<v8::Object>();
+  v8::debug::Location suspendedLocation = generatorObject->SuspendedLocation();
+  return buildLocation(context, script->Id(), suspendedLocation.GetLineNumber(),
+                       suspendedLocation.GetColumnNumber());
+}
+
 }  // namespace
 
 static bool inLiveEditScope = false;
@@ -707,8 +763,11 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     return v8::MaybeLocal<v8::Array>();
   if (value->IsFunction()) {
     v8::Local<v8::Function> function = value.As<v8::Function>();
-    v8::Local<v8::Value> location = functionLocation(context, function);
-    if (location->IsObject()) {
+    v8::Local<v8::Object> location;
+    if (buildLocation(context, function->ScriptId(),
+                      function->GetScriptLineNumber(),
+                      function->GetScriptColumnNumber())
+            .ToLocal(&location)) {
       createDataProperty(
           context, properties, properties->Length(),
           toV8StringInternalized(m_isolate, "[[FunctionLocation]]"));
@@ -727,16 +786,15 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
                        toV8StringInternalized(m_isolate, "[[Entries]]"));
     createDataProperty(context, properties, properties->Length(), entries);
   }
-  if (!enabled()) return properties;
   if (value->IsGeneratorObject()) {
-    v8::Local<v8::Value> location =
-        generatorObjectLocation(context, v8::Local<v8::Object>::Cast(value));
-    if (location->IsObject()) {
+    v8::Local<v8::Object> location;
+    if (generatorObjectLocation(context, value).ToLocal(&location)) {
       createDataProperty(
           context, properties, properties->Length(),
           toV8StringInternalized(m_isolate, "[[GeneratorLocation]]"));
       createDataProperty(context, properties, properties->Length(), location);
     }
+    if (!enabled()) return properties;
     v8::Local<v8::Value> scopes;
     if (generatorScopes(context, value).ToLocal(&scopes)) {
       createDataProperty(context, properties, properties->Length(),
@@ -744,6 +802,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
       createDataProperty(context, properties, properties->Length(), scopes);
     }
   }
+  if (!enabled()) return properties;
   if (value->IsFunction()) {
     v8::Local<v8::Function> function = value.As<v8::Function>();
     v8::Local<v8::Value> boundFunction = function->GetBoundFunction();
@@ -756,60 +815,6 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     }
   }
   return properties;
-}
-
-v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
-    v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
-  if (!enabled()) {
-    UNREACHABLE();
-    return v8::Null(m_isolate);
-  }
-  v8::Local<v8::Value> argv[] = {object};
-  v8::Local<v8::Value> location;
-  v8::Local<v8::Value> copied;
-  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv, true)
-           .ToLocal(&location) ||
-      !copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
-                                    location)
-           .ToLocal(&copied) ||
-      !copied->IsObject())
-    return v8::Null(m_isolate);
-  if (!markAsInternal(context, v8::Local<v8::Object>::Cast(copied),
-                      V8InternalValueType::kLocation))
-    return v8::Null(m_isolate);
-  return copied;
-}
-
-v8::Local<v8::Value> V8Debugger::functionLocation(
-    v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
-  int scriptId = function->ScriptId();
-  if (scriptId == v8::UnboundScript::kNoScriptId) return v8::Null(m_isolate);
-  int lineNumber = function->GetScriptLineNumber();
-  int columnNumber = function->GetScriptColumnNumber();
-  if (lineNumber == v8::Function::kLineOffsetNotFound ||
-      columnNumber == v8::Function::kLineOffsetNotFound)
-    return v8::Null(m_isolate);
-  v8::Local<v8::Object> location = v8::Object::New(m_isolate);
-  if (!location->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!createDataProperty(
-           context, location, toV8StringInternalized(m_isolate, "scriptId"),
-           toV8String(m_isolate, String16::fromInteger(scriptId)))
-           .FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!createDataProperty(context, location,
-                          toV8StringInternalized(m_isolate, "lineNumber"),
-                          v8::Integer::New(m_isolate, lineNumber))
-           .FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!createDataProperty(context, location,
-                          toV8StringInternalized(m_isolate, "columnNumber"),
-                          v8::Integer::New(m_isolate, columnNumber))
-           .FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!markAsInternal(context, location, V8InternalValueType::kLocation))
-    return v8::Null(m_isolate);
-  return location;
 }
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(

@@ -184,7 +184,7 @@ expression: new Promise(() => undefined)
 }
 
 Running test: generatorObject
-expression: (function* foo() { yield 1 })()
+expression: gen1
 {
     id : <messageId>
     result : {
@@ -200,7 +200,7 @@ expression: (function* foo() { yield 1 })()
                 name : [[GeneratorFunction]]
                 value : {
                     className : GeneratorFunction
-                    description : function* foo() { yield 1 }
+                    description : function* foo() {   yield 1; }
                     objectId : <objectId>
                     type : function
                 }
@@ -221,8 +221,8 @@ expression: (function* foo() { yield 1 })()
                     subtype : internal#location
                     type : object
                     value : {
-                        columnNumber : 14
-                        lineNumber : 0
+                        columnNumber : 13
+                        lineNumber : 8
                         scriptId : <scriptId>
                     }
                 }
@@ -235,6 +235,258 @@ expression: (function* foo() { yield 1 })()
                     objectId : <objectId>
                     subtype : internal#scopeList
                     type : object
+                }
+            }
+        ]
+    }
+}
+expression: gen1.next();gen1
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [1] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [2] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [3] : {
+                name : [[GeneratorLocation]]
+                value : {
+                    description : Object
+                    subtype : internal#location
+                    type : object
+                    value : {
+                        columnNumber : 2
+                        lineNumber : 9
+                        scriptId : <scriptId>
+                    }
+                }
+            }
+            [4] : {
+                name : [[Scopes]]
+                value : {
+                    className : Array
+                    description : Scopes[2]
+                    objectId : <objectId>
+                    subtype : internal#scopeList
+                    type : object
+                }
+            }
+        ]
+    }
+}
+expression: gen1.next();gen1
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : closed
+                }
+            }
+            [1] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [2] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [3] : {
+                name : [[GeneratorLocation]]
+                value : {
+                    description : Object
+                    subtype : internal#location
+                    type : object
+                    value : {
+                        columnNumber : 13
+                        lineNumber : 8
+                        scriptId : <scriptId>
+                    }
+                }
+            }
+            [4] : {
+                name : [[Scopes]]
+                value : {
+                    className : Array
+                    description : Scopes[2]
+                    objectId : <objectId>
+                    subtype : internal#scopeList
+                    type : object
+                }
+            }
+        ]
+    }
+}
+
+Running test: generatorObjectDebuggerDisabled
+expression: gen2
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [1] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [2] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [3] : {
+                name : [[GeneratorLocation]]
+                value : {
+                    description : Object
+                    subtype : internal#location
+                    type : object
+                    value : {
+                        columnNumber : 13
+                        lineNumber : 8
+                        scriptId : <scriptId>
+                    }
+                }
+            }
+        ]
+    }
+}
+expression: gen2.next();gen2
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : suspended
+                }
+            }
+            [1] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [2] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [3] : {
+                name : [[GeneratorLocation]]
+                value : {
+                    description : Object
+                    subtype : internal#location
+                    type : object
+                    value : {
+                        columnNumber : 2
+                        lineNumber : 9
+                        scriptId : <scriptId>
+                    }
+                }
+            }
+        ]
+    }
+}
+expression: gen2.next();gen2
+{
+    id : <messageId>
+    result : {
+        internalProperties : [
+            [0] : {
+                name : [[GeneratorStatus]]
+                value : {
+                    type : string
+                    value : closed
+                }
+            }
+            [1] : {
+                name : [[GeneratorFunction]]
+                value : {
+                    className : GeneratorFunction
+                    description : function* foo() {   yield 1; }
+                    objectId : <objectId>
+                    type : function
+                }
+            }
+            [2] : {
+                name : [[GeneratorReceiver]]
+                value : {
+                    className : global
+                    description : global
+                    objectId : <objectId>
+                    type : object
+                }
+            }
+            [3] : {
+                name : [[GeneratorLocation]]
+                value : {
+                    description : Object
+                    subtype : internal#location
+                    type : object
+                    value : {
+                        columnNumber : 13
+                        lineNumber : 8
+                        scriptId : <scriptId>
+                    }
                 }
             }
         ]

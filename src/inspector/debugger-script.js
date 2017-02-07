@@ -102,31 +102,6 @@ DebuggerScript.getGeneratorScopes = function(gen)
 }
 
 /**
- * @param {Object} object
- * @return {?RawLocation}
- */
-DebuggerScript.getGeneratorObjectLocation = function(object)
-{
-    var mirror = MakeMirror(object);
-    if (!mirror.isGenerator())
-        return null;
-    var generatorMirror = /** @type {!GeneratorMirror} */(mirror);
-    var funcMirror = generatorMirror.func();
-    if (!funcMirror.resolved())
-        return null;
-    var location = generatorMirror.sourceLocation() || funcMirror.sourceLocation();
-    var script = funcMirror.script();
-    if (script && location) {
-        return {
-            scriptId: "" + script.id(),
-            lineNumber: location.line,
-            columnNumber: location.column
-        };
-    }
-    return null;
-}
-
-/**
  * @param {!ExecutionState} execState
  * @param {!BreakpointInfo} info
  * @return {string|undefined}
