@@ -104,6 +104,29 @@
           "test_flags": ["super_spread/es6"]
         }
       ]
+    },
+    {
+      "name": "SpreadLiteral",
+      "path": ["SixSpeed"],
+      "flags": ["--future"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {
+          "name": "ES5",
+          "main": "run.js",
+          "test_flags": ["spread_literal/es5"]
+        },
+        {
+          "name": "Babel",
+          "main": "run.js",
+          "test_flags": ["super_spread/babel"]
+        },
+        {
+          "name": "ES6",
+          "main": "run.js",
+          "test_flags": ["spread_literal/es6"]
+        }
+      ]
     }
   ]
 }
