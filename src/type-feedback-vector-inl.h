@@ -202,7 +202,8 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
           BinaryOperationHint hint = BinaryOperationHintFromFeedback(feedback);
           if (hint == BinaryOperationHint::kAny) {
             gen++;
-          } else if (hint != BinaryOperationHint::kNone) {
+          }
+          if (hint != BinaryOperationHint::kNone) {
             with++;
           }
           total++;
@@ -219,7 +220,8 @@ void TypeFeedbackVector::ComputeCounts(int* with_type_info, int* generic,
               CompareOperationHintFromFeedback(feedback);
           if (hint == CompareOperationHint::kAny) {
             gen++;
-          } else if (hint != CompareOperationHint::kNone) {
+          }
+          if (hint != CompareOperationHint::kNone) {
             with++;
           }
           total++;
