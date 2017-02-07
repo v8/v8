@@ -1936,13 +1936,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable, FeedbackSlot slot,
         context_reg = execution_context()->reg();
       }
 
-      BytecodeArrayBuilder::ContextSlotMutability immutable =
-          (variable->maybe_assigned() == kNotAssigned)
-              ? BytecodeArrayBuilder::kImmutableSlot
-              : BytecodeArrayBuilder::kMutableSlot;
-
-      builder()->LoadContextSlot(context_reg, variable->index(), depth,
-                                 immutable);
+      builder()->LoadContextSlot(context_reg, variable->index(), depth);
       if (hole_check_mode == HoleCheckMode::kRequired) {
         BuildThrowIfHole(variable->name());
       }
@@ -2106,8 +2100,7 @@ void BytecodeGenerator::BuildVariableAssignment(Variable* variable,
         Register value_temp = register_allocator()->NewRegister();
         builder()
             ->StoreAccumulatorInRegister(value_temp)
-            .LoadContextSlot(context_reg, variable->index(), depth,
-                             BytecodeArrayBuilder::kMutableSlot);
+            .LoadContextSlot(context_reg, variable->index(), depth);
 
         BuildHoleCheckForVariableAssignment(variable, op);
         builder()->LoadAccumulatorWithRegister(value_temp);
@@ -2737,11 +2730,9 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
         Register global_object = register_allocator()->NewRegister();
         builder()
             ->LoadContextSlot(execution_context()->reg(),
-                              Context::NATIVE_CONTEXT_INDEX, 0,
-                              BytecodeArrayBuilder::kMutableSlot)
+                              Context::NATIVE_CONTEXT_INDEX, 0)
             .StoreAccumulatorInRegister(native_context)
-            .LoadContextSlot(native_context, Context::EXTENSION_INDEX, 0,
-                             BytecodeArrayBuilder::kMutableSlot)
+            .LoadContextSlot(native_context, Context::EXTENSION_INDEX, 0)
             .StoreAccumulatorInRegister(global_object)
             .LoadLiteral(variable->name())
             .Delete(global_object, language_mode());
@@ -3252,18 +3243,15 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
     Register native_context = register_allocator()->NewRegister();
     builder()
         ->LoadContextSlot(execution_context()->reg(),
-                          Context::NATIVE_CONTEXT_INDEX, 0,
-                          BytecodeArrayBuilder::kMutableSlot)
+                          Context::NATIVE_CONTEXT_INDEX, 0)
         .StoreAccumulatorInRegister(native_context)
-        .LoadContextSlot(native_context, Context::CLOSURE_INDEX, 0,
-                         BytecodeArrayBuilder::kMutableSlot);
+        .LoadContextSlot(native_context, Context::CLOSURE_INDEX, 0);
   } else if (closure_scope->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval
     // code. Fetch it from the context.
     builder()->LoadContextSlot(execution_context()->reg(),
-                               Context::CLOSURE_INDEX, 0,
-                               BytecodeArrayBuilder::kMutableSlot);
+                               Context::CLOSURE_INDEX, 0);
   } else {
     DCHECK(closure_scope->is_function_scope() ||
            closure_scope->is_module_scope());

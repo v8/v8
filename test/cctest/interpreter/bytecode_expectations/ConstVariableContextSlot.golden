@@ -48,7 +48,7 @@ bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   44 S> */ B(LdaSmi), I8(10),
   /*   44 E> */ B(StaCurrentContextSlot), U8(4),
-  /*   74 S> */ B(LdaImmutableCurrentContextSlot), U8(4),
+  /*   74 S> */ B(LdaCurrentContextSlot), U8(4),
   /*   84 S> */ B(Return),
 ]
 constant pool: [

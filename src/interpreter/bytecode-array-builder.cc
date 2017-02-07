@@ -477,20 +477,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(
-    Register context, int slot_index, int depth,
-    ContextSlotMutability mutability) {
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadContextSlot(Register context,
+                                                            int slot_index,
+                                                            int depth) {
   if (context.is_current_context() && depth == 0) {
-    if (mutability == kImmutableSlot) {
-      OutputLdaImmutableCurrentContextSlot(slot_index);
-    } else {
-      DCHECK_EQ(kMutableSlot, mutability);
-      OutputLdaCurrentContextSlot(slot_index);
-    }
-  } else if (mutability == kImmutableSlot) {
-    OutputLdaImmutableContextSlot(context, slot_index, depth);
+    OutputLdaCurrentContextSlot(slot_index);
   } else {
-    DCHECK_EQ(mutability, kMutableSlot);
     OutputLdaContextSlot(context, slot_index, depth);
   }
   return *this;

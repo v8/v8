@@ -770,6 +770,9 @@ void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitLdaContextSlot() {
+  // TODO(mythria): immutable flag is also set to false. This information is not
+  // available in bytecode array. update this code when the implementation
+  // changes.
   const Operator* op = javascript()->LoadContext(
       bytecode_iterator().GetUnsignedImmediateOperand(2),
       bytecode_iterator().GetIndexOperand(1), false);
@@ -780,27 +783,12 @@ void BytecodeGraphBuilder::VisitLdaContextSlot() {
   environment()->BindAccumulator(node);
 }
 
-void BytecodeGraphBuilder::VisitLdaImmutableContextSlot() {
-  const Operator* op = javascript()->LoadContext(
-      bytecode_iterator().GetUnsignedImmediateOperand(2),
-      bytecode_iterator().GetIndexOperand(1), true);
-  Node* node = NewNode(op);
-  Node* context =
-      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  NodeProperties::ReplaceContextInput(node, context);
-  environment()->BindAccumulator(node);
-}
-
 void BytecodeGraphBuilder::VisitLdaCurrentContextSlot() {
+  // TODO(mythria): immutable flag is also set to false. This information is not
+  // available in bytecode array. update this code when the implementation
+  // changes.
   const Operator* op = javascript()->LoadContext(
       0, bytecode_iterator().GetIndexOperand(0), false);
-  Node* node = NewNode(op);
-  environment()->BindAccumulator(node);
-}
-
-void BytecodeGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
-  const Operator* op = javascript()->LoadContext(
-      0, bytecode_iterator().GetIndexOperand(0), true);
   Node* node = NewNode(op);
   environment()->BindAccumulator(node);
 }
