@@ -1166,7 +1166,7 @@ TEST(ScopePositions) {
     // Check scope types and positions.
     i::Scope* scope = info.literal()->scope();
     CHECK(scope->is_script_scope());
-    CHECK_EQ(scope->start_position(), 0);
+    CHECK_EQ(0, scope->start_position());
     CHECK_EQ(scope->end_position(), kProgramSize);
 
     i::Scope* inner_scope = scope->inner_scope();
@@ -6791,15 +6791,15 @@ TEST(ModuleParsingInternals) {
   CHECK_EQ(5u, descriptor->module_requests().size());
   for (const auto& elem : descriptor->module_requests()) {
     if (elem.first->IsOneByteEqualTo("m.js"))
-      CHECK_EQ(elem.second, 0);
+      CHECK_EQ(0, elem.second);
     else if (elem.first->IsOneByteEqualTo("n.js"))
-      CHECK_EQ(elem.second, 1);
+      CHECK_EQ(1, elem.second);
     else if (elem.first->IsOneByteEqualTo("p.js"))
-      CHECK_EQ(elem.second, 2);
+      CHECK_EQ(2, elem.second);
     else if (elem.first->IsOneByteEqualTo("q.js"))
-      CHECK_EQ(elem.second, 3);
+      CHECK_EQ(3, elem.second);
     else if (elem.first->IsOneByteEqualTo("bar.js"))
-      CHECK_EQ(elem.second, 4);
+      CHECK_EQ(4, elem.second);
     else
       CHECK(false);
   }

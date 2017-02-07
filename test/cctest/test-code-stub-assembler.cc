@@ -1579,7 +1579,7 @@ TEST(IsDebugActive) {
   CHECK(!code.is_null());
 
   FunctionTester ft(code, kNumParams);
-  CHECK_EQ(false, isolate->debug()->is_active());
+  CHECK(!isolate->debug()->is_active());
   Handle<Object> result =
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK_EQ(isolate->heap()->false_value(), *result);

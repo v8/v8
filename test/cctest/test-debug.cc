@@ -6629,7 +6629,7 @@ TEST(DebugStepOverFunctionWithCaughtException) {
       "foo();\n");
 
   v8::Debug::SetDebugEventListener(env->GetIsolate(), nullptr);
-  CHECK_EQ(break_point_hit_count, 4);
+  CHECK_EQ(4, break_point_hit_count);
 }
 
 bool out_of_memory_callback_called = false;

@@ -137,18 +137,18 @@ TEST(LayoutDescriptorBasicFast) {
   CHECK_EQ(kSmiValueSize, layout_desc->capacity());
 
   for (int i = 0; i < kSmiValueSize + 13; i++) {
-    CHECK_EQ(true, layout_desc->IsTagged(i));
+    CHECK(layout_desc->IsTagged(i));
   }
-  CHECK_EQ(true, layout_desc->IsTagged(-1));
-  CHECK_EQ(true, layout_desc->IsTagged(-12347));
-  CHECK_EQ(true, layout_desc->IsTagged(15635));
+  CHECK(layout_desc->IsTagged(-1));
+  CHECK(layout_desc->IsTagged(-12347));
+  CHECK(layout_desc->IsTagged(15635));
   CHECK(layout_desc->IsFastPointerLayout());
 
   for (int i = 0; i < kSmiValueSize; i++) {
     layout_desc = layout_desc->SetTaggedForTesting(i, false);
-    CHECK_EQ(false, layout_desc->IsTagged(i));
+    CHECK(!layout_desc->IsTagged(i));
     layout_desc = layout_desc->SetTaggedForTesting(i, true);
-    CHECK_EQ(true, layout_desc->IsTagged(i));
+    CHECK(layout_desc->IsTagged(i));
   }
   CHECK(layout_desc->IsFastPointerLayout());
 
@@ -157,7 +157,7 @@ TEST(LayoutDescriptorBasicFast) {
                                        &sequence_length));
   CHECK_EQ(std::numeric_limits<int>::max(), sequence_length);
 
-  CHECK_EQ(true, layout_desc->IsTagged(0, 7, &sequence_length));
+  CHECK(layout_desc->IsTagged(0, 7, &sequence_length));
   CHECK_EQ(7, sequence_length);
 }
 
@@ -203,9 +203,9 @@ TEST(LayoutDescriptorBasicSlow) {
     CHECK(!layout_descriptor->IsSlowLayout());
     CHECK(!layout_descriptor->IsFastPointerLayout());
 
-    CHECK_EQ(false, layout_descriptor->IsTagged(0));
+    CHECK(!layout_descriptor->IsTagged(0));
     for (int i = 1; i < kPropsCount; i++) {
-      CHECK_EQ(true, layout_descriptor->IsTagged(i));
+      CHECK(layout_descriptor->IsTagged(i));
     }
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
@@ -220,26 +220,26 @@ TEST(LayoutDescriptorBasicSlow) {
     CHECK(!layout_descriptor->IsFastPointerLayout());
     CHECK(layout_descriptor->capacity() > kSmiValueSize);
 
-    CHECK_EQ(false, layout_descriptor->IsTagged(0));
-    CHECK_EQ(false, layout_descriptor->IsTagged(kPropsCount - 1));
+    CHECK(!layout_descriptor->IsTagged(0));
+    CHECK(!layout_descriptor->IsTagged(kPropsCount - 1));
     for (int i = 1; i < kPropsCount - 1; i++) {
-      CHECK_EQ(true, layout_descriptor->IsTagged(i));
+      CHECK(layout_descriptor->IsTagged(i));
     }
 
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
 
     // Here we have truly slow layout descriptor, so play with the bits.
-    CHECK_EQ(true, layout_descriptor->IsTagged(-1));
-    CHECK_EQ(true, layout_descriptor->IsTagged(-12347));
-    CHECK_EQ(true, layout_descriptor->IsTagged(15635));
+    CHECK(layout_descriptor->IsTagged(-1));
+    CHECK(layout_descriptor->IsTagged(-12347));
+    CHECK(layout_descriptor->IsTagged(15635));
 
     LayoutDescriptor* layout_desc = *layout_descriptor;
     // Play with the bits but leave it in consistent state with map at the end.
     for (int i = 1; i < kPropsCount - 1; i++) {
       layout_desc = layout_desc->SetTaggedForTesting(i, false);
-      CHECK_EQ(false, layout_desc->IsTagged(i));
+      CHECK(!layout_desc->IsTagged(i));
       layout_desc = layout_desc->SetTaggedForTesting(i, true);
-      CHECK_EQ(true, layout_desc->IsTagged(i));
+      CHECK(layout_desc->IsTagged(i));
     }
     CHECK(layout_desc->IsSlowLayout());
     CHECK(!layout_desc->IsFastPointerLayout());
@@ -520,10 +520,10 @@ TEST(LayoutDescriptorCreateNewFast) {
     layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(!layout_descriptor->IsSlowLayout());
-    CHECK_EQ(true, layout_descriptor->IsTagged(0));
-    CHECK_EQ(false, layout_descriptor->IsTagged(1));
-    CHECK_EQ(true, layout_descriptor->IsTagged(2));
-    CHECK_EQ(true, layout_descriptor->IsTagged(125));
+    CHECK(layout_descriptor->IsTagged(0));
+    CHECK(!layout_descriptor->IsTagged(1));
+    CHECK(layout_descriptor->IsTagged(2));
+    CHECK(layout_descriptor->IsTagged(125));
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 }
@@ -563,10 +563,10 @@ TEST(LayoutDescriptorCreateNewSlow) {
     layout_descriptor = LayoutDescriptor::New(map, descriptors, kPropsCount);
     CHECK_NE(LayoutDescriptor::FastPointerLayout(), *layout_descriptor);
     CHECK(!layout_descriptor->IsSlowLayout());
-    CHECK_EQ(true, layout_descriptor->IsTagged(0));
-    CHECK_EQ(false, layout_descriptor->IsTagged(1));
-    CHECK_EQ(true, layout_descriptor->IsTagged(2));
-    CHECK_EQ(true, layout_descriptor->IsTagged(125));
+    CHECK(layout_descriptor->IsTagged(0));
+    CHECK(!layout_descriptor->IsTagged(1));
+    CHECK(layout_descriptor->IsTagged(2));
+    CHECK(layout_descriptor->IsTagged(125));
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
   }
 
@@ -583,7 +583,7 @@ TEST(LayoutDescriptorCreateNewSlow) {
     }
     // Every property after inobject_properties must be tagged.
     for (int i = inobject_properties; i < kPropsCount; i++) {
-      CHECK_EQ(true, layout_descriptor->IsTagged(i));
+      CHECK(layout_descriptor->IsTagged(i));
     }
     InitializeVerifiedMapDescriptors(*map, *descriptors, *layout_descriptor);
 
@@ -1224,19 +1224,19 @@ static void TestLayoutDescriptorHelper(Isolate* isolate,
     if (end_of_region_offset < instance_size) {
       CHECK_EQ(!expected_tagged, helper.IsTagged(end_of_region_offset));
     } else {
-      CHECK_EQ(true, helper.IsTagged(end_of_region_offset));
+      CHECK(helper.IsTagged(end_of_region_offset));
     }
   }
 
   for (int offset = 0; offset < JSObject::kHeaderSize; offset += kPointerSize) {
     // Header queries
-    CHECK_EQ(true, helper.IsTagged(offset));
+    CHECK(helper.IsTagged(offset));
     int end_of_region_offset;
-    CHECK_EQ(true, helper.IsTagged(offset, end_offset, &end_of_region_offset));
+    CHECK(helper.IsTagged(offset, end_offset, &end_of_region_offset));
     CHECK_EQ(first_non_tagged_field_offset, end_of_region_offset);
 
     // Out of bounds queries
-    CHECK_EQ(true, helper.IsTagged(offset + instance_size));
+    CHECK(helper.IsTagged(offset + instance_size));
   }
 
   CHECK_EQ(all_fields_tagged, helper.all_fields_tagged());
