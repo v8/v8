@@ -25899,8 +25899,62 @@ TEST(AccessCheckedToStringTag) {
   CHECK_EQ(0, strcmp(*result_denied, "[object Object]"));
 }
 
+TEST(ObjectTemplateArrayProtoIntrinsics) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
 
-TEST(ObjectTemplateIntrinsics) {
+  Local<ObjectTemplate> object_template = v8::ObjectTemplate::New(isolate);
+  object_template->SetIntrinsicDataProperty(v8_str("prop_entries"),
+                                            v8::kArrayProto_entries);
+  object_template->SetIntrinsicDataProperty(v8_str("prop_forEach"),
+                                            v8::kArrayProto_forEach);
+  object_template->SetIntrinsicDataProperty(v8_str("prop_keys"),
+                                            v8::kArrayProto_keys);
+  object_template->SetIntrinsicDataProperty(v8_str("prop_values"),
+                                            v8::kArrayProto_values);
+  Local<Object> object =
+      object_template->NewInstance(env.local()).ToLocalChecked();
+  CHECK(env->Global()->Set(env.local(), v8_str("obj1"), object).FromJust());
+
+  const struct {
+    const char* const object_property_name;
+    const char* const array_property_name;
+  } intrinsics_comparisons[] = {
+      {"prop_entries", "Array.prototype.entries"},
+      {"prop_forEach", "Array.prototype.forEach"},
+      {"prop_keys", "Array.prototype.keys"},
+      {"prop_values", "Array.prototype[Symbol.iterator]"},
+  };
+
+  for (unsigned i = 0; i < arraysize(intrinsics_comparisons); i++) {
+    i::ScopedVector<char> test_string(64);
+
+    i::SNPrintF(test_string, "typeof obj1.%s",
+                intrinsics_comparisons[i].object_property_name);
+    ExpectString(test_string.start(), "function");
+
+    i::SNPrintF(test_string, "obj1.%s === %s",
+                intrinsics_comparisons[i].object_property_name,
+                intrinsics_comparisons[i].array_property_name);
+    ExpectTrue(test_string.start());
+
+    i::SNPrintF(test_string, "obj1.%s = 42",
+                intrinsics_comparisons[i].object_property_name);
+    CompileRun(test_string.start());
+
+    i::SNPrintF(test_string, "obj1.%s === %s",
+                intrinsics_comparisons[i].object_property_name,
+                intrinsics_comparisons[i].array_property_name);
+    ExpectFalse(test_string.start());
+
+    i::SNPrintF(test_string, "typeof obj1.%s",
+                intrinsics_comparisons[i].object_property_name);
+    ExpectString(test_string.start(), "number");
+  }
+}
+
+TEST(ObjectTemplatePerContextIntrinsics) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
   LocalContext env;
