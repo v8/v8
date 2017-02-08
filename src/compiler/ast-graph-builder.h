@@ -391,11 +391,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   void VisitLiteralCompareTypeof(CompareOperation* expr, Expression* sub_expr,
                                  Handle<String> check);
 
-  // Dispatched from VisitForInStatement.
-  void VisitForInAssignment(Expression* expr, Node* value,
-                            const VectorSlotPair& feedback,
-                            BailoutId bailout_id);
-
   // Dispatched from VisitObjectLiteral.
   void VisitObjectLiteralAccessor(Node* home_object,
                                   ObjectLiteralProperty* property);

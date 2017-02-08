@@ -1173,98 +1173,8 @@ void AstGraphBuilder::VisitForStatement(ForStatement* stmt) {
 
 
 void AstGraphBuilder::VisitForInStatement(ForInStatement* stmt) {
-  VisitForValue(stmt->subject());
-  Node* object = environment()->Pop();
-  BlockBuilder for_block(this);
-  for_block.BeginBlock();
-  // Check for null or undefined before entering loop.
-  Node* is_null_cond =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), object,
-              jsgraph()->NullConstant());
-  for_block.BreakWhen(is_null_cond, BranchHint::kFalse);
-  Node* is_undefined_cond =
-      NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), object,
-              jsgraph()->UndefinedConstant());
-  for_block.BreakWhen(is_undefined_cond, BranchHint::kFalse);
-  {
-    // Convert object to jsobject.
-    object = BuildToObject(object, stmt->ToObjectId());
-    environment()->Push(object);
-
-    // Prepare for-in cache.
-    Node* prepare = NewNode(javascript()->ForInPrepare(), object);
-    PrepareFrameState(prepare, stmt->PrepareId(),
-                      OutputFrameStateCombine::Push(3));
-    Node* cache_type = NewNode(common()->Projection(0), prepare);
-    Node* cache_array = NewNode(common()->Projection(1), prepare);
-    Node* cache_length = NewNode(common()->Projection(2), prepare);
-
-    // Construct the rest of the environment.
-    environment()->Push(cache_type);
-    environment()->Push(cache_array);
-    environment()->Push(cache_length);
-    environment()->Push(jsgraph()->ZeroConstant());
-
-    // Build the actual loop body.
-    LoopBuilder for_loop(this);
-    for_loop.BeginLoop(GetVariablesAssignedInLoop(stmt), CheckOsrEntry(stmt));
-    {
-      // These stack values are renamed in the case of OSR, so reload them
-      // from the environment.
-      Node* index = environment()->Peek(0);
-      Node* cache_length = environment()->Peek(1);
-      Node* cache_array = environment()->Peek(2);
-      Node* cache_type = environment()->Peek(3);
-      Node* object = environment()->Peek(4);
-
-      // Check loop termination condition (we know that the {index} is always
-      // in Smi range, so we can just set the hint on the comparison below).
-      PrepareEagerCheckpoint(stmt->EntryId());
-      Node* exit_cond =
-          NewNode(javascript()->LessThan(CompareOperationHint::kSignedSmall),
-                  index, cache_length);
-      PrepareFrameState(exit_cond, BailoutId::None());
-      for_loop.BreakUnless(exit_cond);
-
-      // Compute the next enumerated value.
-      Node* value = NewNode(javascript()->ForInNext(), object, cache_array,
-                            cache_type, index);
-      PrepareFrameState(value, stmt->FilterId(),
-                        OutputFrameStateCombine::Push());
-      IfBuilder test_value(this);
-      Node* test_value_cond =
-          NewNode(javascript()->StrictEqual(CompareOperationHint::kAny), value,
-                  jsgraph()->UndefinedConstant());
-      test_value.If(test_value_cond, BranchHint::kFalse);
-      test_value.Then();
-      test_value.Else();
-      {
-        environment()->Push(value);
-        PrepareEagerCheckpoint(stmt->FilterId());
-        value = environment()->Pop();
-        // Bind value and do loop body.
-        VectorSlotPair feedback =
-            CreateVectorSlotPair(stmt->EachFeedbackSlot());
-        VisitForInAssignment(stmt->each(), value, feedback,
-                             stmt->AssignmentId());
-        VisitIterationBody(stmt, &for_loop, stmt->StackCheckId());
-      }
-      test_value.End();
-      for_loop.EndBody();
-
-      // Increment counter and continue (we know that the {index} is always
-      // in Smi range, so we can just set the hint on the increment below).
-      index = environment()->Peek(0);
-      PrepareEagerCheckpoint(stmt->IncrementId());
-      index = NewNode(javascript()->Add(BinaryOperationHint::kSignedSmall),
-                      index, jsgraph()->OneConstant());
-      PrepareFrameState(index, BailoutId::None());
-      environment()->Poke(0, index);
-    }
-    for_loop.EndLoop();
-    environment()->Drop(5);
-  }
-  for_block.EndBlock();
+  // Only the BytecodeGraphBuilder supports for-in.
+  return SetStackOverflow();
 }
 
 
@@ -1532,51 +1442,6 @@ void AstGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
   ast_context()->ProduceValue(expr, environment()->Pop());
 }
-
-void AstGraphBuilder::VisitForInAssignment(Expression* expr, Node* value,
-                                           const VectorSlotPair& feedback,
-                                           BailoutId bailout_id) {
-  DCHECK(expr->IsValidReferenceExpressionOrThis());
-
-  // Left-hand side can only be a property, a global or a variable slot.
-  Property* property = expr->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
-
-  // Evaluate LHS expression and store the value.
-  switch (assign_type) {
-    case VARIABLE: {
-      Variable* var = expr->AsVariableProxy()->var();
-      BuildVariableAssignment(var, value, Token::ASSIGN, feedback, bailout_id);
-      break;
-    }
-    case NAMED_PROPERTY: {
-      environment()->Push(value);
-      VisitForValue(property->obj());
-      Node* object = environment()->Pop();
-      value = environment()->Pop();
-      Handle<Name> name = property->key()->AsLiteral()->AsPropertyName();
-      Node* store = BuildNamedStore(object, name, value, feedback);
-      PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
-      break;
-    }
-    case KEYED_PROPERTY: {
-      environment()->Push(value);
-      VisitForValue(property->obj());
-      VisitForValue(property->key());
-      Node* key = environment()->Pop();
-      Node* object = environment()->Pop();
-      value = environment()->Pop();
-      Node* store = BuildKeyedStore(object, key, value, feedback);
-      PrepareFrameState(store, bailout_id, OutputFrameStateCombine::Ignore());
-      break;
-    }
-    case NAMED_SUPER_PROPERTY:
-    case KEYED_SUPER_PROPERTY:
-      UNREACHABLE();
-      break;
-  }
-}
-
 
 void AstGraphBuilder::VisitAssignment(Assignment* expr) {
   DCHECK(expr->target()->IsValidReferenceExpressionOrThis());
