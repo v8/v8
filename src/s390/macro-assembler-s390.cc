@@ -1639,7 +1639,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1738,7 +1738,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1798,7 +1798,7 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1866,7 +1866,7 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.

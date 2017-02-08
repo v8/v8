@@ -867,7 +867,7 @@ typedef uint64_t SixByteInstr;
   V(dsg, DSG, 0xE30D)   /* type = RXY_A DIVIDE SINGLE (64)  */                 \
   V(cvbg, CVBG, 0xE30E) /* type = RXY_A CONVERT TO BINARY (64)  */             \
   V(lrvg, LRVG, 0xE30F) /* type = RXY_A LOAD REVERSED (64)  */                 \
-  V(lt, LT, 0xE312)     /* type = RXY_A LOAD AND TEST (32)  */                 \
+  V(lt_z, LT, 0xE312)   /* type = RXY_A LOAD AND TEST (32)  */                 \
   V(lray, LRAY, 0xE313) /* type = RXY_A LOAD REAL ADDRESS (32)  */             \
   V(lgf, LGF, 0xE314)   /* type = RXY_A LOAD (64<-32)  */                      \
   V(lgh, LGH, 0xE315)   /* type = RXY_A LOAD HALFWORD (64<-16)  */             \
