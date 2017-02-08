@@ -2988,7 +2988,7 @@ Local<Value> NativeWeakMap::Get(Local<Value> v8_key) {
 bool NativeWeakMap::Has(Local<Value> v8_key) {
   i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
   i::Isolate* isolate = weak_collection->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Object> key = Utils::OpenHandle(*v8_key);
   if (!key->IsJSReceiver() && !key->IsSymbol()) {
@@ -3009,7 +3009,7 @@ bool NativeWeakMap::Has(Local<Value> v8_key) {
 bool NativeWeakMap::Delete(Local<Value> v8_key) {
   i::Handle<i::JSWeakMap> weak_collection = Utils::OpenHandle(this);
   i::Isolate* isolate = weak_collection->GetIsolate();
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Object> key = Utils::OpenHandle(*v8_key);
   if (!key->IsJSReceiver() && !key->IsSymbol()) {
@@ -4062,7 +4062,7 @@ bool Value::SameValue(Local<Value> that) const {
 
 Local<String> Value::TypeOf(v8::Isolate* external_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(external_isolate);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   LOG_API(isolate, Value, TypeOf);
   return Utils::ToLocal(i::Object::TypeOf(isolate, Utils::OpenHandle(this)));
 }
@@ -5804,7 +5804,7 @@ int String::WriteUtf8(char* buffer,
   i::Handle<i::String> str = Utils::OpenHandle(this);
   i::Isolate* isolate = str->GetIsolate();
   LOG_API(isolate, String, WriteUtf8);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     str = i::String::Flatten(str);  // Flatten the string for efficiency.
   }
@@ -5856,7 +5856,7 @@ static inline int WriteHelper(const String* string,
                               int options) {
   i::Isolate* isolate = Utils::OpenHandle(string)->GetIsolate();
   LOG_API(isolate, String, Write);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   DCHECK(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(string);
   if (options & String::HINT_MANY_WRITES_EXPECTED) {
@@ -7093,7 +7093,7 @@ void Map::Clear() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   LOG_API(isolate, Map, Clear);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::JSMap::Clear(self);
 }
 
@@ -7190,7 +7190,7 @@ Local<Array> Map::AsArray() const {
   i::Handle<i::JSMap> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, Map, AsArray);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   return Utils::ToLocal(
       MapAsArray(isolate, obj->table(), 0, i::JSMapIterator::kKindEntries));
 }
@@ -7215,7 +7215,7 @@ void Set::Clear() {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   LOG_API(isolate, Set, Clear);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::JSSet::Clear(self);
 }
 
@@ -7288,7 +7288,7 @@ Local<Array> Set::AsArray() const {
   i::Handle<i::JSSet> obj = Utils::OpenHandle(this);
   i::Isolate* isolate = obj->GetIsolate();
   LOG_API(isolate, Set, AsArray);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   return Utils::ToLocal(SetAsArray(isolate, obj->table(), 0));
 }
 
@@ -7406,7 +7406,7 @@ bool Promise::HasHandler() {
   i::Handle<i::JSReceiver> promise = Utils::OpenHandle(this);
   i::Isolate* isolate = promise->GetIsolate();
   LOG_API(isolate, Promise, HasRejectHandler);
-  ENTER_V8(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   if (promise->IsJSPromise()) {
     i::Handle<i::JSPromise> js_promise = i::Handle<i::JSPromise>::cast(promise);
     return js_promise->has_handler();
