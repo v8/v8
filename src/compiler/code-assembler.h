@@ -229,6 +229,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* Parameter(int value);
   Node* GetJSContextParameter();
   void Return(Node* value);
+  void Return(Node* value1, Node* value2);
+  void Return(Node* value1, Node* value2, Node* value3);
   void PopAndReturn(Node* pop, Node* value);
 
   void DebugBreak();

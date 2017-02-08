@@ -209,8 +209,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInEnumerate, 1, 1)           \
   F(ForInFilter, 2, 1)              \
-  F(ForInHasProperty, 2, 1)         \
-  F(ForInNext, 4, 1)
+  F(ForInHasProperty, 2, 1)
 
 #define FOR_EACH_INTRINSIC_INTERPRETER(F) \
   F(InterpreterNewClosure, 4, 1)          \

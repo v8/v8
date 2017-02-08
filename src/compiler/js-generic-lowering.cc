@@ -88,11 +88,12 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags,
-                                            Operator::Properties properties) {
+                                            Operator::Properties properties,
+                                            int result_size) {
   const CallInterfaceDescriptor& descriptor = callable.descriptor();
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-      properties);
+      properties, MachineType::AnyTagged(), result_size);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
   NodeProperties::ChangeOp(node, common()->Call(desc));
@@ -586,12 +587,15 @@ void JSGenericLowering::LowerJSConvertReceiver(Node* node) {
 }
 
 void JSGenericLowering::LowerJSForInNext(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInNext);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::ForInNext(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
-
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInPrepare);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::ForInPrepare(isolate());
+  ReplaceWithStubCall(node, callable, flags, node->op()->properties(), 3);
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {

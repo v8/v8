@@ -910,6 +910,51 @@ TF_BUILTIN(ForInFilter, ObjectBuiltinsAssembler) {
   Return(ForInFilter(key, object, context));
 }
 
+TF_BUILTIN(ForInNext, ObjectBuiltinsAssembler) {
+  typedef ForInNextDescriptor Descriptor;
+
+  Label filter(this);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* cache_array = Parameter(Descriptor::kCacheArray);
+  Node* cache_type = Parameter(Descriptor::kCacheType);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Node* key = LoadFixedArrayElement(cache_array, SmiUntag(index));
+  Node* map = LoadMap(object);
+  GotoUnless(WordEqual(map, cache_type), &filter);
+  Return(key);
+  Bind(&filter);
+  Return(ForInFilter(key, object, context));
+}
+
+TF_BUILTIN(ForInPrepare, ObjectBuiltinsAssembler) {
+  typedef ForInPrepareDescriptor Descriptor;
+
+  Label use_cache(this), nothing_to_iterate(this), call_runtime(this);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CheckEnumCache(object, &use_cache, &call_runtime);
+  Bind(&use_cache);
+  Node* map = LoadMap(object);
+  Node* enum_length = EnumLength(map);
+  GotoIf(WordEqual(enum_length, SmiConstant(0)), &nothing_to_iterate);
+  Node* descriptors = LoadMapDescriptors(map);
+  Node* cache_offset =
+      LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+  Node* enum_cache = LoadObjectField(
+      cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+  Return(map, enum_cache, enum_length);
+
+  Bind(&nothing_to_iterate);
+  Node* zero = SmiConstant(0);
+  Return(zero, zero, zero);
+
+  Bind(&call_runtime);
+  TailCallRuntime(Runtime::kForInPrepare, context, object);
+}
+
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {
   typedef CompareDescriptor Descriptor;
 

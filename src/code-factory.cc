@@ -193,7 +193,7 @@ Callable CodeFactory::StringFromCharCode(Isolate* isolate) {
   return Callable(code, BuiltinDescriptor(isolate));
 }
 
-#define DECLARE_TFS(Name, Kind, Extra, InterfaceDescriptor) \
+#define DECLARE_TFS(Name, Kind, Extra, InterfaceDescriptor, result_size) \
   typedef InterfaceDescriptor##Descriptor Name##Descriptor;
 BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, DECLARE_TFS,
              IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
@@ -361,6 +361,18 @@ Callable CodeFactory::FastNewSloppyArguments(Isolate* isolate) {
 Callable CodeFactory::FastNewStrictArguments(Isolate* isolate) {
   return Callable(isolate->builtins()->FastNewStrictArguments(),
                   FastNewRestParameterDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::ForInPrepare(Isolate* isolate) {
+  return Callable(isolate->builtins()->ForInPrepare(),
+                  ForInPrepareDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::ForInNext(Isolate* isolate) {
+  return Callable(isolate->builtins()->ForInNext(),
+                  ForInNextDescriptor(isolate));
 }
 
 // static

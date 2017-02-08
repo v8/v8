@@ -152,6 +152,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable FastNewSloppyArguments(Isolate* isolate);
   static Callable FastNewStrictArguments(Isolate* isolate);
 
+  static Callable ForInPrepare(Isolate* isolate);
+  static Callable ForInNext(Isolate* isolate);
+
   static Callable CopyFastSmiOrObjectElements(Isolate* isolate);
   static Callable GrowFastDoubleElements(Isolate* isolate);
   static Callable GrowFastSmiOrObjectElements(Isolate* isolate);

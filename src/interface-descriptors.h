@@ -87,6 +87,8 @@ class PlatformInterfaceDescriptor;
   V(CreateIterResultObject)               \
   V(HasProperty)                          \
   V(ForInFilter)                          \
+  V(ForInNext)                            \
+  V(ForInPrepare)                         \
   V(GetProperty)                          \
   V(CallHandler)                          \
   V(ArgumentAdaptor)                      \
@@ -528,6 +530,20 @@ class ForInFilterDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kKey, kObject)
   DECLARE_DEFAULT_DESCRIPTOR(ForInFilterDescriptor, CallInterfaceDescriptor,
+                             kParameterCount)
+};
+
+class ForInNextDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kObject, kCacheArray, kCacheType, kIndex)
+  DECLARE_DEFAULT_DESCRIPTOR(ForInNextDescriptor, CallInterfaceDescriptor,
+                             kParameterCount)
+};
+
+class ForInPrepareDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kObject)
+  DECLARE_DEFAULT_DESCRIPTOR(ForInPrepareDescriptor, CallInterfaceDescriptor,
                              kParameterCount)
 };
 
