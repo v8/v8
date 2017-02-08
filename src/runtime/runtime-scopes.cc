@@ -638,10 +638,10 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
   FeedbackSlot slot = FeedbackVector::ToSlot(index);
-  Handle<Cell> literals(Cell::cast(vector->Get(slot)), isolate);
+  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, literals, NOT_TENURED);
+          shared, context, vector_cell, NOT_TENURED);
   return *function;
 }
 
@@ -654,12 +654,12 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
   FeedbackSlot slot = FeedbackVector::ToSlot(index);
-  Handle<Cell> literals(Cell::cast(vector->Get(slot)), isolate);
+  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
   Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                            literals, TENURED);
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          shared, context, vector_cell, TENURED);
   return *function;
 }
 

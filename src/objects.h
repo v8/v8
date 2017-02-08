@@ -8067,6 +8067,14 @@ class JSFunction: public JSObject {
   // [feedback_vector_cell]: Fixed array holding the feedback vector.
   DECL_ACCESSORS(feedback_vector_cell, Cell)
 
+  enum FeedbackVectorState {
+    TOP_LEVEL_SCRIPT_NEEDS_VECTOR,
+    NEEDS_VECTOR,
+    HAS_VECTOR
+  };
+
+  inline FeedbackVectorState GetFeedbackVectorState(Isolate* isolate) const;
+
   // feedback_vector() can be used once the function is compiled.
   inline FeedbackVector* feedback_vector() const;
   inline bool has_feedback_vector() const;

@@ -1455,8 +1455,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
           shared_info, context, vector, NOT_TENURED);
     } else {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, isolate->factory()->undefined_cell(),
-          NOT_TENURED);
+          shared_info, context, NOT_TENURED);
       JSFunction::EnsureLiterals(result);
       // Make sure to cache this result.
       Handle<Cell> new_vector(result->feedback_vector_cell(), isolate);

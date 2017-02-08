@@ -12108,39 +12108,27 @@ void SharedFunctionInfo::EvictFromOptimizedCodeMap(Code* optimized_code,
 // static
 void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<Context> native_context(function->context()->native_context());
   Isolate* isolate = shared->GetIsolate();
 
-  Cell* cell = function->feedback_vector_cell();
-  if (cell == isolate->heap()->undefined_cell()) {
-    if (FLAG_trace_strong_rooted_literals) {
-      PrintF("EnsureLiterals: Installing literals cell in %s %p\n",
-             shared->DebugName()->ToCString().get(),
-             reinterpret_cast<void*>(*function));
+  FeedbackVectorState state = function->GetFeedbackVectorState(isolate);
+  switch (state) {
+    case TOP_LEVEL_SCRIPT_NEEDS_VECTOR: {
+      // A top level script didn't get it's literals installed.
+      Handle<FeedbackVector> feedback_vector =
+          FeedbackVector::New(isolate, shared);
+      Handle<Cell> new_cell = isolate->factory()->NewCell(feedback_vector);
+      function->set_feedback_vector_cell(*new_cell);
+      break;
     }
-    // Top level code didn't get it's literals installed.
-    Handle<FeedbackVector> feedback_vector =
-        FeedbackVector::New(isolate, shared);
-    Handle<Cell> new_cell = isolate->factory()->NewCell(feedback_vector);
-    function->set_feedback_vector_cell(*new_cell);
-  } else if (!cell->value()->IsFeedbackVector() ||
-             !function->has_feedback_vector()) {
-    DCHECK(cell != isolate->heap()->undefined_cell());
-    if (FLAG_trace_strong_rooted_literals) {
-      PrintF("EnsureLiterals: Update literals cell in %s %p\n",
-             shared->DebugName()->ToCString().get(),
-             reinterpret_cast<void*>(*function));
+    case NEEDS_VECTOR: {
+      Handle<FeedbackVector> feedback_vector =
+          FeedbackVector::New(isolate, shared);
+      function->feedback_vector_cell()->set_value(*feedback_vector);
+      break;
     }
-    Handle<FeedbackVector> feedback_vector =
-        FeedbackVector::New(isolate, shared);
-    // Re-get the feedback_vector() value as GC may have occurred.
-    function->feedback_vector_cell()->set_value(*feedback_vector);
-  } else {
-    if (FLAG_trace_strong_rooted_literals) {
-      PrintF("EnsureLiterals: did nothing for %s %p\n",
-             shared->DebugName()->ToCString().get(),
-             reinterpret_cast<void*>(*function));
-    }
+    case HAS_VECTOR:
+      // Nothing to do.
+      break;
   }
 }
 

@@ -6596,6 +6596,18 @@ bool JSFunction::has_feedback_vector() const {
   return !feedback_vector_cell()->value()->IsUndefined(GetIsolate());
 }
 
+JSFunction::FeedbackVectorState JSFunction::GetFeedbackVectorState(
+    Isolate* isolate) const {
+  Cell* cell = feedback_vector_cell();
+  if (cell == isolate->heap()->undefined_cell()) {
+    return TOP_LEVEL_SCRIPT_NEEDS_VECTOR;
+  } else if (cell->value() == isolate->heap()->undefined_value() ||
+             !has_feedback_vector()) {
+    return NEEDS_VECTOR;
+  }
+  return HAS_VECTOR;
+}
+
 Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));
 }

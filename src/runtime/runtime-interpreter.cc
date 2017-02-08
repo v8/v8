@@ -28,9 +28,10 @@ RUNTIME_FUNCTION(Runtime_InterpreterNewClosure) {
   CONVERT_SMI_ARG_CHECKED(pretenured_flag, 3);
   Handle<Context> context(isolate->context(), isolate);
   FeedbackSlot slot = FeedbackVector::ToSlot(index);
-  Handle<Cell> literals(Cell::cast(vector->Get(slot)), isolate);
+  Handle<Cell> vector_cell(Cell::cast(vector->Get(slot)), isolate);
   return *isolate->factory()->NewFunctionFromSharedFunctionInfo(
-      shared, context, literals, static_cast<PretenureFlag>(pretenured_flag));
+      shared, context, vector_cell,
+      static_cast<PretenureFlag>(pretenured_flag));
 }
 
 namespace {

@@ -291,9 +291,6 @@ DEFINE_IMPLICATION(track_field_types, track_fields)
 DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
 DEFINE_BOOL(type_profile, false, "collect type information")
 
-// Flags for strongly rooting literal arrays in the feedback vector.
-DEFINE_BOOL(trace_strong_rooted_literals, false, "trace literal rooting")
-
 // Flags for optimization types.
 DEFINE_BOOL(optimize_for_size, false,
             "Enables optimizations which favor memory size over execution "

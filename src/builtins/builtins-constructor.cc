@@ -402,8 +402,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
   Variable result(this, MachineRepresentation::kTagged);
 
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* literals_array = LoadObjectField(cell, Cell::kValueOffset);
-  Node* boilerplate = LoadFixedArrayElement(literals_array, literal_index, 0,
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+  Node* boilerplate = LoadFixedArrayElement(feedback_vector, literal_index, 0,
                                             CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(boilerplate), &call_runtime);
 
@@ -485,12 +485,12 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
   Variable result(this, MachineRepresentation::kTagged);
 
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* literals_array = LoadObjectField(cell, Cell::kValueOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
-      literals_array, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      feedback_vector, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
 
   GotoIf(IsUndefined(allocation_site), call_runtime);
-  allocation_site = LoadFixedArrayElement(literals_array, literal_index, 0,
+  allocation_site = LoadFixedArrayElement(feedback_vector, literal_index, 0,
                                           CodeStubAssembler::SMI_PARAMETERS);
 
   Node* boilerplate =
@@ -643,9 +643,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     CodeAssemblerLabel* call_runtime, Node* closure, Node* literals_index,
     Node* properties_count) {
   Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* literals_array = LoadObjectField(cell, Cell::kValueOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
-      literals_array, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      feedback_vector, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(allocation_site), call_runtime);
 
   // Calculate the object and allocation size based on the properties count.
