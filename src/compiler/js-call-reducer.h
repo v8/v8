@@ -55,9 +55,11 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceFunctionPrototypeCall(Node* node);
   Reduction ReduceFunctionPrototypeHasInstance(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
+  Reduction ReduceSpreadCall(Node* node, int arity);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
+  Reduction ReduceJSCallWithSpread(Node* node);
 
   enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
 
