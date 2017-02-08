@@ -14560,8 +14560,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     if (!IC::ICUseVector(kind())) {
       InlineCacheState ic_state = IC::StateFromCode(this);
       os << "ic_state = " << ICState2String(ic_state) << "\n";
+      PrintExtraICState(os, kind(), extra_ic_state());
     }
-    PrintExtraICState(os, kind(), extra_ic_state());
     if (is_compare_ic_stub()) {
       DCHECK(CodeStub::GetMajorKey(this) == CodeStub::CompareIC);
       CompareICStub stub(stub_key(), GetIsolate());
