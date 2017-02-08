@@ -8,6 +8,7 @@
   'variables': {
     'v8_code': 1,
     'unittests_sources': [  ### gcmole(all) ###
+      'api/exception-unittest.cc',
       'api/isolate-unittest.cc',
       'base/atomic-utils-unittest.cc',
       'base/bits-unittest.cc',

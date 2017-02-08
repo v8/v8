@@ -1460,6 +1460,9 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
     DCHECK(scheduled_exception() != heap()->termination_exception());
     clear_scheduled_exception();
   }
+  if (thread_local_top_.pending_message_obj_ == handler->message_obj_) {
+    clear_pending_message();
+  }
 }
 
 
