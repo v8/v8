@@ -37,6 +37,7 @@ InspectorTest.runTestSuite([
     Protocol.Runtime.evaluate({ expression: 'foo()//# sourceURL=expr1.js'})
       .then(() => Protocol.Runtime.evaluate({
         expression: 'foo()//# sourceURL=expr2.js'}))
+      .then(() => cancelPauseOnNextStatement())
       .then(next);
   },
 

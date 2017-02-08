@@ -191,8 +191,16 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebugServerBreakpointToBreakpointIdAndSourceMap m_serverBreakpoints;
   String16 m_continueToLocationBreakpointId;
-  String16 m_breakReason;
-  std::unique_ptr<protocol::DictionaryValue> m_breakAuxData;
+
+  using BreakReason =
+      std::pair<String16, std::unique_ptr<protocol::DictionaryValue>>;
+  std::vector<BreakReason> m_breakReason;
+
+  void pushBreakDetails(
+      const String16& breakReason,
+      std::unique_ptr<protocol::DictionaryValue> breakAuxData);
+  void popBreakDetails();
+
   DebuggerStep m_scheduledDebuggerStep;
   bool m_javaScriptPauseScheduled;
 

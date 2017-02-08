@@ -131,11 +131,9 @@ V8DebuggerAgentImpl::V8DebuggerAgentImpl(
       m_state(state),
       m_frontend(frontendChannel),
       m_isolate(m_inspector->isolate()),
-      m_breakReason(protocol::Debugger::Paused::ReasonEnum::Other),
       m_scheduledDebuggerStep(NoStep),
       m_javaScriptPauseScheduled(false),
       m_recursionLevelForStepOut(0) {
-  clearBreakDetails();
 }
 
 V8DebuggerAgentImpl::~V8DebuggerAgentImpl() {}
@@ -589,6 +587,22 @@ Response V8DebuggerAgentImpl::getScriptSource(const String16& scriptId,
   return Response::OK();
 }
 
+void V8DebuggerAgentImpl::pushBreakDetails(
+    const String16& breakReason,
+    std::unique_ptr<protocol::DictionaryValue> breakAuxData) {
+  m_breakReason.push_back(std::make_pair(breakReason, std::move(breakAuxData)));
+}
+
+void V8DebuggerAgentImpl::popBreakDetails() {
+  if (m_breakReason.empty()) return;
+  m_breakReason.pop_back();
+}
+
+void V8DebuggerAgentImpl::clearBreakDetails() {
+  std::vector<BreakReason> emptyBreakReason;
+  m_breakReason.swap(emptyBreakReason);
+}
+
 void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
@@ -596,9 +610,8 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatement(
       m_javaScriptPauseScheduled || isPaused() ||
       !m_debugger->breakpointsActivated())
     return;
-  m_breakReason = breakReason;
-  m_breakAuxData = std::move(data);
-  m_debugger->setPauseOnNextStatement(true);
+  if (m_breakReason.empty()) m_debugger->setPauseOnNextStatement(true);
+  pushBreakDetails(breakReason, std::move(data));
 }
 
 void V8DebuggerAgentImpl::schedulePauseOnNextStatementIfSteppingInto() {
@@ -606,14 +619,13 @@ void V8DebuggerAgentImpl::schedulePauseOnNextStatementIfSteppingInto() {
   if (m_scheduledDebuggerStep != StepInto || m_javaScriptPauseScheduled ||
       isPaused())
     return;
-  clearBreakDetails();
   m_debugger->setPauseOnNextStatement(true);
 }
 
 void V8DebuggerAgentImpl::cancelPauseOnNextStatement() {
   if (m_javaScriptPauseScheduled || isPaused()) return;
-  clearBreakDetails();
-  m_debugger->setPauseOnNextStatement(false);
+  popBreakDetails();
+  if (m_breakReason.empty()) m_debugger->setPauseOnNextStatement(false);
 }
 
 Response V8DebuggerAgentImpl::pause() {
@@ -1071,32 +1083,37 @@ void V8DebuggerAgentImpl::didPause(int contextId,
   m_pausedCallFrames.swap(frames);
   v8::HandleScope handles(m_isolate);
 
+  std::vector<BreakReason> hitReasons;
+
   if (isOOMBreak) {
-    m_breakReason = protocol::Debugger::Paused::ReasonEnum::OOM;
-    m_breakAuxData = nullptr;
+    hitReasons.push_back(
+        std::make_pair(protocol::Debugger::Paused::ReasonEnum::OOM, nullptr));
   } else if (!exception.IsEmpty()) {
     InjectedScript* injectedScript = nullptr;
     m_session->findInjectedScript(contextId, injectedScript);
     if (injectedScript) {
-      m_breakReason =
+      String16 breakReason =
           isPromiseRejection
               ? protocol::Debugger::Paused::ReasonEnum::PromiseRejection
               : protocol::Debugger::Paused::ReasonEnum::Exception;
       std::unique_ptr<protocol::Runtime::RemoteObject> obj;
       injectedScript->wrapObject(exception, kBacktraceObjectGroup, false, false,
                                  &obj);
+      std::unique_ptr<protocol::DictionaryValue> breakAuxData;
       if (obj) {
-        m_breakAuxData = obj->toValue();
-        m_breakAuxData->setBoolean("uncaught", isUncaught);
+        breakAuxData = obj->toValue();
+        breakAuxData->setBoolean("uncaught", isUncaught);
       } else {
-        m_breakAuxData = nullptr;
+        breakAuxData = nullptr;
       }
-      // m_breakAuxData might be null after this.
+      hitReasons.push_back(
+          std::make_pair(breakReason, std::move(breakAuxData)));
     }
   }
 
   std::unique_ptr<Array<String16>> hitBreakpointIds = Array<String16>::create();
 
+  bool hasDebugCommandBreakpointReason = false;
   for (const auto& point : hitBreakpoints) {
     DebugServerBreakpointToBreakpointIdAndSourceMap::iterator
         breakpointIterator = m_serverBreakpoints.find(point);
@@ -1105,17 +1122,46 @@ void V8DebuggerAgentImpl::didPause(int contextId,
       hitBreakpointIds->addItem(localId);
 
       BreakpointSource source = breakpointIterator->second.second;
-      if (m_breakReason == protocol::Debugger::Paused::ReasonEnum::Other &&
-          source == DebugCommandBreakpointSource)
-        m_breakReason = protocol::Debugger::Paused::ReasonEnum::DebugCommand;
+      if (!hasDebugCommandBreakpointReason &&
+          source == DebugCommandBreakpointSource) {
+        hasDebugCommandBreakpointReason = true;
+        hitReasons.push_back(std::make_pair(
+            protocol::Debugger::Paused::ReasonEnum::DebugCommand, nullptr));
+      }
     }
+  }
+
+  for (size_t i = 0; i < m_breakReason.size(); ++i) {
+    hitReasons.push_back(std::move(m_breakReason[i]));
+  }
+  clearBreakDetails();
+
+  String16 breakReason = protocol::Debugger::Paused::ReasonEnum::Other;
+  std::unique_ptr<protocol::DictionaryValue> breakAuxData;
+  if (hitReasons.size() == 1) {
+    breakReason = hitReasons[0].first;
+    breakAuxData = std::move(hitReasons[0].second);
+  } else if (hitReasons.size() > 1) {
+    breakReason = protocol::Debugger::Paused::ReasonEnum::Ambiguous;
+    std::unique_ptr<protocol::ListValue> reasons =
+        protocol::ListValue::create();
+    for (size_t i = 0; i < hitReasons.size(); ++i) {
+      std::unique_ptr<protocol::DictionaryValue> reason =
+          protocol::DictionaryValue::create();
+      reason->setString("reason", hitReasons[i].first);
+      if (hitReasons[i].second)
+        reason->setObject("auxData", std::move(hitReasons[i].second));
+      reasons->pushValue(std::move(reason));
+    }
+    breakAuxData = protocol::DictionaryValue::create();
+    breakAuxData->setArray("reasons", std::move(reasons));
   }
 
   std::unique_ptr<Array<CallFrame>> protocolCallFrames;
   Response response = currentCallFrames(&protocolCallFrames);
   if (!response.isSuccess()) protocolCallFrames = Array<CallFrame>::create();
-  m_frontend.paused(std::move(protocolCallFrames), m_breakReason,
-                    std::move(m_breakAuxData), std::move(hitBreakpointIds),
+  m_frontend.paused(std::move(protocolCallFrames), breakReason,
+                    std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace());
   m_scheduledDebuggerStep = NoStep;
   m_javaScriptPauseScheduled = false;
@@ -1137,10 +1183,13 @@ void V8DebuggerAgentImpl::breakProgram(
     const String16& breakReason,
     std::unique_ptr<protocol::DictionaryValue> data) {
   if (!enabled() || !m_debugger->canBreakProgram() || m_skipAllPauses) return;
-  m_breakReason = breakReason;
-  m_breakAuxData = std::move(data);
+  std::vector<BreakReason> currentScheduledReason;
+  currentScheduledReason.swap(m_breakReason);
+  pushBreakDetails(breakReason, std::move(data));
   m_scheduledDebuggerStep = NoStep;
   m_debugger->breakProgram();
+  popBreakDetails();
+  m_breakReason.swap(currentScheduledReason);
 }
 
 void V8DebuggerAgentImpl::breakProgramOnException(
@@ -1150,11 +1199,6 @@ void V8DebuggerAgentImpl::breakProgramOnException(
       m_debugger->getPauseOnExceptionsState() == v8::debug::NoBreakOnException)
     return;
   breakProgram(breakReason, std::move(data));
-}
-
-void V8DebuggerAgentImpl::clearBreakDetails() {
-  m_breakReason = protocol::Debugger::Paused::ReasonEnum::Other;
-  m_breakAuxData = nullptr;
 }
 
 void V8DebuggerAgentImpl::setBreakpointAt(const String16& scriptId,
