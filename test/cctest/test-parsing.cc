@@ -9195,6 +9195,7 @@ TEST(NoPessimisticContextAllocation) {
       {"", "const {a = my_var} = {}", true},
       {"", "const {a: b = my_var} = {}", true},
       {"a = my_var", "", true},
+      {"a = my_var", "let my_var;", true},
       {"", "function inner2(a = my_var) { }", true},
       {"", "(a = my_var) => { }", true},
       {"{a} = {a: my_var}", "", true},
@@ -9248,6 +9249,10 @@ TEST(NoPessimisticContextAllocation) {
       {"",
        "if (true) { let my_var; if (true) { function my_var() {} } } my_var;",
        true},
+      {"", "function inner2(a = my_var) {}", true},
+      {"", "function inner2(a = my_var) { let my_var; }", true},
+      {"", "(a = my_var) => {}", true},
+      {"", "(a = my_var) => { let my_var; }", true},
       // No pessimistic context allocation:
       {"", "var my_var; my_var;", false},
       {"", "var my_var;", false},

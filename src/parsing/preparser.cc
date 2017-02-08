@@ -133,9 +133,25 @@ PreParser::PreParseResult PreParser::PreParseFunction(
         !classifier()->is_valid_formal_parameter_list_without_duplicates();
   }
 
-  Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
-  LazyParsingResult result = ParseStatementListAndLogFunction(
-      &formals, has_duplicate_parameters, may_abort, ok);
+  DeclarationScope* inner_scope = function_scope;
+  LazyParsingResult result;
+
+  if (!formals.is_simple) {
+    inner_scope = NewVarblockScope();
+    inner_scope->set_start_position(scanner()->location().beg_pos);
+  }
+
+  {
+    BlockState block_state(&scope_state_, inner_scope);
+    Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
+    result = ParseStatementListAndLogFunction(
+        &formals, has_duplicate_parameters, may_abort, ok);
+  }
+
+  if (!formals.is_simple) {
+    SetLanguageMode(function_scope, inner_scope->language_mode());
+    inner_scope->set_end_position(scanner()->location().end_pos);
+  }
 
   if (is_sloppy(function_scope->language_mode())) {
     function_scope->HoistSloppyBlockFunctions(nullptr);
@@ -277,7 +293,7 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
-  DCHECK(this->scope()->is_function_scope());
+  DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(
       body_end, formals->num_parameters(), formals->function_length,
       has_duplicate_parameters, function_state_->materialized_literal_count(),
