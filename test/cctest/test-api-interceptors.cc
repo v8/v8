@@ -495,6 +495,12 @@ void SetterCallback(Local<Name> property, Local<Value> value,
   set_was_called_counter++;
 }
 
+void InterceptingSetterCallback(
+    Local<Name> property, Local<Value> value,
+    const v8::PropertyCallbackInfo<v8::Value>& info) {
+  info.GetReturnValue().Set(value);
+}
+
 }  // namespace
 
 // Check that get callback is called in defineProperty with accessor descriptor.
@@ -593,6 +599,25 @@ THREADED_TEST(InterceptorFunctionRedeclareWithQueryCallback) {
   v8::Local<v8::String> code = v8_str(
       "function x() {return 42;};"
       "function x() {return 43;};");
+  v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).ToLocalChecked();
+}
+
+// Regression test for chromium bug 656648.
+// Do not crash on non-masking, intercepting setter callbacks.
+THREADED_TEST(NonMaskingInterceptor) {
+  v8::HandleScope scope(CcTest::isolate());
+  LocalContext env;
+  v8::Local<v8::FunctionTemplate> templ =
+      v8::FunctionTemplate::New(CcTest::isolate());
+
+  v8::Local<ObjectTemplate> object_template = templ->InstanceTemplate();
+  object_template->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      nullptr, InterceptingSetterCallback, nullptr, nullptr, nullptr,
+      Local<Value>(), v8::PropertyHandlerFlags::kNonMasking));
+  v8::Local<v8::Context> ctx =
+      v8::Context::New(CcTest::isolate(), nullptr, object_template);
+
+  v8::Local<v8::String> code = v8_str("function x() {return 43;};");
   v8::Script::Compile(ctx, code).ToLocalChecked()->Run(ctx).ToLocalChecked();
 }
 

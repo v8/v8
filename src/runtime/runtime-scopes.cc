@@ -115,7 +115,8 @@ Object* DeclareGlobal(
   RETURN_FAILURE_ON_EXCEPTION(
       isolate, JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attr));
 
-  if (!feedback_vector.is_null()) {
+  if (!feedback_vector.is_null() &&
+      it.state() != LookupIterator::State::INTERCEPTOR) {
     DCHECK_EQ(*global, *it.GetHolder<Object>());
     // Preinitialize the feedback slot if the global object does not have
     // named interceptor or the interceptor is not masking.
