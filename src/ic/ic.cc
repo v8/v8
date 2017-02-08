@@ -2514,21 +2514,21 @@ RUNTIME_FUNCTION(Runtime_LoadIC_Miss) {
   FeedbackSlotKind kind = vector->GetKind(vector_slot);
   if (IsLoadICKind(kind)) {
     LoadICNexus nexus(vector, vector_slot);
-    LoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    LoadIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 
   } else if (IsLoadGlobalICKind(kind)) {
     DCHECK_EQ(*isolate->global_object(), *receiver);
     LoadGlobalICNexus nexus(vector, vector_slot);
-    LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    LoadGlobalIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(key));
 
   } else {
     DCHECK(IsKeyedLoadICKind(kind));
     KeyedLoadICNexus nexus(vector, vector_slot);
-    KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    KeyedLoadIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
   }
@@ -2546,7 +2546,7 @@ RUNTIME_FUNCTION(Runtime_LoadGlobalIC_Miss) {
   FeedbackSlot vector_slot = vector->ToSlot(slot->value());
 
   LoadGlobalICNexus nexus(vector, vector_slot);
-  LoadGlobalIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+  LoadGlobalIC ic(isolate, &nexus);
   ic.UpdateState(global, name);
 
   Handle<Object> result;
@@ -2608,7 +2608,7 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(3);
   FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   KeyedLoadICNexus nexus(vector, vector_slot);
-  KeyedLoadIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+  KeyedLoadIC ic(isolate, &nexus);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 }
@@ -2626,13 +2626,13 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   if (vector->IsStoreIC(vector_slot)) {
     StoreICNexus nexus(vector, vector_slot);
-    StoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    StoreIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else {
     DCHECK(vector->IsKeyedStoreIC(vector_slot));
     KeyedStoreICNexus nexus(vector, vector_slot);
-    KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+    KeyedStoreIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   }
@@ -2650,7 +2650,7 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   Handle<Object> key = args.at(4);
   FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   KeyedStoreICNexus nexus(vector, vector_slot);
-  KeyedStoreIC ic(IC::NO_EXTRA_FRAME, isolate, &nexus);
+  KeyedStoreIC ic(isolate, &nexus);
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
 }

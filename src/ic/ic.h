@@ -272,8 +272,8 @@ class CallIC : public IC {
 
 class LoadIC : public IC {
  public:
-  LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
-      : IC(depth, isolate, nexus) {
+  LoadIC(Isolate* isolate, FeedbackNexus* nexus)
+      : IC(NO_EXTRA_FRAME, isolate, nexus) {
     DCHECK(nexus != NULL);
     DCHECK(IsAnyLoad());
   }
@@ -325,8 +325,8 @@ class LoadIC : public IC {
 
 class LoadGlobalIC : public LoadIC {
  public:
-  LoadGlobalIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
-      : LoadIC(depth, isolate, nexus) {}
+  LoadGlobalIC(Isolate* isolate, FeedbackNexus* nexus)
+      : LoadIC(isolate, nexus) {}
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
 
@@ -340,9 +340,8 @@ class LoadGlobalIC : public LoadIC {
 
 class KeyedLoadIC : public LoadIC {
  public:
-  KeyedLoadIC(FrameDepth depth, Isolate* isolate,
-              KeyedLoadICNexus* nexus = NULL)
-      : LoadIC(depth, isolate, nexus) {
+  KeyedLoadIC(Isolate* isolate, KeyedLoadICNexus* nexus)
+      : LoadIC(isolate, nexus) {
     DCHECK(nexus != NULL);
   }
 
@@ -362,8 +361,8 @@ class KeyedLoadIC : public LoadIC {
 
 class StoreIC : public IC {
  public:
-  StoreIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
-      : IC(depth, isolate, nexus) {
+  StoreIC(Isolate* isolate, FeedbackNexus* nexus)
+      : IC(NO_EXTRA_FRAME, isolate, nexus) {
     DCHECK(IsAnyStore());
   }
 
@@ -417,9 +416,8 @@ class KeyedStoreIC : public StoreIC {
     return casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
   }
 
-  KeyedStoreIC(FrameDepth depth, Isolate* isolate,
-               KeyedStoreICNexus* nexus = NULL)
-      : StoreIC(depth, isolate, nexus) {}
+  KeyedStoreIC(Isolate* isolate, KeyedStoreICNexus* nexus)
+      : StoreIC(isolate, nexus) {}
 
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                             Handle<Object> name,
