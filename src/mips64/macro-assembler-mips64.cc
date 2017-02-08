@@ -5877,22 +5877,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   daddiu(sp, sp, 2 * kPointerSize);
 }
 
-
-void MacroAssembler::InitializeNewString(Register string,
-                                         Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1,
-                                         Register scratch2) {
-  // dsll(scratch1, length, kSmiTagSize);
-  dsll32(scratch1, length, 0);
-  LoadRoot(scratch2, map_index);
-  sd(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  li(scratch1, Operand(String::kEmptyHashField));
-  sd(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
-  sw(scratch1, FieldMemOperand(string, String::kHashFieldOffset));
-}
-
-
 int MacroAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
   // Running on the real platform. Use the alignment as mandated by the local

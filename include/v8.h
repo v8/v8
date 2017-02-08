@@ -2447,6 +2447,7 @@ class V8_EXPORT String : public Name {
 
    private:
     friend class internal::Heap;
+    friend class v8::String;
   };
 
   /**

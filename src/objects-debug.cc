@@ -552,6 +552,7 @@ void JSMessageObject::JSMessageObjectVerify() {
 void String::StringVerify() {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
+  CHECK_IMPLIES(length() == 0, this == GetHeap()->empty_string());
   if (IsInternalizedString()) {
     CHECK(!GetHeap()->InNewSpace(this));
   }

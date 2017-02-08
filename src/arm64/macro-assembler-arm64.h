@@ -2003,12 +2003,6 @@ class MacroAssembler : public Assembler {
   CPURegList tmp_list_;
   CPURegList fptmp_list_;
 
-  void InitializeNewString(Register string,
-                           Register length,
-                           Heap::RootListIndex map_index,
-                           Register scratch1,
-                           Register scratch2);
-
  public:
   // Far branches resolving.
   //

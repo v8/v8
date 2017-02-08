@@ -6723,11 +6723,17 @@ MaybeLocal<String> v8::String::NewExternalTwoByte(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   LOG_API(i_isolate, String, NewExternalTwoByte);
-  i::Handle<i::String> string = i_isolate->factory()
-                                    ->NewExternalStringFromTwoByte(resource)
-                                    .ToHandleChecked();
-  i_isolate->heap()->RegisterExternalString(*string);
-  return Utils::ToLocal(string);
+  if (resource->length() > 0) {
+    i::Handle<i::String> string = i_isolate->factory()
+                                      ->NewExternalStringFromTwoByte(resource)
+                                      .ToHandleChecked();
+    i_isolate->heap()->RegisterExternalString(*string);
+    return Utils::ToLocal(string);
+  } else {
+    // The resource isn't going to be used, free it immediately.
+    resource->Dispose();
+    return Utils::ToLocal(i_isolate->factory()->empty_string());
+  }
 }
 
 
@@ -6747,11 +6753,17 @@ MaybeLocal<String> v8::String::NewExternalOneByte(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   LOG_API(i_isolate, String, NewExternalOneByte);
-  i::Handle<i::String> string = i_isolate->factory()
-                                    ->NewExternalStringFromOneByte(resource)
-                                    .ToHandleChecked();
-  i_isolate->heap()->RegisterExternalString(*string);
-  return Utils::ToLocal(string);
+  if (resource->length() > 0) {
+    i::Handle<i::String> string = i_isolate->factory()
+                                      ->NewExternalStringFromOneByte(resource)
+                                      .ToHandleChecked();
+    i_isolate->heap()->RegisterExternalString(*string);
+    return Utils::ToLocal(string);
+  } else {
+    // The resource isn't going to be used, free it immediately.
+    resource->Dispose();
+    return Utils::ToLocal(i_isolate->factory()->empty_string());
+  }
 }
 
 

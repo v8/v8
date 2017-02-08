@@ -1192,19 +1192,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   StoreP(r8, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
-
-void MacroAssembler::InitializeNewString(Register string, Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1, Register scratch2) {
-  SmiTag(scratch1, length);
-  LoadRoot(scratch2, map_index);
-  StoreP(scratch1, FieldMemOperand(string, String::kLengthOffset), r0);
-  li(scratch1, Operand(String::kEmptyHashField));
-  StoreP(scratch2, FieldMemOperand(string, HeapObject::kMapOffset), r0);
-  StoreP(scratch1, FieldMemOperand(string, String::kHashFieldSlot), r0);
-}
-
-
 int MacroAssembler::ActivationFrameAlignment() {
 #if !defined(USE_SIMULATOR)
   // Running on the real platform. Use the alignment as mandated by the local

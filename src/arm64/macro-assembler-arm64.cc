@@ -1780,23 +1780,6 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
-
-void MacroAssembler::InitializeNewString(Register string,
-                                         Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1,
-                                         Register scratch2) {
-  DCHECK(!AreAliased(string, length, scratch1, scratch2));
-  LoadRoot(scratch2, map_index);
-  SmiTag(scratch1, length);
-  Str(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
-
-  Mov(scratch2, String::kEmptyHashField);
-  Str(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  Str(scratch2, FieldMemOperand(string, String::kHashFieldOffset));
-}
-
-
 int MacroAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_ARM64
   // Running on the real platform. Use the alignment as mandated by the local

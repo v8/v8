@@ -820,6 +820,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
+  if (length == 0) return empty_string();
 
   Handle<Map> map;
   if (resource->IsCompressible()) {
@@ -844,6 +845,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
+  if (length == 0) return empty_string();
 
   // For small strings we check whether the resource contains only
   // one byte characters.  If yes, we use a different string map.
