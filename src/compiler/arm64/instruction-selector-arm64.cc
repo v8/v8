@@ -436,14 +436,18 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     Matcher m_shift(right_node);
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
-    inputs[input_count++] = g.UseImmediate(m_shift.right().node());
+    // We only need at most the last 6 bits of the shift.
+    inputs[input_count++] =
+        g.UseImmediate(static_cast<int>(m_shift.right().Value() & 0x3F));
   } else if (can_commute && TryMatchAnyShift(selector, node, left_node, &opcode,
                                              !is_add_sub)) {
     if (must_commute_cond) cont->Commute();
     Matcher m_shift(left_node);
     inputs[input_count++] = g.UseRegisterOrImmediateZero(right_node);
     inputs[input_count++] = g.UseRegister(m_shift.left().node());
-    inputs[input_count++] = g.UseImmediate(m_shift.right().node());
+    // We only need at most the last 6 bits of the shift.
+    inputs[input_count++] =
+        g.UseImmediate(static_cast<int>(m_shift.right().Value() & 0x3F));
   } else {
     inputs[input_count++] = g.UseRegisterOrImmediateZero(left_node);
     inputs[input_count++] = g.UseRegister(right_node);
