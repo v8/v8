@@ -157,6 +157,9 @@ IGNORE_LINES = [
 
   # crbug.com/680064
   r'^\s*at .* \(<anonymous>\)$',
+
+  # crbug.com/689877
+  r'^.*SyntaxError: .*Stack overflow$',
 ]
 
 
