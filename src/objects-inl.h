@@ -6591,12 +6591,7 @@ void JSFunction::ReplaceCode(Code* code) {
 }
 
 bool JSFunction::has_feedback_vector() const {
-  SharedFunctionInfo* shared = this->shared();
-
-  return (feedback_vector_cell()->value() !=
-              shared->GetIsolate()->heap()->empty_feedback_vector() ||
-          (shared->feedback_metadata()->slot_count() == 0 &&
-           shared->num_literals() == 0));
+  return !feedback_vector_cell()->value()->IsUndefined(GetIsolate());
 }
 
 Context* JSFunction::context() {

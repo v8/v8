@@ -161,18 +161,15 @@ FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
 
 // static
 Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
-                                           Handle<FeedbackMetadata> metadata) {
+                                           Handle<SharedFunctionInfo> shared) {
   Factory* factory = isolate->factory();
 
-  const int slot_count = metadata->slot_count();
+  const int slot_count = shared->feedback_metadata()->slot_count();
   const int length = slot_count + kReservedIndexCount;
-  if (length == kReservedIndexCount) {
-    return Handle<FeedbackVector>::cast(factory->empty_feedback_vector());
-  }
 
   Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
   array->set_map_no_write_barrier(isolate->heap()->feedback_vector_map());
-  array->set(kMetadataIndex, *metadata);
+  array->set(kSharedFunctionInfoIndex, *shared);
   array->set(kInvocationCountIndex, Smi::kZero);
 
   // Ensure we can skip the write barrier
@@ -181,7 +178,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   Handle<Oddball> undefined_value = factory->undefined_value();
   for (int i = 0; i < slot_count;) {
     FeedbackSlot slot(i);
-    FeedbackSlotKind kind = metadata->GetKind(slot);
+    FeedbackSlotKind kind = shared->feedback_metadata()->GetKind(slot);
     int index = FeedbackVector::GetIndex(slot);
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
 
@@ -252,8 +249,6 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
                                     bool force_clear) {
   Isolate* isolate = GetIsolate();
   if (!force_clear && !ClearLogic(isolate)) return;
-
-  if (this == isolate->heap()->empty_feedback_vector()) return;
 
   Object* uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);

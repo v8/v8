@@ -2756,23 +2756,6 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   {
-    // Create a canonical empty FeedbackVector, which is shared by all
-    // functions that don't need actual type feedback slots. Note however
-    // that all these functions will share the same invocation count, but
-    // that shouldn't matter since we only use the invocation count to
-    // relativize the absolute call counts, but we can only have call counts
-    // if we have actual feedback slots.
-    Handle<FixedArray> empty_feedback_vector =
-        factory->NewFixedArray(FeedbackVector::kReservedIndexCount, TENURED);
-    empty_feedback_vector->set(FeedbackVector::kMetadataIndex,
-                               empty_fixed_array());
-    empty_feedback_vector->set(FeedbackVector::kInvocationCountIndex,
-                               Smi::kZero);
-    empty_feedback_vector->set_map(feedback_vector_map());
-    set_empty_feedback_vector(*empty_feedback_vector);
-  }
-
-  {
     Handle<FixedArray> empty_sloppy_arguments_elements =
         factory->NewFixedArray(2, TENURED);
     empty_sloppy_arguments_elements->set_map(sloppy_arguments_elements_map());
@@ -2937,7 +2920,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
       return false;
   }
 }
-
 
 bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
   return !RootCanBeWrittenAfterInitialization(root_index) &&

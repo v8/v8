@@ -38,13 +38,7 @@ TEST(VectorStructure) {
   Factory* factory = isolate->factory();
   Zone zone(isolate->allocator(), ZONE_NAME);
 
-  // Empty vectors are the empty fixed array.
-  StaticFeedbackVectorSpec empty;
-  Handle<FeedbackVector> vector = NewFeedbackVector(isolate, &empty);
-  CHECK(Handle<FixedArray>::cast(vector).is_identical_to(
-      factory->empty_feedback_vector()));
-  // Which can nonetheless be queried.
-  CHECK(vector->is_empty());
+  Handle<FeedbackVector> vector;
 
   {
     FeedbackVectorSpec one_slot(&zone);

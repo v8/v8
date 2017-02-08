@@ -84,7 +84,11 @@ int FeedbackVector::slot_count() const {
 }
 
 FeedbackMetadata* FeedbackVector::metadata() const {
-  return FeedbackMetadata::cast(get(kMetadataIndex));
+  return shared_function_info()->feedback_metadata();
+}
+
+SharedFunctionInfo* FeedbackVector::shared_function_info() const {
+  return SharedFunctionInfo::cast(get(kSharedFunctionInfoIndex));
 }
 
 int FeedbackVector::invocation_count() const {

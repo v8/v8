@@ -28,7 +28,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
   V(EmptyFixedArray, EmptyFixedArray)                 \
-  V(EmptyFeedbackVector, EmptyFeedbackVector)         \
   V(FalseValue, False)                                \
   V(FixedArrayMap, FixedArrayMap)                     \
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \

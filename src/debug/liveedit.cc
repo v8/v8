@@ -758,17 +758,15 @@ class FeedbackVectorFixer {
     // collect all functions and fix their literal arrays.
     Handle<FixedArray> function_instances =
         CollectJSFunctions(shared_info, isolate);
-    Handle<FeedbackMetadata> feedback_metadata(
-        shared_info->feedback_metadata());
 
     for (int i = 0; i < function_instances->length(); i++) {
       Handle<JSFunction> fun(JSFunction::cast(function_instances->get(i)));
-      Handle<FeedbackVector> vector =
-          FeedbackVector::New(isolate, feedback_metadata);
-      fun->feedback_vector_cell()->set_value(*vector);
-      }
+      fun->set_feedback_vector_cell(isolate->heap()->undefined_cell());
+      // Only create feedback vectors if we already have the metadata.
+      if (shared_info->is_compiled()) JSFunction::EnsureLiterals(fun);
+    }
 
-      shared_info->set_num_literals(new_literal_count);
+    shared_info->set_num_literals(new_literal_count);
   }
 
  private:
@@ -925,6 +923,9 @@ void LiveEdit::ReplaceFunctionCode(
     Handle<FeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
     shared_info->set_feedback_metadata(*new_feedback_metadata);
+  } else {
+    shared_info->set_feedback_metadata(
+        FeedbackMetadata::cast(isolate->heap()->empty_fixed_array()));
   }
 
   int start_position = compile_info_wrapper.GetStartPosition();

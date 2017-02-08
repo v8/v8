@@ -263,7 +263,7 @@ class FeedbackVector : public FixedArray {
   // Casting.
   static inline FeedbackVector* cast(Object* obj);
 
-  static const int kMetadataIndex = 0;
+  static const int kSharedFunctionInfoIndex = 0;
   static const int kInvocationCountIndex = 1;
   static const int kReservedIndexCount = 2;
 
@@ -276,6 +276,7 @@ class FeedbackVector : public FixedArray {
   inline int slot_count() const;
 
   inline FeedbackMetadata* metadata() const;
+  inline SharedFunctionInfo* shared_function_info() const;
   inline int invocation_count() const;
 
   // Conversion from a slot to an integer index to the underlying array.
@@ -293,7 +294,7 @@ class FeedbackVector : public FixedArray {
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   static Handle<FeedbackVector> New(Isolate* isolate,
-                                    Handle<FeedbackMetadata> metadata);
+                                    Handle<SharedFunctionInfo> shared);
 
   static Handle<FeedbackVector> Copy(Isolate* isolate,
                                      Handle<FeedbackVector> vector);

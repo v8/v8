@@ -12120,7 +12120,7 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
     }
     // Top level code didn't get it's literals installed.
     Handle<FeedbackVector> feedback_vector =
-        FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+        FeedbackVector::New(isolate, shared);
     Handle<Cell> new_cell = isolate->factory()->NewCell(feedback_vector);
     function->set_feedback_vector_cell(*new_cell);
   } else if (!cell->value()->IsFeedbackVector() ||
@@ -12132,7 +12132,7 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
              reinterpret_cast<void*>(*function));
     }
     Handle<FeedbackVector> feedback_vector =
-        FeedbackVector::New(isolate, handle(shared->feedback_metadata()));
+        FeedbackVector::New(isolate, shared);
     // Re-get the feedback_vector() value as GC may have occurred.
     function->feedback_vector_cell()->set_value(*feedback_vector);
   } else {
@@ -12142,11 +12142,6 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
              reinterpret_cast<void*>(*function));
     }
   }
-
-  // No matter what, ensure some post-conditions.
-  DCHECK(shared->feedback_metadata()->slot_count() != 0 ||
-         function->feedback_vector() ==
-             shared->GetIsolate()->heap()->empty_feedback_vector());
 }
 
 static void GetMinInobjectSlack(Map* map, void* data) {

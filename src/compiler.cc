@@ -1587,8 +1587,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         // Promote to per-isolate compilation cache.
         // TODO(mvstanton): create a feedback vector array here.
         DCHECK(inner_result->is_compiled());
-        Handle<FeedbackVector> feedback_vector = FeedbackVector::New(
-            isolate, handle(inner_result->feedback_metadata()));
+        Handle<FeedbackVector> feedback_vector =
+            FeedbackVector::New(isolate, inner_result);
         vector = isolate->factory()->NewCell(feedback_vector);
         compilation_cache->PutScript(source, context, language_mode,
                                      inner_result, vector);
@@ -1662,7 +1662,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       // We need a feedback vector.
       DCHECK(result->is_compiled());
       Handle<FeedbackVector> feedback_vector =
-          FeedbackVector::New(isolate, handle(result->feedback_metadata()));
+          FeedbackVector::New(isolate, result);
       vector = isolate->factory()->NewCell(feedback_vector);
       compilation_cache->PutScript(source, context, language_mode, result,
                                    vector);

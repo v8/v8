@@ -42,7 +42,10 @@ class FeedbackVectorHelper {
 template <typename Spec>
 Handle<FeedbackVector> NewFeedbackVector(Isolate* isolate, Spec* spec) {
   Handle<FeedbackMetadata> metadata = FeedbackMetadata::New(isolate, spec);
-  return FeedbackVector::New(isolate, metadata);
+  Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
+      isolate->factory()->empty_string(), MaybeHandle<Code>(), false);
+  shared->set_feedback_metadata(*metadata);
+  return FeedbackVector::New(isolate, shared);
 }
 
 template <typename Spec>
