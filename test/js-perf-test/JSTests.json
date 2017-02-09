@@ -278,13 +278,25 @@
     {
       "name": "TypedArrays",
       "path": ["TypedArrays"],
-      "main": "run.js",
-      "resources": [
-        "typedarrays.js"
-      ],
-      "results_regexp": "^TypedArrays\\-%s\\(Scope\\): (.+)$",
+      "results_regexp": "^TypedArrays\\-%s\\(Score\\): (.+)$",
       "tests": [
-        {"name": "CopyWithin"}
+        {
+          "name": "CopyWithin",
+          "main": "run.js",
+          "test_flags": ["typedarrays"]
+        },
+        {
+          "name": "Constructor",
+          "main": "run.js",
+          "test_flags": ["constructor"]
+        },
+        {
+          "name": "Constructor--Future",
+          "flags": ["--future"],
+          "results_regexp": "^TypedArrays\\-Constructor\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["constructor"]
+        }
       ]
     }
   ]
