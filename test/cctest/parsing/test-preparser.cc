@@ -284,6 +284,24 @@ TEST(PreParserScopeAnalysis) {
 
       {"var f1 = 1; if (true) { function f1() {} }"},
       {"var f1 = 1; if (true) { function f1() {} } function foo() { f1; }"},
+
+      // Simple parameters.
+      {"var1", ""},
+      {"var1", "var1;"},
+      {"var1", "var1 = 9;"},
+      {"var1", "function f1() { var1; }"},
+      {"var1", "function f1() { var1 = 9; }"},
+
+      // Duplicate parameters.
+      {"var1, var1", ""},
+      {"var1, var1", "var1;"},
+      {"var1, var1", "var1 = 9;"},
+      {"var1, var1", "function f1() { var1; }"},
+      {"var1, var1", "function f1() { var1 = 9; }"},
+
+      // FIXME(marja): destructuring parameters, rest parameter, default
+      // parameters, shadowing parameters, default parameters referring to other
+      // parameters, arguments parameter, eval in default parameter.
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {

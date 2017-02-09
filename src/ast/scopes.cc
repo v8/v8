@@ -938,6 +938,7 @@ Variable* DeclarationScope::DeclareParameter(
   if (mode == TEMPORARY) {
     var = NewTemporary(name);
   } else {
+    DCHECK_EQ(mode, VAR);
     var = Declare(zone(), name, mode);
     // TODO(wingo): Avoid O(n^2) check.
     *is_duplicate = IsDeclaredParameter(name);
@@ -948,6 +949,26 @@ Variable* DeclarationScope::DeclareParameter(
     has_arguments_parameter_ = true;
   }
   return var;
+}
+
+Variable* DeclarationScope::DeclareParameterName(
+    const AstRawString* name, bool is_rest,
+    AstValueFactory* ast_value_factory) {
+  DCHECK(!already_resolved_);
+  DCHECK(is_function_scope() || is_module_scope());
+  DCHECK(!has_rest_);
+  DCHECK(is_being_lazily_parsed_);
+  has_rest_ = is_rest;
+  if (name == ast_value_factory->arguments_string()) {
+    has_arguments_parameter_ = true;
+  }
+  if (FLAG_preparser_scope_analysis) {
+    Variable* var = Declare(zone(), name, VAR);
+    params_.Add(var, zone());
+    return var;
+  }
+  DeclareVariableName(name, VAR);
+  return nullptr;
 }
 
 Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,

@@ -687,6 +687,11 @@ class DeclarationScope : public Scope {
                              bool is_optional, bool is_rest, bool* is_duplicate,
                              AstValueFactory* ast_value_factory);
 
+  // Declares that a parameter with the name exists. Creates a Variable and
+  // returns it if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
+                                 AstValueFactory* ast_value_factory);
+
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
   // scope) by a reference to an unresolved variable with no intervening

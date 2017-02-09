@@ -783,11 +783,13 @@ class PreParserFactory {
 
 struct PreParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
-    explicit Parameter(PreParserExpression pattern) : pattern(pattern) {}
+    Parameter(PreParserExpression pattern, bool is_rest)
+        : pattern(pattern), is_rest(is_rest) {}
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
     PreParserExpression pattern;
     Parameter* next_parameter = nullptr;
+    bool is_rest;
   };
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
@@ -1584,8 +1586,8 @@ class PreParser : public ParserBase<PreParser> {
                                     bool is_rest) {
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
-      parameters->params.Add(new (zone())
-                                 PreParserFormalParameters::Parameter(pattern));
+      parameters->params.Add(
+          new (zone()) PreParserFormalParameters::Parameter(pattern, is_rest));
     }
     parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }
@@ -1601,7 +1603,8 @@ class PreParser : public ParserBase<PreParser> {
       for (auto parameter : parameters) {
         if (parameter->pattern.variables_ != nullptr) {
           for (auto variable : *parameter->pattern.variables_) {
-            scope->DeclareVariableName(variable->raw_name(), VAR);
+            scope->DeclareParameterName(
+                variable->raw_name(), parameter->is_rest, ast_value_factory());
           }
         }
       }
