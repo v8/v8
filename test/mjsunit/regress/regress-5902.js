@@ -31,23 +31,23 @@ Object.getOwnPropertyNames(global).forEach(function(name) {
   }
 
   // Check the object.
-  check(% HasFastProperties(obj), `${name}`);
+  check(%HasFastProperties(obj), `${name}`);
 
   // Check the constructor.
   var constructor = obj.constructor;
-  if (! % IsJSReceiver(constructor)) return;
-  check(% HasFastProperties(constructor), `${name}.constructor`);
+  if (!%IsJSReceiver(constructor)) return;
+  check(%HasFastProperties(constructor), `${name}.constructor`);
 
   // Check the prototype.
   var prototype = obj.prototype;
-  if (! % IsJSReceiver(prototype)) return;
-  check(% HasFastProperties(prototype), `${name}.prototype`);
+  if (!%IsJSReceiver(prototype)) return;
+  check(%HasFastProperties(prototype), `${name}.prototype`);
 
   // Check the prototype.constructor.
   var prototype_constructor = prototype.constructor;
-  if (! % IsJSReceiver(prototype_constructor)) return;
+  if (!%IsJSReceiver(prototype_constructor)) return;
   check(
-      % HasFastProperties(prototype_constructor),
+      %HasFastProperties(prototype_constructor),
       `${name}.prototype.constructor`);
 });
 
