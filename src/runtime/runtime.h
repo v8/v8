@@ -172,7 +172,7 @@ namespace internal {
   F(IsBreakOnException, 1, 1)                   \
   F(PrepareStep, 2, 1)                          \
   F(ClearStepping, 0, 1)                        \
-  F(DebugEvaluate, 4, 1)                        \
+  F(DebugEvaluate, 5, 1)                        \
   F(DebugEvaluateGlobal, 2, 1)                  \
   F(DebugGetLoadedScripts, 0, 1)                \
   F(DebugReferencedBy, 3, 1)                    \
