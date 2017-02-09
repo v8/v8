@@ -628,7 +628,9 @@ void V8Debugger::BreakProgramRequested(v8::Local<v8::Context> pausedContext,
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  v8::Local<v8::Object> execState,
                                  v8::Local<v8::Value> exception,
-                                 bool isPromiseRejection, bool isUncaught) {
+                                 v8::Local<v8::Value> promise,
+                                 bool isUncaught) {
+  bool isPromiseRejection = promise->IsPromise();
   handleProgramBreak(pausedContext, execState, exception,
                      v8::Local<v8::Array>(), isPromiseRejection, isUncaught);
 }

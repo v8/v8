@@ -79,8 +79,13 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   CHECK(args[0]->IsJSFunction() || args[0]->IsNullOrUndefined(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
-  isolate->debug()->SetEventListener(callback, data);
-
+  if (callback->IsJSFunction()) {
+    JavaScriptDebugDelegate* delegate = new JavaScriptDebugDelegate(
+        isolate, Handle<JSFunction>::cast(callback), data);
+    isolate->debug()->SetDebugDelegate(delegate, true);
+  } else {
+    isolate->debug()->SetDebugDelegate(nullptr, false);
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -1853,7 +1858,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   JSObject::SetProperty(promise, async_stack_id_symbol,
                         handle(Smi::FromInt(id), isolate), STRICT)
       .Assert();
-  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id);
+  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -1876,7 +1881,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
     isolate->debug()->OnAsyncTaskEvent(
         status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
                                           : debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise));
+        isolate->debug()->NextAsyncTaskId(promise), 0);
   }
   return isolate->heap()->undefined_value();
 }

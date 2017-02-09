@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
     isolate->debug()->OnAsyncTaskEvent(
         debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise));
+        isolate->debug()->NextAsyncTaskId(promise), 0);
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();

@@ -140,7 +140,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Object> exec_state,
                        v8::Local<v8::Value> exception,
-                       bool is_promise_rejection, bool is_uncaught) override;
+                       v8::Local<v8::Value> promise, bool is_uncaught) override;
   bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
                             const v8::debug::Location& start,
                             const v8::debug::Location& end) override;

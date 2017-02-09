@@ -3756,43 +3756,6 @@ TEST(TryFinallyOriginalMessage) {
 }
 
 
-TEST(EvalJSInDebugEventListenerOnNativeReThrownException) {
-  DebugLocalContext env;
-  v8::HandleScope scope(env->GetIsolate());
-  env.ExposeDebug();
-
-  // Create functions for testing break on exception.
-  v8::Local<v8::Function> noThrowJS = CompileFunction(
-      &env, "function noThrowJS(){var a=[1]; a.push(2); return a.length;}",
-      "noThrowJS");
-
-  debug_event_listener_callback = noThrowJS;
-  debug_event_listener_callback_result = 2;
-
-  env->GetIsolate()->AddMessageListener(MessageCallbackCount);
-  v8::Debug::SetDebugEventListener(env->GetIsolate(), DebugEventCounter);
-  // Break on uncaught exception
-  ChangeBreakOnException(false, true);
-  DebugEventCounterClear();
-  MessageCallbackCountClear();
-
-  // ReThrow native error
-  {
-    v8::TryCatch tryCatch(env->GetIsolate());
-    env->GetIsolate()->ThrowException(
-        v8::Exception::TypeError(v8_str(env->GetIsolate(), "Type error")));
-    CHECK(tryCatch.HasCaught());
-    tryCatch.ReThrow();
-  }
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
-  CHECK_EQ(0, message_callback_count);  // FIXME: Should it be 1 ?
-  CHECK(!debug_event_listener_callback.IsEmpty());
-
-  debug_event_listener_callback.Clear();
-}
-
-
 // Test break on exception from compiler errors. When compiling using
 // v8::Script::Compile there is no JavaScript stack whereas when compiling using
 // eval there are JavaScript frames.
@@ -3822,16 +3785,18 @@ TEST(BreakOnCompileException) {
   // Throws SyntaxError: Unexpected end of input
   CHECK(
       v8::Script::Compile(context, v8_str(env->GetIsolate(), "+++")).IsEmpty());
-  CHECK_EQ(1, exception_hit_count);
-  CHECK_EQ(1, uncaught_exception_hit_count);
+  // Exceptions with no stack are skipped.
+  CHECK_EQ(0, exception_hit_count);
+  CHECK_EQ(0, uncaught_exception_hit_count);
   CHECK_EQ(1, message_callback_count);
   CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
 
   // Throws SyntaxError: Unexpected identifier
   CHECK(
       v8::Script::Compile(context, v8_str(env->GetIsolate(), "x x")).IsEmpty());
-  CHECK_EQ(2, exception_hit_count);
-  CHECK_EQ(2, uncaught_exception_hit_count);
+  // Exceptions with no stack are skipped.
+  CHECK_EQ(0, exception_hit_count);
+  CHECK_EQ(0, uncaught_exception_hit_count);
   CHECK_EQ(2, message_callback_count);
   CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
 
@@ -3840,8 +3805,8 @@ TEST(BreakOnCompileException) {
             .ToLocalChecked()
             ->Run(context)
             .IsEmpty());
-  CHECK_EQ(3, exception_hit_count);
-  CHECK_EQ(3, uncaught_exception_hit_count);
+  CHECK_EQ(1, exception_hit_count);
+  CHECK_EQ(1, uncaught_exception_hit_count);
   CHECK_EQ(3, message_callback_count);
   CHECK_EQ(1, last_js_stack_height);
 
@@ -3850,8 +3815,8 @@ TEST(BreakOnCompileException) {
             .ToLocalChecked()
             ->Run(context)
             .IsEmpty());
-  CHECK_EQ(4, exception_hit_count);
-  CHECK_EQ(4, uncaught_exception_hit_count);
+  CHECK_EQ(2, exception_hit_count);
+  CHECK_EQ(2, uncaught_exception_hit_count);
   CHECK_EQ(4, message_callback_count);
   CHECK_EQ(1, last_js_stack_height);
 }

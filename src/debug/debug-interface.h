@@ -163,7 +163,8 @@ class DebugDelegate {
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,
-                               bool is_promise_rejection, bool is_uncaught) {}
+                               v8::Local<v8::Value> promise, bool is_uncaught) {
+  }
   virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
                                     const debug::Location& start,
                                     const debug::Location& end) {
