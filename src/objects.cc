@@ -17783,6 +17783,7 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(
     Handle<Dictionary<Derived, Shape, Key>> dictionary,
     Handle<FixedArray> storage, KeyCollectionMode mode,
     KeyAccumulator* accumulator) {
+  DCHECK_IMPLIES(mode != KeyCollectionMode::kOwnOnly, accumulator != nullptr);
   Isolate* isolate = dictionary->GetIsolate();
   int length = storage->length();
   int capacity = dictionary->Capacity();
@@ -17808,7 +17809,7 @@ void Dictionary<Derived, Shape, Key>::CopyEnumKeysTo(
       storage->set(properties, Smi::FromInt(i));
     }
     properties++;
-    if (properties == length) break;
+    if (mode == KeyCollectionMode::kOwnOnly && properties == length) break;
   }
 
   CHECK_EQ(length, properties);
