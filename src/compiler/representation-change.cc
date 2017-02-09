@@ -307,7 +307,12 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     // We just provide a dummy value here.
     return jsgraph()->TheHoleConstant();
   } else if (output_rep == MachineRepresentation::kBit) {
-    return node;
+    if (output_type->Is(Type::Boolean())) {
+      op = simplified()->ChangeBitToTagged();
+    } else {
+      return TypeError(node, output_rep, output_type,
+                       MachineRepresentation::kTagged);
+    }
   } else if (IsWord(output_rep)) {
     if (output_type->Is(Type::Unsigned32())) {
       // uint32 -> float64 -> tagged
