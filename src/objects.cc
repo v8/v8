@@ -18,6 +18,7 @@
 #include "src/api-arguments-inl.h"
 #include "src/api-natives.h"
 #include "src/api.h"
+#include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"

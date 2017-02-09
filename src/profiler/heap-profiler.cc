@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/debug/debug.h"
+#include "src/heap/heap-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
 #include "src/profiler/sampling-heap-profiler.h"

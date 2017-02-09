@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class AstType;
 
 const int kMaxKeyedPolymorphism = 4;
 

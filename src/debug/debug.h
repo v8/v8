@@ -6,7 +6,6 @@
 #define V8_DEBUG_DEBUG_H_
 
 #include "src/allocation.h"
-#include "src/arguments.h"
 #include "src/assembler.h"
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"

@@ -9,6 +9,7 @@
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/messages.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {

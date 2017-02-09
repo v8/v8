@@ -9,6 +9,7 @@
 
 #include "src/base/cpu.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -281,6 +282,17 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
   }
 }
 
+Address Assembler::target_address_at(Address pc, Code* code) {
+  Address constant_pool = code ? code->constant_pool() : NULL;
+  return target_address_at(pc, constant_pool);
+}
+
+void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
+                                      Address target,
+                                      ICacheFlushMode icache_flush_mode) {
+  Address constant_pool = code ? code->constant_pool() : NULL;
+  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
+}
 
 void Assembler::deserialization_set_target_internal_reference_at(
     Isolate* isolate, Address pc, Address target, RelocInfo::Mode mode) {

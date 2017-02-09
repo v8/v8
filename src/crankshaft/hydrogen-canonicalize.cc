@@ -4,6 +4,7 @@
 
 #include "src/crankshaft/hydrogen-canonicalize.h"
 
+#include "src/counters.h"
 #include "src/crankshaft/hydrogen-redundant-phi.h"
 
 namespace v8 {

@@ -4,7 +4,7 @@
 
 #include "src/background-parsing-task.h"
 
-#include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 
 namespace v8 {

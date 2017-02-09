@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "src/runtime/runtime-utils.h"
 
+#include "src/arguments.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
 

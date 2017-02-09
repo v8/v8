@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/debug/debug.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/source-position.h"
 
