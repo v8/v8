@@ -2024,6 +2024,13 @@ void LCodeGen::DoUnknownOSRValue(LUnknownOSRValue* instr) {
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
   Register temp = ToRegister(instr->temp());
+  Label deopt, done;
+  // If the map is not deprecated the migration attempt does not make sense.
+  __ Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
+  __ Ldr(temp, FieldMemOperand(temp, Map::kBitField3Offset));
+  __ Tst(temp, Operand(Map::Deprecated::kMask));
+  __ B(eq, &deopt);
+
   {
     PushSafepointRegistersScope scope(this);
     __ Push(object);
@@ -2033,7 +2040,13 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
         instr->pointer_map(), 1, Safepoint::kNoLazyDeopt);
     __ StoreToSafepointRegisterSlot(x0, temp);
   }
-  DeoptimizeIfSmi(temp, instr, DeoptimizeReason::kInstanceMigrationFailed);
+  __ Tst(temp, Operand(kSmiTagMask));
+  __ B(ne, &done);
+
+  __ bind(&deopt);
+  Deoptimize(instr, DeoptimizeReason::kInstanceMigrationFailed);
+
+  __ bind(&done);
 }
 
 

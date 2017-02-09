@@ -1102,6 +1102,17 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     // Perform the (deferred) instance migration.
     __ Bind(&migrate);
     {
+      auto migration_failed = __ MakeLabel<2>();
+      auto retry_check_maps = __ MakeLabel<2>();
+
+      // If map is not deprecated the migration attempt does not make sense.
+      Node* bitfield3 =
+          __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
+      Node* if_not_deprecated = __ WordEqual(
+          __ Word32And(bitfield3, __ Int32Constant(Map::Deprecated::kMask)),
+          __ Int32Constant(0));
+      __ GotoIf(if_not_deprecated, &migration_failed);
+
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTryMigrateInstance;
       CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
@@ -1111,8 +1122,15 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                   __ ExternalConstant(ExternalReference(id, isolate())),
                   __ Int32Constant(1), __ NoContextConstant());
       Node* check = ObjectIsSmi(result);
-      __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, check,
-                      frame_state);
+      __ GotoIf(check, &retry_check_maps);
+      __ Goto(&migration_failed);
+
+      __ Bind(&migration_failed);
+      __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed,
+                      __ Int32Constant(1), frame_state);
+
+      __ Goto(&retry_check_maps);
+      __ Bind(&retry_check_maps);
     }
 
     // Reload the current map of the {value}.

@@ -4759,6 +4759,13 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Label deopt, done;
+  // If the map is not deprecated the migration attempt does not make sense.
+  __ ldr(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  __ ldr(scratch0(), FieldMemOperand(scratch0(), Map::kBitField3Offset));
+  __ tst(scratch0(), Operand(Map::Deprecated::kMask));
+  __ b(eq, &deopt);
+
   {
     PushSafepointRegistersScope scope(this);
     __ push(object);
@@ -4769,7 +4776,12 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     __ StoreToSafepointRegisterSlot(r0, scratch0());
   }
   __ tst(scratch0(), Operand(kSmiTagMask));
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kInstanceMigrationFailed);
+  __ b(ne, &done);
+
+  __ bind(&deopt);
+  DeoptimizeIf(al, instr, DeoptimizeReason::kInstanceMigrationFailed);
+
+  __ bind(&done);
 }
 
 
