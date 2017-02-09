@@ -1204,20 +1204,19 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK_EQ(5, args.length());
+  DCHECK_EQ(4, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
-  CONVERT_BOOLEAN_ARG_CHECKED(throw_on_side_effect, 4);
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
-                                    throw_on_side_effect));
+      isolate,
+      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source));
 }
 
 

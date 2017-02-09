@@ -677,13 +677,12 @@ class DebugWrapper {
            };
   }
 
-  evaluateOnCallFrame(frame, expr, throw_on_side_effect = false) {
+  evaluateOnCallFrame(frame, expr) {
     const frameid = frame.callFrameId;
     const {msgid, msg} = this.createMessage(
         "Debugger.evaluateOnCallFrame",
         { callFrameId : frameid,
-          expression : expr,
-          throwOnSideEffect : throw_on_side_effect,
+          expression : expr
         });
     this.sendMessage(msg);
     const reply = this.takeReplyChecked(msgid);
@@ -728,8 +727,7 @@ class DebugWrapper {
              sourceLine : () => line + 1,
              sourceLineText : () => loc.sourceText,
              sourcePosition : () => loc.position,
-             evaluate : (expr, throw_on_side_effect) =>
-                 this.evaluateOnCallFrame(frame, expr, throw_on_side_effect),
+             evaluate : (expr) => this.evaluateOnCallFrame(frame, expr),
              functionName : () => frame.functionName,
              func : () => func,
              index : () => index,

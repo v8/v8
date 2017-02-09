@@ -93,7 +93,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       const String16& callFrameId, const String16& expression,
       Maybe<String16> objectGroup, Maybe<bool> includeCommandLineAPI,
       Maybe<bool> silent, Maybe<bool> returnByValue,
-      Maybe<bool> generatePreview, Maybe<bool> throwOnSideEffect,
+      Maybe<bool> generatePreview,
       std::unique_ptr<protocol::Runtime::RemoteObject>* result,
       Maybe<protocol::Runtime::ExceptionDetails>*) override;
   Response setVariableValue(

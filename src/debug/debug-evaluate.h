@@ -22,8 +22,7 @@ class DebugEvaluate : public AllStatic {
   // - The arguments object needs to materialized.
   static MaybeHandle<Object> Local(Isolate* isolate, StackFrame::Id frame_id,
                                    int inlined_jsframe_index,
-                                   Handle<String> source,
-                                   bool throw_on_side_effect);
+                                   Handle<String> source);
 
   static bool FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info);
   static bool CallbackHasNoSideEffect(Address function_addr);
@@ -87,8 +86,7 @@ class DebugEvaluate : public AllStatic {
                                       Handle<SharedFunctionInfo> outer_info,
                                       Handle<Context> context,
                                       Handle<Object> receiver,
-                                      Handle<String> source,
-                                      bool throw_on_side_effect);
+                                      Handle<String> source);
 };
 
 
