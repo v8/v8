@@ -269,10 +269,25 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kInlineToString:
     case Runtime::kToLength:
     case Runtime::kInlineToLength:
+    // Type checks.
+    case Runtime::kIsJSReceiver:
+    case Runtime::kInlineIsJSReceiver:
+    case Runtime::kIsSmi:
+    case Runtime::kInlineIsSmi:
+    case Runtime::kIsArray:
+    case Runtime::kIsFunction:
+    case Runtime::kIsDate:
+    case Runtime::kIsJSProxy:
+    case Runtime::kIsRegExp:
+    case Runtime::kIsTypedArray:
     // Loads.
     case Runtime::kLoadLookupSlotForCall:
     // Errors.
+    case Runtime::kReThrow:
     case Runtime::kThrowReferenceError:
+    case Runtime::kThrowSymbolIteratorInvalid:
+    case Runtime::kThrowIteratorResultNotAnObject:
+    case Runtime::kNewTypeError:
     // Strings.
     case Runtime::kInlineStringCharCodeAt:
     case Runtime::kStringCharCodeAt:
@@ -288,6 +303,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kCreateObjectLiteral:
     case Runtime::kCreateRegExpLiteral:
     // Misc.
+    case Runtime::kForInPrepare:
     case Runtime::kInlineCall:
     case Runtime::kCall:
     case Runtime::kInlineMaxSmi:
@@ -350,9 +366,18 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kCreateArrayLiteral:
     case Bytecode::kCreateObjectLiteral:
     case Bytecode::kCreateRegExpLiteral:
-    // Misc.
+    // Allocations.
+    case Bytecode::kCreateClosure:
     case Bytecode::kCreateUnmappedArguments:
+    // Conversions.
+    case Bytecode::kToObject:
+    // Misc.
+    case Bytecode::kForInPrepare:
+    case Bytecode::kForInContinue:
+    case Bytecode::kForInNext:
+    case Bytecode::kForInStep:
     case Bytecode::kThrow:
+    case Bytecode::kReThrow:
     case Bytecode::kIllegal:
     case Bytecode::kCallJSRuntime:
     case Bytecode::kStackCheck:
@@ -371,6 +396,8 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
 bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
+    // Array builtins.
+    case Builtins::kArrayPrototypeValues:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
