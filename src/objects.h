@@ -3133,7 +3133,7 @@ class FrameArray : public FixedArray {
 //          [0]: pointer to fixed array with enum cache
 //          [1]: either Smi(0) or pointer to fixed array with indices
 //   [2]: first key
-//   [2 + number of descriptors * kDescriptorSize]: start of slack
+//   [2 + number of descriptors * kEntrySize]: start of slack
 class DescriptorArray: public FixedArray {
  public:
   // Returns true for both shared empty_descriptor_array and for smis, which the
@@ -3254,10 +3254,11 @@ class DescriptorArray: public FixedArray {
   static const int kEnumCacheBridgeCacheOffset = FixedArray::kHeaderSize;
 
   // Layout of descriptor.
-  static const int kDescriptorKey = 0;
-  static const int kDescriptorDetails = 1;
-  static const int kDescriptorValue = 2;
-  static const int kDescriptorSize = 3;
+  // Naming is consistent with Dictionary classes for easy templating.
+  static const int kEntryKeyIndex = 0;
+  static const int kEntryDetailsIndex = 1;
+  static const int kEntryValueIndex = 2;
+  static const int kEntrySize = 3;
 
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
@@ -3288,18 +3289,16 @@ class DescriptorArray: public FixedArray {
   }
 
   static int ToDetailsIndex(int descriptor_number) {
-    return kFirstIndex + (descriptor_number * kDescriptorSize) +
-           kDescriptorDetails;
+    return kFirstIndex + (descriptor_number * kEntrySize) + kEntryDetailsIndex;
   }
 
   // Conversion from descriptor number to array indices.
   static int ToKeyIndex(int descriptor_number) {
-    return kFirstIndex + (descriptor_number * kDescriptorSize) + kDescriptorKey;
+    return kFirstIndex + (descriptor_number * kEntrySize) + kEntryKeyIndex;
   }
 
   static int ToValueIndex(int descriptor_number) {
-    return kFirstIndex + (descriptor_number * kDescriptorSize) +
-           kDescriptorValue;
+    return kFirstIndex + (descriptor_number * kEntrySize) + kEntryValueIndex;
   }
 
  private:

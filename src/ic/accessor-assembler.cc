@@ -948,16 +948,15 @@ void AccessorAssembler::EmitElementLoad(
         elements, intptr_index, &if_found, &var_entry, if_hole);
     Bind(&if_found);
     // Check that the value is a data property.
-    Node* details_index = EntryToIndex<SeededNumberDictionary>(
-        var_entry.value(), SeededNumberDictionary::kEntryDetailsIndex);
-    Node* details = SmiToWord32(LoadFixedArrayElement(elements, details_index));
+    Node* index = EntryToIndex<SeededNumberDictionary>(var_entry.value());
+    Node* details =
+        LoadDetailsByKeyIndex<SeededNumberDictionary>(elements, index);
     Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
     // TODO(jkummerow): Support accessors without missing?
     GotoUnless(Word32Equal(kind, Int32Constant(kData)), miss);
     // Finally, load the value.
-    Node* value_index = EntryToIndex<SeededNumberDictionary>(
-        var_entry.value(), SeededNumberDictionary::kEntryValueIndex);
-    exit_point->Return(LoadFixedArrayElement(elements, value_index));
+    exit_point->Return(
+        LoadValueByKeyIndex<SeededNumberDictionary>(elements, index));
   }
 
   Bind(&if_typed_array);

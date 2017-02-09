@@ -2833,7 +2833,7 @@ int DescriptorArray::number_of_descriptors() {
 
 int DescriptorArray::number_of_descriptors_storage() {
   int len = length();
-  return len == 0 ? 0 : (len - kFirstIndex) / kDescriptorSize;
+  return len == 0 ? 0 : (len - kFirstIndex) / kEntrySize;
 }
 
 

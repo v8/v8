@@ -539,13 +539,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
       {
         Node* descriptors = var_meta_storage.value();
         Node* name_index = var_entry.value();
-        // TODO(jkummerow): Add helper functions for accessing value and
-        // details by entry.
-        const int kNameToDetailsOffset = (DescriptorArray::kDescriptorDetails -
-                                          DescriptorArray::kDescriptorKey) *
-                                         kPointerSize;
-        Node* details = LoadAndUntagToWord32FixedArrayElement(
-            descriptors, name_index, kNameToDetailsOffset);
+        Node* details =
+            LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
@@ -560,19 +555,13 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
       {
         Node* dictionary = var_meta_storage.value();
         Node* entry = var_entry.value();
-        const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
-                                          NameDictionary::kEntryKeyIndex) *
-                                         kPointerSize;
-        Node* details = LoadAndUntagToWord32FixedArrayElement(
-            dictionary, entry, kNameToDetailsOffset);
+        Node* details =
+            LoadDetailsByKeyIndex<NameDictionary>(dictionary, entry);
         JumpIfDataProperty(details, &ok_to_write, readonly);
 
         // Accessor case.
-        const int kNameToValueOffset = (NameDictionary::kEntryValueIndex -
-                                        NameDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
         var_accessor_pair->Bind(
-            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset));
+            LoadValueByKeyIndex<NameDictionary>(dictionary, entry));
         var_accessor_holder->Bind(holder);
         Goto(accessor);
       }
@@ -581,13 +570,8 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
       {
         Node* dictionary = var_meta_storage.value();
         Node* entry = var_entry.value();
-        const int kNameToValueOffset = (GlobalDictionary::kEntryValueIndex -
-                                        GlobalDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-
         Node* property_cell =
-            LoadFixedArrayElement(dictionary, entry, kNameToValueOffset);
-
+            LoadValueByKeyIndex<GlobalDictionary>(dictionary, entry);
         Node* value =
             LoadObjectField(property_cell, PropertyCell::kValueOffset);
         GotoIf(WordEqual(value, TheHoleConstant()), &next_proto);
@@ -648,26 +632,20 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Bind(&dictionary_found);
     {
       Label overwrite(this);
-      const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
-                                        NameDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-      Node* details = LoadAndUntagToWord32FixedArrayElement(
-          properties, var_name_index.value(), kNameToDetailsOffset);
+      Node* details = LoadDetailsByKeyIndex<NameDictionary>(
+          properties, var_name_index.value());
       JumpIfDataProperty(details, &overwrite, &readonly);
 
       // Accessor case.
-      const int kNameToValueOffset =
-          (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-          kPointerSize;
-      var_accessor_pair.Bind(LoadFixedArrayElement(
-          properties, var_name_index.value(), kNameToValueOffset));
+      var_accessor_pair.Bind(LoadValueByKeyIndex<NameDictionary>(
+          properties, var_name_index.value()));
       var_accessor_holder.Bind(receiver);
       Goto(&accessor);
 
       Bind(&overwrite);
       {
-        StoreFixedArrayElement(properties, var_name_index.value(), p->value,
-                               UPDATE_WRITE_BARRIER, kNameToValueOffset);
+        StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
+                                             p->value);
         Return(p->value);
       }
     }

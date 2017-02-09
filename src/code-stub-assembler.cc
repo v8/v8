@@ -4638,11 +4638,7 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
                                                     Node* enum_index) {
   // Store name and value.
   StoreFixedArrayElement(dictionary, index, name);
-  const int kNameToValueOffset =
-      (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-      kPointerSize;
-  StoreFixedArrayElement(dictionary, index, value, UPDATE_WRITE_BARRIER,
-                         kNameToValueOffset);
+  StoreValueByKeyIndex<NameDictionary>(dictionary, index, value);
 
   // Prepare details of the new property.
   const int kInitialIndex = 0;
@@ -4666,11 +4662,8 @@ void CodeStubAssembler::InsertEntry<NameDictionary>(Node* dictionary,
   Bind(&not_private);
 
   // Finally, store the details.
-  const int kNameToDetailsOffset =
-      (NameDictionary::kEntryDetailsIndex - NameDictionary::kEntryKeyIndex) *
-      kPointerSize;
-  StoreFixedArrayElement(dictionary, index, var_details.value(),
-                         SKIP_WRITE_BARRIER, kNameToDetailsOffset);
+  StoreDetailsByKeyIndex<NameDictionary>(dictionary, index,
+                                         var_details.value());
 }
 
 template <>
@@ -4729,7 +4722,7 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                                                Variable* var_name_index,
                                                Label* if_not_found) {
   Node* first_inclusive = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
-  Node* factor = IntPtrConstant(DescriptorArray::kDescriptorSize);
+  Node* factor = IntPtrConstant(DescriptorArray::kEntrySize);
   Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
 
   BuildFastLoop(last_exclusive, first_inclusive,
@@ -4740,7 +4733,7 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                   var_name_index->Bind(name_index);
                   GotoIf(WordEqual(candidate_name, unique_name), if_found);
                 },
-                -DescriptorArray::kDescriptorSize, INTPTR_PARAMETERS,
+                -DescriptorArray::kEntrySize, INTPTR_PARAMETERS,
                 IndexAdvanceMode::kPre);
   Goto(if_not_found);
 }
@@ -4848,15 +4841,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
   DCHECK_EQ(MachineRepresentation::kTagged, var_value->rep());
   Comment("[ LoadPropertyFromFastObject");
 
-  const int name_to_details_offset =
-      (DescriptorArray::kDescriptorDetails - DescriptorArray::kDescriptorKey) *
-      kPointerSize;
-  const int name_to_value_offset =
-      (DescriptorArray::kDescriptorValue - DescriptorArray::kDescriptorKey) *
-      kPointerSize;
-
-  Node* details = LoadAndUntagToWord32FixedArrayElement(descriptors, name_index,
-                                                        name_to_details_offset);
+  Node* details =
+      LoadDetailsByKeyIndex<DescriptorArray>(descriptors, name_index);
   var_details->Bind(details);
 
   Node* location = DecodeWord32<PropertyDetails::LocationField>(details);
@@ -4939,9 +4925,8 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
   }
   Bind(&if_in_descriptor);
   {
-    Node* value =
-        LoadFixedArrayElement(descriptors, name_index, name_to_value_offset);
-    var_value->Bind(value);
+    var_value->Bind(
+        LoadValueByKeyIndex<DescriptorArray>(descriptors, name_index));
     Goto(&done);
   }
   Bind(&done);
@@ -4955,19 +4940,10 @@ void CodeStubAssembler::LoadPropertyFromNameDictionary(Node* dictionary,
                                                        Variable* var_value) {
   Comment("LoadPropertyFromNameDictionary");
   CSA_ASSERT(this, IsDictionary(dictionary));
-  const int name_to_details_offset =
-      (NameDictionary::kEntryDetailsIndex - NameDictionary::kEntryKeyIndex) *
-      kPointerSize;
-  const int name_to_value_offset =
-      (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-      kPointerSize;
 
-  Node* details = LoadAndUntagToWord32FixedArrayElement(dictionary, name_index,
-                                                        name_to_details_offset);
-
-  var_details->Bind(details);
-  var_value->Bind(
-      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset));
+  var_details->Bind(
+      LoadDetailsByKeyIndex<NameDictionary>(dictionary, name_index));
+  var_value->Bind(LoadValueByKeyIndex<NameDictionary>(dictionary, name_index));
 
   Comment("] LoadPropertyFromNameDictionary");
 }
@@ -4980,12 +4956,8 @@ void CodeStubAssembler::LoadPropertyFromGlobalDictionary(Node* dictionary,
   Comment("[ LoadPropertyFromGlobalDictionary");
   CSA_ASSERT(this, IsDictionary(dictionary));
 
-  const int name_to_value_offset =
-      (GlobalDictionary::kEntryValueIndex - GlobalDictionary::kEntryKeyIndex) *
-      kPointerSize;
-
   Node* property_cell =
-      LoadFixedArrayElement(dictionary, name_index, name_to_value_offset);
+      LoadValueByKeyIndex<GlobalDictionary>(dictionary, name_index);
 
   Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
   GotoIf(WordEqual(value, TheHoleConstant()), if_deleted);

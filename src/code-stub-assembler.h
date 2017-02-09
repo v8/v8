@@ -885,6 +885,49 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* EntryToIndex(Node* entry) {
     return EntryToIndex<Dictionary>(entry, Dictionary::kEntryKeyIndex);
   }
+
+  // Loads the details for the entry with the given key_index.
+  // Returns an untagged int32.
+  template <class ContainerType>
+  Node* LoadDetailsByKeyIndex(Node* container, Node* key_index) {
+    const int kKeyToDetailsOffset =
+        (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
+        kPointerSize;
+    return LoadAndUntagToWord32FixedArrayElement(container, key_index,
+                                                 kKeyToDetailsOffset);
+  }
+
+  // Loads the value for the entry with the given key_index.
+  // Returns a tagged value.
+  template <class ContainerType>
+  Node* LoadValueByKeyIndex(Node* container, Node* key_index) {
+    const int kKeyToValueOffset =
+        (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
+        kPointerSize;
+    return LoadFixedArrayElement(container, key_index, kKeyToValueOffset);
+  }
+
+  // Stores the details for the entry with the given key_index.
+  // |details| must be a Smi.
+  template <class ContainerType>
+  void StoreDetailsByKeyIndex(Node* container, Node* key_index, Node* details) {
+    const int kKeyToDetailsOffset =
+        (ContainerType::kEntryDetailsIndex - ContainerType::kEntryKeyIndex) *
+        kPointerSize;
+    StoreFixedArrayElement(container, key_index, details, SKIP_WRITE_BARRIER,
+                           kKeyToDetailsOffset);
+  }
+
+  // Stores the value for the entry with the given key_index.
+  template <class ContainerType>
+  void StoreValueByKeyIndex(Node* container, Node* key_index, Node* value) {
+    const int kKeyToValueOffset =
+        (ContainerType::kEntryValueIndex - ContainerType::kEntryKeyIndex) *
+        kPointerSize;
+    StoreFixedArrayElement(container, key_index, value, UPDATE_WRITE_BARRIER,
+                           kKeyToValueOffset);
+  }
+
   // Calculate a valid size for the a hash table.
   Node* HashTableComputeCapacity(Node* at_least_space_for);
 

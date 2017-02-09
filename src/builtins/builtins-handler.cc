@@ -239,21 +239,15 @@ TF_BUILTIN(StoreIC_Normal, CodeStubAssembler) {
                                          &var_name_index, &slow);
     Bind(&found);
     {
-      const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
-                                        NameDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-      Node* details = LoadFixedArrayElement(properties, var_name_index.value(),
-                                            kNameToDetailsOffset);
+      Node* details = LoadDetailsByKeyIndex<NameDictionary>(
+          properties, var_name_index.value());
       // Check that the property is a writable data property (no accessor).
       const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
                                        PropertyDetails::kAttributesReadOnlyMask;
       STATIC_ASSERT(kData == 0);
-      GotoIf(IsSetSmi(details, kTypeAndReadOnlyMask), &slow);
-      const int kNameToValueOffset =
-          (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-          kPointerSize;
-      StoreFixedArrayElement(properties, var_name_index.value(), value,
-                             UPDATE_WRITE_BARRIER, kNameToValueOffset);
+      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), &slow);
+      StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
+                                           value);
       Return(value);
     }
   }
