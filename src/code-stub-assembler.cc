@@ -912,11 +912,10 @@ Node* CodeStubAssembler::IsRegularHeapObjectSize(Node* size) {
 
 void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
                                                 Label* if_false) {
-  Label if_valueissmi(this), if_valueisnotsmi(this), if_valueisstring(this),
-      if_valueisheapnumber(this), if_valueisother(this);
+  Label if_valueissmi(this), if_valueisnotsmi(this),
+      if_valueisheapnumber(this, Label::kDeferred);
 
-  // Fast check for Boolean {value}s (common case).
-  GotoIf(WordEqual(value, BooleanConstant(true)), if_true);
+  // Rule out false {value}.
   GotoIf(WordEqual(value, BooleanConstant(false)), if_false);
 
   // Check if {value} is a Smi or a HeapObject.
@@ -930,27 +929,24 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
 
   Bind(&if_valueisnotsmi);
   {
+    // Check if {value} is the empty string.
+    GotoIf(IsEmptyString(value), if_false);
+
     // The {value} is a HeapObject, load its map.
     Node* value_map = LoadMap(value);
 
-    // Load the {value}s instance type.
-    Node* value_instance_type = LoadMapInstanceType(value_map);
+    // Only null, undefined and document.all have the undetectable bit set,
+    // so we can return false immediately when that bit is set.
+    Node* value_map_bitfield = LoadMapBitField(value_map);
+    Node* value_map_undetectable =
+        Word32And(value_map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
 
-    // Dispatch based on the instance type; we distinguish all String instance
-    // types, the HeapNumber type and everything else.
-    GotoIf(Word32Equal(value_instance_type, Int32Constant(HEAP_NUMBER_TYPE)),
-           &if_valueisheapnumber);
-    Branch(IsStringInstanceType(value_instance_type), &if_valueisstring,
-           &if_valueisother);
+    // Check if the {value} is undetectable.
+    GotoUnless(Word32Equal(value_map_undetectable, Int32Constant(0)), if_false);
 
-    Bind(&if_valueisstring);
-    {
-      // Load the string length field of the {value}.
-      Node* value_length = LoadObjectField(value, String::kLengthOffset);
-
-      // Check if the {value} is the empty string.
-      BranchIfSmiEqual(value_length, SmiConstant(0), if_false, if_true);
-    }
+    // We still need to handle numbers specially, but all other {value}s
+    // that make it here yield true.
+    Branch(IsHeapNumberMap(value_map), &if_valueisheapnumber, if_true);
 
     Bind(&if_valueisheapnumber);
     {
@@ -961,22 +957,6 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
       // Check if the floating point {value} is neither 0.0, -0.0 nor NaN.
       Branch(Float64LessThan(Float64Constant(0.0), Float64Abs(value_value)),
              if_true, if_false);
-    }
-
-    Bind(&if_valueisother);
-    {
-      // Load the bit field from the {value}s map. The {value} is now either
-      // Null or Undefined, which have the undetectable bit set (so we always
-      // return false for those), or a Symbol or Simd128Value, whose maps never
-      // have the undetectable bit set (so we always return true for those), or
-      // a JSReceiver, which may or may not have the undetectable bit set.
-      Node* value_map_bitfield = LoadMapBitField(value_map);
-      Node* value_map_undetectable = Word32And(
-          value_map_bitfield, Int32Constant(1 << Map::kIsUndetectable));
-
-      // Check if the {value} is undetectable.
-      Branch(Word32Equal(value_map_undetectable, Int32Constant(0)), if_true,
-             if_false);
     }
   }
 }

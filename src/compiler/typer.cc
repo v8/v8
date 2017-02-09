@@ -43,13 +43,14 @@ Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
-  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
+  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
+  singleton_false_ = operation_typer_.singleton_false();
+  singleton_true_ = operation_typer_.singleton_true();
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
-                  singleton_the_hole_, zone),
+                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
+                  zone),
       zone);
   truish_ = Type::Union(
       singleton_true_,
@@ -908,8 +909,7 @@ Type* Typer::Visitor::JSStrictEqualTyper(Type* lhs, Type* rhs, Typer* t) {
       (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
     return t->singleton_false_;
   }
-  if ((lhs->Is(t->singleton_the_hole_) || rhs->Is(t->singleton_the_hole_)) &&
-      !lhs->Maybe(rhs)) {
+  if ((lhs->Is(Type::Hole()) || rhs->Is(Type::Hole())) && !lhs->Maybe(rhs)) {
     return t->singleton_false_;
   }
   if (lhs->IsHeapConstant() && rhs->Is(lhs)) {

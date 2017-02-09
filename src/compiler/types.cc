@@ -464,7 +464,7 @@ HeapConstantType::HeapConstantType(BitsetType::bitset bitset,
                                    i::Handle<i::HeapObject> object)
     : TypeBase(kHeapConstant), bitset_(bitset), object_(object) {
   DCHECK(!object->IsHeapNumber());
-  DCHECK(!object->IsString());
+  DCHECK_IMPLIES(object->IsString(), object->IsInternalizedString());
 }
 
 // -----------------------------------------------------------------------------
@@ -840,17 +840,8 @@ Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
     return Range(v, v, zone);
   } else if (value->IsHeapNumber()) {
     return NewConstant(value->Number(), zone);
-  } else if (value->IsString()) {
-    bitset b = BitsetType::Lub(*value);
-    DCHECK(b == BitsetType::kInternalizedString ||
-           b == BitsetType::kOtherString);
-    if (b == BitsetType::kInternalizedString) {
-      return Type::InternalizedString();
-    } else if (b == BitsetType::kOtherString) {
-      return Type::OtherString();
-    } else {
-      UNREACHABLE();
-    }
+  } else if (value->IsString() && !value->IsInternalizedString()) {
+    return Type::OtherString();
   }
   return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
 }

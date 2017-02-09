@@ -528,6 +528,13 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      pointer_comparable_type_(Type::Union(
+          Type::Oddball(),
+          Type::Union(
+              Type::SymbolOrReceiver(),
+              Type::HeapConstant(factory()->empty_string(), graph()->zone()),
+              graph()->zone()),
+          graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -1010,7 +1017,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (r.BothInputsAre(Type::Unique())) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
-  if (r.OneInputIs(Type::NonStringUniqueOrHole())) {
+  if (r.OneInputIs(pointer_comparable_type_)) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.IsInternalizedStringCompareOperation()) {
@@ -1071,6 +1078,14 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     //   => BooleanNot(ObjectIsUndetectable(x))
     node->ReplaceInput(
         0, graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  } else if (input_type->Is(Type::String())) {
+    // JSToBoolean(x:string) => BooleanNot(ReferenceEqual(x,""))
+    node->ReplaceInput(0,
+                       graph()->NewNode(simplified()->ReferenceEqual(), input,
+                                        jsgraph()->EmptyStringConstant()));
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);

@@ -130,6 +130,17 @@ TEST_F(JSTypedLoweringTest, JSToBooleanWithReceiverOrNullOrUndefined) {
   EXPECT_THAT(r.replacement(), IsBooleanNot(IsObjectIsUndetectable(input)));
 }
 
+TEST_F(JSTypedLoweringTest, JSToBooleanWithString) {
+  Node* input = Parameter(Type::String(), 0);
+  Node* context = Parameter(Type::Any(), 1);
+  Reduction r = Reduce(graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), input, context));
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(),
+              IsBooleanNot(IsReferenceEqual(
+                  input, IsHeapConstant(factory()->empty_string()))));
+}
+
 TEST_F(JSTypedLoweringTest, JSToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
   Node* context = Parameter(Type::Any(), 1);

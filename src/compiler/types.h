@@ -152,6 +152,7 @@ namespace compiler {
   V(BooleanOrNumber,              kBoolean | kNumber) \
   V(BooleanOrNullOrNumber,        kBooleanOrNumber | kNull) \
   V(BooleanOrNullOrUndefined,     kBoolean | kNull | kUndefined) \
+  V(Oddball,                      kBooleanOrNullOrUndefined | kHole) \
   V(NullOrNumber,                 kNull | kNumber) \
   V(NullOrUndefined,              kNull | kUndefined) \
   V(Undetectable,                 kNullOrUndefined | kOtherUndetectable) \
@@ -178,11 +179,10 @@ namespace compiler {
   V(Receiver,                     kObject | kProxy) \
   V(ReceiverOrUndefined,          kReceiver | kUndefined) \
   V(ReceiverOrNullOrUndefined,    kReceiver | kNull | kUndefined) \
+  V(SymbolOrReceiver,             kSymbol | kReceiver) \
   V(StringOrReceiver,             kString | kReceiver) \
   V(Unique,                       kBoolean | kUniqueName | kNull | \
                                   kUndefined | kReceiver) \
-  V(NonStringUniqueOrHole,        kBoolean | kHole | kNull | kReceiver | \
-                                  kSymbol | kUndefined) \
   V(Internal,                     kHole | kExternalPointer | kOtherInternal) \
   V(NonInternal,                  kPrimitive | kReceiver) \
   V(NonNumber,                    kUnique | kString | kInternal) \
