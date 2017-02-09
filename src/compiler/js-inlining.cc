@@ -220,9 +220,9 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   }
 }
 
-
 Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                             int parameter_count,
+                                            BailoutId bailout_id,
                                             FrameStateType frame_state_type,
                                             Handle<SharedFunctionInfo> shared) {
   const FrameStateFunctionInfo* state_info =
@@ -230,7 +230,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                              parameter_count + 1, 0, shared);
 
   const Operator* op = common()->FrameState(
-      BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
+      bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   NodeVector params(local_zone_);
@@ -628,19 +628,33 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Inline {JSConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSConstruct) {
+    // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
+    // normal {JSCall} node so that the rest of the inlining machinery
+    // behaves as if we were dealing with a regular function invocation.
+    new_target = call.new_target();  // Retrieve new target value input.
+    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
+    node->InsertInput(graph()->zone(), 1, new_target);
+
     // Insert nodes around the call that model the behavior required for a
     // constructor dispatch (allocate implicit receiver and check return value).
     // This models the behavior usually accomplished by our {JSConstructStub}.
     // Note that the context has to be the callers context (input to call node).
+    // Also note that by splitting off the {JSCreate} piece of the constructor
+    // call, we create an observable deoptimization point after the receiver
+    // instantiation but before the invocation (i.e. inside {JSConstructStub}
+    // where execution continues at {construct_stub_create_deopt_pc_offset}).
     Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     if (NeedsImplicitReceiver(shared_info)) {
-      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
       Node* context = NodeProperties::GetContextInput(node);
-      Node* create = graph()->NewNode(javascript()->Create(), call.target(),
-                                      call.new_target(), context,
-                                      frame_state_before, effect, control);
+      Node* frame_state_inside = CreateArtificialFrameState(
+          node, frame_state, call.formal_arguments(),
+          BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
+          info.shared_info());
+      Node* create =
+          graph()->NewNode(javascript()->Create(), call.target(), new_target,
+                           context, frame_state_inside, effect, control);
       Node* success = graph()->NewNode(common()->IfSuccess(), create);
       uncaught_subcalls.push_back(create);  // Adds {IfException}.
       NodeProperties::ReplaceControlInput(node, success);
@@ -658,19 +672,14 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       NodeProperties::ReplaceValueInput(check, node, 0);   // Fix-up input.
       receiver = create;  // The implicit receiver.
     }
-
-    // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
-    // normal {JSCall} node so that the rest of the inlining machinery
-    // behaves as if we were dealing with a regular function invocation.
-    new_target = call.new_target();  // Retrieve new target value input.
-    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
-    node->InsertInput(graph()->zone(), 1, receiver);
+    node->ReplaceInput(1, receiver);
 
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(),
-        FrameStateType::kConstructStub, info.shared_info());
+        BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
+        info.shared_info());
   }
 
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
@@ -710,7 +719,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
-        node, frame_state, call.formal_arguments(),
+        node, frame_state, call.formal_arguments(), BailoutId::None(),
         FrameStateType::kArgumentsAdaptor, shared_info);
   }
 

@@ -921,6 +921,17 @@ class BailoutId {
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
   static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
 
+  // Special bailout id support for deopting into the {JSConstructStub} stub.
+  // The following hard-coded deoptimization points are supported by the stub:
+  //  - {ConstructStubCreate} maps to {construct_stub_create_deopt_pc_offset}.
+  //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
+  static BailoutId ConstructStubCreate() { return BailoutId(1); }
+  static BailoutId ConstructStubInvoke() { return BailoutId(2); }
+  bool IsValidForConstructStub() const {
+    return id_ == ConstructStubCreate().ToInt() ||
+           id_ == ConstructStubInvoke().ToInt();
+  }
+
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }
   bool operator!=(const BailoutId& other) const { return id_ != other.id_; }

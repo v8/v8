@@ -1508,6 +1508,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   Builtins* builtins = isolate_->builtins();
   Code* construct_stub = builtins->builtin(Builtins::kJSConstructStubGeneric);
+  BailoutId bailout_id = translated_frame->node_id();
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
 
@@ -1520,12 +1521,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     height_in_bytes += kPointerSize;
   }
 
-  // Skip function.
+  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
   if (trace_scope_ != NULL) {
     PrintF(trace_scope_->file(),
-           "  translating construct stub => height=%d\n", height_in_bytes);
+           "  translating construct stub => bailout_id=%d (%s), height=%d\n",
+           bailout_id.ToInt(),
+           bailout_id == BailoutId::ConstructStubCreate() ? "create" : "invoke",
+           height_in_bytes);
   }
 
   unsigned fixed_frame_size = ConstructFrameConstants::kFixedFrameSize;
@@ -1609,13 +1613,21 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
-  // The newly allocated object was passed as receiver in the artificial
-  // constructor stub environment created by HEnvironment::CopyForInlining().
-  output_offset -= kPointerSize;
-  value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset,
-                       "allocated receiver\n");
+  if (bailout_id == BailoutId::ConstructStubCreate()) {
+    // The function was mentioned explicitly in the CONSTRUCT_STUB_FRAME.
+    output_offset -= kPointerSize;
+    value = reinterpret_cast<intptr_t>(function);
+    WriteValueToOutput(function, 0, frame_index, output_offset, "function ");
+  } else {
+    DCHECK(bailout_id == BailoutId::ConstructStubInvoke());
+    // The newly allocated object was passed as receiver in the artificial
+    // constructor stub environment created by HEnvironment::CopyForInlining().
+    output_offset -= kPointerSize;
+    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+    output_frame->SetFrameSlot(output_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_offset,
+                         "allocated receiver\n");
+  }
 
   if (is_topmost) {
     // Ensure the result is restored back when we return to the stub.
@@ -1632,10 +1644,17 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   CHECK_EQ(0u, output_offset);
 
-  intptr_t pc = reinterpret_cast<intptr_t>(
-      construct_stub->instruction_start() +
-      isolate_->heap()->construct_stub_deopt_pc_offset()->value());
-  output_frame->SetPc(pc);
+  // Compute this frame's PC.
+  DCHECK(bailout_id.IsValidForConstructStub());
+  Address start = construct_stub->instruction_start();
+  int pc_offset =
+      bailout_id == BailoutId::ConstructStubCreate()
+          ? isolate_->heap()->construct_stub_create_deopt_pc_offset()->value()
+          : isolate_->heap()->construct_stub_invoke_deopt_pc_offset()->value();
+  intptr_t pc_value = reinterpret_cast<intptr_t>(start + pc_offset);
+  output_frame->SetPc(pc_value);
+
+  // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(construct_stub->constant_pool());
@@ -1820,6 +1839,8 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   intptr_t pc = reinterpret_cast<intptr_t>(
       accessor_stub->instruction_start() + offset->value());
   output_frame->SetPc(pc);
+
+  // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(accessor_stub->constant_pool());
@@ -2319,9 +2340,10 @@ Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   return result;
 }
 
-
-void Translation::BeginConstructStubFrame(int literal_id, unsigned height) {
+void Translation::BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
+                                          unsigned height) {
   buffer_->Add(CONSTRUCT_STUB_FRAME);
+  buffer_->Add(bailout_id.ToInt());
   buffer_->Add(literal_id);
   buffer_->Add(height);
 }
@@ -2350,8 +2372,7 @@ void Translation::BeginTailCallerFrame(int literal_id) {
   buffer_->Add(literal_id);
 }
 
-void Translation::BeginJSFrame(BailoutId node_id,
-                               int literal_id,
+void Translation::BeginJSFrame(BailoutId node_id, int literal_id,
                                unsigned height) {
   buffer_->Add(JS_FRAME);
   buffer_->Add(node_id.ToInt());
@@ -2508,10 +2529,10 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
       return 1;
     case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
-    case CONSTRUCT_STUB_FRAME:
       return 2;
     case JS_FRAME:
     case INTERPRETED_FRAME:
+    case CONSTRUCT_STUB_FRAME:
       return 3;
   }
   FATAL("Unexpected translation type");
@@ -3110,9 +3131,11 @@ TranslatedFrame TranslatedFrame::TailCallerFrame(
 }
 
 TranslatedFrame TranslatedFrame::ConstructStubFrame(
-    SharedFunctionInfo* shared_info, int height) {
-  return TranslatedFrame(kConstructStub, shared_info->GetIsolate(), shared_info,
-                         height);
+    BailoutId bailout_id, SharedFunctionInfo* shared_info, int height) {
+  TranslatedFrame frame(kConstructStub, shared_info->GetIsolate(), shared_info,
+                        height);
+  frame.node_id_ = bailout_id;
+  return frame;
 }
 
 
@@ -3230,15 +3253,18 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     }
 
     case Translation::CONSTRUCT_STUB_FRAME: {
+      BailoutId bailout_id = BailoutId(iterator->Next());
       SharedFunctionInfo* shared_info =
           SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
       int height = iterator->Next();
       if (trace_file != nullptr) {
         std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
         PrintF(trace_file, "  reading construct stub frame %s", name.get());
-        PrintF(trace_file, " => height=%d; inputs:\n", height);
+        PrintF(trace_file, " => bailout_id=%d, height=%d; inputs:\n",
+               bailout_id.ToInt(), height);
       }
-      return TranslatedFrame::ConstructStubFrame(shared_info, height);
+      return TranslatedFrame::ConstructStubFrame(bailout_id, shared_info,
+                                                 height);
     }
 
     case Translation::GETTER_STUB_FRAME: {

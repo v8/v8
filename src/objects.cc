@@ -14395,14 +14395,24 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::CONSTRUCT_STUB_FRAME: {
+          int bailout_id = iterator.Next();
+          int shared_info_id = iterator.Next();
+          Object* shared_info = LiteralArray()->get(shared_info_id);
+          unsigned height = iterator.Next();
+          os << "{bailout_id=" << bailout_id << ", function="
+             << Brief(SharedFunctionInfo::cast(shared_info)->DebugName())
+             << ", height=" << height << "}";
+          break;
+        }
+
         case Translation::COMPILED_STUB_FRAME: {
           Code::Kind stub_kind = static_cast<Code::Kind>(iterator.Next());
           os << "{kind=" << stub_kind << "}";
           break;
         }
 
-        case Translation::ARGUMENTS_ADAPTOR_FRAME:
-        case Translation::CONSTRUCT_STUB_FRAME: {
+        case Translation::ARGUMENTS_ADAPTOR_FRAME: {
           int shared_info_id = iterator.Next();
           Object* shared_info = LiteralArray()->get(shared_info_id);
           unsigned height = iterator.Next();

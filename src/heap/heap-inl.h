@@ -788,9 +788,14 @@ void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetConstructStubDeoptPCOffset(int pc_offset) {
-  DCHECK(construct_stub_deopt_pc_offset() == Smi::kZero);
-  set_construct_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
+void Heap::SetConstructStubCreateDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_create_deopt_pc_offset() == Smi::kZero);
+  set_construct_stub_create_deopt_pc_offset(Smi::FromInt(pc_offset));
+}
+
+void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
+  DCHECK(construct_stub_invoke_deopt_pc_offset() == Smi::kZero);
+  set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {

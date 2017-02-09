@@ -540,6 +540,8 @@ namespace {
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
                                     bool check_derived_construct) {
+  Label post_instantiation_deopt_entry;
+
   // ----------- S t a t e -------------
   //  -- x0     : number of arguments
   //  -- x1     : constructor function
@@ -597,6 +599,9 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     }
 
+    // Deoptimizer re-enters stub code here.
+    __ Bind(&post_instantiation_deopt_entry);
+
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
 
@@ -635,7 +640,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
-      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+      masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+          masm->pc_offset());
     }
 
     // Restore the context from the frame.
@@ -698,6 +704,34 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ IncrementCounter(isolate->counters()->constructed_objects(), 1, x1, x2);
   }
   __ Ret();
+
+  // Store offset of trampoline address for deoptimizer. This is the bailout
+  // point after the receiver instantiation but before the function invocation.
+  // We need to restore some registers in order to continue the above code.
+  if (create_implicit_receiver && !is_api_function) {
+    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+        masm->pc_offset());
+
+    // ----------- S t a t e -------------
+    //  -- x0    : newly allocated object
+    //  -- sp[0] : constructor function
+    // -----------------------------------
+
+    __ Pop(x1);
+    __ Push(x0, x0);
+
+    // Retrieve smi-tagged arguments count from the stack.
+    __ Ldr(x0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(x0);
+
+    // Retrieve the new target value from the stack. This was placed into the
+    // frame description in place of the receiver by the optimizing compiler.
+    __ Add(x3, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+    __ Ldr(x3, MemOperand(x3, x0, LSL, kPointerSizeLog2));
+
+    // Continue with constructor function invocation.
+    __ B(&post_instantiation_deopt_entry);
+  }
 }
 
 }  // namespace

@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
+class BailoutId;
 class CompilationInfo;
 
 namespace compiler {
@@ -56,7 +56,7 @@ class JSInliner final : public AdvancedReducer {
                             Handle<FeedbackVector>& feedback_vector_out);
 
   Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
-                                   int parameter_count,
+                                   int parameter_count, BailoutId bailout_id,
                                    FrameStateType frame_state_type,
                                    Handle<SharedFunctionInfo> shared);
 

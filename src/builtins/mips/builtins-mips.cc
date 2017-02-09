@@ -563,6 +563,8 @@ namespace {
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
                                     bool check_derived_construct) {
+  Label post_instantiation_deopt_entry;
+
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
@@ -611,6 +613,9 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     }
 
+    // Deoptimizer re-enters stub code here.
+    __ bind(&post_instantiation_deopt_entry);
+
     // Set up pointer to last argument.
     __ Addu(a2, fp, Operand(StandardFrameConstants::kCallerSPOffset));
 
@@ -644,7 +649,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
-      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+      masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+          masm->pc_offset());
     }
 
     // Restore context from the frame.
@@ -705,6 +711,35 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ IncrementCounter(isolate->counters()->constructed_objects(), 1, a1, a2);
   }
   __ Ret();
+
+  // Store offset of trampoline address for deoptimizer. This is the bailout
+  // point after the receiver instantiation but before the function invocation.
+  // We need to restore some registers in order to continue the above code.
+  if (create_implicit_receiver && !is_api_function) {
+    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+        masm->pc_offset());
+
+    // ----------- S t a t e -------------
+    //  -- a0    : newly allocated object
+    //  -- sp[0] : constructor function
+    // -----------------------------------
+
+    __ Pop(a1);
+    __ Push(a0, a0);
+
+    // Retrieve smi-tagged arguments count from the stack.
+    __ lw(a0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(a0);
+
+    // Retrieve the new target value from the stack. This was placed into the
+    // frame description in place of the receiver by the optimizing compiler.
+    __ Addu(a3, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+    __ Lsa(a3, a3, a0, kPointerSizeLog2);
+    __ lw(a3, MemOperand(a3));
+
+    // Continue with constructor function invocation.
+    __ jmp(&post_instantiation_deopt_entry);
+  }
 }
 
 }  // namespace

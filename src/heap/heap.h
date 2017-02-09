@@ -247,7 +247,10 @@ using v8::MemoryPressureLevel;
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
-  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
+  V(Smi, construct_stub_create_deopt_pc_offset,                                \
+    ConstructStubCreateDeoptPCOffset)                                          \
+  V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
+    ConstructStubInvokeDeoptPCOffset)                                          \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
   V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
@@ -882,7 +885,8 @@ class Heap {
   inline int NextScriptId();
 
   inline void SetArgumentsAdaptorDeoptPCOffset(int pc_offset);
-  inline void SetConstructStubDeoptPCOffset(int pc_offset);
+  inline void SetConstructStubCreateDeoptPCOffset(int pc_offset);
+  inline void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
   inline void SetGetterStubDeoptPCOffset(int pc_offset);
   inline void SetSetterStubDeoptPCOffset(int pc_offset);
   inline void SetInterpreterEntryReturnPCOffset(int pc_offset);

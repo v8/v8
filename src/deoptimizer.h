@@ -226,7 +226,8 @@ class TranslatedFrame {
   static TranslatedFrame ArgumentsAdaptorFrame(SharedFunctionInfo* shared_info,
                                                int height);
   static TranslatedFrame TailCallerFrame(SharedFunctionInfo* shared_info);
-  static TranslatedFrame ConstructStubFrame(SharedFunctionInfo* shared_info,
+  static TranslatedFrame ConstructStubFrame(BailoutId bailout_id,
+                                            SharedFunctionInfo* shared_info,
                                             int height);
   static TranslatedFrame CompiledStubFrame(int height, Isolate* isolate) {
     return TranslatedFrame(kCompiledStub, isolate, nullptr, height);
@@ -974,7 +975,8 @@ class Translation BASE_EMBEDDED {
   void BeginCompiledStubFrame(int height);
   void BeginArgumentsAdaptorFrame(int literal_id, unsigned height);
   void BeginTailCallerFrame(int literal_id);
-  void BeginConstructStubFrame(int literal_id, unsigned height);
+  void BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
+                               unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
   void BeginArgumentsObject(int args_length);

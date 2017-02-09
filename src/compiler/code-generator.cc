@@ -807,8 +807,9 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
       translation->BeginTailCallerFrame(shared_info_id);
       break;
     case FrameStateType::kConstructStub:
+      DCHECK(descriptor->bailout_id().IsValidForConstructStub());
       translation->BeginConstructStubFrame(
-          shared_info_id,
+          descriptor->bailout_id(), shared_info_id,
           static_cast<unsigned int>(descriptor->parameters_count()));
       break;
     case FrameStateType::kGetterStub:
