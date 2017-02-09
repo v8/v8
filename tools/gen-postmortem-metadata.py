@@ -129,13 +129,13 @@ consts_misc = [
         'value': 'Representation::Kind::kExternal' },
 
     { 'name': 'prop_desc_key',
-        'value': 'DescriptorArray::kDescriptorKey' },
+        'value': 'DescriptorArray::kEntryKeyIndex' },
     { 'name': 'prop_desc_details',
-        'value': 'DescriptorArray::kDescriptorDetails' },
+        'value': 'DescriptorArray::kEntryDetailsIndex' },
     { 'name': 'prop_desc_value',
-        'value': 'DescriptorArray::kDescriptorValue' },
+        'value': 'DescriptorArray::kEntryValueIndex' },
     { 'name': 'prop_desc_size',
-        'value': 'DescriptorArray::kDescriptorSize' },
+        'value': 'DescriptorArray::kEntrySize' },
 
     { 'name': 'elements_fast_holey_elements',
         'value': 'FAST_HOLEY_ELEMENTS' },
