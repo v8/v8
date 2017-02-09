@@ -504,6 +504,7 @@
         'builtins/builtins-math.cc',
         'builtins/builtins-number.cc',
         'builtins/builtins-object.cc',
+        'builtins/builtins-object.h',
         'builtins/builtins-promise.cc',
         'builtins/builtins-promise.h',
         'builtins/builtins-proxy.cc',

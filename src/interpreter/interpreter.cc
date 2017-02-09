@@ -10,6 +10,7 @@
 #include "src/ast/prettyprinter.h"
 #include "src/builtins/builtins-arguments.h"
 #include "src/builtins/builtins-constructor.h"
+#include "src/builtins/builtins-object.h"
 #include "src/code-factory.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -3088,68 +3089,42 @@ void Interpreter::BuildForInPrepareResult(Node* output_register,
 // |cache_info_triple + 2|, with the registers holding cache_type, cache_array,
 // and cache_length respectively.
 void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
-  Node* object_reg = __ BytecodeOperandReg(0);
-  Node* receiver = __ LoadRegister(object_reg);
+  Node* object_register = __ BytecodeOperandReg(0);
+  Node* output_register = __ BytecodeOperandReg(1);
+  Node* receiver = __ LoadRegister(object_register);
   Node* context = __ GetContext();
-  Node* const zero_smi = __ SmiConstant(Smi::kZero);
 
-  Label nothing_to_iterate(assembler, Label::kDeferred),
-      use_enum_cache(assembler), use_runtime(assembler, Label::kDeferred);
+  Node* cache_type;
+  Node* cache_array;
+  Node* cache_length;
+  Label call_runtime(assembler, Label::kDeferred),
+      nothing_to_iterate(assembler, Label::kDeferred);
 
-  if (FLAG_debug_code) {
-    Label already_receiver(assembler), abort(assembler);
-    Node* instance_type = __ LoadInstanceType(receiver);
-    __ Branch(__ IsJSReceiverInstanceType(instance_type), &already_receiver,
-              &abort);
-    __ Bind(&abort);
-    {
-      __ Abort(kExpectedJSReceiver);
-      // TODO(klaasb) remove this unreachable Goto once Abort ends the block
-      __ Goto(&already_receiver);
-    }
-    __ Bind(&already_receiver);
-  }
+  ObjectBuiltinsAssembler object_assembler(assembler->state());
+  std::tie(cache_type, cache_array, cache_length) =
+      object_assembler.EmitForInPrepare(receiver, context, &call_runtime,
+                                        &nothing_to_iterate);
 
-  __ CheckEnumCache(receiver, &use_enum_cache, &use_runtime);
+  BuildForInPrepareResult(output_register, cache_type, cache_array,
+                          cache_length, assembler);
+  __ Dispatch();
 
-  __ Bind(&use_enum_cache);
-  {
-    // The enum cache is valid.  Load the map of the object being
-    // iterated over and use the cache for the iteration.
-    Node* cache_type = __ LoadMap(receiver);
-    Node* cache_length = __ EnumLength(cache_type);
-    __ GotoIf(assembler->WordEqual(cache_length, zero_smi),
-              &nothing_to_iterate);
-    Node* descriptors = __ LoadMapDescriptors(cache_type);
-    Node* cache_offset =
-        __ LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
-    Node* cache_array = __ LoadObjectField(
-        cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
-    Node* output_register = __ BytecodeOperandReg(1);
-    BuildForInPrepareResult(output_register, cache_type, cache_array,
-                            cache_length, assembler);
-    __ Dispatch();
-  }
-
-  __ Bind(&use_runtime);
+  __ Bind(&call_runtime);
   {
     Node* result_triple =
         __ CallRuntime(Runtime::kForInPrepare, context, receiver);
     Node* cache_type = __ Projection(0, result_triple);
     Node* cache_array = __ Projection(1, result_triple);
     Node* cache_length = __ Projection(2, result_triple);
-    Node* output_register = __ BytecodeOperandReg(1);
     BuildForInPrepareResult(output_register, cache_type, cache_array,
                             cache_length, assembler);
     __ Dispatch();
   }
-
   __ Bind(&nothing_to_iterate);
   {
     // Receiver is null or undefined or descriptors are zero length.
-    Node* output_register = __ BytecodeOperandReg(1);
-    BuildForInPrepareResult(output_register, zero_smi, zero_smi, zero_smi,
-                            assembler);
+    Node* zero = __ SmiConstant(0);
+    BuildForInPrepareResult(output_register, zero, zero, zero, assembler);
     __ Dispatch();
   }
 }
