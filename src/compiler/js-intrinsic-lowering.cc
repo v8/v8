@@ -76,6 +76,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
+    case Runtime::kInlineMaxSmi:
+      return ReduceMaxSmi(node);
+    case Runtime::kInlineTypedArrayMaxSizeInHeap:
+      return ReduceTypedArrayMaxSizeInHeap(node);
     case Runtime::kInlineJSCollectionGetTable:
       return ReduceJSCollectionGetTable(node);
     case Runtime::kInlineStringGetRawHashField:
@@ -315,6 +319,18 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                        active_function, effect, control);
   return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
                 active_function_map, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceMaxSmi(Node* node) {
+  Node* value = jsgraph()->Constant(Smi::kMaxValue);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+Reduction JSIntrinsicLowering::ReduceTypedArrayMaxSizeInHeap(Node* node) {
+  Node* value = jsgraph()->Constant(FLAG_typed_array_max_size_in_heap);
+  ReplaceWithValue(node, value);
+  return Replace(value);
 }
 
 Reduction JSIntrinsicLowering::ReduceJSCollectionGetTable(Node* node) {

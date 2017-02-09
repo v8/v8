@@ -61,6 +61,11 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceCall(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
 
+  // TODO(turbofan): typedarray.js support; drop once TypedArrays are
+  // converted to proper CodeStubAssembler based builtins.
+  Reduction ReduceMaxSmi(Node* node);
+  Reduction ReduceTypedArrayMaxSizeInHeap(Node* node);
+
   // TODO(turbofan): collection.js support; drop once Maps and Sets are
   // converted to proper CodeStubAssembler based builtins.
   Reduction ReduceJSCollectionGetTable(Node* node);
