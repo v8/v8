@@ -233,6 +233,7 @@ class Isolate;
   TFS(KeyedLoadIC_Megamorphic, BUILTIN, kNoExtraICState, LoadWithVector, 1)    \
   TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)           \
   TFS(KeyedLoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector, 1)             \
+  TFS(KeyedLoadIC_IndexedString, HANDLER, Code::LOAD_IC, LoadWithVector, 1)    \
   TFS(KeyedStoreIC_Megamorphic, BUILTIN, kNoExtraICState, StoreWithVector, 1)  \
   TFS(KeyedStoreIC_Megamorphic_Strict, BUILTIN, kNoExtraICState,               \
       StoreWithVector, 1)                                                      \

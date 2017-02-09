@@ -41,7 +41,6 @@ class Node;
   V(FunctionPrototype)                        \
   V(InternalArrayConstructor)                 \
   V(JSEntry)                                  \
-  V(LoadIndexedString)                        \
   V(MathPow)                                  \
   V(ProfileEntryHook)                         \
   V(RecordWrite)                              \
@@ -893,19 +892,6 @@ class FunctionPrototypeStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
 };
 
-
-class LoadIndexedStringStub : public PlatformCodeStub {
- public:
-  explicit LoadIndexedStringStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::KEYED_LOAD_IC; }
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(Load);
-  DEFINE_PLATFORM_CODE_STUB(LoadIndexedString, PlatformCodeStub);
-};
-
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
  public:
   explicit KeyedLoadSloppyArgumentsStub(Isolate* isolate)
@@ -1383,13 +1369,6 @@ class StringCharCodeAtGenerator {
   void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
                     const RuntimeCallHelper& call_helper);
 
-  // Skip handling slow case and directly jump to bailout.
-  void SkipSlow(MacroAssembler* masm, Label* bailout) {
-    masm->bind(&index_not_smi_);
-    masm->bind(&call_runtime_);
-    masm->jmp(bailout);
-  }
-
  private:
   Register object_;
   Register index_;
@@ -1407,94 +1386,6 @@ class StringCharCodeAtGenerator {
   Label exit_;
 
   DISALLOW_COPY_AND_ASSIGN(StringCharCodeAtGenerator);
-};
-
-
-// Generates code for creating a one-char string from a char code.
-class StringCharFromCodeGenerator {
- public:
-  StringCharFromCodeGenerator(Register code,
-                              Register result)
-      : code_(code),
-        result_(result) {
-    DCHECK(!code_.is(result_));
-  }
-
-  // Generates the fast case code. On the fallthrough path |result|
-  // register contains the result.
-  void GenerateFast(MacroAssembler* masm);
-
-  // Generates the slow case code. Must not be naturally
-  // reachable. Expected to be put after a ret instruction (e.g., in
-  // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm,
-                    const RuntimeCallHelper& call_helper);
-
-  // Skip handling slow case and directly jump to bailout.
-  void SkipSlow(MacroAssembler* masm, Label* bailout) {
-    masm->bind(&slow_case_);
-    masm->jmp(bailout);
-  }
-
- private:
-  Register code_;
-  Register result_;
-
-  Label slow_case_;
-  Label exit_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringCharFromCodeGenerator);
-};
-
-
-// Generates code implementing String.prototype.charAt.
-//
-// Only supports the case when the receiver is a string and the index
-// is a number (smi or heap number) that is a valid index into the
-// string. Additional index constraints are specified by the
-// flags. Otherwise, bails out to the provided labels.
-//
-// Register usage: |object| may be changed to another string in a way
-// that doesn't affect charCodeAt/charAt semantics, |index| is
-// preserved, |scratch1|, |scratch2|, and |result| are clobbered.
-class StringCharAtGenerator {
- public:
-  StringCharAtGenerator(Register object, Register index, Register scratch,
-                        Register result, Label* receiver_not_string,
-                        Label* index_not_number, Label* index_out_of_range,
-                        ReceiverCheckMode check_mode = RECEIVER_IS_UNKNOWN)
-      : char_code_at_generator_(object, index, scratch, receiver_not_string,
-                                index_not_number, index_out_of_range,
-                                check_mode),
-        char_from_code_generator_(scratch, result) {}
-
-  // Generates the fast case code. On the fallthrough path |result|
-  // register contains the result.
-  void GenerateFast(MacroAssembler* masm) {
-    char_code_at_generator_.GenerateFast(masm);
-    char_from_code_generator_.GenerateFast(masm);
-  }
-
-  // Generates the slow case code. Must not be naturally
-  // reachable. Expected to be put after a ret instruction (e.g., in
-  // deferred code). Always jumps back to the fast case.
-  void GenerateSlow(MacroAssembler* masm, EmbedMode embed_mode,
-                    const RuntimeCallHelper& call_helper) {
-    char_code_at_generator_.GenerateSlow(masm, embed_mode, call_helper);
-    char_from_code_generator_.GenerateSlow(masm, call_helper);
-  }
-
-  // Skip handling slow case and directly jump to bailout.
-  void SkipSlow(MacroAssembler* masm, Label* bailout) {
-    char_code_at_generator_.SkipSlow(masm, bailout);
-    char_from_code_generator_.SkipSlow(masm, bailout);
-  }
-
- private:
-  StringCharCodeAtGenerator char_code_at_generator_;
-  StringCharFromCodeGenerator char_from_code_generator_;
-
-  DISALLOW_COPY_AND_ASSIGN(StringCharAtGenerator);
 };
 
 class CallICTrampolineStub : public TurboFanCodeStub {

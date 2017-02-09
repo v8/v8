@@ -479,40 +479,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
-
-void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label miss;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register index = LoadDescriptor::NameRegister();
-  Register scratch = edi;
-  DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  Register result = eax;
-  DCHECK(!result.is(scratch));
-  DCHECK(!scratch.is(LoadWithVectorDescriptor::VectorRegister()) &&
-         result.is(LoadDescriptor::SlotRegister()));
-
-  // StringCharAtGenerator doesn't use the result register until it's passed
-  // the different miss possibilities. If it did, we would have a conflict
-  // when FLAG_vector_ics is true.
-  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
-                                          &miss,  // When not a string.
-                                          &miss,  // When not a number.
-                                          &miss,  // When index out of range.
-                                          RECEIVER_IS_STRING);
-  char_at_generator.GenerateFast(masm);
-  __ ret(0);
-
-  StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
-
-  __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -1779,52 +1745,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ jmp(&exit_);
 
   __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
-}
-
-
-// -------------------------------------------------------------------------
-// StringCharFromCodeGenerator
-
-void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCodeU + 1));
-  __ test(code_, Immediate(kSmiTagMask |
-                           ((~String::kMaxOneByteCharCodeU) << kSmiTagSize)));
-  __ j(not_zero, &slow_case_);
-
-  Factory* factory = masm->isolate()->factory();
-  __ Move(result_, Immediate(factory->single_character_string_cache()));
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  // At this point code register contains smi tagged one byte char code.
-  __ mov(result_, FieldOperand(result_,
-                               code_, times_half_pointer_size,
-                               FixedArray::kHeaderSize));
-  __ cmp(result_, factory->undefined_value());
-  __ j(equal, &slow_case_);
-  __ bind(&exit_);
-}
-
-
-void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
-
-  __ bind(&slow_case_);
-  call_helper.BeforeCall(masm);
-  __ push(code_);
-  __ CallRuntime(Runtime::kStringCharFromCode);
-  if (!result_.is(eax)) {
-    __ mov(result_, eax);
-  }
-  call_helper.AfterCall(masm);
-  __ jmp(&exit_);
-
-  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,

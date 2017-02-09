@@ -1285,39 +1285,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
-
-void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
-  // Return address is in lr.
-  Label miss;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register index = LoadDescriptor::NameRegister();
-  Register result = x0;
-  Register scratch = x10;
-  DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  DCHECK(!scratch.is(LoadWithVectorDescriptor::VectorRegister()) &&
-         result.is(LoadWithVectorDescriptor::SlotRegister()));
-
-  // StringCharAtGenerator doesn't use the result register until it's passed
-  // the different miss possibilities. If it did, we would have a conflict
-  // when FLAG_vector_ics is true.
-  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
-                                          &miss,  // When not a string.
-                                          &miss,  // When not a number.
-                                          &miss,  // When index out of range.
-                                          RECEIVER_IS_STRING);
-  char_at_generator.GenerateFast(masm);
-  __ Ret();
-
-  StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
-
-  __ Bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
 #ifdef V8_INTERPRETED_REGEXP
   __ TailCallRuntime(Runtime::kRegExpExec);
@@ -2055,38 +2022,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
 
   __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
 }
-
-
-void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
-  __ JumpIfNotSmi(code_, &slow_case_);
-  __ Cmp(code_, Smi::FromInt(String::kMaxOneByteCharCode));
-  __ B(hi, &slow_case_);
-
-  __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
-  // At this point code register contains smi tagged one-byte char code.
-  __ Add(result_, result_, Operand::UntagSmiAndScale(code_, kPointerSizeLog2));
-  __ Ldr(result_, FieldMemOperand(result_, FixedArray::kHeaderSize));
-  __ JumpIfRoot(result_, Heap::kUndefinedValueRootIndex, &slow_case_);
-  __ Bind(&exit_);
-}
-
-
-void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
-
-  __ Bind(&slow_case_);
-  call_helper.BeforeCall(masm);
-  __ Push(code_);
-  __ CallRuntime(Runtime::kStringCharFromCode);
-  __ Mov(result_, x0);
-  call_helper.AfterCall(masm);
-  __ B(&exit_);
-
-  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
-}
-
 
 void CompareICStub::GenerateBooleans(MacroAssembler* masm) {
   // Inputs are in x0 (lhs) and x1 (rhs).

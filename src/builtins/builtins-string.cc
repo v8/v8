@@ -417,8 +417,7 @@ TF_BUILTIN(StringCharAt, CodeStubAssembler) {
   Node* position = Parameter(1);
 
   // Load the character code at the {position} from the {receiver}.
-  Node* code = StringCharCodeAt(receiver, position,
-                                CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* code = StringCharCodeAt(receiver, position, INTPTR_PARAMETERS);
 
   // And return the single character string with only that {code}
   Node* result = StringFromCharCode(code);
@@ -430,8 +429,7 @@ TF_BUILTIN(StringCharCodeAt, CodeStubAssembler) {
   Node* position = Parameter(1);
 
   // Load the character code at the {position} from the {receiver}.
-  Node* code = StringCharCodeAt(receiver, position,
-                                CodeStubAssembler::INTPTR_PARAMETERS);
+  Node* code = StringCharCodeAt(receiver, position, INTPTR_PARAMETERS);
 
   // And return it as TaggedSigned value.
   // TODO(turbofan): Allow builtins to return values untagged.

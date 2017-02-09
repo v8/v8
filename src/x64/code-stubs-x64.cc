@@ -360,39 +360,6 @@ void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
       masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
 }
 
-
-void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label miss;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register index = LoadDescriptor::NameRegister();
-  Register scratch = rdi;
-  Register result = rax;
-  DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  DCHECK(!scratch.is(LoadWithVectorDescriptor::VectorRegister()) &&
-         result.is(LoadDescriptor::SlotRegister()));
-
-  // StringCharAtGenerator doesn't use the result register until it's passed
-  // the different miss possibilities. If it did, we would have a conflict
-  // when FLAG_vector_ics is true.
-  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
-                                          &miss,  // When not a string.
-                                          &miss,  // When not a number.
-                                          &miss,  // When index out of range.
-                                          RECEIVER_IS_STRING);
-  char_at_generator.GenerateFast(masm);
-  __ ret(0);
-
-  StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
-
-  __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -1739,44 +1706,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ jmp(&exit_);
 
   __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
-}
-
-
-// -------------------------------------------------------------------------
-// StringCharFromCodeGenerator
-
-void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  __ JumpIfNotSmi(code_, &slow_case_);
-  __ SmiCompare(code_, Smi::FromInt(String::kMaxOneByteCharCode));
-  __ j(above, &slow_case_);
-
-  __ LoadRoot(result_, Heap::kSingleCharacterStringCacheRootIndex);
-  SmiIndex index = masm->SmiToIndex(kScratchRegister, code_, kPointerSizeLog2);
-  __ movp(result_, FieldOperand(result_, index.reg, index.scale,
-                                FixedArray::kHeaderSize));
-  __ CompareRoot(result_, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &slow_case_);
-  __ bind(&exit_);
-}
-
-
-void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
-
-  __ bind(&slow_case_);
-  call_helper.BeforeCall(masm);
-  __ Push(code_);
-  __ CallRuntime(Runtime::kStringCharFromCode);
-  if (!result_.is(rax)) {
-    __ movp(result_, rax);
-  }
-  call_helper.AfterCall(masm);
-  __ jmp(&exit_);
-
-  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,

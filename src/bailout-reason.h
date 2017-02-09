@@ -213,14 +213,10 @@ namespace internal {
     "Unexpected ElementsKind in array constructor")                            \
   V(kUnexpectedFallthroughFromCharCodeAtSlowCase,                              \
     "Unexpected fallthrough from CharCodeAt slow case")                        \
-  V(kUnexpectedFallthroughFromCharFromCodeSlowCase,                            \
-    "Unexpected fallthrough from CharFromCode slow case")                      \
   V(kUnexpectedFallThroughFromStringComparison,                                \
     "Unexpected fall-through from string comparison")                          \
   V(kUnexpectedFallthroughToCharCodeAtSlowCase,                                \
     "Unexpected fallthrough to CharCodeAt slow case")                          \
-  V(kUnexpectedFallthroughToCharFromCodeSlowCase,                              \
-    "Unexpected fallthrough to CharFromCode slow case")                        \
   V(kUnexpectedFPUStackDepthAfterInstruction,                                  \
     "Unexpected FPU stack depth after instruction")                            \
   V(kUnexpectedInitialMapForArrayFunction1,                                    \

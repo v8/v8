@@ -12,6 +12,30 @@
 namespace v8 {
 namespace internal {
 
+TF_BUILTIN(KeyedLoadIC_IndexedString, CodeStubAssembler) {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* index = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  Node* index_intptr = TryToIntptr(index, &miss);
+  Node* length = SmiUntag(LoadStringLength(receiver));
+  GotoIf(UintPtrGreaterThanOrEqual(index_intptr, length), &miss);
+
+  Node* code = StringCharCodeAt(receiver, index_intptr, INTPTR_PARAMETERS);
+  Node* result = StringFromCharCode(code);
+  Return(result);
+
+  Bind(&miss);
+  TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, index, slot,
+                  vector);
+}
+
 TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
 
