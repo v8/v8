@@ -2556,9 +2556,9 @@ bool ValueSerializerTestWithWasm::g_saved_flag = false;
 // A simple module which exports an "increment" function.
 // Copied from test/mjsunit/wasm/incrementer.wasm.
 const unsigned char kIncrementerWasm[] = {
-    0,   97, 115, 109, 13, 0,  0, 0, 1,   6,   1,  96,  1,   127, 1,   127,
-    3,   2,  1,   0,   7,  13, 1, 9, 105, 110, 99, 114, 101, 109, 101, 110,
-    116, 0,  0,   10,  9,  1,  7, 0, 32,  0,   65, 1,   106, 11,
+    0,   97, 115, 109, 1, 0,  0, 0, 1,   6,   1,  96,  1,   127, 1,   127,
+    3,   2,  1,   0,   7, 13, 1, 9, 105, 110, 99, 114, 101, 109, 101, 110,
+    116, 0,  0,   10,  9, 1,  7, 0, 32,  0,   65, 1,   106, 11,
 };
 
 TEST_F(ValueSerializerTestWithWasm, RoundTripWasmModule) {

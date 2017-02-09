@@ -35,7 +35,9 @@ namespace wasm {
 class ErrorThrower;
 
 const uint32_t kWasmMagic = 0x6d736100;
-const uint32_t kWasmVersion = 0x0d;
+const uint32_t kWasmVersion = 0x01;
+// Legacy version supported for short transitionary period.
+const uint32_t kWasmLegacyVersion = 0x0d;
 
 const uint8_t kWasmFunctionTypeForm = 0x60;
 const uint8_t kWasmAnyFunctionTypeForm = 0x70;
