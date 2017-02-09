@@ -703,7 +703,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
     const String16& callFrameId, const String16& expression,
     Maybe<String16> objectGroup, Maybe<bool> includeCommandLineAPI,
     Maybe<bool> silent, Maybe<bool> returnByValue, Maybe<bool> generatePreview,
-    Maybe<bool> throwOnSideEffect, std::unique_ptr<RemoteObject>* result,
+    std::unique_ptr<RemoteObject>* result,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_inspector, m_session->contextGroupId(),
@@ -718,8 +718,7 @@ Response V8DebuggerAgentImpl::evaluateOnCallFrame(
 
   v8::MaybeLocal<v8::Value> maybeResultValue =
       m_pausedCallFrames[scope.frameOrdinal()]->evaluate(
-          toV8String(m_isolate, expression),
-          throwOnSideEffect.fromMaybe(false));
+          toV8String(m_isolate, expression));
 
   // Re-initialize after running client's code, as it could have destroyed
   // context or session.

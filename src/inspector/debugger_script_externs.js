@@ -31,7 +31,7 @@ var JavaScriptCallFrameDetails;
 /** @typedef {{
         contextId: function():number,
         thisObject: !Object,
-        evaluate: function(string, boolean):*,
+        evaluate: function(string):*,
         restart: function():undefined,
         setVariableValue: function(number, string, *):undefined,
         isAtReturn: boolean,
@@ -351,9 +351,8 @@ FrameMirror.prototype.script = function() {}
 
 /**
  * @param {string} source
- * @param {boolean} throwOnSideEffect
  */
-FrameMirror.prototype.evaluate = function(source, throwOnSideEffect) {}
+FrameMirror.prototype.evaluate = function(source) {}
 
 FrameMirror.prototype.restart = function() {}
 
