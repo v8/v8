@@ -350,10 +350,9 @@ class FlagsContinuation final {
 
   // Creates a new flags continuation for an eager deoptimization exit.
   static FlagsContinuation ForDeoptimize(FlagsCondition condition,
-                                         DeoptimizeKind kind,
                                          DeoptimizeReason reason,
                                          Node* frame_state) {
-    return FlagsContinuation(condition, kind, reason, frame_state);
+    return FlagsContinuation(condition, reason, frame_state);
   }
 
   // Creates a new flags continuation for a boolean value.
@@ -375,10 +374,6 @@ class FlagsContinuation final {
   FlagsCondition condition() const {
     DCHECK(!IsNone());
     return condition_;
-  }
-  DeoptimizeKind kind() const {
-    DCHECK(IsDeoptimize());
-    return kind_;
   }
   DeoptimizeReason reason() const {
     DCHECK(IsDeoptimize());
@@ -453,11 +448,10 @@ class FlagsContinuation final {
   }
 
  private:
-  FlagsContinuation(FlagsCondition condition, DeoptimizeKind kind,
-                    DeoptimizeReason reason, Node* frame_state)
+  FlagsContinuation(FlagsCondition condition, DeoptimizeReason reason,
+                    Node* frame_state)
       : mode_(kFlags_deoptimize),
         condition_(condition),
-        kind_(kind),
         reason_(reason),
         frame_state_or_result_(frame_state) {
     DCHECK_NOT_NULL(frame_state);
@@ -480,8 +474,7 @@ class FlagsContinuation final {
 
   FlagsMode const mode_;
   FlagsCondition condition_;
-  DeoptimizeKind kind_;          // Only valid if mode_ == kFlags_deoptimize
-  DeoptimizeReason reason_;      // Only valid if mode_ == kFlags_deoptimize
+  DeoptimizeReason reason_;      // Only value if mode_ == kFlags_deoptimize
   Node* frame_state_or_result_;  // Only valid if mode_ == kFlags_deoptimize
                                  // or mode_ == kFlags_set.
   BasicBlock* true_block_;       // Only valid if mode_ == kFlags_branch.

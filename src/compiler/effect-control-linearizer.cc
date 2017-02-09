@@ -1239,8 +1239,7 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
 
 Node* EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
-  __ DeoptimizeUnless(DeoptimizeKind::kEager, DeoptimizeReason::kNoReason,
-                      value, frame_state);
+  __ DeoptimizeUnless(DeoptimizeReason::kNoReason, value, frame_state);
   return value;
 }
 

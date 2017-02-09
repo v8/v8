@@ -196,7 +196,8 @@ Handle<Code> CodeGenerator::GenerateCode() {
   // Assemble all eager deoptimization exits.
   for (DeoptimizationExit* exit : deoptimization_exits_) {
     masm()->bind(exit->label());
-    AssembleDeoptimizerCall(exit->deoptimization_id(), exit->pos());
+    AssembleDeoptimizerCall(exit->deoptimization_id(), Deoptimizer::EAGER,
+                            exit->pos());
   }
 
   // Ensure there is space for lazy deoptimization in the code.
@@ -671,13 +672,6 @@ DeoptimizationEntry const& CodeGenerator::GetDeoptimizationEntry(
   return code()->GetDeoptimizationEntry(state_id);
 }
 
-DeoptimizeKind CodeGenerator::GetDeoptimizationKind(
-    int deoptimization_id) const {
-  size_t const index = static_cast<size_t>(deoptimization_id);
-  DCHECK_LT(index, deoptimization_states_.size());
-  return deoptimization_states_[index]->kind();
-}
-
 DeoptimizeReason CodeGenerator::GetDeoptimizationReason(
     int deoptimization_id) const {
   size_t const index = static_cast<size_t>(deoptimization_id);
@@ -842,7 +836,7 @@ int CodeGenerator::BuildTranslation(Instruction* instr, int pc_offset,
   int deoptimization_id = static_cast<int>(deoptimization_states_.size());
 
   deoptimization_states_.push_back(new (zone()) DeoptimizationState(
-      descriptor->bailout_id(), translation.index(), pc_offset, entry.kind(),
+      descriptor->bailout_id(), translation.index(), pc_offset,
       entry.reason()));
 
   return deoptimization_id;

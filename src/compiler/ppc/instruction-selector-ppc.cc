@@ -1782,17 +1782,15 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), node->InputAt(1));
-  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+  VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
-  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), node->InputAt(1));
-  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
+      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+  VisitWord32CompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
