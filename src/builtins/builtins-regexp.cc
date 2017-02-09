@@ -241,6 +241,27 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   Node* const native_context = LoadNativeContext(context);
   Node* const string_length = LoadStringLength(string);
 
+  // Load lastIndex.
+  Variable var_lastindex(this, MachineRepresentation::kTagged);
+  {
+    Node* const regexp_lastindex = LoadLastIndex(context, regexp, is_fastpath);
+    var_lastindex.Bind(regexp_lastindex);
+
+    // Omit ToLength if lastindex is a non-negative smi.
+    Label call_tolength(this, Label::kDeferred), next(this);
+    Branch(TaggedIsPositiveSmi(regexp_lastindex), &next, &call_tolength);
+
+    Bind(&call_tolength);
+    {
+      Callable tolength_callable = CodeFactory::ToLength(isolate);
+      var_lastindex.Bind(
+          CallStub(tolength_callable, context, regexp_lastindex));
+      Goto(&next);
+    }
+
+    Bind(&next);
+  }
+
   // Check whether the regexp is global or sticky, which determines whether we
   // update last index later on.
   Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
@@ -251,33 +272,12 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
   // Grab and possibly update last index.
   Label run_exec(this);
-  Variable var_lastindex(this, MachineRepresentation::kTagged);
   {
     Label if_doupdate(this), if_dontupdate(this);
     Branch(should_update_last_index, &if_doupdate, &if_dontupdate);
 
     Bind(&if_doupdate);
     {
-      Node* const regexp_lastindex =
-          LoadLastIndex(context, regexp, is_fastpath);
-      var_lastindex.Bind(regexp_lastindex);
-
-      // Omit ToLength if lastindex is a non-negative smi.
-      {
-        Label call_tolength(this, Label::kDeferred), next(this);
-        Branch(TaggedIsPositiveSmi(regexp_lastindex), &next, &call_tolength);
-
-        Bind(&call_tolength);
-        {
-          Callable tolength_callable = CodeFactory::ToLength(isolate);
-          var_lastindex.Bind(
-              CallStub(tolength_callable, context, regexp_lastindex));
-          Goto(&next);
-        }
-
-        Bind(&next);
-      }
-
       Node* const lastindex = var_lastindex.value();
 
       Label if_isoob(this, Label::kDeferred);
