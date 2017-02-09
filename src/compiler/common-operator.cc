@@ -50,19 +50,6 @@ int ValueInputCountOfReturn(Operator const* const op) {
   return op->ValueInputCount() - 1;
 }
 
-size_t hash_value(DeoptimizeKind kind) { return static_cast<size_t>(kind); }
-
-std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
-  switch (kind) {
-    case DeoptimizeKind::kEager:
-      return os << "Eager";
-    case DeoptimizeKind::kSoft:
-      return os << "Soft";
-  }
-  UNREACHABLE();
-  return os;
-}
-
 bool operator==(DeoptimizeParameters lhs, DeoptimizeParameters rhs) {
   return lhs.kind() == rhs.kind() && lhs.reason() == rhs.reason();
 }
@@ -80,7 +67,9 @@ std::ostream& operator<<(std::ostream& os, DeoptimizeParameters p) {
 }
 
 DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const op) {
-  DCHECK_EQ(IrOpcode::kDeoptimize, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kDeoptimize ||
+         op->opcode() == IrOpcode::kDeoptimizeIf ||
+         op->opcode() == IrOpcode::kDeoptimizeUnless);
   return OpParameter<DeoptimizeParameters>(op);
 }
 
@@ -436,22 +425,22 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(Soft, InsufficientTypeFeedbackForGenericNamedAccess)
 
 #define CACHED_DEOPTIMIZE_IF_LIST(V) \
-  V(DivisionByZero)                  \
-  V(Hole)                            \
-  V(MinusZero)                       \
-  V(Overflow)                        \
-  V(Smi)
+  V(Eager, DivisionByZero)           \
+  V(Eager, Hole)                     \
+  V(Eager, MinusZero)                \
+  V(Eager, Overflow)                 \
+  V(Eager, Smi)
 
 #define CACHED_DEOPTIMIZE_UNLESS_LIST(V) \
-  V(LostPrecision)                       \
-  V(LostPrecisionOrNaN)                  \
-  V(NoReason)                            \
-  V(NotAHeapNumber)                      \
-  V(NotANumberOrOddball)                 \
-  V(NotASmi)                             \
-  V(OutOfBounds)                         \
-  V(WrongInstanceType)                   \
-  V(WrongMap)
+  V(Eager, LostPrecision)                \
+  V(Eager, LostPrecisionOrNaN)           \
+  V(Eager, NoReason)                     \
+  V(Eager, NotAHeapNumber)               \
+  V(Eager, NotANumberOrOddball)          \
+  V(Eager, NotASmi)                      \
+  V(Eager, OutOfBounds)                  \
+  V(Eager, WrongInstanceType)            \
+  V(Eager, WrongMap)
 
 #define CACHED_TRAP_IF_LIST(V) \
   V(TrapDivUnrepresentable)    \
@@ -635,35 +624,37 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
 
-  template <DeoptimizeReason kReason>
-  struct DeoptimizeIfOperator final : public Operator1<DeoptimizeReason> {
+  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  struct DeoptimizeIfOperator final : public Operator1<DeoptimizeParameters> {
     DeoptimizeIfOperator()
-        : Operator1<DeoptimizeReason>(                   // --
+        : Operator1<DeoptimizeParameters>(               // --
               IrOpcode::kDeoptimizeIf,                   // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeIf",                            // name
               2, 1, 1, 0, 1, 1,                          // counts
-              kReason) {}                                // parameter
+              DeoptimizeParameters(kKind, kReason)) {}   // parameter
   };
-#define CACHED_DEOPTIMIZE_IF(Reason)                \
-  DeoptimizeIfOperator<DeoptimizeReason::k##Reason> \
-      kDeoptimizeIf##Reason##Operator;
+#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                                   \
+  DeoptimizeIfOperator<DeoptimizeKind::k##Kind, DeoptimizeReason::k##Reason> \
+      kDeoptimizeIf##Kind##Reason##Operator;
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
 
-  template <DeoptimizeReason kReason>
-  struct DeoptimizeUnlessOperator final : public Operator1<DeoptimizeReason> {
+  template <DeoptimizeKind kKind, DeoptimizeReason kReason>
+  struct DeoptimizeUnlessOperator final
+      : public Operator1<DeoptimizeParameters> {
     DeoptimizeUnlessOperator()
-        : Operator1<DeoptimizeReason>(                   // --
+        : Operator1<DeoptimizeParameters>(               // --
               IrOpcode::kDeoptimizeUnless,               // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "DeoptimizeUnless",                        // name
               2, 1, 1, 0, 1, 1,                          // counts
-              kReason) {}                                // parameter
+              DeoptimizeParameters(kKind, kReason)) {}   // parameter
   };
-#define CACHED_DEOPTIMIZE_UNLESS(Reason)                \
-  DeoptimizeUnlessOperator<DeoptimizeReason::k##Reason> \
-      kDeoptimizeUnless##Reason##Operator;
+#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)          \
+  DeoptimizeUnlessOperator<DeoptimizeKind::k##Kind,     \
+                           DeoptimizeReason::k##Reason> \
+      kDeoptimizeUnless##Kind##Reason##Operator;
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
@@ -859,43 +850,42 @@ const Operator* CommonOperatorBuilder::Deoptimize(DeoptimizeKind kind,
       parameter);                                       // parameter
 }
 
-const Operator* CommonOperatorBuilder::DeoptimizeIf(DeoptimizeReason reason) {
-  switch (reason) {
-#define CACHED_DEOPTIMIZE_IF(Reason) \
-  case DeoptimizeReason::k##Reason:  \
-    return &cache_.kDeoptimizeIf##Reason##Operator;
-    CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
-#undef CACHED_DEOPTIMIZE_IF
-    default:
-      break;
+const Operator* CommonOperatorBuilder::DeoptimizeIf(DeoptimizeKind kind,
+                                                    DeoptimizeReason reason) {
+#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                \
+  if (kind == DeoptimizeKind::k##Kind &&                  \
+      reason == DeoptimizeReason::k##Reason) {            \
+    return &cache_.kDeoptimizeIf##Kind##Reason##Operator; \
   }
+  CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
+#undef CACHED_DEOPTIMIZE_IF
   // Uncached
-  return new (zone()) Operator1<DeoptimizeReason>(  // --
-      IrOpcode::kDeoptimizeIf,                      // opcode
-      Operator::kFoldable | Operator::kNoThrow,     // properties
-      "DeoptimizeIf",                               // name
-      2, 1, 1, 0, 1, 1,                             // counts
-      reason);                                      // parameter
+  DeoptimizeParameters parameter(kind, reason);
+  return new (zone()) Operator1<DeoptimizeParameters>(  // --
+      IrOpcode::kDeoptimizeIf,                          // opcode
+      Operator::kFoldable | Operator::kNoThrow,         // properties
+      "DeoptimizeIf",                                   // name
+      2, 1, 1, 0, 1, 1,                                 // counts
+      parameter);                                       // parameter
 }
 
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
-    DeoptimizeReason reason) {
-  switch (reason) {
-#define CACHED_DEOPTIMIZE_UNLESS(Reason) \
-  case DeoptimizeReason::k##Reason:      \
-    return &cache_.kDeoptimizeUnless##Reason##Operator;
-    CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
-#undef CACHED_DEOPTIMIZE_UNLESS
-    default:
-      break;
+    DeoptimizeKind kind, DeoptimizeReason reason) {
+#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)                \
+  if (kind == DeoptimizeKind::k##Kind &&                      \
+      reason == DeoptimizeReason::k##Reason) {                \
+    return &cache_.kDeoptimizeUnless##Kind##Reason##Operator; \
   }
+  CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
+#undef CACHED_DEOPTIMIZE_UNLESS
   // Uncached
-  return new (zone()) Operator1<DeoptimizeReason>(  // --
-      IrOpcode::kDeoptimizeUnless,                  // opcode
-      Operator::kFoldable | Operator::kNoThrow,     // properties
-      "DeoptimizeUnless",                           // name
-      2, 1, 1, 0, 1, 1,                             // counts
-      reason);                                      // parameter
+  DeoptimizeParameters parameter(kind, reason);
+  return new (zone()) Operator1<DeoptimizeParameters>(  // --
+      IrOpcode::kDeoptimizeUnless,                      // opcode
+      Operator::kFoldable | Operator::kNoThrow,         // properties
+      "DeoptimizeUnless",                               // name
+      2, 1, 1, 0, 1, 1,                                 // counts
+      parameter);                                       // parameter
 }
 
 const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {

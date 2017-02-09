@@ -1296,14 +1296,17 @@ class FrameStateDescriptor : public ZoneObject {
 class DeoptimizationEntry final {
  public:
   DeoptimizationEntry() {}
-  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeReason reason)
-      : descriptor_(descriptor), reason_(reason) {}
+  DeoptimizationEntry(FrameStateDescriptor* descriptor, DeoptimizeKind kind,
+                      DeoptimizeReason reason)
+      : descriptor_(descriptor), kind_(kind), reason_(reason) {}
 
   FrameStateDescriptor* descriptor() const { return descriptor_; }
+  DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
 
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
+  DeoptimizeKind kind_ = DeoptimizeKind::kEager;
   DeoptimizeReason reason_ = DeoptimizeReason::kNoReason;
 };
 
@@ -1563,7 +1566,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   int AddDeoptimizationEntry(FrameStateDescriptor* descriptor,
-                             DeoptimizeReason reason);
+                             DeoptimizeKind kind, DeoptimizeReason reason);
   DeoptimizationEntry const& GetDeoptimizationEntry(int deoptimization_id);
   int GetDeoptimizationEntryCount() const {
     return static_cast<int>(deoptimization_entries_.size());

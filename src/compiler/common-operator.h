@@ -52,13 +52,6 @@ DeoptimizeReason DeoptimizeReasonOf(Operator const* const);
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
 
-// Deoptimize bailout kind.
-enum class DeoptimizeKind : uint8_t { kEager, kSoft };
-
-size_t hash_value(DeoptimizeKind kind);
-
-std::ostream& operator<<(std::ostream&, DeoptimizeKind);
-
 // Parameters for the {Deoptimize} operator.
 class DeoptimizeParameters final {
  public:
@@ -326,8 +319,9 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfDefault();
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason);
-  const Operator* DeoptimizeIf(DeoptimizeReason reason);
-  const Operator* DeoptimizeUnless(DeoptimizeReason reason);
+  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason);
+  const Operator* DeoptimizeUnless(DeoptimizeKind kind,
+                                   DeoptimizeReason reason);
   const Operator* TrapIf(int32_t trap_id);
   const Operator* TrapUnless(int32_t trap_id);
   const Operator* Return(int value_input_count = 1);
