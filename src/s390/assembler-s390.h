@@ -448,9 +448,9 @@ class Assembler : public AssemblerBase {
       Isolate* isolate, Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(static Address target_address_at(Address pc, Code* code));
-  INLINE(static void set_target_address_at(Isolate* isolate, Address pc,
-                                           Code* code, Address target,
-                                           ICacheFlushMode icache_flush_mode));
+  INLINE(static void set_target_address_at(
+      Isolate* isolate, Address pc, Code* code, Address target,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
 
   // Return the code target address at a call site from the return address
   // of that call in the instruction stream.
