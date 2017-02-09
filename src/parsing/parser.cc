@@ -388,8 +388,8 @@ Expression* Parser::NewSuperPropertyReference(int pos) {
   // this_function[home_object_symbol]
   VariableProxy* this_function_proxy =
       NewUnresolved(ast_value_factory()->this_function_string(), pos);
-  Expression* home_object_symbol_literal =
-      factory()->NewSymbolLiteral("home_object_symbol", kNoSourcePosition);
+  Expression* home_object_symbol_literal = factory()->NewSymbolLiteral(
+      AstSymbol::kHomeObjectSymbol, kNoSourcePosition);
   Expression* home_object = factory()->NewProperty(
       this_function_proxy, home_object_symbol_literal, pos);
   return factory()->NewSuperPropertyReference(

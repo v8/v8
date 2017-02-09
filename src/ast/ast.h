@@ -3291,8 +3291,8 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   // A JavaScript symbol (ECMA-262 edition 6).
-  Literal* NewSymbolLiteral(const char* name, int pos) {
-    return new (zone_) Literal(ast_value_factory_->NewSymbol(name), pos);
+  Literal* NewSymbolLiteral(AstSymbol symbol, int pos) {
+    return new (zone_) Literal(ast_value_factory_->NewSymbol(symbol), pos);
   }
 
   Literal* NewNumberLiteral(double number, int pos, bool with_dot = false) {

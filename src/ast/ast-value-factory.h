@@ -152,14 +152,17 @@ class AstConsString final : public AstString {
   const AstString* right_;
 };
 
+enum class AstSymbol : uint8_t { kHomeObjectSymbol };
 
-// AstValue is either a string, a number, a string array, a boolean, or a
-// special value (null, undefined, the hole).
+// AstValue is either a string, a symbol, a number, a string array, a boolean,
+// or a special value (null, undefined, the hole).
 class AstValue : public ZoneObject {
  public:
   bool IsString() const {
     return type_ == STRING;
   }
+
+  bool IsSymbol() const { return type_ == SYMBOL; }
 
   bool IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
@@ -170,6 +173,11 @@ class AstValue : public ZoneObject {
   const AstRawString* AsString() const {
     CHECK_EQ(STRING, type_);
     return string_;
+  }
+
+  AstSymbol AsSymbol() const {
+    CHECK_EQ(SYMBOL, type_);
+    return symbol_;
   }
 
   double AsNumber() const {
@@ -249,8 +257,8 @@ class AstValue : public ZoneObject {
     string_ = s;
   }
 
-  explicit AstValue(const char* name) : type_(SYMBOL), next_(nullptr) {
-    symbol_name_ = name;
+  explicit AstValue(AstSymbol symbol) : type_(SYMBOL), next_(nullptr) {
+    symbol_ = symbol;
   }
 
   explicit AstValue(double n, bool with_dot) : next_(nullptr) {
@@ -290,7 +298,7 @@ class AstValue : public ZoneObject {
     double number_;
     int smi_;
     bool bool_;
-    const char* symbol_name_;
+    AstSymbol symbol_;
   };
 };
 
@@ -428,7 +436,7 @@ class AstValueFactory {
 
   const AstValue* NewString(const AstRawString* string);
   // A JavaScript symbol (ECMA-262 edition 6).
-  const AstValue* NewSymbol(const char* name);
+  const AstValue* NewSymbol(AstSymbol symbol);
   const AstValue* NewNumber(double number, bool with_dot = false);
   const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
