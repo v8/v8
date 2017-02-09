@@ -38,7 +38,6 @@ class Node;
   V(CEntry)                                   \
   V(CompareIC)                                \
   V(DoubleToI)                                \
-  V(FunctionPrototype)                        \
   V(InternalArrayConstructor)                 \
   V(JSEntry)                                  \
   V(MathPow)                                  \
@@ -870,26 +869,6 @@ class CallICStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(CallIC);
   DEFINE_TURBOFAN_CODE_STUB(CallIC, TurboFanCodeStub);
-};
-
-
-// TODO(verwaest): Translate to hydrogen code stub.
-class FunctionPrototypeStub : public PlatformCodeStub {
- public:
-  explicit FunctionPrototypeStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
-
-  // TODO(mvstanton): only the receiver register is accessed. When this is
-  // translated to a hydrogen code stub, a new CallInterfaceDescriptor
-  // should be created that just uses that register for more efficient code.
-  CallInterfaceDescriptor GetCallInterfaceDescriptor() const override {
-    return LoadWithVectorDescriptor(isolate());
-  }
-
-  DEFINE_PLATFORM_CODE_STUB(FunctionPrototype, PlatformCodeStub);
 };
 
 class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {

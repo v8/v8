@@ -637,14 +637,6 @@ class MacroAssembler: public Assembler {
   // |temp| holds |result|'s map when done.
   void GetMapConstructor(Register result, Register map, Register temp);
 
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other registers may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss);
-
   // ---------------------------------------------------------------------------
   // Runtime calls
 

@@ -122,15 +122,6 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ DecrementCounter(counters->negative_lookups_miss(), 1);
 }
 
-void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
-    MacroAssembler* masm, Register receiver, Register scratch1,
-    Register scratch2, Label* miss_label) {
-  // TODO(mvstanton): This isn't used on ia32. Move all the other
-  // platform implementations into a code stub so this method can be removed.
-  UNREACHABLE();
-}
-
-
 // Generate call to api function.
 // This function uses push() to generate smaller, faster code than
 // the version above. It is an optimization that should will be removed

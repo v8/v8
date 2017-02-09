@@ -83,19 +83,6 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
 }
 
-void NamedLoadHandlerCompiler::GenerateLoadFunctionPrototype(
-    MacroAssembler* masm, Register receiver, Register scratch1,
-    Register scratch2, Label* miss_label) {
-  __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
-  // TryGetFunctionPrototype can't put the result directly in x0 because the
-  // 3 inputs registers can't alias and we call this function from
-  // LoadIC::GenerateFunctionPrototype, where receiver is x0. So we explicitly
-  // move the result in x0.
-  __ Mov(x0, scratch1);
-  __ Ret();
-}
-
-
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.

@@ -243,6 +243,7 @@ class Isolate;
   TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector,  \
       1)                                                                       \
   TFS(LoadField, BUILTIN, kNoExtraICState, LoadField, 1)                       \
+  TFS(LoadIC_FunctionPrototype, HANDLER, Code::LOAD_IC, LoadWithVector, 1)     \
   ASH(LoadIC_Getter_ForDeopt, BUILTIN, kNoExtraICState)                        \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)                \
   TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                \

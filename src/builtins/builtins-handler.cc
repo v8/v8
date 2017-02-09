@@ -125,6 +125,35 @@ void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
 }
 
+TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  Node* proto_or_map =
+      LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
+  GotoIf(IsTheHole(proto_or_map), &miss);
+
+  Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
+  Label done(this, &var_result);
+  GotoUnless(IsMap(proto_or_map), &done);
+
+  var_result.Bind(LoadMapPrototype(proto_or_map));
+  Goto(&done);
+
+  Bind(&done);
+  Return(var_result.value());
+
+  Bind(&miss);
+  TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
+}
+
 TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
 

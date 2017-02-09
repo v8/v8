@@ -3400,32 +3400,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   Bind(&done);
 }
 
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  DCHECK(!AreAliased(function, result, scratch));
-
-  // Get the prototype or initial map from the function.
-  Ldr(result,
-      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and simply
-  // miss the cache instead. This will allow us to allocate a prototype object
-  // on-demand in the runtime system.
-  JumpIfRoot(result, Heap::kTheHoleValueRootIndex, miss);
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  JumpIfNotObjectType(result, scratch, scratch, MAP_TYPE, &done);
-
-  // Get the prototype from the initial map.
-  Ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  // All done.
-  Bind(&done);
-}
-
-
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
