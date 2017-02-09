@@ -656,7 +656,7 @@ class MarkCompactCollector {
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
-  INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
+  INLINE(void MarkObject(HeapObject* obj));
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor<MarkCompactMode::FULL>* visitor);

@@ -27,9 +27,7 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   }
 }
 
-
-void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
+void MarkCompactCollector::MarkObject(HeapObject* obj) {
   if (ObjectMarking::IsWhite(obj)) {
     ObjectMarking::WhiteToBlack(obj);
     PushBlack(obj);

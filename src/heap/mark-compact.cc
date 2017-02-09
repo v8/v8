@@ -1080,17 +1080,11 @@ class StaticYoungGenerationMarkingVisitor
     Object* target = *p;
     if (heap->InNewSpace(target)) {
       if (MarkRecursively(heap, HeapObject::cast(target))) return;
-      PushOnMarkingDeque(heap, target);
+      heap->mark_compact_collector()->MarkObject(HeapObject::cast(target));
     }
   }
 
  protected:
-  inline static void PushOnMarkingDeque(Heap* heap, Object* obj) {
-    HeapObject* object = HeapObject::cast(obj);
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
-    heap->mark_compact_collector()->MarkObject(object, mark_bit);
-  }
-
   inline static bool MarkRecursively(Heap* heap, HeapObject* object) {
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
@@ -1127,8 +1121,7 @@ class MarkCompactMarkingVisitor
 
   // Marks the object black and pushes it on the marking stack.
   INLINE(static void MarkObject(Heap* heap, HeapObject* object)) {
-    MarkBit mark = ObjectMarking::MarkBitFrom(object);
-    heap->mark_compact_collector()->MarkObject(object, mark);
+    heap->mark_compact_collector()->MarkObject(object);
   }
 
   // Marks the object black without pushing it on the marking stack.
@@ -1147,8 +1140,7 @@ class MarkCompactMarkingVisitor
     if (!(*p)->IsHeapObject()) return;
     HeapObject* target_object = HeapObject::cast(*p);
     collector->RecordSlot(object, p, target_object);
-    MarkBit mark = ObjectMarking::MarkBitFrom(target_object);
-    collector->MarkObject(target_object, mark);
+    collector->MarkObject(target_object);
   }
 
 
@@ -1163,8 +1155,7 @@ class MarkCompactMarkingVisitor
     Heap* heap = obj->GetHeap();
     ObjectMarking::WhiteToBlack(obj);
     // Mark the map pointer and the body.
-    MarkBit map_mark = ObjectMarking::MarkBitFrom(map);
-    heap->mark_compact_collector()->MarkObject(map, map_mark);
+    heap->mark_compact_collector()->MarkObject(map);
     IterateBody(map, obj);
   }
 
@@ -1300,10 +1291,8 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
     Object* obj = *slot;
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(obj);
-      MarkBit shared_mark = ObjectMarking::MarkBitFrom(shared);
-      MarkBit code_mark = ObjectMarking::MarkBitFrom(shared->code());
-      collector_->MarkObject(shared->code(), code_mark);
-      collector_->MarkObject(shared, shared_mark);
+      collector_->MarkObject(shared->code());
+      collector_->MarkObject(shared);
     }
   }
 
@@ -1321,12 +1310,10 @@ void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
     // actual optimized code object.
     StackFrame* frame = it.frame();
     Code* code = frame->unchecked_code();
-    MarkBit code_mark = ObjectMarking::MarkBitFrom(code);
-    MarkObject(code, code_mark);
+    MarkObject(code);
     if (frame->is_optimized()) {
       Code* optimized_code = frame->LookupCode();
-      MarkBit optimized_code_mark = ObjectMarking::MarkBitFrom(optimized_code);
-      MarkObject(optimized_code, optimized_code_mark);
+      MarkObject(optimized_code);
     }
   }
 }
@@ -1391,8 +1378,7 @@ class RootMarkingVisitor : public ObjectVisitor {
     switch (mode) {
       case MarkCompactMode::FULL: {
         // Mark the map pointer and body, and push them on the marking stack.
-        MarkBit map_mark = ObjectMarking::MarkBitFrom(map);
-        collector_->MarkObject(map, map_mark);
+        collector_->MarkObject(map);
         MarkCompactMarkingVisitor::IterateBody(map, object);
       } break;
       case MarkCompactMode::YOUNG_GENERATION:
@@ -2047,8 +2033,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     Map* map = object->map();
     switch (mode) {
       case MarkCompactMode::FULL: {
-        MarkBit map_mark = ObjectMarking::MarkBitFrom(map);
-        MarkObject(map, map_mark);
+        MarkObject(map);
         MarkCompactMarkingVisitor::IterateBody(map, object);
       } break;
       case MarkCompactMode::YOUNG_GENERATION: {

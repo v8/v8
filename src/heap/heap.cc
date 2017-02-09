@@ -5625,8 +5625,7 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
     IncrementalMarking::MarkGrey(this, heap_object);
   } else {
     DCHECK(mark_compact_collector()->in_use());
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(heap_object);
-    mark_compact_collector()->MarkObject(heap_object, mark_bit);
+    mark_compact_collector()->MarkObject(heap_object);
   }
 }
 
