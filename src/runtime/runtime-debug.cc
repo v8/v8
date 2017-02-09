@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/compiler.h"
+#include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
@@ -1244,10 +1245,6 @@ RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
 
-  // This runtime function is used by the debugger to determine whether the
-  // debugger is active or not. Hence we fail gracefully here and don't crash.
-  if (!isolate->debug()->is_active()) return isolate->ThrowIllegalOperation();
-
   Handle<FixedArray> instances;
   {
     DebugScope debug_scope(isolate->debug());
@@ -1894,6 +1891,48 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
+}
+
+RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
+  HandleScope scope(isolate);
+  // Collect coverage data.
+  std::vector<Coverage::ScriptData> scripts = Coverage::Collect(isolate);
+  Factory* factory = isolate->factory();
+  // Turn the returned data structure into JavaScript.
+  // Create an array of scripts.
+  int num_scripts = static_cast<int>(scripts.size());
+  // Prepare property keys.
+  Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
+  Handle<String> id_string = factory->NewStringFromStaticChars("script_id");
+  Handle<String> entries_string = factory->NewStringFromStaticChars("entries");
+  Handle<String> end_string = factory->NewStringFromStaticChars("end_position");
+  Handle<String> count_string = factory->NewStringFromStaticChars("count");
+  for (int i = 0; i < num_scripts; i++) {
+    // Create an object for each script, containing the script id and entries.
+    const auto& script = scripts[i];
+    HandleScope inner_scope(isolate);
+    int num_entries = static_cast<int>(script.entries.size());
+    Handle<FixedArray> entries_array = factory->NewFixedArray(num_entries);
+    for (int j = 0; j < num_entries; j++) {
+      // Create an object for each entry, containing the end position and count.
+      const auto& entry = script.entries[j];
+      Handle<JSObject> entry_obj = factory->NewJSObjectWithNullProto();
+      JSObject::AddProperty(entry_obj, end_string,
+                            factory->NewNumberFromInt(entry.end_position),
+                            NONE);
+      JSObject::AddProperty(entry_obj, count_string,
+                            factory->NewNumberFromUint(entry.count), NONE);
+      entries_array->set(j, *entry_obj);
+    }
+    Handle<JSObject> script_obj = factory->NewJSObjectWithNullProto();
+    JSObject::AddProperty(script_obj, id_string,
+                          factory->NewNumberFromInt(script.script_id), NONE);
+    JSObject::AddProperty(
+        script_obj, entries_string,
+        factory->NewJSArrayWithElements(entries_array, FAST_ELEMENTS), NONE);
+    scripts_array->set(i, *script_obj);
+  }
+  return *factory->NewJSArrayWithElements(scripts_array, FAST_ELEMENTS);
 }
 
 }  // namespace internal

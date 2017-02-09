@@ -837,6 +837,8 @@
         'dateparser-inl.h',
         'dateparser.cc',
         'dateparser.h',
+        'debug/debug-coverage.cc',
+        'debug/debug-coverage.h',
         'debug/debug-evaluate.cc',
         'debug/debug-evaluate.h',
         'debug/debug-interface.h',
