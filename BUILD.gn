@@ -879,7 +879,7 @@ if (v8_use_external_startup_data) {
 
 # This is split out to be a non-code containing target that the Chromium browser
 # DLL can depend upon to get only a version string.
-v8_source_set("v8_version") {
+v8_header_set("v8_version") {
   configs = [ ":internal_config" ]
 
   sources = [
