@@ -258,6 +258,7 @@ DEFINE_IMPLICATION(future, turbo)
 
 DEFINE_IMPLICATION(turbo, ignition_staging)
 DEFINE_IMPLICATION(turbo, enable_fast_array_builtins)
+DEFINE_IMPLICATION(turbo, thin_strings)
 
 // TODO(rmcilroy): Remove ignition-staging and set these implications directly
 // with the turbo flag.
