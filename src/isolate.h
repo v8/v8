@@ -1167,7 +1167,7 @@ class Isolate {
     return cancelable_task_manager_;
   }
 
-  AstStringConstants* ast_string_constants() const {
+  const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
 
@@ -1417,7 +1417,7 @@ class Isolate {
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
 
-  AstStringConstants* ast_string_constants_;
+  const AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
 
