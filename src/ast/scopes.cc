@@ -974,7 +974,7 @@ Variable* DeclarationScope::DeclareParameterName(
     AstValueFactory* ast_value_factory) {
   DCHECK(!already_resolved_);
   DCHECK(is_function_scope() || is_module_scope());
-  DCHECK(!has_rest_);
+  DCHECK(!has_rest_ || is_rest);
   DCHECK(is_being_lazily_parsed_);
   has_rest_ = is_rest;
   if (name == ast_value_factory->arguments_string()) {
