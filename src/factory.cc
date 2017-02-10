@@ -1173,6 +1173,24 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
       Cell);
 }
 
+Handle<Cell> Factory::NewNoClosuresCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*no_closures_cell_map());
+  return cell;
+}
+
+Handle<Cell> Factory::NewOneClosureCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*one_closure_cell_map());
+  return cell;
+}
+
+Handle<Cell> Factory::NewManyClosuresCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*many_closures_cell_map());
+  return cell;
+}
+
 Handle<PropertyCell> Factory::NewPropertyCell() {
   CALL_HEAP_FUNCTION(
       isolate(),
@@ -1589,6 +1607,15 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
+
+  // Bump the closure count that is encoded in the vector cell's map.
+  if (vector->map() == *no_closures_cell_map()) {
+    vector->set_map(*one_closure_cell_map());
+  } else if (vector->map() == *one_closure_cell_map()) {
+    vector->set_map(*many_closures_cell_map());
+  } else {
+    DCHECK_EQ(vector->map(), *many_closures_cell_map());
+  }
 
   result->set_feedback_vector_cell(*vector);
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {

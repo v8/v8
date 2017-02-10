@@ -594,6 +594,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
+    if (info()->closure()->feedback_vector_cell()->map() ==
+        isolate()->heap()->one_closure_cell_map()) {
+      info()->MarkAsFunctionContextSpecializing();
+    }
   }
   if (!info()->is_optimizing_from_bytecode()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;

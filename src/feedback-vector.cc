@@ -197,7 +197,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         array->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCreateClosure: {
-        Handle<Cell> cell = factory->NewCell(undefined_value);
+        Handle<Cell> cell = factory->NewNoClosuresCell(undefined_value);
         array->set(index, *cell);
         break;
       }

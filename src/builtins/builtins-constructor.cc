@@ -126,6 +126,26 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
                                  empty_fixed_array);
   Node* literals_cell = LoadFixedArrayElement(
       feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
+  {
+    // Bump the closure counter encoded in the cell's map.
+    Node* cell_map = LoadMap(literals_cell);
+    Label no_closures(this), one_closure(this), cell_done(this);
+
+    GotoIf(IsNoClosuresCellMap(cell_map), &no_closures);
+    GotoIf(IsOneClosureCellMap(cell_map), &one_closure);
+    CSA_ASSERT(this, IsManyClosuresCellMap(cell_map));
+    Goto(&cell_done);
+
+    Bind(&no_closures);
+    StoreMapNoWriteBarrier(literals_cell, Heap::kOneClosureCellMapRootIndex);
+    Goto(&cell_done);
+
+    Bind(&one_closure);
+    StoreMapNoWriteBarrier(literals_cell, Heap::kManyClosuresCellMapRootIndex);
+    Goto(&cell_done);
+
+    Bind(&cell_done);
+  }
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
                                  literals_cell);
   StoreObjectFieldNoWriteBarrier(

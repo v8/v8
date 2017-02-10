@@ -34,6 +34,9 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
   V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
   V(HeapNumberMap, HeapNumberMap)                     \
+  V(NoClosuresCellMap, NoClosuresCellMap)             \
+  V(OneClosureCellMap, OneClosureCellMap)             \
+  V(ManyClosuresCellMap, ManyClosuresCellMap)         \
   V(MinusZeroValue, MinusZero)                        \
   V(NanValue, Nan)                                    \
   V(NullValue, Null)                                  \

@@ -385,10 +385,12 @@ TEST(OptimizedCodeSharing1) {
         "  return function() { return x; };"
         "}"
         "var closure0 = MakeClosure();"
+        "var closure1 = MakeClosure();"  // We only share optimized code
+                                         // if there are at least two closures.
         "%DebugPrint(closure0());"
         "%OptimizeFunctionOnNextCall(closure0);"
         "%DebugPrint(closure0());"
-        "var closure1 = MakeClosure(); closure1();"
+        "closure1();"
         "var closure2 = MakeClosure(); closure2();");
     Handle<JSFunction> fun1 = Handle<JSFunction>::cast(
         v8::Utils::OpenHandle(*v8::Local<v8::Function>::Cast(

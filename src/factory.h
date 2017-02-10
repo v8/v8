@@ -373,6 +373,10 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
 
+  Handle<Cell> NewNoClosuresCell(Handle<Object> value);
+  Handle<Cell> NewOneClosureCell(Handle<Object> value);
+  Handle<Cell> NewManyClosuresCell(Handle<Object> value);
+
   Handle<TransitionArray> NewTransitionArray(int capacity);
 
   // Allocate a tenured AllocationSite. It's payload is null.

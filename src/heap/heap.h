@@ -93,6 +93,9 @@ using v8::MemoryPressureLevel;
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, module_info_map, ModuleInfoMap)                                       \
+  V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
+  V(Map, one_closure_cell_map, OneClosureCellMap)                              \
+  V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -319,6 +322,9 @@ using v8::MemoryPressureLevel;
   V(ArgumentsMarkerMap)                 \
   V(JSMessageObjectMap)                 \
   V(ForeignMap)                         \
+  V(NoClosuresCellMap)                  \
+  V(OneClosureCellMap)                  \
+  V(ManyClosuresCellMap)                \
   V(NanValue)                           \
   V(InfinityValue)                      \
   V(MinusZeroValue)                     \

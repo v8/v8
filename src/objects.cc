@@ -12156,7 +12156,8 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
       // A top level script didn't get it's literals installed.
       Handle<FeedbackVector> feedback_vector =
           FeedbackVector::New(isolate, shared);
-      Handle<Cell> new_cell = isolate->factory()->NewCell(feedback_vector);
+      Handle<Cell> new_cell =
+          isolate->factory()->NewOneClosureCell(feedback_vector);
       function->set_feedback_vector_cell(*new_cell);
       break;
     }
