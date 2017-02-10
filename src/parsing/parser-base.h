@@ -1845,7 +1845,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
-      if (peek() == Token::FUNCTION) {
+      if (peek() == Token::FUNCTION ||
+          (peek() == Token::ASYNC && PeekAhead() == Token::FUNCTION)) {
         function_state_->set_next_function_is_likely_called();
       }
       ExpressionT expr = ParseExpressionCoverGrammar(true, CHECK_OK);

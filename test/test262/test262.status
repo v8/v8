@@ -407,7 +407,6 @@
   # PreParser doesn't produce early errors
   # https://bugs.chromium.org/p/v8/issues/detail?id=2728
   'language/expressions/async-arrow-function/early-errors-arrow-formals-body-duplicate': [FAIL],
-  'language/expressions/async-function/early-errors-expression-formals-body-duplicate': [FAIL],
   'language/expressions/object/method-definition/generator-param-redecl-const': [FAIL],
   'language/expressions/object/method-definition/generator-param-redecl-let': [FAIL],
   'language/expressions/object/method-definition/name-param-redecl': [FAIL],
