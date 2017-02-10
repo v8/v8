@@ -10050,6 +10050,12 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
   return array;
 }
 
+Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
+  Handle<ArrayList> result = Handle<ArrayList>::cast(
+      isolate->factory()->NewFixedArray(size + kFirstIndex));
+  result->SetLength(0);
+  return result;
+}
 
 bool ArrayList::IsFull() {
   int capacity = length();

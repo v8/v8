@@ -5,6 +5,8 @@
 #include "src/debug/debug-coverage.h"
 
 #include "src/base/hashmap.h"
+#include "src/deoptimizer.h"
+#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 
@@ -65,17 +67,33 @@ class ScriptDataBuilder {
 
 std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
   SharedToCounterMap counter_map;
-  // Iterate the heap to find all feedback vectors and accumulate the
-  // invocation counts into the map for each shared function info.
-  HeapIterator heap_iterator(isolate->heap());
-  HeapObject* current_obj;
-  while ((current_obj = heap_iterator.next())) {
-    if (!current_obj->IsFeedbackVector()) continue;
-    FeedbackVector* vector = FeedbackVector::cast(current_obj);
-    SharedFunctionInfo* shared = vector->shared_function_info();
-    if (!shared->IsSubjectToDebugging()) continue;
-    uint32_t count = static_cast<uint32_t>(vector->invocation_count());
-    counter_map.Add(shared, count);
+
+  if (isolate->IsCodeCoverageEnabled()) {
+    // Feedback vectors are already listed to prevent losing them to GC.
+    Handle<ArrayList> list =
+        Handle<ArrayList>::cast(isolate->factory()->code_coverage_list());
+    for (int i = 0; i < list->Length(); i++) {
+      FeedbackVector* vector = FeedbackVector::cast(list->Get(i));
+      SharedFunctionInfo* shared = vector->shared_function_info();
+      DCHECK(shared->IsSubjectToDebugging());
+      uint32_t count = static_cast<uint32_t>(vector->invocation_count());
+      counter_map.Add(shared, count);
+    }
+  } else {
+    // Iterate the heap to find all feedback vectors and accumulate the
+    // invocation counts into the map for each shared function info.
+    HeapIterator heap_iterator(isolate->heap());
+    // Initializing the heap iterator might have triggered a GC, which
+    // invalidates entries in the counter_map.
+    DCHECK_EQ(0, counter_map.occupancy());
+    while (HeapObject* current_obj = heap_iterator.next()) {
+      if (!current_obj->IsFeedbackVector()) continue;
+      FeedbackVector* vector = FeedbackVector::cast(current_obj);
+      SharedFunctionInfo* shared = vector->shared_function_info();
+      if (!shared->IsSubjectToDebugging()) continue;
+      uint32_t count = static_cast<uint32_t>(vector->invocation_count());
+      counter_map.Add(shared, count);
+    }
   }
 
   // Make sure entries in the counter map is not invalidated by GC.
@@ -138,6 +156,35 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
     result.emplace_back(script->id(), builder.Finish());
   }
   return result;
+}
+
+void Coverage::EnablePrecise(Isolate* isolate) {
+  HandleScope scope(isolate);
+  // Remove all optimized function. Optimized and inlined functions do not
+  // increment invocation count.
+  Deoptimizer::DeoptimizeAll(isolate);
+  // Collect existing feedback vectors.
+  std::vector<Handle<FeedbackVector>> vectors;
+  {
+    HeapIterator heap_iterator(isolate->heap());
+    while (HeapObject* current_obj = heap_iterator.next()) {
+      if (!current_obj->IsFeedbackVector()) continue;
+      FeedbackVector* vector = FeedbackVector::cast(current_obj);
+      SharedFunctionInfo* shared = vector->shared_function_info();
+      if (!shared->IsSubjectToDebugging()) continue;
+      vector->clear_invocation_count();
+      vectors.emplace_back(vector, isolate);
+    }
+  }
+  // Add collected feedback vectors to the root list lest we lose them to GC.
+  Handle<ArrayList> list =
+      ArrayList::New(isolate, static_cast<int>(vectors.size()));
+  for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
+  isolate->SetCodeCoverageList(*list);
+}
+
+void Coverage::DisablePrecise(Isolate* isolate) {
+  isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
 }
 
 }  // namespace internal

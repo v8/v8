@@ -203,7 +203,8 @@ namespace internal {
   F(DebugAsyncFunctionPromiseCreated, 1, 1)     \
   F(DebugIsActive, 0, 1)                        \
   F(DebugBreakInOptimizedCode, 0, 1)            \
-  F(DebugCollectCoverage, 0, 1)
+  F(DebugCollectCoverage, 0, 1)                 \
+  F(DebugTogglePreciseCoverage, 1, 1)
 
 #define FOR_EACH_INTRINSIC_ERROR(F) F(ErrorToString, 1, 1)
 

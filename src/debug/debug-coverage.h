@@ -8,7 +8,6 @@
 #include <vector>
 
 #include "src/allocation.h"
-#include "src/base/macros.h"
 
 namespace v8 {
 namespace internal {
@@ -31,6 +30,11 @@ class Coverage : public AllStatic {
   };
 
   static std::vector<ScriptData> Collect(Isolate* isolate);
+
+  // Enable precise code coverage. This disables optimization and makes sure
+  // invocation count is not affected by GC.
+  static void EnablePrecise(Isolate* isolate);
+  static void DisablePrecise(Isolate* isolate);
 };
 
 }  // namespace internal

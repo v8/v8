@@ -96,6 +96,10 @@ int FeedbackVector::invocation_count() const {
   return Smi::cast(get(kInvocationCountIndex))->value();
 }
 
+void FeedbackVector::clear_invocation_count() {
+  set(kInvocationCountIndex, Smi::kZero);
+}
+
 // Conversion from an integer index to either a slot or an ic slot.
 // static
 FeedbackSlot FeedbackVector::ToSlot(int index) {

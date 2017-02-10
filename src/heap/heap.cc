@@ -2779,6 +2779,8 @@ void Heap::CreateInitialObjects() {
       ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
   weak_new_space_object_to_code_list()->SetLength(0);
 
+  set_code_coverage_list(undefined_value());
+
   set_script_list(Smi::kZero);
 
   Handle<SeededNumberDictionary> slow_element_dictionary =
@@ -2901,6 +2903,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kWeakObjectToCodeTableRootIndex:
     case kWeakNewSpaceObjectToCodeListRootIndex:
     case kRetainedMapsRootIndex:
+    case kCodeCoverageListRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:

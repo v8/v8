@@ -3029,6 +3029,7 @@ class ArrayList : public FixedArray {
                                AddMode mode = kNone);
   static Handle<ArrayList> Add(Handle<ArrayList> array, Handle<Object> obj1,
                                Handle<Object> obj2, AddMode = kNone);
+  static Handle<ArrayList> New(Isolate* isolate, int size);
   inline int Length();
   inline void SetLength(int length);
   inline Object* Get(int index);

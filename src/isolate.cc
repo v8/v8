@@ -2901,16 +2901,24 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   return nullptr;
 }
 
-
-bool Isolate::use_crankshaft() const {
+bool Isolate::use_crankshaft() {
   return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
-         CpuFeatures::SupportsCrankshaft();
+         CpuFeatures::SupportsCrankshaft() && !IsCodeCoverageEnabled();
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
   return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
          FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
          debug_->is_active() || logger_->is_logging();
+}
+
+bool Isolate::IsCodeCoverageEnabled() {
+  return heap()->code_coverage_list()->IsArrayList();
+}
+
+void Isolate::SetCodeCoverageList(Object* value) {
+  DCHECK(value->IsUndefined(this) || value->IsArrayList());
+  heap()->set_code_coverage_list(value);
 }
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {

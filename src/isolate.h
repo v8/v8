@@ -960,11 +960,14 @@ class Isolate {
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
-  bool use_crankshaft() const;
+  bool use_crankshaft();
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   bool NeedsSourcePositionsForProfiling() const;
+
+  bool IsCodeCoverageEnabled();
+  void SetCodeCoverageList(Object* value);
 
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;

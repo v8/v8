@@ -1935,5 +1935,16 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   return *factory->NewJSArrayWithElements(scripts_array, FAST_ELEMENTS);
 }
 
+RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
+  SealHandleScope shs(isolate);
+  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  if (enable) {
+    Coverage::EnablePrecise(isolate);
+  } else {
+    Coverage::DisablePrecise(isolate);
+  }
+  return isolate->heap()->undefined_value();
+}
+
 }  // namespace internal
 }  // namespace v8

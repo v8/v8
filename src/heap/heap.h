@@ -208,6 +208,8 @@ using v8::MemoryPressureLevel;
   /* slots refer to the code with the reference to the weak object. */         \
   V(ArrayList, weak_new_space_object_to_code_list,                             \
     WeakNewSpaceObjectToCodeList)                                              \
+  /* List to hold onto feedback vectors that we need for code coverage */      \
+  V(Object, code_coverage_list, CodeCoverageList)                              \
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, serialized_templates, SerializedTemplates)                     \

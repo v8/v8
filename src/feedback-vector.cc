@@ -230,7 +230,10 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
     }
     i += entry_size;
   }
-  return Handle<FeedbackVector>::cast(array);
+
+  Handle<FeedbackVector> result = Handle<FeedbackVector>::cast(array);
+  if (isolate->IsCodeCoverageEnabled()) AddToCodeCoverageList(isolate, result);
+  return result;
 }
 
 // static
@@ -239,7 +242,19 @@ Handle<FeedbackVector> FeedbackVector::Copy(Isolate* isolate,
   Handle<FeedbackVector> result;
   result = Handle<FeedbackVector>::cast(
       isolate->factory()->CopyFixedArray(Handle<FixedArray>::cast(vector)));
+  if (isolate->IsCodeCoverageEnabled()) AddToCodeCoverageList(isolate, result);
   return result;
+}
+
+// static
+void FeedbackVector::AddToCodeCoverageList(Isolate* isolate,
+                                           Handle<FeedbackVector> vector) {
+  DCHECK(isolate->IsCodeCoverageEnabled());
+  if (!vector->shared_function_info()->IsSubjectToDebugging()) return;
+  Handle<ArrayList> list =
+      Handle<ArrayList>::cast(isolate->factory()->code_coverage_list());
+  list = ArrayList::Add(list, vector);
+  isolate->SetCodeCoverageList(*list);
 }
 
 // This logic is copied from

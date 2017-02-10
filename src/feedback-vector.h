@@ -281,6 +281,7 @@ class FeedbackVector : public FixedArray {
   inline FeedbackMetadata* metadata() const;
   inline SharedFunctionInfo* shared_function_info() const;
   inline int invocation_count() const;
+  inline void clear_invocation_count();
 
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) {
@@ -352,6 +353,8 @@ class FeedbackVector : public FixedArray {
 
  private:
   void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
+  static void AddToCodeCoverageList(Isolate* isolate,
+                                    Handle<FeedbackVector> vector);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackVector);
 };
