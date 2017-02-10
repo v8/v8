@@ -83,7 +83,8 @@ class BytecodeGraphBuilder::Environment : public ZoneObject {
   bool StateValuesRequireUpdate(Node** state_values, Node** values, int count);
   void UpdateStateValues(Node** state_values, Node** values, int count);
   void UpdateStateValuesWithCache(Node** state_values, Node** values, int count,
-                                  const BitVector* liveness);
+                                  const BitVector* liveness,
+                                  int liveness_offset);
 
   int RegisterToValuesIndex(interpreter::Register the_register) const;
 
@@ -350,7 +351,7 @@ bool BytecodeGraphBuilder::Environment::StateValuesRequireUpdate(
     return true;
   }
   Node::Inputs inputs = (*state_values)->inputs();
-  DCHECK_EQ(inputs.count(), count);
+  if (inputs.count() != count) return true;
   for (int i = 0; i < count; i++) {
     if (inputs[i] != values[i]) {
       return true;
@@ -411,28 +412,43 @@ void BytecodeGraphBuilder::Environment::UpdateStateValues(Node** state_values,
 }
 
 void BytecodeGraphBuilder::Environment::UpdateStateValuesWithCache(
-    Node** state_values, Node** values, int count, const BitVector* liveness) {
+    Node** state_values, Node** values, int count, const BitVector* liveness,
+    int liveness_offset) {
   *state_values = builder_->state_values_cache_.GetNodeForValues(
-      values, static_cast<size_t>(count), liveness);
+      values, static_cast<size_t>(count), liveness, liveness_offset);
 }
 
 Node* BytecodeGraphBuilder::Environment::Checkpoint(
     BailoutId bailout_id, OutputFrameStateCombine combine,
     bool owner_has_exception, const BytecodeLivenessState* liveness) {
-  UpdateStateValues(&parameters_state_values_, &values()->at(0),
-                    parameter_count());
+  if (parameter_count() == register_count()) {
+    // Re-use the state-value cache if the number of local registers happens
+    // to match the parameter count.
+    UpdateStateValuesWithCache(&parameters_state_values_, &values()->at(0),
+                               parameter_count(), nullptr, 0);
+  } else {
+    UpdateStateValues(&parameters_state_values_, &values()->at(0),
+                      parameter_count());
+  }
 
-  // TODO(leszeks): We should pass a view of the liveness bitvector here, with
-  // offset and count, rather than passing the entire bitvector and assuming
-  // that register liveness starts at offset 0.
   UpdateStateValuesWithCache(&registers_state_values_,
                              &values()->at(register_base()), register_count(),
-                             liveness ? &liveness->bit_vector() : nullptr);
+                             liveness ? &liveness->bit_vector() : nullptr, 0);
 
-  Node* accumulator_value = liveness == nullptr || liveness->AccumulatorIsLive()
-                                ? values()->at(accumulator_base())
-                                : builder()->jsgraph()->OptimizedOutConstant();
-  UpdateStateValues(&accumulator_state_values_, &accumulator_value, 1);
+  bool accumulator_is_live = !liveness || liveness->AccumulatorIsLive();
+  if (parameter_count() == 1 && accumulator_is_live &&
+      values()->at(accumulator_base()) == values()->at(0)) {
+    // Re-use the parameter state values if there happens to only be one
+    // parameter and the accumulator is live and holds that parameter's value.
+    accumulator_state_values_ = parameters_state_values_;
+  } else {
+    // Otherwise, use the state values cache to hopefully re-use local register
+    // state values (if there is only one local register), or at the very least
+    // re-use previous accumulator state values.
+    UpdateStateValuesWithCache(
+        &accumulator_state_values_, &values()->at(accumulator_base()), 1,
+        liveness ? &liveness->bit_vector() : nullptr, register_count());
+  }
 
   const Operator* op = common()->FrameState(
       bailout_id, combine, builder()->frame_state_function_info());
