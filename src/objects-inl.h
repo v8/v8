@@ -3134,7 +3134,6 @@ PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   return PropertyDetails(Smi::cast(details));
 }
 
-
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
   DCHECK(GetDetails(descriptor_number).location() == kField);
   return GetDetails(descriptor_number).field_index();

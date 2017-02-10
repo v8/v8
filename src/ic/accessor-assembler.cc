@@ -634,8 +634,17 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
             WordEqual(handler_kind,
                       IntPtrConstant(StoreHandler::kTransitionToConstant))));
   } else {
-    CSA_ASSERT(this, WordEqual(handler_kind,
-                               IntPtrConstant(StoreHandler::kStoreField)));
+    if (FLAG_track_constant_fields) {
+      CSA_ASSERT(
+          this,
+          Word32Or(WordEqual(handler_kind,
+                             IntPtrConstant(StoreHandler::kStoreField)),
+                   WordEqual(handler_kind,
+                             IntPtrConstant(StoreHandler::kStoreConstField))));
+    } else {
+      CSA_ASSERT(this, WordEqual(handler_kind,
+                                 IntPtrConstant(StoreHandler::kStoreField)));
+    }
   }
 #endif
 
@@ -702,7 +711,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
   Bind(&if_inobject);
   {
     StoreNamedField(handler_word, holder, true, representation, prepared_value,
-                    transition_to_field);
+                    transition_to_field, miss);
     if (transition_to_field) {
       StoreMap(holder, transition);
     }
@@ -724,7 +733,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
     }
 
     StoreNamedField(handler_word, holder, false, representation, prepared_value,
-                    transition_to_field);
+                    transition_to_field, miss);
     if (transition_to_field) {
       StoreMap(holder, transition);
     }
@@ -741,6 +750,15 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
 
   } else if (representation.IsHeapObject()) {
     GotoIf(TaggedIsSmi(value), bailout);
+
+    Label done(this);
+    if (FLAG_track_constant_fields && !transition) {
+      // Skip field type check in favor of constant value check when storing
+      // to constant field.
+      GotoIf(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                       IntPtrConstant(StoreHandler::kStoreConstField)),
+             &done);
+    }
     Node* value_index_in_descriptor =
         DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
     Node* descriptors =
@@ -748,7 +766,6 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
     Node* maybe_field_type =
         LoadFixedArrayElement(descriptors, value_index_in_descriptor);
 
-    Label done(this);
     GotoIf(TaggedIsSmi(maybe_field_type), &done);
     // Check that value type matches the field type.
     {
@@ -805,7 +822,8 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object) {
 void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
                                         bool is_inobject,
                                         Representation representation,
-                                        Node* value, bool transition_to_field) {
+                                        Node* value, bool transition_to_field,
+                                        Label* bailout) {
   bool store_value_as_double = representation.IsDouble();
   Node* property_storage = object;
   if (!is_inobject) {
@@ -829,6 +847,27 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
     }
   }
 
+  // Do constant value check if necessary.
+  if (FLAG_track_constant_fields && !transition_to_field) {
+    Label done(this);
+    GotoUnless(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                         IntPtrConstant(StoreHandler::kStoreConstField)),
+               &done);
+    {
+      if (store_value_as_double) {
+        Node* current_value =
+            LoadObjectField(property_storage, offset, MachineType::Float64());
+        GotoUnless(Float64Equal(current_value, value), bailout);
+      } else {
+        Node* current_value = LoadObjectField(property_storage, offset);
+        GotoUnless(WordEqual(current_value, value), bailout);
+      }
+      Goto(&done);
+    }
+    Bind(&done);
+  }
+
+  // Do the store.
   if (store_value_as_double) {
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
                                    MachineRepresentation::kFloat64);

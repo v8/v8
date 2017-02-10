@@ -2050,6 +2050,7 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         int descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
         return StoreHandler::StoreField(isolate(), descriptor, index,
+                                        lookup->constness(),
                                         lookup->representation());
       }
 

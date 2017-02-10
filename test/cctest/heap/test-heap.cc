@@ -5596,7 +5596,7 @@ TEST(Regress388880) {
   Handle<String> name = factory->NewStringFromStaticChars("foo");
   name = factory->InternalizeString(name);
   Handle<Map> map2 =
-      Map::CopyWithField(map1, name, FieldType::Any(isolate), NONE,
+      Map::CopyWithField(map1, name, FieldType::Any(isolate), NONE, kMutable,
                          Representation::Tagged(), OMIT_TRANSITION)
           .ToHandleChecked();
 

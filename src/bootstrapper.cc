@@ -4501,6 +4501,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       } else {
         DCHECK_EQ(kDescriptor, details.location());
         if (details.kind() == kData) {
+          DCHECK(!FLAG_track_constant_fields);
           HandleScope inner(isolate());
           Handle<Name> key = Handle<Name>(descs->GetKey(i));
           Handle<Object> value(descs->GetValue(i), isolate());

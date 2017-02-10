@@ -3369,6 +3369,7 @@ FieldType* Map::UnwrapFieldType(Object* wrapped_type) {
 MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
                                     Handle<FieldType> type,
                                     PropertyAttributes attributes,
+                                    PropertyConstness constness,
                                     Representation representation,
                                     TransitionFlag flag) {
   DCHECK(DescriptorArray::kNotFound ==
@@ -3392,7 +3393,8 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
 
   Handle<Object> wrapped_type(WrapFieldType(type));
 
-  Descriptor d = Descriptor::DataField(name, index, attributes, kMutable,
+  DCHECK_IMPLIES(!FLAG_track_constant_fields, constness == kMutable);
+  Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
   Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
   int unused_property_fields = new_map->unused_property_fields() - 1;
@@ -3414,9 +3416,18 @@ MaybeHandle<Map> Map::CopyWithConstant(Handle<Map> map,
     return MaybeHandle<Map>();
   }
 
-  // Allocate new instance descriptors with (name, constant) added.
-  Descriptor d = Descriptor::DataConstant(name, constant, attributes);
-  return Map::CopyAddDescriptor(map, &d, flag);
+  if (FLAG_track_constant_fields) {
+    Isolate* isolate = map->GetIsolate();
+    Representation representation = constant->OptimalRepresentation();
+    Handle<FieldType> type = constant->OptimalType(isolate, representation);
+    return CopyWithField(map, name, type, attributes, kConst, representation,
+                         flag);
+  } else {
+    // Allocate new instance descriptors with (name, constant) added.
+    Descriptor d = Descriptor::DataConstant(name, 0, constant, attributes);
+    Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
+    return new_map;
+  }
 }
 
 const char* Representation::Mnemonic() const {
@@ -3924,6 +3935,7 @@ void DescriptorArray::GeneralizeAllFields() {
     details = details.CopyWithRepresentation(Representation::Tagged());
     if (details.location() == kField) {
       DCHECK_EQ(kData, details.kind());
+      details = details.CopyWithConstness(kMutable);
       SetValue(i, FieldType::Any());
     }
     set(ToDetailsIndex(i), details.AsSmi());
@@ -3951,7 +3963,8 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
   // Unless the instance is being migrated, ensure that modify_index is a field.
   if (modify_index >= 0) {
     PropertyDetails details = descriptors->GetDetails(modify_index);
-    if (details.location() != kField || details.attributes() != attributes) {
+    if (details.constness() != kMutable || details.location() != kField ||
+        details.attributes() != attributes) {
       int field_index = details.location() == kField
                             ? details.field_index()
                             : new_map->NumberOfFields();
@@ -4060,8 +4073,8 @@ Map* Map::FindFieldOwner(int descriptor) {
   return result;
 }
 
-
 void Map::UpdateFieldType(int descriptor, Handle<Name> name,
+                          PropertyConstness new_constness,
                           Representation new_representation,
                           Handle<Object> new_wrapped_type) {
   DCHECK(new_wrapped_type->IsSmi() || new_wrapped_type->IsWeakCell());
@@ -4088,15 +4101,19 @@ void Map::UpdateFieldType(int descriptor, Handle<Name> name,
     DescriptorArray* descriptors = current->instance_descriptors();
     PropertyDetails details = descriptors->GetDetails(descriptor);
 
+    // Currently constness change implies map change.
+    DCHECK_EQ(new_constness, details.constness());
+
     // It is allowed to change representation here only from None to something.
     DCHECK(details.representation().Equals(new_representation) ||
            details.representation().IsNone());
 
     // Skip if already updated the shared descriptor.
     if (descriptors->GetValue(descriptor) != *new_wrapped_type) {
+      DCHECK_IMPLIES(!FLAG_track_constant_fields, new_constness == kMutable);
       Descriptor d = Descriptor::DataField(
           name, descriptors->GetFieldIndex(descriptor), details.attributes(),
-          kMutable, new_representation, new_wrapped_type);
+          new_constness, new_representation, new_wrapped_type);
       descriptors->Replace(descriptor, &d);
     }
   }
@@ -4127,18 +4144,21 @@ Handle<FieldType> Map::GeneralizeFieldType(Representation rep1,
 
 // static
 void Map::GeneralizeField(Handle<Map> map, int modify_index,
+                          PropertyConstness new_constness,
                           Representation new_representation,
                           Handle<FieldType> new_field_type) {
   Isolate* isolate = map->GetIsolate();
 
   // Check if we actually need to generalize the field type at all.
   Handle<DescriptorArray> old_descriptors(map->instance_descriptors(), isolate);
-  Representation old_representation =
-      old_descriptors->GetDetails(modify_index).representation();
+  PropertyDetails old_details = old_descriptors->GetDetails(modify_index);
+  PropertyConstness old_constness = old_details.constness();
+  Representation old_representation = old_details.representation();
   Handle<FieldType> old_field_type(old_descriptors->GetFieldType(modify_index),
                                    isolate);
 
-  if (old_representation.Equals(new_representation) &&
+  if (old_constness == new_constness &&
+      old_representation.Equals(new_representation) &&
       !FieldTypeIsCleared(new_representation, *new_field_type) &&
       // Checking old_field_type for being cleared is not necessary because
       // the NowIs check below would fail anyway in that case.
@@ -4163,8 +4183,8 @@ void Map::GeneralizeField(Handle<Map> map, int modify_index,
   Handle<Name> name(descriptors->GetKey(modify_index));
 
   Handle<Object> wrapped_type(WrapFieldType(new_field_type));
-  field_owner->UpdateFieldType(modify_index, name, new_representation,
-                               wrapped_type);
+  field_owner->UpdateFieldType(modify_index, name, new_constness,
+                               new_representation, wrapped_type);
   field_owner->dependent_code()->DeoptimizeDependentCodeGroup(
       isolate, DependentCode::kFieldOwnerGroup);
 
@@ -4186,7 +4206,7 @@ Handle<Map> Map::ReconfigureProperty(Handle<Map> map, int modify_index,
                                      Handle<FieldType> new_field_type) {
   DCHECK_EQ(kData, new_kind);  // Only kData case is supported.
   MapUpdater mu(map->GetIsolate(), map);
-  return mu.ReconfigureToDataField(modify_index, new_attributes,
+  return mu.ReconfigureToDataField(modify_index, new_attributes, kConst,
                                    new_representation, new_field_type);
 }
 
@@ -4209,7 +4229,7 @@ Handle<Map> Map::GeneralizeAllFields(Handle<Map> map) {
     if (details.location() == kField) {
       DCHECK_EQ(kData, details.kind());
       MapUpdater mu(isolate, map);
-      map = mu.ReconfigureToDataField(i, details.attributes(),
+      map = mu.ReconfigureToDataField(i, details.attributes(), kMutable,
                                       Representation::Tagged(), any_type);
     }
   }
@@ -4287,6 +4307,7 @@ Map* Map::TryReplayPropertyTransitions(Map* old_map) {
           }
         } else {
           DCHECK_EQ(kDescriptor, old_details.location());
+          DCHECK(!FLAG_track_constant_fields);
           Object* old_value = old_descriptors->GetValue(i);
           if (!new_type->NowContains(old_value)) {
             return nullptr;
@@ -4609,7 +4630,7 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   it->PrepareForDataProperty(to_assign);
 
   // Write the property value.
-  it->WriteDataValue(to_assign);
+  it->WriteDataValue(to_assign, false);
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
@@ -4683,7 +4704,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it, Handle<Object> value,
     it->ApplyTransitionToDataProperty(receiver);
 
     // Write the property value.
-    it->WriteDataValue(value);
+    it->WriteDataValue(value, true);
 
 #if VERIFY_HEAP
     if (FLAG_verify_heap) {
@@ -5717,9 +5738,13 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     PropertyKind kind = dictionary->DetailsAt(index).kind();
     if (kind == kData) {
-      Object* value = dictionary->ValueAt(index);
-      if (!value->IsJSFunction()) {
+      if (FLAG_track_constant_fields) {
         number_of_fields += 1;
+      } else {
+        Object* value = dictionary->ValueAt(index);
+        if (!value->IsJSFunction()) {
+          number_of_fields += 1;
+        }
       }
     }
   }
@@ -5790,14 +5815,14 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
     Descriptor d;
     if (details.kind() == kData) {
-      if (value->IsJSFunction()) {
+      if (!FLAG_track_constant_fields && value->IsJSFunction()) {
         d = Descriptor::DataConstant(key, handle(value, isolate),
                                      details.attributes());
       } else {
         d = Descriptor::DataField(
-            key, current_offset, details.attributes(),
+            key, current_offset, details.attributes(), kDefaultFieldConstness,
             // TODO(verwaest): value->OptimalRepresentation();
-            Representation::Tagged());
+            Representation::Tagged(), FieldType::Any(isolate));
       }
     } else {
       DCHECK_EQ(kAccessor, details.kind());
@@ -7008,7 +7033,7 @@ Maybe<bool> JSProxy::SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
   if (it.IsFound()) {
     DCHECK_EQ(LookupIterator::DATA, it.state());
     DCHECK_EQ(DONT_ENUM, it.property_attributes());
-    it.WriteDataValue(value);
+    it.WriteDataValue(value, false);
     return Just(true);
   }
 
@@ -9161,16 +9186,16 @@ Handle<Map> Map::CopyForPreventExtensions(Handle<Map> map,
 
 namespace {
 
-bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
+bool CanHoldValue(DescriptorArray* descriptors, int descriptor,
+                  PropertyConstness constness, Object* value) {
   PropertyDetails details = descriptors->GetDetails(descriptor);
   if (details.location() == kField) {
-    DCHECK_EQ(kMutable, details.constness());
     if (details.kind() == kData) {
-      return value->FitsRepresentation(details.representation()) &&
+      return IsGeneralizableTo(constness, details.constness()) &&
+             value->FitsRepresentation(details.representation()) &&
              descriptors->GetFieldType(descriptor)->NowContains(value);
     } else {
       DCHECK_EQ(kAccessor, details.kind());
-      UNREACHABLE();
       return false;
     }
 
@@ -9178,6 +9203,7 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
     DCHECK_EQ(kDescriptor, details.location());
     DCHECK_EQ(kConst, details.constness());
     if (details.kind() == kData) {
+      DCHECK(!FLAG_track_constant_fields);
       DCHECK(descriptors->GetValue(descriptor) != value ||
              value->FitsRepresentation(details.representation()));
       return descriptors->GetValue(descriptor) == value;
@@ -9191,8 +9217,12 @@ bool CanHoldValue(DescriptorArray* descriptors, int descriptor, Object* value) {
 }
 
 Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
+                                     PropertyConstness constness,
                                      Handle<Object> value) {
-  if (CanHoldValue(map->instance_descriptors(), descriptor, *value)) return map;
+  if (CanHoldValue(map->instance_descriptors(), descriptor, constness,
+                   *value)) {
+    return map;
+  }
 
   Isolate* isolate = map->GetIsolate();
   PropertyAttributes attributes =
@@ -9201,8 +9231,8 @@ Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
   Handle<FieldType> type = value->OptimalType(isolate, representation);
 
   MapUpdater mu(isolate, map);
-  Handle<Map> new_map =
-      mu.ReconfigureToDataField(descriptor, attributes, representation, type);
+  Handle<Map> new_map = mu.ReconfigureToDataField(
+      descriptor, attributes, constness, representation, type);
   new_map->set_migration_target(true);
   return new_map;
 }
@@ -9211,17 +9241,18 @@ Handle<Map> UpdateDescriptorForValue(Handle<Map> map, int descriptor,
 
 // static
 Handle<Map> Map::PrepareForDataProperty(Handle<Map> map, int descriptor,
+                                        PropertyConstness constness,
                                         Handle<Object> value) {
   // Dictionaries can store any property value.
   DCHECK(!map->is_dictionary_map());
   // Update to the newest map before storing the property.
-  return UpdateDescriptorForValue(Update(map), descriptor, value);
+  return UpdateDescriptorForValue(Update(map), descriptor, constness, value);
 }
-
 
 Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
+                                          PropertyConstness constness,
                                           StoreFromKeyed store_mode) {
   RuntimeCallTimerScope stats_scope(
       *map, map->is_prototype_map()
@@ -9244,19 +9275,19 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                               ->GetDetails(descriptor)
                               .attributes());
 
-    return UpdateDescriptorForValue(transition, descriptor, value);
+    return UpdateDescriptorForValue(transition, descriptor, constness, value);
   }
 
   TransitionFlag flag = INSERT_TRANSITION;
   MaybeHandle<Map> maybe_map;
-  if (value->IsJSFunction()) {
+  if (!FLAG_track_constant_fields && value->IsJSFunction()) {
     maybe_map = Map::CopyWithConstant(map, name, value, attributes, flag);
   } else if (!map->TooManyFastProperties(store_mode)) {
     Isolate* isolate = name->GetIsolate();
     Representation representation = value->OptimalRepresentation();
     Handle<FieldType> type = value->OptimalType(isolate, representation);
-    maybe_map =
-        Map::CopyWithField(map, name, type, attributes, representation, flag);
+    maybe_map = Map::CopyWithField(map, name, type, attributes, constness,
+                                   representation, flag);
   }
 
   Handle<Map> result;
@@ -9301,7 +9332,8 @@ Handle<Map> Map::ReconfigureExistingProperty(Handle<Map> map, int descriptor,
   MapUpdater mu(isolate, map);
   DCHECK_EQ(kData, kind);  // Only kData case is supported so far.
   Handle<Map> new_map = mu.ReconfigureToDataField(
-      descriptor, attributes, Representation::None(), FieldType::None(isolate));
+      descriptor, attributes, kDefaultFieldConstness, Representation::None(),
+      FieldType::None(isolate));
   return new_map;
 }
 

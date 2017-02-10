@@ -21866,7 +21866,9 @@ namespace {
 const char* kMegamorphicTestProgram =
     "function CreateClass(name) {\n"
     "  var src = \n"
-    "    `  function ${name}() { this.a = 0; };` +\n"
+    // Disable constant tracking of "a" field by assigning different Smi values
+    // twice to ease megamorphic probes counting.
+    "    `  function ${name}() { this.a = 0; this.a = 1; };` +\n"
     "    `  ${name}.prototype.foo = function() {};` +\n"
     "    `  ${name};\\n`;\n"
     "  return (0, eval)(src);\n"

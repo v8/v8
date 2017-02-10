@@ -182,7 +182,7 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void StoreNamedField(Node* handler_word, Node* object, bool is_inobject,
                        Representation representation, Node* value,
-                       bool transition_to_field);
+                       bool transition_to_field, Label* bailout);
 
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,

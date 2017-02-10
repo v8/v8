@@ -7,6 +7,7 @@
 
 #include "src/v8.h"
 
+#include "src/accessors.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
 #include "src/factory.h"
@@ -78,9 +79,8 @@ void WriteToField(JSObject* object, int descriptor, Object* value) {
 
 const int kNumberOfBits = 32;
 
-
 enum TestPropertyKind {
-  PROP_CONSTANT,
+  PROP_ACCESSOR_INFO,
   PROP_SMI,
   PROP_DOUBLE,
   PROP_TAGGED,
@@ -97,9 +97,6 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
                                                      int kPropsCount) {
   Factory* factory = isolate->factory();
 
-  Handle<String> func_name = factory->InternalizeUtf8String("func");
-  Handle<JSFunction> func = factory->NewFunction(func_name);
-
   Handle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(isolate, 0, kPropsCount);
 
@@ -111,15 +108,20 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
 
     TestPropertyKind kind = props[i];
 
-    if (kind == PROP_CONSTANT) {
-      Descriptor d = Descriptor::DataConstant(name, func, NONE);
-      descriptors->Append(&d);
+    Descriptor d;
+    if (kind == PROP_ACCESSOR_INFO) {
+      Handle<AccessorInfo> info =
+          Accessors::MakeAccessor(isolate, name, nullptr, nullptr, NONE);
+      d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
-      Descriptor d = Descriptor::DataField(name, next_field_offset, NONE,
-                                           representations[kind]);
-      next_field_offset += d.GetDetails().field_width_in_words();
-      descriptors->Append(&d);
+      d = Descriptor::DataField(name, next_field_offset, NONE,
+                                representations[kind]);
+    }
+    descriptors->Append(&d);
+    PropertyDetails details = d.GetDetails();
+    if (details.location() == kField) {
+      next_field_offset += details.field_width_in_words();
     }
   }
   return descriptors;
@@ -488,13 +490,13 @@ TEST(LayoutDescriptorCreateNewFast) {
 
   Handle<LayoutDescriptor> layout_descriptor;
   TestPropertyKind props[] = {
-      PROP_CONSTANT,
+      PROP_ACCESSOR_INFO,
       PROP_TAGGED,  // field #0
-      PROP_CONSTANT,
+      PROP_ACCESSOR_INFO,
       PROP_DOUBLE,  // field #1
-      PROP_CONSTANT,
+      PROP_ACCESSOR_INFO,
       PROP_TAGGED,  // field #2
-      PROP_CONSTANT,
+      PROP_ACCESSOR_INFO,
   };
   const int kPropsCount = arraysize(props);
 
@@ -616,9 +618,6 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     int kPropsCount) {
   Factory* factory = isolate->factory();
 
-  Handle<String> func_name = factory->InternalizeUtf8String("func");
-  Handle<JSFunction> func = factory->NewFunction(func_name);
-
   Handle<DescriptorArray> descriptors =
       DescriptorArray::Allocate(isolate, 0, kPropsCount);
 
@@ -634,20 +633,24 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
 
     Handle<LayoutDescriptor> layout_descriptor;
     TestPropertyKind kind = props[i];
-    if (kind == PROP_CONSTANT) {
-      Descriptor d = Descriptor::DataConstant(name, func, NONE);
-      layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
-      descriptors->Append(&d);
+    Descriptor d;
+    if (kind == PROP_ACCESSOR_INFO) {
+      Handle<AccessorInfo> info =
+          Accessors::MakeAccessor(isolate, name, nullptr, nullptr, NONE);
+      d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
-      Descriptor d = Descriptor::DataField(name, next_field_offset, NONE,
-                                           representations[kind]);
-      int field_width_in_words = d.GetDetails().field_width_in_words();
+      d = Descriptor::DataField(name, next_field_offset, NONE,
+                                representations[kind]);
+    }
+    PropertyDetails details = d.GetDetails();
+    layout_descriptor = LayoutDescriptor::ShareAppend(map, details);
+    descriptors->Append(&d);
+    if (details.location() == kField) {
+      int field_width_in_words = details.field_width_in_words();
       next_field_offset += field_width_in_words;
-      layout_descriptor = LayoutDescriptor::ShareAppend(map, d.GetDetails());
-      descriptors->Append(&d);
 
-      int field_index = d.GetDetails().field_index();
+      int field_index = details.field_index();
       bool is_inobject = field_index < map->GetInObjectProperties();
       for (int bit = 0; bit < field_width_in_words; bit++) {
         CHECK_EQ(is_inobject && (kind == PROP_DOUBLE),
@@ -958,13 +961,14 @@ TEST(DescriptorArrayTrimming) {
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, kFieldCount);
   for (int i = 0; i < kSplitFieldIndex; i++) {
-    map = Map::CopyWithField(map, MakeName("prop", i), any_type, NONE,
-                             Representation::Smi(),
-                             INSERT_TRANSITION).ToHandleChecked();
+    map = Map::CopyWithField(map, MakeName("prop", i), any_type, NONE, kMutable,
+                             Representation::Smi(), INSERT_TRANSITION)
+              .ToHandleChecked();
   }
-  map = Map::CopyWithField(map, MakeName("dbl", kSplitFieldIndex), any_type,
-                           NONE, Representation::Double(),
-                           INSERT_TRANSITION).ToHandleChecked();
+  map =
+      Map::CopyWithField(map, MakeName("dbl", kSplitFieldIndex), any_type, NONE,
+                         kMutable, Representation::Double(), INSERT_TRANSITION)
+          .ToHandleChecked();
   CHECK(map->layout_descriptor()->IsConsistentWithMap(*map, true));
   CHECK(map->layout_descriptor()->IsSlowLayout());
   CHECK(map->owns_descriptors());
@@ -977,8 +981,9 @@ TEST(DescriptorArrayTrimming) {
     Handle<Map> tmp_map = map;
     for (int i = kSplitFieldIndex + 1; i < kFieldCount; i++) {
       tmp_map = Map::CopyWithField(tmp_map, MakeName("dbl", i), any_type, NONE,
-                                   Representation::Double(),
-                                   INSERT_TRANSITION).ToHandleChecked();
+                                   kMutable, Representation::Double(),
+                                   INSERT_TRANSITION)
+                    .ToHandleChecked();
       CHECK(tmp_map->layout_descriptor()->IsConsistentWithMap(*tmp_map, true));
     }
     // Check that descriptors are shared.
@@ -1016,13 +1021,15 @@ TEST(DescriptorArrayTrimming) {
     Handle<Map> tmp_map = map;
     for (int i = kSplitFieldIndex + 1; i < kFieldCount - 1; i++) {
       tmp_map = Map::CopyWithField(tmp_map, MakeName("tagged", i), any_type,
-                                   NONE, Representation::Tagged(),
-                                   INSERT_TRANSITION).ToHandleChecked();
+                                   NONE, kMutable, Representation::Tagged(),
+                                   INSERT_TRANSITION)
+                    .ToHandleChecked();
       CHECK(tmp_map->layout_descriptor()->IsConsistentWithMap(*tmp_map, true));
     }
-    tmp_map = Map::CopyWithField(tmp_map, MakeString("dbl"), any_type, NONE,
-                                 Representation::Double(),
-                                 INSERT_TRANSITION).ToHandleChecked();
+    tmp_map =
+        Map::CopyWithField(tmp_map, MakeString("dbl"), any_type, NONE, kMutable,
+                           Representation::Double(), INSERT_TRANSITION)
+            .ToHandleChecked();
     CHECK(tmp_map->layout_descriptor()->IsConsistentWithMap(*tmp_map, true));
     // Check that descriptors are shared.
     CHECK(tmp_map->owns_descriptors());
@@ -1045,9 +1052,9 @@ TEST(DoScavenge) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
-                           Representation::Double(),
-                           INSERT_TRANSITION).ToHandleChecked();
+  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE, kMutable,
+                           Representation::Double(), INSERT_TRANSITION)
+            .ToHandleChecked();
 
   // Create object in new space.
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
@@ -1107,12 +1114,12 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
 
   Handle<FieldType> any_type = FieldType::Any(isolate);
   Handle<Map> map = Map::Create(isolate, 10);
-  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE,
-                           Representation::Double(),
-                           INSERT_TRANSITION).ToHandleChecked();
-  map = Map::CopyWithField(map, MakeName("prop", 1), any_type, NONE,
-                           Representation::Tagged(),
-                           INSERT_TRANSITION).ToHandleChecked();
+  map = Map::CopyWithField(map, MakeName("prop", 0), any_type, NONE, kMutable,
+                           Representation::Double(), INSERT_TRANSITION)
+            .ToHandleChecked();
+  map = Map::CopyWithField(map, MakeName("prop", 1), any_type, NONE, kMutable,
+                           Representation::Tagged(), INSERT_TRANSITION)
+            .ToHandleChecked();
 
   // Create |obj_value| in old space.
   Handle<HeapObject> obj_value;
@@ -1335,12 +1342,14 @@ TEST(LayoutDescriptorSharing) {
     Handle<Map> map = Map::Create(isolate, 64);
     for (int i = 0; i < 32; i++) {
       Handle<String> name = MakeName("prop", i);
-      map = Map::CopyWithField(map, name, any_type, NONE, Representation::Smi(),
-                               INSERT_TRANSITION).ToHandleChecked();
+      map = Map::CopyWithField(map, name, any_type, NONE, kMutable,
+                               Representation::Smi(), INSERT_TRANSITION)
+                .ToHandleChecked();
     }
-    split_map = Map::CopyWithField(map, MakeString("dbl"), any_type, NONE,
-                                   Representation::Double(),
-                                   INSERT_TRANSITION).ToHandleChecked();
+    split_map =
+        Map::CopyWithField(map, MakeString("dbl"), any_type, NONE, kMutable,
+                           Representation::Double(), INSERT_TRANSITION)
+            .ToHandleChecked();
   }
   Handle<LayoutDescriptor> split_layout_descriptor(
       split_map->layout_descriptor(), isolate);
@@ -1348,9 +1357,10 @@ TEST(LayoutDescriptorSharing) {
   CHECK(split_layout_descriptor->IsSlowLayout());
   CHECK(split_map->owns_descriptors());
 
-  Handle<Map> map1 = Map::CopyWithField(split_map, MakeString("foo"), any_type,
-                                        NONE, Representation::Double(),
-                                        INSERT_TRANSITION).ToHandleChecked();
+  Handle<Map> map1 =
+      Map::CopyWithField(split_map, MakeString("foo"), any_type, NONE, kMutable,
+                         Representation::Double(), INSERT_TRANSITION)
+          .ToHandleChecked();
   CHECK(!split_map->owns_descriptors());
   CHECK_EQ(*split_layout_descriptor, split_map->layout_descriptor());
 
@@ -1359,9 +1369,10 @@ TEST(LayoutDescriptorSharing) {
   CHECK_EQ(*split_layout_descriptor, map1->layout_descriptor());
   CHECK(map1->layout_descriptor()->IsConsistentWithMap(*map1, true));
 
-  Handle<Map> map2 = Map::CopyWithField(split_map, MakeString("bar"), any_type,
-                                        NONE, Representation::Tagged(),
-                                        INSERT_TRANSITION).ToHandleChecked();
+  Handle<Map> map2 =
+      Map::CopyWithField(split_map, MakeString("bar"), any_type, NONE, kMutable,
+                         Representation::Tagged(), INSERT_TRANSITION)
+          .ToHandleChecked();
 
   // Layout descriptors should not be shared with |split_map|.
   CHECK(map2->owns_descriptors());
@@ -1531,12 +1542,12 @@ static void TestWriteBarrierObjectShiftFieldsRight(
   Handle<Map> map = Map::Create(isolate, 10);
   map = Map::CopyWithConstant(map, MakeName("prop", 0), func, NONE,
                               INSERT_TRANSITION).ToHandleChecked();
-  map = Map::CopyWithField(map, MakeName("prop", 1), any_type, NONE,
-                           Representation::Double(),
-                           INSERT_TRANSITION).ToHandleChecked();
-  map = Map::CopyWithField(map, MakeName("prop", 2), any_type, NONE,
-                           Representation::Tagged(),
-                           INSERT_TRANSITION).ToHandleChecked();
+  map = Map::CopyWithField(map, MakeName("prop", 1), any_type, NONE, kMutable,
+                           Representation::Double(), INSERT_TRANSITION)
+            .ToHandleChecked();
+  map = Map::CopyWithField(map, MakeName("prop", 2), any_type, NONE, kMutable,
+                           Representation::Tagged(), INSERT_TRANSITION)
+            .ToHandleChecked();
 
   // Shift fields right by turning constant property to a field.
   Handle<Map> new_map = Map::ReconfigureProperty(

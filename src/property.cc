@@ -40,6 +40,20 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
   return Descriptor(key, wrapped_field_type, details);
 }
 
+Descriptor Descriptor::DataConstant(Handle<Name> key, int field_index,
+                                    Handle<Object> value,
+                                    PropertyAttributes attributes) {
+  if (FLAG_track_constant_fields) {
+    Handle<Object> any_type(FieldType::Any(), key->GetIsolate());
+    return DataField(key, field_index, attributes, kConst,
+                     Representation::Tagged(), any_type);
+
+  } else {
+    return Descriptor(key, value, kData, attributes, kDescriptor, kConst,
+                      value->OptimalRepresentation(), field_index);
+  }
+}
+
 // Outputs PropertyDetails as a dictionary details.
 void PropertyDetails::PrintAsSlowTo(std::ostream& os) {
   os << "(";

@@ -3195,7 +3195,8 @@ class DescriptorArray: public FixedArray {
                   PropertyDetails details);
   void Replace(int descriptor_number, Descriptor* descriptor);
 
-  // Generalizes representation and field type of all field descriptors.
+  // Generalizes constness, representation and field type of all field
+  // descriptors.
   void GeneralizeAllFields();
 
   // Append automatically sets the enumeration index. This should only be used
@@ -5940,6 +5941,7 @@ class Map: public HeapObject {
       Representation rep1, Handle<FieldType> type1, Representation rep2,
       Handle<FieldType> type2, Isolate* isolate);
   static void GeneralizeField(Handle<Map> map, int modify_index,
+                              PropertyConstness new_constness,
                               Representation new_representation,
                               Handle<FieldType> new_field_type);
 
@@ -5954,6 +5956,7 @@ class Map: public HeapObject {
 
   static Handle<Map> PrepareForDataProperty(Handle<Map> old_map,
                                             int descriptor_number,
+                                            PropertyConstness constness,
                                             Handle<Object> value);
 
   static Handle<Map> Normalize(Handle<Map> map, PropertyNormalizationMode mode,
@@ -6078,8 +6081,8 @@ class Map: public HeapObject {
 
   MUST_USE_RESULT static MaybeHandle<Map> CopyWithField(
       Handle<Map> map, Handle<Name> name, Handle<FieldType> type,
-      PropertyAttributes attributes, Representation representation,
-      TransitionFlag flag);
+      PropertyAttributes attributes, PropertyConstness constness,
+      Representation representation, TransitionFlag flag);
 
   MUST_USE_RESULT static MaybeHandle<Map> CopyWithConstant(
       Handle<Map> map,
@@ -6120,6 +6123,7 @@ class Map: public HeapObject {
                                               Handle<Name> name,
                                               Handle<Object> value,
                                               PropertyAttributes attributes,
+                                              PropertyConstness constness,
                                               StoreFromKeyed store_mode);
   static Handle<Map> TransitionToAccessorProperty(
       Isolate* isolate, Handle<Map> map, Handle<Name> name, int descriptor,
@@ -6411,6 +6415,7 @@ class Map: public HeapObject {
   // type. The type must be prepared for storing in descriptor array:
   // it must be either a simple type or a map wrapped in a weak cell.
   void UpdateFieldType(int descriptor_number, Handle<Name> name,
+                       PropertyConstness new_constness,
                        Representation new_representation,
                        Handle<Object> new_wrapped_type);
 

@@ -7,6 +7,8 @@
 
 #include "include/v8.h"
 #include "src/allocation.h"
+// TODO(ishell): remove once FLAG_track_constant_fields is removed.
+#include "src/flags.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -75,6 +77,10 @@ enum PropertyLocation { kField = 0, kDescriptor = 1 };
 // Order of modes is significant.
 // Must fit in the BitField PropertyDetails::ConstnessField.
 enum PropertyConstness { kMutable = 0, kConst = 1 };
+
+// TODO(ishell): remove once constant field tracking is done.
+const PropertyConstness kDefaultFieldConstness =
+    FLAG_track_constant_fields ? kConst : kMutable;
 
 class Representation {
  public:
@@ -270,6 +276,9 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails CopyWithRepresentation(Representation representation) const {
     return PropertyDetails(value_, representation);
   }
+  PropertyDetails CopyWithConstness(PropertyConstness constness) const {
+    return PropertyDetails(value_, constness);
+  }
   PropertyDetails CopyAddAttributes(PropertyAttributes new_attributes) const {
     new_attributes =
         static_cast<PropertyAttributes>(attributes() | new_attributes);
@@ -379,6 +388,9 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(int value, Representation representation) {
     value_ = RepresentationField::update(
         value, EncodeRepresentation(representation));
+  }
+  PropertyDetails(int value, PropertyConstness constness) {
+    value_ = ConstnessField::update(value, constness);
   }
   PropertyDetails(int value, PropertyAttributes attributes) {
     value_ = AttributesField::update(value, attributes);
