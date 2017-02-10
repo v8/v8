@@ -4045,13 +4045,17 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
       if (Smi::IsValid(int_key)) {
         __ mov(r3, Operand(Smi::FromInt(int_key)));
       } else {
-        // We should never get here at runtime because there is a smi check on
-        // the key before this point.
-        __ stop("expected smi");
+        Abort(kArrayIndexConstantValueTooBig);
       }
     } else {
-      __ Move(r3, ToRegister(key));
-      __ SmiTag(r3);
+      Label is_smi;
+      __ SmiTag(r3, ToRegister(key), SetCC);
+      // Deopt if the key is outside Smi range. The stub expects Smi and would
+      // bump the elements into dictionary mode (and trigger a deopt) anyways.
+      __ b(vc, &is_smi);
+      __ PopSafepointRegisters();
+      DeoptimizeIf(al, instr, DeoptimizeReason::kOverflow);
+      __ bind(&is_smi);
     }
 
     GrowArrayElementsStub stub(isolate(), instr->hydrogen()->kind());

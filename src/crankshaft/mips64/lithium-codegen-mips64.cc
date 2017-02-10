@@ -4249,15 +4249,7 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
 
     LOperand* key = instr->key();
     if (key->IsConstantOperand()) {
-      LConstantOperand* constant_key = LConstantOperand::cast(key);
-      int32_t int_key = ToInteger32(constant_key);
-      if (Smi::IsValid(int_key)) {
-        __ li(a3, Operand(Smi::FromInt(int_key)));
-      } else {
-        // We should never get here at runtime because there is a smi check on
-        // the key before this point.
-        __ stop("expected smi");
-      }
+      __ li(a3, Operand(ToSmi(LConstantOperand::cast(key))));
     } else {
       __ mov(a3, ToRegister(key));
       __ SmiTag(a3);
