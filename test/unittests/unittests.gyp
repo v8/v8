@@ -122,6 +122,7 @@
       'heap/heap-unittest.cc',
       'heap/scavenge-job-unittest.cc',
       'heap/slot-set-unittest.cc',
+      'heap/unmapper-unittest.cc',
       'locked-queue-unittest.cc',
       'object-unittest.cc',
       'register-configuration-unittest.cc',
