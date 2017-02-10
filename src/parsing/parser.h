@@ -222,17 +222,16 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeserializeScopeChain(ParseInfo* info,
                              MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
-  // Handle errors detected during parsing
-  void ReportErrors(Isolate* isolate, Handle<Script> script);
-  // Move statistics to Isolate
-  void UpdateStatistics(Isolate* isolate, Handle<Script> script);
+  // Handle errors detected during parsing, move statistics to Isolate,
+  // internalize strings (move them to the heap).
+  void Internalize(Isolate* isolate, Handle<Script> script, bool error);
   void HandleSourceURLComments(Isolate* isolate, Handle<Script> script);
 
  private:
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
-  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, bool);
-  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, bool);
+  friend bool v8::internal::parsing::ParseProgram(ParseInfo*);
+  friend bool v8::internal::parsing::ParseFunction(ParseInfo*);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(

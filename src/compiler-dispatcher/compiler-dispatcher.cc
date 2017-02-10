@@ -287,11 +287,8 @@ bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
   return true;
 }
 
-bool CompilerDispatcher::Enqueue(
-    Handle<SharedFunctionInfo> function, FunctionLiteral* literal,
-    std::shared_ptr<Zone> parse_zone,
-    std::shared_ptr<DeferredHandles> parse_handles,
-    std::shared_ptr<DeferredHandles> compile_handles) {
+bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function,
+                                 FunctionLiteral* literal) {
   if (!CanEnqueue(function)) return false;
   if (IsEnqueued(function)) return true;
 
@@ -302,8 +299,7 @@ bool CompilerDispatcher::Enqueue(
   }
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      isolate_, tracer_.get(), function, literal, parse_zone, parse_handles,
-      compile_handles, max_stack_size_));
+      isolate_, tracer_.get(), function, literal, max_stack_size_));
   std::pair<int, int> key(Script::cast(function->script())->id(),
                           function->function_literal_id());
   jobs_.insert(std::make_pair(key, std::move(job)));
@@ -311,14 +307,9 @@ bool CompilerDispatcher::Enqueue(
   return true;
 }
 
-bool CompilerDispatcher::EnqueueAndStep(
-    Handle<SharedFunctionInfo> function, FunctionLiteral* literal,
-    std::shared_ptr<Zone> parse_zone,
-    std::shared_ptr<DeferredHandles> parse_handles,
-    std::shared_ptr<DeferredHandles> compile_handles) {
-  if (!Enqueue(function, literal, parse_zone, parse_handles, compile_handles)) {
-    return false;
-  }
+bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function,
+                                        FunctionLiteral* literal) {
+  if (!Enqueue(function, literal)) return false;
 
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: stepping ");

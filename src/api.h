@@ -349,7 +349,8 @@ OPEN_HANDLE_LIST(MAKE_OPEN_HANDLE)
 
 namespace internal {
 
-class V8_EXPORT_PRIVATE DeferredHandles {
+
+class DeferredHandles {
  public:
   ~DeferredHandles();
 

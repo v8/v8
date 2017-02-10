@@ -108,6 +108,7 @@ CompilationInfo::~CompilationInfo() {
     shared_info()->DisableOptimization(bailout_reason());
   }
   dependencies()->Rollback();
+  delete deferred_handles_;
 }
 
 int CompilationInfo::num_parameters() const {
@@ -131,21 +132,8 @@ bool CompilationInfo::ShouldSelfOptimize() {
          !shared_info()->optimization_disabled();
 }
 
-void CompilationInfo::set_deferred_handles(
-    std::shared_ptr<DeferredHandles> deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
-  deferred_handles_.swap(deferred_handles);
-}
-
-void CompilationInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
-  deferred_handles_.reset(deferred_handles);
-}
-
 void CompilationInfo::ReopenHandlesInNewHandleScope() {
-  if (!closure_.is_null()) {
-    closure_ = Handle<JSFunction>(*closure_);
-  }
+  closure_ = Handle<JSFunction>(*closure_);
 }
 
 bool CompilationInfo::has_simple_parameters() {

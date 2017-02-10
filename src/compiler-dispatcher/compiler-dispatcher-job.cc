@@ -84,27 +84,26 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
   }
 }
 
-CompilerDispatcherJob::CompilerDispatcherJob(
-    Isolate* isolate, CompilerDispatcherTracer* tracer,
-    Handle<SharedFunctionInfo> shared, FunctionLiteral* literal,
-    std::shared_ptr<Zone> parse_zone,
-    std::shared_ptr<DeferredHandles> parse_handles,
-    std::shared_ptr<DeferredHandles> compile_handles, size_t max_stack_size)
+CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
+                                             CompilerDispatcherTracer* tracer,
+                                             Handle<SharedFunctionInfo> shared,
+                                             FunctionLiteral* literal,
+                                             size_t max_stack_size)
     : status_(CompileJobStatus::kAnalyzed),
       isolate_(isolate),
       tracer_(tracer),
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
-      parse_info_(new ParseInfo(shared_)),
-      parse_zone_(parse_zone),
+      parse_info_(
+          new ParseInfo(Handle<Script>(Script::cast(shared->script())))),
       compile_info_(new CompilationInfo(parse_info_->zone(), parse_info_.get(),
                                         Handle<JSFunction>::null())),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   parse_info_->set_literal(literal);
-  parse_info_->set_deferred_handles(parse_handles);
-  compile_info_->set_deferred_handles(compile_handles);
-
+  parse_info_->set_shared_info(shared);
+  parse_info_->set_function_literal_id(shared->function_literal_id());
+  parse_info_->set_language_mode(literal->scope()->language_mode());
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("CompilerDispatcherJob[%p] created for ", static_cast<void*>(this));
     shared_->ShortPrint();
@@ -277,19 +276,17 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
     wrapper_ = Handle<String>::null();
   }
 
-  Handle<Script> script(Script::cast(shared_->script()), isolate_);
-  parse_info_->set_script(script);
   if (parse_info_->literal() == nullptr) {
-    parser_->ReportErrors(isolate_, script);
     status_ = CompileJobStatus::kFailed;
   } else {
     status_ = CompileJobStatus::kReadyToAnalyze;
   }
-  parser_->UpdateStatistics(isolate_, script);
 
   DeferredHandleScope scope(isolate_);
   {
-    parse_info_->ReopenHandlesInNewHandleScope();
+    Handle<Script> script(Script::cast(shared_->script()), isolate_);
+
+    parse_info_->set_script(script);
     Handle<ScopeInfo> outer_scope_info(
         handle(ScopeInfo::cast(shared_->outer_scope_info())));
     if (outer_scope_info->length() > 0) {
@@ -297,8 +294,9 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
     }
     parse_info_->set_shared_info(shared_);
 
-    // Internalize ast values on the main thread.
-    parse_info_->ast_value_factory()->Internalize(isolate_);
+    // Do the parsing tasks which need to be done on the main thread. This
+    // will also handle parse errors.
+    parser_->Internalize(isolate_, script, parse_info_->literal() == nullptr);
     parser_->HandleSourceURLComments(isolate_, script);
 
     parse_info_->set_character_stream(nullptr);
@@ -307,7 +305,7 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
     unicode_cache_.reset();
     character_stream_.reset();
   }
-  parse_info_->set_deferred_handles(scope.Detach());
+  handles_from_parsing_.reset(scope.Detach());
 
   return status_ != CompileJobStatus::kFailed;
 }
@@ -395,7 +393,7 @@ bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
 
   compile_job_.reset();
   compile_info_.reset();
-  parse_zone_.reset();
+  handles_from_parsing_.reset();
   parse_info_.reset();
 
   status_ = CompileJobStatus::kDone;
@@ -411,10 +409,10 @@ void CompilerDispatcherJob::ResetOnMainThread() {
 
   compile_job_.reset();
   compile_info_.reset();
-  parse_zone_.reset();
   parser_.reset();
   unicode_cache_.reset();
   character_stream_.reset();
+  handles_from_parsing_.reset();
   parse_info_.reset();
 
   if (!source_.is_null()) {

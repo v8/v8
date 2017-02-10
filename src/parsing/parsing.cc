@@ -15,7 +15,7 @@ namespace v8 {
 namespace internal {
 namespace parsing {
 
-bool ParseProgram(ParseInfo* info, bool internalize) {
+bool ParseProgram(ParseInfo* info) {
   DCHECK(info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -29,19 +29,14 @@ bool ParseProgram(ParseInfo* info, bool internalize) {
   parser.SetCachedData(info);
   result = parser.ParseProgram(isolate, info);
   info->set_literal(result);
-  if (result == nullptr) {
-    parser.ReportErrors(isolate, info->script());
-  } else {
+  parser.Internalize(isolate, info->script(), result == nullptr);
+  if (result != nullptr) {
     info->set_language_mode(info->literal()->language_mode());
-  }
-  parser.UpdateStatistics(isolate, info->script());
-  if (internalize) {
-    info->ast_value_factory()->Internalize(isolate);
   }
   return (result != nullptr);
 }
 
-bool ParseFunction(ParseInfo* info, bool internalize) {
+bool ParseFunction(ParseInfo* info) {
   DCHECK(!info->is_toplevel());
   DCHECK_NULL(info->literal());
 
@@ -54,19 +49,12 @@ bool ParseFunction(ParseInfo* info, bool internalize) {
 
   result = parser.ParseFunction(isolate, info);
   info->set_literal(result);
-  if (result == nullptr) {
-    parser.ReportErrors(isolate, info->script());
-  }
-  parser.UpdateStatistics(isolate, info->script());
-  if (internalize) {
-    info->ast_value_factory()->Internalize(isolate);
-  }
+  parser.Internalize(isolate, info->script(), result == nullptr);
   return (result != nullptr);
 }
 
-bool ParseAny(ParseInfo* info, bool internalize) {
-  return info->is_toplevel() ? ParseProgram(info, internalize)
-                             : ParseFunction(info, internalize);
+bool ParseAny(ParseInfo* info) {
+  return info->is_toplevel() ? ParseProgram(info) : ParseFunction(info);
 }
 
 }  // namespace parsing

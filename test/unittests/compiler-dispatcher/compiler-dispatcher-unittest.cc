@@ -13,7 +13,6 @@
 #include "src/handles.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
-#include "src/parsing/parsing.h"
 #include "src/v8.h"
 #include "test/unittests/compiler-dispatcher/compiler-dispatcher-helper.h"
 #include "test/unittests/test-utils.h"
@@ -817,11 +816,9 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
 
   ParseInfo parse_info(shared);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
-  std::shared_ptr<DeferredHandles> handles;
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(dispatcher.Enqueue(shared, parse_info.literal(),
-                                 parse_info.zone_shared(), handles, handles));
+  ASSERT_TRUE(dispatcher.Enqueue(shared, parse_info.literal()));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
@@ -844,12 +841,9 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
 
   ParseInfo parse_info(shared);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
-  std::shared_ptr<DeferredHandles> handles;
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(dispatcher.EnqueueAndStep(shared, parse_info.literal(),
-                                        parse_info.zone_shared(), handles,
-                                        handles));
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(shared, parse_info.literal()));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
   ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
@@ -883,9 +877,7 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
   // Enqueue shared1 as already parsed.
   ParseInfo parse_info(shared1);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
-  std::shared_ptr<DeferredHandles> handles;
-  ASSERT_TRUE(dispatcher.Enqueue(shared1, parse_info.literal(),
-                                 parse_info.zone_shared(), handles, handles));
+  ASSERT_TRUE(dispatcher.Enqueue(shared1, parse_info.literal()));
 
   // Enqueue shared2 for parsing and compiling
   ASSERT_TRUE(dispatcher.Enqueue(shared2));
@@ -899,44 +891,6 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
   ASSERT_TRUE(shared2->is_compiled());
   ASSERT_TRUE(platform.IdleTaskPending());
   platform.ClearIdleTask();
-}
-
-TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
-  MockPlatform platform;
-  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
-
-  const char script[] =
-      "function g() { var y = 1; function f20(x) { return x + y }; return f20; "
-      "} g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
-  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
-
-  {
-    HandleScope scope(i_isolate());  // Create handles scope for parsing.
-
-    ASSERT_FALSE(shared->is_compiled());
-    ParseInfo parse_info(shared);
-
-    ASSERT_TRUE(parsing::ParseAny(&parse_info));
-    DeferredHandleScope handles_scope(i_isolate());
-    { ASSERT_TRUE(Compiler::Analyze(&parse_info)); }
-    std::shared_ptr<DeferredHandles> compilation_handles(
-        handles_scope.Detach());
-
-    ASSERT_FALSE(platform.IdleTaskPending());
-    ASSERT_TRUE(dispatcher.Enqueue(
-        shared, parse_info.literal(), parse_info.zone_shared(),
-        parse_info.deferred_handles(), compilation_handles));
-    ASSERT_TRUE(platform.IdleTaskPending());
-  }
-  // Exit the handles scope and destroy ParseInfo before running the idle task.
-
-  // Since time doesn't progress on the MockPlatform, this is enough idle time
-  // to finish compiling the function.
-  platform.RunIdleTask(1000.0, 0.0);
-
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(shared->is_compiled());
 }
 
 }  // namespace internal

@@ -232,10 +232,9 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
 
-  void set_deferred_handles(std::shared_ptr<DeferredHandles> deferred_handles);
-  void set_deferred_handles(DeferredHandles* deferred_handles);
-  std::shared_ptr<DeferredHandles> deferred_handles() {
-    return deferred_handles_;
+  void set_deferred_handles(DeferredHandles* deferred_handles) {
+    DCHECK(deferred_handles_ == NULL);
+    deferred_handles_ = deferred_handles;
   }
 
   void ReopenHandlesInNewHandleScope();
@@ -365,7 +364,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // CompilationInfo allocates.
   Zone* zone_;
 
-  std::shared_ptr<DeferredHandles> deferred_handles_;
+  DeferredHandles* deferred_handles_;
 
   // Dependencies for this compilation, e.g. stable maps.
   CompilationDependencies dependencies_;

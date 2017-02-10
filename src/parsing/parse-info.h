@@ -22,7 +22,6 @@ class AccountingAllocator;
 class AstRawString;
 class AstValueFactory;
 class DeclarationScope;
-class DeferredHandles;
 class FunctionLiteral;
 class ScriptData;
 class SharedFunctionInfo;
@@ -45,12 +44,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   Zone* zone() const { return zone_.get(); }
 
   std::shared_ptr<Zone> zone_shared() const { return zone_; }
-
-  void set_deferred_handles(std::shared_ptr<DeferredHandles> deferred_handles);
-  void set_deferred_handles(DeferredHandles* deferred_handles);
-  std::shared_ptr<DeferredHandles> deferred_handles() const {
-    return deferred_handles_;
-  }
 
 // Convenience accessor methods for flags.
 #define FLAG_ACCESSOR(flag, getter, setter)     \
@@ -208,12 +201,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   }
 
   void ReopenHandlesInNewHandleScope() {
-    if (!script_.is_null()) {
-      script_ = Handle<Script>(*script_);
-    }
-    if (!shared_.is_null()) {
-      shared_ = Handle<SharedFunctionInfo>(*shared_);
-    }
+    shared_ = Handle<SharedFunctionInfo>(*shared_);
+    script_ = Handle<Script>(*script_);
     Handle<ScopeInfo> outer_scope_info;
     if (maybe_outer_scope_info_.ToHandle(&outer_scope_info)) {
       maybe_outer_scope_info_ = Handle<ScopeInfo>(*outer_scope_info);
@@ -277,7 +266,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   //----------- Output of parsing and scope analysis ------------------------
   FunctionLiteral* literal_;
-  std::shared_ptr<DeferredHandles> deferred_handles_;
 
   void SetFlag(Flag f) { flags_ |= f; }
   void SetFlag(Flag f, bool v) { flags_ = v ? flags_ | f : flags_ & ~f; }

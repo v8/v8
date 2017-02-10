@@ -28,11 +28,9 @@ namespace internal {
 class CancelableTaskManager;
 class CompilerDispatcherJob;
 class CompilerDispatcherTracer;
-class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class SharedFunctionInfo;
-class Zone;
 
 template <typename T>
 class Handle;
@@ -84,19 +82,13 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   // Enqueue a job for compilation. Function must have already been parsed and
   // analyzed and be ready for compilation. Returns true if a job was enqueued.
-  bool Enqueue(Handle<SharedFunctionInfo> function, FunctionLiteral* literal,
-               std::shared_ptr<Zone> parse_zone,
-               std::shared_ptr<DeferredHandles> parse_handles,
-               std::shared_ptr<DeferredHandles> compile_handles);
+  bool Enqueue(Handle<SharedFunctionInfo> function, FunctionLiteral* literal);
 
   // Like Enqueue, but also advances the job so that it can potentially
   // continue running on a background thread (if at all possible). Returns
   // true if the job was enqueued.
   bool EnqueueAndStep(Handle<SharedFunctionInfo> function,
-                      FunctionLiteral* literal,
-                      std::shared_ptr<Zone> parse_zone,
-                      std::shared_ptr<DeferredHandles> parse_handles,
-                      std::shared_ptr<DeferredHandles> compile_handles);
+                      FunctionLiteral* literal);
 
   // Returns true if there is a pending job for the given function.
   bool IsEnqueued(Handle<SharedFunctionInfo> function) const;

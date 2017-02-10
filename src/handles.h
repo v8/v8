@@ -361,7 +361,8 @@ class V8_EXPORT_PRIVATE CanonicalHandleScope final {
   friend class HandleScope;
 };
 
-class V8_EXPORT_PRIVATE DeferredHandleScope final {
+
+class DeferredHandleScope final {
  public:
   explicit DeferredHandleScope(Isolate* isolate);
   // The DeferredHandles object returned stores the Handles created

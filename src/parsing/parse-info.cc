@@ -4,7 +4,6 @@
 
 #include "src/parsing/parse-info.h"
 
-#include "src/api.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/heap/heap-inl.h"
@@ -37,8 +36,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
       function_name_(nullptr),
-      literal_(nullptr),
-      deferred_handles_(nullptr) {}
+      literal_(nullptr) {}
 
 ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
     : ParseInfo(shared->GetIsolate()->allocator()) {
@@ -108,17 +106,6 @@ bool ParseInfo::is_declaration() const {
 
 FunctionKind ParseInfo::function_kind() const {
   return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
-}
-
-void ParseInfo::set_deferred_handles(
-    std::shared_ptr<DeferredHandles> deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
-  deferred_handles_.swap(deferred_handles);
-}
-
-void ParseInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
-  deferred_handles_.reset(deferred_handles);
 }
 
 #ifdef DEBUG
