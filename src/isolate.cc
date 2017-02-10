@@ -2131,8 +2131,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\","
-        "\"nesting\": %zu"
-        "}\n",
+        "\"nesting\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time,
         reinterpret_cast<const void*>(zone), zone->name(),
         nesting_deepth_.Value());
@@ -2149,9 +2148,9 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\", "
-        "\"size\": %zu,"
-        "\"nesting\": %zu"
-        "}\n",
+        "\"size\": %" PRIuS
+        ","
+        "\"nesting\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time,
         reinterpret_cast<const void*>(zone), zone->name(),
         zone->allocation_size(), nesting_deepth_.Value());
@@ -2167,9 +2166,9 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"allocated\": %zu,"
-        "\"pooled\": %zu"
-        "}\n",
+        "\"allocated\": %" PRIuS
+        ","
+        "\"pooled\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time, malloced, pooled);
   }
 
