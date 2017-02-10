@@ -28,7 +28,6 @@ class SharedFunctionInfo;
 class String;
 class UnicodeCache;
 class Utf16CharacterStream;
-class Zone;
 
 enum class CompileJobStatus {
   kInitial,

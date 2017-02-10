@@ -53,7 +53,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kLoopPeelingEnabled = 1 << 16,
   };
 
-  CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
+  CompilationInfo(Zone* zone, ParseInfo* parse_info,
+                  Handle<JSFunction> closure);
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags);
   ~CompilationInfo();

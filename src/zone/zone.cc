@@ -49,7 +49,8 @@ Zone::Zone(AccountingAllocator* allocator, const char* name)
       limit_(0),
       allocator_(allocator),
       segment_head_(nullptr),
-      name_(name) {
+      name_(name),
+      sealed_(false) {
   allocator_->ZoneCreation(this);
 }
 
@@ -62,6 +63,8 @@ Zone::~Zone() {
 }
 
 void* Zone::New(size_t size) {
+  CHECK(!sealed_);
+
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignmentInBytes);
 

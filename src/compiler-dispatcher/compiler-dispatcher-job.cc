@@ -97,8 +97,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
       max_stack_size_(max_stack_size),
       parse_info_(
           new ParseInfo(Handle<Script>(Script::cast(shared->script())))),
-      compile_info_(
-          new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null())),
+      compile_info_(new CompilationInfo(parse_info_->zone(), parse_info_.get(),
+                                        Handle<JSFunction>::null())),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   parse_info_->set_literal(literal);
   parse_info_->set_shared_info(shared);
@@ -318,8 +318,8 @@ bool CompilerDispatcherJob::AnalyzeOnMainThread() {
     PrintF("CompilerDispatcherJob[%p]: Analyzing\n", static_cast<void*>(this));
   }
 
-  compile_info_.reset(
-      new CompilationInfo(parse_info_.get(), Handle<JSFunction>::null()));
+  compile_info_.reset(new CompilationInfo(
+      parse_info_->zone(), parse_info_.get(), Handle<JSFunction>::null()));
 
   DeferredHandleScope scope(isolate_);
   {

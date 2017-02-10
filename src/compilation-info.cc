@@ -53,10 +53,10 @@ bool CompilationInfo::has_shared_info() const {
   return parse_info_ && !parse_info_->shared_info().is_null();
 }
 
-CompilationInfo::CompilationInfo(ParseInfo* parse_info,
+CompilationInfo::CompilationInfo(Zone* zone, ParseInfo* parse_info,
                                  Handle<JSFunction> closure)
     : CompilationInfo(parse_info, {}, Code::ComputeFlags(Code::FUNCTION), BASE,
-                      parse_info->isolate(), parse_info->zone()) {
+                      parse_info->isolate(), zone) {
   closure_ = closure;
 
   // Compiling for the snapshot typically results in different code than

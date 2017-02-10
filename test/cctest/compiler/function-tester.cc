@@ -156,7 +156,7 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   ParseInfo parse_info(handle(function->shared()));
-  CompilationInfo info(&parse_info, function);
+  CompilationInfo info(parse_info.zone(), &parse_info, function);
 
   info.SetOptimizing();
   info.MarkAsDeoptimizationEnabled();
@@ -185,7 +185,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 // and replace the JSFunction's code with the result.
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   ParseInfo parse_info(handle(function->shared()));
-  CompilationInfo info(&parse_info, function);
+  CompilationInfo info(parse_info.zone(), &parse_info, function);
 
   CHECK(parsing::ParseFunction(info.parse_info()));
   info.SetOptimizing();

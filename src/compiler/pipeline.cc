@@ -551,7 +551,7 @@ class PipelineCompilationJob final : public CompilationJob {
       : CompilationJob(isolate, &info_, "TurboFan"),
         parse_info_(handle(function->shared())),
         zone_stats_(isolate->allocator()),
-        info_(&parse_info_, function),
+        info_(parse_info_.zone(), &parse_info_, function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
