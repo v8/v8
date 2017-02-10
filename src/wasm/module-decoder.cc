@@ -236,7 +236,8 @@ class ModuleDecoder : public Decoder {
     pos = pc_;
     {
       uint32_t magic_version = consume_u32("wasm version");
-      if (magic_version != kWasmVersion) {
+      if (magic_version != kWasmVersion &&
+          magic_version != kWasmLegacyVersion) {
         error(pos, pos,
               "expected version %02x %02x %02x %02x, "
               "found %02x %02x %02x %02x",

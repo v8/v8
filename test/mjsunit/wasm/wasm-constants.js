@@ -21,7 +21,7 @@ var kWasmH1 = 0x61;
 var kWasmH2 = 0x73;
 var kWasmH3 = 0x6d;
 
-var kWasmV0 = 0xD;
+var kWasmV0 = 0x1;
 var kWasmV1 = 0;
 var kWasmV2 = 0;
 var kWasmV3 = 0;
