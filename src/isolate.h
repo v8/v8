@@ -912,6 +912,11 @@ class Isolate {
 
   RegExpStack* regexp_stack() { return regexp_stack_; }
 
+  size_t total_regexp_code_generated() { return total_regexp_code_generated_; }
+  void IncreaseTotalRegexpCodeGenerated(int size) {
+    total_regexp_code_generated_ += size;
+  }
+
   List<int>* regexp_indices() { return &regexp_indices_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
@@ -1483,6 +1488,8 @@ class Isolate {
 #endif
 
   bool allow_atomics_wait_;
+
+  size_t total_regexp_code_generated_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

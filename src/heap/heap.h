@@ -1424,19 +1424,6 @@ class Heap {
   // Returns the size of objects residing in non new spaces.
   size_t PromotedSpaceSizeOfObjects();
 
-  double total_regexp_code_generated() { return total_regexp_code_generated_; }
-  void IncreaseTotalRegexpCodeGenerated(int size) {
-    total_regexp_code_generated_ += size;
-  }
-
-  void IncrementCodeGeneratedBytes(bool is_crankshafted, int size) {
-    if (is_crankshafted) {
-      crankshaft_codegen_bytes_generated_ += size;
-    } else {
-      full_codegen_bytes_generated_ += size;
-    }
-  }
-
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================
   // ===========================================================================
@@ -2255,9 +2242,6 @@ class Heap {
   List<GCCallbackPair> gc_epilogue_callbacks_;
   List<GCCallbackPair> gc_prologue_callbacks_;
 
-  // Total RegExp code ever generated
-  double total_regexp_code_generated_;
-
   int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 
   GCTracer* tracer_;
@@ -2307,10 +2291,6 @@ class Heap {
   ScavengeJob* scavenge_job_;
 
   AllocationObserver* idle_scavenge_observer_;
-
-  // These two counters are monotomically increasing and never reset.
-  size_t full_codegen_bytes_generated_;
-  size_t crankshaft_codegen_bytes_generated_;
 
   // This counter is increased before each GC and never reset.
   // To account for the bytes allocated since the last GC, use the
