@@ -3850,7 +3850,6 @@ TEST(MaybeAssignedTopLevel) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
-  i::Factory* factory = isolate->factory();
 
   const char* prefixes[] = {
       "let foo; ",
@@ -3863,55 +3862,56 @@ TEST(MaybeAssignedTopLevel) {
       "var [foo] = [1]; ",
       "var {foo} = {foo: 2}; ",
       "var {foo=3} = {}; ",
+      "{ var foo; }; ",
+      "{ var foo = 0; }; ",
+      "{ var [foo] = [1]; }; ",
+      "{ var {foo} = {foo: 2}; }; ",
+      "{ var {foo=3} = {}; }; ",
       "function foo() {}; ",
       "function* foo() {}; ",
       "async function foo() {}; ",
       "class foo {}; ",
       "class foo extends null {}; ",
   };
-  const char* sources[] = {
+
+  const char* module_and_script_tests[] = {
       "function bar() {foo = 42}; ext(bar); ext(foo)",
       "ext(function() {foo++}); ext(foo)",
       "bar = () => --foo; ext(bar); ext(foo)",
       "function* bar() {eval(ext)}; ext(bar); ext(foo)",
   };
 
+  const char* script_only_tests[] = {
+      "",
+      "{ function foo() {}; }; ",
+      "{ function* foo() {}; }; ",
+      "{ async function foo() {}; }; ",
+  };
+
   for (unsigned i = 0; i < arraysize(prefixes); ++i) {
-    const char* prefix = prefixes[i];
-    for (unsigned j = 0; j < arraysize(sources); ++j) {
-      const char* source = sources[j];
-      i::ScopedVector<char> program(Utf8LengthHelper(prefix) +
-                                    Utf8LengthHelper(source) + 1);
-      i::SNPrintF(program, "%s%s", prefix, source);
-
-      i::Handle<i::String> string =
-          factory->InternalizeUtf8String(program.start());
-      string->PrintOn(stdout);
-      printf("\n");
-      i::Handle<i::Script> script = factory->NewScript(string);
-
-      for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-        for (unsigned module = 0; module < 2; ++module) {
-          std::unique_ptr<i::ParseInfo> info;
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
-          info->set_module(module);
-          info->set_allow_lazy_parsing(allow_lazy);
-
-          CHECK(i::parsing::ParseProgram(info.get()));
-          CHECK(i::Compiler::Analyze(info.get()));
-
-          CHECK_NOT_NULL(info->literal());
-          i::Scope* scope = info->literal()->scope();
-          CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
-          CHECK_NULL(scope->sibling());
-          CHECK(module ? scope->is_module_scope() : scope->is_script_scope());
-
-          const i::AstRawString* var_name =
-              info->ast_value_factory()->GetOneByteString("foo");
-          i::Variable* var = scope->Lookup(var_name);
-          CHECK(var->is_used());
-          CHECK(var->maybe_assigned() == i::kMaybeAssigned);
+    for (unsigned j = 0; j < arraysize(module_and_script_tests); ++j) {
+      std::string source(prefixes[i]);
+      source += module_and_script_tests[j];
+      std::vector<unsigned> top;
+      Input input({true, source, top});
+      for (unsigned module = 0; module <= 1; ++module) {
+        for (unsigned allow_lazy_parsing = 0; allow_lazy_parsing <= 1;
+             ++allow_lazy_parsing) {
+          TestMaybeAssigned(input, "foo", module, allow_lazy_parsing);
         }
+      }
+    }
+  }
+
+  for (unsigned i = 0; i < arraysize(prefixes); ++i) {
+    for (unsigned j = 0; j < arraysize(script_only_tests); ++j) {
+      std::string source(prefixes[i]);
+      source += script_only_tests[j];
+      std::vector<unsigned> top;
+      Input input({true, source, top});
+      for (unsigned allow_lazy_parsing = 0; allow_lazy_parsing <= 1;
+           ++allow_lazy_parsing) {
+        TestMaybeAssigned(input, "foo", false, allow_lazy_parsing);
       }
     }
   }
