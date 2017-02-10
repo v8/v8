@@ -133,6 +133,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
         !classifier()->is_valid_formal_parameter_list_without_duplicates();
   }
 
+  Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
   DeclarationScope* inner_scope = function_scope;
   LazyParsingResult result;
 
@@ -143,18 +144,18 @@ PreParser::PreParseResult PreParser::PreParseFunction(
 
   {
     BlockState block_state(&scope_state_, inner_scope);
-    Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
     result = ParseStatementListAndLogFunction(
         &formals, has_duplicate_parameters, may_abort, ok);
   }
 
-  if (!formals.is_simple) {
-    SetLanguageMode(function_scope, inner_scope->language_mode());
-    inner_scope->set_end_position(scanner()->location().end_pos);
+  if (is_sloppy(inner_scope->language_mode())) {
+    inner_scope->HoistSloppyBlockFunctions(nullptr);
   }
 
-  if (is_sloppy(function_scope->language_mode())) {
-    function_scope->HoistSloppyBlockFunctions(nullptr);
+  if (!formals.is_simple) {
+    SetLanguageMode(function_scope, inner_scope->language_mode());
+    inner_scope->set_end_position(scanner()->peek_location().end_pos);
+    inner_scope->FinalizeBlockScope();
   }
 
   if (!IsArrowFunction(kind) && track_unresolved_variables_) {

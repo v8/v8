@@ -20,6 +20,9 @@ TEST(PreParserScopeAnalysis) {
   i::HandleScope scope(isolate);
   LocalContext env;
 
+  // FIXME(marja): Add tests where the test cases are deeper (in a second-level
+  // inner function or second-level inner arrow function). Remove redundant test
+  // cases.
   const char* prefix = "(function outer() { ";
   const char* suffix = " })();";
   int prefix_len = Utf8LengthHelper(prefix);
@@ -299,9 +302,18 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var1", "function f1() { var1; }"},
       {"var1, var1", "function f1() { var1 = 9; }"},
 
-      // FIXME(marja): destructuring parameters, rest parameter, default
-      // parameters, shadowing parameters, default parameters referring to other
-      // parameters, arguments parameter, eval in default parameter.
+      // Rest parameter.
+      {"...var2", ""},
+      {"...var2", "var2;"},
+      {"...var2", "var2 = 9;"},
+      {"...var2", "function f1() { var2; }"},
+      {"...var2", "function f1() { var2 = 9; }"},
+
+      // FIXME(marja): destructuring parameters, default parameters, shadowing
+      // parameters, default parameters referring to other parameters, arguments
+      // parameter, eval in default parameter, params and locals, multiple
+      // params, many params and rest, destructuring rest, rest with default
+      // value, locals shadowing params.
   };
 
   for (unsigned i = 0; i < arraysize(inners); ++i) {
