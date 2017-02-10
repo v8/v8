@@ -278,6 +278,7 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
 }
 
 bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
+  if (IsEnqueued(function)) return true;
   if (!Enqueue(function)) return false;
 
   if (trace_compiler_dispatcher_) {
@@ -321,6 +322,7 @@ bool CompilerDispatcher::EnqueueAndStep(
     FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
     std::shared_ptr<DeferredHandles> parse_handles,
     std::shared_ptr<DeferredHandles> compile_handles) {
+  if (IsEnqueued(function)) return true;
   if (!Enqueue(script, function, literal, parse_zone, parse_handles,
                compile_handles)) {
     return false;

@@ -118,6 +118,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
  private:
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStep);
+  FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepTwice);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueParsed);
   FRIEND_TEST(CompilerDispatcherTest, EnqueueAndStepParsed);
   FRIEND_TEST(CompilerDispatcherTest, IdleTaskSmallIdleTime);

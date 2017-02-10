@@ -1060,5 +1060,47 @@ TEST_F(CompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   ASSERT_FALSE(dispatcher->IsEnqueued(shared2));
 }
 
+TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char source[] =
+      "function g() { var y = 1; function f18(x) { return x * y }; return f18; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+  Handle<Script> script(Script::cast(shared->script()), i_isolate());
+
+  ParseInfo parse_info(shared);
+  ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
+  std::shared_ptr<DeferredHandles> handles;
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
+                                        parse_info.zone_shared(), handles,
+                                        handles));
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  // EnqueueAndStep of the same function again (either already parsed or for
+  // compile and parse) shouldn't step the job.
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
+                                        parse_info.zone_shared(), handles,
+                                        handles));
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared));
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+  platform.ClearIdleTask();
+  platform.ClearBackgroundTasks();
+}
+
 }  // namespace internal
 }  // namespace v8
