@@ -1174,21 +1174,13 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   // Try looking up the property on the receiver; if unsuccessful, look
   // for a handler in the stub cache.
-  Comment("DescriptorArray lookup");
-
-  // Skip linear search if there are too many descriptors.
-  // TODO(jkummerow): Consider implementing binary search.
-  // See also TryLookupProperty() which has the same limitation.
-  const int32_t kMaxLinear = 210;
-  Label stub_cache(this);
   Node* bitfield3 = LoadMapBitField3(receiver_map);
-  Node* nof = DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
-  GotoIf(UintPtrLessThan(IntPtrConstant(kMaxLinear), nof), &stub_cache);
   Node* descriptors = LoadMapDescriptors(receiver_map);
+
+  Label if_descriptor_found(this), stub_cache(this);
   Variable var_name_index(this, MachineType::PointerRepresentation());
-  Label if_descriptor_found(this);
-  DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
-                         &var_name_index, &stub_cache);
+  DescriptorLookup(key, descriptors, bitfield3, &if_descriptor_found,
+                   &var_name_index, &stub_cache);
 
   Bind(&if_descriptor_found);
   {

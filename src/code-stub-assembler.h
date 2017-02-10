@@ -752,7 +752,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ToNumber(Node* context, Node* input);
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
-  // 2^32−1, inclusive.
+  // 2^32-1, inclusive.
   // ES#sec-touint32
   compiler::Node* ToUint32(compiler::Node* context, compiler::Node* input);
 
@@ -1242,7 +1242,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   inline void Print(Node* tagged_value) { return Print(nullptr, tagged_value); }
 
  protected:
+  void DescriptorLookup(Node* unique_name, Node* descriptors, Node* bitfield3,
+                        Label* if_found, Variable* var_name_index,
+                        Label* if_not_found);
   void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,
+                              Label* if_found, Variable* var_name_index,
+                              Label* if_not_found);
+  void DescriptorLookupBinary(Node* unique_name, Node* descriptors, Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
 
@@ -1282,6 +1288,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* AllocateConsString(Heap::RootListIndex map_root_index, Node* length,
                            Node* first, Node* second, AllocationFlags flags);
+
+  // Implements DescriptorArray::number_of_entries.
+  // Returns an untagged int32.
+  Node* DescriptorArrayNumberOfEntries(Node* descriptors);
+  // Implements DescriptorArray::ToKeyIndex.
+  // Returns an untagged IntPtr.
+  Node* DescriptorArrayToKeyIndex(Node* descriptor_number);
+  // Implements DescriptorArray::GetSortedKeyIndex.
+  // Returns an untagged int32.
+  Node* DescriptorArrayGetSortedKeyIndex(Node* descriptors,
+                                         Node* descriptor_number);
+  // Implements DescriptorArray::GetKey.
+  Node* DescriptorArrayGetKey(Node* descriptors, Node* descriptor_number);
 
   static const int kElementLoopUnrollThreshold = 8;
 };

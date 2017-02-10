@@ -4721,6 +4721,7 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                                                Label* if_found,
                                                Variable* var_name_index,
                                                Label* if_not_found) {
+  Comment("DescriptorLookupLinear");
   Node* first_inclusive = IntPtrConstant(DescriptorArray::ToKeyIndex(0));
   Node* factor = IntPtrConstant(DescriptorArray::kEntrySize);
   Node* last_exclusive = IntPtrAdd(first_inclusive, IntPtrMul(nof, factor));
@@ -4736,6 +4737,136 @@ void CodeStubAssembler::DescriptorLookupLinear(Node* unique_name,
                 -DescriptorArray::kEntrySize, INTPTR_PARAMETERS,
                 IndexAdvanceMode::kPre);
   Goto(if_not_found);
+}
+
+Node* CodeStubAssembler::DescriptorArrayNumberOfEntries(Node* descriptors) {
+  return LoadAndUntagToWord32FixedArrayElement(
+      descriptors, IntPtrConstant(DescriptorArray::kDescriptorLengthIndex));
+}
+
+namespace {
+
+Node* DescriptorNumberToIndex(CodeStubAssembler* a, Node* descriptor_number) {
+  Node* descriptor_size = a->Int32Constant(DescriptorArray::kEntrySize);
+  Node* index = a->Int32Mul(descriptor_number, descriptor_size);
+  return a->ChangeInt32ToIntPtr(index);
+}
+
+}  // namespace
+
+Node* CodeStubAssembler::DescriptorArrayToKeyIndex(Node* descriptor_number) {
+  return IntPtrAdd(IntPtrConstant(DescriptorArray::ToKeyIndex(0)),
+                   DescriptorNumberToIndex(this, descriptor_number));
+}
+
+Node* CodeStubAssembler::DescriptorArrayGetSortedKeyIndex(
+    Node* descriptors, Node* descriptor_number) {
+  const int details_offset = DescriptorArray::ToDetailsIndex(0) * kPointerSize;
+  Node* details = LoadAndUntagToWord32FixedArrayElement(
+      descriptors, DescriptorNumberToIndex(this, descriptor_number),
+      details_offset);
+  return DecodeWord32<PropertyDetails::DescriptorPointer>(details);
+}
+
+Node* CodeStubAssembler::DescriptorArrayGetKey(Node* descriptors,
+                                               Node* descriptor_number) {
+  const int key_offset = DescriptorArray::ToKeyIndex(0) * kPointerSize;
+  return LoadFixedArrayElement(descriptors,
+                               DescriptorNumberToIndex(this, descriptor_number),
+                               key_offset);
+}
+
+void CodeStubAssembler::DescriptorLookupBinary(Node* unique_name,
+                                               Node* descriptors, Node* nof,
+                                               Label* if_found,
+                                               Variable* var_name_index,
+                                               Label* if_not_found) {
+  Comment("DescriptorLookupBinary");
+  Variable var_low(this, MachineRepresentation::kWord32, Int32Constant(0));
+  Node* limit =
+      Int32Sub(DescriptorArrayNumberOfEntries(descriptors), Int32Constant(1));
+  Variable var_high(this, MachineRepresentation::kWord32, limit);
+  Node* hash = LoadNameHashField(unique_name);
+  CSA_ASSERT(this, Word32NotEqual(hash, Int32Constant(0)));
+
+  // Assume non-empty array.
+  CSA_ASSERT(this, Uint32LessThanOrEqual(var_low.value(), var_high.value()));
+
+  Variable* loop_vars[] = {&var_high, &var_low};
+  Label binary_loop(this, 2, loop_vars);
+  Goto(&binary_loop);
+  Bind(&binary_loop);
+  {
+    // mid = low + (high - low) / 2 (to avoid overflow in "(low + high) / 2").
+    Node* mid =
+        Int32Add(var_low.value(),
+                 Word32Shr(Int32Sub(var_high.value(), var_low.value()), 1));
+    // mid_name = descriptors->GetSortedKey(mid).
+    Node* sorted_key_index = DescriptorArrayGetSortedKeyIndex(descriptors, mid);
+    Node* mid_name = DescriptorArrayGetKey(descriptors, sorted_key_index);
+
+    Node* mid_hash = LoadNameHashField(mid_name);
+
+    Label mid_greater(this), mid_less(this), merge(this);
+    Branch(Uint32GreaterThanOrEqual(mid_hash, hash), &mid_greater, &mid_less);
+    Bind(&mid_greater);
+    {
+      var_high.Bind(mid);
+      Goto(&merge);
+    }
+    Bind(&mid_less);
+    {
+      var_low.Bind(Int32Add(mid, Int32Constant(1)));
+      Goto(&merge);
+    }
+    Bind(&merge);
+    GotoIf(Word32NotEqual(var_low.value(), var_high.value()), &binary_loop);
+  }
+
+  Label scan_loop(this, &var_low);
+  Goto(&scan_loop);
+  Bind(&scan_loop);
+  {
+    GotoIf(Int32GreaterThan(var_low.value(), limit), if_not_found);
+
+    Node* sort_index =
+        DescriptorArrayGetSortedKeyIndex(descriptors, var_low.value());
+    Node* current_name = DescriptorArrayGetKey(descriptors, sort_index);
+    Node* current_hash = LoadNameHashField(current_name);
+    GotoIf(Word32NotEqual(current_hash, hash), if_not_found);
+    Label next(this);
+    GotoIf(WordNotEqual(current_name, unique_name), &next);
+    GotoIf(Int32GreaterThanOrEqual(sort_index, nof), if_not_found);
+    var_name_index->Bind(DescriptorArrayToKeyIndex(sort_index));
+    Goto(if_found);
+
+    Bind(&next);
+    var_low.Bind(Int32Add(var_low.value(), Int32Constant(1)));
+    Goto(&scan_loop);
+  }
+}
+
+void CodeStubAssembler::DescriptorLookup(Node* unique_name, Node* descriptors,
+                                         Node* bitfield3, Label* if_found,
+                                         Variable* var_name_index,
+                                         Label* if_not_found) {
+  Comment("DescriptorArrayLookup");
+  Node* nof = DecodeWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
+  GotoIf(Word32Equal(nof, Int32Constant(0)), if_not_found);
+  Label linear_search(this), binary_search(this);
+  const int kMaxElementsForLinearSearch = 32;
+  Branch(Int32LessThanOrEqual(nof, Int32Constant(kMaxElementsForLinearSearch)),
+         &linear_search, &binary_search);
+  Bind(&linear_search);
+  {
+    DescriptorLookupLinear(unique_name, descriptors, ChangeInt32ToIntPtr(nof),
+                           if_found, var_name_index, if_not_found);
+  }
+  Bind(&binary_search);
+  {
+    DescriptorLookupBinary(unique_name, descriptors, nof, if_found,
+                           var_name_index, if_not_found);
+  }
 }
 
 void CodeStubAssembler::TryLookupProperty(
@@ -4763,20 +4894,11 @@ void CodeStubAssembler::TryLookupProperty(
          &if_isfastmap);
   Bind(&if_isfastmap);
   {
-    Comment("DescriptorArrayLookup");
-    Node* nof =
-        DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bit_field3);
-    // Bail out to the runtime for large numbers of own descriptors. The stub
-    // only does linear search, which becomes too expensive in that case.
-    {
-      static const int32_t kMaxLinear = 210;
-      GotoIf(UintPtrGreaterThan(nof, IntPtrConstant(kMaxLinear)), if_bailout);
-    }
     Node* descriptors = LoadMapDescriptors(map);
     var_meta_storage->Bind(descriptors);
 
-    DescriptorLookupLinear(unique_name, descriptors, nof, if_found_fast,
-                           var_name_index, if_not_found);
+    DescriptorLookup(unique_name, descriptors, bit_field3, if_found_fast,
+                     var_name_index, if_not_found);
   }
   Bind(&if_isslowmap);
   {
