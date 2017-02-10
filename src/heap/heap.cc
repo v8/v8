@@ -4070,21 +4070,8 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 }
 
 
-bool Heap::IsHeapIterable() {
-  // TODO(hpayer): This function is not correct. Allocation folding in old
-  // space breaks the iterability.
-  return new_space_top_after_last_gc_ == new_space()->top();
-}
-
-
 void Heap::MakeHeapIterable() {
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask,
-                      GarbageCollectionReason::kMakeHeapIterable);
-  }
   mark_compact_collector()->EnsureSweepingCompleted();
-  DCHECK(IsHeapIterable());
 }
 
 
@@ -6119,16 +6106,15 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   DisallowHeapAllocation no_allocation_;
 };
 
-
 HeapIterator::HeapIterator(Heap* heap,
                            HeapIterator::HeapObjectsFiltering filtering)
-    : make_heap_iterable_helper_(heap),
-      no_heap_allocation_(),
+    : no_heap_allocation_(),
       heap_(heap),
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),
       object_iterator_(nullptr) {
+  heap_->MakeHeapIterable();
   heap_->heap_iterator_start();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);

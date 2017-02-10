@@ -768,9 +768,6 @@ class Heap {
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
 
-  // Check whether the heap is currently iterable.
-  bool IsHeapIterable();
-
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
 
@@ -2550,17 +2547,8 @@ class HeapIterator BASE_EMBEDDED {
   HeapObject* next();
 
  private:
-  struct MakeHeapIterableHelper {
-    explicit MakeHeapIterableHelper(Heap* heap) { heap->MakeHeapIterable(); }
-  };
-
   HeapObject* NextObject();
 
-  // The following two fields need to be declared in this order. Initialization
-  // order guarantees that we first make the heap iterable (which may involve
-  // allocations) and only then lock it down by not allowing further
-  // allocations.
-  MakeHeapIterableHelper make_heap_iterable_helper_;
   DisallowHeapAllocation no_heap_allocation_;
 
   Heap* heap_;

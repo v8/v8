@@ -728,7 +728,7 @@ static void ReplaceCodeObject(Handle<Code> original,
   // to code objects (that are never in new space) without worrying about
   // write barriers.
   Heap* heap = original->GetHeap();
-  HeapIterator iterator(heap);
+  HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
@@ -1402,7 +1402,7 @@ bool LiveEdit::FindActiveGenerators(Handle<FixedArray> shared_info_array,
   FunctionPatchabilityStatus active = FUNCTION_BLOCKED_ACTIVE_GENERATOR;
 
   Heap* heap = isolate->heap();
-  HeapIterator iterator(heap);
+  HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
   HeapObject* obj = NULL;
   while ((obj = iterator.next()) != NULL) {
     if (!obj->IsJSGeneratorObject()) continue;
