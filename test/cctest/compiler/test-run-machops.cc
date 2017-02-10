@@ -6730,14 +6730,6 @@ TEST(Regression5923) {
   }
 }
 
-TEST(Regression5951) {
-  BufferedRawMachineAssemblerTester<int64_t> m(MachineType::Int64());
-  m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(0)),
-                       m.Int64Constant(0xffffffffffffffffl)));
-  int64_t input = 1234;
-  CHECK_EQ(input, m.Call(input));
-}
-
 #endif  // V8_TARGET_ARCH_64_BIT
 
 }  // namespace compiler

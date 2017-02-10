@@ -957,19 +957,17 @@ void InstructionSelector::VisitWord64And(Node* node) {
         // Any shift value can match; int64 shifts use `value % 64`.
         uint32_t lsb = static_cast<uint32_t>(mleft.right().Value() & 0x3f);
 
-        if (lsb != 0) {
-          // Ubfx cannot extract bits past the register size, however since
-          // shifting the original value would have introduced some zeros we can
-          // still use ubfx with a smaller mask and the remaining bits will be
-          // zeros.
-          if (lsb + mask_width > 64) mask_width = 64 - lsb;
+        // Ubfx cannot extract bits past the register size, however since
+        // shifting the original value would have introduced some zeros we can
+        // still use ubfx with a smaller mask and the remaining bits will be
+        // zeros.
+        if (lsb + mask_width > 64) mask_width = 64 - lsb;
 
-          Emit(kArm64Ubfx, g.DefineAsRegister(node),
-               g.UseRegister(mleft.left().node()),
-               g.UseImmediateOrTemp(mleft.right().node(), lsb),
-               g.TempImmediate(static_cast<int32_t>(mask_width)));
-          return;
-        }
+        Emit(kArm64Ubfx, g.DefineAsRegister(node),
+             g.UseRegister(mleft.left().node()),
+             g.UseImmediateOrTemp(mleft.right().node(), lsb),
+             g.TempImmediate(static_cast<int32_t>(mask_width)));
+        return;
       }
       // Other cases fall through to the normal And operation.
     }
