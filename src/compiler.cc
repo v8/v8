@@ -39,6 +39,19 @@
 namespace v8 {
 namespace internal {
 
+// A wrapper around a ParseInfo that detaches the parser handles from the
+// underlying DeferredHandleScope and stores them in info_ on destruction.
+class ParseHandleScope final {
+ public:
+  explicit ParseHandleScope(ParseInfo* info)
+      : deferred_(info->isolate()), info_(info) {}
+  ~ParseHandleScope() { info_->set_deferred_handles(deferred_.Detach()); }
+
+ private:
+  DeferredHandleScope deferred_;
+  ParseInfo* info_;
+};
+
 // A wrapper around a CompilationInfo that detaches the Handles from
 // the underlying DeferredHandleScope and stores them in info_ on
 // destruction.
@@ -512,7 +525,7 @@ bool GenerateUnoptimizedCode(CompilationInfo* info) {
 bool CompileUnoptimizedInnerFunctions(
     Compiler::EagerInnerFunctionLiterals* literals,
     Compiler::ConcurrencyMode inner_function_mode,
-    CompilationInfo* outer_info) {
+    std::shared_ptr<Zone> parse_zone, CompilationInfo* outer_info) {
   Isolate* isolate = outer_info->isolate();
   Handle<Script> script = outer_info->script();
   bool is_debug = outer_info->is_debug();
@@ -534,7 +547,9 @@ bool CompileUnoptimizedInnerFunctions(
     CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
     if (UseCompilerDispatcher(inner_function_mode, dispatcher, literal->scope(),
                               shared, is_debug, will_serialize) &&
-        dispatcher->EnqueueAndStep(shared, literal)) {
+        dispatcher->EnqueueAndStep(shared, literal, parse_zone,
+                                   outer_info->parse_info()->deferred_handles(),
+                                   outer_info->deferred_handles())) {
       // If we have successfully queued up the function for compilation on the
       // compiler dispatcher then we are done.
       continue;
@@ -579,9 +594,15 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
-  if (!Compiler::Analyze(info->parse_info(), &inner_literals)) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return false;
+  {
+    std::unique_ptr<CompilationHandleScope> compilation_handle_scope;
+    if (inner_function_mode == Compiler::CONCURRENT) {
+      compilation_handle_scope.reset(new CompilationHandleScope(info));
+    }
+    if (!Compiler::Analyze(info->parse_info(), &inner_literals)) {
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+      return false;
+    }
   }
 
   // Disable concurrent inner compilation for asm-wasm code.
@@ -592,15 +613,17 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
     inner_function_mode = Compiler::NOT_CONCURRENT;
   }
 
+  std::shared_ptr<Zone> parse_zone;
   if (inner_function_mode == Compiler::CONCURRENT) {
     // Seal the parse zone so that it can be shared by parallel inner function
     // compilation jobs.
     DCHECK_NE(info->parse_info()->zone(), info->zone());
-    info->parse_info()->zone()->Seal();
+    parse_zone = info->parse_info()->zone_shared();
+    parse_zone->Seal();
   }
 
   if (!CompileUnoptimizedInnerFunctions(&inner_literals, inner_function_mode,
-                                        info) ||
+                                        parse_zone, info) ||
       !GenerateUnoptimizedCode(info)) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
@@ -641,8 +664,20 @@ MUST_USE_RESULT MaybeHandle<Code> GetUnoptimizedCode(
   VMState<COMPILER> state(info->isolate());
   PostponeInterruptsScope postpone(info->isolate());
 
-  // Parse and update CompilationInfo with the results.
-  if (!parsing::ParseAny(info->parse_info())) return MaybeHandle<Code>();
+  // Parse and update ParseInfo with the results.
+  {
+    if (!parsing::ParseAny(info->parse_info(),
+                           inner_function_mode != Compiler::CONCURRENT)) {
+      return MaybeHandle<Code>();
+    }
+
+    if (inner_function_mode == Compiler::CONCURRENT) {
+      ParseHandleScope parse_handles(info->parse_info());
+      info->parse_info()->ReopenHandlesInNewHandleScope();
+      info->parse_info()->ast_value_factory()->Internalize(info->isolate());
+    }
+  }
+
   if (info->parse_info()->is_toplevel()) {
     EnsureSharedFunctionInfosArrayOnScript(info->parse_info());
   }
@@ -1134,9 +1169,16 @@ Handle<SharedFunctionInfo> CompileToplevel(CompilationInfo* info) {
   Handle<SharedFunctionInfo> result;
 
   { VMState<COMPILER> state(info->isolate());
-    if (parse_info->literal() == nullptr &&
-        !parsing::ParseProgram(parse_info)) {
-      return Handle<SharedFunctionInfo>::null();
+    if (parse_info->literal() == nullptr) {
+      if (!parsing::ParseProgram(parse_info, false)) {
+        return Handle<SharedFunctionInfo>::null();
+      }
+
+      {
+        ParseHandleScope parse_handles(parse_info);
+        parse_info->ReopenHandlesInNewHandleScope();
+        parse_info->ast_value_factory()->Internalize(info->isolate());
+      }
     }
 
     EnsureSharedFunctionInfosArrayOnScript(parse_info);

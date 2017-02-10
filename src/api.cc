@@ -2418,12 +2418,19 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   }
 
   source->info->set_script(script);
+  if (source->info->literal() == nullptr) {
+    source->parser->ReportErrors(isolate, script);
+  }
+  source->parser->UpdateStatistics(isolate, script);
 
-  // Do the parsing tasks which need to be done on the main thread. This will
-  // also handle parse errors.
-  source->parser->Internalize(isolate, script,
-                              source->info->literal() == nullptr);
-  source->parser->HandleSourceURLComments(isolate, script);
+  i::DeferredHandleScope deferred_handle_scope(isolate);
+  {
+    // Internalize AST values on the main thread.
+    source->info->ReopenHandlesInNewHandleScope();
+    source->info->ast_value_factory()->Internalize(isolate);
+    source->parser->HandleSourceURLComments(isolate, script);
+  }
+  source->info->set_deferred_handles(deferred_handle_scope.Detach());
 
   i::Handle<i::SharedFunctionInfo> result;
   if (source->info->literal() != nullptr) {

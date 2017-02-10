@@ -3356,21 +3356,18 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
   }
 }
 
-
-void Parser::Internalize(Isolate* isolate, Handle<Script> script, bool error) {
-  // Internalize strings and values.
-  ast_value_factory()->Internalize(isolate);
-
-  // Error processing.
-  if (error) {
-    if (stack_overflow()) {
-      isolate->StackOverflow();
-    } else {
-      DCHECK(pending_error_handler_.has_pending_error());
-      pending_error_handler_.ThrowPendingError(isolate, script);
-    }
+void Parser::ReportErrors(Isolate* isolate, Handle<Script> script) {
+  if (stack_overflow()) {
+    isolate->StackOverflow();
+  } else {
+    DCHECK(pending_error_handler_.has_pending_error());
+    // Internalize ast values for throwing the pending error.
+    ast_value_factory()->Internalize(isolate);
+    pending_error_handler_.ThrowPendingError(isolate, script);
   }
+}
 
+void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
   // Move statistics to Isolate.
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
