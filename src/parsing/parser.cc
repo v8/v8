@@ -1487,8 +1487,6 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
 
-  MarkTopLevelVariableAsAssigned(scope(), proxy);
-
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, function, scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,

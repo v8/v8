@@ -3853,12 +3853,21 @@ TEST(MaybeAssignedTopLevel) {
   i::Factory* factory = isolate->factory();
 
   const char* prefixes[] = {
-      "let foo; ",          "let foo = 0; ",
-      "let [foo] = [1]; ",  "let {foo} = {foo: 2}; ",
-      "let {foo=3} = {}; ", "function foo() {}; ",
-      "var foo; ",          "var foo = 0; ",
-      "var [foo] = [1]; ",  "var {foo} = {foo: 2}; ",
-      "var {foo=3} = {}; ", "function* foo() {}; ",
+      "let foo; ",
+      "let foo = 0; ",
+      "let [foo] = [1]; ",
+      "let {foo} = {foo: 2}; ",
+      "let {foo=3} = {}; ",
+      "var foo; ",
+      "var foo = 0; ",
+      "var [foo] = [1]; ",
+      "var {foo} = {foo: 2}; ",
+      "var {foo=3} = {}; ",
+      "function foo() {}; ",
+      "function* foo() {}; ",
+      "async function foo() {}; ",
+      "class foo {}; ",
+      "class foo extends null {}; ",
   };
   const char* sources[] = {
       "function bar() {foo = 42}; ext(bar); ext(foo)",

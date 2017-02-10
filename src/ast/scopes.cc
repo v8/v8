@@ -1009,6 +1009,17 @@ Variable* Scope::DeclareVariable(
   const AstRawString* name = proxy->raw_name();
   bool is_function_declaration = declaration->IsFunctionDeclaration();
 
+  // Pessimistically assume that top-level variables will be assigned.
+  //
+  // Top-level variables in a script can be accessed by other scripts or even
+  // become global properties. While this does not apply to top-level variables
+  // in a module (assuming they are not exported), we must still mark these as
+  // assigned because they might be accessed by a lazily parsed top-level
+  // function, which, for efficiency, we preparse without variable tracking.
+  if (is_script_scope() || is_module_scope()) {
+    if (mode != CONST) proxy->set_is_assigned();
+  }
+
   Variable* var = nullptr;
   if (is_eval_scope() && is_sloppy(language_mode()) && mode == VAR) {
     // In a var binding in a sloppy direct eval, pollute the enclosing scope
@@ -1152,6 +1163,7 @@ Variable* DeclarationScope::DeclareDynamicGlobal(const AstRawString* name,
                                                  VariableKind kind) {
   DCHECK(is_script_scope());
   return variables_.Declare(zone(), this, name, DYNAMIC_GLOBAL, kind);
+  // TODO(neis): Mark variable as maybe-assigned?
 }
 
 

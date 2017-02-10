@@ -171,12 +171,10 @@ void Parser::PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
     names_->Add(name, zone());
   }
 
-  Scope* var_init_scope = descriptor_->scope;
-  MarkTopLevelVariableAsAssigned(var_init_scope, proxy);
-
   // If there's no initializer, we're done.
   if (value == nullptr) return;
 
+  Scope* var_init_scope = descriptor_->scope;
   MarkLoopVariableAsAssigned(var_init_scope, proxy->var());
 
   // A declaration of the form:

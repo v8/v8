@@ -824,20 +824,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
   }
 
-  // Pessimistically assume that top-level variables will be assigned.
-  //
-  // Top-level variables in a script can be accessed by other scripts or even
-  // become global properties. While this does not apply to top-level variables
-  // in a module (assuming they are not exported), we must still mark these as
-  // assigned because they might be accessed by a lazily parsed top-level
-  // function, which, for efficiency, we preparse without variable tracking.
-  V8_INLINE static void MarkTopLevelVariableAsAssigned(Scope* scope,
-                                                       VariableProxy* proxy) {
-    if (scope->is_script_scope() || scope->is_module_scope()) {
-      proxy->set_is_assigned();
-    }
-  }
-
   // Returns true if we have a binary expression between two numeric
   // literals. In that case, *x will be changed to an expression which is the
   // computed value.
