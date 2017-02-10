@@ -78,6 +78,7 @@ class InterpreterCompilationJob final : public CompilationJob {
   BytecodeGenerator generator_;
   RuntimeCallStats* runtime_call_stats_;
   RuntimeCallCounter background_execute_counter_;
+  bool print_bytecode_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
@@ -193,15 +194,33 @@ int Interpreter::InterruptBudget() {
   return FLAG_interrupt_budget * kCodeSizeMultiplier;
 }
 
+namespace {
+
+bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
+  if (!FLAG_print_bytecode) return false;
+
+  // Checks whether function passed the filter.
+  if (shared->is_toplevel()) {
+    Vector<const char> filter = CStrVector(FLAG_print_bytecode_filter);
+    return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
+  } else {
+    return shared->PassesFilter(FLAG_print_bytecode_filter);
+  }
+}
+
+}  // namespace
+
 InterpreterCompilationJob::InterpreterCompilationJob(CompilationInfo* info)
     : CompilationJob(info->isolate(), info, "Ignition"),
       generator_(info),
       runtime_call_stats_(info->isolate()->counters()->runtime_call_stats()),
-      background_execute_counter_("CompileBackgroundIgnition") {}
+      background_execute_counter_("CompileBackgroundIgnition"),
+      print_bytecode_(ShouldPrintBytecode(info->shared_info())) {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
   CodeGenerator::MakeCodePrologue(info(), "interpreter");
-  if (FLAG_print_bytecode) {
+
+  if (print_bytecode_) {
     OFStream os(stdout);
     std::unique_ptr<char[]> name = info()->GetDebugName();
     os << "[generating bytecode for function: " << info()->GetDebugName().get()
@@ -243,7 +262,7 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
     return FAILED;
   }
 
-  if (FLAG_print_bytecode) {
+  if (print_bytecode_) {
     OFStream os(stdout);
     bytecodes->Print(os);
     os << std::flush;

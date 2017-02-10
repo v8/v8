@@ -378,16 +378,7 @@ bool ShouldUseIgnition(CompilationInfo* info) {
   if (UseTurboFan(shared)) return true;
 
   // Only use Ignition for any other function if FLAG_ignition is true.
-  if (!FLAG_ignition) return false;
-
-  // Checks whether top level functions should be passed by the filter.
-  if (shared->is_toplevel()) {
-    Vector<const char> filter = CStrVector(FLAG_ignition_filter);
-    return (filter.length() == 0) || (filter.length() == 1 && filter[0] == '*');
-  }
-
-  // Finally respect the filter.
-  return shared->PassesFilter(FLAG_ignition_filter);
+  return FLAG_ignition;
 }
 
 bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
