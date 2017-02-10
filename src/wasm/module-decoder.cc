@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"

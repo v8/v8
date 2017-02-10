@@ -1304,6 +1304,7 @@
         'wasm/decoder.h',
         'wasm/function-body-decoder.cc',
         'wasm/function-body-decoder.h',
+        'wasm/function-body-decoder-impl.h',
         'wasm/leb-helper.h',
         'wasm/managed.h',
         'wasm/module-decoder.cc',

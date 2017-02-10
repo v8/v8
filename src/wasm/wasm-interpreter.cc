@@ -8,6 +8,7 @@
 
 #include "src/utils.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"

@@ -10,7 +10,9 @@
 #include "src/zone/zone-containers.h"
 
 #include "src/wasm/decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -149,28 +151,6 @@ struct Control {
   (build() ? CheckForException(builder_->func(__VA_ARGS__)) : nullptr)
 #define BUILD0(func) (build() ? CheckForException(builder_->func()) : nullptr)
 
-// Operand for SIMD lane operations.
-struct SimdLaneOperand {
-  uint8_t lane;
-  unsigned length;
-
-  inline SimdLaneOperand(Decoder* decoder, const byte* pc) {
-    lane = decoder->checked_read_u8(pc, 2, "lane");
-    length = 1;
-  }
-};
-
-// Operand for SIMD shift operations.
-struct SimdShiftOperand {
-  uint8_t shift;
-  unsigned length;
-
-  inline SimdShiftOperand(Decoder* decoder, const byte* pc) {
-    shift = decoder->checked_read_u8(pc, 2, "shift");
-    length = 1;
-  }
-};
-
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
 class WasmDecoder : public Decoder {
@@ -209,7 +189,7 @@ class WasmDecoder : public Decoder {
       uint32_t count = decoder->consume_u32v("local count");
       if (decoder->failed()) return false;
 
-      if ((count + type_list->size()) > kMaxNumWasmLocals) {
+      if ((count + type_list->size()) > kV8MaxWasmFunctionLocals) {
         decoder->error(decoder->pc() - 1, "local count too large");
         return false;
       }
@@ -722,10 +702,12 @@ class WasmFullDecoder : public WasmDecoder {
     while (pc_ < end_) {  // decoding loop.
       unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*pc_);
-      if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
-        TRACE("  @%-8d #%02x:%-20s|", startrel(pc_), opcode,
+#if DEBUG
+      if (FLAG_trace_wasm_decoder && !WasmOpcodes::IsPrefixOpcode(opcode)) {
+        TRACE("  @%-8d #%-20s|", startrel(pc_),
               WasmOpcodes::OpcodeName(opcode));
       }
+#endif
 
       FunctionSig* sig = WasmOpcodes::Signature(opcode);
       if (sig) {
@@ -1216,8 +1198,8 @@ class WasmFullDecoder : public WasmDecoder {
             len++;
             byte simd_index = checked_read_u8(pc_, 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
-            TRACE("  @%-4d #%02x #%02x:%-20s|", startrel(pc_), kSimdPrefix,
-                  simd_index, WasmOpcodes::OpcodeName(opcode));
+            TRACE("  @%-4d #%-20s|", startrel(pc_),
+                  WasmOpcodes::OpcodeName(opcode));
             len += DecodeSimdOpcode(opcode);
             break;
           }
