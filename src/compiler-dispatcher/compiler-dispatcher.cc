@@ -24,6 +24,11 @@ enum class ExceptionHandling { kSwallow, kThrow };
 bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
                             ExceptionHandling exception_handling) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+
+  // Ensure we are in the correct context for the job.
+  SaveContext save(isolate);
+  isolate->set_context(job->context());
+
   switch (job->status()) {
     case CompileJobStatus::kInitial:
       job->PrepareToParseOnMainThread();

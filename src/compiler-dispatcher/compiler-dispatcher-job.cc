@@ -69,6 +69,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
     : status_(CompileJobStatus::kInitial),
       isolate_(isolate),
       tracer_(tracer),
+      context_(Handle<Context>::cast(
+          isolate_->global_handles()->Create(isolate->context()))),
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
@@ -93,6 +95,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(
     : status_(CompileJobStatus::kAnalyzed),
       isolate_(isolate),
       tracer_(tracer),
+      context_(Handle<Context>::cast(
+          isolate_->global_handles()->Create(isolate->context()))),
       shared_(Handle<SharedFunctionInfo>::cast(
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
@@ -117,6 +121,7 @@ CompilerDispatcherJob::~CompilerDispatcherJob() {
   DCHECK(status_ == CompileJobStatus::kInitial ||
          status_ == CompileJobStatus::kDone);
   i::GlobalHandles::Destroy(Handle<Object>::cast(shared_).location());
+  i::GlobalHandles::Destroy(Handle<Object>::cast(context_).location());
 }
 
 bool CompilerDispatcherJob::IsAssociatedWith(
@@ -386,11 +391,14 @@ bool CompilerDispatcherJob::FinalizeCompilingOnMainThread() {
            static_cast<void*>(this));
   }
 
-  if (compile_job_->state() == CompilationJob::State::kFailed ||
-      !Compiler::FinalizeCompilationJob(compile_job_.release())) {
-    if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
-    status_ = CompileJobStatus::kFailed;
-    return false;
+  {
+    HandleScope scope(isolate_);
+    if (compile_job_->state() == CompilationJob::State::kFailed ||
+        !Compiler::FinalizeCompilationJob(compile_job_.release())) {
+      if (!isolate_->has_pending_exception()) isolate_->StackOverflow();
+      status_ = CompileJobStatus::kFailed;
+      return false;
+    }
   }
 
   compile_job_.reset();

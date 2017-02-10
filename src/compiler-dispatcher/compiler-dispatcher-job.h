@@ -60,6 +60,8 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   CompileJobStatus status() const { return status_; }
 
+  Context* context() { return *context_; }
+
   // Returns true if this CompilerDispatcherJob was created for the given
   // function.
   bool IsAssociatedWith(Handle<SharedFunctionInfo> shared) const;
@@ -105,6 +107,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   CompileJobStatus status_;
   Isolate* isolate_;
   CompilerDispatcherTracer* tracer_;
+  Handle<Context> context_;            // Global handle.
   Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;        // Global handle.
   Handle<String> wrapper_;       // Global handle.

@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/compiler-dispatcher.h"
 
 #include "include/v8-platform.h"
+#include "src/api.h"
 #include "src/base/platform/semaphore.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-job.h"
 #include "src/compiler-dispatcher/compiler-dispatcher-tracer.h"
@@ -22,34 +23,67 @@
 namespace v8 {
 namespace internal {
 
+class CompilerDispatcherTestFlags {
+ public:
+  static void SetFlagsForTest() {
+    old_compiler_dispatcher_flag_ = i::FLAG_compiler_dispatcher;
+    i::FLAG_compiler_dispatcher = true;
+    old_ignition_flag_ = i::FLAG_ignition;
+    i::FLAG_ignition = true;
+  }
+
+  static void RestoreFlags() {
+    i::FLAG_compiler_dispatcher = old_compiler_dispatcher_flag_;
+    i::FLAG_ignition = old_ignition_flag_;
+  }
+
+ private:
+  static bool old_compiler_dispatcher_flag_;
+  static bool old_ignition_flag_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilerDispatcherTestFlags);
+};
+
+bool CompilerDispatcherTestFlags::old_compiler_dispatcher_flag_;
+bool CompilerDispatcherTestFlags::old_ignition_flag_;
+
 class CompilerDispatcherTest : public TestWithContext {
  public:
   CompilerDispatcherTest() = default;
   ~CompilerDispatcherTest() override = default;
 
   static void SetUpTestCase() {
-    old_flag_ = i::FLAG_ignition;
-    i::FLAG_compiler_dispatcher = true;
-    old_ignition_flag_ = i::FLAG_ignition;
-    i::FLAG_ignition = true;
+    CompilerDispatcherTestFlags::SetFlagsForTest();
     TestWithContext::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
     TestWithContext::TearDownTestCase();
-    i::FLAG_compiler_dispatcher = old_flag_;
-    i::FLAG_ignition = old_ignition_flag_;
+    CompilerDispatcherTestFlags::RestoreFlags();
   }
 
  private:
-  static bool old_flag_;
-  static bool old_ignition_flag_;
-
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTest);
 };
 
-bool CompilerDispatcherTest::old_flag_;
-bool CompilerDispatcherTest::old_ignition_flag_;
+class CompilerDispatcherTestWithoutContext : public v8::TestWithIsolate {
+ public:
+  CompilerDispatcherTestWithoutContext() = default;
+  ~CompilerDispatcherTestWithoutContext() override = default;
+
+  static void SetUpTestCase() {
+    CompilerDispatcherTestFlags::SetFlagsForTest();
+    TestWithContext::SetUpTestCase();
+  }
+
+  static void TearDownTestCase() {
+    TestWithContext::TearDownTestCase();
+    CompilerDispatcherTestFlags::RestoreFlags();
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTestWithoutContext);
+};
 
 namespace {
 
@@ -930,6 +964,80 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
     ASSERT_TRUE(platform.IdleTaskPending());
   }
   // Exit the handles scope and destroy ParseInfo before running the idle task.
+
+  // Since time doesn't progress on the MockPlatform, this is enough idle time
+  // to finish compiling the function.
+  platform.RunIdleTask(1000.0, 0.0);
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared));
+  ASSERT_TRUE(shared->is_compiled());
+}
+
+namespace {
+
+const char kExtensionSource[] = "native function Dummy();";
+
+class MockNativeFunctionExtension : public Extension {
+ public:
+  MockNativeFunctionExtension()
+      : Extension("mock-extension", kExtensionSource), function_(&Dummy) {}
+
+  virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
+      v8::Isolate* isolate, v8::Local<v8::String> name) {
+    return v8::FunctionTemplate::New(isolate, function_);
+  }
+
+  static void Dummy(const v8::FunctionCallbackInfo<v8::Value>& args) { return; }
+
+ private:
+  v8::FunctionCallback function_;
+
+  DISALLOW_COPY_AND_ASSIGN(MockNativeFunctionExtension);
+};
+
+}  // namespace
+
+TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+  Local<v8::Context> context = v8::Context::New(isolate());
+
+  MockNativeFunctionExtension extension;
+  Handle<String> script_str =
+      i_isolate()
+          ->factory()
+          ->NewStringFromUtf8(CStrVector(kExtensionSource))
+          .ToHandleChecked();
+  Handle<Script> script = i_isolate()->factory()->NewScript(script_str);
+  script->set_type(Script::TYPE_EXTENSION);
+
+  Handle<SharedFunctionInfo> shared;
+  {
+    v8::Context::Scope scope(context);
+
+    ParseInfo parse_info(script);
+    parse_info.set_extension(&extension);
+
+    ASSERT_TRUE(parsing::ParseAny(&parse_info));
+    Handle<FixedArray> shared_infos_array(i_isolate()->factory()->NewFixedArray(
+        parse_info.max_function_literal_id() + 1));
+    parse_info.script()->set_shared_function_infos(*shared_infos_array);
+    DeferredHandleScope handles_scope(i_isolate());
+    { ASSERT_TRUE(Compiler::Analyze(&parse_info)); }
+    std::shared_ptr<DeferredHandles> compilation_handles(
+        handles_scope.Detach());
+
+    shared = i_isolate()->factory()->NewSharedFunctionInfoForLiteral(
+        parse_info.literal(), script);
+    parse_info.set_shared_info(shared);
+
+    ASSERT_FALSE(platform.IdleTaskPending());
+    ASSERT_TRUE(dispatcher.Enqueue(
+        shared, parse_info.literal(), parse_info.zone_shared(),
+        parse_info.deferred_handles(), compilation_handles));
+    ASSERT_TRUE(platform.IdleTaskPending());
+  }
+  // Exit the context scope before running the idle task.
 
   // Since time doesn't progress on the MockPlatform, this is enough idle time
   // to finish compiling the function.
