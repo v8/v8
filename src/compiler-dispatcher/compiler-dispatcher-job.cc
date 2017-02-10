@@ -17,7 +17,6 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/unicode-cache.h"
 #include "src/utils.h"
-#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
@@ -75,8 +74,8 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
           isolate_->global_handles()->Create(*shared))),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
+  DCHECK(!shared_->is_toplevel());
   HandleScope scope(isolate_);
-  DCHECK(!shared_->outer_scope_info()->IsTheHole(isolate_));
   Handle<Script> script(Script::cast(shared_->script()), isolate_);
   Handle<String> source(String::cast(script->source()), isolate_);
   if (trace_compiler_dispatcher_jobs_) {
@@ -87,7 +86,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(Isolate* isolate,
 }
 
 CompilerDispatcherJob::CompilerDispatcherJob(
-    Isolate* isolate, CompilerDispatcherTracer* tracer,
+    Isolate* isolate, CompilerDispatcherTracer* tracer, Handle<Script> script,
     Handle<SharedFunctionInfo> shared, FunctionLiteral* literal,
     std::shared_ptr<Zone> parse_zone,
     std::shared_ptr<DeferredHandles> parse_handles,
@@ -106,6 +105,7 @@ CompilerDispatcherJob::CompilerDispatcherJob(
                                         Handle<JSFunction>::null())),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   parse_info_->set_literal(literal);
+  parse_info_->set_script(script);
   parse_info_->set_deferred_handles(parse_handles);
   compile_info_->set_deferred_handles(compile_handles);
 
@@ -224,12 +224,12 @@ void CompilerDispatcherJob::PrepareToParseOnMainThread() {
   parse_info_->set_function_literal_id(shared_->function_literal_id());
 
   parser_.reset(new Parser(parse_info_.get()));
-  Handle<ScopeInfo> outer_scope_info(
-      handle(ScopeInfo::cast(shared_->outer_scope_info())));
-  parser_->DeserializeScopeChain(parse_info_.get(),
-                                 outer_scope_info->length() > 0
-                                     ? MaybeHandle<ScopeInfo>(outer_scope_info)
-                                     : MaybeHandle<ScopeInfo>());
+  MaybeHandle<ScopeInfo> outer_scope_info;
+  if (!shared_->outer_scope_info()->IsTheHole(isolate_) &&
+      ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
+    outer_scope_info = handle(ScopeInfo::cast(shared_->outer_scope_info()));
+  }
+  parser_->DeserializeScopeChain(parse_info_.get(), outer_scope_info);
 
   Handle<String> name(String::cast(shared_->name()));
   parse_info_->set_function_name(
@@ -295,9 +295,11 @@ bool CompilerDispatcherJob::FinalizeParsingOnMainThread() {
   DeferredHandleScope scope(isolate_);
   {
     parse_info_->ReopenHandlesInNewHandleScope();
-    Handle<ScopeInfo> outer_scope_info(
-        handle(ScopeInfo::cast(shared_->outer_scope_info())));
-    if (outer_scope_info->length() > 0) {
+
+    if (!shared_->outer_scope_info()->IsTheHole(isolate_) &&
+        ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
+      Handle<ScopeInfo> outer_scope_info(
+          handle(ScopeInfo::cast(shared_->outer_scope_info())));
       parse_info_->set_outer_scope_info(outer_scope_info);
     }
     parse_info_->set_shared_info(shared_);

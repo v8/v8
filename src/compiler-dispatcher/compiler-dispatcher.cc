@@ -293,8 +293,8 @@ bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
 }
 
 bool CompilerDispatcher::Enqueue(
-    Handle<SharedFunctionInfo> function, FunctionLiteral* literal,
-    std::shared_ptr<Zone> parse_zone,
+    Handle<Script> script, Handle<SharedFunctionInfo> function,
+    FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
     std::shared_ptr<DeferredHandles> parse_handles,
     std::shared_ptr<DeferredHandles> compile_handles) {
   if (!CanEnqueue(function)) return false;
@@ -307,8 +307,8 @@ bool CompilerDispatcher::Enqueue(
   }
 
   std::unique_ptr<CompilerDispatcherJob> job(new CompilerDispatcherJob(
-      isolate_, tracer_.get(), function, literal, parse_zone, parse_handles,
-      compile_handles, max_stack_size_));
+      isolate_, tracer_.get(), script, function, literal, parse_zone,
+      parse_handles, compile_handles, max_stack_size_));
   std::pair<int, int> key(Script::cast(function->script())->id(),
                           function->function_literal_id());
   jobs_.insert(std::make_pair(key, std::move(job)));
@@ -317,11 +317,12 @@ bool CompilerDispatcher::Enqueue(
 }
 
 bool CompilerDispatcher::EnqueueAndStep(
-    Handle<SharedFunctionInfo> function, FunctionLiteral* literal,
-    std::shared_ptr<Zone> parse_zone,
+    Handle<Script> script, Handle<SharedFunctionInfo> function,
+    FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
     std::shared_ptr<DeferredHandles> parse_handles,
     std::shared_ptr<DeferredHandles> compile_handles) {
-  if (!Enqueue(function, literal, parse_zone, parse_handles, compile_handles)) {
+  if (!Enqueue(script, function, literal, parse_zone, parse_handles,
+               compile_handles)) {
     return false;
   }
 
@@ -345,6 +346,9 @@ bool CompilerDispatcher::IsEnqueued(Handle<SharedFunctionInfo> function) const {
 
 void CompilerDispatcher::WaitForJobIfRunningOnBackground(
     CompilerDispatcherJob* job) {
+  RuntimeCallTimerScope runtimeTimer(
+      isolate_, &RuntimeCallStats::CompileWaitForDispatcher);
+
   base::LockGuard<base::Mutex> lock(&mutex_);
   if (running_background_jobs_.find(job) == running_background_jobs_.end()) {
     pending_background_jobs_.erase(job);
@@ -359,16 +363,6 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(
   DCHECK(running_background_jobs_.find(job) == running_background_jobs_.end());
 }
 
-bool CompilerDispatcher::FinishNow(CompilerDispatcherJob* job) {
-  WaitForJobIfRunningOnBackground(job);
-  while (!IsFinished(job)) {
-    DoNextStepOnMainThread(isolate_, job, ExceptionHandling::kThrow);
-  }
-  bool result = job->status() != CompileJobStatus::kFailed;
-  job->ResetOnMainThread();
-  return result;
-}
-
 bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
   JobMap::const_iterator job = GetJobFor(function);
   CHECK(job != jobs_.end());
@@ -379,7 +373,12 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
     PrintF(" now\n");
   }
 
-  bool result = FinishNow(job->second.get());
+  WaitForJobIfRunningOnBackground(job->second.get());
+  while (!IsFinished(job->second.get())) {
+    DoNextStepOnMainThread(isolate_, job->second.get(),
+                           ExceptionHandling::kThrow);
+  }
+  bool result = job->second->status() != CompileJobStatus::kFailed;
 
   if (trace_compiler_dispatcher_) {
     PrintF("CompilerDispatcher: finished working on ");
@@ -388,33 +387,10 @@ bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
     tracer_->DumpStatistics();
   }
 
+  job->second->ResetOnMainThread();
   jobs_.erase(job);
   if (jobs_.empty()) {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    abort_ = false;
-  }
-  return result;
-}
-
-bool CompilerDispatcher::FinishAllNow() {
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: finishing all jobs now\n");
-  }
-
-  bool result = true;
-  for (auto& it : jobs_) {
-    result &= FinishNow(it.second.get());
-  }
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: finished all jobs\n");
-  }
-
-  jobs_.clear();
-  {
-    base::LockGuard<base::Mutex> lock(&mutex_);
-    DCHECK(pending_background_jobs_.empty());
-    DCHECK(running_background_jobs_.empty());
     abort_ = false;
   }
   return result;

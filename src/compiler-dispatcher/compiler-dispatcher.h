@@ -84,15 +84,16 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   // Enqueue a job for compilation. Function must have already been parsed and
   // analyzed and be ready for compilation. Returns true if a job was enqueued.
-  bool Enqueue(Handle<SharedFunctionInfo> function, FunctionLiteral* literal,
-               std::shared_ptr<Zone> parse_zone,
+  bool Enqueue(Handle<Script> script, Handle<SharedFunctionInfo> function,
+               FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
                std::shared_ptr<DeferredHandles> parse_handles,
                std::shared_ptr<DeferredHandles> compile_handles);
 
   // Like Enqueue, but also advances the job so that it can potentially
   // continue running on a background thread (if at all possible). Returns
   // true if the job was enqueued.
-  bool EnqueueAndStep(Handle<SharedFunctionInfo> function,
+  bool EnqueueAndStep(Handle<Script> script,
+                      Handle<SharedFunctionInfo> function,
                       FunctionLiteral* literal,
                       std::shared_ptr<Zone> parse_zone,
                       std::shared_ptr<DeferredHandles> parse_handles,
@@ -104,10 +105,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   // Blocks until the given function is compiled (and does so as fast as
   // possible). Returns true if the compile job was successful.
   bool FinishNow(Handle<SharedFunctionInfo> function);
-
-  // Blocks until all enqueued jobs have finished. Returns true if all the
-  // compile jobs were successful.
-  bool FinishAllNow();
 
   // Aborts a given job. Blocks if requested.
   void Abort(Handle<SharedFunctionInfo> function, BlockingBehavior blocking);
@@ -141,7 +138,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void AbortInactiveJobs();
   bool CanEnqueue(Handle<SharedFunctionInfo> function);
   JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
-  bool FinishNow(CompilerDispatcherJob* job);
   void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
   void ScheduleMoreBackgroundTasksIfNeeded();
   void ScheduleIdleTaskFromAnyThread();

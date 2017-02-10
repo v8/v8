@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
                         size_t max_stack_size);
   // Creates a CompilerDispatcherJob in the analyzed state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
+                        Handle<Script> script,
                         Handle<SharedFunctionInfo> shared,
                         FunctionLiteral* literal,
                         std::shared_ptr<Zone> parse_zone,

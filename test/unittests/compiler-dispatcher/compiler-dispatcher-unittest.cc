@@ -843,18 +843,19 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] =
+  const char source[] =
       "function g() { var y = 1; function f17(x) { return x * y }; return f17; "
       "} g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+  Handle<Script> script(Script::cast(shared->script()), i_isolate());
 
   ParseInfo parse_info(shared);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
   std::shared_ptr<DeferredHandles> handles;
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(dispatcher.Enqueue(shared, parse_info.literal(),
+  ASSERT_TRUE(dispatcher.Enqueue(script, shared, parse_info.literal(),
                                  parse_info.zone_shared(), handles, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
@@ -870,18 +871,19 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] =
+  const char source[] =
       "function g() { var y = 1; function f18(x) { return x * y }; return f18; "
       "} g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+  Handle<Script> script(Script::cast(shared->script()), i_isolate());
 
   ParseInfo parse_info(shared);
   ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
   std::shared_ptr<DeferredHandles> handles;
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(dispatcher.EnqueueAndStep(shared, parse_info.literal(),
+  ASSERT_TRUE(dispatcher.EnqueueAndStep(script, shared, parse_info.literal(),
                                         parse_info.zone_shared(), handles,
                                         handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
@@ -895,55 +897,16 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
   platform.ClearBackgroundTasks();
 }
 
-TEST_F(CompilerDispatcherTest, FinishAllNow) {
-  MockPlatform platform;
-  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
-
-  const char script1[] =
-      "function g() { var y = 1; function f19(x) { return x + y }; return f19; "
-      "} g();";
-  Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
-  Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
-
-  const char script2[] =
-      "function g() { var y = 1; function f20(x) { return x * y }; return f20; "
-      "} g();";
-  Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
-  Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
-
-  ASSERT_FALSE(shared1->is_compiled());
-  ASSERT_FALSE(shared2->is_compiled());
-
-  // Enqueue shared1 as already parsed.
-  ParseInfo parse_info(shared1);
-  ASSERT_TRUE(Compiler::ParseAndAnalyze(&parse_info));
-  std::shared_ptr<DeferredHandles> handles;
-  ASSERT_TRUE(dispatcher.Enqueue(shared1, parse_info.literal(),
-                                 parse_info.zone_shared(), handles, handles));
-
-  // Enqueue shared2 for parsing and compiling
-  ASSERT_TRUE(dispatcher.Enqueue(shared2));
-
-  ASSERT_TRUE(dispatcher.FinishAllNow());
-
-  // Finishing removes the SFI from the queue.
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared1));
-  ASSERT_FALSE(dispatcher.IsEnqueued(shared2));
-  ASSERT_TRUE(shared1->is_compiled());
-  ASSERT_TRUE(shared2->is_compiled());
-  ASSERT_TRUE(platform.IdleTaskPending());
-  platform.ClearIdleTask();
-}
-
 TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
-  const char script[] =
+  const char source[] =
       "function g() { var y = 1; function f20(x) { return x + y }; return f20; "
       "} g();";
-  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), script));
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+  Handle<Script> script(Script::cast(shared->script()), i_isolate());
 
   {
     HandleScope scope(i_isolate());  // Create handles scope for parsing.
@@ -959,7 +922,7 @@ TEST_F(CompilerDispatcherTest, CompileParsedOutOfScope) {
 
     ASSERT_FALSE(platform.IdleTaskPending());
     ASSERT_TRUE(dispatcher.Enqueue(
-        shared, parse_info.literal(), parse_info.zone_shared(),
+        script, shared, parse_info.literal(), parse_info.zone_shared(),
         parse_info.deferred_handles(), compilation_handles));
     ASSERT_TRUE(platform.IdleTaskPending());
   }
@@ -1033,7 +996,7 @@ TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
 
     ASSERT_FALSE(platform.IdleTaskPending());
     ASSERT_TRUE(dispatcher.Enqueue(
-        shared, parse_info.literal(), parse_info.zone_shared(),
+        script, shared, parse_info.literal(), parse_info.zone_shared(),
         parse_info.deferred_handles(), compilation_handles));
     ASSERT_TRUE(platform.IdleTaskPending());
   }
@@ -1045,6 +1008,56 @@ TEST_F(CompilerDispatcherTestWithoutContext, CompileExtensionWithoutContext) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_TRUE(shared->is_compiled());
+}
+
+TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
+  // Use the real dispatcher so that CompileLazy checks the same one for
+  // enqueued functions.
+  CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
+
+  const char source[] =
+      "function g() { var y = 1; function f16(x) { return x * y }; return f16; "
+      "} g();";
+  Handle<JSFunction> f = Handle<JSFunction>::cast(RunJS(isolate(), source));
+  Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
+
+  ASSERT_FALSE(shared->is_compiled());
+  ASSERT_FALSE(dispatcher->IsEnqueued(shared));
+  ASSERT_TRUE(dispatcher->Enqueue(shared));
+  ASSERT_TRUE(dispatcher->IsEnqueued(shared));
+
+  // Now force the function to run and ensure CompileLazy finished and dequeues
+  // it from the dispatcher.
+  RunJS(isolate(), "g()();");
+  ASSERT_TRUE(shared->is_compiled());
+  ASSERT_FALSE(dispatcher->IsEnqueued(shared));
+}
+
+TEST_F(CompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
+  // Use the real dispatcher so that CompileLazy checks the same one for
+  // enqueued functions.
+  CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
+
+  const char source2[] = "function lazy2() { return 42; }; lazy2;";
+  Handle<JSFunction> lazy2 =
+      Handle<JSFunction>::cast(RunJS(isolate(), source2));
+  Handle<SharedFunctionInfo> shared2(lazy2->shared(), i_isolate());
+  ASSERT_FALSE(shared2->is_compiled());
+
+  const char source1[] = "function lazy1() { return lazy2(); }; lazy1;";
+  Handle<JSFunction> lazy1 =
+      Handle<JSFunction>::cast(RunJS(isolate(), source1));
+  Handle<SharedFunctionInfo> shared1(lazy1->shared(), i_isolate());
+  ASSERT_FALSE(shared1->is_compiled());
+
+  ASSERT_TRUE(dispatcher->Enqueue(shared1));
+  ASSERT_TRUE(dispatcher->Enqueue(shared2));
+
+  RunJS(isolate(), "lazy1();");
+  ASSERT_TRUE(shared1->is_compiled());
+  ASSERT_TRUE(shared2->is_compiled());
+  ASSERT_FALSE(dispatcher->IsEnqueued(shared1));
+  ASSERT_FALSE(dispatcher->IsEnqueued(shared2));
 }
 
 }  // namespace internal

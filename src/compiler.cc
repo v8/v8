@@ -538,7 +538,8 @@ bool CompileUnoptimizedInnerFunctions(
     CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
     if (UseCompilerDispatcher(inner_function_mode, dispatcher, literal->scope(),
                               shared, is_debug, will_serialize) &&
-        dispatcher->EnqueueAndStep(shared, literal, parse_zone,
+        dispatcher->EnqueueAndStep(outer_info->script(), shared, literal,
+                                   parse_zone,
                                    outer_info->parse_info()->deferred_handles(),
                                    outer_info->deferred_handles())) {
       // If we have successfully queued up the function for compilation on the
@@ -616,17 +617,6 @@ bool CompileUnoptimizedCode(CompilationInfo* info,
   if (!CompileUnoptimizedInnerFunctions(&inner_literals, inner_function_mode,
                                         parse_zone, info) ||
       !GenerateUnoptimizedCode(info)) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return false;
-  }
-
-  // TODO(rmcilroy): Remove this once the enqueued tasks can keep the parsed
-  // zone and handles alive and replace with a check in CompileLazy to finish
-  // the task itself.
-  RuntimeCallTimerScope runtimeTimer(
-      isolate, &RuntimeCallStats::CompileWaitForDispatcher);
-  if (isolate->compiler_dispatcher()->IsEnabled() &&
-      !isolate->compiler_dispatcher()->FinishAllNow()) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return false;
   }
@@ -1249,13 +1239,25 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   Isolate* isolate = function->GetIsolate();
   DCHECK(AllowCompilation::IsAllowed(isolate));
 
-  // Start a compilation.
+  CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   Handle<Code> code;
-  if (!GetLazyCode(function).ToHandle(&code)) {
-    if (flag == CLEAR_EXCEPTION) {
-      isolate->clear_pending_exception();
+  if (dispatcher->IsEnqueued(shared)) {
+    if (!dispatcher->FinishNow(shared)) {
+      if (flag == CLEAR_EXCEPTION) {
+        isolate->clear_pending_exception();
+      }
+      return false;
     }
-    return false;
+    code = handle(shared->code(), isolate);
+  } else {
+    // Start a compilation.
+    if (!GetLazyCode(function).ToHandle(&code)) {
+      if (flag == CLEAR_EXCEPTION) {
+        isolate->clear_pending_exception();
+      }
+      return false;
+    }
   }
 
   // Install code on closure.
@@ -1378,7 +1380,10 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 
 bool Compiler::EnsureBytecode(CompilationInfo* info) {
   if (!info->shared_info()->is_compiled()) {
-    if (GetUnoptimizedCode(info, Compiler::NOT_CONCURRENT).is_null()) {
+    CompilerDispatcher* dispatcher = info->isolate()->compiler_dispatcher();
+    if (dispatcher->IsEnqueued(info->shared_info())) {
+      if (!dispatcher->FinishNow(info->shared_info())) return false;
+    } else if (GetUnoptimizedCode(info, Compiler::NOT_CONCURRENT).is_null()) {
       return false;
     }
   }
@@ -1396,6 +1401,12 @@ bool Compiler::EnsureDeoptimizationSupport(CompilationInfo* info) {
   DCHECK_NOT_NULL(info->literal());
   DCHECK_NOT_NULL(info->scope());
   Handle<SharedFunctionInfo> shared = info->shared_info();
+
+  CompilerDispatcher* dispatcher = info->isolate()->compiler_dispatcher();
+  if (dispatcher->IsEnqueued(shared)) {
+    if (!dispatcher->FinishNow(shared)) return false;
+  }
+
   if (!shared->has_deoptimization_support()) {
     Zone compile_zone(info->isolate()->allocator(), ZONE_NAME);
     CompilationInfo unoptimized(&compile_zone, info->parse_info(),
