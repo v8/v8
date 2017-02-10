@@ -1721,10 +1721,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       if (frame_elided_) {
         __ set_has_frame(old_has_frame);
       }
-      if (FLAG_debug_code) {
-        // The trap code should never return.
-        __ Brk(0);
-      }
     }
 
    private:
@@ -1735,6 +1731,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
             0);
+        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ Ret();
       } else {
         DCHECK(csp.Is(__ StackPointer()));
         __ Move(cp, Smi::kZero);
@@ -1742,11 +1740,15 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Mov(jssp, csp);
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
+        ReferenceMap* reference_map =
+            new (gen_->zone()) ReferenceMap(gen_->zone());
+        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                              Safepoint::kNoLazyDeopt);
+        if (FLAG_debug_code) {
+          // The trap code should never return.
+          __ Brk(0);
+        }
       }
-      ReferenceMap* reference_map =
-          new (gen_->zone()) ReferenceMap(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                            Safepoint::kNoLazyDeopt);
     }
     bool frame_elided_;
     Instruction* instr_;
@@ -1887,7 +1889,6 @@ void CodeGenerator::AssembleConstructFrame() {
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
     }
-
     // Build remainder of frame, including accounting for and filling-in
     // frame-specific header information, e.g. claiming the extra slot that
     // other platforms explicitly push for STUB frames and frames recording

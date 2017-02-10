@@ -2651,13 +2651,13 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
-    Push(xzr, lr);
-    Push(fp, type_reg);
-    Add(fp, csp, TypedFrameConstants::kFixedFrameSizeFromFp);
-    // csp[3] for alignment
-    // csp[2] : lr
-    // csp[1] : fp
-    // csp[0] : type
+    Push(lr, fp);
+    Mov(fp, csp);
+    Push(type_reg, xzr);
+    // csp[3] : lr
+    // csp[2] : fp
+    // csp[1] : type
+    // csp[0] : for alignment
   } else {
     DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
@@ -2672,12 +2672,19 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  DCHECK(jssp.Is(StackPointer()));
-  // Drop the execution stack down to the frame pointer and restore
-  // the caller frame pointer and return address.
-  Mov(jssp, fp);
-  AssertStackConsistency();
-  Pop(fp, lr);
+  if (type == StackFrame::WASM_COMPILED) {
+    DCHECK(csp.Is(StackPointer()));
+    Mov(csp, fp);
+    AssertStackConsistency();
+    Pop(fp, lr);
+  } else {
+    DCHECK(jssp.Is(StackPointer()));
+    // Drop the execution stack down to the frame pointer and restore
+    // the caller frame pointer and return address.
+    Mov(jssp, fp);
+    AssertStackConsistency();
+    Pop(fp, lr);
+  }
 }
 
 
