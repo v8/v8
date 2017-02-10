@@ -157,16 +157,23 @@ Node* GraphAssembler::ToNumber(Node* value) {
 
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason, Node* condition,
                                    Node* frame_state) {
-  return current_control_ = current_effect_ =
-             graph()->NewNode(common()->DeoptimizeIf(reason), condition,
-                              frame_state, current_effect_, current_control_);
+  return current_control_ = current_effect_ = graph()->NewNode(
+             common()->DeoptimizeIf(DeoptimizeKind::kEager, reason), condition,
+             frame_state, current_effect_, current_control_);
+}
+
+Node* GraphAssembler::DeoptimizeUnless(DeoptimizeKind kind,
+                                       DeoptimizeReason reason, Node* condition,
+                                       Node* frame_state) {
+  return current_control_ = current_effect_ = graph()->NewNode(
+             common()->DeoptimizeUnless(kind, reason), condition, frame_state,
+             current_effect_, current_control_);
 }
 
 Node* GraphAssembler::DeoptimizeUnless(DeoptimizeReason reason, Node* condition,
                                        Node* frame_state) {
-  return current_control_ = current_effect_ =
-             graph()->NewNode(common()->DeoptimizeUnless(reason), condition,
-                              frame_state, current_effect_, current_control_);
+  return DeoptimizeUnless(DeoptimizeKind::kEager, reason, condition,
+                          frame_state);
 }
 
 void GraphAssembler::Branch(Node* condition,
