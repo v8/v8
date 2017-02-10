@@ -20,6 +20,7 @@ class AstValueFactory;
 class CompilerDispatcherTracer;
 class CompilationInfo;
 class CompilationJob;
+class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
@@ -50,7 +51,11 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   // Creates a CompilerDispatcherJob in the analyzed state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
                         Handle<SharedFunctionInfo> shared,
-                        FunctionLiteral* literal, size_t max_stack_size);
+                        FunctionLiteral* literal,
+                        std::shared_ptr<Zone> parse_zone,
+                        std::shared_ptr<DeferredHandles> parse_handles,
+                        std::shared_ptr<DeferredHandles> compile_handles,
+                        size_t max_stack_size);
   ~CompilerDispatcherJob();
 
   CompileJobStatus status() const { return status_; }
@@ -111,7 +116,9 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ParseInfo> parse_info_;
   std::unique_ptr<Parser> parser_;
-  std::unique_ptr<DeferredHandles> handles_from_parsing_;
+
+  // Members required for compiling a parsed function.
+  std::shared_ptr<Zone> parse_zone_;
 
   // Members required for compiling.
   std::unique_ptr<CompilationInfo> compile_info_;
