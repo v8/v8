@@ -10,6 +10,7 @@
     'unittests_sources': [  ### gcmole(all) ###
       'api/exception-unittest.cc',
       'api/isolate-unittest.cc',
+      'api/v8-object-unittest.cc',
       'base/atomic-utils-unittest.cc',
       'base/bits-unittest.cc',
       'base/cpu-unittest.cc',

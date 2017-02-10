@@ -6459,14 +6459,14 @@ THREADED_TEST(DefineAPIAccessorOnObject) {
   ExpectString("obj1.x", "z");
   ExpectString("obj2.x", "z");
 
-  CHECK(GetGlobalProperty(&context, "obj1")
+  CHECK(!GetGlobalProperty(&context, "obj1")
             ->SetAccessor(context.local(), v8_str("x"), GetXValue, NULL,
                           v8_str("donut"))
-            .IsNothing());
-  CHECK(GetGlobalProperty(&context, "obj2")
+            .FromJust());
+  CHECK(!GetGlobalProperty(&context, "obj2")
             ->SetAccessor(context.local(), v8_str("x"), GetXValue, NULL,
                           v8_str("donut"))
-            .IsNothing());
+            .FromJust());
 
   ExpectString("obj1.x", "z");
   ExpectString("obj2.x", "z");
@@ -6500,14 +6500,14 @@ THREADED_TEST(DontDeleteAPIAccessorsCannotBeOverriden) {
   ExpectTrue("!Object.getOwnPropertyDescriptor(obj1, 'x').configurable");
   ExpectTrue("!Object.getOwnPropertyDescriptor(obj2, 'x').configurable");
 
-  CHECK(GetGlobalProperty(&context, "obj1")
+  CHECK(!GetGlobalProperty(&context, "obj1")
             ->SetAccessor(context.local(), v8_str("x"), GetXValue, NULL,
                           v8_str("donut"))
-            .IsNothing());
-  CHECK(GetGlobalProperty(&context, "obj2")
+            .FromJust());
+  CHECK(!GetGlobalProperty(&context, "obj2")
             ->SetAccessor(context.local(), v8_str("x"), GetXValue, NULL,
                           v8_str("donut"))
-            .IsNothing());
+            .FromJust());
 
   {
     v8::TryCatch try_catch(isolate);

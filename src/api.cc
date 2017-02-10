@@ -4678,7 +4678,7 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
   has_pending_exception =
       !i::JSObject::SetAccessor(obj, info).ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  if (result->IsUndefined(obj->GetIsolate())) return Nothing<bool>();
+  if (result->IsUndefined(obj->GetIsolate())) return Just(false);
   if (fast) {
     i::JSObject::MigrateSlowToFast(obj, 0, "APISetAccessor");
   }
