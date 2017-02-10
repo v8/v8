@@ -98,7 +98,7 @@ v8::MaybeLocal<v8::Object> JavaScriptCallFrame::details() const {
 }
 
 v8::MaybeLocal<v8::Value> JavaScriptCallFrame::evaluate(
-    v8::Local<v8::Value> expression) {
+    v8::Local<v8::Value> expression, bool throwOnSideEffect) {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kRunMicrotasks);
   v8::Local<v8::Context> context =
@@ -108,7 +108,9 @@ v8::MaybeLocal<v8::Value> JavaScriptCallFrame::evaluate(
   v8::Local<v8::Function> evalFunction = v8::Local<v8::Function>::Cast(
       callFrame->Get(context, toV8StringInternalized(m_isolate, "evaluate"))
           .ToLocalChecked());
-  return evalFunction->Call(context, callFrame, 1, &expression);
+  v8::Local<v8::Value> argv[] = {
+      expression, v8::Boolean::New(m_isolate, throwOnSideEffect)};
+  return evalFunction->Call(context, callFrame, arraysize(argv), argv);
 }
 
 v8::MaybeLocal<v8::Value> JavaScriptCallFrame::restart() {

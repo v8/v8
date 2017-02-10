@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --ignition --side-effect-free-debug-evaluate
+// Flags: --ignition
 
 Debug = debug.Debug
 
@@ -12,10 +12,12 @@ function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
     function success(expectation, source) {
-      assertEquals(expectation, exec_state.frame(0).evaluate(source).value());
+      assertEquals(expectation,
+                   exec_state.frame(0).evaluate(source, true).value());
     }
     function fail(source) {
-      assertThrows(() => exec_state.frame(0).evaluate(source), EvalError);
+      assertThrows(() => exec_state.frame(0).evaluate(source, true),
+                   EvalError);
     }
 
     // Test Math functions.

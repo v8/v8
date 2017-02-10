@@ -420,11 +420,12 @@ DebuggerScript._frameMirrorToJSCallFrame = function(frameMirror)
 
     /**
      * @param {string} expression
+     * @param {boolean} throwOnSideEffect
      * @return {*}
      */
-    function evaluate(expression)
+    function evaluate(expression, throwOnSideEffect)
     {
-        return frameMirror.evaluate(expression).value();
+        return frameMirror.evaluate(expression, throwOnSideEffect).value();
     }
 
     /** @return {undefined} */

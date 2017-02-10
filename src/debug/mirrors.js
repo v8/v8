@@ -1919,11 +1919,12 @@ FrameMirror.prototype.allScopes = function(opt_ignore_nested_scopes) {
 };
 
 
-FrameMirror.prototype.evaluate = function(source) {
+FrameMirror.prototype.evaluate = function(source, throw_on_side_effect = false) {
   return MakeMirror(%DebugEvaluate(this.break_id_,
                                    this.details_.frameId(),
                                    this.details_.inlinedFrameIndex(),
-                                   source));
+                                   source,
+                                   throw_on_side_effect));
 };
 
 
