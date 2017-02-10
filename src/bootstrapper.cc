@@ -3832,10 +3832,11 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   // Store the map for the %StringPrototype% after the natives has been compiled
   // and the String function has been set up.
   Handle<JSFunction> string_function(native_context()->string_function());
-  DCHECK(JSObject::cast(
-      string_function->initial_map()->prototype())->HasFastProperties());
+  JSObject* string_function_prototype =
+      JSObject::cast(string_function->initial_map()->prototype());
+  DCHECK(string_function_prototype->HasFastProperties());
   native_context()->set_string_function_prototype_map(
-      HeapObject::cast(string_function->map()->prototype())->map());
+      string_function_prototype->map());
 
   Handle<JSGlobalObject> global_object =
       handle(native_context()->global_object());
