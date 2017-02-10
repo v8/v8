@@ -234,6 +234,9 @@ void AstNumberingVisitor::VisitExpressionStatement(ExpressionStatement* node) {
 void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
   IncrementNodeCount();
   Visit(node->expression());
+
+  DCHECK(!node->is_async_return() ||
+         properties_.flags() & AstProperties::kMustUseIgnitionTurbo);
 }
 
 
