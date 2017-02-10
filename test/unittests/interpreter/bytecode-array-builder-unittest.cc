@@ -4,6 +4,7 @@
 
 #include "src/v8.h"
 
+#include "src/ast/scopes.h"
 #include "src/interpreter/bytecode-array-builder.h"
 #include "src/interpreter/bytecode-array-iterator.h"
 #include "src/interpreter/bytecode-label.h"
@@ -21,11 +22,13 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
   ~BytecodeArrayBuilderTest() override {}
 };
 
-
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 1, 131);
   Factory* factory = isolate()->factory();
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
+  DeclarationScope scope(zone(), &ast_factory);
 
   CHECK_EQ(builder.locals_count(), 131);
   CHECK_EQ(builder.context_count(), 1);
@@ -52,7 +55,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(10000000))
       .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(factory->NewStringFromStaticChars("A constant"))
+      .LoadLiteral(
+          ast_factory.NewString(ast_factory.GetOneByteString("A constant")))
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
       .StoreAccumulatorInRegister(reg)
@@ -77,7 +81,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.MoveRegister(reg, wide);
 
   // Emit global load / store operations.
-  Handle<String> name = factory->NewStringFromStaticChars("var_name");
+  const AstRawString* name = ast_factory.GetOneByteString("var_name");
   builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
       .StoreGlobal(name, 1, LanguageMode::SLOPPY)
@@ -126,14 +130,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateClosure(0, 1, NOT_TENURED);
 
   // Emit create context operation.
-  builder.CreateBlockContext(factory->NewScopeInfo(1));
-  builder.CreateCatchContext(reg, name, factory->NewScopeInfo(1));
+  builder.CreateBlockContext(&scope);
+  builder.CreateCatchContext(reg, name, &scope);
   builder.CreateFunctionContext(1);
   builder.CreateEvalContext(1);
-  builder.CreateWithContext(reg, factory->NewScopeInfo(1));
+  builder.CreateWithContext(reg, &scope);
 
   // Emit literal creation operations.
-  builder.CreateRegExpLiteral(factory->NewStringFromStaticChars("a"), 0, 0);
+  builder.CreateRegExpLiteral(ast_factory.GetOneByteString("a"), 0, 0);
   builder.CreateArrayLiteral(0, 0, 0);
   builder.CreateObjectLiteral(0, 0, 0, reg);
 
@@ -258,7 +262,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
         .JumpIfNull(&end[5])
         .JumpIfUndefined(&end[6])
         .JumpIfNotHole(&end[7])
-        .LoadLiteral(factory->prototype_string())
+        .LoadLiteral(ast_factory.prototype_string())
         .JumpIfJSReceiver(&end[8]);
   }
 
@@ -307,10 +311,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Wide constant pool loads
   for (int i = 0; i < 256; i++) {
     // Emit junk in constant pool to force wide constant pool index.
-    builder.LoadLiteral(factory->NewNumber(2.5321 + i));
+    builder.LoadLiteral(ast_factory.NewNumber(2.5321 + i));
   }
   builder.LoadLiteral(Smi::FromInt(20000000));
-  Handle<String> wide_name = factory->NewStringFromStaticChars("var_wide_name");
+  const AstRawString* wide_name = ast_factory.GetOneByteString("var_wide_name");
 
   // Emit wide global load / store operations.
   builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -348,8 +352,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit wide variant of literal creation operations.
   builder
-      .CreateRegExpLiteral(factory->NewStringFromStaticChars("wide_literal"), 0,
-                           0)
+      .CreateRegExpLiteral(ast_factory.GetOneByteString("wide_literal"), 0, 0)
       .CreateArrayLiteral(0, 0, 0)
       .CreateObjectLiteral(0, 0, 0, reg);
 
@@ -385,6 +388,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.Return();
 
   // Generate BytecodeArray.
+  scope.SetScriptScopeInfo(factory->NewScopeInfo(1));
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> the_array = builder.ToBytecodeArray(isolate());
   CHECK_EQ(the_array->frame_size(),
            builder.total_register_count() * kPointerSize);
@@ -504,20 +509,25 @@ TEST_F(BytecodeArrayBuilderTest, Parameters) {
 TEST_F(BytecodeArrayBuilderTest, Constants) {
   CanonicalHandleScope canonical(isolate());
   BytecodeArrayBuilder builder(isolate(), zone(), 0, 0, 0);
+  AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
+                              isolate()->heap()->HashSeed());
 
-  Factory* factory = isolate()->factory();
-  Handle<HeapObject> heap_num_1 = factory->NewHeapNumber(3.14);
-  Handle<HeapObject> heap_num_2 = factory->NewHeapNumber(5.2);
-  Handle<Object> large_smi(Smi::FromInt(0x12345678), isolate());
-  Handle<HeapObject> heap_num_2_copy(*heap_num_2);
+  const AstValue* heap_num_1 = ast_factory.NewNumber(3.14);
+  const AstValue* heap_num_2 = ast_factory.NewNumber(5.2);
+  const AstValue* string =
+      ast_factory.NewString(ast_factory.GetOneByteString("foo"));
+  const AstValue* string_copy =
+      ast_factory.NewString(ast_factory.GetOneByteString("foo"));
+
   builder.LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_2)
-      .LoadLiteral(large_smi)
+      .LoadLiteral(string)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_1)
-      .LoadLiteral(heap_num_2_copy)
+      .LoadLiteral(string_copy)
       .Return();
 
+  ast_factory.Internalize(isolate());
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
   // Should only have one entry for each identical constant.
   CHECK_EQ(array->constant_pool()->length(), 3);

@@ -13272,7 +13272,7 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
 }
 
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
-    Isolate* isolate, FunctionLiteral* fun) {
+    Isolate* isolate, const FunctionLiteral* fun) {
   DCHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
   DCHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
   Object* shared = shared_function_infos()->get(fun->function_literal_id());

@@ -411,7 +411,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Scope* GetOuterScopeWithContext();
 
   // Analyze() must have been called once to create the ScopeInfo.
-  Handle<ScopeInfo> scope_info() {
+  Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }
@@ -609,7 +609,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ScopeTestHelper;
 };
 
-class DeclarationScope : public Scope {
+class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);

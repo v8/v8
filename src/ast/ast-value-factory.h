@@ -436,7 +436,7 @@ class AstValueFactory {
   const AstConsString* NewConsString(const AstString* left,
                                      const AstString* right);
 
-  void Internalize(Isolate* isolate);
+  V8_EXPORT_PRIVATE void Internalize(Isolate* isolate);
 
 #define F(name, str)                           \
   const AstRawString* name##_string() {        \
@@ -445,10 +445,11 @@ class AstValueFactory {
   STRING_CONSTANTS(F)
 #undef F
 
-  const AstValue* NewString(const AstRawString* string);
+  V8_EXPORT_PRIVATE const AstValue* NewString(const AstRawString* string);
   // A JavaScript symbol (ECMA-262 edition 6).
   const AstValue* NewSymbol(AstSymbol symbol);
-  const AstValue* NewNumber(double number, bool with_dot = false);
+  V8_EXPORT_PRIVATE const AstValue* NewNumber(double number,
+                                              bool with_dot = false);
   const AstValue* NewSmi(uint32_t number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);

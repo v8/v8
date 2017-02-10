@@ -1538,6 +1538,7 @@ class AccessorTable
 class RegExpLiteral final : public MaterializedLiteral {
  public:
   Handle<String> pattern() const { return pattern_->string(); }
+  const AstRawString* raw_pattern() const { return pattern_; }
   int flags() const { return flags_; }
 
  private:
