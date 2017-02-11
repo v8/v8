@@ -3711,10 +3711,6 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
   parsing_result->descriptor.scope = scope();
 
-  // The scope of a var/const declared variable anywhere inside a function
-  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). The scope
-  // of a let declared variable is the scope of the immediately enclosing
-  // block.
   int bindings_start = peek_position();
   do {
     // Parse binding pattern.
