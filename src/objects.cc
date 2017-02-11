@@ -16894,7 +16894,7 @@ Handle<Object> JSObject::PrepareSlowElementsForSort(
 Handle<Object> JSObject::PrepareElementsForSort(Handle<JSObject> object,
                                                 uint32_t limit) {
   Isolate* isolate = object->GetIsolate();
-  if (object->HasSloppyArgumentsElements()) {
+  if (object->HasSloppyArgumentsElements() || !object->map()->is_extensible()) {
     return handle(Smi::FromInt(-1), isolate);
   }
 
