@@ -561,21 +561,6 @@ void FullCodeGenerator::EmitSubString(CallRuntime* expr) {
 }
 
 
-void FullCodeGenerator::EmitRegExpExec(CallRuntime* expr) {
-  // Load the arguments on the stack and call the stub.
-  RegExpExecStub stub(isolate());
-  ZoneList<Expression*>* args = expr->arguments();
-  DCHECK(args->length() == 4);
-  VisitForStackValue(args->at(0));
-  VisitForStackValue(args->at(1));
-  VisitForStackValue(args->at(2));
-  VisitForStackValue(args->at(3));
-  __ CallStub(&stub);
-  OperandStackDepthDecrement(4);
-  context()->Plug(result_register());
-}
-
-
 void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
                                                 const Callable& callable) {
   ZoneList<Expression*>* args = expr->arguments();
@@ -605,10 +590,6 @@ void FullCodeGenerator::EmitIntrinsicAsStubCall(CallRuntime* expr,
   LoadFromFrameField(StandardFrameConstants::kContextOffset,
                      context_register());
   context()->Plug(result_register());
-}
-
-void FullCodeGenerator::EmitNumberToString(CallRuntime* expr) {
-  EmitIntrinsicAsStubCall(expr, CodeFactory::NumberToString(isolate()));
 }
 
 

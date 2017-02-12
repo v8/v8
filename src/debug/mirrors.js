@@ -537,7 +537,7 @@ inherits(NumberMirror, ValueMirror);
 
 
 NumberMirror.prototype.toText = function() {
-  return %_NumberToString(this.value_);
+  return %NumberToString(this.value_);
 };
 
 

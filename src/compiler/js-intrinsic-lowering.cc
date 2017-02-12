@@ -58,8 +58,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceFixedArrayGet(node);
     case Runtime::kInlineFixedArraySet:
       return ReduceFixedArraySet(node);
-    case Runtime::kInlineRegExpExec:
-      return ReduceRegExpExec(node);
     case Runtime::kInlineSubString:
       return ReduceSubString(node);
     case Runtime::kInlineToInteger:
@@ -267,11 +265,6 @@ Reduction JSIntrinsicLowering::ReduceFixedArraySet(Node* node) {
       index, value, effect, control));
   ReplaceWithValue(node, value, store);
   return Changed(store);
-}
-
-
-Reduction JSIntrinsicLowering::ReduceRegExpExec(Node* node) {
-  return Change(node, CodeFactory::RegExpExec(isolate()), 4);
 }
 
 

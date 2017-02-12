@@ -12128,32 +12128,6 @@ void HOptimizedGraphBuilder::GenerateSubString(CallRuntime* call) {
   return ast_context()->ReturnInstruction(result, call->id());
 }
 
-// Support for direct calls from JavaScript to native RegExp code.
-void HOptimizedGraphBuilder::GenerateRegExpExec(CallRuntime* call) {
-  DCHECK_EQ(4, call->arguments()->length());
-  CHECK_ALIVE(VisitExpressions(call->arguments()));
-  Callable callable = CodeFactory::RegExpExec(isolate());
-  HValue* last_match_info = Pop();
-  HValue* index = Pop();
-  HValue* subject = Pop();
-  HValue* regexp_object = Pop();
-  HValue* stub = Add<HConstant>(callable.code());
-  HValue* values[] = {regexp_object, subject, index, last_match_info};
-  HInstruction* result = New<HCallWithDescriptor>(
-      stub, 0, callable.descriptor(), ArrayVector(values));
-  return ast_context()->ReturnInstruction(result, call->id());
-}
-
-
-// Fast support for number to string.
-void HOptimizedGraphBuilder::GenerateNumberToString(CallRuntime* call) {
-  DCHECK_EQ(1, call->arguments()->length());
-  CHECK_ALIVE(VisitForValue(call->arguments()->at(0)));
-  HValue* number = Pop();
-  HValue* result = BuildNumberToString(number, AstType::Any());
-  return ast_context()->ReturnValue(result);
-}
-
 
 // Fast support for calls.
 void HOptimizedGraphBuilder::GenerateCall(CallRuntime* call) {

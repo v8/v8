@@ -412,9 +412,7 @@ class FullCodeGenerator final : public AstVisitor<FullCodeGenerator> {
   F(ClassOf)                            \
   F(StringCharCodeAt)                   \
   F(SubString)                          \
-  F(RegExpExec)                         \
   F(ToInteger)                          \
-  F(NumberToString)                     \
   F(ToString)                           \
   F(ToLength)                           \
   F(ToNumber)                           \

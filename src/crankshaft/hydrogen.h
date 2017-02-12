@@ -2166,8 +2166,6 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(DebugBreakInOptimizedCode)         \
   F(StringCharCodeAt)                  \
   F(SubString)                         \
-  F(RegExpExec)                        \
-  F(NumberToString)                    \
   F(DebugIsActive)                     \
   /* Typed Arrays */                   \
   F(TypedArrayInitialize)              \
