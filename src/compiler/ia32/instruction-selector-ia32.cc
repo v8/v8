@@ -395,6 +395,30 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32BinopMatcher moffset(offset);
+    InstructionOperand buffer_operand = g.CanBeImmediate(buffer)
+                                            ? g.UseImmediate(buffer)
+                                            : g.UseRegister(buffer);
+    Int32Matcher mlength(length);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.DefineAsRegister(node),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+    IntMatcher<int32_t, IrOpcode::kRelocatableInt32Constant> mmlength(length);
+    if (mmlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mmlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.DefineAsRegister(node),
+           g.UseImmediate(moffset.right().node()), g.UseImmediate(length),
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+  }
   InstructionOperand offset_operand = g.UseRegister(offset);
   InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
@@ -450,6 +474,30 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
                                   rep == MachineRepresentation::kBit)
                                      ? g.UseByteRegister(value)
                                      : g.UseRegister(value));
+  if (offset->opcode() == IrOpcode::kInt32Add && CanCover(node, offset)) {
+    Int32BinopMatcher moffset(offset);
+    InstructionOperand buffer_operand = g.CanBeImmediate(buffer)
+                                            ? g.UseImmediate(buffer)
+                                            : g.UseRegister(buffer);
+    Int32Matcher mlength(length);
+    if (mlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.NoOutput(), g.UseImmediate(moffset.right().node()),
+           g.UseImmediate(length), value_operand,
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+    IntMatcher<int32_t, IrOpcode::kRelocatableInt32Constant> mmlength(length);
+    if (mmlength.HasValue() && moffset.right().HasValue() &&
+        moffset.right().Value() >= 0 &&
+        mmlength.Value() >= moffset.right().Value()) {
+      Emit(opcode, g.NoOutput(), g.UseImmediate(moffset.right().node()),
+           g.UseImmediate(length), value_operand,
+           g.UseRegister(moffset.left().node()), buffer_operand);
+      return;
+    }
+  }
   InstructionOperand offset_operand = g.UseRegister(offset);
   InstructionOperand length_operand =
       g.CanBeImmediate(length) ? g.UseImmediate(length) : g.UseRegister(length);
