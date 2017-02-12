@@ -70,8 +70,8 @@ Object.defineProperty(
   var mock = function(arrayType) {
     var handler = {
       construct: function(target, args) {
-        return new (
-            Function.prototype.bind.apply(arrayType, [null].concat(args)));
+        return new Proxy(
+            Function.prototype.bind.apply(arrayType, [null].concat(args)), {});
       },
     };
     return new Proxy(arrayType, handler);
