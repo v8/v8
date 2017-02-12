@@ -76,8 +76,17 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
+    case Runtime::kInlineArrayBufferViewGetByteLength:
+      return ReduceArrayBufferViewField(
+          node, AccessBuilder::ForJSArrayBufferViewByteLength());
+    case Runtime::kInlineArrayBufferViewGetByteOffset:
+      return ReduceArrayBufferViewField(
+          node, AccessBuilder::ForJSArrayBufferViewByteOffset());
     case Runtime::kInlineMaxSmi:
       return ReduceMaxSmi(node);
+    case Runtime::kInlineTypedArrayGetLength:
+      return ReduceArrayBufferViewField(node,
+                                        AccessBuilder::ForJSTypedArrayLength());
     case Runtime::kInlineTypedArrayMaxSizeInHeap:
       return ReduceTypedArrayMaxSizeInHeap(node);
     case Runtime::kInlineJSCollectionGetTable:
@@ -319,6 +328,32 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                        active_function, effect, control);
   return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
                 active_function_map, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceArrayBufferViewField(
+    Node* node, FieldAccess const& access) {
+  Node* receiver = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Load the {receiver}s field.
+  Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
+                                          receiver, effect, control);
+
+  // Check if the {receiver}s buffer was neutered.
+  Node* receiver_buffer = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayBufferViewBuffer()),
+      receiver, effect, control);
+  Node* check = effect = graph()->NewNode(
+      simplified()->ArrayBufferWasNeutered(), receiver_buffer, effect, control);
+
+  // Default to zero if the {receiver}s buffer was neutered.
+  value = graph()->NewNode(
+      common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+      check, jsgraph()->ZeroConstant(), value);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSIntrinsicLowering::ReduceMaxSmi(Node* node) {
