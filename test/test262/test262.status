@@ -167,6 +167,7 @@
   'built-ins/DataView/prototype/setUint8/detached-buffer-before-outofrange-byteoffset': [FAIL],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=4648
+  'built-ins/TypedArray/prototype/copyWithin/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/every/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/fill/detached-buffer': [FAIL],
   'built-ins/TypedArray/prototype/filter/detached-buffer': [FAIL],
