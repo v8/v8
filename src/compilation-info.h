@@ -210,6 +210,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsStub() const { return mode_ == STUB; }
+  bool IsWasm() const { return output_code_kind() == Code::WASM_FUNCTION; }
   void SetOptimizing();
   void SetOptimizingForOsr(BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
     SetOptimizing();

@@ -573,6 +573,8 @@ DEFINE_BOOL(wasm_trap_if, true,
             "enable the use of the trap_if operator for traps")
 DEFINE_BOOL(wasm_code_fuzzer_gen_test, false,
             "Generate a test case when running the wasm-code fuzzer")
+DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
+
 // Profiler flags.
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 // 0x1800 fits in the immediate field of an ARM instruction.
