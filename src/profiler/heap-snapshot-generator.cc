@@ -154,7 +154,6 @@ const char* HeapEntry::TypeAsString() {
     case kConsString: return "/concatenated string/";
     case kSlicedString: return "/sliced string/";
     case kSymbol: return "/symbol/";
-    case kSimdValue: return "/simd/";
     default: return "???";
   }
 }
@@ -838,8 +837,6 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object->IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
-  } else if (object->IsSimd128Value()) {
-    return AddEntry(object, HeapEntry::kSimdValue, "simd");
   }
   return AddEntry(object, HeapEntry::kHidden, GetSystemEntryName(object));
 }

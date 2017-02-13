@@ -27,12 +27,6 @@
   V(regexp_to_string, "[object RegExp]")                           \
   V(string_to_string, "[object String]")                           \
   V(bind_string, "bind")                                           \
-  V(bool16x8_string, "bool16x8")                                   \
-  V(Bool16x8_string, "Bool16x8")                                   \
-  V(bool32x4_string, "bool32x4")                                   \
-  V(Bool32x4_string, "Bool32x4")                                   \
-  V(bool8x16_string, "bool8x16")                                   \
-  V(Bool8x16_string, "Bool8x16")                                   \
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
   V(bound__string, "bound ")                                       \
@@ -77,8 +71,6 @@
   V(EvalError_string, "EvalError")                                 \
   V(false_string, "false")                                         \
   V(flags_string, "flags")                                         \
-  V(float32x4_string, "float32x4")                                 \
-  V(Float32x4_string, "Float32x4")                                 \
   V(function_string, "function")                                   \
   V(Function_string, "Function")                                   \
   V(Generator_string, "Generator")                                 \
@@ -97,12 +89,6 @@
   V(index_string, "index")                                         \
   V(infinity_string, "Infinity")                                   \
   V(input_string, "input")                                         \
-  V(int16x8_string, "int16x8")                                     \
-  V(Int16x8_string, "Int16x8")                                     \
-  V(int32x4_string, "int32x4")                                     \
-  V(Int32x4_string, "Int32x4")                                     \
-  V(int8x16_string, "int8x16")                                     \
-  V(Int8x16_string, "Int8x16")                                     \
   V(isExtensible_string, "isExtensible")                           \
   V(isView_string, "isView")                                       \
   V(KeyedLoadMonomorphic_string, "KeyedLoadMonomorphic")           \
@@ -185,12 +171,6 @@
   V(CompileError_string, "CompileError")                           \
   V(LinkError_string, "LinkError")                                 \
   V(RuntimeError_string, "RuntimeError")                           \
-  V(uint16x8_string, "uint16x8")                                   \
-  V(Uint16x8_string, "Uint16x8")                                   \
-  V(uint32x4_string, "uint32x4")                                   \
-  V(Uint32x4_string, "Uint32x4")                                   \
-  V(uint8x16_string, "uint8x16")                                   \
-  V(Uint8x16_string, "Uint8x16")                                   \
   V(undefined_string, "undefined")                                 \
   V(undefined_to_string, "[object Undefined]")                     \
   V(unicode_string, "unicode")                                     \

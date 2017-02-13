@@ -66,16 +66,6 @@ class Node;
   V(TransitionElementsKind)                   \
   /* --- TurboFanCodeStubs --- */             \
   V(AllocateHeapNumber)                       \
-  V(AllocateFloat32x4)                        \
-  V(AllocateInt32x4)                          \
-  V(AllocateUint32x4)                         \
-  V(AllocateBool32x4)                         \
-  V(AllocateInt16x8)                          \
-  V(AllocateUint16x8)                         \
-  V(AllocateBool16x8)                         \
-  V(AllocateInt8x16)                          \
-  V(AllocateUint8x16)                         \
-  V(AllocateBool8x16)                         \
   V(ArrayNoArgumentConstructor)               \
   V(ArraySingleArgumentConstructor)           \
   V(ArrayNArgumentsConstructor)               \
@@ -1568,21 +1558,6 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
 };
 
-#define SIMD128_ALLOC_STUB(TYPE, Type, type, lane_count, lane_type)            \
-  class Allocate##Type##Stub : public TurboFanCodeStub {                       \
-   public:                                                                     \
-    explicit Allocate##Type##Stub(Isolate* isolate)                            \
-        : TurboFanCodeStub(isolate) {}                                         \
-                                                                               \
-    void InitializeDescriptor(CodeStubDescriptor* descriptor) override;        \
-    void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
-                                                                               \
-    DEFINE_CALL_INTERFACE_DESCRIPTOR(Allocate##Type);                          \
-    DEFINE_CODE_STUB(Allocate##Type, TurboFanCodeStub);                        \
-  };
-SIMD128_TYPES(SIMD128_ALLOC_STUB)
-#undef SIMD128_ALLOC_STUB
-
 class CommonArrayConstructorStub : public TurboFanCodeStub {
  protected:
   CommonArrayConstructorStub(Isolate* isolate, ElementsKind kind,
@@ -1754,7 +1729,7 @@ class ToBooleanICStub : public HydrogenCodeStub {
   ToBooleanICStub(Isolate* isolate, InitializationState init_state)
       : HydrogenCodeStub(isolate, init_state) {}
 
-  static const int kNumHints = 9;
+  static const int kNumHints = 8;
   STATIC_ASSERT(static_cast<int>(ToBooleanHint::kAny) ==
                 ((1 << kNumHints) - 1));
   class HintsBits : public BitField<uint16_t, 0, kNumHints> {};

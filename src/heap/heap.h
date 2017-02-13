@@ -135,16 +135,6 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
-  V(Map, float32x4_map, Float32x4Map)                                          \
-  V(Map, int32x4_map, Int32x4Map)                                              \
-  V(Map, uint32x4_map, Uint32x4Map)                                            \
-  V(Map, bool32x4_map, Bool32x4Map)                                            \
-  V(Map, int16x8_map, Int16x8Map)                                              \
-  V(Map, uint16x8_map, Uint16x8Map)                                            \
-  V(Map, bool16x8_map, Bool16x8Map)                                            \
-  V(Map, int8x16_map, Int8x16Map)                                              \
-  V(Map, uint8x16_map, Uint8x16Map)                                            \
-  V(Map, bool8x16_map, Bool8x16Map)                                            \
   /* Canonical empty values */                                                 \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
@@ -281,16 +271,6 @@ using v8::MemoryPressureLevel;
   V(MetaMap)                            \
   V(HeapNumberMap)                      \
   V(MutableHeapNumberMap)               \
-  V(Float32x4Map)                       \
-  V(Int32x4Map)                         \
-  V(Uint32x4Map)                        \
-  V(Bool32x4Map)                        \
-  V(Int16x8Map)                         \
-  V(Uint16x8Map)                        \
-  V(Bool16x8Map)                        \
-  V(Int8x16Map)                         \
-  V(Uint8x16Map)                        \
-  V(Bool8x16Map)                        \
   V(NativeContextMap)                   \
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
@@ -1957,13 +1937,6 @@ class Heap {
   // Allocates a HeapNumber from value.
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
       MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
-
-// Allocates SIMD values from the given lane values.
-#define SIMD_ALLOCATE_DECLARATION(TYPE, Type, type, lane_count, lane_type) \
-  AllocationResult Allocate##Type(lane_type lanes[lane_count],             \
-                                  PretenureFlag pretenure = NOT_TENURED);
-  SIMD128_TYPES(SIMD_ALLOCATE_DECLARATION)
-#undef SIMD_ALLOCATE_DECLARATION
 
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult
