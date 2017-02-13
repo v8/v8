@@ -336,6 +336,7 @@ class MacroAssembler : public Assembler {
   void Mul64(Register dst, const MemOperand& src1);
   void Mul64(Register dst, Register src1);
   void Mul64(Register dst, const Operand& src1);
+  void MulPWithCondition(Register dst, Register src1, Register src2);
 
   // Divide
   void DivP(Register dividend, Register divider);

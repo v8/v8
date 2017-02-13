@@ -775,6 +775,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
     case MSR:
       Format(instr, "msr\t'r5,'r6");
       break;
+    case MSRKC:
+      Format(instr, "msrkc\t'r5,'r6,'r3");
+      break;
     case LGBR:
       Format(instr, "lgbr\t'r5,'r6");
       break;
@@ -783,6 +786,9 @@ bool Decoder::DecodeFourByte(Instruction* instr) {
       break;
     case MSGR:
       Format(instr, "msgr\t'r5,'r6");
+      break;
+    case MSGRKC:
+      Format(instr, "msgrkc\t'r5,'r6,'r3");
       break;
     case DSGR:
       Format(instr, "dsgr\t'r5,'r6");

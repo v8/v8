@@ -1287,8 +1287,12 @@ void LCodeGen::DoFlooringDivI(LFlooringDivI* instr) {
   __ bge(&done, Label::kNear);
 
   // If there is no remainder then we are done.
-  __ lr(scratch, result);
-  __ msr(scratch, divisor);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    __ msrkc(scratch, result, divisor);
+  } else {
+    __ lr(scratch, result);
+    __ msr(scratch, divisor);
+  }
   __ Cmp32(dividend, scratch);
   __ beq(&done, Label::kNear);
 
@@ -1419,36 +1423,48 @@ void LCodeGen::DoMulI(LMulI* instr) {
     Register right = ToRegister(right_op);
 
     if (can_overflow) {
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        // result = left * right.
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiUntag(scratch, right);
+          __ MulPWithCondition(result, left, scratch);
+        } else {
+          __ msrkc(result, left, right);
+          __ LoadW(result, result);
+        }
+        DeoptimizeIf(overflow, instr, DeoptimizeReason::kOverflow);
+      } else {
 #if V8_TARGET_ARCH_S390X
-      // result = left * right.
-      if (instr->hydrogen()->representation().IsSmi()) {
-        __ SmiUntag(result, left);
-        __ SmiUntag(scratch, right);
-        __ msgr(result, scratch);
-      } else {
-        __ LoadRR(result, left);
-        __ msgr(result, right);
-      }
-      __ TestIfInt32(result, r0);
-      DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
-      if (instr->hydrogen()->representation().IsSmi()) {
-        __ SmiTag(result);
-      }
+        // result = left * right.
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiUntag(result, left);
+          __ SmiUntag(scratch, right);
+          __ msgr(result, scratch);
+        } else {
+          __ LoadRR(result, left);
+          __ msgr(result, right);
+        }
+        __ TestIfInt32(result, r0);
+        DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiTag(result);
+        }
 #else
-      // r0:scratch = scratch * right
-      if (instr->hydrogen()->representation().IsSmi()) {
-        __ SmiUntag(scratch, left);
-        __ mr_z(r0, right);
-        __ LoadRR(result, scratch);
-      } else {
         // r0:scratch = scratch * right
-        __ LoadRR(scratch, left);
-        __ mr_z(r0, right);
-        __ LoadRR(result, scratch);
-      }
-      __ TestIfInt32(r0, result, scratch);
-      DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
+        if (instr->hydrogen()->representation().IsSmi()) {
+          __ SmiUntag(scratch, left);
+          __ mr_z(r0, right);
+          __ LoadRR(result, scratch);
+        } else {
+          // r0:scratch = scratch * right
+          __ LoadRR(scratch, left);
+          __ mr_z(r0, right);
+          __ LoadRR(result, scratch);
+        }
+        __ TestIfInt32(r0, result, scratch);
+        DeoptimizeIf(ne, instr, DeoptimizeReason::kOverflow);
 #endif
+      }
     } else {
       if (instr->hydrogen()->representation().IsSmi()) {
         __ SmiUntag(result, left);

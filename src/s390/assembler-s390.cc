@@ -166,14 +166,18 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     if (facilities[2] & (one << (63 - (129 - 128)))) {
       supported_ |= (1u << VECTOR_FACILITY);
     }
+    // Test for Miscellaneous Instruction Extension Facility - Bit 58
+    if (facilities[0] & (1lu << (63 - 58))) {
+      supported_ |= (1u << MISC_INSTR_EXT2);
+    }
   }
 #else
   // All distinct ops instructions can be simulated
   supported_ |= (1u << DISTINCT_OPS);
   // RISBG can be simulated
   supported_ |= (1u << GENERAL_INSTR_EXT);
-
   supported_ |= (1u << FLOATING_POINT_EXT);
+  supported_ |= (1u << MISC_INSTR_EXT2);
   USE(performSTFLE);  // To avoid assert
   supported_ |= (1u << VECTOR_FACILITY);
 #endif
@@ -198,6 +202,7 @@ void CpuFeatures::PrintFeatures() {
   printf("GENERAL_INSTR=%d\n", CpuFeatures::IsSupported(GENERAL_INSTR_EXT));
   printf("DISTINCT_OPS=%d\n", CpuFeatures::IsSupported(DISTINCT_OPS));
   printf("VECTOR_FACILITY=%d\n", CpuFeatures::IsSupported(VECTOR_FACILITY));
+  printf("MISC_INSTR_EXT2=%d\n", CpuFeatures::IsSupported(MISC_INSTR_EXT2));
 }
 
 Register ToRegister(int num) {
@@ -1508,6 +1513,16 @@ void Assembler::slgrk(Register r1, Register r2, Register r3) {
 // Multiply Halfword Immediate (32)
 void Assembler::mhi(Register r1, const Operand& opnd) {
   ri_form(MHI, r1, opnd);
+}
+
+// Multiply Single Register (32)
+void Assembler::msrkc(Register r1, Register r2, Register r3) {
+  rrf1_form(MSRKC, r1, r2, r3);
+}
+
+// Multiply Single Register (64)
+void Assembler::msgrkc(Register r1, Register r2, Register r3) {
+  rrf1_form(MSGRKC, r1, r2, r3);
 }
 
 // ----------------------------

@@ -985,6 +985,7 @@ void Simulator::EvalTableInit() {
   EvalTable[SAR] = &Simulator::Evaluate_SAR;
   EvalTable[EAR] = &Simulator::Evaluate_EAR;
   EvalTable[MSR] = &Simulator::Evaluate_MSR;
+  EvalTable[MSRKC] = &Simulator::Evaluate_MSRKC;
   EvalTable[MVST] = &Simulator::Evaluate_MVST;
   EvalTable[CUSE] = &Simulator::Evaluate_CUSE;
   EvalTable[SRST] = &Simulator::Evaluate_SRST;
@@ -1158,6 +1159,7 @@ void Simulator::EvalTableInit() {
   EvalTable[ALGR] = &Simulator::Evaluate_ALGR;
   EvalTable[SLGR] = &Simulator::Evaluate_SLGR;
   EvalTable[MSGR] = &Simulator::Evaluate_MSGR;
+  EvalTable[MSGRKC] = &Simulator::Evaluate_MSGRKC;
   EvalTable[DSGR] = &Simulator::Evaluate_DSGR;
   EvalTable[LRVGR] = &Simulator::Evaluate_LRVGR;
   EvalTable[LPGFR] = &Simulator::Evaluate_LPGFR;
@@ -8471,6 +8473,21 @@ EVALUATE(MSR) {
   return length;
 }
 
+EVALUATE(MSRKC) {
+  DCHECK_OPCODE(MSRKC);
+  DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
+  int32_t r2_val = get_low_register<int32_t>(r2);
+  int32_t r3_val = get_low_register<int32_t>(r3);
+  int64_t result64 =
+      static_cast<int64_t>(r2_val) * static_cast<int64_t>(r3_val);
+  int32_t result32 = static_cast<int32_t>(result64);
+  bool isOF = (static_cast<int64_t>(result32) != result64);
+  SetS390ConditionCode<int32_t>(result32, 0);
+  SetS390OverflowCode(isOF);
+  set_low_register(r1, result32);
+  return length;
+}
+
 EVALUATE(MVST) {
   UNIMPLEMENTED();
   USE(instr);
@@ -9993,6 +10010,20 @@ EVALUATE(MSGR) {
   int64_t r1_val = get_register(r1);
   int64_t r2_val = get_register(r2);
   set_register(r1, r1_val * r2_val);
+  return length;
+}
+
+EVALUATE(MSGRKC) {
+  DCHECK_OPCODE(MSGRKC);
+  DECODE_RRF_A_INSTRUCTION(r1, r2, r3);
+  int64_t r2_val = get_register(r2);
+  int64_t r3_val = get_register(r3);
+  volatile int64_t result64 = r2_val * r3_val;
+  bool isOF = ((r2_val == -1 && result64 == (static_cast<int64_t>(1L) << 63)) ||
+               (r2_val != 0 && result64 / r2_val != r3_val));
+  SetS390ConditionCode<int64_t>(result64, 0);
+  SetS390OverflowCode(isOF);
+  set_register(r1, result64);
   return length;
 }
 

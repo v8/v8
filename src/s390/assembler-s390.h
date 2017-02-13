@@ -1160,6 +1160,8 @@ class Assembler : public AssemblerBase {
 
   // 32-bit Multiply Instructions
   void mhi(Register r1, const Operand& opnd);
+  void msrkc(Register r1, Register r2, Register r3);
+  void msgrkc(Register r1, Register r2, Register r3);
 
   // 64-bit Multiply Instructions
   void mghi(Register r1, const Operand& opnd);

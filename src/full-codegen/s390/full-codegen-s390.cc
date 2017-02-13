@@ -1582,34 +1582,42 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
     }
     case Token::MUL: {
       Label mul_zero;
+      if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+        __ SmiUntag(ip, right);
+        __ MulPWithCondition(scratch2, ip, left);
+        __ b(overflow, &stub_call);
+        __ beq(&mul_zero, Label::kNear);
+        __ LoadRR(right, scratch2);
+      } else {
 #if V8_TARGET_ARCH_S390X
-      // Remove tag from both operands.
-      __ SmiUntag(ip, right);
-      __ SmiUntag(scratch2, left);
-      __ mr_z(scratch1, ip);
-      // Check for overflowing the smi range - no overflow if higher 33 bits of
-      // the result are identical.
-      __ lr(ip, scratch2);  // 32 bit load
-      __ sra(ip, Operand(31));
-      __ cr_z(ip, scratch1);  // 32 bit compare
-      __ bne(&stub_call);
+        // Remove tag from both operands.
+        __ SmiUntag(ip, right);
+        __ SmiUntag(scratch2, left);
+        __ mr_z(scratch1, ip);
+        // Check for overflowing the smi range - no overflow if higher 33 bits
+        // of the result are identical.
+        __ lr(ip, scratch2);  // 32 bit load
+        __ sra(ip, Operand(31));
+        __ cr_z(ip, scratch1);  // 32 bit compare
+        __ bne(&stub_call);
 #else
-      __ SmiUntag(ip, right);
-      __ LoadRR(scratch2, left);  // load into low order of reg pair
-      __ mr_z(scratch1, ip);      // R4:R5 = R5 * ip
-      // Check for overflowing the smi range - no overflow if higher 33 bits of
-      // the result are identical.
-      __ TestIfInt32(scratch1, scratch2, ip);
-      __ bne(&stub_call);
+        __ SmiUntag(ip, right);
+        __ LoadRR(scratch2, left);  // load into low order of reg pair
+        __ mr_z(scratch1, ip);      // R4:R5 = R5 * ip
+        // Check for overflowing the smi range - no overflow if higher 33 bits
+        // of the result are identical.
+        __ TestIfInt32(scratch1, scratch2, ip);
+        __ bne(&stub_call);
 #endif
-      // Go slow on zero result to handle -0.
-      __ chi(scratch2, Operand::Zero());
-      __ beq(&mul_zero, Label::kNear);
+        // Go slow on zero result to handle -0.
+        __ chi(scratch2, Operand::Zero());
+        __ beq(&mul_zero, Label::kNear);
 #if V8_TARGET_ARCH_S390X
-      __ SmiTag(right, scratch2);
+        __ SmiTag(right, scratch2);
 #else
-      __ LoadRR(right, scratch2);
+        __ LoadRR(right, scratch2);
 #endif
+      }
       __ b(&done);
       // We need -0 if we were multiplying a negative number with 0 to get 0.
       // We know one of them was zero.
