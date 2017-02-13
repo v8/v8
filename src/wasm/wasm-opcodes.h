@@ -309,9 +309,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I32x4LeS, 0xe529, s_ss)              \
   V(I32x4GtS, 0xe52a, s_ss)              \
   V(I32x4GeS, 0xe52b, s_ss)              \
-  V(I32x4Select, 0xe52c, s_sss)          \
-  V(I32x4Swizzle, 0xe52d, s_s)           \
-  V(I32x4Shuffle, 0xe52e, s_ss)          \
   V(I32x4SConvertF32x4, 0xe52f, s_s)     \
   V(I32x4MinU, 0xe530, s_ss)             \
   V(I32x4MaxU, 0xe531, s_ss)             \
@@ -335,9 +332,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I16x8LeS, 0xe548, s_ss)              \
   V(I16x8GtS, 0xe549, s_ss)              \
   V(I16x8GeS, 0xe54a, s_ss)              \
-  V(I16x8Select, 0xe54b, s_sss)          \
-  V(I16x8Swizzle, 0xe54c, s_s)           \
-  V(I16x8Shuffle, 0xe54d, s_ss)          \
   V(I16x8AddSaturateU, 0xe54e, s_ss)     \
   V(I16x8SubSaturateU, 0xe54f, s_ss)     \
   V(I16x8MinU, 0xe550, s_ss)             \
@@ -361,9 +355,6 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I8x16LeS, 0xe567, s_ss)              \
   V(I8x16GtS, 0xe568, s_ss)              \
   V(I8x16GeS, 0xe569, s_ss)              \
-  V(I8x16Select, 0xe56a, s_sss)          \
-  V(I8x16Swizzle, 0xe56b, s_s)           \
-  V(I8x16Shuffle, 0xe56c, s_ss)          \
   V(I8x16AddSaturateU, 0xe56d, s_ss)     \
   V(I8x16SubSaturateU, 0xe56e, s_ss)     \
   V(I8x16MinU, 0xe56f, s_ss)             \
@@ -373,12 +364,18 @@ const WasmCodePosition kNoCodePosition = -1;
   V(I8x16GtU, 0xe574, s_ss)              \
   V(I8x16GeU, 0xe575, s_ss)              \
   V(S128And, 0xe576, s_ss)               \
-  V(S128Ior, 0xe577, s_ss)               \
+  V(S128Or, 0xe577, s_ss)                \
   V(S128Xor, 0xe578, s_ss)               \
   V(S128Not, 0xe579, s_s)                \
-  V(S32x4Select, 0xe580, s_sss)          \
-  V(S32x4Swizzle, 0xe581, s_s)           \
-  V(S32x4Shuffle, 0xe582, s_ss)
+  V(S32x4Select, 0xe52c, s_sss)          \
+  V(S32x4Swizzle, 0xe52d, s_s)           \
+  V(S32x4Shuffle, 0xe52e, s_ss)          \
+  V(S16x8Select, 0xe54b, s_sss)          \
+  V(S16x8Swizzle, 0xe54c, s_s)           \
+  V(S16x8Shuffle, 0xe54d, s_ss)          \
+  V(S8x16Select, 0xe56a, s_sss)          \
+  V(S8x16Swizzle, 0xe56b, s_s)           \
+  V(S8x16Shuffle, 0xe56c, s_ss)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
   V(F32x4ExtractLane, 0xe501, _)         \

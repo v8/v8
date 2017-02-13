@@ -289,9 +289,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int16x8LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
   V(Int16x8GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Int16x8GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
-  V(Int16x8Select, Operator::kNoProperties, 3, 0, 1)                       \
-  V(Int16x8Swizzle, Operator::kNoProperties, 9, 0, 1)                      \
-  V(Int16x8Shuffle, Operator::kNoProperties, 10, 0, 1)                     \
   V(Uint16x8AddSaturate, Operator::kCommutative, 2, 0, 1)                  \
   V(Uint16x8SubSaturate, Operator::kNoProperties, 2, 0, 1)                 \
   V(Uint16x8Min, Operator::kCommutative, 2, 0, 1)                          \
@@ -326,9 +323,6 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int8x16LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
   V(Int8x16GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
   V(Int8x16GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
-  V(Int8x16Select, Operator::kNoProperties, 3, 0, 1)                       \
-  V(Int8x16Swizzle, Operator::kNoProperties, 17, 0, 1)                     \
-  V(Int8x16Shuffle, Operator::kNoProperties, 18, 0, 1)                     \
   V(Uint8x16AddSaturate, Operator::kCommutative, 2, 0, 1)                  \
   V(Uint8x16SubSaturate, Operator::kNoProperties, 2, 0, 1)                 \
   V(Uint8x16Min, Operator::kCommutative, 2, 0, 1)                          \
@@ -361,8 +355,8 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Simd128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Simd128Not, Operator::kNoProperties, 1, 0, 1)                          \
   V(Simd32x4Select, Operator::kNoProperties, 3, 0, 1)                      \
-  V(Simd32x4Swizzle, Operator::kNoProperties, 5, 0, 1)                     \
-  V(Simd32x4Shuffle, Operator::kNoProperties, 6, 0, 1)
+  V(Simd16x8Select, Operator::kNoProperties, 3, 0, 1)                      \
+  V(Simd8x16Select, Operator::kNoProperties, 3, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \
@@ -441,9 +435,9 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Int8x16, 16)             \
   V(Bool8x16, 16)
 
-#define SIMD_SHIFT_OP_LIST(V) \
-  V(32x4, 32)                 \
-  V(16x8, 16)                 \
+#define SIMD_FORMAT_LIST(V) \
+  V(32x4, 32)               \
+  V(16x8, 16)               \
   V(8x16, 8)
 
 #define STACK_SLOT_CACHED_SIZES_LIST(V) V(4) V(8) V(16)
@@ -889,8 +883,19 @@ SIMD_LANE_OP_LIST(SIMD_LANE_OPS)
         IrOpcode::kUint##format##ShiftRightByScalar, Operator::kPure,       \
         "Shift right", 1, 0, 0, 1, 0, 0, shift);                            \
   }
-SIMD_SHIFT_OP_LIST(SIMD_SHIFT_OPS)
+SIMD_FORMAT_LIST(SIMD_SHIFT_OPS)
 #undef SIMD_SHIFT_OPS
+
+// TODO(bbudge) Add Shuffle, DCHECKs based on format.
+#define SIMD_PERMUTE_OPS(format, bits)                                         \
+  const Operator* MachineOperatorBuilder::Simd##format##Swizzle(               \
+      uint32_t swizzle) {                                                      \
+    return new (zone_)                                                         \
+        Operator1<uint32_t>(IrOpcode::kSimd##format##Swizzle, Operator::kPure, \
+                            "Swizzle", 2, 0, 0, 1, 0, 0, swizzle);             \
+  }
+SIMD_FORMAT_LIST(SIMD_PERMUTE_OPS)
+#undef SIMD_PERMUTE_OPS
 
 }  // namespace compiler
 }  // namespace internal

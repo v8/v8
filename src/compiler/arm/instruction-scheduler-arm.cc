@@ -141,7 +141,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmUint32x4Max:
     case kArmUint32x4GreaterThan:
     case kArmUint32x4GreaterThanOrEqual:
-    case kArmSimd32x4Select:
     case kArmInt16x8Splat:
     case kArmInt16x8ExtractLane:
     case kArmInt16x8ReplaceLane:
@@ -190,6 +189,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmUint8x16Max:
     case kArmUint8x16GreaterThan:
     case kArmUint8x16GreaterThanOrEqual:
+    case kArmSimd128And:
+    case kArmSimd128Or:
+    case kArmSimd128Xor:
+    case kArmSimd128Not:
+    case kArmSimd32x4Select:
+    case kArmSimd16x8Select:
+    case kArmSimd8x16Select:
       return kNoOpcodeFlags;
 
     case kArmVldrF32:

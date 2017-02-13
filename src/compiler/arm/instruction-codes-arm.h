@@ -153,7 +153,6 @@ namespace compiler {
   V(ArmUint32x4Max)                \
   V(ArmUint32x4GreaterThan)        \
   V(ArmUint32x4GreaterThanOrEqual) \
-  V(ArmSimd32x4Select)             \
   V(ArmInt16x8Splat)               \
   V(ArmInt16x8ExtractLane)         \
   V(ArmInt16x8ReplaceLane)         \
@@ -201,7 +200,14 @@ namespace compiler {
   V(ArmUint8x16Min)                \
   V(ArmUint8x16Max)                \
   V(ArmUint8x16GreaterThan)        \
-  V(ArmUint8x16GreaterThanOrEqual)
+  V(ArmUint8x16GreaterThanOrEqual) \
+  V(ArmSimd128And)                 \
+  V(ArmSimd128Or)                  \
+  V(ArmSimd128Xor)                 \
+  V(ArmSimd128Not)                 \
+  V(ArmSimd32x4Select)             \
+  V(ArmSimd16x8Select)             \
+  V(ArmSimd8x16Select)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

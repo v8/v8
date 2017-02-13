@@ -1522,8 +1522,6 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitUint32x4GreaterThan(node);
     case IrOpcode::kUint32x4GreaterThanOrEqual:
       return MarkAsSimd128(node), VisitUint32x4GreaterThanOrEqual(node);
-    case IrOpcode::kSimd32x4Select:
-      return MarkAsSimd128(node), VisitSimd32x4Select(node);
     case IrOpcode::kCreateInt16x8:
       return MarkAsSimd128(node), VisitCreateInt16x8(node);
     case IrOpcode::kInt16x8ExtractLane:
@@ -1620,6 +1618,20 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitUint8x16GreaterThan(node);
     case IrOpcode::kUint8x16GreaterThanOrEqual:
       return MarkAsSimd128(node), VisitUint16x8GreaterThanOrEqual(node);
+    case IrOpcode::kSimd128And:
+      return MarkAsSimd128(node), VisitSimd128And(node);
+    case IrOpcode::kSimd128Or:
+      return MarkAsSimd128(node), VisitSimd128Or(node);
+    case IrOpcode::kSimd128Xor:
+      return MarkAsSimd128(node), VisitSimd128Xor(node);
+    case IrOpcode::kSimd128Not:
+      return MarkAsSimd128(node), VisitSimd128Not(node);
+    case IrOpcode::kSimd32x4Select:
+      return MarkAsSimd128(node), VisitSimd32x4Select(node);
+    case IrOpcode::kSimd16x8Select:
+      return MarkAsSimd128(node), VisitSimd16x8Select(node);
+    case IrOpcode::kSimd8x16Select:
+      return MarkAsSimd128(node), VisitSimd8x16Select(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -2053,8 +2065,6 @@ void InstructionSelector::VisitUint32x4GreaterThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitSimd32x4Select(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitCreateInt16x8(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitInt16x8ExtractLane(Node* node) {
@@ -2214,6 +2224,20 @@ void InstructionSelector::VisitUint8x16GreaterThan(Node* node) {
 void InstructionSelector::VisitUint8x16GreaterThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
+
+void InstructionSelector::VisitSimd32x4Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd16x8Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd8x16Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd128And(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd128Or(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd128Xor(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd128Not(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

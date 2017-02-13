@@ -628,9 +628,6 @@
   V(Int16x8LessThanOrEqual)                 \
   V(Int16x8GreaterThan)                     \
   V(Int16x8GreaterThanOrEqual)              \
-  V(Int16x8Select)                          \
-  V(Int16x8Swizzle)                         \
-  V(Int16x8Shuffle)                         \
   V(Uint16x8AddSaturate)                    \
   V(Uint16x8SubSaturate)                    \
   V(Uint16x8Min)                            \
@@ -669,9 +666,6 @@
   V(Int8x16LessThanOrEqual)                 \
   V(Int8x16GreaterThan)                     \
   V(Int8x16GreaterThanOrEqual)              \
-  V(Int8x16Select)                          \
-  V(Int8x16Swizzle)                         \
-  V(Int8x16Shuffle)                         \
   V(Uint8x16AddSaturate)                    \
   V(Uint8x16SubSaturate)                    \
   V(Uint8x16Min)                            \
@@ -691,7 +685,20 @@
   V(Bool8x16Swizzle)                        \
   V(Bool8x16Shuffle)                        \
   V(Bool8x16Equal)                          \
-  V(Bool8x16NotEqual)
+  V(Bool8x16NotEqual)                       \
+  V(Simd128And)                             \
+  V(Simd128Or)                              \
+  V(Simd128Xor)                             \
+  V(Simd128Not)                             \
+  V(Simd32x4Select)                         \
+  V(Simd32x4Swizzle)                        \
+  V(Simd32x4Shuffle)                        \
+  V(Simd16x8Select)                         \
+  V(Simd16x8Swizzle)                        \
+  V(Simd16x8Shuffle)                        \
+  V(Simd8x16Select)                         \
+  V(Simd8x16Swizzle)                        \
+  V(Simd8x16Shuffle)
 
 #define MACHINE_SIMD_RETURN_NUM_OP_LIST(V) \
   V(Float32x4ExtractLane)                  \
@@ -718,14 +725,7 @@
   V(Simd128Store)                       \
   V(Simd128Store1)                      \
   V(Simd128Store2)                      \
-  V(Simd128Store3)                      \
-  V(Simd128And)                         \
-  V(Simd128Or)                          \
-  V(Simd128Xor)                         \
-  V(Simd128Not)                         \
-  V(Simd32x4Select)                     \
-  V(Simd32x4Swizzle)                    \
-  V(Simd32x4Shuffle)
+  V(Simd128Store3)
 
 #define MACHINE_SIMD_OP_LIST(V)       \
   MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \

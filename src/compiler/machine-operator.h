@@ -511,9 +511,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int16x8LessThanOrEqual();
   const Operator* Int16x8GreaterThan();
   const Operator* Int16x8GreaterThanOrEqual();
-  const Operator* Int16x8Select();
-  const Operator* Int16x8Swizzle();
-  const Operator* Int16x8Shuffle();
 
   const Operator* Uint16x8AddSaturate();
   const Operator* Uint16x8SubSaturate();
@@ -558,9 +555,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Int8x16LessThanOrEqual();
   const Operator* Int8x16GreaterThan();
   const Operator* Int8x16GreaterThanOrEqual();
-  const Operator* Int8x16Select();
-  const Operator* Int8x16Swizzle();
-  const Operator* Int8x16Shuffle();
 
   const Operator* Uint8x16AddSaturate();
   const Operator* Uint8x16SubSaturate();
@@ -599,8 +593,14 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd128Xor();
   const Operator* Simd128Not();
   const Operator* Simd32x4Select();
-  const Operator* Simd32x4Swizzle();
+  const Operator* Simd32x4Swizzle(uint32_t);
   const Operator* Simd32x4Shuffle();
+  const Operator* Simd16x8Select();
+  const Operator* Simd16x8Swizzle(uint32_t);
+  const Operator* Simd16x8Shuffle();
+  const Operator* Simd8x16Select();
+  const Operator* Simd8x16Swizzle(uint32_t);
+  const Operator* Simd8x16Shuffle();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

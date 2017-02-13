@@ -92,6 +92,13 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+  ArmOperandGenerator g(selector);
+  selector->Emit(
+      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+}
+
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
   int32_t imm = OpParameter<int32_t>(node);
@@ -2167,6 +2174,11 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int16x8)              \
   V(Int8x16)
 
+#define SIMD_FORMAT_LIST(V) \
+  V(32x4)                   \
+  V(16x8)                   \
+  V(8x16)
+
 #define SIMD_UNOP_LIST(V)  \
   V(Float32x4FromInt32x4)  \
   V(Float32x4FromUint32x4) \
@@ -2176,7 +2188,8 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Uint32x4FromFloat32x4) \
   V(Int32x4Neg)            \
   V(Int16x8Neg)            \
-  V(Int8x16Neg)
+  V(Int8x16Neg)            \
+  V(Simd128Not)
 
 #define SIMD_BINOP_LIST(V)      \
   V(Float32x4Add)               \
@@ -2229,7 +2242,10 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Uint8x16Min)                \
   V(Uint8x16Max)                \
   V(Uint8x16GreaterThan)        \
-  V(Uint8x16GreaterThanOrEqual)
+  V(Uint8x16GreaterThanOrEqual) \
+  V(Simd128And)                 \
+  V(Simd128Or)                  \
+  V(Simd128Xor)
 
 #define SIMD_SHIFT_OP_LIST(V)   \
   V(Int32x4ShiftLeftByScalar)   \
@@ -2284,12 +2300,12 @@ SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
 
-void InstructionSelector::VisitSimd32x4Select(Node* node) {
-  ArmOperandGenerator g(this);
-  Emit(kArmSimd32x4Select, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
-}
+#define SIMD_VISIT_SELECT_OP(format)                                \
+  void InstructionSelector::VisitSimd##format##Select(Node* node) { \
+    VisitRRRR(this, kArmSimd##format##Select, node);                \
+  }
+SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
+#undef SIMD_VISIT_SELECT_OP
 
 // static
 MachineOperatorBuilder::Flags

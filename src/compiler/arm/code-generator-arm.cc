@@ -1664,15 +1664,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmSimd32x4Select: {
-      // Select is a ternary op, so we need to move one input into the
-      // destination. Use vtst to canonicalize the 'boolean' input #0.
-      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
-      break;
-    }
     case kArmInt16x8Splat: {
       __ vdup(Neon16, i.OutputSimd128Register(), i.InputRegister(0));
       break;
@@ -1914,6 +1905,49 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonU8, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128And: {
+      __ vand(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128Or: {
+      __ vorr(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128Xor: {
+      __ veor(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128Not: {
+      __ vmvn(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmSimd32x4Select: {
+      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
+      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
+      break;
+    }
+    case kArmSimd16x8Select: {
+      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
+      __ vtst(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
+      break;
+    }
+    case kArmSimd8x16Select: {
+      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
+      __ vtst(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
       break;
     }
     case kCheckedLoadInt8:

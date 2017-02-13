@@ -3443,9 +3443,6 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(
           jsgraph()->machine()->Uint32x4GreaterThanOrEqual(), inputs[0],
           inputs[1]);
-    case wasm::kExprS32x4Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd32x4Select(), inputs[0],
-                              inputs[1], inputs[2]);
     case wasm::kExprI16x8Splat:
       return graph()->NewNode(jsgraph()->machine()->CreateInt16x8(), inputs[0],
                               inputs[0], inputs[0], inputs[0], inputs[0],
@@ -3590,6 +3587,26 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(
           jsgraph()->machine()->Uint8x16GreaterThanOrEqual(), inputs[0],
           inputs[1]);
+    case wasm::kExprS32x4Select:
+      return graph()->NewNode(jsgraph()->machine()->Simd32x4Select(), inputs[0],
+                              inputs[1], inputs[2]);
+    case wasm::kExprS16x8Select:
+      return graph()->NewNode(jsgraph()->machine()->Simd16x8Select(), inputs[0],
+                              inputs[1], inputs[2]);
+    case wasm::kExprS8x16Select:
+      return graph()->NewNode(jsgraph()->machine()->Simd8x16Select(), inputs[0],
+                              inputs[1], inputs[2]);
+    case wasm::kExprS128And:
+      return graph()->NewNode(jsgraph()->machine()->Simd128And(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS128Or:
+      return graph()->NewNode(jsgraph()->machine()->Simd128Or(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS128Xor:
+      return graph()->NewNode(jsgraph()->machine()->Simd128Xor(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS128Not:
+      return graph()->NewNode(jsgraph()->machine()->Simd128Not(), inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
@@ -3659,6 +3676,24 @@ Node* WasmGraphBuilder::SimdShiftOp(wasm::WasmOpcode opcode, uint8_t shift,
     case wasm::kExprI8x16ShrU:
       return graph()->NewNode(
           jsgraph()->machine()->Uint8x16ShiftRightByScalar(shift), inputs[0]);
+    default:
+      return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
+  }
+}
+
+Node* WasmGraphBuilder::SimdSwizzleOp(wasm::WasmOpcode opcode, uint32_t swizzle,
+                                      const NodeVector& inputs) {
+  has_simd_ = true;
+  switch (opcode) {
+    case wasm::kExprS32x4Swizzle:
+      return graph()->NewNode(jsgraph()->machine()->Simd32x4Swizzle(swizzle),
+                              inputs[0]);
+    case wasm::kExprS16x8Swizzle:
+      return graph()->NewNode(jsgraph()->machine()->Simd16x8Swizzle(swizzle),
+                              inputs[0]);
+    case wasm::kExprS8x16Swizzle:
+      return graph()->NewNode(jsgraph()->machine()->Simd8x16Swizzle(swizzle),
+                              inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }
