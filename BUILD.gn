@@ -2567,6 +2567,8 @@ group("v8_clusterfuzz") {
     deps += [
       ":d8(//build/toolchain/linux:clang_x64)",
       ":d8(//build/toolchain/linux:clang_x86)",
+      ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
+      ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
     ]
   }
 }
