@@ -1138,7 +1138,7 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
   V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
-                                      Scope* block_scope, ClassInfo* class_info,
+                                      ClassInfo* class_info,
                                       int class_token_pos, bool* ok) {}
   V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
                                       PreParserExpression property,

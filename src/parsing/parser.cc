@@ -3155,7 +3155,7 @@ ZoneList<Statement*>* Parser::ParseFunction(
   return body;
 }
 
-void Parser::DeclareClassVariable(const AstRawString* name, Scope* block_scope,
+void Parser::DeclareClassVariable(const AstRawString* name,
                                   ClassInfo* class_info, int class_token_pos,
                                   bool* ok) {
 #ifdef DEBUG
@@ -3165,7 +3165,7 @@ void Parser::DeclareClassVariable(const AstRawString* name, Scope* block_scope,
   if (name != nullptr) {
     class_info->proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
     Declaration* declaration = factory()->NewVariableDeclaration(
-        class_info->proxy, block_scope, class_token_pos);
+        class_info->proxy, scope(), class_token_pos);
     Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
             Variable::DefaultInitializationFlag(CONST), ok);
   }

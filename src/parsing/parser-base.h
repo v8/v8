@@ -4351,8 +4351,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   RaiseLanguageMode(STRICT);
 
   ClassInfo class_info(this);
-  impl()->DeclareClassVariable(name, block_state.scope(), &class_info,
-                               class_token_pos, CHECK_OK);
+  impl()->DeclareClassVariable(name, &class_info, class_token_pos, CHECK_OK);
 
   if (Check(Token::EXTENDS)) {
     block_state.set_start_position(scanner()->location().end_pos);

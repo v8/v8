@@ -359,7 +359,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                     ZoneList<const AstRawString*>* names,
                                     int class_token_pos, int end_pos, bool* ok);
   V8_INLINE void DeclareClassVariable(const AstRawString* name,
-                                      Scope* block_scope, ClassInfo* class_info,
+                                      ClassInfo* class_info,
                                       int class_token_pos, bool* ok);
   V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
                                       ClassLiteralProperty* property,
