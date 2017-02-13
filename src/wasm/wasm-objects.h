@@ -459,7 +459,6 @@ class WasmInstanceWrapper : public FixedArray {
   bool has_previous() {
     return IsWasmInstanceWrapper(get(kPreviousInstanceWrapper));
   }
-  void set_instance_object(Handle<JSObject> instance, Isolate* isolate);
   void set_next_wrapper(Object* obj) {
     DCHECK(IsWasmInstanceWrapper(obj));
     set(kNextInstanceWrapper, obj);
