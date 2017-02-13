@@ -29,6 +29,7 @@
 
   # Issue 5950: Flaky with --optimize-for-size.
   'debug/es6/generators-debug-scopes': [PASS, ['system == linux and arch == x64', SKIP]],
+  'debug/harmony/modules-debug-scopes1': [PASS, ['system == linux and arch == x64', SKIP]],
 }],  # ALWAYS
 
 ##############################################################################
