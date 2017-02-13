@@ -497,14 +497,6 @@ class ParserBase {
     // Properties count estimation.
     int expected_property_count_;
 
-    // For generators, this variable may hold the generator object. It variable
-    // is used by yield expressions and return statements. It is not necessary
-    // for generator functions to have this variable set.
-    Variable* generator_object_variable_;
-    // For async functions, this variable holds a temporary for the Promise
-    // being created as output of the async function.
-    Variable* promise_variable_;
-
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
 
@@ -1514,8 +1506,6 @@ ParserBase<Impl>::FunctionState::FunctionState(
     : ScopeState(scope_stack, scope),
       next_materialized_literal_index_(0),
       expected_property_count_(0),
-      generator_object_variable_(nullptr),
-      promise_variable_(nullptr),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       destructuring_assignments_to_rewrite_(16, scope->zone()),
