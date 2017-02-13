@@ -47,33 +47,36 @@ void CodeStubAssembler::Assert(const NodeGenerator& codition_body,
                                const char* message, const char* file,
                                int line) {
 #if defined(DEBUG)
-  Label ok(this);
-  Label not_ok(this, Label::kDeferred);
-  if (message != nullptr && FLAG_code_comments) {
-    Comment("[ Assert: %s", message);
-  } else {
-    Comment("[ Assert");
-  }
-  Node* condition = codition_body();
-  DCHECK_NOT_NULL(condition);
-  Branch(condition, &ok, &not_ok);
-  Bind(&not_ok);
-  if (message != nullptr) {
-    char chars[1024];
-    Vector<char> buffer(chars);
-    if (file != nullptr) {
-      SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file, line);
+  if (FLAG_debug_code) {
+    Label ok(this);
+    Label not_ok(this, Label::kDeferred);
+    if (message != nullptr && FLAG_code_comments) {
+      Comment("[ Assert: %s", message);
     } else {
-      SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
+      Comment("[ Assert");
     }
-    CallRuntime(
-        Runtime::kGlobalPrint, SmiConstant(Smi::kZero),
-        HeapConstant(factory()->NewStringFromAsciiChecked(&(buffer[0]))));
+    Node* condition = codition_body();
+    DCHECK_NOT_NULL(condition);
+    Branch(condition, &ok, &not_ok);
+    Bind(&not_ok);
+    if (message != nullptr) {
+      char chars[1024];
+      Vector<char> buffer(chars);
+      if (file != nullptr) {
+        SNPrintF(buffer, "CSA_ASSERT failed: %s [%s:%d]\n", message, file,
+                 line);
+      } else {
+        SNPrintF(buffer, "CSA_ASSERT failed: %s\n", message);
+      }
+      CallRuntime(
+          Runtime::kGlobalPrint, SmiConstant(Smi::kZero),
+          HeapConstant(factory()->NewStringFromAsciiChecked(&(buffer[0]))));
+    }
+    DebugBreak();
+    Goto(&ok);
+    Bind(&ok);
+    Comment("] Assert");
   }
-  DebugBreak();
-  Goto(&ok);
-  Bind(&ok);
-  Comment("] Assert");
 #endif
 }
 
