@@ -163,7 +163,6 @@ v8_executable("cctest") {
     "test-representation.cc",
     "test-sampler-api.cc",
     "test-serialize.cc",
-    "test-simd.cc",
     "test-strings.cc",
     "test-strtod.cc",
     "test-symbols.cc",

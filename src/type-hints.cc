@@ -69,8 +69,6 @@ std::ostream& operator<<(std::ostream& os, ToBooleanHint hint) {
       return os << "Symbol";
     case ToBooleanHint::kHeapNumber:
       return os << "HeapNumber";
-    case ToBooleanHint::kSimdValue:
-      return os << "SimdValue";
     case ToBooleanHint::kAny:
       return os << "Any";
     case ToBooleanHint::kNeedsMap:
@@ -100,8 +98,6 @@ std::string ToString(ToBooleanHint hint) {
       return "Symbol";
     case ToBooleanHint::kHeapNumber:
       return "HeapNumber";
-    case ToBooleanHint::kSimdValue:
-      return "SimdValue";
     case ToBooleanHint::kAny:
       return "Any";
     case ToBooleanHint::kNeedsMap:

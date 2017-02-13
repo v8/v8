@@ -74,9 +74,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">\n";
       break;
-    case SIMD128_VALUE_TYPE:
-      Simd128Value::cast(this)->Simd128ValuePrint(os);
-      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
@@ -252,59 +249,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
   }
 }
-
-
-void Simd128Value::Simd128ValuePrint(std::ostream& os) {  // NOLINT
-#define PRINT_SIMD128_VALUE(TYPE, Type, type, lane_count, lane_type) \
-  if (Is##Type()) return Type::cast(this)->Type##Print(os);
-  SIMD128_TYPES(PRINT_SIMD128_VALUE)
-#undef PRINT_SIMD128_VALUE
-  UNREACHABLE();
-}
-
-
-void Float32x4::Float32x4Print(std::ostream& os) {  // NOLINT
-  char arr[100];
-  Vector<char> buffer(arr, arraysize(arr));
-  os << std::string(DoubleToCString(get_lane(0), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(1), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(2), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(3), buffer));
-}
-
-
-#define SIMD128_INT_PRINT_FUNCTION(type, lane_count)                \
-  void type::type##Print(std::ostream& os) {                        \
-    char arr[100];                                                  \
-    Vector<char> buffer(arr, arraysize(arr));                       \
-    os << std::string(IntToCString(get_lane(0), buffer));           \
-    for (int i = 1; i < lane_count; i++) {                          \
-      os << ", " << std::string(IntToCString(get_lane(i), buffer)); \
-    }                                                               \
-  }
-SIMD128_INT_PRINT_FUNCTION(Int32x4, 4)
-SIMD128_INT_PRINT_FUNCTION(Uint32x4, 4)
-SIMD128_INT_PRINT_FUNCTION(Int16x8, 8)
-SIMD128_INT_PRINT_FUNCTION(Uint16x8, 8)
-SIMD128_INT_PRINT_FUNCTION(Int8x16, 16)
-SIMD128_INT_PRINT_FUNCTION(Uint8x16, 16)
-#undef SIMD128_INT_PRINT_FUNCTION
-
-
-#define SIMD128_BOOL_PRINT_FUNCTION(type, lane_count)            \
-  void type::type##Print(std::ostream& os) {                     \
-    char arr[100];                                               \
-    Vector<char> buffer(arr, arraysize(arr));                    \
-    os << std::string(get_lane(0) ? "true" : "false");           \
-    for (int i = 1; i < lane_count; i++) {                       \
-      os << ", " << std::string(get_lane(i) ? "true" : "false"); \
-    }                                                            \
-  }
-SIMD128_BOOL_PRINT_FUNCTION(Bool32x4, 4)
-SIMD128_BOOL_PRINT_FUNCTION(Bool16x8, 8)
-SIMD128_BOOL_PRINT_FUNCTION(Bool8x16, 16)
-#undef SIMD128_BOOL_PRINT_FUNCTION
-
 
 void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
   os << "byte array, data starts at " << GetDataStartAddress();

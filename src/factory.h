@@ -469,12 +469,6 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<HeapNumber> NewHeapNumber(MutableMode mode,
                                    PretenureFlag pretenure = NOT_TENURED);
 
-#define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
-  Handle<Type> New##Type(lane_type lanes[lane_count],             \
-                         PretenureFlag pretenure = NOT_TENURED);
-  SIMD128_TYPES(SIMD128_NEW_DECL)
-#undef SIMD128_NEW_DECL
-
   Handle<JSWeakMap> NewJSWeakMap();
 
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);

@@ -1809,9 +1809,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
     Label ident_loop(&assembler, &index_var),
         heap_num_loop(&assembler, &search_num),
-        string_loop(&assembler, &index_var), simd_loop(&assembler),
-        undef_loop(&assembler, &index_var), not_smi(&assembler),
-        not_heap_num(&assembler);
+        string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
+        not_smi(&assembler), not_heap_num(&assembler);
 
     assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
@@ -1828,10 +1827,6 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_heap_num);
     Node* search_type = assembler.LoadMapInstanceType(map);
     assembler.GotoIf(assembler.IsStringInstanceType(search_type), &string_loop);
-    assembler.GotoIf(
-        assembler.Word32Equal(search_type,
-                              assembler.Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
     assembler.Goto(&ident_loop);
 
     assembler.Bind(&ident_loop);
@@ -1942,31 +1937,6 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.Bind(&continue_loop);
       index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
       assembler.Goto(&string_loop);
-    }
-
-    assembler.Bind(&simd_loop);
-    {
-      Label continue_loop(&assembler, &index_var),
-          loop_body(&assembler, &index_var);
-      Node* map = assembler.LoadMap(search_element);
-
-      assembler.Goto(&loop_body);
-      assembler.Bind(&loop_body);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler.LoadMap(element_k);
-      assembler.BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                     &return_true, &continue_loop);
-
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&loop_body);
     }
   }
 
@@ -2246,9 +2216,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
     Label ident_loop(&assembler, &index_var),
         heap_num_loop(&assembler, &search_num),
-        string_loop(&assembler, &index_var), simd_loop(&assembler),
-        undef_loop(&assembler, &index_var), not_smi(&assembler),
-        not_heap_num(&assembler);
+        string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
+        not_smi(&assembler), not_heap_num(&assembler);
 
     assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
@@ -2265,10 +2234,6 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_heap_num);
     Node* search_type = assembler.LoadMapInstanceType(map);
     assembler.GotoIf(assembler.IsStringInstanceType(search_type), &string_loop);
-    assembler.GotoIf(
-        assembler.Word32Equal(search_type,
-                              assembler.Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
     assembler.Goto(&ident_loop);
 
     assembler.Bind(&ident_loop);
@@ -2358,31 +2323,6 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.Bind(&continue_loop);
       index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
       assembler.Goto(&string_loop);
-    }
-
-    assembler.Bind(&simd_loop);
-    {
-      Label continue_loop(&assembler, &index_var),
-          loop_body(&assembler, &index_var);
-      Node* map = assembler.LoadMap(search_element);
-
-      assembler.Goto(&loop_body);
-      assembler.Bind(&loop_body);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler.LoadMap(element_k);
-      assembler.BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                     &return_found, &continue_loop);
-
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&loop_body);
     }
   }
 

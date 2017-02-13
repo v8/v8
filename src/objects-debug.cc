@@ -64,9 +64,6 @@ void HeapObject::HeapObjectVerify() {
     case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
-    case SIMD128_VALUE_TYPE:
-      Simd128Value::cast(this)->Simd128ValueVerify();
-      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
@@ -268,10 +265,6 @@ void Symbol::SymbolVerify() {
 void HeapNumber::HeapNumberVerify() {
   CHECK(IsHeapNumber() || IsMutableHeapNumber());
 }
-
-
-void Simd128Value::Simd128ValueVerify() { CHECK(IsSimd128Value()); }
-
 
 void ByteArray::ByteArrayVerify() {
   CHECK(IsByteArray());
