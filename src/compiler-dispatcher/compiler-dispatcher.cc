@@ -24,6 +24,8 @@ enum class ExceptionHandling { kSwallow, kThrow };
 bool DoNextStepOnMainThread(Isolate* isolate, CompilerDispatcherJob* job,
                             ExceptionHandling exception_handling) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherForgroundStep");
 
   // Ensure we are in the correct context for the job.
   SaveContext save(isolate);
@@ -84,6 +86,9 @@ bool CanRunOnAnyThread(CompilerDispatcherJob* job) {
 
 void DoNextStepOnBackgroundThread(CompilerDispatcherJob* job) {
   DCHECK(CanRunOnAnyThread(job));
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherBackgroundStep");
+
   switch (job->status()) {
     case CompileJobStatus::kReadyToParse:
       job->Parse();
@@ -259,6 +264,8 @@ bool CompilerDispatcher::CanEnqueue(Handle<SharedFunctionInfo> function) {
 }
 
 bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherEnqueue");
   if (!CanEnqueue(function)) return false;
   if (IsEnqueued(function)) return true;
 
@@ -278,6 +285,8 @@ bool CompilerDispatcher::Enqueue(Handle<SharedFunctionInfo> function) {
 }
 
 bool CompilerDispatcher::EnqueueAndStep(Handle<SharedFunctionInfo> function) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherEnqueueAndStep");
   if (IsEnqueued(function)) return true;
   if (!Enqueue(function)) return false;
 
@@ -298,6 +307,8 @@ bool CompilerDispatcher::Enqueue(
     FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
     std::shared_ptr<DeferredHandles> parse_handles,
     std::shared_ptr<DeferredHandles> compile_handles) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherEnqueue");
   if (!CanEnqueue(function)) return false;
   if (IsEnqueued(function)) return true;
 
@@ -322,6 +333,8 @@ bool CompilerDispatcher::EnqueueAndStep(
     FunctionLiteral* literal, std::shared_ptr<Zone> parse_zone,
     std::shared_ptr<DeferredHandles> parse_handles,
     std::shared_ptr<DeferredHandles> compile_handles) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherEnqueueAndStep");
   if (IsEnqueued(function)) return true;
   if (!Enqueue(script, function, literal, parse_zone, parse_handles,
                compile_handles)) {
@@ -348,6 +361,8 @@ bool CompilerDispatcher::IsEnqueued(Handle<SharedFunctionInfo> function) const {
 
 void CompilerDispatcher::WaitForJobIfRunningOnBackground(
     CompilerDispatcherJob* job) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherWaitForBackgroundJob");
   RuntimeCallTimerScope runtimeTimer(
       isolate_, &RuntimeCallStats::CompileWaitForDispatcher);
 
@@ -366,6 +381,8 @@ void CompilerDispatcher::WaitForJobIfRunningOnBackground(
 }
 
 bool CompilerDispatcher::FinishNow(Handle<SharedFunctionInfo> function) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherFinishNow");
   JobMap::const_iterator job = GetJobFor(function);
   CHECK(job != jobs_.end());
 
@@ -542,6 +559,8 @@ void CompilerDispatcher::ConsiderJobForBackgroundProcessing(
 }
 
 void CompilerDispatcher::ScheduleMoreBackgroundTasksIfNeeded() {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompilerDispatcherScheduleMoreBackgroundTasksIfNeeded");
   if (FLAG_single_threaded) return;
   {
     base::LockGuard<base::Mutex> lock(&mutex_);

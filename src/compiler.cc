@@ -517,6 +517,8 @@ bool CompileUnoptimizedInnerFunctions(
     Compiler::EagerInnerFunctionLiterals* literals,
     Compiler::ConcurrencyMode inner_function_mode,
     std::shared_ptr<Zone> parse_zone, CompilationInfo* outer_info) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileUnoptimizedInnerFunctions");
   Isolate* isolate = outer_info->isolate();
   Handle<Script> script = outer_info->script();
   bool is_debug = outer_info->is_debug();
