@@ -47,8 +47,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   Handle<Object> offset;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, offset,
-      Object::ToIndex(isolate, byte_offset,
-                      MessageTemplate::kInvalidDataViewOffset));
+      Object::ToIndex(isolate, byte_offset, MessageTemplate::kInvalidOffset));
 
   // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
   // We currently violate the specification at this point.
@@ -60,8 +59,7 @@ BUILTIN(DataViewConstructor_ConstructStub) {
   // 7. If offset > bufferByteLength, throw a RangeError exception
   if (offset->Number() > buffer_byte_length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate,
-        NewRangeError(MessageTemplate::kInvalidDataViewOffset, offset));
+        isolate, NewRangeError(MessageTemplate::kInvalidOffset, offset));
   }
 
   Handle<Object> view_byte_length;

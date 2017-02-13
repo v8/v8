@@ -389,6 +389,11 @@ test(function() {
 
 // === RangeError ===
 
+// kInvalidOffset
+test(function() {
+  new Uint8Array(new ArrayBuffer(1),2);
+}, "Start offset 2 is outside the bounds of the buffer", RangeError);
+
 // kArrayLengthOutOfRange
 test(function() {
   "use strict";
