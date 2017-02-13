@@ -636,15 +636,16 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
   if (node->ShouldEagerCompile()) {
+    if (eager_literals_) {
+      eager_literals_->Add(new (zone())
+                               ThreadedListZoneEntry<FunctionLiteral*>(node));
+    }
+
     // If the function literal is being eagerly compiled, recurse into the
     // declarations and body of the function literal.
     if (!AstNumbering::Renumber(stack_limit_, zone_, node, eager_literals_)) {
       SetStackOverflow();
       return;
-    }
-    if (eager_literals_) {
-      eager_literals_->Add(new (zone())
-                               ThreadedListZoneEntry<FunctionLiteral*>(node));
     }
   }
   ReserveFeedbackSlots(node);
