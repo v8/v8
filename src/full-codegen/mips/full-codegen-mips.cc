@@ -2685,6 +2685,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ mov(a0, result_register());
       PopOperand(a1);
       __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
+      RestoreContext();
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ LoadRoot(at, Heap::kTrueValueRootIndex);
       Split(eq, v0, Operand(at), if_true, if_false, fall_through);

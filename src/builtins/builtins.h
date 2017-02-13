@@ -641,8 +641,11 @@ class Isolate;
   CPP(ObjectSeal)                                                              \
   CPP(ObjectValues)                                                            \
                                                                                \
-  TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare, 1)                        \
+  /* instanceof */                                                             \
   TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare, 1)               \
+  TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare, 1)                        \
+                                                                               \
+  /* for-in */                                                                 \
   TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter, 1)                   \
   TFS(ForInNext, BUILTIN, kNoExtraICState, ForInNext, 1)                       \
   TFS(ForInPrepare, BUILTIN, kNoExtraICState, ForInPrepare, 3)                 \

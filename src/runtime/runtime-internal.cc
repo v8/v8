@@ -225,6 +225,18 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowNonCallableInInstanceOfCheck) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonCallableInInstanceOfCheck));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNonObjectInInstanceOfCheck) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

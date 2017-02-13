@@ -2809,10 +2809,6 @@ void Heap::CreateInitialObjects() {
 
   cell = factory->NewPropertyCell();
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_has_instance_protector(*cell);
-
-  cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_iterator_protector(*cell);
 
   Handle<Cell> is_concat_spreadable_cell = factory->NewCell(

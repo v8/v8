@@ -2911,6 +2911,10 @@ Node* CodeStubAssembler::IsCallableMap(Node* map) {
       Int32Constant(0));
 }
 
+Node* CodeStubAssembler::IsCallable(Node* object) {
+  return IsCallableMap(LoadMap(object));
+}
+
 Node* CodeStubAssembler::IsConstructorMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
   return Word32NotEqual(
@@ -7962,33 +7966,90 @@ Node* CodeStubAssembler::GetSuperConstructor(Node* active_function,
 
 Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
                                     Node* context) {
-  Label return_runtime(this, Label::kDeferred), end(this);
-  Variable result(this, MachineRepresentation::kTagged);
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label if_notcallable(this, Label::kDeferred),
+      if_notreceiver(this, Label::kDeferred), if_otherhandler(this),
+      if_nohandler(this, Label::kDeferred), return_true(this),
+      return_false(this), return_result(this, &var_result);
 
-  // Check if no one installed @@hasInstance somewhere.
-  GotoUnless(
-      WordEqual(LoadObjectField(LoadRoot(Heap::kHasInstanceProtectorRootIndex),
-                                PropertyCell::kValueOffset),
-                SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
-      &return_runtime);
+  // Ensure that the {callable} is actually a JSReceiver.
+  GotoIf(TaggedIsSmi(callable), &if_notreceiver);
+  GotoUnless(IsJSReceiver(callable), &if_notreceiver);
 
-  // Check if {callable} is a valid receiver.
-  GotoIf(TaggedIsSmi(callable), &return_runtime);
-  GotoUnless(IsCallableMap(LoadMap(callable)), &return_runtime);
+  // Load the @@hasInstance property from {callable}.
+  Node* inst_of_handler = CallStub(CodeFactory::GetProperty(isolate()), context,
+                                   callable, HasInstanceSymbolConstant());
 
-  // Use the inline OrdinaryHasInstance directly.
-  result.Bind(OrdinaryHasInstance(context, callable, object));
-  Goto(&end);
-
-  // TODO(bmeurer): Use GetPropertyStub here once available.
-  Bind(&return_runtime);
+  // Optimize for the likely case where {inst_of_handler} is the builtin
+  // Function.prototype[@@hasInstance] method, and emit a direct call in
+  // that case without any additional checking.
+  Node* native_context = LoadNativeContext(context);
+  Node* function_has_instance =
+      LoadContextElement(native_context, Context::FUNCTION_HAS_INSTANCE_INDEX);
+  GotoUnless(WordEqual(inst_of_handler, function_has_instance),
+             &if_otherhandler);
   {
-    result.Bind(CallRuntime(Runtime::kInstanceOf, context, object, callable));
-    Goto(&end);
+    // Call to Function.prototype[@@hasInstance] directly.
+    Callable builtin(isolate()->builtins()->FunctionPrototypeHasInstance(),
+                     CallTrampolineDescriptor(isolate()));
+    Node* result = CallJS(builtin, context, inst_of_handler, callable, object);
+    var_result.Bind(result);
+    Goto(&return_result);
   }
 
-  Bind(&end);
-  return result.value();
+  Bind(&if_otherhandler);
+  {
+    // Check if there's actually an {inst_of_handler}.
+    GotoIf(IsNull(inst_of_handler), &if_nohandler);
+    GotoIf(IsUndefined(inst_of_handler), &if_nohandler);
+
+    // Call the {inst_of_handler} for {callable} and {object}.
+    Node* result = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        context, inst_of_handler, callable, object);
+
+    // Convert the {result} to a Boolean.
+    BranchIfToBooleanIsTrue(result, &return_true, &return_false);
+  }
+
+  Bind(&if_nohandler);
+  {
+    // Ensure that the {callable} is actually Callable.
+    GotoUnless(IsCallable(callable), &if_notcallable);
+
+    // Use the OrdinaryHasInstance algorithm.
+    Node* result = CallStub(CodeFactory::OrdinaryHasInstance(isolate()),
+                            context, callable, object);
+    var_result.Bind(result);
+    Goto(&return_result);
+  }
+
+  Bind(&if_notcallable);
+  {
+    Node* result =
+        CallRuntime(Runtime::kThrowNonCallableInInstanceOfCheck, context);
+    var_result.Bind(result);
+    Goto(&return_result);
+  }
+
+  Bind(&if_notreceiver);
+  {
+    Node* result =
+        CallRuntime(Runtime::kThrowNonObjectInInstanceOfCheck, context);
+    var_result.Bind(result);
+    Goto(&return_result);
+  }
+
+  Bind(&return_true);
+  var_result.Bind(TrueConstant());
+  Goto(&return_result);
+
+  Bind(&return_false);
+  var_result.Bind(FalseConstant());
+  Goto(&return_result);
+
+  Bind(&return_result);
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::NumberInc(Node* value) {

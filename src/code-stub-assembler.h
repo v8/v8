@@ -33,6 +33,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
   V(FixedDoubleArrayMap, FixedDoubleArrayMap)         \
   V(FunctionTemplateInfoMap, FunctionTemplateInfoMap) \
+  V(has_instance_symbol, HasInstanceSymbol)           \
   V(HeapNumberMap, HeapNumberMap)                     \
   V(NoClosuresCellMap, NoClosuresCellMap)             \
   V(OneClosureCellMap, OneClosureCellMap)             \
@@ -698,6 +699,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSReceiver(Node* object);
   Node* IsMap(Node* object);
   Node* IsCallableMap(Node* map);
+  Node* IsCallable(Node* object);
   Node* IsBoolean(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbol(Node* object);
