@@ -9049,6 +9049,12 @@ void debug::ChangeBreakOnException(Isolate* isolate, ExceptionBreakState type) {
                                                     type != NoBreakOnException);
 }
 
+void debug::SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  isolate->debug()->set_break_points_active(is_active);
+}
+
 void debug::SetOutOfMemoryCallback(Isolate* isolate,
                                    OutOfMemoryCallback callback, void* data) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);

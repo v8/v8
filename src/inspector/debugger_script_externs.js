@@ -72,30 +72,12 @@ Debug.findBreakPointActualLocations = function(breakId) {}
  */
 Debug.findBreakPoint = function(breakId, remove) {}
 
-/** @return {!DebuggerFlags} */
-Debug.debuggerFlags = function() {}
-
-
 /** @enum */
 const BreakPositionAlignment = {
     Statement: 0,
     BreakPosition: 1
 };
 Debug.BreakPositionAlignment = BreakPositionAlignment;
-
-
-/** @interface */
-function DebuggerFlag() {}
-
-/** @param {boolean} value */
-DebuggerFlag.prototype.setValue = function(value) {}
-
-
-/** @typedef {{
- *    breakPointsActive: !DebuggerFlag
- *  }}
- */
-var DebuggerFlags;
 
 /** @const */
 var LiveEdit = {}

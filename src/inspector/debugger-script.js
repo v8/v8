@@ -187,15 +187,6 @@ DebuggerScript.clearBreakpoints = function(execState)
 }
 
 /**
- * @param {!ExecutionState} execState
- * @param {!{enabled: boolean}} info
- */
-DebuggerScript.setBreakpointsActivated = function(execState, info)
-{
-    Debug.debuggerFlags().breakPointsActive.setValue(info.enabled);
-}
-
-/**
  * @param {!Array<!BreakPoint>|undefined} breakpoints
  */
 DebuggerScript.getBreakpointNumbers = function(breakpoints)

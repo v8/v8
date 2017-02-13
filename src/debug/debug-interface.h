@@ -83,6 +83,8 @@ enum ExceptionBreakState {
  */
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
 
+void SetBreakPointsActive(Isolate* isolate, bool is_active);
+
 enum StepAction {
   StepOut = 0,   // Step out of the current function.
   StepNext = 1,  // Step to the next statement in the current function.
