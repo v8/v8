@@ -1130,12 +1130,8 @@ void LoadIC::UpdateCaches(LookupIterator* lookup) {
       lookup->state() == LookupIterator::ACCESS_CHECK) {
     code = slow_stub();
   } else if (!lookup->IsFound()) {
-    if (IsLoadIC() || IsLoadGlobalIC()) {
-      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
-      code = LoadNonExistent(receiver_map(), lookup->name());
-    } else {
-      code = slow_stub();
-    }
+    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNonexistentDH);
+    code = LoadNonExistent(receiver_map(), lookup->name());
   } else {
     if (IsLoadGlobalIC() && lookup->state() == LookupIterator::DATA &&
         lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
