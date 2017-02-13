@@ -420,7 +420,6 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
     Node* context, Node* promise, Node* on_resolve, Node* on_reject,
     Node* deferred_promise, Node* deferred_on_resolve,
     Node* deferred_on_reject) {
-  Node* const native_context = LoadNativeContext(context);
 
   Variable var_on_resolve(this, MachineRepresentation::kTagged),
       var_on_reject(this, MachineRepresentation::kTagged);
@@ -432,14 +431,17 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
       append_callbacks(this);
   GotoIf(TaggedIsSmi(on_resolve), &if_onresolvenotcallable);
 
+  Isolate* isolate = this->isolate();
   Node* const on_resolve_map = LoadMap(on_resolve);
   Branch(IsCallableMap(on_resolve_map), &onrejectcheck,
          &if_onresolvenotcallable);
 
   Bind(&if_onresolvenotcallable);
   {
-    var_on_resolve.Bind(LoadContextElement(
-        native_context, Context::PROMISE_ID_RESOLVE_HANDLER_INDEX));
+    Isolate* isolate = this->isolate();
+    Node* const default_resolve_handler_symbol = HeapConstant(
+        isolate->factory()->promise_default_resolve_handler_symbol());
+    var_on_resolve.Bind(default_resolve_handler_symbol);
     Goto(&onrejectcheck);
   }
 
@@ -454,8 +456,9 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
 
     Bind(&if_onrejectnotcallable);
     {
-      var_on_reject.Bind(LoadContextElement(
-          native_context, Context::PROMISE_ID_REJECT_HANDLER_INDEX));
+      Node* const default_reject_handler_symbol = HeapConstant(
+          isolate->factory()->promise_default_reject_handler_symbol());
+      var_on_reject.Bind(default_reject_handler_symbol);
       Goto(&append_callbacks);
     }
   }
@@ -1265,25 +1268,55 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
   Bind(&run_handler);
   {
-    Callable call_callable = CodeFactory::Call(isolate);
-    Node* const result =
-        CallJS(call_callable, context, handler, UndefinedConstant(), value);
+    Label if_defaulthandler(this), if_callablehandler(this),
+        if_internalhandler(this), if_customhandler(this, Label::kDeferred);
+    Variable var_result(this, MachineRepresentation::kTagged);
 
-    GotoIfException(result, &if_rejectpromise, &var_reason);
+    Branch(IsSymbol(handler), &if_defaulthandler, &if_callablehandler);
 
-    Label if_internalhandler(this), if_customhandler(this, Label::kDeferred);
-    Branch(IsUndefined(deferred_on_resolve), &if_internalhandler,
-           &if_customhandler);
+    Bind(&if_defaulthandler);
+    {
+      Label if_resolve(this), if_reject(this);
+      Node* const default_resolve_handler_symbol = HeapConstant(
+          isolate->factory()->promise_default_resolve_handler_symbol());
+      Branch(WordEqual(default_resolve_handler_symbol, handler), &if_resolve,
+             &if_reject);
+
+      Bind(&if_resolve);
+      {
+        var_result.Bind(value);
+        Branch(IsUndefined(deferred_on_resolve), &if_internalhandler,
+               &if_customhandler);
+      }
+
+      Bind(&if_reject);
+      {
+        var_reason.Bind(value);
+        Goto(&if_rejectpromise);
+      }
+    }
+
+    Bind(&if_callablehandler);
+    {
+      Callable call_callable = CodeFactory::Call(isolate);
+      Node* const result =
+          CallJS(call_callable, context, handler, UndefinedConstant(), value);
+      var_result.Bind(result);
+      GotoIfException(result, &if_rejectpromise, &var_reason);
+      Branch(IsUndefined(deferred_on_resolve), &if_internalhandler,
+             &if_customhandler);
+    }
 
     Bind(&if_internalhandler);
-    InternalResolvePromise(context, deferred_promise, result);
+    InternalResolvePromise(context, deferred_promise, var_result.value());
     Goto(&promisehook_after);
 
     Bind(&if_customhandler);
     {
+      Callable call_callable = CodeFactory::Call(isolate);
       Node* const maybe_exception =
           CallJS(call_callable, context, deferred_on_resolve,
-                 UndefinedConstant(), result);
+                 UndefinedConstant(), var_result.value());
       GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
       Goto(&promisehook_after);
     }

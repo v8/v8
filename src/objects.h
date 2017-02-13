@@ -8507,13 +8507,15 @@ class JSPromise : public JSObject {
   // 1) Undefined -- This is the zero state when there is no callback
   // or deferred fields registered.
   //
-  // 2) Object -- There is a single Callable directly attached to the
+  // 2) Object -- There is a single callback directly attached to the
   // fulfill_reactions, reject_reactions and the deferred fields are
   // directly attached to the slots. In this state, deferred_promise
   // is a JSReceiver and deferred_on_{resolve, reject} are Callables.
   //
   // 3) FixedArray -- There is more than one callback and deferred
   // fields attached to a FixedArray.
+  //
+  // The callback can be a Callable or a Symbol.
   DECL_ACCESSORS(deferred_promise, Object)
   DECL_ACCESSORS(deferred_on_resolve, Object)
   DECL_ACCESSORS(deferred_on_reject, Object)

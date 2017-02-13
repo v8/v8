@@ -1878,6 +1878,11 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
                                Handle<JSReceiver>::cast(deferred_promise));
   }
 
+  if (queue->IsSymbol()) {
+    return InternalPromiseHasUserDefinedRejectHandler(
+        isolate, Handle<JSPromise>::cast(deferred_promise));
+  }
+
   Handle<FixedArray> queue_arr = Handle<FixedArray>::cast(queue);
   Handle<FixedArray> deferred_promise_arr =
       Handle<FixedArray>::cast(deferred_promise);

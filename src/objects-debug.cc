@@ -922,10 +922,11 @@ void JSPromise::JSPromiseVerify() {
         deferred_on_reject()->IsCallable() ||
         deferred_on_reject()->IsFixedArray());
   CHECK(fulfill_reactions()->IsUndefined(isolate) ||
-        fulfill_reactions()->IsCallable() ||
+        fulfill_reactions()->IsCallable() || fulfill_reactions()->IsSymbol() ||
         fulfill_reactions()->IsFixedArray());
   CHECK(reject_reactions()->IsUndefined(isolate) ||
-        reject_reactions()->IsCallable() || reject_reactions()->IsFixedArray());
+        reject_reactions()->IsSymbol() || reject_reactions()->IsCallable() ||
+        reject_reactions()->IsFixedArray());
 }
 
 void JSRegExp::JSRegExpVerify() {
@@ -1051,7 +1052,8 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(IsPromiseReactionJobInfo());
   CHECK(value()->IsObject());
-  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
+  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable() ||
+        tasks()->IsSymbol());
   CHECK(deferred_promise()->IsUndefined(isolate) ||
         deferred_promise()->IsJSReceiver() ||
         deferred_promise()->IsFixedArray());
