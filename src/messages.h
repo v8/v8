@@ -296,7 +296,7 @@ class ErrorUtils : public AllStatic {
   T(DebuggerFrame, "Debugger: Invalid frame index.")                           \
   T(DebuggerType, "Debugger: Parameters have wrong types.")                    \
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
-  T(DefineDisallowed, "Cannot define property:%, object is not extensible.")   \
+  T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
   T(ExtendsValueNotConstructor,                                                \
@@ -352,7 +352,7 @@ class ErrorUtils : public AllStatic {
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
-  T(ObjectNotExtensible, "Can't add property %, object is not extensible")     \
+  T(ObjectNotExtensible, "Cannot add property %, object is not extensible")    \
   T(ObjectSetterExpectingFunction,                                             \
     "Object.prototype.__defineSetter__: Expecting function")                   \
   T(ObjectSetterCallable, "Setter must be a function: %")                      \

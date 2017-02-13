@@ -115,7 +115,7 @@ test(function() {
   var o = {};
   Object.preventExtensions(o);
   Object.defineProperty(o, "x", { value: 1 });
-}, "Cannot define property:x, object is not extensible.", TypeError);
+}, "Cannot define property x, object is not extensible", TypeError);
 
 // kFirstArgumentNotRegExp
 test(function() {
@@ -242,7 +242,7 @@ test(function() {
   var o = {};
   Object.freeze(o);
   o.a = 1;
-}, "Can't add property a, object is not extensible", TypeError);
+}, "Cannot add property a, object is not extensible", TypeError);
 
 // kObjectSetterExpectingFunction
 test(function() {
