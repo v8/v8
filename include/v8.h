@@ -2696,6 +2696,7 @@ class V8_EXPORT Symbol : public Name {
   // Well-known symbols
   static Local<Symbol> GetIterator(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetToPrimitive(Isolate* isolate);
   static Local<Symbol> GetToStringTag(Isolate* isolate);
   static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
 
