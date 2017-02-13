@@ -21,6 +21,40 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
+  Node* DirectStringData(Node* string, Node* string_instance_type) {
+    // Compute the effective offset of the first character.
+    Variable var_data(this, MachineType::PointerRepresentation());
+    Label if_sequential(this), if_external(this), if_join(this);
+    Branch(Word32Equal(Word32And(string_instance_type,
+                                 Int32Constant(kStringRepresentationMask)),
+                       Int32Constant(kSeqStringTag)),
+           &if_sequential, &if_external);
+
+    Bind(&if_sequential);
+    {
+      var_data.Bind(IntPtrAdd(
+          IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
+          BitcastTaggedToWord(string)));
+      Goto(&if_join);
+    }
+
+    Bind(&if_external);
+    {
+      // This is only valid for ExternalStrings where the resource data
+      // pointer is cached (i.e. no short external strings).
+      CSA_ASSERT(this, Word32NotEqual(
+                           Word32And(string_instance_type,
+                                     Int32Constant(kShortExternalStringMask)),
+                           Int32Constant(kShortExternalStringTag)));
+      var_data.Bind(LoadObjectField(string, ExternalString::kResourceDataOffset,
+                                    MachineType::Pointer()));
+      Goto(&if_join);
+    }
+
+    Bind(&if_join);
+    return var_data.value();
+  }
+
   Node* LoadOneByteChar(Node* string, Node* index) {
     return Load(MachineType::Uint8(), string, OneByteCharOffset(index));
   }
@@ -155,43 +189,45 @@ void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
                      Int32Constant(kBothInternalizedTag)),
          &if_notequal);
 
-  // Check that both {lhs} and {rhs} are flat one-byte strings.
-  int const kBothSeqOneByteStringMask =
-      kStringEncodingMask | kStringRepresentationMask |
-      ((kStringEncodingMask | kStringRepresentationMask) << 8);
-  int const kBothSeqOneByteStringTag =
-      kOneByteStringTag | kSeqStringTag |
-      ((kOneByteStringTag | kSeqStringTag) << 8);
-  Label if_bothonebyteseqstrings(this), if_notbothonebyteseqstrings(this);
+  // Check that both {lhs} and {rhs} are flat one-byte strings, and that
+  // in case of ExternalStrings the data pointer is cached..
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  int const kBothDirectOneByteStringMask =
+      kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask |
+      ((kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask)
+       << 8);
+  int const kBothDirectOneByteStringTag =
+      kOneByteStringTag | (kOneByteStringTag << 8);
+  Label if_bothdirectonebytestrings(this), if_notbothdirectonebytestrings(this);
   Branch(Word32Equal(Word32And(both_instance_types,
-                               Int32Constant(kBothSeqOneByteStringMask)),
-                     Int32Constant(kBothSeqOneByteStringTag)),
-         &if_bothonebyteseqstrings, &if_notbothonebyteseqstrings);
+                               Int32Constant(kBothDirectOneByteStringMask)),
+                     Int32Constant(kBothDirectOneByteStringTag)),
+         &if_bothdirectonebytestrings, &if_notbothdirectonebytestrings);
 
-  Bind(&if_bothonebyteseqstrings);
+  Bind(&if_bothdirectonebytestrings);
   {
     // Compute the effective offset of the first character.
-    Node* begin =
-        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag);
+    Node* lhs_data = DirectStringData(lhs, lhs_instance_type);
+    Node* rhs_data = DirectStringData(rhs, rhs_instance_type);
 
     // Compute the first offset after the string from the length.
-    Node* end = IntPtrAdd(begin, SmiUntag(lhs_length));
+    Node* length = SmiUntag(lhs_length);
 
     // Loop over the {lhs} and {rhs} strings to see if they are equal.
     Variable var_offset(this, MachineType::PointerRepresentation());
     Label loop(this, &var_offset);
-    var_offset.Bind(begin);
+    var_offset.Bind(IntPtrConstant(0));
     Goto(&loop);
     Bind(&loop);
     {
       // If {offset} equals {end}, no difference was found, so the
       // strings are equal.
       Node* offset = var_offset.value();
-      GotoIf(WordEqual(offset, end), &if_equal);
+      GotoIf(WordEqual(offset, length), &if_equal);
 
       // Load the next characters from {lhs} and {rhs}.
-      Node* lhs_value = Load(MachineType::Uint8(), lhs, offset);
-      Node* rhs_value = Load(MachineType::Uint8(), rhs, offset);
+      Node* lhs_value = Load(MachineType::Uint8(), lhs_data, offset);
+      Node* rhs_value = Load(MachineType::Uint8(), rhs_data, offset);
 
       // Check if the characters match.
       GotoIf(Word32NotEqual(lhs_value, rhs_value), &if_notequal);
@@ -202,7 +238,7 @@ void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
     }
   }
 
-  Bind(&if_notbothonebyteseqstrings);
+  Bind(&if_notbothdirectonebytestrings);
   {
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
