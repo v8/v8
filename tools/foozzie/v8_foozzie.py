@@ -307,6 +307,10 @@ if __name__ == "__main__":
     print FAILURE_HEADER_TEMPLATE % dict(
         configs='', source_key='', suppression='wrong_usage')
     result = RETURN_FAIL
+  except MemoryError:
+    # Running out of memory happens occasionally but is not actionable.
+    print '# V8 correctness - pass'
+    result = RETURN_PASS
   except Exception as e:
     print FAILURE_HEADER_TEMPLATE % dict(
         configs='', source_key='', suppression='internal_error')
