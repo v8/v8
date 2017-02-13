@@ -33,17 +33,33 @@ MAX_LINE_LENGTH = 512
 # For ignoring lines before carets and to ignore caret positions.
 CARET_RE = re.compile(r'^\s*\^\s*$')
 
-# Ignore by original source files. Map from bug->relative file paths in V8,
-# e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
+# Ignore by original source files. Map from bug->list of relative file paths in
+# V8, e.g. '/v8/test/mjsunit/d8-performance-now.js' including /v8/. A test will
 # be suppressed if one of the files below was used to mutate the test.
 IGNORE_SOURCES = {
   # This contains a usage of f.arguments that often fires.
-  'crbug.com/662424': '/v8/test/mjsunit/regress/regress-2989.js',
+  'crbug.com/662424': ['/v8/test/mjsunit/regress/regress-2989.js'],
 
-  # crbug.com/680110
-  'crbug.com/680110': '/v8/test/mjsunit/asm/pointer-masking.js',
-  'crbug.com/680110': '/v8/test/mjsunit/compiler/regress-443744.js',
-  'crbug.com/680110': '/v8/test/mjsunit/regress/wasm/regression-647649.js',
+  # crbug.com/681088
+  'crbug.com/681088': [
+    '/v8/test/mjsunit/asm/asm-validation.js',
+    '/v8/test/mjsunit/asm/b5528-comma.js',
+    '/v8/test/mjsunit/asm/pointer-masking.js',
+    '/v8/test/mjsunit/compiler/regress-443744.js',
+    '/v8/test/mjsunit/regress/regress-599719.js',
+    '/v8/test/mjsunit/regress/wasm/regression-647649.js',
+    '/v8/test/mjsunit/wasm/asm-wasm.js',
+    '/v8/test/mjsunit/wasm/asm-wasm-deopt.js',
+    '/v8/test/mjsunit/wasm/asm-wasm-heap.js',
+    '/v8/test/mjsunit/wasm/asm-wasm-literals.js',
+    '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
+  ],
+
+  # crbug.com/681241
+  'crbug.com/681241': [
+    '/v8/test/mjsunit/regress/regress-617526.js',
+    '/v8/test/mjsunit/regress/wasm/regression-02862.js',
+  ],
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
@@ -73,6 +89,12 @@ IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
         re.compile(r'RangeError', re.S),
+    'crbug.com/667678':
+        re.compile(r'\[native code\]', re.S),
+    'crbug.com/681806':
+        re.compile(r'WebAssembly\.Instance', re.S),
+    'crbug.com/681088':
+        re.compile(r'TypeError: Cannot read property \w+ of undefined', re.S),
   },
   'validate_asm': {
     'validate_asm':
@@ -113,6 +135,9 @@ ALLOWED_LINE_DIFFS = [
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
+
+  # crbug.com/681326
+  r'^(.*<anonymous>):\d+:\d+(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
@@ -280,9 +305,10 @@ class V8Suppression(Suppression):
     return False
 
   def ignore_by_metadata(self, metadata):
-    for bug, source in IGNORE_SOURCES.iteritems():
-      if source in metadata['sources']:
-        return bug
+    for bug, sources in IGNORE_SOURCES.iteritems():
+      for source in sources:
+        if source in metadata['sources']:
+          return bug
     return False
 
   def ignore_by_output1(self, output):

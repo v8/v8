@@ -151,6 +151,8 @@ namespace interpreter {
     OperandType::kRegCount, OperandType::kIdx)                                 \
   V(CallProperty, AccumulatorUse::kWrite, OperandType::kReg,                   \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
+  V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kReg,                 \
+    OperandType::kRegList, OperandType::kRegCount)                             \
   V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
   V(CallRuntime, AccumulatorUse::kWrite, OperandType::kRuntimeId,              \
@@ -167,8 +169,8 @@ namespace interpreter {
   /* New operators */                                                          \
   V(New, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kRegList, \
     OperandType::kRegCount, OperandType::kIdx)                                 \
-  V(NewWithSpread, AccumulatorUse::kWrite, OperandType::kRegList,              \
-    OperandType::kRegCount)                                                    \
+  V(NewWithSpread, AccumulatorUse::kReadWrite, OperandType::kReg,              \
+    OperandType::kRegList, OperandType::kRegCount)                             \
                                                                                \
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
@@ -226,9 +228,9 @@ namespace interpreter {
                                                                                \
   /* Control Flow -- carefully ordered for efficient checks */                 \
   /* - [Unconditional jumps] */                                                \
-  V(JumpLoop, AccumulatorUse::kNone, OperandType::kImm, OperandType::kImm)     \
+  V(JumpLoop, AccumulatorUse::kNone, OperandType::kUImm, OperandType::kImm)    \
   /* - [Forward jumps] */                                                      \
-  V(Jump, AccumulatorUse::kNone, OperandType::kImm)                            \
+  V(Jump, AccumulatorUse::kNone, OperandType::kUImm)                           \
   /* - [Start constant jumps] */                                               \
   V(JumpConstant, AccumulatorUse::kNone, OperandType::kIdx)                    \
   /* - [Conditional jumps] */                                                  \
@@ -244,15 +246,15 @@ namespace interpreter {
   V(JumpIfToBooleanFalseConstant, AccumulatorUse::kRead, OperandType::kIdx)    \
   /* - [End constant jumps] */                                                 \
   /* - [Conditional immediate jumps] */                                        \
-  V(JumpIfToBooleanTrue, AccumulatorUse::kRead, OperandType::kImm)             \
-  V(JumpIfToBooleanFalse, AccumulatorUse::kRead, OperandType::kImm)            \
+  V(JumpIfToBooleanTrue, AccumulatorUse::kRead, OperandType::kUImm)            \
+  V(JumpIfToBooleanFalse, AccumulatorUse::kRead, OperandType::kUImm)           \
   /* - [End ToBoolean jumps] */                                                \
-  V(JumpIfTrue, AccumulatorUse::kRead, OperandType::kImm)                      \
-  V(JumpIfFalse, AccumulatorUse::kRead, OperandType::kImm)                     \
-  V(JumpIfNull, AccumulatorUse::kRead, OperandType::kImm)                      \
-  V(JumpIfUndefined, AccumulatorUse::kRead, OperandType::kImm)                 \
-  V(JumpIfJSReceiver, AccumulatorUse::kRead, OperandType::kImm)                \
-  V(JumpIfNotHole, AccumulatorUse::kRead, OperandType::kImm)                   \
+  V(JumpIfTrue, AccumulatorUse::kRead, OperandType::kUImm)                     \
+  V(JumpIfFalse, AccumulatorUse::kRead, OperandType::kUImm)                    \
+  V(JumpIfNull, AccumulatorUse::kRead, OperandType::kUImm)                     \
+  V(JumpIfUndefined, AccumulatorUse::kRead, OperandType::kUImm)                \
+  V(JumpIfJSReceiver, AccumulatorUse::kRead, OperandType::kUImm)               \
+  V(JumpIfNotHole, AccumulatorUse::kRead, OperandType::kUImm)                  \
                                                                                \
   /* Complex flow control For..in */                                           \
   V(ForInPrepare, AccumulatorUse::kNone, OperandType::kReg,                    \

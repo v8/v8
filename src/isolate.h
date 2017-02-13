@@ -35,6 +35,7 @@ namespace internal {
 
 class AccessCompilerData;
 class AddressToIndexHashMap;
+class AstStringConstants;
 class BasicBlockProfiler;
 class Bootstrapper;
 class CancelableTaskManager;
@@ -1121,9 +1122,12 @@ class Isolate {
   int GetNextUniqueSharedFunctionInfoId() { return next_unique_sfi_id_++; }
 #endif
 
-  Address promise_hook_address() {
-    return reinterpret_cast<Address>(&promise_hook_);
+  Address promise_hook_or_debug_is_active_address() {
+    return reinterpret_cast<Address>(&promise_hook_or_debug_is_active_);
   }
+
+  void DebugStateUpdated();
+
   void SetPromiseHook(PromiseHook hook);
   void RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                       Handle<Object> parent);
@@ -1153,6 +1157,10 @@ class Isolate {
 
   CancelableTaskManager* cancelable_task_manager() {
     return cancelable_task_manager_;
+  }
+
+  AstStringConstants* ast_string_constants() const {
+    return ast_string_constants_;
   }
 
   interpreter::Interpreter* interpreter() const { return interpreter_; }
@@ -1188,6 +1196,9 @@ class Isolate {
 #ifdef USE_SIMULATOR
   base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
 #endif
+
+  void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
+  bool allow_atomics_wait() { return allow_atomics_wait_; }
 
  protected:
   explicit Isolate(bool enable_serializer);
@@ -1362,6 +1373,7 @@ class Isolate {
   AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::AtomicValue<RAILMode> rail_mode_;
+  bool promise_hook_or_debug_is_active_;
   PromiseHook promise_hook_;
   base::Mutex rail_mutex_;
   double load_start_time_ms_;
@@ -1396,6 +1408,8 @@ class Isolate {
   HeapProfiler* heap_profiler_;
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
+
+  AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
 
@@ -1465,8 +1479,11 @@ class Isolate {
   base::Mutex simulator_i_cache_mutex_;
 #endif
 
+  bool allow_atomics_wait_;
+
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
+  friend class HeapTester;
   friend class OptimizingCompileDispatcher;
   friend class SweeperThread;
   friend class ThreadManager;

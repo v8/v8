@@ -43,6 +43,7 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceDebugIsActive(Node* node);
   Reduction ReduceDeoptimizeNow(Node* node);
   Reduction ReduceGeneratorClose(Node* node);
+  Reduction ReduceGeneratorGetContext(Node* node);
   Reduction ReduceGeneratorGetInputOrDebugPos(Node* node);
   Reduction ReduceGeneratorGetResumeMode(Node* node);
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
@@ -59,6 +60,16 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceToString(Node* node);
   Reduction ReduceCall(Node* node);
   Reduction ReduceGetSuperConstructor(Node* node);
+
+  // TODO(turbofan): collection.js support; drop once Maps and Sets are
+  // converted to proper CodeStubAssembler based builtins.
+  Reduction ReduceJSCollectionGetTable(Node* node);
+  Reduction ReduceStringGetRawHashField(Node* node);
+  Reduction ReduceTheHole(Node* node);
+
+  // TODO(turbofan): JavaScript builtins support; drop once all uses of
+  // %_ClassOf in JavaScript builtins are eliminated.
+  Reduction ReduceClassOf(Node* node);
 
   Reduction Change(Node* node, const Operator* op);
   Reduction Change(Node* node, const Operator* op, Node* a, Node* b);

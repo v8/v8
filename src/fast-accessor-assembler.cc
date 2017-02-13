@@ -184,12 +184,7 @@ FastAccessorAssembler::ValueId FastAccessorAssembler::Call(
   CallInterfaceDescriptor descriptor = stub.GetCallInterfaceDescriptor();
   DCHECK_EQ(4, descriptor.GetParameterCount());
   DCHECK_EQ(0, descriptor.GetStackParameterCount());
-  // TODO(vogelheim): There is currently no clean way to retrieve the context
-  //     parameter for a stub and the implementation details are hidden in
-  //     compiler/*. The context_paramter is computed as:
-  //       Linkage::GetJSCallContextParamIndex(descriptor->JSParameterCount())
-  const int kContextParameter = 3;
-  Node* context = assembler_->Parameter(kContextParameter);
+  Node* context = assembler_->GetJSContextParameter();
   Node* target = assembler_->HeapConstant(stub.GetCode());
 
   Node* call = assembler_->CallStub(

@@ -361,8 +361,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   STATIC_ASSERT(kSourcePositionTableOffset + kPointerSize ==
                 kTypeFeedbackInfoOffset);
   STATIC_ASSERT(kTypeFeedbackInfoOffset + kPointerSize ==
-                kProtectedInstructionOffset);
-  STATIC_ASSERT(kProtectedInstructionOffset + kPointerSize ==
                 kNextCodeLinkOffset);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
@@ -440,6 +438,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
         return ReturnType();
       case kConsStringTag:
         return Op::template apply<ConsString::BodyDescriptor>(p1, p2, p3);
+      case kThinStringTag:
+        return Op::template apply<ThinString::BodyDescriptor>(p1, p2, p3);
       case kSlicedStringTag:
         return Op::template apply<SlicedString::BodyDescriptor>(p1, p2, p3);
       case kExternalStringTag:

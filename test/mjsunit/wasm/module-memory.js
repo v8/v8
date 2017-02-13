@@ -12,7 +12,7 @@ var kMemSize = 65536;
 function genModule(memory) {
   var builder = new WasmModuleBuilder();
 
-  builder.addImportedMemory("", "memory", 1, 1);
+  builder.addImportedMemory("", "memory", 1);
   builder.exportMemoryAs("memory");
   builder.addFunction("main", kSig_i_i)
     .addBody([

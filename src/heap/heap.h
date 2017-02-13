@@ -58,7 +58,7 @@ using v8::MemoryPressureLevel;
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
-  V(FixedArray, empty_literals_array, EmptyLiteralsArray)                      \
+  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
@@ -66,8 +66,6 @@ using v8::MemoryPressureLevel;
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
   /* being compacted.                                                       */ \
-  /* Empty scope info */                                                       \
-  V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
   /* Oddballs */                                                               \
   V(Oddball, no_interceptor_result_sentinel, NoInterceptorResultSentinel)      \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
@@ -101,6 +99,8 @@ using v8::MemoryPressureLevel;
   V(Map, string_map, StringMap)                                                \
   V(Map, cons_one_byte_string_map, ConsOneByteStringMap)                       \
   V(Map, cons_string_map, ConsStringMap)                                       \
+  V(Map, thin_one_byte_string_map, ThinOneByteStringMap)                       \
+  V(Map, thin_string_map, ThinStringMap)                                       \
   V(Map, sliced_string_map, SlicedStringMap)                                   \
   V(Map, sliced_one_byte_string_map, SlicedOneByteStringMap)                   \
   V(Map, external_string_map, ExternalStringMap)                               \
@@ -170,7 +170,7 @@ using v8::MemoryPressureLevel;
   V(Cell, species_protector, SpeciesProtector)                                 \
   V(PropertyCell, string_length_protector, StringLengthProtector)              \
   V(Cell, fast_array_iteration_protector, FastArrayIterationProtector)         \
-  V(Cell, array_iterator_protector, ArrayIteratorProtector)                    \
+  V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_neutering_protector,                            \
     ArrayBufferNeuteringProtector)                                             \
   /* Special numbers */                                                        \
@@ -216,6 +216,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   /* Configured values */                                                      \
   V(TemplateList, message_listeners, MessageListeners)                         \
+  V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
   /* Oddball maps */                                                           \
@@ -747,9 +748,12 @@ class Heap {
   // when introducing gaps within pages. If slots could have been recorded in
   // the freed area, then pass ClearRecordedSlots::kYes as the mode. Otherwise,
   // pass ClearRecordedSlots::kNo.
-  void CreateFillerObjectAt(Address addr, int size, ClearRecordedSlots mode);
+  HeapObject* CreateFillerObjectAt(Address addr, int size,
+                                   ClearRecordedSlots mode);
 
   bool CanMoveObjectStart(HeapObject* object);
+
+  static bool IsImmovable(HeapObject* object);
 
   // Maintain consistency of live bytes during incremental marking.
   void AdjustLiveBytes(HeapObject* object, int by);
@@ -837,7 +841,7 @@ class Heap {
   // Support for the API.
   //
 
-  void CreateApiObjects();
+  bool CreateApiObjects();
 
   // Implements the corresponding V8 API function.
   bool IdleNotification(double deadline_in_seconds);
@@ -1957,9 +1961,8 @@ class Heap {
                           AllocationSite* allocation_site = NULL);
 
   // Allocates a HeapNumber from value.
-  MUST_USE_RESULT AllocationResult
-  AllocateHeapNumber(double value, MutableMode mode = IMMUTABLE,
-                     PretenureFlag pretenure = NOT_TENURED);
+  MUST_USE_RESULT AllocationResult AllocateHeapNumber(
+      MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
 
 // Allocates SIMD values from the given lane values.
 #define SIMD_ALLOCATE_DECLARATION(TYPE, Type, type, lane_count, lane_type) \
@@ -2130,10 +2133,6 @@ class Heap {
 
   MUST_USE_RESULT AllocationResult
       AllocateCode(int object_size, bool immovable);
-
-  MUST_USE_RESULT AllocationResult InternalizeStringWithKey(HashTableKey* key);
-
-  MUST_USE_RESULT AllocationResult InternalizeString(String* str);
 
   // ===========================================================================
 

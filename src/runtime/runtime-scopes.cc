@@ -137,10 +137,10 @@ Object* DeclareGlobals(Isolate* isolate, Handle<FixedArray> declarations,
 
   // Traverse the name/value pairs and set the properties.
   int length = declarations->length();
-  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 3, {
+  FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < length, i += 4, {
     Handle<String> name(String::cast(declarations->get(i)), isolate);
     FeedbackVectorSlot slot(Smi::cast(declarations->get(i + 1))->value());
-    Handle<Object> initial_value(declarations->get(i + 2), isolate);
+    Handle<Object> initial_value(declarations->get(i + 3), isolate);
 
     bool is_var = initial_value->IsUndefined(isolate);
     bool is_function = initial_value->IsSharedFunctionInfo();
@@ -613,15 +613,10 @@ RUNTIME_FUNCTION(Runtime_NewClosure) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
-  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
-                                 isolate);
   Handle<JSFunction> function =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared, context, literals, NOT_TENURED);
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
+                                                            NOT_TENURED);
   return *function;
 }
 
@@ -630,17 +625,12 @@ RUNTIME_FUNCTION(Runtime_NewClosure_Tenured) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(SharedFunctionInfo, shared, 0);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 1);
-  CONVERT_SMI_ARG_CHECKED(index, 2);
   Handle<Context> context(isolate->context(), isolate);
-  FeedbackVectorSlot slot = TypeFeedbackVector::ToSlot(index);
-  Handle<LiteralsArray> literals(LiteralsArray::cast(vector->Get(slot)),
-                                 isolate);
   // The caller ensures that we pretenure closures that are assigned
   // directly to properties.
   Handle<JSFunction> function =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared, context,
-                                                            literals, TENURED);
+                                                            TENURED);
   return *function;
 }
 

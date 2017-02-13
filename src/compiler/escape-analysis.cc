@@ -12,6 +12,7 @@
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/compiler/js-operator.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -820,7 +821,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
       case IrOpcode::kPlainPrimitiveToFloat64:
       case IrOpcode::kStringCharAt:
       case IrOpcode::kStringCharCodeAt:
+      case IrOpcode::kStringIndexOf:
       case IrOpcode::kObjectIsCallable:
+      case IrOpcode::kObjectIsNonCallable:
       case IrOpcode::kObjectIsNumber:
       case IrOpcode::kObjectIsReceiver:
       case IrOpcode::kObjectIsString:
@@ -836,9 +839,9 @@ bool EscapeStatusAnalysis::CheckUsesForEscape(Node* uses, Node* rep,
         if (use->op()->EffectInputCount() == 0 &&
             uses->op()->EffectInputCount() > 0 &&
             !IrOpcode::IsJsOpcode(use->opcode())) {
-          TRACE("Encountered unaccounted use by #%d (%s)\n", use->id(),
-                use->op()->mnemonic());
-          UNREACHABLE();
+          V8_Fatal(__FILE__, __LINE__,
+                   "Encountered unaccounted use by #%d (%s)\n", use->id(),
+                   use->op()->mnemonic());
         }
         if (SetEscaped(rep)) {
           TRACE("Setting #%d (%s) to escaped because of use by #%d (%s)\n",
@@ -1066,6 +1069,19 @@ bool EscapeStatusAnalysis::IsEffectBranchPoint(Node* node) {
   return false;
 }
 
+namespace {
+
+bool HasFrameStateInput(const Operator* op) {
+  if (op->opcode() == IrOpcode::kCall || op->opcode() == IrOpcode::kTailCall) {
+    const CallDescriptor* d = CallDescriptorOf(op);
+    return d->NeedsFrameState();
+  } else {
+    return OperatorProperties::HasFrameStateInput(op);
+  }
+}
+
+}  // namespace
+
 bool EscapeAnalysis::Process(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kAllocate:
@@ -1102,7 +1118,7 @@ bool EscapeAnalysis::Process(Node* node) {
       ProcessAllocationUsers(node);
       break;
   }
-  if (OperatorProperties::HasFrameStateInput(node->op())) {
+  if (HasFrameStateInput(node->op())) {
     virtual_states_[node->id()]->SetCopyRequired();
   }
   return true;

@@ -1146,12 +1146,11 @@ void MacroAssembler::VmovExtended(const MemOperand& dst, int src_code,
 
 void MacroAssembler::ExtractLane(Register dst, QwNeonRegister src,
                                  NeonDataType dt, int lane) {
-  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
-  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
-  int byte = lane << log2_bytes_per_lane;
+  int size = NeonSz(dt);  // 0, 1, 2
+  int byte = lane << size;
   int double_word = byte >> kDoubleSizeLog2;
   int double_byte = byte & (kDoubleSize - 1);
-  int double_lane = double_byte >> log2_bytes_per_lane;
+  int double_lane = double_byte >> size;
   DwVfpRegister double_source =
       DwVfpRegister::from_code(src.code() * 2 + double_word);
   vmov(dt, dst, double_source, double_lane);
@@ -1166,12 +1165,11 @@ void MacroAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
 void MacroAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
                                  Register src_lane, NeonDataType dt, int lane) {
   Move(dst, src);
-  int bytes_per_lane = dt & NeonDataTypeSizeMask;  // 1, 2, 4
-  int log2_bytes_per_lane = bytes_per_lane / 2;    // 0, 1, 2
-  int byte = lane << log2_bytes_per_lane;
+  int size = NeonSz(dt);  // 0, 1, 2
+  int byte = lane << size;
   int double_word = byte >> kDoubleSizeLog2;
   int double_byte = byte & (kDoubleSize - 1);
-  int double_lane = double_byte >> log2_bytes_per_lane;
+  int double_lane = double_byte >> size;
   DwVfpRegister double_dst =
       DwVfpRegister::from_code(dst.code() * 2 + double_word);
   vmov(dt, double_dst, double_lane, src_lane);
@@ -1432,8 +1430,7 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   ldr(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  ldr(vector, FieldMemOperand(vector, JSFunction::kLiteralsOffset));
-  ldr(vector, FieldMemOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  ldr(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
 }
 
 
@@ -1932,6 +1929,16 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  mov(r1, Operand(restart_fp));
+  ldr(r1, MemOperand(r1));
+  tst(r1, r1);
+  Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
+       ne);
+}
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.

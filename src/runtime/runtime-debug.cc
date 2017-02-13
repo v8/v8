@@ -27,28 +27,23 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
+  isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
-
-  isolate->debug()->SetAfterBreakTarget(it.frame());
-  return *isolate->debug()->return_value();
+  return isolate->debug()->return_value();
 }
 
 RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
-  isolate->debug()->set_return_value(value);
+  isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
   isolate->debug()->Break(it.frame());
-
-  // If live-edit has dropped frames, we are not going back to dispatch.
-  if (LiveEdit::SetAfterBreakTarget(isolate->debug())) return Smi::kZero;
 
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
@@ -632,7 +627,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // to the frame information.
   Handle<Object> return_value = isolate->factory()->undefined_value();
   if (at_return) {
-    return_value = isolate->debug()->return_value();
+    return_value = handle(isolate->debug()->return_value(), isolate);
   }
 
   // Now advance to the arguments adapter frame (if any). It contains all
@@ -751,8 +746,10 @@ RUNTIME_FUNCTION(Runtime_GetScopeCount) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator it(isolate, id);
-  JavaScriptFrame* frame = it.frame();
+  StackTraceFrameIterator it(isolate, id);
+  StandardFrame* frame = it.frame();
+  if (it.frame()->is_wasm()) return 0;
+
   FrameInspector frame_inspector(frame, 0, isolate);
 
   // Count the visible scopes.
@@ -786,8 +783,9 @@ RUNTIME_FUNCTION(Runtime_GetScopeDetails) {
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-  JavaScriptFrameIterator frame_it(isolate, id);
-  JavaScriptFrame* frame = frame_it.frame();
+  StackTraceFrameIterator frame_it(isolate, id);
+  // Wasm has no scopes, this must be javascript.
+  JavaScriptFrame* frame = JavaScriptFrame::cast(frame_it.frame());
   FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
   // Find the requested scope.
@@ -975,8 +973,9 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
 
     // Get the frame where the debugging is performed.
     StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
-    JavaScriptFrameIterator frame_it(isolate, id);
-    JavaScriptFrame* frame = frame_it.frame();
+    StackTraceFrameIterator frame_it(isolate, id);
+    // Wasm has no scopes, this must be javascript.
+    JavaScriptFrame* frame = JavaScriptFrame::cast(frame_it.frame());
     FrameInspector frame_inspector(frame, inlined_jsframe_index, isolate);
 
     ScopeIterator it(isolate, &frame_inspector);
@@ -1178,7 +1177,7 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
   // Get the step action and check validity.
   StepAction step_action = static_cast<StepAction>(NumberToInt32(args[1]));
   if (step_action != StepIn && step_action != StepNext &&
-      step_action != StepOut && step_action != StepFrame) {
+      step_action != StepOut) {
     return isolate->Throw(isolate->heap()->illegal_argument_string());
   }
 
@@ -1187,19 +1186,6 @@ RUNTIME_FUNCTION(Runtime_PrepareStep) {
 
   // Prepare step.
   isolate->debug()->PrepareStep(static_cast<StepAction>(step_action));
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_PrepareStepFrame) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  CHECK(isolate->debug()->CheckExecutionState());
-
-  // Clear all current stepping setup.
-  isolate->debug()->ClearStepping();
-
-  // Prepare step.
-  isolate->debug()->PrepareStep(StepFrame);
   return isolate->heap()->undefined_value();
 }
 
@@ -1452,26 +1438,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetDebugName) {
 }
 
 
-// Calls specified function with or without entering the debugger.
-// This is used in unit tests to run code as if debugger is entered or simply
-// to have a stack with C++ frame in the middle.
-RUNTIME_FUNCTION(Runtime_ExecuteInDebugContext) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-
-  DebugScope debug_scope(isolate->debug());
-  if (debug_scope.failed()) {
-    DCHECK(isolate->has_pending_exception());
-    return isolate->heap()->exception();
-  }
-
-  RETURN_RESULT_OR_FAILURE(
-      isolate, Execution::Call(isolate, function,
-                               handle(function->global_proxy()), 0, NULL));
-}
-
-
 RUNTIME_FUNCTION(Runtime_GetDebugContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
@@ -1662,7 +1628,8 @@ namespace {
 int ScriptLinePositionWithOffset(Handle<Script> script, int line, int offset) {
   if (line < 0 || offset < 0) return -1;
 
-  if (line == 0) return ScriptLinePosition(script, line) + offset;
+  if (line == 0 || offset == 0)
+    return ScriptLinePosition(script, line) + offset;
 
   Script::PositionInfo info;
   if (!Script::GetPositionInfo(script, offset, &info, Script::NO_OFFSET)) {
@@ -1874,13 +1841,6 @@ RUNTIME_FUNCTION(Runtime_DebugPopPromise) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugNextAsyncTaskId) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
-  return Smi::FromInt(isolate->debug()->NextAsyncTaskId(promise));
-}
-
 RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   DCHECK_EQ(1, args.length());
   HandleScope scope(isolate);
@@ -1893,6 +1853,16 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
                         handle(Smi::FromInt(id), isolate), STRICT)
       .Assert();
   isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DebugPromiseReject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, rejected_promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
+
+  isolate->debug()->OnPromiseReject(rejected_promise, value);
   return isolate->heap()->undefined_value();
 }
 

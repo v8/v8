@@ -163,6 +163,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           info.zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
       info.set_asm_function_scope(new_func_scope);
       if (!Compiler::ParseAndAnalyze(&info)) {
+        decl->fun()->scope()->outer_scope()->RemoveInnerScope(new_func_scope);
+        if (isolate_->has_pending_exception()) {
+          isolate_->clear_pending_exception();
+        }
+        typer_->TriggerParsingError();
         typer_failed_ = true;
         return;
       }
@@ -211,7 +216,6 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
       RECURSE(Visit(stmt));
       if (typer_failed_) break;
-      if (stmt->IsJump()) break;
     }
   }
 
@@ -1989,6 +1993,9 @@ AsmWasmBuilder::AsmWasmBuilder(CompilationInfo* info)
 // TODO(aseemgarg): probably should take zone (to write wasm to) as input so
 // that zone in constructor may be thrown away once wasm module is written.
 AsmWasmBuilder::Result AsmWasmBuilder::Run(Handle<FixedArray>* foreign_args) {
+  HistogramTimerScope asm_wasm_time_scope(
+      info_->isolate()->counters()->asm_wasm_translation_time());
+
   Zone* zone = info_->zone();
   AsmWasmBuilderImpl impl(info_->isolate(), zone, info_,
                           info_->parse_info()->ast_value_factory(),

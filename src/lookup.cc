@@ -687,6 +687,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value) {
                                             property_details_, *value);
     } else {
       DCHECK_EQ(kDescriptor, property_details_.location());
+      DCHECK_EQ(kConst, property_details_.constness());
     }
   } else if (holder->IsJSGlobalObject()) {
     GlobalDictionary* dictionary = JSObject::cast(*holder)->global_dictionary();

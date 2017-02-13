@@ -304,89 +304,10 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   return result;
 }
 
-Node* IntrinsicsHelper::ValueOf(Node* args_reg, Node* arg_count,
-                                Node* context) {
-  InterpreterAssembler::Variable return_value(assembler_,
-                                              MachineRepresentation::kTagged);
-  InterpreterAssembler::Label done(assembler_);
-
-  Node* object = __ LoadRegister(args_reg);
-  return_value.Bind(object);
-
-  // If the object is a smi return the object.
-  __ GotoIf(__ TaggedIsSmi(object), &done);
-
-  // If the object is not a value type, return the object.
-  Node* condition =
-      CompareInstanceType(object, JS_VALUE_TYPE, kInstanceTypeEqual);
-  __ GotoUnless(condition, &done);
-
-  // If the object is a value type, return the value field.
-  return_value.Bind(__ LoadObjectField(object, JSValue::kValueOffset));
-  __ Goto(&done);
-
-  __ Bind(&done);
-  return return_value.value();
-}
-
 Node* IntrinsicsHelper::ClassOf(Node* args_reg, Node* arg_count,
                                 Node* context) {
-  InterpreterAssembler::Variable return_value(assembler_,
-                                              MachineRepresentation::kTagged);
-  InterpreterAssembler::Label done(assembler_), null(assembler_),
-      function(assembler_), non_function_constructor(assembler_);
-
-  Node* object = __ LoadRegister(args_reg);
-
-  // If the object is not a JSReceiver, we return null.
-  __ GotoIf(__ TaggedIsSmi(object), &null);
-  STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  Node* is_js_receiver = CompareInstanceType(object, FIRST_JS_RECEIVER_TYPE,
-                                             kInstanceTypeGreaterThanOrEqual);
-  __ GotoUnless(is_js_receiver, &null);
-
-  // Return 'Function' for JSFunction and JSBoundFunction objects.
-  Node* is_function = CompareInstanceType(object, FIRST_FUNCTION_TYPE,
-                                          kInstanceTypeGreaterThanOrEqual);
-  STATIC_ASSERT(LAST_FUNCTION_TYPE == LAST_TYPE);
-  __ GotoIf(is_function, &function);
-
-  // Check if the constructor in the map is a JS function.
-  Node* constructor = __ LoadMapConstructor(__ LoadMap(object));
-  Node* constructor_is_js_function =
-      CompareInstanceType(constructor, JS_FUNCTION_TYPE, kInstanceTypeEqual);
-  __ GotoUnless(constructor_is_js_function, &non_function_constructor);
-
-  // Grab the instance class name from the constructor function.
-  Node* shared =
-      __ LoadObjectField(constructor, JSFunction::kSharedFunctionInfoOffset);
-  return_value.Bind(
-      __ LoadObjectField(shared, SharedFunctionInfo::kInstanceClassNameOffset));
-  __ Goto(&done);
-
-  // Non-JS objects have class null.
-  __ Bind(&null);
-  {
-    return_value.Bind(__ LoadRoot(Heap::kNullValueRootIndex));
-    __ Goto(&done);
-  }
-
-  // Functions have class 'Function'.
-  __ Bind(&function);
-  {
-    return_value.Bind(__ LoadRoot(Heap::kFunction_stringRootIndex));
-    __ Goto(&done);
-  }
-
-  // Objects with a non-function constructor have class 'Object'.
-  __ Bind(&non_function_constructor);
-  {
-    return_value.Bind(__ LoadRoot(Heap::kObject_stringRootIndex));
-    __ Goto(&done);
-  }
-
-  __ Bind(&done);
-  return return_value.value();
+  Node* value = __ LoadRegister(args_reg);
+  return __ ClassOf(value);
 }
 
 void IntrinsicsHelper::AbortIfArgCountMismatch(int expected, Node* actual) {

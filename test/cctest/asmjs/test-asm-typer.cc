@@ -47,7 +47,8 @@ class AsmTyperHarnessBuilder {
         handles_(),
         zone_(handles_.main_zone()),
         isolate_(CcTest::i_isolate()),
-        ast_value_factory_(zone_, isolate_->heap()->HashSeed()),
+        ast_value_factory_(zone_, isolate_->ast_string_constants(),
+                           isolate_->heap()->HashSeed()),
         factory_(isolate_->factory()),
         source_code_(
             factory_->NewStringFromUtf8(CStrVector(source)).ToHandleChecked()),
@@ -855,9 +856,10 @@ TEST(ErrorsInFunction) {
        "}\n",
        "Undeclared identifier in return statement"},
       {"function f() {\n"
+       "  var i = 0;\n"
        "  return i?0:1;\n"
        "}\n",
-       "Invalid return type expression"},
+       "Type mismatch in return statement"},
       {"function f() {\n"
        "  return stdlib.Math.E;"
        "}\n",

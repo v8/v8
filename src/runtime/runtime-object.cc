@@ -56,6 +56,14 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
       DisallowHeapAllocation no_allocation;
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
+      // Get to a ThinString's referenced internalized string, but don't
+      // otherwise force internalization. We assume that internalization
+      // (which is a dictionary lookup with a non-internalized key) is
+      // about as expensive as doing the property dictionary lookup with
+      // the non-internalized key directly.
+      if (key->IsThinString()) {
+        key = handle(Handle<ThinString>::cast(key)->actual(), isolate);
+      }
       if (receiver->IsJSGlobalObject()) {
         // Attempt dictionary lookup.
         GlobalDictionary* dictionary = receiver->global_dictionary();
@@ -746,7 +754,7 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
 
 RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
 
@@ -755,10 +763,44 @@ RUNTIME_FUNCTION(Runtime_CopyDataProperties) {
     return isolate->heap()->undefined_value();
   }
 
-  MAYBE_RETURN(
-      JSReceiver::SetOrCopyDataProperties(isolate, target, source, false),
-      isolate->heap()->exception());
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
+                                                   nullptr, false),
+               isolate->heap()->exception());
   return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_CopyDataPropertiesWithExcludedProperties) {
+  HandleScope scope(isolate);
+  DCHECK_LE(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, source, 0);
+
+  // 2. If source is undefined or null, let keys be an empty List.
+  if (source->IsUndefined(isolate) || source->IsNull(isolate)) {
+    return isolate->heap()->undefined_value();
+  }
+
+  ScopedVector<Handle<Object>> excluded_properties(args.length() - 1);
+  for (int i = 1; i < args.length(); i++) {
+    Handle<Object> property = args.at(i);
+    uint32_t property_num;
+    // We convert string to number if possible, in cases of computed
+    // properties resolving to numbers, which would've been strings
+    // instead because of our call to %ToName() in the desugaring for
+    // computed properties.
+    if (property->IsString() &&
+        String::cast(*property)->AsArrayIndex(&property_num)) {
+      property = isolate->factory()->NewNumberFromUint(property_num);
+    }
+
+    excluded_properties[i - 1] = property;
+  }
+
+  Handle<JSObject> target =
+      isolate->factory()->NewJSObject(isolate->object_function());
+  MAYBE_RETURN(JSReceiver::SetOrCopyDataProperties(isolate, target, source,
+                                                   &excluded_properties, false),
+               isolate->heap()->exception());
+  return *target;
 }
 
 RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {

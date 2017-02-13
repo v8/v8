@@ -37,7 +37,7 @@ class ThreadedListZoneEntry;
 // parameters which then can be executed. If the source code contains other
 // functions, they might be compiled and allocated as part of the compilation
 // of the source code or deferred for lazy compilation at a later point.
-class Compiler : public AllStatic {
+class V8_EXPORT_PRIVATE Compiler : public AllStatic {
  public:
   enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
   enum ConcurrencyMode { NOT_CONCURRENT, CONCURRENT };
@@ -115,7 +115,7 @@ class Compiler : public AllStatic {
       Handle<Object> source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
-      NativesFlag is_natives_code, bool is_module);
+      NativesFlag is_natives_code);
 
   // Create a shared function info object for a Script that has already been
   // parsed while the script was being loaded from a streamed source.
@@ -154,7 +154,7 @@ class Compiler : public AllStatic {
 //
 // Each of the three phases can either fail or succeed. The current state of
 // the job can be checked using {state()}.
-class CompilationJob {
+class V8_EXPORT_PRIVATE CompilationJob {
  public:
   enum Status { SUCCEEDED, FAILED };
   enum class State {

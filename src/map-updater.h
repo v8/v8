@@ -108,7 +108,7 @@ class MapUpdater {
   // When a requested reconfiguration can not be done the result is a copy
   // of |old_map_| where every field has |Tagged| representation and |Any|
   // field type. This map is disconnected from the transition tree.
-  State CopyGeneralizeAllRepresentations(const char* reason);
+  State CopyGeneralizeAllFields(const char* reason);
 
   // Returns name of a |descriptor| property.
   inline Name* GetKey(int descriptor) const;
@@ -157,6 +157,7 @@ class MapUpdater {
   int modified_descriptor_ = -1;
   PropertyKind new_kind_ = kData;
   PropertyAttributes new_attributes_ = NONE;
+  PropertyConstness new_constness_ = kMutable;
   PropertyLocation new_location_ = kField;
   Representation new_representation_ = Representation::None();
 

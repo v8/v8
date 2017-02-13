@@ -4,7 +4,6 @@
 
 import("//build/config/sanitizers/sanitizers.gni")
 import("//build/config/v8_target_cpu.gni")
-import("//build_overrides/v8.gni")
 
 declare_args() {
   # Includes files needed for correctness fuzzing.
@@ -36,7 +35,10 @@ declare_args() {
   v8_enable_i18n_support = true
 
   # Enable inspector. See include/v8-inspector.h.
-  v8_enable_inspector = v8_enable_inspector_override
+  v8_enable_inspector = true
+
+  # Use static libraries instead of source_sets.
+  v8_static_library = false
 }
 
 if (v8_use_external_startup_data == "") {

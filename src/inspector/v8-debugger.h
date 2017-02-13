@@ -26,7 +26,7 @@ class V8StackTraceImpl;
 
 using protocol::Response;
 
-class V8Debugger {
+class V8Debugger : public v8::debug::DebugDelegate {
  public:
   V8Debugger(v8::Isolate*, V8InspectorImpl*);
   ~V8Debugger();
@@ -48,7 +48,6 @@ class V8Debugger {
   void stepIntoStatement();
   void stepOverStatement();
   void stepOutOfFunction();
-  void clearStepping();
 
   Response setScriptSource(
       const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
@@ -99,9 +98,12 @@ class V8Debugger {
   void compileDebuggerScript();
   v8::MaybeLocal<v8::Value> callDebuggerMethod(const char* functionName,
                                                int argc,
-                                               v8::Local<v8::Value> argv[]);
+                                               v8::Local<v8::Value> argv[],
+                                               bool catchExceptions);
   v8::Local<v8::Context> debuggerContext() const;
   void clearBreakpoints();
+
+  static void v8OOMCallback(void* data);
 
   static void breakProgramCallback(const v8::FunctionCallbackInfo<v8::Value>&);
   void handleProgramBreak(v8::Local<v8::Context> pausedContext,
@@ -110,12 +112,6 @@ class V8Debugger {
                           v8::Local<v8::Array> hitBreakpoints,
                           bool isPromiseRejection = false,
                           bool isUncaught = false);
-  static void v8DebugEventCallback(const v8::debug::EventDetails&);
-  v8::Local<v8::Value> callInternalGetterFunction(v8::Local<v8::Object>,
-                                                  const char* functionName);
-  void handleV8DebugEvent(const v8::debug::EventDetails&);
-  static void v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
-                                  int id, void* data);
 
   v8::Local<v8::Value> collectionEntries(v8::Local<v8::Context>,
                                          v8::Local<v8::Object>);
@@ -137,6 +133,25 @@ class V8Debugger {
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
 
+  void asyncTaskCreated(void* task, void* parentTask);
+  void registerAsyncTaskIfNeeded(void* task);
+
+  // v8::debug::DebugEventListener implementation.
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
+                            int parentId) override;
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+                      bool has_compile_error) override;
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override;
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Object> exec_state,
+                       v8::Local<v8::Value> exception,
+                       bool is_promise_rejection, bool is_uncaught) override;
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override;
+
   v8::Isolate* m_isolate;
   V8InspectorImpl* m_inspector;
   int m_enableCount;
@@ -147,10 +162,12 @@ class V8Debugger {
   v8::Local<v8::Context> m_pausedContext;
   bool m_runningNestedMessageLoop;
   int m_ignoreScriptParsedEventsCounter;
+  bool m_scheduledOOMBreak = false;
 
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::unique_ptr<V8StackTraceImpl>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
+  AsyncTaskToStackTrace m_asyncTaskCreationStacks;
   int m_maxAsyncCallStacks;
   std::map<int, void*> m_idToTask;
   std::unordered_map<void*, int> m_taskToId;
@@ -160,6 +177,7 @@ class V8Debugger {
   std::vector<void*> m_currentTasks;
   std::vector<std::unique_ptr<V8StackTraceImpl>> m_currentStacks;
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
+  protocol::HashMap<void*, void*> m_parentTask;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
 

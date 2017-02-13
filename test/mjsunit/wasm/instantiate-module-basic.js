@@ -126,7 +126,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function InstancesAreIsolatedFromEachother() {
   print("InstancesAreIsolatedFromEachother...");
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("", "memory", 1,1);
+  builder.addImportedMemory("", "memory", 1);
   var kSig_v_i = makeSig([kWasmI32], []);
   var signature = builder.addType(kSig_v_i);
   builder.addImport("m", "some_value", kSig_i_v);
@@ -207,7 +207,7 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function InstanceMemoryIsIsolated() {
   print("InstanceMemoryIsIsolated...");
   var builder = new WasmModuleBuilder();
-  builder.addImportedMemory("", "memory", 1,1);
+  builder.addImportedMemory("", "memory", 1);
 
   builder.addFunction("f", kSig_i_v)
     .addBody([
@@ -246,4 +246,22 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   let builder = new WasmModuleBuilder();
   builder.exportMemoryAs('memory');
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError);
+})();
+
+(function TestIterableExports() {
+  print("TestIterableExports...");
+  let builder = new WasmModuleBuilder;
+  builder.addExport("a", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("b", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("c", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("d", builder.addFunction("", kSig_v_v).addBody([]));
+  builder.addExport("e", builder.addGlobal(kWasmI32, false));
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+
+  let exports_count = 0;
+  for (var e in instance.exports) ++exports_count;
+
+  assertEquals(5, exports_count);
 })();

@@ -93,15 +93,18 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSToString:
 
     // Call operations
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallConstructWithSpread:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSCallForwardVarargs:
     case IrOpcode::kJSCallFunction:
+    case IrOpcode::kJSCallFunctionWithSpread:
 
     // Misc operations
     case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSForInNext:
     case IrOpcode::kJSForInPrepare:
     case IrOpcode::kJSStackCheck:
+    case IrOpcode::kJSDebugger:
     case IrOpcode::kJSGetSuperConstructor:
       return true;
 

@@ -365,21 +365,26 @@ bool JSObject::PrintProperties(std::ostream& os) {  // NOLINT
 namespace {
 
 template <class T>
+bool IsTheHoleAt(T* array, int index) {
+  return false;
+}
+
+template <>
+bool IsTheHoleAt(FixedDoubleArray* array, int index) {
+  return array->is_the_hole(index);
+}
+
+template <class T>
 double GetScalarElement(T* array, int index) {
+  if (IsTheHoleAt(array, index)) {
+    return std::numeric_limits<double>::quiet_NaN();
+  }
   return array->get_scalar(index);
 }
 
-double GetScalarElement(FixedDoubleArray* array, int index) {
-  if (array->is_the_hole(index)) return bit_cast<double>(kHoleNanInt64);
-  return array->get_scalar(index);
-}
-
-bool is_the_hole(double maybe_hole) {
-  return bit_cast<uint64_t>(maybe_hole) == kHoleNanInt64;
-}
-
-template <class T, bool print_the_hole>
+template <class T>
 void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
+  const bool print_the_hole = std::is_same<T, FixedDoubleArray>::value;
   T* array = T::cast(object);
   if (array->length() == 0) return;
   int previous_index = 0;
@@ -390,7 +395,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
     if (i < array->length()) value = GetScalarElement(array, i);
     bool values_are_nan = std::isnan(previous_value) && std::isnan(value);
     if (i != array->length() && (previous_value == value || values_are_nan) &&
-        is_the_hole(previous_value) == is_the_hole(value)) {
+        IsTheHoleAt(array, i - 1) == IsTheHoleAt(array, i)) {
       continue;
     }
     os << "\n";
@@ -400,7 +405,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
       ss << '-' << (i - 1);
     }
     os << std::setw(12) << ss.str() << ": ";
-    if (print_the_hole && is_the_hole(previous_value)) {
+    if (print_the_hole && IsTheHoleAt(array, i - 1)) {
       os << "<the_hole>";
     } else {
       os << previous_value;
@@ -412,7 +417,7 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
 
 void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
   // Print in array notation for non-sparse arrays.
-  Object* previous_value = array->get(0);
+  Object* previous_value = array->length() > 0 ? array->get(0) : nullptr;
   Object* value = nullptr;
   int previous_index = 0;
   int i;
@@ -450,14 +455,14 @@ bool JSObject::PrintElements(std::ostream& os) {  // NOLINT
     }
     case FAST_HOLEY_DOUBLE_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS: {
-      DoPrintElements<FixedDoubleArray, true>(os, elements());
+      DoPrintElements<FixedDoubleArray>(os, elements());
       break;
     }
 
-#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size)     \
-  case TYPE##_ELEMENTS: {                                       \
-    DoPrintElements<Fixed##Type##Array, false>(os, elements()); \
-    break;                                                      \
+#define PRINT_ELEMENTS(Type, type, TYPE, elementType, size) \
+  case TYPE##_ELEMENTS: {                                   \
+    DoPrintElements<Fixed##Type##Array>(os, elements());    \
+    break;                                                  \
   }
       TYPED_ARRAYS(PRINT_ELEMENTS)
 #undef PRINT_ELEMENTS
@@ -654,7 +659,7 @@ void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");
   os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  DoPrintElements<FixedDoubleArray, true>(os, this);
+  DoPrintElements<FixedDoubleArray>(os, this);
   os << "\n";
 }
 
@@ -719,15 +724,10 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
   os << "\n - slot_count: " << slot_count();
 
   TypeFeedbackMetadataIterator iter(this);
-  int parameter_index = 0;
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
     FeedbackVectorSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
-    if (TypeFeedbackMetadata::SlotRequiresParameter(kind)) {
-      int parameter_value = this->GetParameter(parameter_index++);
-      os << " [" << parameter_value << "]";
-    }
   }
   os << "\n";
 }
@@ -748,7 +748,6 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  int parameter_index = 0;
   TypeFeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackVectorSlot slot = iter.Next();
@@ -802,12 +801,8 @@ void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::CREATE_CLOSURE: {
-        // TODO(mvstanton): Integrate this into the iterator.
-        int parameter_value = metadata()->GetParameter(parameter_index++);
-        os << "[" << parameter_value << "]";
-        break;
-      }
+      case FeedbackVectorSlotKind::CREATE_CLOSURE:
+      case FeedbackVectorSlotKind::LITERAL:
       case FeedbackVectorSlotKind::GENERAL:
         break;
       case FeedbackVectorSlotKind::INVALID:
@@ -850,6 +845,8 @@ void String::StringPrint(std::ostream& os) {  // NOLINT
     os << "#";
   } else if (StringShape(this).IsCons()) {
     os << "c\"";
+  } else if (StringShape(this).IsThin()) {
+    os << ">\"";
   } else {
     os << "\"";
   }
@@ -1055,7 +1052,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "\n   - async";
   }
   os << "\n - context = " << Brief(context());
-  os << "\n - literals = " << Brief(literals());
+  os << "\n - feedback vector = " << Brief(feedback_vector());
   os << "\n - code = " << Brief(code());
   JSObjectPrintBody(os, this);
 }
@@ -1092,7 +1089,11 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - function token position = " << function_token_position();
   os << "\n - start position = " << start_position();
   os << "\n - end position = " << end_position();
-  os << "\n - debug info = " << Brief(debug_info());
+  if (HasDebugInfo()) {
+    os << "\n - debug info = " << Brief(debug_info());
+  } else {
+    os << "\n - no debug info";
+  }
   os << "\n - length = " << length();
   os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
@@ -1234,7 +1235,6 @@ void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
   os << "\n - then: " << Brief(then());
   os << "\n - resolve: " << Brief(resolve());
   os << "\n - reject: " << Brief(reject());
-  os << "\n - debug id: " << debug_id();
   os << "\n - context: " << Brief(context());
   os << "\n";
 }
@@ -1247,7 +1247,6 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoPrint(
   os << "\n - deferred_promise: " << Brief(deferred_promise());
   os << "\n - deferred_on_resolve: " << Brief(deferred_on_resolve());
   os << "\n - deferred_on_reject: " << Brief(deferred_on_reject());
-  os << "\n - debug id: " << debug_id();
   os << "\n - reaction context: " << Brief(context());
   os << "\n";
 }

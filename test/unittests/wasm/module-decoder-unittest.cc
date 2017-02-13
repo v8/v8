@@ -1101,6 +1101,21 @@ TEST_F(WasmModuleVerifyTest, ImportTable_mutable_global) {
   }
 }
 
+TEST_F(WasmModuleVerifyTest, ImportTable_mutability_malformed) {
+  static const byte data[] = {
+      SECTION(Import, 8),
+      1,                   // --
+      NAME_LENGTH(1),      // --
+      'm',                 // module name
+      NAME_LENGTH(1),      // --
+      'g',                 // global name
+      kExternalGlobal,     // import kind
+      kLocalI32,           // type
+      2,                   // invalid mutability
+  };
+  EXPECT_FAILURE(data);
+}
+
 TEST_F(WasmModuleVerifyTest, ImportTable_nosigs2) {
   static const byte data[] = {
       SECTION(Import, 6),  1,    // sig table
@@ -1506,6 +1521,83 @@ TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
       SECTION(Unknown, 8), 5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
   };
   EXPECT_VERIFIES(data);
+}
+
+class WasmModuleCustomSectionTest : public TestWithIsolateAndZone {
+ public:
+  void CheckSections(const byte* module_start, const byte* module_end,
+                     CustomSectionOffset expected[], size_t num_expected) {
+    // Add the WASM magic and version number automatically.
+    size_t size = static_cast<size_t>(module_end - module_start);
+    byte header[] = {WASM_MODULE_HEADER};
+    size_t total = sizeof(header) + size;
+    auto temp = new byte[total];
+    memcpy(temp, header, sizeof(header));
+    memcpy(temp + sizeof(header), module_start, size);
+    std::vector<CustomSectionOffset> custom_sections =
+        DecodeCustomSections(module_start, module_end);
+
+    CHECK_EQ(num_expected, custom_sections.size());
+
+    for (size_t i = 0; i < num_expected; i++) {
+      EXPECT_EQ(expected[i].section_start, custom_sections[i].section_start);
+      EXPECT_EQ(expected[i].name_offset, custom_sections[i].name_offset);
+      EXPECT_EQ(expected[i].name_length, custom_sections[i].name_length);
+      EXPECT_EQ(expected[i].payload_offset, custom_sections[i].payload_offset);
+      EXPECT_EQ(expected[i].payload_length, custom_sections[i].payload_length);
+      EXPECT_EQ(expected[i].section_length, custom_sections[i].section_length);
+    }
+  }
+};
+
+TEST_F(WasmModuleCustomSectionTest, ThreeUnknownSections) {
+  static const byte data[] = {
+      U32_LE(kWasmMagic),                                         // --
+      U32_LE(kWasmVersion),                                       // --
+      SECTION(Unknown, 4),  1, 'X', 17,  18,                      // --
+      SECTION(Unknown, 9),  3, 'f', 'o', 'o', 5,   6,   7, 8, 9,  // --
+      SECTION(Unknown, 8),  5, 'o', 't', 'h', 'e', 'r', 7, 8,     // --
+  };
+
+  static CustomSectionOffset expected[] = {
+      // sec_start, nm_offset, nm_length, py_offset, py_length, sec_length
+      {10, 11, 1, 12, 2, 4},  // --
+      {16, 17, 3, 20, 5, 9},  // --
+      {27, 28, 5, 33, 2, 8},  // --
+  };
+
+  CheckSections(data, data + sizeof(data), expected, arraysize(expected));
+}
+
+TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
+  static const byte data[] = {
+      U32_LE(kWasmMagic),                                   // --
+      U32_LE(kWasmVersion),                                 // --
+      SIGNATURES_SECTION(2, SIG_ENTRY_v_v, SIG_ENTRY_v_v),  // --
+      SECTION(Unknown, 4),
+      1,
+      'X',
+      17,
+      18,  // --
+      ONE_EMPTY_FUNCTION,
+      SECTION(Unknown, 8),
+      5,
+      'o',
+      't',
+      'h',
+      'e',
+      'r',
+      7,
+      8,  // --
+  };
+
+  static CustomSectionOffset expected[] = {
+      // sec_start, nm_offset, nm_length, py_offset, py_length, sec_length
+      {19, 20, 1, 21, 2, 4},  // --
+      {29, 30, 5, 35, 2, 8},  // --
+  };
+
+  CheckSections(data, data + sizeof(data), expected, arraysize(expected));
 }
 
 }  // namespace wasm

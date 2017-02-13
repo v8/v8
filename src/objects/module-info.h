@@ -87,6 +87,40 @@ class ModuleInfo : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfo);
 };
 
+class ModuleInfoEntry : public Struct {
+ public:
+  DECLARE_CAST(ModuleInfoEntry)
+  DECLARE_PRINTER(ModuleInfoEntry)
+  DECLARE_VERIFIER(ModuleInfoEntry)
+
+  DECL_ACCESSORS(export_name, Object)
+  DECL_ACCESSORS(local_name, Object)
+  DECL_ACCESSORS(import_name, Object)
+  DECL_INT_ACCESSORS(module_request)
+  DECL_INT_ACCESSORS(cell_index)
+  DECL_INT_ACCESSORS(beg_pos)
+  DECL_INT_ACCESSORS(end_pos)
+
+  static Handle<ModuleInfoEntry> New(Isolate* isolate,
+                                     Handle<Object> export_name,
+                                     Handle<Object> local_name,
+                                     Handle<Object> import_name,
+                                     int module_request, int cell_index,
+                                     int beg_pos, int end_pos);
+
+  static const int kExportNameOffset = HeapObject::kHeaderSize;
+  static const int kLocalNameOffset = kExportNameOffset + kPointerSize;
+  static const int kImportNameOffset = kLocalNameOffset + kPointerSize;
+  static const int kModuleRequestOffset = kImportNameOffset + kPointerSize;
+  static const int kCellIndexOffset = kModuleRequestOffset + kPointerSize;
+  static const int kBegPosOffset = kCellIndexOffset + kPointerSize;
+  static const int kEndPosOffset = kBegPosOffset + kPointerSize;
+  static const int kSize = kEndPosOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ModuleInfoEntry);
+};
+
 }  // namespace internal
 }  // namespace v8
 

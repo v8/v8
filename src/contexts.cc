@@ -412,8 +412,9 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
 
 static const int kSharedOffset = 0;
 static const int kCachedCodeOffset = 1;
-static const int kOsrAstIdOffset = 2;
-static const int kEntryLength = 3;
+static const int kFeedbackVectorOffset = 2;
+static const int kOsrAstIdOffset = 3;
+static const int kEntryLength = 4;
 static const int kInitialLength = kEntryLength;
 
 int Context::SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
@@ -435,29 +436,38 @@ int Context::SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
   return -1;
 }
 
-Code* Context::SearchOptimizedCodeMap(SharedFunctionInfo* shared,
-                                      BailoutId osr_ast_id) {
+void Context::SearchOptimizedCodeMap(SharedFunctionInfo* shared,
+                                     BailoutId osr_ast_id, Code** pcode,
+                                     TypeFeedbackVector** pvector) {
   DCHECK(this->IsNativeContext());
   int entry = SearchOptimizedCodeMapEntry(shared, osr_ast_id);
   if (entry != -1) {
     FixedArray* code_map = osr_code_table();
     DCHECK_LE(entry + kEntryLength, code_map->length());
     WeakCell* cell = WeakCell::cast(code_map->get(entry + kCachedCodeOffset));
+    WeakCell* vector_cell =
+        WeakCell::cast(code_map->get(entry + kFeedbackVectorOffset));
 
-    return cell->cleared() ? nullptr : Code::cast(cell->value());
+    *pcode = cell->cleared() ? nullptr : Code::cast(cell->value());
+    *pvector = vector_cell->cleared()
+                   ? nullptr
+                   : TypeFeedbackVector::cast(vector_cell->value());
+  } else {
+    *pcode = nullptr;
+    *pvector = nullptr;
   }
-  return nullptr;
 }
 
 void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
                                     Handle<SharedFunctionInfo> shared,
                                     Handle<Code> code,
+                                    Handle<TypeFeedbackVector> vector,
                                     BailoutId osr_ast_id) {
   DCHECK(native_context->IsNativeContext());
   Isolate* isolate = native_context->GetIsolate();
   if (isolate->serializer_enabled()) return;
 
-  STATIC_ASSERT(kEntryLength == 3);
+  STATIC_ASSERT(kEntryLength == 4);
   Handle<FixedArray> new_code_map;
   int entry;
 
@@ -468,9 +478,11 @@ void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
     Handle<FixedArray> old_code_map(native_context->osr_code_table(), isolate);
     entry = native_context->SearchOptimizedCodeMapEntry(*shared, osr_ast_id);
     if (entry >= 0) {
-      // Just set the code of the entry.
+      // Just set the code and literals of the entry.
       Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
       old_code_map->set(entry + kCachedCodeOffset, *code_cell);
+      Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
+      old_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
       return;
     }
 
@@ -494,10 +506,12 @@ void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
   }
 
   Handle<WeakCell> code_cell = isolate->factory()->NewWeakCell(code);
+  Handle<WeakCell> vector_cell = isolate->factory()->NewWeakCell(vector);
   Handle<WeakCell> shared_cell = isolate->factory()->NewWeakCell(shared);
 
   new_code_map->set(entry + kSharedOffset, *shared_cell);
   new_code_map->set(entry + kCachedCodeOffset, *code_cell);
+  new_code_map->set(entry + kFeedbackVectorOffset, *vector_cell);
   new_code_map->set(entry + kOsrAstIdOffset, Smi::FromInt(osr_ast_id.ToInt()));
 
 #ifdef DEBUG
@@ -508,6 +522,8 @@ void Context::AddToOptimizedCodeMap(Handle<Context> native_context,
     DCHECK(cell->cleared() ||
            (cell->value()->IsCode() &&
             Code::cast(cell->value())->kind() == Code::OPTIMIZED_FUNCTION));
+    cell = WeakCell::cast(new_code_map->get(i + kFeedbackVectorOffset));
+    DCHECK(cell->cleared() || cell->value()->IsFixedArray());
     DCHECK(new_code_map->get(i + kOsrAstIdOffset)->IsSmi());
   }
 #endif
@@ -548,6 +564,8 @@ void Context::EvictFromOptimizedCodeMap(Code* optimized_code,
       code_map->set(dst + kSharedOffset, code_map->get(src + kSharedOffset));
       code_map->set(dst + kCachedCodeOffset,
                     code_map->get(src + kCachedCodeOffset));
+      code_map->set(dst + kFeedbackVectorOffset,
+                    code_map->get(src + kFeedbackVectorOffset));
       code_map->set(dst + kOsrAstIdOffset,
                     code_map->get(src + kOsrAstIdOffset));
     }

@@ -9,7 +9,6 @@
 #include "src/base/hashmap.h"
 #include "src/globals.h"
 #include "src/objects.h"
-#include "src/objects/scope-info.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -20,6 +19,7 @@ class AstValueFactory;
 class AstRawString;
 class Declaration;
 class ParseInfo;
+class PreParsedScopeData;
 class SloppyBlockFunctionStatement;
 class Statement;
 class StringSet;
@@ -30,11 +30,12 @@ class VariableMap: public ZoneHashMap {
  public:
   explicit VariableMap(Zone* zone);
 
-  Variable* Declare(Zone* zone, Scope* scope, const AstRawString* name,
-                    VariableMode mode, VariableKind kind,
-                    InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
-                    bool* added = nullptr);
+  Variable* Declare(
+      Zone* zone, Scope* scope, const AstRawString* name, VariableMode mode,
+      VariableKind kind = NORMAL_VARIABLE,
+      InitializationFlag initialization_flag = kCreatedInitialized,
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned,
+      bool* added = nullptr);
 
   // Records that "name" exists (if not recorded yet) but doesn't create a
   // Variable. Useful for preparsing.
@@ -173,7 +174,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
   Variable* DeclareLocal(const AstRawString* name, VariableMode mode,
-                         InitializationFlag init_flag, VariableKind kind,
+                         InitializationFlag init_flag = kCreatedInitialized,
+                         VariableKind kind = NORMAL_VARIABLE,
                          MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
@@ -480,9 +482,11 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void set_typed(bool typed) { typed_ = typed; }
 
  private:
-  Variable* Declare(Zone* zone, const AstRawString* name, VariableMode mode,
-                    VariableKind kind, InitializationFlag initialization_flag,
-                    MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
+  Variable* Declare(
+      Zone* zone, const AstRawString* name, VariableMode mode,
+      VariableKind kind = NORMAL_VARIABLE,
+      InitializationFlag initialization_flag = kCreatedInitialized,
+      MaybeAssignedFlag maybe_assigned_flag = kNotAssigned);
 
   // This method should only be invoked on scopes created during parsing (i.e.,
   // not deserialized from a context). Also, since NeedsContext() is only
@@ -596,6 +600,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                                      MaybeHandle<ScopeInfo> outer_scope);
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
+
+  void CollectVariableData(PreParsedScopeData* data);
 
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
@@ -800,7 +806,8 @@ class DeclarationScope : public Scope {
   // records variables which cannot be resolved inside the Scope (we don't yet
   // know what they will resolve to since the outer Scopes are incomplete) and
   // migrates them into migrate_to.
-  void AnalyzePartially(AstNodeFactory* ast_node_factory);
+  void AnalyzePartially(AstNodeFactory* ast_node_factory,
+                        PreParsedScopeData* preparsed_scope_data);
 
   Handle<StringSet> CollectNonLocals(ParseInfo* info,
                                      Handle<StringSet> non_locals);

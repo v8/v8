@@ -29,13 +29,6 @@ SET_PRIVATE(PromiseIdRejectHandler, promiseForwardingHandlerSymbol, true);
 // -------------------------------------------------------------------
 // Define exported functions.
 
-// For bootstrapper.
-
-// Export to bindings
-function DoRejectPromise(promise, reason) {
-  %PromiseReject(promise, reason, true);
-}
-
 // Combinators.
 
 // ES#sec-promise.all
@@ -136,10 +129,6 @@ function PromiseRace(iterable) {
   return deferred.promise;
 }
 
-function MarkPromiseAsHandled(promise) {
-  %PromiseMarkAsHandled(promise);
-}
-
 // -------------------------------------------------------------------
 // Install exported functions.
 
@@ -149,17 +138,8 @@ utils.InstallFunctions(GlobalPromise, DONT_ENUM, [
 ]);
 
 %InstallToContext([
-  "promise_reject", DoRejectPromise,
   "promise_id_resolve_handler", PromiseIdResolveHandler,
   "promise_id_reject_handler", PromiseIdRejectHandler
-]);
-
-// This allows extras to create promises quickly without building extra
-// resolve/reject closures, and allows them to later resolve and reject any
-// promise without having to hold on to those closures forever.
-utils.InstallFunctions(extrasUtils, 0, [
-  "rejectPromise", DoRejectPromise,
-  "markPromiseAsHandled", MarkPromiseAsHandled
 ]);
 
 })

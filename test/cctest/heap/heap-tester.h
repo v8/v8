@@ -5,7 +5,6 @@
 #ifndef HEAP_HEAP_TESTER_H_
 #define HEAP_HEAP_TESTER_H_
 
-#include "src/handles.h"
 #include "src/heap/spaces.h"
 
 // Tests that should have access to private methods of {v8::internal::Heap}.
@@ -34,6 +33,7 @@
   V(Regress589413)                                        \
   V(Regress658718)                                        \
   V(Regress670675)                                        \
+  V(Regress5831)                                          \
   V(WriteBarriersInCopyJSObject)
 
 #define HEAP_TEST(Name)                                                       \
@@ -54,6 +54,9 @@
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
 
 class HeapTester {
  public:

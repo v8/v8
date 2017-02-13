@@ -332,7 +332,11 @@ Node* RawMachineAssembler::MakeNode(const Operator* op, int input_count,
   return graph()->NewNodeUnchecked(op, input_count, inputs);
 }
 
-RawMachineLabel::~RawMachineLabel() { DCHECK(bound_ || !used_); }
+RawMachineLabel::~RawMachineLabel() {
+  // If this DCHECK fails, it means that the label has been bound but it's not
+  // used, or the opposite. This would cause the register allocator to crash.
+  DCHECK_EQ(bound_, used_);
+}
 
 }  // namespace compiler
 }  // namespace internal

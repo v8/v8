@@ -9,6 +9,7 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
+#include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/platform.h"
@@ -1693,6 +1694,8 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
 
 
 void Isolate::ReportPendingMessages() {
+  DCHECK(AllowExceptions::IsAllowed(this));
+
   Object* exception = pending_exception();
 
   // Try to propagate the exception to an external v8::TryCatch handler. If
@@ -2212,6 +2215,7 @@ Isolate::Isolate(bool enable_serializer)
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(NULL),
       rail_mode_(PERFORMANCE_ANIMATION),
+      promise_hook_or_debug_is_active_(false),
       promise_hook_(NULL),
       load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
@@ -2374,6 +2378,9 @@ void Isolate::Deinit() {
 
   delete interpreter_;
   interpreter_ = NULL;
+
+  delete ast_string_constants_;
+  ast_string_constants_ = nullptr;
 
   delete cpu_profiler_;
   cpu_profiler_ = NULL;
@@ -2698,6 +2705,11 @@ bool Isolate::Init(Deserializer* des) {
 
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
+  {
+    HandleScope scope(this);
+    ast_string_constants_ = new AstStringConstants(this, heap()->HashSeed());
+  }
+
   if (!create_heap_objects) {
     // Now that the heap is consistent, it's OK to generate the code for the
     // deopt entry table that might have been referred to by optimized code in
@@ -2890,8 +2902,7 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
 
 
 bool Isolate::use_crankshaft() const {
-  return FLAG_crankshaft &&
-         !serializer_enabled_ &&
+  return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
          CpuFeatures::SupportsCrankshaft();
 }
 
@@ -3084,8 +3095,9 @@ void Isolate::InvalidateStringLengthOverflowProtector() {
 void Isolate::InvalidateArrayIteratorProtector() {
   DCHECK(factory()->array_iterator_protector()->value()->IsSmi());
   DCHECK(IsArrayIteratorLookupChainIntact());
-  factory()->array_iterator_protector()->set_value(
-      Smi::FromInt(kProtectorInvalid));
+  PropertyCell::SetValueWithInvalidation(
+      factory()->array_iterator_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayIteratorLookupChainIntact());
 }
 
@@ -3234,10 +3246,18 @@ void Isolate::FireCallCompletedCallback() {
   }
 }
 
-void Isolate::SetPromiseHook(PromiseHook hook) { promise_hook_ = hook; }
+void Isolate::DebugStateUpdated() {
+  promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
+}
+
+void Isolate::SetPromiseHook(PromiseHook hook) {
+  promise_hook_ = hook;
+  DebugStateUpdated();
+}
 
 void Isolate::RunPromiseHook(PromiseHookType type, Handle<JSPromise> promise,
                              Handle<Object> parent) {
+  if (debug()->is_active()) debug()->RunPromiseHook(type, promise, parent);
   if (promise_hook_ == nullptr) return;
   promise_hook_(type, v8::Utils::PromiseToLocal(promise),
                 v8::Utils::ToLocal(parent));
@@ -3261,33 +3281,9 @@ void Isolate::ReportPromiseReject(Handle<JSObject> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-namespace {
-class PromiseDebugEventScope {
- public:
-  PromiseDebugEventScope(Isolate* isolate, int id)
-      : isolate_(isolate), id_(id) {
-    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugWillHandle, id_);
-    }
-  }
-
-  ~PromiseDebugEventScope() {
-    if (isolate_->debug()->is_active() && id_ != kDebugPromiseNoID) {
-      isolate_->debug()->OnAsyncTaskEvent(debug::kDebugDidHandle, id_);
-    }
-  }
-
- private:
-  Isolate* isolate_;
-  int id_;
-};
-}  // namespace
-
 void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id());
-
   Handle<Object> value(info->value(), this);
   Handle<Object> tasks(info->tasks(), this);
   Handle<JSFunction> promise_handle_fn = promise_handle();
@@ -3308,8 +3304,9 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
                                handle(deferred_promise_arr->get(i), this),
                                handle(deferred_on_resolve_arr->get(i), this),
                                handle(deferred_on_reject_arr->get(i), this)};
-      *result = Execution::TryCall(this, promise_handle_fn, undefined,
-                                   arraysize(argv), argv, maybe_exception);
+      *result = Execution::TryCall(
+          this, promise_handle_fn, undefined, arraysize(argv), argv,
+          Execution::MessageHandling::kReport, maybe_exception);
       // If execution is terminating, just bail out.
       if (result->is_null() && maybe_exception->is_null()) {
         return;
@@ -3319,31 +3316,31 @@ void Isolate::PromiseReactionJob(Handle<PromiseReactionJobInfo> info,
     Handle<Object> argv[] = {value, tasks, deferred_promise,
                              handle(info->deferred_on_resolve(), this),
                              handle(info->deferred_on_reject(), this)};
-    *result = Execution::TryCall(this, promise_handle_fn, undefined,
-                                 arraysize(argv), argv, maybe_exception);
+    *result = Execution::TryCall(
+        this, promise_handle_fn, undefined, arraysize(argv), argv,
+        Execution::MessageHandling::kReport, maybe_exception);
   }
 }
 
 void Isolate::PromiseResolveThenableJob(
     Handle<PromiseResolveThenableJobInfo> info, MaybeHandle<Object>* result,
     MaybeHandle<Object>* maybe_exception) {
-  PromiseDebugEventScope helper(this, info->debug_id());
-
   Handle<JSReceiver> thenable(info->thenable(), this);
   Handle<JSFunction> resolve(info->resolve(), this);
   Handle<JSFunction> reject(info->reject(), this);
   Handle<JSReceiver> then(info->then(), this);
   Handle<Object> argv[] = {resolve, reject};
-  *result = Execution::TryCall(this, then, thenable, arraysize(argv), argv,
-                               maybe_exception);
+  *result =
+      Execution::TryCall(this, then, thenable, arraysize(argv), argv,
+                         Execution::MessageHandling::kReport, maybe_exception);
 
   Handle<Object> reason;
   if (maybe_exception->ToHandle(&reason)) {
     DCHECK(result->is_null());
     Handle<Object> reason_arg[] = {reason};
-    *result =
-        Execution::TryCall(this, reject, factory()->undefined_value(),
-                           arraysize(reason_arg), reason_arg, maybe_exception);
+    *result = Execution::TryCall(
+        this, reject, factory()->undefined_value(), arraysize(reason_arg),
+        reason_arg, Execution::MessageHandling::kReport, maybe_exception);
   }
 }
 
@@ -3423,9 +3420,9 @@ void Isolate::RunMicrotasksInternal() {
         if (microtask->IsJSFunction()) {
           Handle<JSFunction> microtask_function =
               Handle<JSFunction>::cast(microtask);
-          result = Execution::TryCall(this, microtask_function,
-                                      factory()->undefined_value(), 0, NULL,
-                                      &maybe_exception);
+          result = Execution::TryCall(
+              this, microtask_function, factory()->undefined_value(), 0,
+              nullptr, Execution::MessageHandling::kReport, &maybe_exception);
         } else if (microtask->IsPromiseResolveThenableJobInfo()) {
           PromiseResolveThenableJob(
               Handle<PromiseResolveThenableJobInfo>::cast(microtask), &result,

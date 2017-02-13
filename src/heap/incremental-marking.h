@@ -158,7 +158,7 @@ class IncrementalMarking {
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
 
-  void WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit);
+  void WhiteToGreyAndPush(HeapObject* obj);
 
   inline void SetOldSpacePageFlags(MemoryChunk* chunk) {
     SetOldSpacePageFlags(chunk, IsMarking(), IsCompacting());
@@ -184,7 +184,7 @@ class IncrementalMarking {
 
   static void MarkBlack(HeapObject* object, int size);
 
-  static void TransferMark(Heap* heap, Address old_start, Address new_start);
+  static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
   // Returns true if the color transfer requires live bytes updating.
   INLINE(static bool TransferColor(HeapObject* from, HeapObject* to,

@@ -49,6 +49,9 @@ V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
 // Deoptimize reason for Deoptimize, DeoptimizeIf and DeoptimizeUnless.
 DeoptimizeReason DeoptimizeReasonOf(Operator const* const);
 
+// Helper function for return nodes, because returns have a hidden value input.
+int ValueInputCountOfReturn(Operator const* const op);
+
 // Deoptimize bailout kind.
 enum class DeoptimizeKind : uint8_t { kEager, kSoft };
 
@@ -368,6 +371,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* StateValues(int arguments, SparseInputMask bitmask);
   const Operator* TypedStateValues(const ZoneVector<MachineType>* types,
                                    SparseInputMask bitmask);
+  const Operator* ArgumentsObjectState();
   const Operator* ObjectState(int pointer_slots);
   const Operator* TypedObjectState(const ZoneVector<MachineType>* types);
   const Operator* FrameState(BailoutId bailout_id,
@@ -382,12 +386,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // Constructs a new merge or phi operator with the same opcode as {op}, but
   // with {size} inputs.
   const Operator* ResizeMergeOrPhi(const Operator* op, int size);
-
-  // Simd Operators
-  const Operator* Int32x4ExtractLane(int32_t);
-  const Operator* Int32x4ReplaceLane(int32_t);
-  const Operator* Float32x4ExtractLane(int32_t);
-  const Operator* Float32x4ReplaceLane(int32_t);
 
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(

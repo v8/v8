@@ -161,6 +161,14 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallForwardVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // r4 : start index (to support rest parameters)
+  // r3 : the target to call
+  Register registers[] = {r3, r4};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
 void ConstructStubDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // r2 : number of arguments
@@ -377,6 +385,14 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
       r2,  // the value to pass to the generator
       r3,  // the JSGeneratorObject to resume
       r4   // the resume mode (tagged)
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void FrameDropperTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      r3,  // loaded new FP
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

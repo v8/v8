@@ -5,6 +5,7 @@
 #ifndef V8_V8_PROFILER_H_
 #define V8_V8_PROFILER_H_
 
+#include <unordered_set>
 #include <vector>
 #include "v8.h"  // NOLINT(build/include)
 
@@ -630,6 +631,24 @@ class V8_EXPORT HeapProfiler {
     kSamplingForceGC = 1 << 0,
   };
 
+  typedef std::unordered_set<const v8::PersistentBase<v8::Value>*>
+      RetainerChildren;
+  typedef std::vector<std::pair<v8::RetainedObjectInfo*, RetainerChildren>>
+      RetainerGroups;
+  typedef std::vector<std::pair<const v8::PersistentBase<v8::Value>*,
+                                const v8::PersistentBase<v8::Value>*>>
+      RetainerEdges;
+
+  struct RetainerInfos {
+    RetainerGroups groups;
+    RetainerEdges edges;
+  };
+
+  /**
+   * Callback function invoked to retrieve all RetainerInfos from the embedder.
+   */
+  typedef RetainerInfos (*GetRetainerInfosCallback)(v8::Isolate* isolate);
+
   /**
    * Callback function invoked for obtaining RetainedObjectInfo for
    * the given JavaScript wrapper object. It is prohibited to enter V8
@@ -781,6 +800,8 @@ class V8_EXPORT HeapProfiler {
   void SetWrapperClassInfoProvider(
       uint16_t class_id,
       WrapperInfoCallback callback);
+
+  void SetGetRetainerInfosCallback(GetRetainerInfosCallback callback);
 
   /**
    * Default value of persistent handle class ID. Must not be used to

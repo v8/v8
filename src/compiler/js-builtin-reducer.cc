@@ -5,9 +5,11 @@
 #include "src/compiler/js-builtin-reducer.h"
 
 #include "src/base/bits.h"
+#include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -108,19 +110,6 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 
 namespace {
 
-// TODO(turbofan): Shall we move this to the NodeProperties? Or some (untyped)
-// alias analyzer?
-bool IsSame(Node* a, Node* b) {
-  if (a == b) {
-    return true;
-  } else if (a->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a->InputAt(0), b);
-  } else if (b->opcode() == IrOpcode::kCheckHeapObject) {
-    return IsSame(a, b->InputAt(0));
-  }
-  return false;
-}
-
 MaybeHandle<Map> GetMapWitness(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -128,13 +117,15 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   // for the {receiver}, and if so use that map for the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       ZoneHandleSet<Map> const& maps =
           CheckMapsParametersOf(dominator->op()).maps();
       return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
                                 : MaybeHandle<Map>();
     }
-    if (dominator->op()->EffectInputCount() != 1) {
+    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+    if (dominator->op()->EffectInputCount() != 1 ||
+        !dominator->op()->HasProperty(Operator::kNoWrite)) {
       // Didn't find any appropriate CheckMaps node.
       return MaybeHandle<Map>();
     }
@@ -320,6 +311,7 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   Node* value = effect = graph()->NewNode(
       simplified()->Allocate(NOT_TENURED),
       jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
+  NodeProperties::SetType(value, Type::OtherObject());
   effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                             value, jsgraph()->Constant(map), effect, control);
   effect = graph()->NewNode(
@@ -914,7 +906,7 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
                             InstanceType instance_type) {
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       ZoneHandleSet<Map> const& maps =
           CheckMapsParametersOf(dominator->op()).maps();
       // Check if all maps have the given {instance_type}.
@@ -923,27 +915,15 @@ bool HasInstanceTypeWitness(Node* receiver, Node* effect,
       }
       return true;
     }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return false;
-        }
-        break;
-      }
-      case IrOpcode::kStoreElement:
-      case IrOpcode::kStoreTypedElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return false;
-        }
-        break;
-      }
+    // The instance type doesn't change for JSReceiver values, so we
+    // don't need to pay attention to potentially side-effecting nodes
+    // here. Strings and internal structures like FixedArray and
+    // FixedDoubleArray are weird here, but we don't use this function then.
+    DCHECK_LE(FIRST_JS_RECEIVER_TYPE, instance_type);
+    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
+    if (dominator->op()->EffectInputCount() != 1) {
+      // Didn't find any appropriate CheckMaps node.
+      return false;
     }
     dominator = NodeProperties::GetEffectInput(dominator);
   }
@@ -1621,7 +1601,7 @@ Node* GetStringWitness(Node* node) {
   // the lowering below.
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckString &&
-        IsSame(dominator->InputAt(0), receiver)) {
+        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
       return dominator;
     }
     if (dominator->op()->EffectInputCount() != 1) {
@@ -1742,6 +1722,34 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
   return NoChange();
 }
 
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
+  // We need at least target, receiver and search_string parameters.
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* search_string = NodeProperties::GetValueInput(node, 2);
+    Type* search_string_type = NodeProperties::GetType(search_string);
+    Node* position = (node->op()->ValueInputCount() >= 4)
+                         ? NodeProperties::GetValueInput(node, 3)
+                         : jsgraph()->ZeroConstant();
+    Type* position_type = NodeProperties::GetType(position);
+
+    if (search_string_type->Is(Type::String()) &&
+        position_type->Is(Type::SignedSmall())) {
+      if (Node* receiver = GetStringWitness(node)) {
+        RelaxEffectsAndControls(node);
+        node->ReplaceInput(0, receiver);
+        node->ReplaceInput(1, search_string);
+        node->ReplaceInput(2, position);
+        node->TrimInputCount(3);
+        NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
+        return Changed(node);
+      }
+    }
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     Node* effect = NodeProperties::GetEffectInput(node);
@@ -1756,6 +1764,7 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     Node* value = effect = graph()->NewNode(
         simplified()->Allocate(NOT_TENURED),
         jsgraph()->Constant(JSStringIterator::kSize), effect, control);
+    NodeProperties::SetType(value, Type::OtherObject());
     effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
                               value, map, effect, control);
     effect = graph()->NewNode(
@@ -2112,6 +2121,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharAt(node);
     case kStringCharCodeAt:
       return ReduceStringCharCodeAt(node);
+    case kStringIndexOf:
+      return ReduceStringIndexOf(node);
     case kStringIterator:
       return ReduceStringIterator(node);
     case kStringIteratorNext:

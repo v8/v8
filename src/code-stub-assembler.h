@@ -28,7 +28,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(CodeMap, CodeMap)                                 \
   V(empty_string, EmptyString)                        \
   V(EmptyFixedArray, EmptyFixedArray)                 \
-  V(EmptyLiteralsArray, EmptyLiteralsArray)           \
+  V(EmptyTypeFeedbackVector, EmptyTypeFeedbackVector) \
   V(FalseValue, False)                                \
   V(FixedArrayMap, FixedArrayMap)                     \
   V(FixedCOWArrayMap, FixedCOWArrayMap)               \
@@ -112,8 +112,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       return IntPtrOpName(a, b);                         \
     }                                                    \
   }
+  PARAMETER_BINOP(IntPtrOrSmiMin, IntPtrMin, SmiMin)
   PARAMETER_BINOP(IntPtrOrSmiAdd, IntPtrAdd, SmiAdd)
+  PARAMETER_BINOP(IntPtrOrSmiSub, IntPtrSub, SmiSub)
   PARAMETER_BINOP(IntPtrOrSmiLessThan, IntPtrLessThan, SmiLessThan)
+  PARAMETER_BINOP(IntPtrOrSmiLessThanOrEqual, IntPtrLessThanOrEqual,
+                  SmiLessThanOrEqual)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThan, IntPtrGreaterThan, SmiGreaterThan)
   PARAMETER_BINOP(IntPtrOrSmiGreaterThanOrEqual, IntPtrGreaterThanOrEqual,
                   SmiGreaterThanOrEqual)
@@ -135,6 +139,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StaleRegisterConstant();
 
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
+
+  bool IsIntPtrOrSmiConstantZero(Node* test);
 
   // Round the 32bits payload of the provided word up to the next power of two.
   Node* IntPtrRoundUpToPowerOfTwo32(Node* value);
@@ -207,6 +213,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return IntPtrOpName(BitcastTaggedToWord(a), BitcastTaggedToWord(b)); \
   }
   SMI_COMPARISON_OP(SmiEqual, WordEqual)
+  SMI_COMPARISON_OP(SmiNotEqual, WordNotEqual)
   SMI_COMPARISON_OP(SmiAbove, UintPtrGreaterThan)
   SMI_COMPARISON_OP(SmiAboveOrEqual, UintPtrGreaterThanOrEqual)
   SMI_COMPARISON_OP(SmiBelow, UintPtrLessThan)
@@ -710,6 +717,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
 
+  // Check if |var_string| has an indirect (thin or flat cons) string type,
+  // and unpack it if so.
+  void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,
+                                Variable* var_did_something);
+  // Check if |var_left| or |var_right| has an indirect (thin or flat cons)
+  // string type, and unpack it/them if so. Fall through if nothing was done.
+  void MaybeDerefIndirectStrings(Variable* var_left, Node* left_instance_type,
+                                 Variable* var_right, Node* right_instance_type,
+                                 Label* did_something);
+
   // Return the first index >= {from} at which {needle_char} was found in
   // {string}, or -1 if such an index does not exist. The returned value is
   // a Smi, {string} is expected to be a String, {needle_char} is an intptr,
@@ -740,9 +757,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Convert any object to a Primitive.
   Node* JSReceiverToPrimitive(Node* context, Node* input);
-
-  // Convert a String to a flat String.
-  Node* FlattenString(Node* string);
 
   enum ToIntegerTruncationMode {
     kNoTruncation,
@@ -856,7 +870,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Various building blocks for stubs doing property lookups.
   void TryToName(Node* key, Label* if_keyisindex, Variable* var_index,
-                 Label* if_keyisunique, Label* if_bailout);
+                 Label* if_keyisunique, Variable* var_unique,
+                 Label* if_bailout);
 
   // Calculates array index for given dictionary entry and entry field.
   // See Dictionary::EntryToIndex().
@@ -1060,16 +1075,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   typedef std::function<void(Node* index)> FastLoopBody;
 
-  void BuildFastLoop(const VariableList& var_list,
-                     MachineRepresentation index_rep, Node* start_index,
-                     Node* end_index, const FastLoopBody& body, int increment,
-                     IndexAdvanceMode mode = IndexAdvanceMode::kPre);
+  Node* BuildFastLoop(const VariableList& var_list,
+                      MachineRepresentation index_rep, Node* start_index,
+                      Node* end_index, const FastLoopBody& body, int increment,
+                      IndexAdvanceMode mode = IndexAdvanceMode::kPre);
 
-  void BuildFastLoop(MachineRepresentation index_rep, Node* start_index,
-                     Node* end_index, const FastLoopBody& body, int increment,
-                     IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
-    BuildFastLoop(VariableList(0, zone()), index_rep, start_index, end_index,
-                  body, increment, mode);
+  Node* BuildFastLoop(MachineRepresentation index_rep, Node* start_index,
+                      Node* end_index, const FastLoopBody& body, int increment,
+                      IndexAdvanceMode mode = IndexAdvanceMode::kPre) {
+    return BuildFastLoop(VariableList(0, zone()), index_rep, start_index,
+                         end_index, body, increment, mode);
   }
 
   enum class ForEachDirection { kForward, kReverse };
@@ -1078,10 +1093,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       FastFixedArrayForEachBody;
 
   void BuildFastFixedArrayForEach(
-      Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
+      const CodeStubAssembler::VariableList& vars, Node* fixed_array,
+      ElementsKind kind, Node* first_element_inclusive,
       Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
       ParameterMode mode = INTPTR_PARAMETERS,
       ForEachDirection direction = ForEachDirection::kReverse);
+
+  void BuildFastFixedArrayForEach(
+      Node* fixed_array, ElementsKind kind, Node* first_element_inclusive,
+      Node* last_element_exclusive, const FastFixedArrayForEachBody& body,
+      ParameterMode mode = INTPTR_PARAMETERS,
+      ForEachDirection direction = ForEachDirection::kReverse) {
+    CodeStubAssembler::VariableList list(0, zone());
+    BuildFastFixedArrayForEach(list, fixed_array, kind, first_element_inclusive,
+                               last_element_exclusive, body, mode, direction);
+  }
 
   Node* GetArrayAllocationSize(Node* element_count, ElementsKind kind,
                                ParameterMode mode, int header_size) {
@@ -1131,6 +1157,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Runtime::FunctionId fallback_runtime_function_id = Runtime::kHasProperty);
   Node* ForInFilter(Node* key, Node* object, Node* context);
 
+  Node* ClassOf(Node* object);
+
   Node* Typeof(Node* value, Node* context);
 
   Node* GetSuperConstructor(Node* value, Node* context);
@@ -1150,12 +1178,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                           Node* context);
 
   // Promise helpers
-  Node* IsPromiseHookEnabled();
+  Node* IsPromiseHookEnabledOrDebugIsActive();
 
   Node* AllocatePromiseReactionJobInfo(Node* value, Node* tasks,
                                        Node* deferred_promise,
                                        Node* deferred_on_resolve,
                                        Node* deferred_on_reject, Node* context);
+
+  // Support for printf-style debugging
+  void Print(const char* s);
+  void Print(const char* prefix, Node* tagged_value);
+  inline void Print(Node* tagged_value) { return Print(nullptr, tagged_value); }
 
  protected:
   void DescriptorLookupLinear(Node* unique_name, Node* descriptors, Node* nof,
@@ -1208,9 +1241,16 @@ class CodeStubArguments {
 
   // |argc| is an uint32 value which specifies the number of arguments passed
   // to the builtin excluding the receiver.
-  CodeStubArguments(CodeStubAssembler* assembler, Node* argc);
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc)
+      : CodeStubArguments(assembler, argc, nullptr,
+                          CodeStubAssembler::INTPTR_PARAMETERS) {}
+  CodeStubArguments(CodeStubAssembler* assembler, Node* argc, Node* fp,
+                    CodeStubAssembler::ParameterMode param_mode);
 
   Node* GetReceiver() const;
+
+  Node* AtIndexPtr(Node* index, CodeStubAssembler::ParameterMode mode =
+                                    CodeStubAssembler::INTPTR_PARAMETERS) const;
 
   // |index| is zero-based and does not include the receiver
   Node* AtIndex(Node* index, CodeStubAssembler::ParameterMode mode =
@@ -1242,6 +1282,7 @@ class CodeStubArguments {
   Node* GetArguments();
 
   CodeStubAssembler* assembler_;
+  CodeStubAssembler::ParameterMode argc_mode_;
   Node* argc_;
   Node* arguments_;
   Node* fp_;

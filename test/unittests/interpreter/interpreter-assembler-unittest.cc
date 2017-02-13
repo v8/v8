@@ -18,6 +18,14 @@ namespace internal {
 
 using namespace compiler;
 
+#ifdef ENABLE_VERIFY_CSA
+#define IS_BITCAST_WORD_TO_TAGGED_SIGNED(x) IsBitcastWordToTaggedSigned(x)
+#define IS_BITCAST_TAGGED_TO_WORD(x) IsBitcastTaggedToWord(x)
+#else
+#define IS_BITCAST_WORD_TO_TAGGED_SIGNED(x) (x)
+#define IS_BITCAST_TAGGED_TO_WORD(x) (x)
+#endif
+
 namespace interpreter {
 
 InterpreterAssemblerTestState::InterpreterAssemblerTestState(
@@ -550,11 +558,12 @@ TARGET_TEST_F(InterpreterAssemblerTest, SmiTag) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
     Node* value = m.Int32Constant(44);
-    EXPECT_THAT(m.SmiTag(value), IsBitcastWordToTaggedSigned(IsIntPtrConstant(
-                                     static_cast<intptr_t>(44)
-                                     << (kSmiShiftSize + kSmiTagSize))));
+    EXPECT_THAT(
+        m.SmiTag(value),
+        IS_BITCAST_WORD_TO_TAGGED_SIGNED(IsIntPtrConstant(
+            static_cast<intptr_t>(44) << (kSmiShiftSize + kSmiTagSize))));
     EXPECT_THAT(m.SmiUntag(value),
-                IsWordSar(IsBitcastTaggedToWord(value),
+                IsWordSar(IS_BITCAST_TAGGED_TO_WORD(value),
                           IsIntPtrConstant(kSmiShiftSize + kSmiTagSize)));
   }
 }
@@ -692,8 +701,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
     TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
       InterpreterAssemblerTestState state(this, bytecode);
       InterpreterAssemblerForTest m(&state, bytecode);
-      Callable builtin =
-          CodeFactory::InterpreterPushArgsAndCall(isolate(), tail_call_mode);
+      Callable builtin = CodeFactory::InterpreterPushArgsAndCall(
+          isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
       Node* function = m.IntPtrConstant(0);
       Node* first_arg = m.IntPtrConstant(1);
       Node* arg_count = m.Int32Constant(2);
@@ -716,13 +725,10 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadTypeFeedbackVector) {
         m.IsLoad(MachineType::AnyTagged(), IsLoadParentFramePointer(),
                  IsIntPtrConstant(Register::function_closure().ToOperand()
                                   << kPointerSizeLog2));
-    Matcher<Node*> load_literals_matcher = m.IsLoad(
-        MachineType::AnyTagged(), load_function_matcher,
-        IsIntPtrConstant(JSFunction::kLiteralsOffset - kHeapObjectTag));
 
     EXPECT_THAT(feedback_vector,
-                m.IsLoad(MachineType::AnyTagged(), load_literals_matcher,
-                         IsIntPtrConstant(LiteralsArray::kFeedbackVectorOffset -
+                m.IsLoad(MachineType::AnyTagged(), load_function_matcher,
+                         IsIntPtrConstant(JSFunction::kFeedbackVectorOffset -
                                           kHeapObjectTag)));
   }
 }

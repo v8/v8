@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --allow-natives-syntax
+// Flags: --allow-natives-syntax --crankshaft
 
 export let x = 0;
 function foo() { x++ };

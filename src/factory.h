@@ -13,6 +13,9 @@
 namespace v8 {
 namespace internal {
 
+class BoilerplateDescription;
+class ConstantElementsPair;
+
 enum FunctionMode {
   // With prototype.
   FUNCTION_WITH_WRITEABLE_PROTOTYPE,
@@ -48,6 +51,13 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates an uninitialized fixed array. It must be filled by the caller.
   Handle<FixedArray> NewUninitializedFixedArray(int size);
 
+  // Allocates a fixed array for name-value pairs of boilerplate properties and
+  // calculates the number of properties we need to store in the backing store.
+  Handle<BoilerplateDescription> NewBoilerplateDescription(int boilerplate,
+                                                           int all_properties,
+                                                           int index_keys,
+                                                           bool has_seen_proto);
+
   // Allocate a new uninitialized fixed double array.
   // The function returns a pre-allocated empty fixed array for capacity = 0,
   // so the return type must be the general fixed array class.
@@ -68,12 +78,6 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Create a new boxed value.
   Handle<Box> NewBox(Handle<Object> value);
-
-  // Create a new PromiseReactionJobInfo struct.
-  Handle<PromiseReactionJobInfo> NewPromiseReactionJobInfo(
-      Handle<Object> value, Handle<Object> tasks,
-      Handle<Object> deferred_promise, Handle<Object> deferred_on_resolve,
-      Handle<Object> deferred_on_reject, Handle<Context> context);
 
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
@@ -227,6 +231,11 @@ class V8_EXPORT_PRIVATE Factory final {
   MUST_USE_RESULT MaybeHandle<Map> InternalizedStringMapForString(
       Handle<String> string);
 
+  // Creates an internalized copy of an external string. |string| must be
+  // of type StringClass.
+  template <class StringClass>
+  Handle<StringClass> InternalizeExternalString(Handle<String> string);
+
   // Allocates and partially initializes an one-byte or two-byte String. The
   // characters of the string are uninitialized. Currently used in regexp code
   // only, where they are pretenured.
@@ -320,8 +329,6 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Context> NewBlockContext(Handle<JSFunction> function,
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
-  // Create a promise context.
-  Handle<Context> NewPromiseResolvingFunctionContext(int length);
 
   // Allocate a new struct.  The struct is pretenured (allocated directly in
   // the old generation).
@@ -333,6 +340,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<AccessorInfo> NewAccessorInfo();
 
   Handle<Script> NewScript(Handle<String> source);
+
+  Handle<BreakPointInfo> NewBreakPointInfo(int source_position);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
@@ -432,15 +441,28 @@ class V8_EXPORT_PRIVATE Factory final {
     }
     return NewNumber(static_cast<double>(value), pretenure);
   }
-  Handle<HeapNumber> NewHeapNumber(double value,
-                                   MutableMode mode = IMMUTABLE,
-                                   PretenureFlag pretenure = NOT_TENURED);
-
+  Handle<HeapNumber> NewHeapNumber(double value, MutableMode mode = IMMUTABLE,
+                                   PretenureFlag pretenure = NOT_TENURED) {
+    Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
+    heap_number->set_value(value);
+    return heap_number;
+  }
+  Handle<HeapNumber> NewHeapNumberFromBits(
+      uint64_t bits, MutableMode mode = IMMUTABLE,
+      PretenureFlag pretenure = NOT_TENURED) {
+    Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
+    heap_number->set_value_as_bits(bits);
+    return heap_number;
+  }
+  // Creates mutable heap number object with value field set to hole NaN.
   Handle<HeapNumber> NewMutableHeapNumber(
       PretenureFlag pretenure = NOT_TENURED) {
-    double hole_nan = bit_cast<double>(kHoleNanInt64);
-    return NewHeapNumber(hole_nan, MUTABLE, pretenure);
+    return NewHeapNumberFromBits(kHoleNanInt64, MUTABLE, pretenure);
   }
+
+  // Creates heap number object with not yet set value field.
+  Handle<HeapNumber> NewHeapNumber(MutableMode mode,
+                                   PretenureFlag pretenure = NOT_TENURED);
 
 #define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
   Handle<Type> New##Type(lane_type lanes[lane_count],             \
@@ -457,7 +479,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                PretenureFlag pretenure = NOT_TENURED);
   // JSObject without a prototype.
-  Handle<JSObject> NewJSObjectWithNullProto();
+  Handle<JSObject> NewJSObjectWithNullProto(
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Global objects are pretenured and initialized based on a constructor.
   Handle<JSGlobalObject> NewJSGlobalObject(Handle<JSFunction> constructor);
@@ -579,12 +602,12 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Object> context_or_undefined, Handle<LiteralsArray> literals,
+      Handle<Object> context_or_undefined, Handle<TypeFeedbackVector> vector,
       PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
-      Handle<LiteralsArray> literals, PretenureFlag pretenure = TENURED);
+      Handle<TypeFeedbackVector> vector, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,

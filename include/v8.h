@@ -962,20 +962,31 @@ class V8_EXPORT Data {
 class ScriptOriginOptions {
  public:
   V8_INLINE ScriptOriginOptions(bool is_shared_cross_origin = false,
-                                bool is_opaque = false, bool is_wasm = false)
+                                bool is_opaque = false, bool is_wasm = false,
+                                bool is_module = false)
       : flags_((is_shared_cross_origin ? kIsSharedCrossOrigin : 0) |
-               (is_wasm ? kIsWasm : 0) | (is_opaque ? kIsOpaque : 0)) {}
+               (is_wasm ? kIsWasm : 0) | (is_opaque ? kIsOpaque : 0) |
+               (is_module ? kIsModule : 0)) {}
   V8_INLINE ScriptOriginOptions(int flags)
-      : flags_(flags & (kIsSharedCrossOrigin | kIsOpaque | kIsWasm)) {}
+      : flags_(flags &
+               (kIsSharedCrossOrigin | kIsOpaque | kIsWasm | kIsModule)) {}
+
   bool IsSharedCrossOrigin() const {
     return (flags_ & kIsSharedCrossOrigin) != 0;
   }
   bool IsOpaque() const { return (flags_ & kIsOpaque) != 0; }
   bool IsWasm() const { return (flags_ & kIsWasm) != 0; }
+  bool IsModule() const { return (flags_ & kIsModule) != 0; }
+
   int Flags() const { return flags_; }
 
  private:
-  enum { kIsSharedCrossOrigin = 1, kIsOpaque = 1 << 1, kIsWasm = 1 << 2 };
+  enum {
+    kIsSharedCrossOrigin = 1,
+    kIsOpaque = 1 << 1,
+    kIsWasm = 1 << 2,
+    kIsModule = 1 << 3
+  };
   const int flags_;
 };
 
@@ -992,7 +1003,8 @@ class ScriptOrigin {
       Local<Integer> script_id = Local<Integer>(),
       Local<Value> source_map_url = Local<Value>(),
       Local<Boolean> resource_is_opaque = Local<Boolean>(),
-      Local<Boolean> is_wasm = Local<Boolean>());
+      Local<Boolean> is_wasm = Local<Boolean>(),
+      Local<Boolean> is_module = Local<Boolean>());
 
   V8_INLINE Local<Value> ResourceName() const;
   V8_INLINE Local<Integer> ResourceLineOffset() const;
@@ -1182,6 +1194,8 @@ class V8_EXPORT ScriptCompiler {
     // caller. The CachedData object is alive as long as the Source object is
     // alive.
     V8_INLINE const CachedData* GetCachedData() const;
+
+    V8_INLINE const ScriptOriginOptions& GetResourceOptions() const;
 
     // Prevent copying.
     Source(const Source&) = delete;
@@ -1425,7 +1439,7 @@ class V8_EXPORT ScriptCompiler {
 
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
-      Isolate* isolate, Source* source, CompileOptions options, bool is_module);
+      Isolate* isolate, Source* source, CompileOptions options);
 };
 
 
@@ -1726,6 +1740,10 @@ class V8_EXPORT ValueSerializer {
      * Allocates memory for the buffer of at least the size provided. The actual
      * size (which may be greater or equal) is written to |actual_size|. If no
      * buffer has been allocated yet, nullptr will be provided.
+     *
+     * If the memory cannot be allocated, nullptr should be returned.
+     * |actual_size| will be ignored. It is assumed that |old_buffer| is still
+     * valid in this case and has not been modified.
      */
     virtual void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                          size_t* actual_size);
@@ -2313,7 +2331,7 @@ class V8_EXPORT String : public Name {
   enum Encoding {
     UNKNOWN_ENCODING = 0x1,
     TWO_BYTE_ENCODING = 0x0,
-    ONE_BYTE_ENCODING = 0x4
+    ONE_BYTE_ENCODING = 0x8
   };
   /**
    * Returns the number of characters in this string.
@@ -2696,6 +2714,7 @@ class V8_EXPORT Symbol : public Name {
   // Well-known symbols
   static Local<Symbol> GetIterator(Isolate* isolate);
   static Local<Symbol> GetUnscopables(Isolate* isolate);
+  static Local<Symbol> GetToPrimitive(Isolate* isolate);
   static Local<Symbol> GetToStringTag(Isolate* isolate);
   static Local<Symbol> GetIsConcatSpreadable(Isolate* isolate);
 
@@ -6331,7 +6350,8 @@ class V8_EXPORT Isolate {
           create_histogram_callback(nullptr),
           add_histogram_sample_callback(nullptr),
           array_buffer_allocator(nullptr),
-          external_references(nullptr) {}
+          external_references(nullptr),
+          allow_atomics_wait(true) {}
 
     /**
      * The optional entry_hook allows the host application to provide the
@@ -6387,6 +6407,12 @@ class V8_EXPORT Isolate {
      * entire lifetime of the isolate.
      */
     intptr_t* external_references;
+
+    /**
+     * Whether calling Atomics.wait (a function that may block) is allowed in
+     * this isolate.
+     */
+    bool allow_atomics_wait;
   };
 
 
@@ -8437,10 +8463,10 @@ class Internals {
   static const int kFixedArrayHeaderSize = 2 * kApiPointerSize;
   static const int kContextHeaderSize = 2 * kApiPointerSize;
   static const int kContextEmbedderDataIndex = 5;
-  static const int kFullStringRepresentationMask = 0x07;
-  static const int kStringEncodingMask = 0x4;
+  static const int kFullStringRepresentationMask = 0x0f;
+  static const int kStringEncodingMask = 0x8;
   static const int kExternalTwoByteRepresentationTag = 0x02;
-  static const int kExternalOneByteRepresentationTag = 0x06;
+  static const int kExternalOneByteRepresentationTag = 0x0a;
 
   static const int kIsolateEmbedderDataOffset = 0 * kApiPointerSize;
   static const int kExternalMemoryOffset = 4 * kApiPointerSize;
@@ -8987,14 +9013,15 @@ ScriptOrigin::ScriptOrigin(Local<Value> resource_name,
                            Local<Integer> script_id,
                            Local<Value> source_map_url,
                            Local<Boolean> resource_is_opaque,
-                           Local<Boolean> is_wasm)
+                           Local<Boolean> is_wasm, Local<Boolean> is_module)
     : resource_name_(resource_name),
       resource_line_offset_(resource_line_offset),
       resource_column_offset_(resource_column_offset),
       options_(!resource_is_shared_cross_origin.IsEmpty() &&
                    resource_is_shared_cross_origin->IsTrue(),
                !resource_is_opaque.IsEmpty() && resource_is_opaque->IsTrue(),
-               !is_wasm.IsEmpty() && is_wasm->IsTrue()),
+               !is_wasm.IsEmpty() && is_wasm->IsTrue(),
+               !is_module.IsEmpty() && is_module->IsTrue()),
       script_id_(script_id),
       source_map_url_(source_map_url) {}
 
@@ -9043,6 +9070,9 @@ const ScriptCompiler::CachedData* ScriptCompiler::Source::GetCachedData()
   return cached_data;
 }
 
+const ScriptOriginOptions& ScriptCompiler::Source::GetResourceOptions() const {
+  return resource_options;
+}
 
 Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
   return value ? True(isolate) : False(isolate);

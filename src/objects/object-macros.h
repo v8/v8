@@ -24,3 +24,9 @@
 #define DECLARE_CAST(type)                   \
   INLINE(static type* cast(Object* object)); \
   INLINE(static const type* cast(const Object* object));
+
+#ifdef VERIFY_HEAP
+#define DECLARE_VERIFIER(Name) void Name##Verify();
+#else
+#define DECLARE_VERIFIER(Name)
+#endif

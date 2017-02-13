@@ -16,9 +16,8 @@ namespace internal {
 HeapProfiler::HeapProfiler(Heap* heap)
     : ids_(new HeapObjectsMap(heap)),
       names_(new StringsStorage(heap)),
-      is_tracking_object_moves_(false) {
-}
-
+      is_tracking_object_moves_(false),
+      get_retainer_infos_callback_(nullptr) {}
 
 static void DeleteHeapSnapshot(HeapSnapshot** snapshot_ptr) {
   delete *snapshot_ptr;
@@ -61,6 +60,19 @@ v8::RetainedObjectInfo* HeapProfiler::ExecuteWrapperClassCallback(
       class_id, Utils::ToLocal(Handle<Object>(wrapper)));
 }
 
+void HeapProfiler::SetGetRetainerInfosCallback(
+    v8::HeapProfiler::GetRetainerInfosCallback callback) {
+  get_retainer_infos_callback_ = callback;
+}
+
+v8::HeapProfiler::RetainerInfos HeapProfiler::GetRetainerInfos(
+    Isolate* isolate) {
+  v8::HeapProfiler::RetainerInfos infos;
+  if (get_retainer_infos_callback_ != nullptr)
+    infos =
+        get_retainer_infos_callback_(reinterpret_cast<v8::Isolate*>(isolate));
+  return infos;
+}
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(
     v8::ActivityControl* control,

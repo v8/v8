@@ -40,6 +40,8 @@ std::ostream& operator<<(std::ostream& os, CompareOperationHint hint) {
       return os << "InternalizedString";
     case CompareOperationHint::kString:
       return os << "String";
+    case CompareOperationHint::kReceiver:
+      return os << "Receiver";
     case CompareOperationHint::kAny:
       return os << "Any";
   }

@@ -253,12 +253,11 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "double_absolute_constant");
   Add(ExternalReference::address_of_double_neg_constant().address(),
       "double_negate_constant");
-  Add(ExternalReference::promise_hook_address(isolate).address(),
-      "Isolate::promise_hook_address()");
+  Add(ExternalReference::promise_hook_or_debug_is_active_address(isolate)
+          .address(),
+      "Isolate::promise_hook_or_debug_is_active_address()");
 
   // Debug addresses
-  Add(ExternalReference::debug_after_break_target_address(isolate).address(),
-      "Debug::after_break_target_address()");
   Add(ExternalReference::debug_is_active_address(isolate).address(),
       "Debug::is_active_address()");
   Add(ExternalReference::debug_hook_on_function_call_address(isolate).address(),
@@ -267,6 +266,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "Debug::step_in_enabled_address()");
   Add(ExternalReference::debug_suspended_generator_address(isolate).address(),
       "Debug::step_suspended_generator_address()");
+  Add(ExternalReference::debug_restart_fp_address(isolate).address(),
+      "Debug::restart_fp_address()");
 
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),

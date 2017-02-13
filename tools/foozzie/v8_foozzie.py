@@ -20,14 +20,14 @@ import v8_commands
 import v8_suppressions
 
 CONFIGS = dict(
-  default=[],
-  validate_asm=['--validate-asm'], # Maybe add , '--disable-asm-warnings'
-  fullcode=['--nocrankshaft', '--turbo-filter=~', '--novalidate-asm'],
-  noturbo=['--turbo-filter=~', '--noturbo-asm'],
-  noturbo_opt=['--always-opt', '--turbo-filter=~', '--noturbo-asm'],
-  ignition_staging=['--ignition-staging'],
-  ignition_turbo=['--ignition-staging', '--turbo'],
-  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt'],
+  default=['--validate-asm'],
+  fullcode=['--nocrankshaft', '--turbo-filter=~', '--validate-asm'],
+  ignition=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
+            '--validate-asm', '--nocrankshaft'],
+  ignition_staging=['--ignition-staging', '--validate-asm'],
+  ignition_turbo=['--ignition-staging', '--turbo', '--validate-asm'],
+  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt',
+                      '--validate-asm'],
 )
 
 # Timeout in seconds for one d8 run.

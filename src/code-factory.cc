@@ -34,6 +34,16 @@ Callable CodeFactory::LoadIC(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::LoadICProtoArray(Isolate* isolate,
+                                       bool throw_if_nonexistent) {
+  return Callable(
+      throw_if_nonexistent
+          ? isolate->builtins()->LoadICProtoArrayThrowIfNonexistent()
+          : isolate->builtins()->LoadICProtoArray(),
+      LoadICProtoArrayDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
   CallApiGetterStub stub(isolate);
   return make_callable(stub);
@@ -72,12 +82,6 @@ Callable CodeFactory::KeyedLoadIC(Isolate* isolate) {
 // static
 Callable CodeFactory::KeyedLoadICInOptimizedCode(Isolate* isolate) {
   return Callable(isolate->builtins()->KeyedLoadIC(),
-                  LoadWithVectorDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::KeyedLoadIC_Megamorphic(Isolate* isolate) {
-  return Callable(isolate->builtins()->KeyedLoadIC_Megamorphic_TF(),
                   LoadWithVectorDescriptor(isolate));
 }
 
@@ -133,11 +137,10 @@ Callable CodeFactory::KeyedStoreICInOptimizedCode(Isolate* isolate,
 // static
 Callable CodeFactory::KeyedStoreIC_Megamorphic(Isolate* isolate,
                                                LanguageMode language_mode) {
-  return Callable(
-      language_mode == STRICT
-          ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict_TF()
-          : isolate->builtins()->KeyedStoreIC_Megamorphic_TF(),
-      StoreWithVectorDescriptor(isolate));
+  return Callable(language_mode == STRICT
+                      ? isolate->builtins()->KeyedStoreIC_Megamorphic_Strict()
+                      : isolate->builtins()->KeyedStoreIC_Megamorphic(),
+                  StoreWithVectorDescriptor(isolate));
 }
 
 // static
@@ -156,36 +159,6 @@ Callable CodeFactory::BinaryOpIC(Isolate* isolate, Token::Value op) {
 Callable CodeFactory::GetProperty(Isolate* isolate) {
   GetPropertyStub stub(isolate);
   return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::ToBoolean(Isolate* isolate) {
-  return Callable(isolate->builtins()->ToBoolean(),
-                  TypeConversionDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ToNumber(Isolate* isolate) {
-  return Callable(isolate->builtins()->ToNumber(),
-                  TypeConversionDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::NonNumberToNumber(Isolate* isolate) {
-  return Callable(isolate->builtins()->NonNumberToNumber(),
-                  TypeConversionDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StringToNumber(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringToNumber(),
-                  TypeConversionDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::ToName(Isolate* isolate) {
-  return Callable(isolate->builtins()->ToName(),
-                  TypeConversionDescriptor(isolate));
 }
 
 // static
@@ -254,19 +227,38 @@ TFS_BUILTIN(StrictEqual)
 TFS_BUILTIN(StrictNotEqual)
 TFS_BUILTIN(CreateIterResultObject)
 TFS_BUILTIN(HasProperty)
+TFS_BUILTIN(NonNumberToNumber)
+TFS_BUILTIN(StringToNumber)
+TFS_BUILTIN(ToBoolean)
 TFS_BUILTIN(ToInteger)
 TFS_BUILTIN(ToLength)
+TFS_BUILTIN(ToName)
+TFS_BUILTIN(ToNumber)
 TFS_BUILTIN(ToObject)
+TFS_BUILTIN(ClassOf)
 TFS_BUILTIN(Typeof)
 TFS_BUILTIN(InstanceOf)
 TFS_BUILTIN(OrdinaryHasInstance)
-TFS_BUILTIN(ForInFilter)
+TFS_BUILTIN(CopyFastSmiOrObjectElements)
+TFS_BUILTIN(GrowFastDoubleElements)
+TFS_BUILTIN(GrowFastSmiOrObjectElements)
 TFS_BUILTIN(NewUnmappedArgumentsElements)
 TFS_BUILTIN(NewRestParameterElements)
-TFS_BUILTIN(PromiseHandleReject)
+TFS_BUILTIN(FastCloneRegExp)
+TFS_BUILTIN(FastNewClosure)
+TFS_BUILTIN(FastNewObject)
+TFS_BUILTIN(ForInFilter)
 TFS_BUILTIN(GetSuperConstructor)
+TFS_BUILTIN(KeyedLoadIC_Megamorphic)
+TFS_BUILTIN(PromiseHandleReject)
 TFS_BUILTIN(StringCharAt)
 TFS_BUILTIN(StringCharCodeAt)
+TFS_BUILTIN(StringEqual)
+TFS_BUILTIN(StringNotEqual)
+TFS_BUILTIN(StringLessThan)
+TFS_BUILTIN(StringLessThanOrEqual)
+TFS_BUILTIN(StringGreaterThan)
+TFS_BUILTIN(StringGreaterThanOrEqual)
 
 #undef TFS_BUILTIN
 
@@ -302,39 +294,9 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
 }
 
 // static
-Callable CodeFactory::StringEqual(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringEqual(),
-                  CompareDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StringNotEqual(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringNotEqual(),
-                  CompareDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StringLessThan(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringLessThan(),
-                  CompareDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StringLessThanOrEqual(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringLessThanOrEqual(),
-                  CompareDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StringGreaterThan(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringGreaterThan(),
-                  CompareDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StringGreaterThanOrEqual(Isolate* isolate) {
-  return Callable(isolate->builtins()->StringGreaterThanOrEqual(),
-                  CompareDescriptor(isolate));
+Callable CodeFactory::StringIndexOf(Isolate* isolate) {
+  return Callable(isolate->builtins()->StringIndexOf(),
+                  StringIndexOfDescriptor(isolate));
 }
 
 // static
@@ -350,9 +312,15 @@ Callable CodeFactory::ResumeGenerator(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::FastCloneRegExp(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastCloneRegExp(),
-                  FastCloneRegExpDescriptor(isolate));
+Callable CodeFactory::FrameDropperTrampoline(Isolate* isolate) {
+  return Callable(isolate->builtins()->FrameDropperTrampoline(),
+                  FrameDropperTrampolineDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::HandleDebuggerStatement(Isolate* isolate) {
+  return Callable(isolate->builtins()->HandleDebuggerStatement(),
+                  ContextOnlyDescriptor(isolate));
 }
 
 // static
@@ -376,18 +344,6 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::FastNewClosure(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastNewClosure(),
-                  FastNewClosureDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::FastNewObject(Isolate* isolate) {
-  return Callable(isolate->builtins()->FastNewObject(),
-                  FastNewObjectDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::FastNewRestParameter(Isolate* isolate,
                                            bool skip_stub_frame) {
   FastNewRestParameterStub stub(isolate, skip_stub_frame);
@@ -406,24 +362,6 @@ Callable CodeFactory::FastNewStrictArguments(Isolate* isolate,
                                              bool skip_stub_frame) {
   FastNewStrictArgumentsStub stub(isolate, skip_stub_frame);
   return make_callable(stub);
-}
-
-// static
-Callable CodeFactory::CopyFastSmiOrObjectElements(Isolate* isolate) {
-  return Callable(isolate->builtins()->CopyFastSmiOrObjectElements(),
-                  CopyFastSmiOrObjectElementsDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::GrowFastDoubleElements(Isolate* isolate) {
-  return Callable(isolate->builtins()->GrowFastDoubleElements(),
-                  GrowArrayElementsDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::GrowFastSmiOrObjectElements(Isolate* isolate) {
-  return Callable(isolate->builtins()->GrowFastSmiOrObjectElements(),
-                  GrowArrayElementsDescriptor(isolate));
 }
 
 // static
@@ -454,14 +392,38 @@ Callable CodeFactory::Call(Isolate* isolate, ConvertReceiverMode mode,
 }
 
 // static
+Callable CodeFactory::CallWithSpread(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallWithSpread(),
+                  CallTrampolineDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::CallFunction(Isolate* isolate, ConvertReceiverMode mode) {
   return Callable(isolate->builtins()->CallFunction(mode),
                   CallTrampolineDescriptor(isolate));
 }
 
 // static
+Callable CodeFactory::CallForwardVarargs(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallForwardVarargs(),
+                  CallForwardVarargsDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::CallFunctionForwardVarargs(Isolate* isolate) {
+  return Callable(isolate->builtins()->CallFunctionForwardVarargs(),
+                  CallForwardVarargsDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::Construct(Isolate* isolate) {
   return Callable(isolate->builtins()->Construct(),
+                  ConstructTrampolineDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::ConstructWithSpread(Isolate* isolate) {
+  return Callable(isolate->builtins()->ConstructWithSpread(),
                   ConstructTrampolineDescriptor(isolate));
 }
 
@@ -474,18 +436,17 @@ Callable CodeFactory::ConstructFunction(Isolate* isolate) {
 // static
 Callable CodeFactory::InterpreterPushArgsAndCall(Isolate* isolate,
                                                  TailCallMode tail_call_mode,
-                                                 CallableType function_type) {
-  return Callable(isolate->builtins()->InterpreterPushArgsAndCall(
-                      tail_call_mode, function_type),
-                  InterpreterPushArgsAndCallDescriptor(isolate));
+                                                 InterpreterPushArgsMode mode) {
+  return Callable(
+      isolate->builtins()->InterpreterPushArgsAndCall(tail_call_mode, mode),
+      InterpreterPushArgsAndCallDescriptor(isolate));
 }
 
 // static
 Callable CodeFactory::InterpreterPushArgsAndConstruct(
-    Isolate* isolate, CallableType function_type) {
-  return Callable(
-      isolate->builtins()->InterpreterPushArgsAndConstruct(function_type),
-      InterpreterPushArgsAndConstructDescriptor(isolate));
+    Isolate* isolate, InterpreterPushArgsMode mode) {
+  return Callable(isolate->builtins()->InterpreterPushArgsAndConstruct(mode),
+                  InterpreterPushArgsAndConstructDescriptor(isolate));
 }
 
 // static

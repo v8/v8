@@ -38,7 +38,6 @@ class DebugWrapper {
     this.StepAction = { StepOut: 0,
                         StepNext: 1,
                         StepIn: 2,
-                        StepFrame: 3,
                       };
 
     // The different types of scripts matching enum ScriptType in objects.h.
@@ -418,7 +417,6 @@ class DebugWrapper {
       case this.StepAction.StepOut: this.stepOut(); break;
       case this.StepAction.StepNext: this.stepOver(); break;
       case this.StepAction.StepIn: this.stepInto(); break;
-      case this.StepAction.StepFrame: %PrepareStepFrame(); break;
       default: %AbortJS("Unsupported StepAction"); break;
     }
   }

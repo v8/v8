@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 
+class RegExpMatchInfo;
 
 enum ContextLookupFlags {
   FOLLOW_CONTEXT_CHAIN = 1 << 0,
@@ -64,8 +65,8 @@ enum ContextLookupFlags {
   V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)   \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \
     promise_internal_constructor)                                       \
+  V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject) \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
-  V(PERFORM_PROMISE_THEN_INDEX, JSFunction, perform_promise_then)       \
   V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                 \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                       \
   V(PROMISE_HANDLE_INDEX, JSFunction, promise_handle)                   \
@@ -103,12 +104,9 @@ enum ContextLookupFlags {
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
-  V(PROMISE_REJECT_INDEX, JSFunction, promise_reject)                         \
   V(PROMISE_ID_RESOLVE_HANDLER_INDEX, JSFunction, promise_id_resolve_handler) \
   V(PROMISE_ID_REJECT_HANDLER_INDEX, JSFunction, promise_id_reject_handler)   \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
-  V(REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, JSFunction,                          \
-    reject_promise_no_debug_event)                                            \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
   V(SET_DELETE_METHOD_INDEX, JSFunction, set_delete)                          \
@@ -198,6 +196,10 @@ enum ContextLookupFlags {
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
+  V(ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, SharedFunctionInfo,                \
+    async_function_await_reject_shared_fun)                                    \
+  V(ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,               \
+    async_function_await_resolve_shared_fun)                                   \
   V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
   V(BOOL16X8_FUNCTION_INDEX, JSFunction, bool16x8_function)                    \
   V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \
@@ -330,6 +332,7 @@ enum ContextLookupFlags {
   V(STRING_FUNCTION_PROTOTYPE_MAP_INDEX, Map, string_function_prototype_map)   \
   V(STRING_ITERATOR_MAP_INDEX, Map, string_iterator_map)                       \
   V(SYMBOL_FUNCTION_INDEX, JSFunction, symbol_function)                        \
+  V(NATIVE_FUNCTION_MAP_INDEX, Map, native_function_map)                       \
   V(WASM_FUNCTION_MAP_INDEX, Map, wasm_function_map)                           \
   V(WASM_INSTANCE_CONSTRUCTOR_INDEX, JSFunction, wasm_instance_constructor)    \
   V(WASM_INSTANCE_SYM_INDEX, Symbol, wasm_instance_sym)                        \
@@ -572,14 +575,15 @@ class Context: public FixedArray {
 
   // A native context keeps track of all osrd optimized functions.
   inline bool OptimizedCodeMapIsCleared();
-  Code* SearchOptimizedCodeMap(SharedFunctionInfo* shared,
-                               BailoutId osr_ast_id);
+  void SearchOptimizedCodeMap(SharedFunctionInfo* shared, BailoutId osr_ast_id,
+                              Code** pcode, TypeFeedbackVector** pvector);
   int SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
                                   BailoutId osr_ast_id);
 
   static void AddToOptimizedCodeMap(Handle<Context> native_context,
                                     Handle<SharedFunctionInfo> shared,
                                     Handle<Code> code,
+                                    Handle<TypeFeedbackVector> vector,
                                     BailoutId osr_ast_id);
 
   // A native context holds a list of all functions with optimized code.

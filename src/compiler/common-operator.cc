@@ -43,6 +43,13 @@ DeoptimizeReason DeoptimizeReasonOf(Operator const* const op) {
   return OpParameter<DeoptimizeReason>(op);
 }
 
+int ValueInputCountOfReturn(Operator const* const op) {
+  DCHECK(op->opcode() == IrOpcode::kReturn);
+  // Return nodes have a hidden input at index 0 which we ignore in the value
+  // input count.
+  return op->ValueInputCount() - 1;
+}
+
 size_t hash_value(DeoptimizeKind kind) { return static_cast<size_t>(kind); }
 
 std::ostream& operator<<(std::ostream& os, DeoptimizeKind kind) {
@@ -1241,6 +1248,13 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
+const Operator* CommonOperatorBuilder::ArgumentsObjectState() {
+  return new (zone()) Operator(                          // --
+      IrOpcode::kArgumentsObjectState, Operator::kPure,  // opcode
+      "ArgumentsObjectState",                            // name
+      0, 0, 0, 1, 0, 0);                                 // counts
+}
+
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {
   return new (zone()) Operator1<int>(           // --
       IrOpcode::kObjectState, Operator::kPure,  // opcode
@@ -1344,44 +1358,6 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
     UNREACHABLE();
     return nullptr;
   }
-}
-
-const Operator* CommonOperatorBuilder::Int32x4ExtractLane(int32_t lane_number) {
-  DCHECK(0 <= lane_number && lane_number < 4);
-  return new (zone()) Operator1<int32_t>(              // --
-      IrOpcode::kInt32x4ExtractLane, Operator::kPure,  // opcode
-      "Int32x4ExtractLane",                            // name
-      1, 0, 0, 1, 0, 0,                                // counts
-      lane_number);                                    // parameter
-}
-
-const Operator* CommonOperatorBuilder::Int32x4ReplaceLane(int32_t lane_number) {
-  DCHECK(0 <= lane_number && lane_number < 4);
-  return new (zone()) Operator1<int32_t>(              // --
-      IrOpcode::kInt32x4ReplaceLane, Operator::kPure,  // opcode
-      "Int32x4ReplaceLane",                            // name
-      2, 0, 0, 1, 0, 0,                                // counts
-      lane_number);                                    // parameter
-}
-
-const Operator* CommonOperatorBuilder::Float32x4ExtractLane(
-    int32_t lane_number) {
-  DCHECK(0 <= lane_number && lane_number < 4);
-  return new (zone()) Operator1<int32_t>(                // --
-      IrOpcode::kFloat32x4ExtractLane, Operator::kPure,  // opcode
-      "Float32x4ExtractLane",                            // name
-      1, 0, 0, 1, 0, 0,                                  // counts
-      lane_number);                                      // parameter
-}
-
-const Operator* CommonOperatorBuilder::Float32x4ReplaceLane(
-    int32_t lane_number) {
-  DCHECK(0 <= lane_number && lane_number < 4);
-  return new (zone()) Operator1<int32_t>(                // --
-      IrOpcode::kFloat32x4ReplaceLane, Operator::kPure,  // opcode
-      "Float32x4ReplaceLane",                            // name
-      2, 0, 0, 1, 0, 0,                                  // counts
-      lane_number);                                      // parameter
 }
 
 const FrameStateFunctionInfo*

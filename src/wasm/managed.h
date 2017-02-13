@@ -22,12 +22,15 @@ class Managed : public Foreign {
     return reinterpret_cast<CppType*>(foreign_address());
   }
 
+  static Managed<CppType>* cast(Object* obj) {
+    SLOW_DCHECK(obj->IsForeign());
+    return reinterpret_cast<Managed<CppType>*>(obj);
+  }
+
   static Handle<Managed<CppType>> New(Isolate* isolate, CppType* ptr,
                                       bool delete_on_gc = true) {
-    Handle<Foreign> foreign =
-        isolate->factory()->NewForeign(reinterpret_cast<Address>(ptr));
-    Handle<Managed<CppType>> handle(
-        reinterpret_cast<Managed<CppType>*>(*foreign), isolate);
+    Handle<Managed<CppType>> handle = Handle<Managed<CppType>>::cast(
+        isolate->factory()->NewForeign(reinterpret_cast<Address>(ptr)));
     if (delete_on_gc) {
       RegisterWeakCallbackForDelete(isolate, handle);
     }

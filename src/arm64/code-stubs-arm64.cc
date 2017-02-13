@@ -1445,7 +1445,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (6) External string.  Make it, offset-wise, look like a sequential string.
   //     Go to (4).
   // (7) Short external string or not a string?  If yes, bail out to runtime.
-  // (8) Sliced string.  Replace subject with parent.  Go to (1).
+  // (8) Sliced or thin string.  Replace subject with parent.  Go to (1).
 
   Label check_underlying;   // (1)
   Label seq_string;         // (4)
@@ -1479,6 +1479,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (2) Sequential or cons?  If not, go to (5).
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  STATIC_ASSERT(kThinStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   __ Cmp(string_representation, kExternalStringTag);
@@ -1506,10 +1507,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // before entering the exit frame.
   __ SmiUntag(x1, x10);
 
-  // The third bit determines the string encoding in string_type.
-  STATIC_ASSERT(kOneByteStringTag == 0x04);
+  // The fourth bit determines the string encoding in string_type.
+  STATIC_ASSERT(kOneByteStringTag == 0x08);
   STATIC_ASSERT(kTwoByteStringTag == 0x00);
-  STATIC_ASSERT(kStringEncodingMask == 0x04);
+  STATIC_ASSERT(kStringEncodingMask == 0x08);
 
   // Find the code object based on the assumptions above.
   // kDataOneByteCodeOffset and kDataUC16CodeOffset are adjacent, adds an offset
@@ -1517,7 +1518,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(JSRegExp::kDataOneByteCodeOffset + kPointerSize ==
                 JSRegExp::kDataUC16CodeOffset);
   __ Mov(x10, kPointerSize);
-  // We will need the encoding later: Latin1 = 0x04
+  // We will need the encoding later: Latin1 = 0x08
   //                                  UC16   = 0x00
   __ Ands(string_encoding, string_type, kStringEncodingMask);
   __ CzeroX(x10, ne);
@@ -1565,10 +1566,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ Ldr(length, UntagSmiFieldMemOperand(subject, String::kLengthOffset));
 
   // Handle UC16 encoding, two bytes make one character.
-  //   string_encoding: if Latin1: 0x04
+  //   string_encoding: if Latin1: 0x08
   //                    if UC16:   0x00
-  STATIC_ASSERT(kStringEncodingMask == 0x04);
-  __ Ubfx(string_encoding, string_encoding, 2, 1);
+  STATIC_ASSERT(kStringEncodingMask == 0x08);
+  __ Ubfx(string_encoding, string_encoding, 3, 1);
   __ Eor(string_encoding, string_encoding, 1);
   //   string_encoding: if Latin1: 0
   //                    if UC16:   1
@@ -1781,10 +1782,17 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
                            kShortExternalStringMask | kIsNotStringMask,
                            &runtime);
 
-  // (8) Sliced string. Replace subject with parent.
+  // (8) Sliced or thin string. Replace subject with parent.
+  Label thin_string;
+  __ Cmp(string_representation, kThinStringTag);
+  __ B(eq, &thin_string);
   __ Ldr(sliced_string_offset,
          UntagSmiFieldMemOperand(subject, SlicedString::kOffsetOffset));
   __ Ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
+  __ B(&check_underlying);  // Go to (1).
+
+  __ bind(&thin_string);
+  __ Ldr(subject, FieldMemOperand(subject, ThinString::kActualOffset));
   __ B(&check_underlying);  // Go to (1).
 #endif
 }

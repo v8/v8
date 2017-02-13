@@ -121,8 +121,7 @@ void FullCodeGenerator::Generate() {
   // Increment invocation count for the function.
   {
     Comment cmnt(masm_, "[ Increment invocation count");
-    __ movp(rcx, FieldOperand(rdi, JSFunction::kLiteralsOffset));
-    __ movp(rcx, FieldOperand(rcx, LiteralsArray::kFeedbackVectorOffset));
+    __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
     __ SmiAddConstant(
         FieldOperand(rcx,
                      TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
@@ -715,19 +714,35 @@ void FullCodeGenerator::VisitVariableDeclaration(
     VariableDeclaration* declaration) {
   VariableProxy* proxy = declaration->proxy();
   Variable* variable = proxy->var();
-  DCHECK(!variable->binding_needs_init());
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
+      DCHECK(!variable->binding_needs_init());
       globals_->Add(variable->name(), zone());
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
       globals_->Add(isolate()->factory()->undefined_value(), zone());
+      globals_->Add(isolate()->factory()->undefined_value(), zone());
       break;
     }
     case VariableLocation::PARAMETER:
     case VariableLocation::LOCAL:
+      if (variable->binding_needs_init()) {
+        Comment cmnt(masm_, "[ VariableDeclaration");
+        __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+        __ movp(StackOperand(variable), kScratchRegister);
+      }
+      break;
+
     case VariableLocation::CONTEXT:
+      if (variable->binding_needs_init()) {
+        Comment cmnt(masm_, "[ VariableDeclaration");
+        EmitDebugCheckDeclarationContext(variable);
+        __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+        __ movp(ContextOperand(rsi, variable->index()), kScratchRegister);
+        // No write barrier since the hole value is in old space.
+        PrepareForBailoutForId(proxy->id(), BailoutState::NO_REGISTERS);
+      }
       break;
 
     case VariableLocation::LOOKUP:
@@ -747,6 +762,12 @@ void FullCodeGenerator::VisitFunctionDeclaration(
       FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+
+      // We need the slot where the literals array lives, too.
+      slot = declaration->fun()->LiteralFeedbackSlot();
+      DCHECK(!slot.IsInvalid());
+      globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
+
       Handle<SharedFunctionInfo> function =
           Compiler::GetSharedFunctionInfo(declaration->fun(), script(), info_);
       // Check for stack-overflow exception.
@@ -1087,7 +1108,6 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
   SetExpressionPosition(proxy);
   PrepareForBailoutForId(proxy->BeforeId(), BailoutState::NO_REGISTERS);
   Variable* var = proxy->var();
-  DCHECK(!var->binding_needs_init());
 
   // Two cases: global variable, and all other types of variables.
   switch (var->location()) {
@@ -1104,6 +1124,20 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy,
       DCHECK_EQ(NOT_INSIDE_TYPEOF, typeof_mode);
       Comment cmnt(masm_, var->IsContextSlot() ? "[ Context slot"
                                                : "[ Stack slot");
+      if (proxy->hole_check_mode() == HoleCheckMode::kRequired) {
+        // Throw a reference error when using an uninitialized let/const
+        // binding in harmony mode.
+        DCHECK(IsLexicalVariableMode(var->mode()));
+        Label done;
+        GetVar(rax, var);
+        __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
+        __ j(not_equal, &done, Label::kNear);
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kThrowReferenceError);
+        __ bind(&done);
+        context()->Plug(rax);
+        break;
+      }
       context()->Plug(var);
       break;
     }
@@ -1135,18 +1169,18 @@ void FullCodeGenerator::EmitAccessor(ObjectLiteralProperty* property) {
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  Handle<FixedArray> constant_properties =
+  Handle<BoilerplateDescription> constant_properties =
       expr->GetOrBuildConstantProperties(isolate());
   int flags = expr->ComputeFlags();
   if (MustCreateObjectLiteralWithRuntime(expr)) {
     __ Push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Push(Smi::FromInt(expr->literal_index()));
+    __ Push(SmiFromSlot(expr->literal_slot()));
     __ Push(constant_properties);
     __ Push(Smi::FromInt(flags));
     __ CallRuntime(Runtime::kCreateObjectLiteral);
   } else {
     __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Move(rbx, Smi::FromInt(expr->literal_index()));
+    __ Move(rbx, SmiFromSlot(expr->literal_slot()));
     __ Move(rcx, constant_properties);
     __ Move(rdx, Smi::FromInt(flags));
     Callable callable = CodeFactory::FastCloneShallowObject(
@@ -1276,13 +1310,13 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   if (MustCreateArrayLiteralWithRuntime(expr)) {
     __ Push(Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Push(Smi::FromInt(expr->literal_index()));
+    __ Push(SmiFromSlot(expr->literal_slot()));
     __ Push(constant_elements);
     __ Push(Smi::FromInt(expr->ComputeFlags()));
     __ CallRuntime(Runtime::kCreateArrayLiteral);
   } else {
     __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-    __ Move(rbx, Smi::FromInt(expr->literal_index()));
+    __ Move(rbx, SmiFromSlot(expr->literal_slot()));
     __ Move(rcx, constant_elements);
     Callable callable =
         CodeFactory::FastCloneShallowArray(isolate(), allocation_site_mode);
@@ -1418,7 +1452,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
   switch (assign_type) {
     case VARIABLE: {
       VariableProxy* proxy = expr->target()->AsVariableProxy();
-      EmitVariableAssignment(proxy->var(), expr->op(), expr->AssignmentSlot());
+      EmitVariableAssignment(proxy->var(), expr->op(), expr->AssignmentSlot(),
+                             proxy->hole_check_mode());
       PrepareForBailoutForId(expr->AssignmentId(), BailoutState::TOS_REGISTER);
       context()->Plug(rax);
       break;
@@ -1564,7 +1599,8 @@ void FullCodeGenerator::EmitAssignment(Expression* expr,
     case VARIABLE: {
       VariableProxy* proxy = expr->AsVariableProxy();
       EffectContext context(this);
-      EmitVariableAssignment(proxy->var(), Token::ASSIGN, slot);
+      EmitVariableAssignment(proxy->var(), Token::ASSIGN, slot,
+                             proxy->hole_check_mode());
       break;
     }
     case NAMED_PROPERTY: {
@@ -1605,22 +1641,59 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 }
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
-                                               FeedbackVectorSlot slot) {
-  DCHECK(!var->binding_needs_init());
+                                               FeedbackVectorSlot slot,
+                                               HoleCheckMode hole_check_mode) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
     __ LoadGlobalObject(StoreDescriptor::ReceiverRegister());
     CallStoreIC(slot, var->name());
 
-  } else if (var->mode() == CONST && op != Token::INIT) {
-    if (var->throw_on_const_assignment(language_mode())) {
+  } else if (IsLexicalVariableMode(var->mode()) && op != Token::INIT) {
+    DCHECK(!var->IsLookupSlot());
+    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+    MemOperand location = VarOperand(var, rcx);
+    // Perform an initialization check for lexically declared variables.
+    if (hole_check_mode == HoleCheckMode::kRequired) {
+      Label assign;
+      __ movp(rdx, location);
+      __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+      __ j(not_equal, &assign, Label::kNear);
+      __ Push(var->name());
+      __ CallRuntime(Runtime::kThrowReferenceError);
+      __ bind(&assign);
+    }
+    if (var->mode() != CONST) {
+      EmitStoreToStackLocalOrContextSlot(var, location);
+    } else if (var->throw_on_const_assignment(language_mode())) {
       __ CallRuntime(Runtime::kThrowConstAssignError);
     }
+
+  } else if (var->is_this() && var->mode() == CONST && op == Token::INIT) {
+    // Initializing assignment to const {this} needs a write barrier.
+    DCHECK(var->IsStackAllocated() || var->IsContextSlot());
+    Label uninitialized_this;
+    MemOperand location = VarOperand(var, rcx);
+    __ movp(rdx, location);
+    __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+    __ j(equal, &uninitialized_this);
+    __ Push(var->name());
+    __ CallRuntime(Runtime::kThrowReferenceError);
+    __ bind(&uninitialized_this);
+    EmitStoreToStackLocalOrContextSlot(var, location);
+
   } else {
-    DCHECK(!var->is_this());
+    DCHECK(var->mode() != CONST || op == Token::INIT);
     DCHECK(var->IsStackAllocated() || var->IsContextSlot());
     DCHECK(!var->IsLookupSlot());
+    // Assignment to var or initializing assignment to let/const in harmony
+    // mode.
     MemOperand location = VarOperand(var, rcx);
+    if (FLAG_debug_code && var->mode() == LET && op == Token::INIT) {
+      // Check for an uninitialized let binding.
+      __ movp(rdx, location);
+      __ CompareRoot(rdx, Heap::kTheHoleValueRootIndex);
+      __ Check(equal, kLetBindingReInitialization);
+    }
     EmitStoreToStackLocalOrContextSlot(var, location);
   }
 }
@@ -2335,8 +2408,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       if (expr->is_postfix()) {
         // Perform the assignment as if via '='.
         { EffectContext context(this);
-          EmitVariableAssignment(proxy->var(), Token::ASSIGN,
-                                 expr->CountSlot());
+          EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
+                                 proxy->hole_check_mode());
           PrepareForBailoutForId(expr->AssignmentId(),
                                  BailoutState::TOS_REGISTER);
           context.Plug(rax);
@@ -2348,7 +2421,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
         }
       } else {
         // Perform the assignment as if via '='.
-        EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot());
+        EmitVariableAssignment(proxy->var(), Token::ASSIGN, expr->CountSlot(),
+                               proxy->hole_check_mode());
         PrepareForBailoutForId(expr->AssignmentId(),
                                BailoutState::TOS_REGISTER);
         context()->Plug(rax);

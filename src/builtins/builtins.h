@@ -6,10 +6,14 @@
 #define V8_BUILTINS_BUILTINS_H_
 
 #include "src/base/flags.h"
-#include "src/handles.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
+class Isolate;
 
 #define CODE_AGE_LIST_WITH_ARG(V, A) \
   V(Quadragenarian, A)               \
@@ -74,6 +78,9 @@ namespace internal {
   ASM(TailCall_ReceiverIsNullOrUndefined)                                      \
   ASM(TailCall_ReceiverIsNotNullOrUndefined)                                   \
   ASM(TailCall_ReceiverIsAny)                                                  \
+  ASM(CallWithSpread)                                                          \
+  ASM(CallForwardVarargs)                                                      \
+  ASM(CallFunctionForwardVarargs)                                              \
                                                                                \
   /* Construct */                                                              \
   /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
@@ -85,6 +92,7 @@ namespace internal {
   ASM(ConstructProxy)                                                          \
   /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
   ASM(Construct)                                                               \
+  ASM(ConstructWithSpread)                                                     \
   ASM(JSConstructStubApi)                                                      \
   ASM(JSConstructStubGeneric)                                                  \
   ASM(JSBuiltinsConstructStub)                                                 \
@@ -125,24 +133,27 @@ namespace internal {
   ASM(StackCheck)                                                              \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                          \
-  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                       \
-  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                       \
-  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                \
-  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                    \
-  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)             \
   TFS(StringCharAt, BUILTIN, kNoExtraICState, StringCharAt)                    \
   TFS(StringCharCodeAt, BUILTIN, kNoExtraICState, StringCharCodeAt)            \
+  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                          \
+  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                    \
+  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)             \
+  TFS(StringIndexOf, BUILTIN, kNoExtraICState, StringIndexOf)                  \
+  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                       \
+  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                \
+  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                       \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \
   ASM(InterpreterPushArgsAndCall)                                              \
   ASM(InterpreterPushArgsAndCallFunction)                                      \
+  ASM(InterpreterPushArgsAndCallWithFinalSpread)                               \
   ASM(InterpreterPushArgsAndTailCall)                                          \
   ASM(InterpreterPushArgsAndTailCallFunction)                                  \
   ASM(InterpreterPushArgsAndConstruct)                                         \
   ASM(InterpreterPushArgsAndConstructFunction)                                 \
   ASM(InterpreterPushArgsAndConstructArray)                                    \
+  ASM(InterpreterPushArgsAndConstructWithFinalSpread)                          \
   ASM(InterpreterEnterBytecodeAdvance)                                         \
   ASM(InterpreterEnterBytecodeDispatch)                                        \
   ASM(InterpreterOnStackReplacement)                                           \
@@ -185,7 +196,8 @@ namespace internal {
       NewArgumentsElements)                                                    \
                                                                                \
   /* Debugger */                                                               \
-  DBG(FrameDropper_LiveEdit)                                                   \
+  DBG(FrameDropperTrampoline)                                                  \
+  DBG(HandleDebuggerStatement)                                                 \
   DBG(Return_DebugBreak)                                                       \
   DBG(Slot_DebugBreak)                                                         \
                                                                                \
@@ -206,22 +218,26 @@ namespace internal {
   TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                      \
   TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion)                     \
   TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion)                      \
+  TFS(ClassOf, BUILTIN, kNoExtraICState, Typeof)                               \
   TFS(Typeof, BUILTIN, kNoExtraICState, Typeof)                                \
   TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion)           \
                                                                                \
   /* Handlers */                                                               \
-  TFS(KeyedLoadIC_Megamorphic_TF, KEYED_LOAD_IC, kNoExtraICState,              \
-      LoadWithVector)                                                          \
+  TFS(LoadICProtoArray, HANDLER, Code::LOAD_IC, LoadICProtoArray)              \
+  TFS(LoadICProtoArrayThrowIfNonexistent, HANDLER, Code::LOAD_IC,              \
+      LoadICProtoArray)                                                        \
+  TFS(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector) \
   TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)              \
   TFS(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC, LoadWithVector)          \
-  TFS(KeyedStoreIC_Megamorphic_TF, KEYED_STORE_IC, kNoExtraICState,            \
+  TFS(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState,               \
       StoreWithVector)                                                         \
-  TFS(KeyedStoreIC_Megamorphic_Strict_TF, KEYED_STORE_IC,                      \
+  TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
       StoreICState::kStrictModeState, StoreWithVector)                         \
   ASM(KeyedStoreIC_Miss)                                                       \
   ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                        \
   TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
   TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
+  TFS(LoadField, HANDLER, Code::LOAD_IC, LoadField)                            \
   ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                   \
   TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector)                   \
@@ -271,6 +287,14 @@ namespace internal {
   CPP(ArrayBufferConstructor_ConstructStub)                                    \
   CPP(ArrayBufferPrototypeGetByteLength)                                       \
   CPP(ArrayBufferIsView)                                                       \
+                                                                               \
+  /* AsyncFunction */                                                          \
+  TFJ(AsyncFunctionAwaitCaught, 3)                                             \
+  TFJ(AsyncFunctionAwaitUncaught, 3)                                           \
+  TFJ(AsyncFunctionAwaitRejectClosure, 1)                                      \
+  TFJ(AsyncFunctionAwaitResolveClosure, 1)                                     \
+  TFJ(AsyncFunctionPromiseCreate, 0)                                           \
+  TFJ(AsyncFunctionPromiseRelease, 1)                                          \
                                                                                \
   /* Boolean */                                                                \
   CPP(BooleanConstructor)                                                      \
@@ -633,12 +657,12 @@ namespace internal {
   TFJ(PromiseRejectClosure, 1)                                                 \
   TFJ(PromiseThen, 2)                                                          \
   TFJ(PromiseCatch, 1)                                                         \
-  TFJ(PerformPromiseThen, 4)                                                   \
   TFJ(ResolvePromise, 2)                                                       \
   TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject)      \
   TFJ(PromiseHandle, 5)                                                        \
   TFJ(PromiseResolve, 1)                                                       \
   TFJ(PromiseReject, 1)                                                        \
+  TFJ(InternalPromiseReject, 3)                                                \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \
@@ -791,6 +815,7 @@ namespace internal {
 
 // Forward declarations.
 class ObjectVisitor;
+enum class InterpreterPushArgsMode : unsigned;
 namespace compiler {
 class CodeAssemblerState;
 }
@@ -832,10 +857,9 @@ class Builtins {
   Handle<Code> NonPrimitiveToPrimitive(
       ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   Handle<Code> OrdinaryToPrimitive(OrdinaryToPrimitiveHint hint);
-  Handle<Code> InterpreterPushArgsAndCall(
-      TailCallMode tail_call_mode,
-      CallableType function_type = CallableType::kAny);
-  Handle<Code> InterpreterPushArgsAndConstruct(CallableType function_type);
+  Handle<Code> InterpreterPushArgsAndCall(TailCallMode tail_call_mode,
+                                          InterpreterPushArgsMode mode);
+  Handle<Code> InterpreterPushArgsAndConstruct(InterpreterPushArgsMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> NewCloneShallowObject(int length);
@@ -887,13 +911,15 @@ class Builtins {
 
   static void Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode,
                             TailCallMode tail_call_mode);
+  static void Generate_CallForwardVarargs(MacroAssembler* masm,
+                                          Handle<Code> code);
 
   static void Generate_InterpreterPushArgsAndCallImpl(
       MacroAssembler* masm, TailCallMode tail_call_mode,
-      CallableType function_type);
+      InterpreterPushArgsMode mode);
 
   static void Generate_InterpreterPushArgsAndConstructImpl(
-      MacroAssembler* masm, CallableType function_type);
+      MacroAssembler* masm, InterpreterPushArgsMode mode);
 
   enum class MathMaxMinKind { kMax, kMin };
   static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);

@@ -83,7 +83,8 @@ TEST(Unreachable) {
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
   // Line and column are 1-based, so add 1 for the expected wasm output.
@@ -100,6 +101,7 @@ TEST(IllegalLoad) {
   TestSignatures sigs;
   // Set the execution context, such that a runtime error can be thrown.
   r.SetModuleContext();
+  r.module().AddMemory(0L);
 
   BUILD(r, WASM_IF(WASM_ONE, WASM_SEQ(WASM_LOAD_MEM(MachineType::Int32(),
                                                     WASM_I32V_1(-3)),
@@ -124,7 +126,8 @@ TEST(IllegalLoad) {
   MaybeHandle<Object> maybe_exc;
   Handle<Object> args[] = {js_wasm_wrapper};
   MaybeHandle<Object> returnObjMaybe =
-      Execution::TryCall(isolate, js_trampoline, global, 1, args, &maybe_exc);
+      Execution::TryCall(isolate, js_trampoline, global, 1, args,
+                         Execution::MessageHandling::kReport, &maybe_exc);
   CHECK(returnObjMaybe.is_null());
 
   // Line and column are 1-based, so add 1 for the expected wasm output.

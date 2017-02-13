@@ -266,7 +266,7 @@ utils.PostDebug = PostDebug;
 
 // -----------------------------------------------------------------------
 
-%OptimizeObjectForAddingMultipleProperties(extrasUtils, 5);
+%OptimizeObjectForAddingMultipleProperties(extrasUtils, 7);
 
 extrasUtils.logStackTrace = function logStackTrace() {
   %DebugTrace();
@@ -305,6 +305,15 @@ extrasUtils.uncurryThis = function uncurryThis(func) {
   return function(thisArg, ...args) {
     return %reflect_apply(func, thisArg, args);
   };
+};
+
+// We pass true to trigger the debugger's on exception handler.
+extrasUtils.rejectPromise = function rejectPromise(promise, reason) {
+  %promise_internal_reject(promise, reason, true);
+}
+
+extrasUtils.markPromiseAsHandled = function markPromiseAsHandled(promise) {
+  %PromiseMarkAsHandled(promise);
 };
 
 %ToFastProperties(extrasUtils);

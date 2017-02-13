@@ -12,6 +12,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/flags.h"
+#include "src/globals.h"
 #include "src/list.h"
 
 namespace v8 {
@@ -20,8 +21,10 @@ namespace internal {
 class CompilationJob;
 class SharedFunctionInfo;
 
-class OptimizingCompileDispatcher {
+class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
  public:
+  enum class BlockingBehavior { kBlock, kDontBlock };
+
   explicit OptimizingCompileDispatcher(Isolate* isolate)
       : isolate_(isolate),
         input_queue_capacity_(FLAG_concurrent_recompilation_queue_length),
@@ -36,9 +39,9 @@ class OptimizingCompileDispatcher {
 
   ~OptimizingCompileDispatcher();
 
-  void Run();
   void Stop();
-  void Flush();
+  void Flush(BlockingBehavior blocking_behavior);
+  // Takes ownership of |job|.
   void QueueForOptimization(CompilationJob* job);
   void Unblock();
   void InstallOptimizedFunctions();

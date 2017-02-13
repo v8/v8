@@ -39,6 +39,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   // Initial states for ICs.
   static Callable LoadIC(Isolate* isolate);
   static Callable LoadICInOptimizedCode(Isolate* isolate);
+  static Callable LoadICProtoArray(Isolate* isolate, bool throw_if_nonexistent);
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
@@ -59,6 +60,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable KeyedStoreIC_Megamorphic(Isolate* isolate, LanguageMode mode);
 
   static Callable ResumeGenerator(Isolate* isolate);
+
+  static Callable FrameDropperTrampoline(Isolate* isolate);
+  static Callable HandleDebuggerStatement(Isolate* isolate);
 
   static Callable CompareIC(Isolate* isolate, Token::Value op);
   static Callable CompareNilIC(Isolate* isolate, NilValue nil_value);
@@ -126,7 +130,9 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringGreaterThan(Isolate* isolate);
   static Callable StringGreaterThanOrEqual(Isolate* isolate);
   static Callable SubString(Isolate* isolate);
+  static Callable StringIndexOf(Isolate* isolate);
 
+  static Callable ClassOf(Isolate* isolate);
   static Callable Typeof(Isolate* isolate);
   static Callable GetSuperConstructor(Isolate* isolate);
 
@@ -163,19 +169,23 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny,
                        TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  static Callable CallWithSpread(Isolate* isolate);
   static Callable CallFunction(
       Isolate* isolate, ConvertReceiverMode mode = ConvertReceiverMode::kAny);
+  static Callable CallForwardVarargs(Isolate* isolate);
+  static Callable CallFunctionForwardVarargs(Isolate* isolate);
   static Callable Construct(Isolate* isolate);
+  static Callable ConstructWithSpread(Isolate* isolate);
   static Callable ConstructFunction(Isolate* isolate);
   static Callable CreateIterResultObject(Isolate* isolate);
   static Callable HasProperty(Isolate* isolate);
   static Callable ForInFilter(Isolate* isolate);
 
-  static Callable InterpreterPushArgsAndCall(
-      Isolate* isolate, TailCallMode tail_call_mode,
-      CallableType function_type = CallableType::kAny);
-  static Callable InterpreterPushArgsAndConstruct(
-      Isolate* isolate, CallableType function_type = CallableType::kAny);
+  static Callable InterpreterPushArgsAndCall(Isolate* isolate,
+                                             TailCallMode tail_call_mode,
+                                             InterpreterPushArgsMode mode);
+  static Callable InterpreterPushArgsAndConstruct(Isolate* isolate,
+                                                  InterpreterPushArgsMode mode);
   static Callable InterpreterPushArgsAndConstructArray(Isolate* isolate);
   static Callable InterpreterCEntry(Isolate* isolate, int result_size = 1);
   static Callable InterpreterOnStackReplacement(Isolate* isolate);

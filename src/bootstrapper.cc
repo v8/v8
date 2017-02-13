@@ -15,6 +15,7 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
+#include "src/ffi/ffi-compiler.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/snapshot/natives.h"
@@ -1935,14 +1936,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                                        Context::IS_PROMISE_INDEX);
     }
 
-    {  // Internal: PerformPromiseThen
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kPerformPromiseThen, 4, false);
-      InstallWithIntrinsicDefaultProto(isolate, function,
-                                       Context::PERFORM_PROMISE_THEN_INDEX);
-    }
-
     {  // Internal: ResolvePromise
        // Also exposed as extrasUtils.resolvePromise.
       Handle<JSFunction> function = SimpleCreateFunction(
@@ -1970,6 +1963,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       // Set up catch prediction
       Handle<Code> promise_handle = isolate->builtins()->PromiseHandleReject();
       promise_handle->set_is_exception_caught(true);
+    }
+
+    {  // Internal: InternalPromiseReject
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kInternalPromiseReject, 3, true);
+      InstallWithIntrinsicDefaultProto(isolate, function,
+                                       Context::PROMISE_INTERNAL_REJECT_INDEX);
     }
 
     {
@@ -2984,8 +2985,7 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
   Handle<SharedFunctionInfo> function_info =
       Compiler::GetSharedFunctionInfoForScript(
           source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
-          context, NULL, NULL, ScriptCompiler::kNoCompileOptions, natives_flag,
-          false);
+          context, NULL, NULL, ScriptCompiler::kNoCompileOptions, natives_flag);
   if (function_info.is_null()) return false;
 
   DCHECK(context->IsNativeContext());
@@ -2997,12 +2997,16 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
 
   // For non-extension scripts, run script to get the function wrapper.
   Handle<Object> wrapper;
-  if (!Execution::Call(isolate, fun, receiver, 0, NULL).ToHandle(&wrapper)) {
+  if (!Execution::TryCall(isolate, fun, receiver, 0, nullptr,
+                          Execution::MessageHandling::kKeepPending, nullptr)
+           .ToHandle(&wrapper)) {
     return false;
   }
   // Then run the function wrapper.
-  return !Execution::Call(isolate, Handle<JSFunction>::cast(wrapper), receiver,
-                          argc, argv).is_null();
+  return !Execution::TryCall(isolate, Handle<JSFunction>::cast(wrapper),
+                             receiver, argc, argv,
+                             Execution::MessageHandling::kKeepPending, nullptr)
+              .is_null();
 }
 
 
@@ -3014,7 +3018,9 @@ bool Genesis::CallUtilsFunction(Isolate* isolate, const char* name) {
   Handle<Object> fun = JSObject::GetDataProperty(utils, name_string);
   Handle<Object> receiver = isolate->factory()->undefined_value();
   Handle<Object> args[] = {utils};
-  return !Execution::Call(isolate, fun, receiver, 1, args).is_null();
+  return !Execution::TryCall(isolate, fun, receiver, 1, args,
+                             Execution::MessageHandling::kKeepPending, nullptr)
+              .is_null();
 }
 
 
@@ -3042,7 +3048,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     function_info = Compiler::GetSharedFunctionInfoForScript(
         source, script_name, 0, 0, ScriptOriginOptions(), Handle<Object>(),
         context, extension, NULL, ScriptCompiler::kNoCompileOptions,
-        EXTENSION_CODE, false);
+        EXTENSION_CODE);
     if (function_info.is_null()) return false;
     cache->Add(name, function_info);
   }
@@ -3056,7 +3062,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
   // Call function using either the runtime object or the global
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver = isolate->global_object();
-  return !Execution::Call(isolate, fun, receiver, 0, NULL).is_null();
+  return !Execution::TryCall(isolate, fun, receiver, 0, nullptr,
+                             Execution::MessageHandling::kKeepPending, nullptr)
+              .is_null();
 }
 
 
@@ -3335,41 +3343,85 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
           script_source_mapping_url, attribs);
       script_map->AppendDescriptor(&d);
     }
+  }
+
+  {  // -- A s y n c F u n c t i o n
+    // Builtin functions for AsyncFunction.
+    PrototypeIterator iter(native_context->async_function_map());
+    Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
+
+    static const bool kUseStrictFunctionMap = true;
+    Handle<JSFunction> async_function_constructor = InstallFunction(
+        container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
+        async_function_prototype, Builtins::kAsyncFunctionConstructor,
+        kUseStrictFunctionMap);
+    async_function_constructor->shared()->DontAdaptArguments();
+    async_function_constructor->shared()->SetConstructStub(
+        *isolate->builtins()->AsyncFunctionConstructor());
+    async_function_constructor->shared()->set_length(1);
+    InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
+                                     Context::ASYNC_FUNCTION_FUNCTION_INDEX);
+    JSObject::ForceSetPrototype(async_function_constructor,
+                                isolate->function_function());
+
+    JSObject::AddProperty(
+        async_function_prototype, factory->constructor_string(),
+        async_function_constructor,
+        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    JSFunction::SetPrototype(async_function_constructor,
+                             async_function_prototype);
 
     {
-      PrototypeIterator iter(native_context->async_function_map());
-      Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kAsyncFunctionAwaitCaught, 3, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX);
+    }
 
-      static const bool kUseStrictFunctionMap = true;
-      Handle<JSFunction> async_function_constructor = InstallFunction(
-          container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
-          async_function_prototype, Builtins::kAsyncFunctionConstructor,
-          kUseStrictFunctionMap);
-      async_function_constructor->shared()->DontAdaptArguments();
-      async_function_constructor->shared()->SetConstructStub(
-          *isolate->builtins()->AsyncFunctionConstructor());
-      async_function_constructor->shared()->set_length(1);
-      InstallWithIntrinsicDefaultProto(isolate, async_function_constructor,
-                                       Context::ASYNC_FUNCTION_FUNCTION_INDEX);
-      JSObject::ForceSetPrototype(async_function_constructor,
-                                  isolate->function_function());
+    {
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kAsyncFunctionAwaitUncaught, 3, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX);
+    }
 
-      JSObject::AddProperty(
-          async_function_prototype, factory->constructor_string(),
-          async_function_constructor,
-          static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+    {
+      Handle<Code> code =
+          isolate->builtins()->AsyncFunctionAwaitRejectClosure();
+      Handle<SharedFunctionInfo> info =
+          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context->set_async_function_await_reject_shared_fun(*info);
+    }
 
-      JSFunction::SetPrototype(async_function_constructor,
-                               async_function_prototype);
+    {
+      Handle<Code> code =
+          isolate->builtins()->AsyncFunctionAwaitResolveClosure();
+      Handle<SharedFunctionInfo> info =
+          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+      info->set_internal_formal_parameter_count(1);
+      info->set_length(1);
+      native_context->set_async_function_await_resolve_shared_fun(*info);
+    }
 
-      Handle<JSFunction> async_function_next =
-          SimpleInstallFunction(container, "AsyncFunctionNext",
-                                Builtins::kGeneratorPrototypeNext, 1, true);
-      Handle<JSFunction> async_function_throw =
-          SimpleInstallFunction(container, "AsyncFunctionThrow",
-                                Builtins::kGeneratorPrototypeThrow, 1, true);
-      async_function_next->shared()->set_native(false);
-      async_function_throw->shared()->set_native(false);
+    {
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kAsyncFunctionPromiseCreate, 0, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX);
+    }
+
+    {
+      Handle<JSFunction> function = SimpleCreateFunction(
+          isolate, factory->empty_string(),
+          Builtins::kAsyncFunctionPromiseRelease, 1, false);
+      InstallWithIntrinsicDefaultProto(
+          isolate, function, Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX);
     }
   }
 
@@ -3464,7 +3516,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(icu_case_mapping)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_generators)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_trailing_commas)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_fields)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_spread)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_rest_spread)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_types)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
@@ -3560,6 +3613,13 @@ void Genesis::InitializeGlobal_harmony_array_prototype_values() {
   JSObject::AddProperty(Handle<JSObject>::cast(unscopables),
                         factory()->values_string(), factory()->true_value(),
                         NONE);
+}
+
+void Genesis::InitializeGlobal_harmony_async_iteration() {
+  if (!FLAG_harmony_async_iteration) return;
+  Handle<JSFunction> symbol_fun(native_context()->symbol_function());
+  InstallConstant(isolate(), symbol_fun, "asyncIterator",
+                  factory()->async_iterator_symbol());
 }
 
 Handle<JSFunction> Genesis::InstallArrayBuffer(Handle<JSObject> target,
@@ -4026,7 +4086,9 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_restrictive_generators_natives[] = {nullptr};
   static const char* harmony_trailing_commas_natives[] = {nullptr};
   static const char* harmony_class_fields_natives[] = {nullptr};
-  static const char* harmony_object_spread_natives[] = {nullptr};
+  static const char* harmony_object_rest_spread_natives[] = {nullptr};
+  static const char* harmony_async_iteration_natives[] = {nullptr};
+  static const char* harmony_dynamic_import_natives[] = {nullptr};
   static const char* harmony_types_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
@@ -4183,6 +4245,8 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   if (FLAG_expose_wasm || FLAG_validate_asm) {
     WasmJs::Install(isolate);
   }
+
+  InstallFFIMap(isolate);
 
   return true;
 }

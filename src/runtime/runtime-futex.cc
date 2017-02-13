@@ -29,6 +29,11 @@ RUNTIME_FUNCTION(Runtime_AtomicsWait) {
   CHECK_EQ(sta->type(), kExternalInt32Array);
   CHECK(timeout == V8_INFINITY || !std::isnan(timeout));
 
+  if (!isolate->allow_atomics_wait()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kAtomicsWaitNotAllowed));
+  }
+
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
@@ -64,6 +69,15 @@ RUNTIME_FUNCTION(Runtime_AtomicsNumWaitersForTesting) {
   size_t addr = (index << 2) + NumberToSize(sta->byte_offset());
 
   return FutexEmulation::NumWaitersForTesting(isolate, array_buffer, addr);
+}
+
+RUNTIME_FUNCTION(Runtime_SetAllowAtomicsWait) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_BOOLEAN_ARG_CHECKED(set, 0);
+
+  isolate->set_allow_atomics_wait(set);
+  return isolate->heap()->undefined_value();
 }
 }  // namespace internal
 }  // namespace v8

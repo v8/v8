@@ -2,7 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BUILTINS_BUILTINS_PROMISE_H_
+#define V8_BUILTINS_BUILTINS_PROMISE_H_
+
 #include "src/code-stub-assembler.h"
+#include "src/contexts.h"
 
 namespace v8 {
 namespace internal {
@@ -13,9 +17,27 @@ typedef compiler::CodeAssemblerState CodeAssemblerState;
 
 class PromiseBuiltinsAssembler : public CodeStubAssembler {
  public:
+  enum PromiseResolvingFunctionContextSlot {
+    // Whether the resolve/reject callback was already called.
+    kAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
+
+    // The promise which resolve/reject callbacks fulfill.
+    kPromiseSlot,
+
+    // Whether to trigger a debug event or not. Used in catch
+    // prediction.
+    kDebugEventSlot,
+    kPromiseContextLength,
+  };
+
+  enum FunctionContextSlot {
+    kCapabilitySlot = Context::MIN_CONTEXT_SLOTS,
+
+    kCapabilitiesContextLength,
+  };
+
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
-
   // These allocate and initialize a promise with pending state and
   // undefined fields.
   //
@@ -34,6 +56,23 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                               Node* resolve, Node* reject,
                                               Node* context);
 
+  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
+      Node* promise, Node* native_context, Node* promise_context);
+
+  Node* PromiseHasHandler(Node* promise);
+
+  Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
+                                               Node* native_context);
+
+  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
+                                                    Node* promise_capability);
+
+  Node* NewPromiseCapability(Node* context, Node* constructor,
+                             Node* debug_event = nullptr);
+
+ protected:
+  void PromiseInit(Node* promise);
+
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate::Template msg_template,
                              const char* method_name = nullptr);
@@ -41,9 +80,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* SpeciesConstructor(Node* context, Node* object,
                            Node* default_constructor);
 
-  Node* PromiseHasHandler(Node* promise);
-
   void PromiseSetHasHandler(Node* promise);
+  void PromiseSetHandledHint(Node* promise);
 
   void AppendPromiseCallback(int offset, compiler::Node* promise,
                              compiler::Node* value);
@@ -66,27 +104,17 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                         Label* if_isunmodified, Label* if_ismodified);
 
   Node* CreatePromiseContext(Node* native_context, int slots);
-  Node* CreatePromiseResolvingFunctionsContext(Node* promise, Node* debug_event,
-                                               Node* native_context);
-
-  std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
-      Node* promise, Node* native_context, Node* promise_context);
-
-  Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
-                                                    Node* promise_capability);
-
   void PromiseFulfill(Node* context, Node* promise, Node* result,
                       v8::Promise::PromiseState status);
-
-  Node* NewPromiseCapability(Node* context, Node* constructor,
-                             Node* debug_event = nullptr);
 
   void BranchIfAccessCheckFailed(Node* context, Node* native_context,
                                  Node* promise_constructor, Node* executor,
                                  Label* if_noaccess);
 
- protected:
-  void PromiseInit(Node* promise);
+  void InternalPromiseReject(Node* context, Node* promise, Node* value,
+                             bool debug_event);
+  void InternalPromiseReject(Node* context, Node* promise, Node* value,
+                             Node* debug_event);
 
  private:
   Node* AllocateJSPromise(Node* context);
@@ -94,3 +122,5 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_BUILTINS_BUILTINS_PROMISE_H_

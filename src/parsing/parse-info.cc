@@ -6,7 +6,9 @@
 
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
+#include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {

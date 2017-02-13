@@ -6,11 +6,13 @@
 #define V8_COMPILATION_CACHE_H_
 
 #include "src/allocation.h"
-#include "src/handles.h"
 #include "src/objects.h"
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+class Handle;
 
 // The compilation cache consists of several generational sub-caches which uses
 // this class as a base class. A sub-cache contains a compilation cache tables

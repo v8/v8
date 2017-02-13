@@ -681,6 +681,16 @@ void MacroAssembler::DebugBreak() {
   call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  mov(ebx, Operand::StaticVariable(restart_fp));
+  test(ebx, ebx);
+  j(not_zero, isolate()->builtins()->FrameDropperTrampoline(),
+    RelocInfo::CODE_TARGET);
+}
+
 void MacroAssembler::Cvtsi2sd(XMMRegister dst, const Operand& src) {
   xorps(dst, dst);
   cvtsi2sd(dst, src);
@@ -1019,8 +1029,7 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   mov(vector, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
-  mov(vector, FieldOperand(vector, JSFunction::kLiteralsOffset));
-  mov(vector, FieldOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  mov(vector, FieldOperand(vector, JSFunction::kFeedbackVectorOffset));
 }
 
 
@@ -1916,6 +1925,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       DCHECK(actual.reg().is(eax));
       DCHECK(expected.reg().is(ebx));
     } else {
+      definitely_matches = true;
       Move(eax, actual.reg());
     }
   }
@@ -2564,11 +2574,13 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
   const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
   // Interleave bits from both instance types and compare them in one check.
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
+  const int kShift = 8;
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
   and_(scratch1, kFlatOneByteStringMask);
   and_(scratch2, kFlatOneByteStringMask);
-  lea(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << 3));
+  shl(scratch2, kShift);
+  or_(scratch1, scratch2);
+  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << kShift));
   j(not_equal, failure);
 }
 

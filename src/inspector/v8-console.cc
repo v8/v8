@@ -336,8 +336,14 @@ void V8Console::groupEndCallback(
 }
 
 void V8Console::clearCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  ConsoleHelper(info).reportCallWithDefaultArgument(ConsoleAPIType::kClear,
-                                                    String16("console.clear"));
+  ConsoleHelper helper(info);
+  InspectedContext* context = helper.ensureInspectedContext();
+  if (!context) return;
+  int contextGroupId = context->contextGroupId();
+  if (V8InspectorClient* client = helper.ensureDebuggerClient())
+    client->consoleClear(contextGroupId);
+  helper.reportCallWithDefaultArgument(ConsoleAPIType::kClear,
+                                       String16("console.clear"));
 }
 
 void V8Console::countCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -431,7 +437,7 @@ static void timeEndFunction(const v8::FunctionCallbackInfo<v8::Value>& info,
     double elapsed = client->currentTimeMS() -
                      helper.getDoubleFromMap(timeMap, protocolTitle, 0.0);
     String16 message =
-        protocolTitle + ": " + String16::fromDouble(elapsed, 3) + "ms";
+        protocolTitle + ": " + String16::fromDouble(elapsed) + "ms";
     helper.reportCallWithArgument(ConsoleAPIType::kTimeEnd, message);
   }
 }

@@ -433,6 +433,15 @@ void CallTrampolineDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
+void CallForwardVarargsDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kStartIndex
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::Int32()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 void ConstructStubDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kNewTarget, kActualArgumentsCount, kAllocationSite
@@ -594,6 +603,14 @@ void InterpreterCEntryDescriptor::InitializePlatformIndependent(
   // kNumberOfArguments, kFirstArgument, kFunctionEntry
   MachineType machine_types[] = {MachineType::Int32(), MachineType::Pointer(),
                                  MachineType::Pointer()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void FrameDropperTrampolineDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // New FP value.
+  MachineType machine_types[] = {MachineType::Pointer()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

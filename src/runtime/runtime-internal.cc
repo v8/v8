@@ -299,6 +299,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqOneByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
+  if (length == 0) return isolate->heap()->empty_string();
   Handle<SeqOneByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawOneByteString(length));
@@ -309,6 +310,7 @@ RUNTIME_FUNCTION(Runtime_AllocateSeqTwoByteString) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(length, 0);
+  if (length == 0) return isolate->heap()->empty_string();
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, isolate->factory()->NewRawTwoByteString(length));

@@ -468,7 +468,12 @@ class MacroAssembler: public Assembler {
     test(value, Immediate(kSmiTagMask));
     j(not_zero, not_smi_label, distance);
   }
-
+  // Jump if the operand is not a smi.
+  inline void JumpIfNotSmi(Operand value, Label* smi_label,
+                           Label::Distance distance = Label::kFar) {
+    test(value, Immediate(kSmiTagMask));
+    j(not_zero, smi_label, distance);
+  }
   // Jump if the value cannot be represented by a smi.
   inline void JumpIfNotValidSmiValue(Register value, Register scratch,
                                      Label* on_invalid,

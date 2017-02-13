@@ -201,6 +201,60 @@ class FunctionBodyDecoderTest : public TestWithZone {
   }
 };
 
+namespace {
+// A helper for tests that require a module environment for functions,
+// globals, or memories.
+class TestModuleEnv : public ModuleEnv {
+ public:
+  explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin)
+      : ModuleEnv(&mod, nullptr) {
+    mod.origin = origin;
+  }
+  byte AddGlobal(ValueType type, bool mutability = true) {
+    mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
+    CHECK(mod.globals.size() <= 127);
+    return static_cast<byte>(mod.globals.size() - 1);
+  }
+  byte AddSignature(FunctionSig* sig) {
+    mod.signatures.push_back(sig);
+    CHECK(mod.signatures.size() <= 127);
+    return static_cast<byte>(mod.signatures.size() - 1);
+  }
+  byte AddFunction(FunctionSig* sig) {
+    mod.functions.push_back({sig,      // sig
+                             0,        // func_index
+                             0,        // sig_index
+                             0,        // name_offset
+                             0,        // name_length
+                             0,        // code_start_offset
+                             0,        // code_end_offset
+                             false,    // import
+                             false});  // export
+    CHECK(mod.functions.size() <= 127);
+    return static_cast<byte>(mod.functions.size() - 1);
+  }
+  byte AddImport(FunctionSig* sig) {
+    byte result = AddFunction(sig);
+    mod.functions[result].imported = true;
+    return result;
+  }
+
+  void InitializeMemory() {
+    mod.has_memory = true;
+    mod.min_mem_pages = 1;
+    mod.max_mem_pages = 100;
+  }
+
+  void InitializeFunctionTable() {
+    mod.function_tables.push_back(
+        {0, 0, true, std::vector<int32_t>(), false, false, SignatureMap()});
+  }
+
+ private:
+  WasmModule mod;
+};
+}  // namespace
+
 TEST_F(FunctionBodyDecoderTest, Int32Const1) {
   byte code[] = {kExprI32Const, 0};
   for (int i = -64; i <= 63; i++) {
@@ -1023,6 +1077,9 @@ TEST_F(FunctionBodyDecoderTest, TypeConversions) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MacrosStmt) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   EXPECT_VERIFIES(v_i, WASM_SET_LOCAL(0, WASM_I32V_3(87348)));
   EXPECT_VERIFIES(v_i, WASM_STORE_MEM(MachineType::Int32(), WASM_I32V_1(24),
                                       WASM_I32V_1(40)));
@@ -1159,12 +1216,18 @@ TEST_F(FunctionBodyDecoderTest, AllSimpleExpressions) {
 }
 
 TEST_F(FunctionBodyDecoderTest, MemorySize) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   byte code[] = {kExprMemorySize, 0};
   EXPECT_VERIFIES_C(i_i, code);
   EXPECT_FAILURE_C(f_ff, code);
 }
 
 TEST_F(FunctionBodyDecoderTest, LoadMemOffset) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   for (int offset = 0; offset < 128; offset += 7) {
     byte code[] = {kExprI32Const, 0, kExprI32LoadMem, ZERO_ALIGNMENT,
                    static_cast<byte>(offset)};
@@ -1173,6 +1236,9 @@ TEST_F(FunctionBodyDecoderTest, LoadMemOffset) {
 }
 
 TEST_F(FunctionBodyDecoderTest, LoadMemAlignment) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   struct {
     WasmOpcode instruction;
     uint32_t maximum_aligment;
@@ -1207,6 +1273,9 @@ TEST_F(FunctionBodyDecoderTest, LoadMemAlignment) {
 }
 
 TEST_F(FunctionBodyDecoderTest, StoreMemOffset) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   for (int offset = 0; offset < 128; offset += 7) {
     byte code[] = {WASM_STORE_MEM_OFFSET(MachineType::Int32(), offset,
                                          WASM_ZERO, WASM_ZERO)};
@@ -1215,6 +1284,9 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset) {
 }
 
 TEST_F(FunctionBodyDecoderTest, StoreMemOffset_void) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   EXPECT_FAILURE(i_i, WASM_STORE_MEM_OFFSET(MachineType::Int32(), 0, WASM_ZERO,
                                             WASM_ZERO));
 }
@@ -1230,6 +1302,9 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_void) {
 #define VARINT4(x) BYTE0(x) | 0x80, BYTE1(x) | 0x80, BYTE2(x) | 0x80, BYTE3(x)
 
 TEST_F(FunctionBodyDecoderTest, LoadMemOffset_varint) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   EXPECT_VERIFIES(i_i, WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
                   VARINT1(0x45));
   EXPECT_VERIFIES(i_i, WASM_ZERO, kExprI32LoadMem, ZERO_ALIGNMENT,
@@ -1241,6 +1316,9 @@ TEST_F(FunctionBodyDecoderTest, LoadMemOffset_varint) {
 }
 
 TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
                   VARINT1(0x33));
   EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
@@ -1252,6 +1330,9 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType local_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(machineTypes); j++) {
@@ -1268,6 +1349,9 @@ TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
 }
 
 TEST_F(FunctionBodyDecoderTest, AllStoreMemCombinations) {
+  TestModuleEnv module_env;
+  module = &module_env;
+  module_env.InitializeMemory();
   for (size_t i = 0; i < arraysize(kValueTypes); i++) {
     ValueType local_type = kValueTypes[i];
     for (size_t j = 0; j < arraysize(machineTypes); j++) {
@@ -1282,54 +1366,6 @@ TEST_F(FunctionBodyDecoderTest, AllStoreMemCombinations) {
     }
   }
 }
-
-namespace {
-// A helper for tests that require a module environment for functions and
-// globals.
-class TestModuleEnv : public ModuleEnv {
- public:
-  explicit TestModuleEnv(ModuleOrigin origin = kWasmOrigin)
-      : ModuleEnv(&mod, nullptr) {
-    mod.origin = origin;
-  }
-  byte AddGlobal(ValueType type, bool mutability = true) {
-    mod.globals.push_back({type, mutability, WasmInitExpr(), 0, false, false});
-    CHECK(mod.globals.size() <= 127);
-    return static_cast<byte>(mod.globals.size() - 1);
-  }
-  byte AddSignature(FunctionSig* sig) {
-    mod.signatures.push_back(sig);
-    CHECK(mod.signatures.size() <= 127);
-    return static_cast<byte>(mod.signatures.size() - 1);
-  }
-  byte AddFunction(FunctionSig* sig) {
-    mod.functions.push_back({sig,      // sig
-                             0,        // func_index
-                             0,        // sig_index
-                             0,        // name_offset
-                             0,        // name_length
-                             0,        // code_start_offset
-                             0,        // code_end_offset
-                             false,    // import
-                             false});  // export
-    CHECK(mod.functions.size() <= 127);
-    return static_cast<byte>(mod.functions.size() - 1);
-  }
-  byte AddImport(FunctionSig* sig) {
-    byte result = AddFunction(sig);
-    mod.functions[result].imported = true;
-    return result;
-  }
-
-  void InitializeFunctionTable() {
-    mod.function_tables.push_back(
-        {0, 0, true, std::vector<int32_t>(), false, false, SignatureMap()});
-  }
-
- private:
-  WasmModule mod;
-};
-}  // namespace
 
 TEST_F(FunctionBodyDecoderTest, SimpleCalls) {
   FunctionSig* sig = sigs.i_i();
@@ -1665,6 +1701,7 @@ TEST_F(FunctionBodyDecoderTest, AllSetGlobalCombinations) {
 TEST_F(FunctionBodyDecoderTest, WasmGrowMemory) {
   TestModuleEnv module_env;
   module = &module_env;
+  module_env.InitializeMemory();
 
   byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
   EXPECT_VERIFIES_C(i_i, code);
@@ -1674,6 +1711,7 @@ TEST_F(FunctionBodyDecoderTest, WasmGrowMemory) {
 TEST_F(FunctionBodyDecoderTest, AsmJsGrowMemory) {
   TestModuleEnv module_env(kAsmJsOrigin);
   module = &module_env;
+  module_env.InitializeMemory();
 
   byte code[] = {WASM_GET_LOCAL(0), kExprGrowMemory, 0};
   EXPECT_FAILURE_C(i_i, code);
@@ -1705,6 +1743,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
   {
     TestModuleEnv module_env(kAsmJsOrigin);
     module = &module_env;
+    module_env.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       TestBinop(AsmJsBinOps[i].op, AsmJsBinOps[i].sig);
     }
@@ -1713,6 +1752,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsBinOpsCheckOrigin) {
   {
     TestModuleEnv module_env;
     module = &module_env;
+    module_env.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsBinOps); i++) {
       byte code[] = {
           WASM_BINOP(AsmJsBinOps[i].op, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
@@ -1751,6 +1791,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
   {
     TestModuleEnv module_env(kAsmJsOrigin);
     module = &module_env;
+    module_env.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       TestUnop(AsmJsUnOps[i].op, AsmJsUnOps[i].sig);
     }
@@ -1759,6 +1800,7 @@ TEST_F(FunctionBodyDecoderTest, AsmJsUnOpsCheckOrigin) {
   {
     TestModuleEnv module_env;
     module = &module_env;
+    module_env.InitializeMemory();
     for (size_t i = 0; i < arraysize(AsmJsUnOps); i++) {
       byte code[] = {WASM_UNOP(AsmJsUnOps[i].op, WASM_GET_LOCAL(0))};
       EXPECT_FAILURE_SC(AsmJsUnOps[i].sig, code);
@@ -2091,6 +2133,12 @@ TEST_F(FunctionBodyDecoderTest, BrTable_invalid_br2) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, BrUnreachable) {
+  static byte code[] = {WASM_GET_LOCAL(0), kExprBrTable,  0,
+                        BR_TARGET(0),      kExprSetLocal, 0};
+  EXPECT_VERIFIES_C(v_i, code);
+}
+
 TEST_F(FunctionBodyDecoderTest, Brv1) {
   EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_BRV(0, WASM_ZERO)));
   EXPECT_VERIFIES(i_i, WASM_BLOCK_I(WASM_LOOP(WASM_BRV(2, WASM_ZERO))));
@@ -2181,6 +2229,12 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   EXPECT_FAILURE(i_d, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
   EXPECT_FAILURE(i_f, WASM_GET_LOCAL(0), kExprThrow, WASM_I32V(0));
   EXPECT_FAILURE(l_l, WASM_GET_LOCAL(0), kExprThrow, WASM_I64V(0));
+}
+
+TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
+  // TODO(titzer): unreachable code after throw should validate.
+  // FLAG_wasm_eh_prototype = true;
+  // EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprThrow, kExprSetLocal, 0);
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid

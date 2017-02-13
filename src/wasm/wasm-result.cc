@@ -64,6 +64,7 @@ void ErrorThrower::RangeError(const char* format, ...) {
 
 void ErrorThrower::CompileError(const char* format, ...) {
   if (error()) return;
+  wasm_error_ = true;
   va_list arguments;
   va_start(arguments, format);
   Format(isolate_->wasm_compile_error_function(), format, arguments);
@@ -72,6 +73,7 @@ void ErrorThrower::CompileError(const char* format, ...) {
 
 void ErrorThrower::LinkError(const char* format, ...) {
   if (error()) return;
+  wasm_error_ = true;
   va_list arguments;
   va_start(arguments, format);
   Format(isolate_->wasm_link_error_function(), format, arguments);
@@ -80,6 +82,7 @@ void ErrorThrower::LinkError(const char* format, ...) {
 
 void ErrorThrower::RuntimeError(const char* format, ...) {
   if (error()) return;
+  wasm_error_ = true;
   va_list arguments;
   va_start(arguments, format);
   Format(isolate_->wasm_runtime_error_function(), format, arguments);

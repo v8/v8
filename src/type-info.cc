@@ -207,6 +207,8 @@ AstType* CompareOpHintToType(CompareOperationHint hint) {
       return AstType::InternalizedString();
     case CompareOperationHint::kString:
       return AstType::String();
+    case CompareOperationHint::kReceiver:
+      return AstType::Receiver();
     case CompareOperationHint::kAny:
       return AstType::Any();
   }

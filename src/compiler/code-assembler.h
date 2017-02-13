@@ -227,6 +227,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool ToIntPtrConstant(Node* node, intptr_t& out_value);
 
   Node* Parameter(int value);
+  Node* GetJSContextParameter();
   void Return(Node* value);
   void PopAndReturn(Node* pop, Node* value);
 
@@ -364,6 +365,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                     args...);
   }
 
+  Node* CallCFunctionN(Signature<MachineType>* signature, int input_count,
+                       Node* const* inputs);
+
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
                        MachineType arg1_type, Node* function, Node* arg0,
@@ -409,6 +413,8 @@ class CodeAssemblerVariable {
  public:
   explicit CodeAssemblerVariable(CodeAssembler* assembler,
                                  MachineRepresentation rep);
+  CodeAssemblerVariable(CodeAssembler* assembler, MachineRepresentation rep,
+                        Node* initial_value);
   ~CodeAssemblerVariable();
   void Bind(Node* value);
   Node* value() const;
@@ -444,7 +450,7 @@ class CodeAssemblerLabel {
       CodeAssembler* assembler, CodeAssemblerVariable* merged_variable,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
       : CodeAssemblerLabel(assembler, 1, &merged_variable, type) {}
-  ~CodeAssemblerLabel() {}
+  ~CodeAssemblerLabel();
 
  private:
   friend class CodeAssembler;

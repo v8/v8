@@ -1570,6 +1570,11 @@ void MacroAssembler::JumpIfNotSmi(Register src,
   j(NegateCondition(smi), on_not_smi, near_jump);
 }
 
+void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
+                                  Label::Distance near_jump) {
+  Condition smi = CheckSmi(src);
+  j(NegateCondition(smi), on_not_smi, near_jump);
+}
 
 void MacroAssembler::JumpUnlessNonNegativeSmi(
     Register src, Label* on_not_smi_or_negative,
@@ -2540,10 +2545,12 @@ void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(
   andl(scratch1, Immediate(kFlatOneByteStringMask));
   andl(scratch2, Immediate(kFlatOneByteStringMask));
   // Interleave the bits to check both scratch1 and scratch2 in one test.
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
-  leap(scratch1, Operand(scratch1, scratch2, times_8, 0));
+  const int kShift = 8;
+  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
+  shlp(scratch2, Immediate(kShift));
+  orp(scratch1, scratch2);
   cmpl(scratch1,
-       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << 3)));
+       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << kShift)));
   j(not_equal, on_fail, near_jump);
 }
 
@@ -4081,14 +4088,19 @@ void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
   }
 }
 
-
 void MacroAssembler::DebugBreak() {
-  Set(rax, 0);  // No arguments.
-  LoadAddress(rbx,
-              ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
+  Call(isolate()->builtins()->HandleDebuggerStatement(),
+       RelocInfo::DEBUGGER_STATEMENT);
+}
+
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  Load(rbx, restart_fp);
+  testp(rbx, rbx);
+  j(not_zero, isolate()->builtins()->FrameDropperTrampoline(),
+    RelocInfo::CODE_TARGET);
 }
 
 void MacroAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
@@ -4290,6 +4302,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       DCHECK(actual.reg().is(rax));
       DCHECK(expected.reg().is(rbx));
     } else {
+      definitely_matches = true;
       Move(rax, actual.reg());
     }
   }
@@ -4377,8 +4390,7 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   movp(vector, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
-  movp(vector, FieldOperand(vector, JSFunction::kLiteralsOffset));
-  movp(vector, FieldOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  movp(vector, FieldOperand(vector, JSFunction::kFeedbackVectorOffset));
 }
 
 

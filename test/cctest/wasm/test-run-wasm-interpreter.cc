@@ -219,7 +219,7 @@ TEST(Breakpoint_I32Add) {
 }
 
 TEST(Step_I32Mul) {
-  static const int kTraceLength = 5;
+  static const int kTraceLength = 4;
   byte code[] = {WASM_I32_MUL(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))};
 
   WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteInterpreted);

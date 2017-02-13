@@ -178,6 +178,13 @@ void CallTrampolineDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
+void CallForwardVarargsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  // ecx : start index (to support rest parameters)
+  // edi : the target to call
+  Register registers[] = {edi, ecx};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
 
 void ConstructStubDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
@@ -408,6 +415,14 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
       eax,  // the value to pass to the generator
       ebx,  // the JSGeneratorObject to resume
       edx   // the resume mode (tagged)
+  };
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+void FrameDropperTrampolineDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {
+      ebx,  // loaded new FP
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }

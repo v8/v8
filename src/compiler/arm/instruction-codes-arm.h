@@ -129,18 +129,56 @@ namespace compiler {
   V(ArmFloat32x4Neg)               \
   V(ArmFloat32x4Add)               \
   V(ArmFloat32x4Sub)               \
-  V(ArmFloat32x4Eq)                \
-  V(ArmFloat32x4Ne)                \
+  V(ArmFloat32x4Equal)             \
+  V(ArmFloat32x4NotEqual)          \
   V(ArmInt32x4Splat)               \
   V(ArmInt32x4ExtractLane)         \
   V(ArmInt32x4ReplaceLane)         \
   V(ArmInt32x4FromFloat32x4)       \
   V(ArmUint32x4FromFloat32x4)      \
+  V(ArmInt32x4Neg)                 \
   V(ArmInt32x4Add)                 \
   V(ArmInt32x4Sub)                 \
-  V(ArmInt32x4Eq)                  \
-  V(ArmInt32x4Ne)                  \
-  V(ArmSimd32x4Select)
+  V(ArmInt32x4Mul)                 \
+  V(ArmInt32x4Min)                 \
+  V(ArmInt32x4Max)                 \
+  V(ArmInt32x4Equal)               \
+  V(ArmInt32x4NotEqual)            \
+  V(ArmInt32x4GreaterThan)         \
+  V(ArmInt32x4GreaterThanOrEqual)  \
+  V(ArmUint32x4GreaterThan)        \
+  V(ArmUint32x4GreaterThanOrEqual) \
+  V(ArmSimd32x4Select)             \
+  V(ArmInt16x8Splat)               \
+  V(ArmInt16x8ExtractLane)         \
+  V(ArmInt16x8ReplaceLane)         \
+  V(ArmInt16x8Neg)                 \
+  V(ArmInt16x8Add)                 \
+  V(ArmInt16x8Sub)                 \
+  V(ArmInt16x8Mul)                 \
+  V(ArmInt16x8Min)                 \
+  V(ArmInt16x8Max)                 \
+  V(ArmInt16x8Equal)               \
+  V(ArmInt16x8NotEqual)            \
+  V(ArmInt16x8GreaterThan)         \
+  V(ArmInt16x8GreaterThanOrEqual)  \
+  V(ArmUint16x8GreaterThan)        \
+  V(ArmUint16x8GreaterThanOrEqual) \
+  V(ArmInt8x16Splat)               \
+  V(ArmInt8x16ExtractLane)         \
+  V(ArmInt8x16ReplaceLane)         \
+  V(ArmInt8x16Neg)                 \
+  V(ArmInt8x16Add)                 \
+  V(ArmInt8x16Sub)                 \
+  V(ArmInt8x16Mul)                 \
+  V(ArmInt8x16Min)                 \
+  V(ArmInt8x16Max)                 \
+  V(ArmInt8x16Equal)               \
+  V(ArmInt8x16NotEqual)            \
+  V(ArmInt8x16GreaterThan)         \
+  V(ArmInt8x16GreaterThanOrEqual)  \
+  V(ArmUint8x16GreaterThan)        \
+  V(ArmUint8x16GreaterThanOrEqual)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

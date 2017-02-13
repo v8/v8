@@ -159,6 +159,7 @@ struct MaybeBoolFlag {
 #define DEFINE_MAYBE_BOOL(nam, cmt) \
   FLAG(MAYBE_BOOL, MaybeBoolFlag, nam, {false COMMA false}, cmt)
 #define DEFINE_INT(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
+#define DEFINE_UINT(nam, def, cmt) FLAG(UINT, unsigned int, nam, def, cmt)
 #define DEFINE_FLOAT(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_STRING(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
 #define DEFINE_ARGS(nam, cmt) FLAG(ARGS, JSArguments, nam, {0 COMMA NULL}, cmt)
@@ -209,32 +210,27 @@ DEFINE_IMPLICATION(use_types, use_strict)
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
   V(harmony_class_fields, "harmony public fields in class literals")    \
-  V(harmony_object_spread, "harmony object spread")
+  V(harmony_async_iteration, "harmony async iteration")                 \
+  V(harmony_dynamic_import, "harmony dynamic import")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                              \
+#define HARMONY_STAGED(V)                                   \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind") \
   V(harmony_restrictive_generators,                         \
     "harmony restrictions on generator declarations")       \
   V(harmony_tailcalls, "harmony tail calls")                \
-  V(harmony_trailing_commas,                                \
+  V(harmony_object_rest_spread, "harmony object rest spread properties")
+
+// Features that are shipping (turned on by default, but internal flag remains).
+#define HARMONY_SHIPPING_BASE(V) \
+  V(harmony_trailing_commas,     \
     "harmony trailing commas in function parameter lists")
 
 #ifdef V8_I18N_SUPPORT
-#define HARMONY_STAGED(V)                                          \
-  HARMONY_STAGED_BASE(V)                                           \
+#define HARMONY_SHIPPING(V)                                        \
+  HARMONY_SHIPPING_BASE(V)                                         \
+  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts") \
   V(icu_case_mapping, "case mapping with ICU rather than Unibrow")
-#else
-#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#endif
-
-// Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)
-
-#ifdef V8_I18N_SUPPORT
-#define HARMONY_SHIPPING(V) \
-  HARMONY_SHIPPING_BASE(V)  \
-  V(datetime_format_to_parts, "Intl.DateTimeFormat.formatToParts")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
 #endif
@@ -265,7 +261,16 @@ HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 DEFINE_BOOL(future, false,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
-DEFINE_IMPLICATION(future, ignition_staging)
+DEFINE_IMPLICATION(future, turbo)
+
+DEFINE_IMPLICATION(turbo, ignition_staging)
+
+// TODO(rmcilroy): Remove ignition-staging and set these implications directly
+// with the turbo flag.
+DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
+DEFINE_IMPLICATION(ignition_staging, ignition)
+DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
+DEFINE_IMPLICATION(ignition_staging, validate_asm)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
@@ -307,9 +312,6 @@ DEFINE_BOOL(string_slices, true, "use string slices")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition, false, "use ignition interpreter")
-DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
-DEFINE_IMPLICATION(ignition_staging, ignition)
-DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
 DEFINE_STRING(ignition_filter, "*", "filter for ignition interpreter")
 DEFINE_BOOL(ignition_deadcode, true,
             "use ignition dead code elimination optimizer")
@@ -441,7 +443,6 @@ DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
             "run pre-register allocation heuristics")
-DEFINE_BOOL(turbo_loop_stackcheck, true, "enable stack checks in loops")
 DEFINE_STRING(turbo_filter, "~~", "optimization filter for TurboFan compiler")
 DEFINE_BOOL(trace_turbo, false, "trace generated TurboFan IR")
 DEFINE_BOOL(trace_turbo_graph, false, "trace generated TurboFan graphs")
@@ -459,9 +460,16 @@ DEFINE_BOOL(turbo_asm, true, "enable TurboFan for asm.js code")
 DEFINE_BOOL(turbo_verify, DEBUG_BOOL, "verify TurboFan graphs at each phase")
 DEFINE_STRING(turbo_verify_machine_graph, nullptr,
               "verify TurboFan machine graph before instruction selection")
-DEFINE_BOOL(csa_verify, DEBUG_BOOL,
+#ifdef ENABLE_VERIFY_CSA
+DEFINE_BOOL(verify_csa, DEBUG_BOOL,
             "verify TurboFan machine graph of code stubs")
-DEFINE_BOOL(trace_csa_verify, false, "trace code stubs verification")
+#else
+// Define the flag as read-only-false so that code still compiles even in the
+// non-ENABLE_VERIFY_CSA configuration.
+DEFINE_BOOL_READONLY(verify_csa, false,
+                     "verify TurboFan machine graph of code stubs")
+#endif
+DEFINE_BOOL(trace_verify_csa, false, "trace code stubs verification")
 DEFINE_STRING(csa_trap_on_node, nullptr,
               "trigger break point when a node with given id is created in "
               "given stub. The format is: StubName,NodeId")
@@ -495,6 +503,8 @@ DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
 DEFINE_BOOL(turbo_lower_create_closure, false,
             "enable inline allocation for closure instantiation")
+// TODO(turbofan): Rename --crankshaft to --optimize eventually.
+DEFINE_IMPLICATION(turbo, crankshaft)
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,
@@ -506,8 +516,16 @@ DEFINE_NEG_IMPLICATION(minimal, use_ic)
 
 // Flags for native WebAssembly.
 DEFINE_BOOL(expose_wasm, true, "expose WASM interface to JavaScript")
+DEFINE_BOOL(assume_asmjs_origin, false,
+            "force wasm decoder to assume input is internal asm-wasm format")
+DEFINE_BOOL(wasm_disable_structured_cloning, false,
+            "disable WASM structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
+DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
+            "maximum memory size of a wasm instance")
+DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
+            "maximum table size of a wasm instance")
 DEFINE_BOOL(trace_wasm_encoder, false, "trace encoding of wasm code")
 DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
@@ -526,8 +544,7 @@ DEFINE_BOOL(wasm_break_on_decoder_error, false,
 DEFINE_BOOL(wasm_loop_assignment_analysis, true,
             "perform loop assignment analysis for WASM")
 
-DEFINE_BOOL(validate_asm, true, "validate asm.js modules before compiling")
-DEFINE_IMPLICATION(ignition_staging, validate_asm)
+DEFINE_BOOL(validate_asm, false, "validate asm.js modules before compiling")
 DEFINE_BOOL(suppress_asm_messages, false,
             "don't emit asm.js related messages (for golden file testing)")
 DEFINE_BOOL(trace_asm_time, false, "log asm.js timing info to the console")
@@ -560,7 +577,7 @@ DEFINE_BOOL(wasm_guard_pages, false,
             "add guard pages to the end of WebWassembly memory"
             " (experimental, no effect on 32-bit)")
 DEFINE_IMPLICATION(wasm_trap_handler, wasm_guard_pages)
-DEFINE_BOOL(wasm_trap_if, false,
+DEFINE_BOOL(wasm_trap_if, true,
             "enable the use of the trap_if operator for traps")
 DEFINE_BOOL(wasm_code_fuzzer_gen_test, false,
             "Generate a test case when running the wasm-code fuzzer")
@@ -681,6 +698,8 @@ DEFINE_BOOL(cache_prototype_transitions, true, "cache prototype transitions")
 
 // compiler-dispatcher.cc
 DEFINE_BOOL(compiler_dispatcher, false, "enable compiler dispatcher")
+DEFINE_BOOL(compiler_dispatcher_eager_inner, false,
+            "enable background compilation of eager inner functions")
 DEFINE_BOOL(trace_compiler_dispatcher, false,
             "trace compiler dispatcher activity")
 
@@ -874,6 +893,7 @@ DEFINE_INT(random_seed, 0,
            "(0, the default, means to use system random).")
 
 // objects.cc
+DEFINE_BOOL(thin_strings, false, "Enable ThinString support")
 DEFINE_BOOL(trace_weak_arrays, false, "Trace WeakFixedArray usage")
 DEFINE_BOOL(trace_prototype_users, false,
             "Trace updates to prototype user tracking")
@@ -891,6 +911,9 @@ DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
 DEFINE_BOOL(aggressive_lazy_inner_functions, false,
             "even lazier inner function parsing")
 DEFINE_IMPLICATION(aggressive_lazy_inner_functions, lazy_inner_functions)
+DEFINE_BOOL(preparser_scope_analysis, false,
+            "perform scope analysis for preparsed inner functions")
+DEFINE_IMPLICATION(preparser_scope_analysis, lazy_inner_functions)
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")

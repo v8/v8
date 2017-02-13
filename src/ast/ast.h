@@ -5,7 +5,6 @@
 #ifndef V8_AST_AST_H_
 #define V8_AST_AST_H_
 
-#include "src/assembler.h"
 #include "src/ast/ast-types.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/modules.h"
@@ -15,11 +14,11 @@
 #include "src/factory.h"
 #include "src/globals.h"
 #include "src/isolate.h"
+#include "src/label.h"
 #include "src/list.h"
 #include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 #include "src/small-pointer-list.h"
-#include "src/utils.h"
 
 namespace v8 {
 namespace internal {
@@ -1279,32 +1278,32 @@ class Literal final : public Expression {
   const AstValue* value_;
 };
 
-
-class AstLiteralReindexer;
-
-// Base class for literals that needs space in the corresponding JSFunction.
+// Base class for literals that need space in the type feedback vector.
 class MaterializedLiteral : public Expression {
  public:
-  int literal_index() { return literal_index_; }
-
   int depth() const {
     // only callable after initialization.
     DCHECK(depth_ >= 1);
     return depth_;
   }
 
+  void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
+                                 FeedbackVectorSlotCache* cache) {
+    literal_slot_ = spec->AddLiteralSlot();
+  }
+
+  FeedbackVectorSlot literal_slot() const { return literal_slot_; }
+
  private:
   int depth_ : 31;
-  int literal_index_;
-
-  friend class AstLiteralReindexer;
+  FeedbackVectorSlot literal_slot_;
 
   class IsSimpleField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
 
  protected:
-  MaterializedLiteral(int literal_index, int pos, NodeType type)
-      : Expression(pos, type), depth_(0), literal_index_(literal_index) {
+  MaterializedLiteral(int pos, NodeType type)
+      : Expression(pos, type), depth_(0) {
     bit_field_ |= IsSimpleField::encode(false);
   }
 
@@ -1423,7 +1422,7 @@ class ObjectLiteral final : public MaterializedLiteral {
  public:
   typedef ObjectLiteralProperty Property;
 
-  Handle<FixedArray> constant_properties() const {
+  Handle<BoilerplateDescription> constant_properties() const {
     DCHECK(!constant_properties_.is_null());
     return constant_properties_;
   }
@@ -1437,6 +1436,9 @@ class ObjectLiteral final : public MaterializedLiteral {
   bool has_shallow_properties() const {
     return depth() == 1 && !has_elements() && !may_store_doubles();
   }
+  bool has_rest_property() const {
+    return HasRestPropertyField::decode(bit_field_);
+  }
 
   // Decide if a property should be in the object boilerplate.
   static bool IsBoilerplateProperty(Property* property);
@@ -1445,7 +1447,8 @@ class ObjectLiteral final : public MaterializedLiteral {
   void InitDepthAndFlags();
 
   // Get the constant properties fixed array, populating it if necessary.
-  Handle<FixedArray> GetOrBuildConstantProperties(Isolate* isolate) {
+  Handle<BoilerplateDescription> GetOrBuildConstantProperties(
+      Isolate* isolate) {
     if (constant_properties_.is_null()) {
       BuildConstantProperties(isolate);
     }
@@ -1479,7 +1482,8 @@ class ObjectLiteral final : public MaterializedLiteral {
     kNoFlags = 0,
     kFastElements = 1,
     kShallowProperties = 1 << 1,
-    kDisableMementos = 1 << 2
+    kDisableMementos = 1 << 2,
+    kHasRestProperty = 1 << 3,
   };
 
   struct Accessors: public ZoneObject {
@@ -1506,21 +1510,23 @@ class ObjectLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  ObjectLiteral(ZoneList<Property*>* properties, int literal_index,
-                uint32_t boilerplate_properties, int pos)
-      : MaterializedLiteral(literal_index, pos, kObjectLiteral),
+  ObjectLiteral(ZoneList<Property*>* properties,
+                uint32_t boilerplate_properties, int pos,
+                bool has_rest_property)
+      : MaterializedLiteral(pos, kObjectLiteral),
         boilerplate_properties_(boilerplate_properties),
         properties_(properties) {
     bit_field_ |= FastElementsField::encode(false) |
                   HasElementsField::encode(false) |
-                  MayStoreDoublesField::encode(false);
+                  MayStoreDoublesField::encode(false) |
+                  HasRestPropertyField::encode(has_rest_property);
   }
 
   static int parent_num_ids() { return MaterializedLiteral::num_ids(); }
   int local_id(int n) const { return base_id() + parent_num_ids() + n; }
 
   uint32_t boilerplate_properties_;
-  Handle<FixedArray> constant_properties_;
+  Handle<BoilerplateDescription> constant_properties_;
   ZoneList<Property*>* properties_;
 
   class FastElementsField
@@ -1529,6 +1535,8 @@ class ObjectLiteral final : public MaterializedLiteral {
   };
   class MayStoreDoublesField
       : public BitField<bool, HasElementsField::kNext, 1> {};
+  class HasRestPropertyField
+      : public BitField<bool, MayStoreDoublesField::kNext, 1> {};
 };
 
 
@@ -1564,9 +1572,8 @@ class RegExpLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  RegExpLiteral(const AstRawString* pattern, int flags, int literal_index,
-                int pos)
-      : MaterializedLiteral(literal_index, pos, kRegExpLiteral),
+  RegExpLiteral(const AstRawString* pattern, int flags, int pos)
+      : MaterializedLiteral(pos, kRegExpLiteral),
         flags_(flags),
         pattern_(pattern) {
     set_depth(1);
@@ -1584,9 +1591,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   Handle<ConstantElementsPair> constant_elements() const {
     return constant_elements_;
   }
-  ElementsKind constant_elements_kind() const {
-    return static_cast<ElementsKind>(constant_elements()->elements_kind());
-  }
+  ElementsKind constant_elements_kind() const;
 
   ZoneList<Expression*>* values() const { return values_; }
 
@@ -1651,9 +1656,8 @@ class ArrayLiteral final : public MaterializedLiteral {
  private:
   friend class AstNodeFactory;
 
-  ArrayLiteral(ZoneList<Expression*>* values, int first_spread_index,
-               int literal_index, int pos)
-      : MaterializedLiteral(literal_index, pos, kArrayLiteral),
+  ArrayLiteral(ZoneList<Expression*>* values, int first_spread_index, int pos)
+      : MaterializedLiteral(pos, kArrayLiteral),
         first_spread_index_(first_spread_index),
         values_(values) {}
 
@@ -1930,6 +1934,10 @@ class Call final : public Expression {
   }
   void MarkTail() { bit_field_ = IsTailField::update(bit_field_, true); }
 
+  bool only_last_arg_is_spread() {
+    return !arguments_->is_empty() && arguments_->last()->IsSpread();
+  }
+
   enum CallType {
     GLOBAL_CALL,
     WITH_CALL,
@@ -2029,6 +2037,10 @@ class CallNew final : public Expression {
     set_is_monomorphic(true);
   }
 
+  bool only_last_arg_is_spread() {
+    return !arguments_->is_empty() && arguments_->last()->IsSpread();
+  }
+
  private:
   friend class AstNodeFactory;
 
@@ -2077,10 +2089,7 @@ class CallRuntime final : public Expression {
 
   static int num_ids() { return parent_num_ids() + 1; }
   BailoutId CallId() { return BailoutId(local_id(0)); }
-
-  const char* debug_name() {
-    return is_jsruntime() ? "(context function)" : function_->name;
-  }
+  const char* debug_name();
 
  private:
   friend class AstNodeFactory;
@@ -2625,10 +2634,7 @@ class FunctionLiteral final : public Expression {
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
-    // The + 1 is because we need an array with room for the literals
-    // as well as the feedback vector.
-    literal_feedback_slot_ =
-        spec->AddCreateClosureSlot(materialized_literal_count_ + 1);
+    literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
   FeedbackVectorSlot LiteralFeedbackSlot() const {
@@ -2895,12 +2901,9 @@ class NativeFunctionLiteral final : public Expression {
 
   void AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                  FeedbackVectorSlotCache* cache) {
-    // 0 is a magic number here. It means we are holding the literals
-    // array for a native function literal, which needs to be
-    // the empty literals array.
     // TODO(mvstanton): The FeedbackVectorSlotCache can be adapted
     // to always return the same slot for this case.
-    literal_feedback_slot_ = spec->AddCreateClosureSlot(0);
+    literal_feedback_slot_ = spec->AddCreateClosureSlot();
   }
 
  private:
@@ -3816,10 +3819,10 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   ObjectLiteral* NewObjectLiteral(
-      ZoneList<ObjectLiteral::Property*>* properties, int literal_index,
-      uint32_t boilerplate_properties, int pos) {
-    return new (zone_)
-        ObjectLiteral(properties, literal_index, boilerplate_properties, pos);
+      ZoneList<ObjectLiteral::Property*>* properties,
+      uint32_t boilerplate_properties, int pos, bool has_rest_property) {
+    return new (zone_) ObjectLiteral(properties, boilerplate_properties, pos,
+                                     has_rest_property);
   }
 
   ObjectLiteral::Property* NewObjectLiteralProperty(
@@ -3837,21 +3840,18 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   RegExpLiteral* NewRegExpLiteral(const AstRawString* pattern, int flags,
-                                  int literal_index, int pos) {
-    return new (zone_) RegExpLiteral(pattern, flags, literal_index, pos);
+                                  int pos) {
+    return new (zone_) RegExpLiteral(pattern, flags, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
-                                int literal_index,
                                 int pos) {
-    return new (zone_) ArrayLiteral(values, -1, literal_index, pos);
+    return new (zone_) ArrayLiteral(values, -1, pos);
   }
 
   ArrayLiteral* NewArrayLiteral(ZoneList<Expression*>* values,
-                                int first_spread_index, int literal_index,
-                                int pos) {
-    return new (zone_)
-        ArrayLiteral(values, first_spread_index, literal_index, pos);
+                                int first_spread_index, int pos) {
+    return new (zone_) ArrayLiteral(values, first_spread_index, pos);
   }
 
   VariableProxy* NewVariableProxy(Variable* var,

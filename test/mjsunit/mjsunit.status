@@ -156,6 +156,9 @@
   # desugaring regexp property class relies on ICU.
   'harmony/regexp-property-*': [PASS, ['no_i18n == True', FAIL]],
 
+  # noi18n build cannot parse characters in supplementary plane.
+  'harmony/regexp-named-captures': [PASS, ['no_i18n == True', FAIL]],
+
   # Allocates a large array buffer, which TSAN sometimes cannot handle.
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
 
@@ -169,6 +172,9 @@
 
   # BUG(v8:5807): Flaky data race.
   'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
+
+  # BUG(v8:5906).
+  'regress/regress-crbug-514081': [PASS, ['system == linux', SKIP]],
 }],  # ALWAYS
 
 ['novfp3 == True', {
@@ -237,12 +243,6 @@
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
   'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
-
-  #BUG(v8:5683)
-  'wasm/import-memory': [SKIP],
-
-  # Crashes with WASM turned on by default on arm64 gc-stress
-  'regress/regress-500831': [PASS, ['arch == arm64', SKIP]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -406,6 +406,17 @@
   'regress/regress-json-stringify-gc': [PASS, SLOW],
   'string-indexof-2': [PASS, TIMEOUT],
 }],  # 'arch == arm or arch == android_arm'
+
+##############################################################################
+['(arch == mipsel or arch == mips or arch == mips64el or arch == mips64) and simulator_run != True', {
+  # These tests fail occasionally on the buildbots because they consume
+  # a large amount of memory if executed in parallel. Therefore we
+  # run only a single instance of these tests
+  'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
+  'regress/regress-599717': [PASS, NO_VARIANTS],
+  'regress/regress-599414-array-concat-fast-path': [PASS, NO_VARIANTS],
+  'array-functions-prototype-misc': [PASS, NO_VARIANTS],
+}],  # 'arch == mipsel or arch == mips or arch == mips64el or arch == mips64'
 
 ##############################################################################
 ['arch == mipsel or arch == mips', {
@@ -602,12 +613,6 @@
   # Stack overflow.
   'big-array-literal': [SKIP],
 }],  # 'gcov_coverage'
-
-##############################################################################
-['variant == stress or variant == turbofan_opt', {
-  # BUG(v8:5553).
-  'wasm/grow-memory': [SKIP],
-}],  # variant == stress or variant == turbofan_opt
 
 ##############################################################################
 ['variant == asm_wasm', {

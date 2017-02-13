@@ -498,9 +498,10 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
         has_constant_pool_entry_(false) {}
 
   void AddFunctionDeclaration(Handle<String> name, FeedbackVectorSlot slot,
+                              FeedbackVectorSlot literal_slot,
                               FunctionLiteral* func) {
     DCHECK(!slot.IsInvalid());
-    declarations_.push_back(Declaration(name, slot, func));
+    declarations_.push_back(Declaration(name, slot, literal_slot, func));
   }
 
   void AddUndefinedDeclaration(Handle<String> name, FeedbackVectorSlot slot) {
@@ -512,7 +513,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
     Handle<FixedArray> data = info->isolate()->factory()->NewFixedArray(
-        static_cast<int>(declarations_.size() * 3), TENURED);
+        static_cast<int>(declarations_.size() * 4), TENURED);
     for (const Declaration& declaration : declarations_) {
       FunctionLiteral* func = declaration.func;
       Handle<Object> initial_value;
@@ -529,6 +530,14 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
 
       data->set(array_index++, *declaration.name);
       data->set(array_index++, Smi::FromInt(declaration.slot.ToInt()));
+      Object* undefined_or_literal_slot;
+      if (declaration.literal_slot.IsInvalid()) {
+        undefined_or_literal_slot = info->isolate()->heap()->undefined_value();
+      } else {
+        undefined_or_literal_slot =
+            Smi::FromInt(declaration.literal_slot.ToInt());
+      }
+      data->set(array_index++, undefined_or_literal_slot);
       data->set(array_index++, *initial_value);
     }
     return data;
@@ -552,11 +561,18 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   struct Declaration {
     Declaration() : slot(FeedbackVectorSlot::Invalid()), func(nullptr) {}
     Declaration(Handle<String> name, FeedbackVectorSlot slot,
+                FeedbackVectorSlot literal_slot, FunctionLiteral* func)
+        : name(name), slot(slot), literal_slot(literal_slot), func(func) {}
+    Declaration(Handle<String> name, FeedbackVectorSlot slot,
                 FunctionLiteral* func)
-        : name(name), slot(slot), func(func) {}
+        : name(name),
+          slot(slot),
+          literal_slot(FeedbackVectorSlot::Invalid()),
+          func(func) {}
 
     Handle<String> name;
     FeedbackVectorSlot slot;
+    FeedbackVectorSlot literal_slot;
     FunctionLiteral* func;
   };
   ZoneVector<Declaration> declarations_;
@@ -587,13 +603,10 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       loop_depth_(0),
       home_object_symbol_(info->isolate()->factory()->home_object_symbol()),
       iterator_symbol_(info->isolate()->factory()->iterator_symbol()),
-      empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()) {
-  AstValueFactory* ast_value_factory = info->parse_info()->ast_value_factory();
-  const AstRawString* prototype_string = ast_value_factory->prototype_string();
-  ast_value_factory->Internalize(info->isolate());
-  prototype_string_ = prototype_string->string();
-  undefined_string_ = ast_value_factory->undefined_string();
-}
+      prototype_string_(info->isolate()->factory()->prototype_string()),
+      empty_fixed_array_(info->isolate()->factory()->empty_fixed_array()),
+      undefined_string_(
+          info->isolate()->ast_string_constants()->undefined_string()) {}
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
   AllocateDeferredConstants(isolate);
@@ -637,7 +650,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
     if (object_literal->properties_count() > 0) {
       // If constant properties is an empty fixed array, we've already added it
       // to the constant pool when visiting the object literal.
-      Handle<FixedArray> constant_properties =
+      Handle<BoilerplateDescription> constant_properties =
           object_literal->GetOrBuildConstantProperties(isolate);
 
       builder()->InsertConstantPoolEntryAt(literal.second, constant_properties);
@@ -651,14 +664,6 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
         array_literal->GetOrBuildConstantElements(isolate);
     builder()->InsertConstantPoolEntryAt(literal.second, constant_elements);
   }
-
-  // TODO(leszeks): ideally there would be no path to here where feedback
-  // metadata is previously created, and we could create it unconditionally.
-  // We should investigate again once FCG has shuffled off its mortal coil.
-  DCHECK(info()->has_shared_info());
-  TypeFeedbackMetadata::EnsureAllocated(
-      info()->isolate(), info()->shared_info(),
-      info()->literal()->feedback_vector_spec());
 }
 
 void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
@@ -799,10 +804,13 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
       ->LoadAccumulatorWithRegister(generator_object)
       .JumpIfUndefined(&regular_call);
 
-  // This is a resume call. Restore registers and perform state dispatch.
-  // (The current context has already been restored by the trampoline.)
+  // This is a resume call. Restore the current context and the registers, then
+  // perform state dispatch.
+  Register dummy = register_allocator()->NewRegister();
   builder()
-      ->ResumeGenerator(generator_object)
+      ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object)
+      .PushContext(dummy)
+      .ResumeGenerator(generator_object)
       .StoreAccumulatorInRegister(generator_state_);
   BuildIndexedJump(generator_state_, 0, generator_resume_points_.size(),
                    generator_resume_points_);
@@ -897,8 +905,9 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       FeedbackVectorSlot slot = decl->proxy()->VariableFeedbackSlot();
-      globals_builder()->AddFunctionDeclaration(variable->name(), slot,
-                                                decl->fun());
+      globals_builder()->AddFunctionDeclaration(
+          variable->name(), slot, decl->fun()->LiteralFeedbackSlot(),
+          decl->fun());
       break;
     }
     case VariableLocation::PARAMETER:
@@ -1631,8 +1640,8 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
 
 void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   // Materialize a regular expression literal.
-  builder()->CreateRegExpLiteral(expr->pattern(), expr->literal_index(),
-                                 expr->flags());
+  builder()->CreateRegExpLiteral(
+      expr->pattern(), feedback_index(expr->literal_slot()), expr->flags());
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
@@ -1653,7 +1662,8 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     entry = builder()->AllocateConstantPoolEntry();
     object_literals_.push_back(std::make_pair(expr, entry));
   }
-  builder()->CreateObjectLiteral(entry, expr->literal_index(), flags, literal);
+  builder()->CreateObjectLiteral(entry, feedback_index(expr->literal_slot()),
+                                 flags, literal);
 
   // Store computed values into the literal.
   int property_index = 0;
@@ -1837,7 +1847,8 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       expr->IsFastCloningSupported(), expr->ComputeFlags());
 
   size_t entry = builder()->AllocateConstantPoolEntry();
-  builder()->CreateArrayLiteral(entry, expr->literal_index(), flags);
+  builder()->CreateArrayLiteral(entry, feedback_index(expr->literal_slot()),
+                                flags);
   array_literals_.push_back(std::make_pair(expr, entry));
 
   Register index, literal;
@@ -2453,12 +2464,16 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     return VisitCallSuper(expr);
   }
 
-  Register callee = register_allocator()->NewRegister();
   // Grow the args list as we visit receiver / arguments to avoid allocating all
   // the registers up-front. Otherwise these registers are unavailable during
   // receiver / argument visiting and we can end up with memory leaks due to
   // registers keeping objects alive.
+  Register callee = register_allocator()->NewRegister();
   RegisterList args = register_allocator()->NewGrowableRegisterList();
+
+  // TODO(petermarshall): We have a lot of call bytecodes that are very similar,
+  // see if we can reduce the number by adding a separate argument which
+  // specifies the call type (e.g., property, spread, tailcall, etc.).
 
   // Prepare the callee and the receiver to the function call. This depends on
   // the semantics of the underlying call type.
@@ -2467,7 +2482,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
     case Call::KEYED_PROPERTY_CALL: {
       Property* property = callee_expr->AsProperty();
       VisitAndPushIntoRegisterList(property->obj(), &args);
-      VisitPropertyLoadForRegister(args[0], property, callee);
+      VisitPropertyLoadForRegister(args.last_register(), property, callee);
       break;
     }
     case Call::GLOBAL_CALL: {
@@ -2558,9 +2573,16 @@ void BytecodeGenerator::VisitCall(Call* expr) {
 
   builder()->SetExpressionPosition(expr);
 
-  int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
-  builder()->Call(callee, args, feedback_slot_index, call_type,
-                  expr->tail_call_mode());
+  // When a call contains a spread, a Call AST node is only created if there is
+  // exactly one spread, and it is the last argument.
+  if (expr->only_last_arg_is_spread()) {
+    DCHECK_EQ(TailCallMode::kDisallow, expr->tail_call_mode());
+    builder()->CallWithSpread(callee, args);
+  } else {
+    int const feedback_slot_index = feedback_index(expr->CallFeedbackICSlot());
+    builder()->Call(callee, args, feedback_slot_index, call_type,
+                    expr->tail_call_mode());
+  }
 }
 
 void BytecodeGenerator::VisitCallSuper(Call* expr) {
@@ -2573,30 +2595,20 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   builder()->GetSuperConstructor(constructor);
 
   ZoneList<Expression*>* args = expr->arguments();
+  RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
+  VisitArguments(args, &args_regs);
+  // The new target is loaded into the accumulator from the
+  // {new.target} variable.
+  VisitForAccumulatorValue(super->new_target_var());
+  builder()->SetExpressionPosition(expr);
 
   // When a super call contains a spread, a CallSuper AST node is only created
   // if there is exactly one spread, and it is the last argument.
-  if (!args->is_empty() && args->last()->IsSpread()) {
-    RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
-    Register constructor_arg =
-        register_allocator()->GrowRegisterList(&args_regs);
-    builder()->MoveRegister(constructor, constructor_arg);
-    // Reserve argument reg for new.target in correct place for runtime call.
-    // TODO(petermarshall): Remove this when changing bytecode to use the new
-    // stub.
-    Register new_target = register_allocator()->GrowRegisterList(&args_regs);
-    VisitArguments(args, &args_regs);
-    VisitForRegisterValue(super->new_target_var(), new_target);
-    builder()->NewWithSpread(args_regs);
+  if (expr->only_last_arg_is_spread()) {
+    // TODO(petermarshall): Collect type on the feedback slot.
+    builder()->NewWithSpread(constructor, args_regs);
   } else {
-    RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
-    VisitArguments(args, &args_regs);
-    // The new target is loaded into the accumulator from the
-    // {new.target} variable.
-    VisitForAccumulatorValue(super->new_target_var());
-
     // Call construct.
-    builder()->SetExpressionPosition(expr);
     // TODO(turbofan): For now we do gather feedback on super constructor
     // calls, utilizing the existing machinery to inline the actual call
     // target and the JSCreate for the implicit receiver allocation. This
@@ -2613,12 +2625,18 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
   RegisterList args = register_allocator()->NewGrowableRegisterList();
   VisitArguments(expr->arguments(), &args);
 
-  builder()->SetExpressionPosition(expr);
   // The accumulator holds new target which is the same as the
   // constructor for CallNew.
-  builder()
-      ->LoadAccumulatorWithRegister(constructor)
-      .New(constructor, args, feedback_index(expr->CallNewFeedbackSlot()));
+  builder()->SetExpressionPosition(expr);
+  builder()->LoadAccumulatorWithRegister(constructor);
+
+  if (expr->only_last_arg_is_spread()) {
+    // TODO(petermarshall): Collect type on the feedback slot.
+    builder()->NewWithSpread(constructor, args);
+  } else {
+    builder()->New(constructor, args,
+                   feedback_index(expr->CallNewFeedbackSlot()));
+  }
 }
 
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {

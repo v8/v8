@@ -30,12 +30,25 @@ inline v8::Local<v8::Boolean> v8Boolean(bool value, v8::Isolate* isolate) {
   return value ? v8::True(isolate) : v8::False(isolate);
 }
 
+V8DebuggerAgentImpl* agentForScript(V8InspectorImpl* inspector,
+                                    v8::Local<v8::debug::Script> script) {
+  v8::Local<v8::Value> contextData;
+  if (!script->ContextData().ToLocal(&contextData) || !contextData->IsInt32()) {
+    return nullptr;
+  }
+  int contextId = static_cast<int>(contextData.As<v8::Int32>()->Value());
+  int contextGroupId = inspector->contextGroupId(contextId);
+  if (!contextGroupId) return nullptr;
+  return inspector->enabledDebuggerAgentForGroup(contextGroupId);
+}
+
 }  // namespace
 
 static bool inLiveEditScope = false;
 
 v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
-    const char* functionName, int argc, v8::Local<v8::Value> argv[]) {
+    const char* functionName, int argc, v8::Local<v8::Value> argv[],
+    bool catchExceptions) {
   v8::MicrotasksScope microtasks(m_isolate,
                                  v8::MicrotasksScope::kDoNotRunMicrotasks);
   DCHECK(m_isolate->InContext());
@@ -45,7 +58,10 @@ v8::MaybeLocal<v8::Value> V8Debugger::callDebuggerMethod(
       debuggerScript
           ->Get(context, toV8StringInternalized(m_isolate, functionName))
           .ToLocalChecked());
-  v8::TryCatch try_catch(m_isolate);
+  if (catchExceptions) {
+    v8::TryCatch try_catch(m_isolate);
+    return function->Call(context, debuggerScript, argc, argv);
+  }
   return function->Call(context, debuggerScript, argc, argv);
 }
 
@@ -68,10 +84,9 @@ void V8Debugger::enable() {
   if (m_enableCount++) return;
   DCHECK(!enabled());
   v8::HandleScope scope(m_isolate);
-  v8::debug::SetDebugEventListener(m_isolate, &V8Debugger::v8DebugEventCallback,
-                                   v8::External::New(m_isolate, this));
-  v8::debug::SetAsyncTaskListener(m_isolate, &V8Debugger::v8AsyncTaskListener,
-                                  this);
+  v8::debug::SetDebugDelegate(m_isolate, this);
+  v8::debug::SetOutOfMemoryCallback(m_isolate, &V8Debugger::v8OOMCallback,
+                                    this);
   m_debuggerContext.Reset(m_isolate, v8::debug::GetDebugContext(m_isolate));
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
@@ -86,8 +101,9 @@ void V8Debugger::disable() {
   m_debuggerContext.Reset();
   allAsyncTasksCanceled();
   m_wasmTranslation.Clear();
-  v8::debug::SetDebugEventListener(m_isolate, nullptr);
-  v8::debug::SetAsyncTaskListener(m_isolate, nullptr, nullptr);
+  v8::debug::SetDebugDelegate(m_isolate, nullptr);
+  v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
+  m_isolate->RestoreOriginalHeapLimit();
 }
 
 bool V8Debugger::enabled() const { return !m_debuggerScript.IsEmpty(); }
@@ -243,7 +259,7 @@ void V8Debugger::setPauseOnNextStatement(bool pause) {
 
 bool V8Debugger::canBreakProgram() {
   if (!m_breakpointsActivated) return false;
-  return m_isolate->InContext();
+  return v8::debug::HasNonBlackboxedFrameOnStack(m_isolate);
 }
 
 void V8Debugger::breakProgram() {
@@ -296,11 +312,6 @@ void V8Debugger::stepOutOfFunction() {
   continueProgram();
 }
 
-void V8Debugger::clearStepping() {
-  DCHECK(enabled());
-  v8::debug::ClearStepping(m_isolate);
-}
-
 Response V8Debugger::setScriptSource(
     const String16& sourceID, v8::Local<v8::String> newSource, bool dryRun,
     Maybe<protocol::Runtime::ExceptionDetails>* exceptionDetails,
@@ -338,7 +349,7 @@ Response V8Debugger::setScriptSource(
     v8::TryCatch tryCatch(m_isolate);
     tryCatch.SetVerbose(false);
     v8::MaybeLocal<v8::Value> maybeResult =
-        callDebuggerMethod("liveEditScriptSource", 3, argv);
+        callDebuggerMethod("liveEditScriptSource", 3, argv, false);
     if (tryCatch.HasCaught()) {
       v8::Local<v8::Message> message = tryCatch.Message();
       if (!message.IsEmpty())
@@ -415,7 +426,7 @@ JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
   } else {
     v8::Local<v8::Value> argv[] = {m_executionState,
                                    v8::Integer::New(m_isolate, limit)};
-    if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv)
+    if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv, true)
              .ToLocal(&currentCallFramesV8))
       return JavaScriptCallFrames();
   }
@@ -480,9 +491,10 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;
-  V8DebuggerAgentImpl::SkipPauseRequest result = agent->didPause(
-      pausedContext, exception, breakpointIds, isPromiseRejection, isUncaught);
-  if (result == V8DebuggerAgentImpl::RequestNoSkip) {
+  bool shouldPause =
+      agent->didPause(pausedContext, exception, breakpointIds,
+                      isPromiseRejection, isUncaught, m_scheduledOOMBreak);
+  if (shouldPause) {
     m_runningNestedMessageLoop = true;
     int groupId = m_inspector->contextGroupId(pausedContext);
     DCHECK(groupId);
@@ -497,131 +509,92 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
     if (agent) agent->didContinue();
     m_runningNestedMessageLoop = false;
   }
+  if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
+  m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
   m_executionState.Clear();
-
-  if (result == V8DebuggerAgentImpl::RequestStepFrame) {
-    v8::debug::PrepareStep(m_isolate, v8::debug::StepFrame);
-  } else if (result == V8DebuggerAgentImpl::RequestStepInto) {
-    v8::debug::PrepareStep(m_isolate, v8::debug::StepIn);
-  } else if (result == V8DebuggerAgentImpl::RequestStepOut) {
-    v8::debug::PrepareStep(m_isolate, v8::debug::StepOut);
-  }
 }
 
-void V8Debugger::v8DebugEventCallback(
-    const v8::debug::EventDetails& eventDetails) {
-  V8Debugger* thisPtr = toV8Debugger(eventDetails.GetCallbackData());
-  thisPtr->handleV8DebugEvent(eventDetails);
+void V8Debugger::v8OOMCallback(void* data) {
+  V8Debugger* thisPtr = static_cast<V8Debugger*>(data);
+  thisPtr->m_isolate->IncreaseHeapLimitForDebugging();
+  thisPtr->m_scheduledOOMBreak = true;
+  thisPtr->setPauseOnNextStatement(true);
 }
 
-v8::Local<v8::Value> V8Debugger::callInternalGetterFunction(
-    v8::Local<v8::Object> object, const char* functionName) {
-  v8::MicrotasksScope microtasks(m_isolate,
-                                 v8::MicrotasksScope::kDoNotRunMicrotasks);
-  v8::Local<v8::Value> getterValue =
-      object
-          ->Get(m_isolate->GetCurrentContext(),
-                toV8StringInternalized(m_isolate, functionName))
-          .ToLocalChecked();
-  DCHECK(!getterValue.IsEmpty() && getterValue->IsFunction());
-  return v8::Local<v8::Function>::Cast(getterValue)
-      ->Call(m_isolate->GetCurrentContext(), object, 0, nullptr)
-      .ToLocalChecked();
-}
-
-void V8Debugger::handleV8DebugEvent(
-    const v8::debug::EventDetails& eventDetails) {
-  if (!enabled()) return;
-  v8::HandleScope scope(m_isolate);
-
-  v8::DebugEvent event = eventDetails.GetEvent();
-  if (event != v8::Break && event != v8::Exception &&
-      event != v8::AfterCompile && event != v8::CompileError)
-    return;
-
-  v8::Local<v8::Context> eventContext = eventDetails.GetEventContext();
-  DCHECK(!eventContext.IsEmpty());
-  V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
-      m_inspector->contextGroupId(eventContext));
+void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,
+                                bool has_compile_error) {
+  V8DebuggerAgentImpl* agent = agentForScript(m_inspector, script);
   if (!agent) return;
-
-  if (event == v8::AfterCompile || event == v8::CompileError) {
-    v8::Context::Scope contextScope(debuggerContext());
-    // Determine if the script is a wasm script.
-    v8::Local<v8::Value> scriptMirror =
-        callInternalGetterFunction(eventDetails.GetEventData(), "script");
-    DCHECK(scriptMirror->IsObject());
-    v8::Local<v8::Value> scriptWrapper =
-        callInternalGetterFunction(scriptMirror.As<v8::Object>(), "value");
-    DCHECK(scriptWrapper->IsObject());
-    v8::Local<v8::debug::Script> script;
-    if (!v8::debug::Script::Wrap(m_isolate, scriptWrapper.As<v8::Object>())
-             .ToLocal(&script)) {
-      return;
-    }
-    if (script->IsWasm()) {
-      m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
-    } else if (m_ignoreScriptParsedEventsCounter == 0) {
-      agent->didParseSource(
-          V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
-          event == v8::AfterCompile);
-    }
-  } else if (event == v8::Exception) {
-    v8::Local<v8::Context> context = debuggerContext();
-    v8::Local<v8::Object> eventData = eventDetails.GetEventData();
-    v8::Local<v8::Value> exception =
-        callInternalGetterFunction(eventData, "exception");
-    v8::Local<v8::Value> promise =
-        callInternalGetterFunction(eventData, "promise");
-    bool isPromiseRejection = !promise.IsEmpty() && promise->IsObject();
-    v8::Local<v8::Value> uncaught =
-        callInternalGetterFunction(eventData, "uncaught");
-    bool isUncaught = uncaught->BooleanValue(context).FromJust();
-    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                       exception, v8::Local<v8::Array>(), isPromiseRejection,
-                       isUncaught);
-  } else if (event == v8::Break) {
-    v8::Local<v8::Value> argv[] = {eventDetails.GetEventData()};
-    v8::Local<v8::Value> hitBreakpoints;
-    if (!callDebuggerMethod("getBreakpointNumbers", 1, argv)
-             .ToLocal(&hitBreakpoints))
-      return;
-    DCHECK(hitBreakpoints->IsArray());
-    handleProgramBreak(eventContext, eventDetails.GetExecutionState(),
-                       v8::Local<v8::Value>(), hitBreakpoints.As<v8::Array>());
+  if (script->IsWasm()) {
+    m_wasmTranslation.AddScript(script.As<v8::debug::WasmScript>(), agent);
+  } else if (m_ignoreScriptParsedEventsCounter == 0) {
+    agent->didParseSource(
+        V8DebuggerScript::Create(m_isolate, script, inLiveEditScope),
+        !has_compile_error);
   }
 }
 
-void V8Debugger::v8AsyncTaskListener(v8::debug::PromiseDebugActionType type,
-                                     int id, void* data) {
-  V8Debugger* debugger = static_cast<V8Debugger*>(data);
-  if (!debugger->m_maxAsyncCallStackDepth) return;
+void V8Debugger::BreakProgramRequested(v8::Local<v8::Context> pausedContext,
+                                       v8::Local<v8::Object> execState,
+                                       v8::Local<v8::Value> breakPointsHit) {
+  v8::Local<v8::Value> argv[] = {breakPointsHit};
+  v8::Local<v8::Value> hitBreakpoints;
+  if (!callDebuggerMethod("getBreakpointNumbers", 1, argv, true)
+           .ToLocal(&hitBreakpoints)) {
+    return;
+  }
+  DCHECK(hitBreakpoints->IsArray());
+  handleProgramBreak(pausedContext, execState, v8::Local<v8::Value>(),
+                     hitBreakpoints.As<v8::Array>());
+}
+
+void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
+                                 v8::Local<v8::Object> execState,
+                                 v8::Local<v8::Value> exception,
+                                 bool isPromiseRejection, bool isUncaught) {
+  handleProgramBreak(pausedContext, execState, exception,
+                     v8::Local<v8::Array>(), isPromiseRejection, isUncaught);
+}
+
+bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                                      const v8::debug::Location& start,
+                                      const v8::debug::Location& end) {
+  V8DebuggerAgentImpl* agent = agentForScript(m_inspector, script);
+  if (!agent) return false;
+  return agent->isFunctionBlackboxed(String16::fromInteger(script->Id()), start,
+                                     end);
+}
+
+void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
+                                      int id, int parentId) {
+  if (!m_maxAsyncCallStackDepth) return;
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers. There is a single
   // namespace of such ids, managed by src/js/promise.js.
   void* ptr = reinterpret_cast<void*>(id * 2 + 1);
   switch (type) {
+    case v8::debug::kDebugPromiseCreated:
+      asyncTaskCreated(
+          ptr, parentId ? reinterpret_cast<void*>(parentId * 2 + 1) : nullptr);
+      break;
     case v8::debug::kDebugEnqueueAsyncFunction:
-      debugger->asyncTaskScheduled("async function", ptr, true);
+      asyncTaskScheduled("async function", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseResolve:
-      debugger->asyncTaskScheduled("Promise.resolve", ptr, true);
+      asyncTaskScheduled("Promise.resolve", ptr, true);
       break;
     case v8::debug::kDebugEnqueuePromiseReject:
-      debugger->asyncTaskScheduled("Promise.reject", ptr, true);
-      break;
-    case v8::debug::kDebugEnqueuePromiseResolveThenableJob:
-      debugger->asyncTaskScheduled("PromiseResolveThenableJob", ptr, true);
+      asyncTaskScheduled("Promise.reject", ptr, true);
       break;
     case v8::debug::kDebugPromiseCollected:
-      debugger->asyncTaskCanceled(ptr);
+      asyncTaskCanceled(ptr);
       break;
     case v8::debug::kDebugWillHandle:
-      debugger->asyncTaskStarted(ptr);
+      asyncTaskStarted(ptr);
       break;
     case v8::debug::kDebugDidHandle:
-      debugger->asyncTaskFinished(ptr);
+      asyncTaskFinished(ptr);
       break;
   }
 }
@@ -680,7 +653,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
       break;
   }
 
-  if (!callDebuggerMethod(debuggerMethod, 1, argv).ToLocal(&scopesValue))
+  if (!callDebuggerMethod(debuggerMethod, 1, argv, true).ToLocal(&scopesValue))
     return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Value> copied;
   if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
@@ -777,7 +750,7 @@ v8::Local<v8::Value> V8Debugger::collectionEntries(
   }
   v8::Local<v8::Value> argv[] = {object};
   v8::Local<v8::Value> entriesValue;
-  if (!callDebuggerMethod("getCollectionEntries", 1, argv)
+  if (!callDebuggerMethod("getCollectionEntries", 1, argv, true)
            .ToLocal(&entriesValue) ||
       !entriesValue->IsArray())
     return v8::Undefined(m_isolate);
@@ -815,7 +788,7 @@ v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
   v8::Local<v8::Value> argv[] = {object};
   v8::Local<v8::Value> location;
   v8::Local<v8::Value> copied;
-  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv)
+  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv, true)
            .ToLocal(&location) ||
       !copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
                                     location)
@@ -889,6 +862,34 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 
+void V8Debugger::registerAsyncTaskIfNeeded(void* task) {
+  if (m_taskToId.find(task) != m_taskToId.end()) return;
+
+  int id = ++m_lastTaskId;
+  m_taskToId[task] = id;
+  m_idToTask[id] = task;
+  if (static_cast<int>(m_idToTask.size()) > m_maxAsyncCallStacks) {
+    void* taskToRemove = m_idToTask.begin()->second;
+    asyncTaskCanceled(taskToRemove);
+  }
+}
+
+void V8Debugger::asyncTaskCreated(void* task, void* parentTask) {
+  if (!m_maxAsyncCallStackDepth) return;
+  if (parentTask) m_parentTask[task] = parentTask;
+  v8::HandleScope scope(m_isolate);
+  // We don't need to pass context group id here because we gets this callback
+  // from V8 for promise events only.
+  // Passing one as maxStackSize forces no async chain for the new stack and
+  // allows us to not grow exponentially.
+  std::unique_ptr<V8StackTraceImpl> creationStack =
+      V8StackTraceImpl::capture(this, 0, 1, String16());
+  if (creationStack && !creationStack->isEmpty()) {
+    m_asyncTaskCreationStacks[task] = std::move(creationStack);
+    registerAsyncTaskIfNeeded(task);
+  }
+}
+
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
   if (!m_maxAsyncCallStackDepth) return;
@@ -909,13 +910,7 @@ void V8Debugger::asyncTaskScheduled(const String16& taskName, void* task,
   if (chain) {
     m_asyncTaskStacks[task] = std::move(chain);
     if (recurring) m_recurringTasks.insert(task);
-    int id = ++m_lastTaskId;
-    m_taskToId[task] = id;
-    m_idToTask[id] = task;
-    if (static_cast<int>(m_idToTask.size()) > m_maxAsyncCallStacks) {
-      void* taskToRemove = m_idToTask.begin()->second;
-      asyncTaskCanceled(taskToRemove);
-    }
+    registerAsyncTaskIfNeeded(task);
   }
 }
 
@@ -923,6 +918,8 @@ void V8Debugger::asyncTaskCanceled(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   m_asyncTaskStacks.erase(task);
   m_recurringTasks.erase(task);
+  m_parentTask.erase(task);
+  m_asyncTaskCreationStacks.erase(task);
   auto it = m_taskToId.find(task);
   if (it == m_taskToId.end()) return;
   m_idToTask.erase(it->second);
@@ -932,7 +929,9 @@ void V8Debugger::asyncTaskCanceled(void* task) {
 void V8Debugger::asyncTaskStarted(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   m_currentTasks.push_back(task);
-  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(task);
+  auto parentIt = m_parentTask.find(task);
+  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(
+      parentIt == m_parentTask.end() ? task : parentIt->second);
   // Needs to support following order of events:
   // - asyncTaskScheduled
   //   <-- attached here -->
@@ -943,6 +942,10 @@ void V8Debugger::asyncTaskStarted(void* task) {
   std::unique_ptr<V8StackTraceImpl> stack;
   if (stackIt != m_asyncTaskStacks.end() && stackIt->second)
     stack = stackIt->second->cloneImpl();
+  auto itCreation = m_asyncTaskCreationStacks.find(task);
+  if (stack && itCreation != m_asyncTaskCreationStacks.end()) {
+    stack->setCreation(itCreation->second->cloneImpl());
+  }
   m_currentStacks.push_back(std::move(stack));
 }
 
@@ -956,11 +959,7 @@ void V8Debugger::asyncTaskFinished(void* task) {
 
   m_currentStacks.pop_back();
   if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
-    m_asyncTaskStacks.erase(task);
-    auto it = m_taskToId.find(task);
-    if (it == m_taskToId.end()) return;
-    m_idToTask.erase(it->second);
-    m_taskToId.erase(it);
+    asyncTaskCanceled(task);
   }
 }
 
@@ -969,6 +968,8 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_recurringTasks.clear();
   m_currentStacks.clear();
   m_currentTasks.clear();
+  m_parentTask.clear();
+  m_asyncTaskCreationStacks.clear();
   m_idToTask.clear();
   m_taskToId.clear();
   m_lastTaskId = 0;

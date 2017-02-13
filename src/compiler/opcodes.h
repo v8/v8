@@ -59,6 +59,7 @@
   V(FrameState)           \
   V(StateValues)          \
   V(TypedStateValues)     \
+  V(ArgumentsObjectState) \
   V(ObjectState)          \
   V(TypedObjectState)     \
   V(Call)                 \
@@ -120,6 +121,7 @@
   V(JSToString)
 
 #define JS_OTHER_UNOP_LIST(V) \
+  V(JSClassOf)                \
   V(JSTypeOf)
 
 #define JS_SIMPLE_UNOP_LIST(V) \
@@ -157,9 +159,11 @@
   V(JSCreateScriptContext)
 
 #define JS_OTHER_OP_LIST(V)         \
-  V(JSCallConstruct)                \
-  V(JSCallConstructWithSpread)      \
+  V(JSConstruct)                    \
+  V(JSConstructWithSpread)          \
+  V(JSCallForwardVarargs)           \
   V(JSCallFunction)                 \
+  V(JSCallFunctionWithSpread)       \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \
   V(JSForInNext)                    \
@@ -171,7 +175,8 @@
   V(JSGeneratorStore)               \
   V(JSGeneratorRestoreContinuation) \
   V(JSGeneratorRestoreRegister)     \
-  V(JSStackCheck)
+  V(JSStackCheck)                   \
+  V(JSDebugger)
 
 #define JS_OP_LIST(V)     \
   JS_SIMPLE_BINOP_LIST(V) \
@@ -186,6 +191,7 @@
   V(ChangeTaggedToInt32)             \
   V(ChangeTaggedToUint32)            \
   V(ChangeTaggedToFloat64)           \
+  V(ChangeTaggedToTaggedSigned)      \
   V(ChangeInt31ToTaggedSigned)       \
   V(ChangeInt32ToTagged)             \
   V(ChangeUint32ToTagged)            \
@@ -303,11 +309,13 @@
   V(StringCharCodeAt)               \
   V(StringFromCharCode)             \
   V(StringFromCodePoint)            \
+  V(StringIndexOf)                  \
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \
   V(CheckNumber)                    \
   V(CheckInternalizedString)        \
+  V(CheckReceiver)                  \
   V(CheckString)                    \
   V(CheckSmi)                       \
   V(CheckHeapObject)                \
@@ -324,6 +332,7 @@
   V(StoreElement)                   \
   V(StoreTypedElement)              \
   V(ObjectIsCallable)               \
+  V(ObjectIsNonCallable)            \
   V(ObjectIsNumber)                 \
   V(ObjectIsReceiver)               \
   V(ObjectIsSmi)                    \
@@ -769,7 +778,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode for JavaScript operator.
   static bool IsJsOpcode(Value value) {
-    return kJSEqual <= value && value <= kJSStackCheck;
+    return kJSEqual <= value && value <= kJSDebugger;
   }
 
   // Returns true if opcode for constant operator.
@@ -791,7 +800,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
 
   // Returns true if opcode can be inlined.
   static bool IsInlineeOpcode(Value value) {
-    return value == kJSCallConstruct || value == kJSCallFunction;
+    return value == kJSConstruct || value == kJSCallFunction;
   }
 
   // Returns true if opcode for comparison operator.

@@ -3895,6 +3895,15 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  li(a1, Operand(restart_fp));
+  lw(a1, MemOperand(a1));
+  Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
+       ne, a1, Operand(zero_reg));
+}
 
 // ---------------------------------------------------------------------------
 // Exception handling.
@@ -5343,8 +5352,7 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   lw(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  lw(vector, FieldMemOperand(vector, JSFunction::kLiteralsOffset));
-  lw(vector, FieldMemOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  lw(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
 }
 
 

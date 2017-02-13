@@ -101,7 +101,7 @@ function AtomicsExchangeJS(ia, index, value) {
 }
 
 function AtomicsIsLockFreeJS(size) {
-  return %_AtomicsIsLockFree(size);
+  return %_AtomicsIsLockFree(TO_INTEGER(size));
 }
 
 function AtomicsWaitJS(ia, index, value, timeout) {

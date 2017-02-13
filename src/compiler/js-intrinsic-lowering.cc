@@ -42,10 +42,14 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceGeneratorGetInputOrDebugPos(node);
     case Runtime::kInlineGeneratorGetResumeMode:
       return ReduceGeneratorGetResumeMode(node);
+    case Runtime::kInlineGeneratorGetContext:
+      return ReduceGeneratorGetContext(node);
     case Runtime::kInlineIsArray:
       return ReduceIsInstanceType(node, JS_ARRAY_TYPE);
     case Runtime::kInlineIsTypedArray:
       return ReduceIsInstanceType(node, JS_TYPED_ARRAY_TYPE);
+    case Runtime::kInlineIsJSProxy:
+      return ReduceIsInstanceType(node, JS_PROXY_TYPE);
     case Runtime::kInlineIsJSReceiver:
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
@@ -72,6 +76,14 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
+    case Runtime::kInlineJSCollectionGetTable:
+      return ReduceJSCollectionGetTable(node);
+    case Runtime::kInlineStringGetRawHashField:
+      return ReduceStringGetRawHashField(node);
+    case Runtime::kInlineTheHole:
+      return ReduceTheHole(node);
+    case Runtime::kInlineClassOf:
+      return ReduceClassOf(node);
     default:
       break;
   }
@@ -136,6 +148,16 @@ Reduction JSIntrinsicLowering::ReduceGeneratorGetInputOrDebugPos(Node* node) {
   Node* const control = NodeProperties::GetControlInput(node);
   Operator const* const op = simplified()->LoadField(
       AccessBuilder::ForJSGeneratorObjectInputOrDebugPos());
+
+  return Change(node, op, generator, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceGeneratorGetContext(Node* node) {
+  Node* const generator = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
+  Operator const* const op =
+      simplified()->LoadField(AccessBuilder::ForJSGeneratorObjectContext());
 
   return Change(node, op, generator, effect, control);
 }
@@ -293,6 +315,37 @@ Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
                        active_function, effect, control);
   return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
                 active_function_map, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceJSCollectionGetTable(Node* node) {
+  Node* collection = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(node,
+                simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
+                collection, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceStringGetRawHashField(Node* node) {
+  Node* string = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  return Change(node,
+                simplified()->LoadField(AccessBuilder::ForNameHashField()),
+                string, effect, control);
+}
+
+Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {
+  Node* value = jsgraph()->TheHoleConstant();
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+Reduction JSIntrinsicLowering::ReduceClassOf(Node* node) {
+  RelaxEffectsAndControls(node);
+  node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, javascript()->ClassOf());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,

@@ -1023,8 +1023,7 @@ void MacroAssembler::Prologue(bool code_pre_aging, Register base,
 
 void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
   LoadP(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
-  LoadP(vector, FieldMemOperand(vector, JSFunction::kLiteralsOffset));
-  LoadP(vector, FieldMemOperand(vector, LiteralsArray::kFeedbackVectorOffset));
+  LoadP(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
 }
 
 
@@ -1576,6 +1575,16 @@ void MacroAssembler::DebugBreak() {
   Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
 }
 
+void MacroAssembler::MaybeDropFrames() {
+  // Check whether we need to drop frames to restart a function on the stack.
+  ExternalReference restart_fp =
+      ExternalReference::debug_restart_fp_address(isolate());
+  mov(r4, Operand(restart_fp));
+  LoadWordArith(r4, MemOperand(r4));
+  cmpi(r4, Operand::Zero());
+  Jump(isolate()->builtins()->FrameDropperTrampoline(), RelocInfo::CODE_TARGET,
+       ne);
+}
 
 void MacroAssembler::PushStackHandler() {
   // Adjust this code if not the case.
@@ -3672,7 +3681,6 @@ void MacroAssembler::MovIntToFloat(DoubleRegister dst, Register src) {
 
 void MacroAssembler::MovFloatToInt(Register dst, DoubleRegister src) {
   subi(sp, sp, Operand(kFloatSize));
-  frsp(src, src);
   stfs(src, MemOperand(sp, 0));
   nop(GROUP_ENDING_NOP);  // LHS/RAW optimization
   lwz(dst, MemOperand(sp, 0));

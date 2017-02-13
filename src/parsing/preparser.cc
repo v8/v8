@@ -150,19 +150,19 @@ PreParser::PreParseResult PreParser::PreParseFunction(
       track_unresolved_variables_ = false;
       return kPreParseSignature;
     }
-
-    if (track_unresolved_variables_) {
-      function_scope->DeclareVariableName(
-          ast_value_factory()->arguments_string(), VAR);
-      function_scope->DeclareVariableName(ast_value_factory()->this_string(),
-                                          VAR);
-    }
   }
 
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
   LazyParsingResult result = ParseStatementListAndLogFunction(
       &formals, has_duplicate_parameters, may_abort, ok);
   DCHECK_NE(result, kLazyParsingSignature);
+
+  if (!IsArrowFunction(kind) && track_unresolved_variables_) {
+    // Declare arguments after parsing the function since lexical 'arguments'
+    // masks the arguments object. Declare arguments before declaring the
+    // function var since the arguments object masks 'function arguments'.
+    function_scope->DeclareArguments(ast_value_factory());
+  }
 
   if (is_sloppy(function_scope->language_mode())) {
     function_scope->HoistSloppyBlockFunctions(nullptr);
@@ -230,8 +230,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
-  // Parse function body.
-  PreParserStatementList body;
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
   if (is_typed) function_scope->SetTyped();
@@ -274,8 +272,13 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   }
 
   Expect(Token::LBRACE, CHECK_OK);
-  ParseStatementList(body, Token::RBRACE, CHECK_OK);
-  Expect(Token::RBRACE, CHECK_OK);
+
+  // Parse function body.
+  PreParserStatementList body;
+  int pos = function_token_pos == kNoSourcePosition ? peek_position()
+                                                    : function_token_pos;
+  ParseFunctionBody(body, function_name, pos, formals, kind, function_type,
+                    CHECK_OK);
 
   // Parsing the body may change the language mode in our scope.
   language_mode = function_scope->language_mode();
@@ -296,7 +299,6 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
   if (is_strict(language_mode)) {
     CheckStrictOctalLiteral(start_position, end_position, CHECK_OK);
   }
-  function_scope->set_end_position(end_position);
 
   if (FLAG_trace_preparse) {
     PrintF("  [%s]: %i-%i\n",

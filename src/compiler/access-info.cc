@@ -373,6 +373,17 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             }
             if (V8_UNLIKELY(FLAG_runtime_stats)) return false;
           }
+          if (access_mode == AccessMode::kLoad) {
+            Handle<Name> cached_property_name;
+            if (FunctionTemplateInfo::TryGetCachedPropertyName(isolate(),
+                                                               accessor)
+                    .ToHandle(&cached_property_name)) {
+              if (ComputePropertyAccessInfo(map, cached_property_name,
+                                            access_mode, access_info)) {
+                return true;
+              }
+            }
+          }
           *access_info = PropertyAccessInfo::AccessorConstant(
               MapList{receiver_map}, accessor, holder);
           return true;
@@ -391,7 +402,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
 
     // Don't search on the prototype when storing in literals
     if (access_mode == AccessMode::kStoreInLiteral) {
-      return false;
+      return LookupTransition(receiver_map, name, holder, access_info);
     }
 
     // Don't lookup private symbols on the prototype chain.

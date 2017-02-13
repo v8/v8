@@ -1096,7 +1096,15 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         __ Goto(&gather_rhs_type);
 
         __ Bind(&lhs_is_not_string);
-        var_type_feedback.Bind(__ SmiConstant(CompareOperationFeedback::kAny));
+        if (Token::IsEqualityOp(compare_op)) {
+          var_type_feedback.Bind(__ SelectSmiConstant(
+              __ IsJSReceiverInstanceType(lhs_instance_type),
+              CompareOperationFeedback::kReceiver,
+              CompareOperationFeedback::kAny));
+        } else {
+          var_type_feedback.Bind(
+              __ SmiConstant(CompareOperationFeedback::kAny));
+        }
         __ Goto(&gather_rhs_type);
       }
     }
@@ -1161,8 +1169,17 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           __ Goto(&update_feedback);
 
           __ Bind(&rhs_is_not_string);
-          var_type_feedback.Bind(
-              __ SmiConstant(CompareOperationFeedback::kAny));
+          if (Token::IsEqualityOp(compare_op)) {
+            var_type_feedback.Bind(
+                __ SmiOr(var_type_feedback.value(),
+                         __ SelectSmiConstant(
+                             __ IsJSReceiverInstanceType(rhs_instance_type),
+                             CompareOperationFeedback::kReceiver,
+                             CompareOperationFeedback::kAny)));
+          } else {
+            var_type_feedback.Bind(
+                __ SmiConstant(CompareOperationFeedback::kAny));
+          }
           __ Goto(&update_feedback);
         }
       }
@@ -2159,22 +2176,45 @@ void Interpreter::DoCallJSRuntime(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-// NewWithSpread <first_arg> <arg_count>
+// CallWithSpread <callable> <first_arg> <arg_count>
 //
-// Call the constructor in |first_arg| with the new.target in |first_arg + 1|
-// for the |arg_count - 2| following arguments. The final argument is always a
-// spread.
+// Call a JSfunction or Callable in |callable| with the receiver in
+// |first_arg| and |arg_count - 1| arguments in subsequent registers. The
+// final argument is always a spread.
 //
-void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
-  Node* first_arg_reg = __ BytecodeOperandReg(0);
-  Node* first_arg = __ RegisterLocation(first_arg_reg);
-  Node* args_count = __ BytecodeOperandCount(1);
+void Interpreter::DoCallWithSpread(InterpreterAssembler* assembler) {
+  Node* callable_reg = __ BytecodeOperandReg(0);
+  Node* callable = __ LoadRegister(callable_reg);
+  Node* receiver_reg = __ BytecodeOperandReg(1);
+  Node* receiver_arg = __ RegisterLocation(receiver_reg);
+  Node* receiver_args_count = __ BytecodeOperandCount(2);
+  Node* receiver_count = __ Int32Constant(1);
+  Node* args_count = __ Int32Sub(receiver_args_count, receiver_count);
   Node* context = __ GetContext();
 
-  // Call into Runtime function NewWithSpread which does everything.
-  Node* runtime_function = __ Int32Constant(Runtime::kNewWithSpread);
+  // Call into Runtime function CallWithSpread which does everything.
   Node* result =
-      __ CallRuntimeN(runtime_function, context, first_arg, args_count);
+      __ CallJSWithSpread(callable, context, receiver_arg, args_count);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
+// NewWithSpread <first_arg> <arg_count>
+//
+// Call the constructor in |constructor| with the first argument in register
+// |first_arg| and |arg_count| arguments in subsequent registers. The final
+// argument is always a spread. The new.target is in the accumulator.
+//
+void Interpreter::DoNewWithSpread(InterpreterAssembler* assembler) {
+  Node* new_target = __ GetAccumulator();
+  Node* constructor_reg = __ BytecodeOperandReg(0);
+  Node* constructor = __ LoadRegister(constructor_reg);
+  Node* first_arg_reg = __ BytecodeOperandReg(1);
+  Node* first_arg = __ RegisterLocation(first_arg_reg);
+  Node* args_count = __ BytecodeOperandCount(2);
+  Node* context = __ GetContext();
+  Node* result = __ ConstructWithSpread(constructor, context, new_target,
+                                        first_arg, args_count);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2195,8 +2235,8 @@ void Interpreter::DoNew(InterpreterAssembler* assembler) {
   Node* slot_id = __ BytecodeOperandIdx(3);
   Node* type_feedback_vector = __ LoadTypeFeedbackVector();
   Node* context = __ GetContext();
-  Node* result = __ CallConstruct(constructor, context, new_target, first_arg,
-                                  args_count, slot_id, type_feedback_vector);
+  Node* result = __ Construct(constructor, context, new_target, first_arg,
+                              args_count, slot_id, type_feedback_vector);
   __ SetAccumulator(result);
   __ Dispatch();
 }
@@ -2351,7 +2391,7 @@ void Interpreter::DoTestUndefined(InterpreterAssembler* assembler) {
 //
 // Jump by number of bytes represented by the immediate operand |imm|.
 void Interpreter::DoJump(InterpreterAssembler* assembler) {
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ Jump(relative_jump);
 }
 
@@ -2370,7 +2410,7 @@ void Interpreter::DoJumpConstant(InterpreterAssembler* assembler) {
 // accumulator contains true.
 void Interpreter::DoJumpIfTrue(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* true_value = __ BooleanConstant(true);
   __ JumpIfWordEqual(accumulator, true_value, relative_jump);
 }
@@ -2393,7 +2433,7 @@ void Interpreter::DoJumpIfTrueConstant(InterpreterAssembler* assembler) {
 // accumulator contains false.
 void Interpreter::DoJumpIfFalse(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* false_value = __ BooleanConstant(false);
   __ JumpIfWordEqual(accumulator, false_value, relative_jump);
 }
@@ -2416,7 +2456,7 @@ void Interpreter::DoJumpIfFalseConstant(InterpreterAssembler* assembler) {
 // referenced by the accumulator is true when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanTrue(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Label if_true(assembler), if_false(assembler);
   __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   __ Bind(&if_true);
@@ -2449,7 +2489,7 @@ void Interpreter::DoJumpIfToBooleanTrueConstant(
 // referenced by the accumulator is false when the object is cast to boolean.
 void Interpreter::DoJumpIfToBooleanFalse(InterpreterAssembler* assembler) {
   Node* value = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Label if_true(assembler), if_false(assembler);
   __ BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   __ Bind(&if_true);
@@ -2483,7 +2523,7 @@ void Interpreter::DoJumpIfToBooleanFalseConstant(
 void Interpreter::DoJumpIfNull(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* null_value = __ HeapConstant(isolate_->factory()->null_value());
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ JumpIfWordEqual(accumulator, null_value, relative_jump);
 }
 
@@ -2507,7 +2547,7 @@ void Interpreter::DoJumpIfUndefined(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* undefined_value =
       __ HeapConstant(isolate_->factory()->undefined_value());
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ JumpIfWordEqual(accumulator, undefined_value, relative_jump);
 }
 
@@ -2530,7 +2570,7 @@ void Interpreter::DoJumpIfUndefinedConstant(InterpreterAssembler* assembler) {
 // referenced by the accumulator is a JSReceiver.
 void Interpreter::DoJumpIfJSReceiver(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
 
   Label if_object(assembler), if_notobject(assembler, Label::kDeferred),
       if_notsmi(assembler);
@@ -2574,7 +2614,7 @@ void Interpreter::DoJumpIfJSReceiverConstant(InterpreterAssembler* assembler) {
 void Interpreter::DoJumpIfNotHole(InterpreterAssembler* assembler) {
   Node* accumulator = __ GetAccumulator();
   Node* the_hole_value = __ HeapConstant(isolate_->factory()->the_hole_value());
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   __ JumpIfWordNotEqual(accumulator, the_hole_value, relative_jump);
 }
 
@@ -2596,7 +2636,7 @@ void Interpreter::DoJumpIfNotHoleConstant(InterpreterAssembler* assembler) {
 // performs a loop nesting check and potentially triggers OSR in case the
 // current OSR level matches (or exceeds) the specified |loop_depth|.
 void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
-  Node* relative_jump = __ BytecodeOperandImmIntPtr(0);
+  Node* relative_jump = __ BytecodeOperandUImmWord(0);
   Node* loop_depth = __ BytecodeOperandImm(1);
   Node* osr_level = __ LoadOSRNestingLevel();
 
@@ -2607,7 +2647,7 @@ void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
   __ Branch(condition, &ok, &osr_armed);
 
   __ Bind(&ok);
-  __ Jump(relative_jump);
+  __ JumpBackward(relative_jump);
 
   __ Bind(&osr_armed);
   {
@@ -2615,7 +2655,7 @@ void Interpreter::DoJumpLoop(InterpreterAssembler* assembler) {
     Node* target = __ HeapConstant(callable.code());
     Node* context = __ GetContext();
     __ CallStub(callable.descriptor(), target, context);
-    __ Jump(relative_jump);
+    __ JumpBackward(relative_jump);
   }
 }
 
@@ -2983,7 +3023,7 @@ void Interpreter::DoReturn(InterpreterAssembler* assembler) {
 // Call runtime to handle debugger statement.
 void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
-  __ CallRuntime(Runtime::kHandleDebuggerStatement, context);
+  __ CallStub(CodeFactory::HandleDebuggerStatement(isolate_), context);
   __ Dispatch();
 }
 
@@ -2996,6 +3036,7 @@ void Interpreter::DoDebugger(InterpreterAssembler* assembler) {
     Node* accumulator = __ GetAccumulator();                                  \
     Node* original_handler =                                                  \
         __ CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator); \
+    __ MaybeDropFrames(context);                                              \
     __ DispatchToBytecodeHandler(original_handler);                           \
   }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
@@ -3212,8 +3253,7 @@ void Interpreter::DoSuspendGenerator(InterpreterAssembler* assembler) {
       ExternalReference::debug_last_step_action_address(isolate_));
   Node* step_action = __ Load(MachineType::Int8(), step_action_address);
   STATIC_ASSERT(StepIn > StepNext);
-  STATIC_ASSERT(StepFrame > StepNext);
-  STATIC_ASSERT(LastStepAction == StepFrame);
+  STATIC_ASSERT(LastStepAction == StepIn);
   Node* step_next = __ Int32Constant(StepNext);
   __ Branch(__ Int32LessThanOrEqual(step_next, step_action), &if_stepping, &ok);
   __ Bind(&ok);

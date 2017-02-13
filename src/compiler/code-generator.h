@@ -53,9 +53,7 @@ class InstructionOperandIterator {
 class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Frame* frame, Linkage* linkage,
-                         InstructionSequence* code, CompilationInfo* info,
-                         ZoneVector<trap_handler::ProtectedInstructionData>*
-                             protected_instructions = nullptr);
+                         InstructionSequence* code, CompilationInfo* info);
 
   // Generate native code.
   Handle<Code> GenerateCode();
@@ -67,8 +65,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   Linkage* linkage() const { return linkage_; }
 
   Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
-
-  void AddProtectedInstruction(int instr_offset, int landing_offset);
 
   void AssembleSourcePosition(Instruction* instr);
 
@@ -291,7 +287,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   int osr_pc_offset_;
   int optimized_out_literal_id_;
   SourcePositionTableBuilder source_position_table_builder_;
-  ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions_;
 };
 
 }  // namespace compiler

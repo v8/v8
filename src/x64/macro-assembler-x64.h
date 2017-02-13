@@ -327,6 +327,7 @@ class MacroAssembler: public Assembler {
   // Debugger Support
 
   void DebugBreak();
+  void MaybeDropFrames();
 
   // Generates function and stub prologue code.
   void StubPrologue(StackFrame::Type type);
@@ -549,6 +550,10 @@ class MacroAssembler: public Assembler {
   // Jump to label if the value is not a tagged smi.
   void JumpIfNotSmi(Register src,
                     Label* on_not_smi,
+                    Label::Distance near_jump = Label::kFar);
+
+  // Jump to label if the value is not a tagged smi.
+  void JumpIfNotSmi(Operand src, Label* on_not_smi,
                     Label::Distance near_jump = Label::kFar);
 
   // Jump to label if the value is not a non-negative tagged smi.

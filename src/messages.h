@@ -269,6 +269,7 @@ class ErrorUtils : public AllStatic {
     "ArrayBuffer subclass returned this from species constructor")             \
   T(ArrayFunctionsOnFrozen, "Cannot modify frozen array elements")             \
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
+  T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \
@@ -307,6 +308,7 @@ class ErrorUtils : public AllStatic {
   T(IllegalInvocation, "Illegal invocation")                                   \
   T(ImmutablePrototypeSet,                                                     \
     "Immutable prototype object '%' cannot have their prototype set")          \
+  T(ImportCallNotNewExpression, "Cannot use new with import")                  \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \
@@ -591,7 +593,7 @@ class ErrorUtils : public AllStatic {
   T(PushPastSafeLength,                                                        \
     "Pushing % elements on an array-like of length % "                         \
     "is disallowed, as the total surpasses 2**53-1")                           \
-  T(ElementAfterRest, "Rest element must be last element in array")            \
+  T(ElementAfterRest, "Rest element must be last element")                     \
   T(BadSetterRestParameter,                                                    \
     "Setter function argument must not be a rest parameter")                   \
   T(ParamDupe, "Duplicate parameter name not allowed in this context")         \
@@ -689,6 +691,7 @@ class ErrorUtils : public AllStatic {
   T(AsmJsInstantiated, "Instantiated asm.js: %")                               \
   /* DataCloneError messages */                                                \
   T(DataCloneError, "% could not be cloned.")                                  \
+  T(DataCloneErrorOutOfMemory, "Data cannot be cloned, out of memory.")        \
   T(DataCloneErrorNeuteredArrayBuffer,                                         \
     "An ArrayBuffer is neutered and could not be cloned.")                     \
   T(DataCloneErrorSharedArrayBufferTransferred,                                \

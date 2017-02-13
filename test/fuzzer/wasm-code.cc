@@ -26,22 +26,21 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   if (generate_test) {
     v8::internal::OFStream os(stdout);
 
-    os << "// Copyright 2016 the V8 project authors. All rights reserved."
+    os << "// Copyright 2017 the V8 project authors. All rights reserved."
        << std::endl;
     os << "// Use of this source code is governed by a BSD-style license that "
           "can be"
        << std::endl;
     os << "// found in the LICENSE file." << std::endl;
     os << std::endl;
-    os << "// Flags: --expose-wasm" << std::endl;
-    os << std::endl;
     os << "load(\"test/mjsunit/wasm/wasm-constants.js\");" << std::endl;
     os << "load(\"test/mjsunit/wasm/wasm-module-builder.js\");" << std::endl;
     os << std::endl;
     os << "(function() {" << std::endl;
     os << "  var builder = new WasmModuleBuilder();" << std::endl;
+    os << "  builder.addMemory(32, 32, false);" << std::endl;
     os << "  builder.addFunction(\"test\", kSig_i_iii)" << std::endl;
-    os << "    .addBody([" << std::endl;
+    os << "    .addBodyWithEnd([" << std::endl;
   }
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();

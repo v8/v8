@@ -87,6 +87,7 @@
       'compiler-dispatcher/compiler-dispatcher-job-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-tracer-unittest.cc',
       'compiler-dispatcher/compiler-dispatcher-unittest.cc',
+      'compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc',
       'counters-unittest.cc',
       'eh-frame-iterator-unittest.cc',
       'eh-frame-writer-unittest.cc',
@@ -139,6 +140,7 @@
       'wasm/switch-logic-unittest.cc',
       'wasm/wasm-macro-gen-unittest.cc',
       'wasm/wasm-module-builder-unittest.cc',
+      'wasm/wasm-opcodes-unittest.cc',
     ],
     'unittests_sources_arm': [  ### gcmole(arch:arm) ###
       'compiler/arm/instruction-selector-arm-unittest.cc',

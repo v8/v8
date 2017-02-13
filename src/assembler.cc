@@ -235,17 +235,6 @@ unsigned CpuFeatures::icache_line_size_ = 0;
 unsigned CpuFeatures::dcache_line_size_ = 0;
 
 // -----------------------------------------------------------------------------
-// Implementation of Label
-
-int Label::pos() const {
-  if (pos_ < 0) return -pos_ - 1;
-  if (pos_ > 0) return  pos_ - 1;
-  UNREACHABLE();
-  return 0;
-}
-
-
-// -----------------------------------------------------------------------------
 // Implementation of RelocInfoWriter and RelocIterator
 //
 // Relocation information is written backwards in memory, from high addresses
@@ -488,7 +477,8 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteData(rinfo->data());
     } else if (RelocInfo::IsConstPool(rmode) ||
                RelocInfo::IsVeneerPool(rmode) || RelocInfo::IsDeoptId(rmode) ||
-               RelocInfo::IsDeoptPosition(rmode)) {
+               RelocInfo::IsDeoptPosition(rmode) ||
+               RelocInfo::IsWasmProtectedLanding(rmode)) {
       WriteIntData(static_cast<int>(rinfo->data()));
     }
   }
@@ -637,7 +627,8 @@ void RelocIterator::next() {
         } else if (RelocInfo::IsConstPool(rmode) ||
                    RelocInfo::IsVeneerPool(rmode) ||
                    RelocInfo::IsDeoptId(rmode) ||
-                   RelocInfo::IsDeoptPosition(rmode)) {
+                   RelocInfo::IsDeoptPosition(rmode) ||
+                   RelocInfo::IsWasmProtectedLanding(rmode)) {
           if (SetMode(rmode)) {
             AdvanceReadInt();
             return;
@@ -782,6 +773,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm global value reference";
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
       return "wasm function table size reference";
+    case WASM_PROTECTED_INSTRUCTION_LANDING:
+      return "wasm protected instruction landing";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -880,6 +873,8 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_MEMORY_SIZE_REFERENCE:
     case WASM_GLOBAL_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
+    case WASM_PROTECTED_INSTRUCTION_LANDING:
+    // TODO(eholk): make sure the protected instruction is in range.
     case NONE32:
     case NONE64:
       break;
@@ -1575,8 +1570,9 @@ ExternalReference ExternalReference::is_tail_call_elimination_enabled_address(
   return ExternalReference(isolate->is_tail_call_elimination_enabled_address());
 }
 
-ExternalReference ExternalReference::promise_hook_address(Isolate* isolate) {
-  return ExternalReference(isolate->promise_hook_address());
+ExternalReference ExternalReference::promise_hook_or_debug_is_active_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->promise_hook_or_debug_is_active_address());
 }
 
 ExternalReference ExternalReference::debug_is_active_address(
@@ -1588,12 +1584,6 @@ ExternalReference ExternalReference::debug_hook_on_function_call_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->hook_on_function_call_address());
 }
-
-ExternalReference ExternalReference::debug_after_break_target_address(
-    Isolate* isolate) {
-  return ExternalReference(isolate->debug()->after_break_target_address());
-}
-
 
 ExternalReference ExternalReference::runtime_function_table_address(
     Isolate* isolate) {
@@ -1673,6 +1663,11 @@ ExternalReference ExternalReference::debug_last_step_action_address(
 ExternalReference ExternalReference::debug_suspended_generator_address(
     Isolate* isolate) {
   return ExternalReference(isolate->debug()->suspended_generator_address());
+}
+
+ExternalReference ExternalReference::debug_restart_fp_address(
+    Isolate* isolate) {
+  return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
 ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {

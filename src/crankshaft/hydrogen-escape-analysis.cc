@@ -142,7 +142,6 @@ HValue* HEscapeAnalysisPhase::NewMapCheckAndInsert(HCapturedObject* state,
 // necessary.
 HValue* HEscapeAnalysisPhase::NewLoadReplacement(
     HLoadNamedField* load, HValue* load_value) {
-  isolate()->counters()->crankshaft_escape_loads_replaced()->Increment();
   HValue* replacement = load_value;
   Representation representation = load->representation();
   if (representation.IsSmiOrInteger32() || representation.IsDouble()) {
@@ -320,8 +319,6 @@ void HEscapeAnalysisPhase::Run() {
   for (int i = 0; i < max_fixpoint_iteration_count; i++) {
     CollectCapturedValues();
     if (captured_.is_empty()) break;
-    isolate()->counters()->crankshaft_escape_allocs_replaced()->Increment(
-        captured_.length());
     PerformScalarReplacement();
     captured_.Rewind(0);
   }

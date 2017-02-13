@@ -27,6 +27,7 @@ class ParseInfo;
 class ScriptData;
 class ParserTarget;
 class ParserTargetScope;
+class PreParsedScopeData;
 
 class FunctionEntry BASE_EMBEDDED {
  public:
@@ -353,6 +354,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                  Block* finally_block,
                                  const CatchInfo& catch_info, int pos);
 
+  void ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
+                                            ZoneList<Statement*>* body,
+                                            bool* ok);
+  void CreateFunctionNameAssignment(const AstRawString* function_name, int pos,
+                                    FunctionLiteral::FunctionType function_type,
+                                    DeclarationScope* function_scope,
+                                    ZoneList<Statement*>* result, int index);
+
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, VariableMode mode,
                              int pos, bool is_generator, bool is_async,
@@ -550,13 +559,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
-  Block* BuildRejectPromiseOnException(Block* block, bool* ok);
-
-  // Consumes the ending }.
-  ZoneList<Statement*>* ParseEagerFunctionBody(
-      const AstRawString* function_name, int pos,
-      const ParserFormalParameters& parameters, FunctionKind kind,
-      FunctionLiteral::FunctionType function_type, bool* ok);
+  Block* BuildRejectPromiseOnException(Block* block);
 
   ZoneList<Statement*>* ParseFunction(
       const AstRawString* function_name, int pos, FunctionKind kind,
@@ -609,7 +612,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
-                         int pos);
+                         int pos, Call::PossiblyEval is_possibly_eval);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
                             int pos);
   Expression* RewriteSuperCall(Expression* call_expression);
@@ -840,6 +843,20 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     DCHECK_NOT_NULL(expression);
     if (expression->IsVariableProxy()) {
       expression->AsVariableProxy()->set_is_assigned();
+    }
+  }
+
+  // Pessimistically assume that top-level variables will be assigned.
+  //
+  // Top-level variables in a script can be accessed by other scripts or even
+  // become global properties. While this does not apply to top-level variables
+  // in a module (assuming they are not exported), we must still mark these as
+  // assigned because they might be accessed by a lazily parsed top-level
+  // function, which, for efficiency, we preparse without variable tracking.
+  V8_INLINE static void MarkTopLevelVariableAsAssigned(Scope* scope,
+                                                       VariableProxy* proxy) {
+    if (scope->is_script_scope() || scope->is_module_scope()) {
+      proxy->set_is_assigned();
     }
   }
 
@@ -1087,8 +1104,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     auto* init_block = BuildParameterInitializationBlock(parameters, ok);
     if (!*ok) return;
     if (is_async) {
-      init_block = BuildRejectPromiseOnException(init_block, ok);
-      if (!*ok) return;
+      init_block = BuildRejectPromiseOnException(init_block);
     }
     if (init_block != nullptr) body->Add(init_block, zone());
   }
@@ -1137,8 +1153,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                             const Scanner::Location& params_loc,
                                             Scanner::Location* duplicate_loc,
                                             bool* ok);
-
-  void ReindexLiterals(const ParserFormalParameters& parameters);
 
   V8_INLINE Expression* NoTemplateTag() { return NULL; }
   V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
@@ -1197,6 +1211,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool allow_lazy_;
   bool temp_zoned_;
   ParserLogger* log_;
+
+  PreParsedScopeData* preparsed_scope_data_;
 };
 
 // ----------------------------------------------------------------------------

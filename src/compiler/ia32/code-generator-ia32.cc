@@ -891,10 +891,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ add(i.OutputRegister(0), i.InputRegister(2));
       }
-      __ adc(i.InputRegister(1), Operand(i.InputRegister(3)));
       if (i.OutputRegister(1).code() != i.InputRegister(1).code()) {
         __ Move(i.OutputRegister(1), i.InputRegister(1));
       }
+      __ adc(i.OutputRegister(1), Operand(i.InputRegister(3)));
       if (use_temp) {
         __ Move(i.OutputRegister(0), i.TempRegister(0));
       }
@@ -916,10 +916,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ sub(i.OutputRegister(0), i.InputRegister(2));
       }
-      __ sbb(i.InputRegister(1), Operand(i.InputRegister(3)));
       if (i.OutputRegister(1).code() != i.InputRegister(1).code()) {
         __ Move(i.OutputRegister(1), i.InputRegister(1));
       }
+      __ sbb(i.OutputRegister(1), Operand(i.InputRegister(3)));
       if (use_temp) {
         __ Move(i.OutputRegister(0), i.TempRegister(0));
       }
@@ -1697,10 +1697,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       }
       GenerateCallToTrap(trap_id);
       if (frame_elided_) {
-        ReferenceMap* reference_map =
-            new (gen_->zone()) ReferenceMap(gen_->zone());
-        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                              Safepoint::kNoLazyDeopt);
         __ set_has_frame(old_has_frame);
       }
       if (FLAG_debug_code) {
@@ -1722,6 +1718,10 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
       }
+      ReferenceMap* reference_map =
+          new (gen_->zone()) ReferenceMap(gen_->zone());
+      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
     }
 
     bool frame_elided_;
@@ -2106,7 +2106,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       __ Move(dst, g.ToImmediate(source));
     } else if (src_constant.type() == Constant::kFloat32) {
       // TODO(turbofan): Can we do better here?
-      uint32_t src = bit_cast<uint32_t>(src_constant.ToFloat32());
+      uint32_t src = src_constant.ToFloat32AsInt();
       if (destination->IsFPRegister()) {
         XMMRegister dst = g.ToDoubleRegister(destination);
         __ Move(dst, src);
@@ -2117,7 +2117,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src_constant.type());
-      uint64_t src = bit_cast<uint64_t>(src_constant.ToFloat64());
+      uint64_t src = src_constant.ToFloat64AsInt();
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
       if (destination->IsFPRegister()) {

@@ -150,6 +150,7 @@ void AstNumberingVisitor::VisitLiteral(Literal* node) {
 void AstNumberingVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(RegExpLiteral::num_ids()));
+  ReserveFeedbackSlots(node);
 }
 
 
@@ -165,12 +166,6 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
       break;
     default:
       break;
-  }
-  if (node->var()->binding_needs_init()) {
-    // Disable FCG+CS for all variable bindings that need explicit
-    // initialization, i.e. ES2015 style const and let, but not
-    // named function expressions.
-    DisableFullCodegenAndCrankshaft(kReferenceToLetOrConstVariable);
   }
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
@@ -409,8 +404,8 @@ void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
 
 void AstNumberingVisitor::VisitSpread(Spread* node) {
   IncrementNodeCount();
-  // We can only get here from super calls currently.
-  DisableFullCodegenAndCrankshaft(kSuperReference);
+  // We can only get here from spread calls currently.
+  DisableFullCodegenAndCrankshaft(kSpreadCall);
   node->set_base_id(ReserveIdRange(Spread::num_ids()));
   Visit(node->expression());
 }
@@ -598,12 +593,18 @@ void AstNumberingVisitor::VisitArguments(ZoneList<Expression*>* arguments) {
 void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
-  if (eager_literals_ && node->ShouldEagerCompile()) {
-    eager_literals_->Add(new (zone())
-                             ThreadedListZoneEntry<FunctionLiteral*>(node));
+  if (node->ShouldEagerCompile()) {
+    // If the function literal is being eagerly compiled, recurse into the
+    // declarations and body of the function literal.
+    if (!AstNumbering::Renumber(stack_limit_, zone_, node, eager_literals_)) {
+      SetStackOverflow();
+      return;
+    }
+    if (eager_literals_) {
+      eager_literals_->Add(new (zone())
+                               ThreadedListZoneEntry<FunctionLiteral*>(node));
+    }
   }
-  // We don't recurse into the declarations or body of the function literal:
-  // you have to separately Renumber() each FunctionLiteral that you compile.
   ReserveFeedbackSlots(node);
 }
 
@@ -649,6 +650,13 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 
   if (FLAG_trace_opt) {
     if (disable_crankshaft_reason_ != kNoReason) {
+      // TODO(leszeks): This is a quick'n'dirty fix to allow the debug name of
+      // the function to be accessed in the below print. This DCHECK will fail
+      // if we move ast numbering off the main thread, but that won't be before
+      // we remove FCG, in which case this entire check isn't necessary anyway.
+      AllowHandleDereference allow_deref;
+      DCHECK(!node->debug_name().is_null());
+
       PrintF("[enforcing Ignition and TurboFan for %s because: %s\n",
              node->debug_name()->ToCString().get(),
              GetBailoutReason(disable_crankshaft_reason_));

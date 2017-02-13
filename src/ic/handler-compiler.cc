@@ -283,8 +283,7 @@ void NamedLoadHandlerCompiler::GenerateLoadPostInterceptor(
       Handle<Object> smi_handler =
           LoadIC::SimpleFieldLoad(isolate(), it->GetFieldIndex());
       __ Move(LoadFieldDescriptor::SmiHandlerRegister(), smi_handler);
-      LoadFieldStub stub(isolate());
-      GenerateTailCall(masm(), stub.GetCode());
+      GenerateTailCall(masm(), isolate()->builtins()->LoadField());
       break;
     }
     case LookupIterator::ACCESSOR:

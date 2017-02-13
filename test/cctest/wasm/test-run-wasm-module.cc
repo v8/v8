@@ -218,6 +218,18 @@ class WasmSerializationTest {
     SetUp();
   }
 
+  static void BuildWireBytes(Zone* zone, ZoneBuffer* buffer) {
+    WasmModuleBuilder* builder = new (zone) WasmModuleBuilder(zone);
+    TestSignatures sigs;
+
+    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
+    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
+    EMIT_CODE_WITH_END(f, code);
+    f->ExportAs(CStrVector(kFunctionName));
+
+    builder->WriteTo(*buffer);
+  }
+
   void ClearSerializedData() {
     serialized_bytes_.first = nullptr;
     serialized_bytes_.second = 0;
@@ -279,6 +291,8 @@ class WasmSerializationTest {
     TearDown();
   }
 
+  v8::Isolate* current_isolate_v8() { return current_isolate_v8_; }
+
  private:
   static const char* kFunctionName;
 
@@ -291,19 +305,9 @@ class WasmSerializationTest {
     return serialized_bytes_;
   }
 
-  v8::Isolate* current_isolate_v8() { return current_isolate_v8_; }
-
   void SetUp() {
-    WasmModuleBuilder* builder = new (zone()) WasmModuleBuilder(zone());
-    TestSignatures sigs;
-
-    WasmFunctionBuilder* f = builder->AddFunction(sigs.i_i());
-    byte code[] = {WASM_GET_LOCAL(0), kExprI32Const, 1, kExprI32Add};
-    EMIT_CODE_WITH_END(f, code);
-    f->ExportAs(CStrVector(kFunctionName));
-
     ZoneBuffer buffer(&zone_);
-    builder->WriteTo(buffer);
+    WasmSerializationTest::BuildWireBytes(zone(), &buffer);
 
     Isolate* serialization_isolate = CcTest::InitIsolateOnce();
     ErrorThrower thrower(serialization_isolate, "");
@@ -414,6 +418,40 @@ TEST(DeserializeWireBytesAndSerializedDataInvalid) {
     test.InvalidateVersion();
     test.InvalidateWireBytes();
     test.Deserialize();
+  }
+  Cleanup(test.current_isolate());
+  Cleanup();
+}
+
+bool False(v8::Local<v8::Context> context) { return false; }
+
+TEST(BlockWasmCodeGen) {
+  v8::internal::AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+  ZoneBuffer buffer(&zone);
+  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
+  Isolate* isolate = CcTest::InitIsolateOnce();
+  HandleScope scope(isolate);
+  testing::SetupIsolateForWasmModule(isolate);
+  CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(False);
+
+  ErrorThrower thrower(isolate, "block codegen");
+  MaybeHandle<WasmModuleObject> ret = wasm::CreateModuleObjectFromBytes(
+      isolate, buffer.begin(), buffer.end(), &thrower,
+      wasm::ModuleOrigin::kWasmOrigin, Handle<v8::internal::Script>::null(),
+      Vector<const byte>::empty());
+  CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(nullptr);
+  CHECK(ret.is_null());
+  CHECK(thrower.error());
+}
+
+TEST(BlockWasmCodeGenAtDeserialization) {
+  WasmSerializationTest test;
+  {
+    HandleScope scope(test.current_isolate());
+    test.current_isolate_v8()->SetAllowCodeGenerationFromStringsCallback(False);
+    v8::MaybeLocal<v8::WasmCompiledModule> nothing = test.Deserialize();
+    CHECK(nothing.IsEmpty());
   }
   Cleanup(test.current_isolate());
   Cleanup();
@@ -877,7 +915,7 @@ TEST(EmptyMemoryEmptyDataSegment) {
         U32V_1(6),              // section size
         ENTRY_COUNT(1),         // --
         0,                      // linear memory index
-        WASM_I32V_1(24),        // destination offset
+        WASM_I32V_1(0),         // destination offset
         kExprEnd,
         U32V_1(0),  // source size
     };
@@ -919,8 +957,8 @@ TEST(MemoryWithOOBEmptyDataSegment) {
     testing::CompileInstantiateWasmModuleForTesting(isolate, &thrower, data,
                                                     data + arraysize(data),
                                                     ModuleOrigin::kWasmOrigin);
-    // It should be possible to instantiate this module.
-    CHECK(!thrower.error());
+    // It should not be possible to instantiate this module.
+    CHECK(thrower.error());
   }
   Cleanup();
 }

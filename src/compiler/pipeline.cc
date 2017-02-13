@@ -37,7 +37,6 @@
 #include "src/compiler/js-create-lowering.h"
 #include "src/compiler/js-frame-specialization.h"
 #include "src/compiler/js-generic-lowering.h"
-#include "src/compiler/js-global-object-specialization.h"
 #include "src/compiler/js-inlining-heuristic.h"
 #include "src/compiler/js-intrinsic-lowering.h"
 #include "src/compiler/js-native-context-specialization.h"
@@ -781,7 +780,8 @@ struct InliningPhase {
       call_reducer_flags |= JSCallReducer::kDeoptimizationEnabled;
     }
     JSCallReducer call_reducer(&graph_reducer, data->jsgraph(),
-                               call_reducer_flags, data->native_context());
+                               call_reducer_flags, data->native_context(),
+                               data->info()->dependencies());
     JSContextSpecialization context_specialization(
         &graph_reducer, data->jsgraph(),
         data->info()->is_function_context_specializing()
@@ -789,9 +789,6 @@ struct InliningPhase {
             : MaybeHandle<Context>());
     JSFrameSpecialization frame_specialization(
         &graph_reducer, data->info()->osr_frame(), data->jsgraph());
-    JSGlobalObjectSpecialization global_object_specialization(
-        &graph_reducer, data->jsgraph(), data->global_object(),
-        data->info()->dependencies());
     JSNativeContextSpecialization::Flags flags =
         JSNativeContextSpecialization::kNoFlags;
     if (data->info()->is_accessor_inlining_enabled()) {
@@ -820,9 +817,6 @@ struct InliningPhase {
     AddReducer(data, &graph_reducer, &common_reducer);
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
-    }
-    if (data->info()->is_deoptimization_enabled()) {
-      AddReducer(data, &graph_reducer, &global_object_specialization);
     }
     AddReducer(data, &graph_reducer, &native_context_specialization);
     AddReducer(data, &graph_reducer, &context_specialization);
@@ -903,10 +897,11 @@ struct TypedLoweringPhase {
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies(), data->native_context());
-    Handle<LiteralsArray> literals_array(data->info()->closure()->literals());
+    Handle<TypeFeedbackVector> feedback_vector(
+        data->info()->closure()->feedback_vector());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
-        literals_array, data->native_context(), temp_zone);
+        feedback_vector, data->native_context(), temp_zone);
     JSTypedLowering::Flags typed_lowering_flags = JSTypedLowering::kNoFlags;
     if (data->info()->is_deoptimization_enabled()) {
       typed_lowering_flags |= JSTypedLowering::kDeoptimizationEnabled;
@@ -1421,7 +1416,7 @@ struct GenerateCodePhase {
 
   void Run(PipelineData* data, Zone* temp_zone, Linkage* linkage) {
     CodeGenerator generator(data->frame(), linkage, data->sequence(),
-                            data->info(), data->protected_instructions());
+                            data->info());
     data->set_code(generator.GenerateCode());
   }
 };
@@ -1662,7 +1657,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   ZoneStats zone_stats(isolate->allocator());
   SourcePositionTable source_positions(graph);
   PipelineData data(&zone_stats, &info, graph, schedule, &source_positions);
-  data.set_verify_graph(FLAG_csa_verify);
+  data.set_verify_graph(FLAG_verify_csa);
   std::unique_ptr<PipelineStatistics> pipeline_statistics;
   if (FLAG_turbo_stats || FLAG_turbo_stats_nvp) {
     pipeline_statistics.reset(new PipelineStatistics(&info, &zone_stats));
@@ -1797,7 +1792,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
       (FLAG_turbo_verify_machine_graph != nullptr &&
        (!strcmp(FLAG_turbo_verify_machine_graph, "*") ||
         !strcmp(FLAG_turbo_verify_machine_graph, data->debug_name())))) {
-    if (FLAG_trace_csa_verify) {
+    if (FLAG_trace_verify_csa) {
       AllowHandleDereference allow_deref;
       CompilationInfo* info = data->info();
       CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());

@@ -155,6 +155,8 @@ consts_misc = [
     { 'name': 'bit_field3_number_of_own_descriptors_shift',
         'value': 'Map::NumberOfOwnDescriptorsBits::kShift' },
 
+    { 'name': 'off_fp_context_or_frame_type',
+        'value': 'CommonFrameConstants::kContextOrFrameTypeOffset'},
     { 'name': 'off_fp_context',
         'value': 'StandardFrameConstants::kContextOffset' },
     { 'name': 'off_fp_constant_pool',

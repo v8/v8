@@ -201,7 +201,8 @@
                 "properties": [
                     { "name": "description", "type": "string", "optional": true, "description": "String label of this stack trace. For async traces this may be a name of the function that initiated the async call." },
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "JavaScript function name." },
-                    { "name": "parent", "$ref": "StackTrace", "optional": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." }
+                    { "name": "parent", "$ref": "StackTrace", "optional": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." },
+                    { "name": "promiseCreationFrame", "$ref": "CallFrame", "optional": true, "experimental": true, "description": "Creation frame of the Promise which produced the next synchronous trace when resolved, if available." }
                 ]
             }
         ],
@@ -383,7 +384,7 @@
                 "name": "consoleAPICalled",
                 "description": "Issued when console API was called.",
                 "parameters": [
-                    { "name": "type", "type": "string", "enum": ["log", "debug", "info", "error", "warning", "dir", "dirxml", "table", "trace", "clear", "startGroup", "startGroupCollapsed", "endGroup", "assert", "profile", "profileEnd"], "description": "Type of the call." },
+                    { "name": "type", "type": "string", "enum": ["log", "debug", "info", "error", "warning", "dir", "dirxml", "table", "trace", "clear", "startGroup", "startGroupCollapsed", "endGroup", "assert", "profile", "profileEnd", "count", "timeEnd"], "description": "Type of the call." },
                     { "name": "args", "type": "array", "items": { "$ref": "RemoteObject" }, "description": "Call arguments." },
                     { "name": "executionContextId", "$ref": "ExecutionContextId", "description": "Identifier of the context where the call was made." },
                     { "name": "timestamp", "$ref": "Timestamp", "description": "Call timestamp." },
@@ -725,7 +726,7 @@
                 "name": "paused",
                 "parameters": [
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "Call stack the virtual machine stopped on." },
-                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "other" ], "description": "Pause reason." },
+                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "OOM", "other" ], "description": "Pause reason." },
                     { "name": "data", "type": "object", "optional": true, "description": "Object containing break-specific auxiliary properties." },
                     { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs" },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." }

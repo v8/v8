@@ -213,10 +213,20 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
       Call::CallType call_type,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
 
+  // Call a JS function. The JSFunction or Callable to be called should be in
+  // |callable|, the receiver in |args[0]| and the arguments in |args[1]|
+  // onwards. The final argument must be a spread.
+  BytecodeArrayBuilder& CallWithSpread(Register callable, RegisterList args);
+
   // Call the new operator. The accumulator holds the |new_target|.
   // The |constructor| is in a register and arguments are in |args|.
   BytecodeArrayBuilder& New(Register constructor, RegisterList args,
                             int feedback_slot);
+
+  // Call the new operator for use with a spread. The accumulator holds the
+  // |new_target|. The |constructor| is in a register and arguments are in
+  // |args|. The final argument must be a spread.
+  BytecodeArrayBuilder& NewWithSpread(Register constructor, RegisterList args);
 
   // Call the runtime function with |function_id| and arguments |args|.
   BytecodeArrayBuilder& CallRuntime(Runtime::FunctionId function_id,
@@ -242,11 +252,6 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Call the JS runtime function with |context_index| and arguments |args|.
   BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
-
-  // Call the constructor in |args[0]| with new_target in |args[1]| and the
-  // arguments starting at |args[2]| onwards. The final argument must be a
-  // spread.
-  BytecodeArrayBuilder& NewWithSpread(RegisterList args);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).
   // Type feedback will be recorded in the |feedback_slot|

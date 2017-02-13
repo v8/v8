@@ -81,6 +81,7 @@
       'cctest.cc',
       'cctest.h',
       'expression-type-collector-macros.h',
+      'ffi/test-ffi.cc',
       'interpreter/interpreter-tester.cc',
       'interpreter/interpreter-tester.h',
       'interpreter/source-position-matcher.cc',
@@ -247,6 +248,7 @@
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
       'test-run-wasm-relocation-arm.cc',
+      'test-simulator-arm.cc',
       'wasm/test-run-wasm-simd-lowering.cc'
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###

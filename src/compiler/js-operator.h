@@ -12,6 +12,10 @@
 
 namespace v8 {
 namespace internal {
+
+class BoilerplateDescription;
+class ConstantElementsPair;
+
 namespace compiler {
 
 // Forward declarations.
@@ -54,11 +58,11 @@ ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 
 // Defines the arity and the feedback for a JavaScript constructor call. This is
-// used as a parameter by JSCallConstruct operators.
-class CallConstructParameters final {
+// used as a parameter by JSConstruct operators.
+class ConstructParameters final {
  public:
-  CallConstructParameters(uint32_t arity, float frequency,
-                          VectorSlotPair const& feedback)
+  ConstructParameters(uint32_t arity, float frequency,
+                      VectorSlotPair const& feedback)
       : arity_(arity), frequency_(frequency), feedback_(feedback) {}
 
   uint32_t arity() const { return arity_; }
@@ -71,21 +75,21 @@ class CallConstructParameters final {
   VectorSlotPair const feedback_;
 };
 
-bool operator==(CallConstructParameters const&, CallConstructParameters const&);
-bool operator!=(CallConstructParameters const&, CallConstructParameters const&);
+bool operator==(ConstructParameters const&, ConstructParameters const&);
+bool operator!=(ConstructParameters const&, ConstructParameters const&);
 
-size_t hash_value(CallConstructParameters const&);
+size_t hash_value(ConstructParameters const&);
 
-std::ostream& operator<<(std::ostream&, CallConstructParameters const&);
+std::ostream& operator<<(std::ostream&, ConstructParameters const&);
 
-CallConstructParameters const& CallConstructParametersOf(Operator const*);
+ConstructParameters const& ConstructParametersOf(Operator const*);
 
 // Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSCallConstructWithSpread
+// parameters. This is used as a parameter by JSConstructWithSpread
 // operators.
-class CallConstructWithSpreadParameters final {
+class ConstructWithSpreadParameters final {
  public:
-  explicit CallConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+  explicit ConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
 
   uint32_t arity() const { return arity_; }
 
@@ -93,18 +97,54 @@ class CallConstructWithSpreadParameters final {
   uint32_t const arity_;
 };
 
-bool operator==(CallConstructWithSpreadParameters const&,
-                CallConstructWithSpreadParameters const&);
-bool operator!=(CallConstructWithSpreadParameters const&,
-                CallConstructWithSpreadParameters const&);
+bool operator==(ConstructWithSpreadParameters const&,
+                ConstructWithSpreadParameters const&);
+bool operator!=(ConstructWithSpreadParameters const&,
+                ConstructWithSpreadParameters const&);
 
-size_t hash_value(CallConstructWithSpreadParameters const&);
+size_t hash_value(ConstructWithSpreadParameters const&);
 
-std::ostream& operator<<(std::ostream&,
-                         CallConstructWithSpreadParameters const&);
+std::ostream& operator<<(std::ostream&, ConstructWithSpreadParameters const&);
 
-CallConstructWithSpreadParameters const& CallConstructWithSpreadParametersOf(
+ConstructWithSpreadParameters const& ConstructWithSpreadParametersOf(
     Operator const*);
+
+// Defines the flags for a JavaScript call forwarding parameters. This
+// is used as parameter by JSCallForwardVarargs operators.
+class CallForwardVarargsParameters final {
+ public:
+  CallForwardVarargsParameters(uint32_t start_index,
+                               TailCallMode tail_call_mode)
+      : bit_field_(StartIndexField::encode(start_index) |
+                   TailCallModeField::encode(tail_call_mode)) {}
+
+  uint32_t start_index() const { return StartIndexField::decode(bit_field_); }
+  TailCallMode tail_call_mode() const {
+    return TailCallModeField::decode(bit_field_);
+  }
+
+  bool operator==(CallForwardVarargsParameters const& that) const {
+    return this->bit_field_ == that.bit_field_;
+  }
+  bool operator!=(CallForwardVarargsParameters const& that) const {
+    return !(*this == that);
+  }
+
+ private:
+  friend size_t hash_value(CallForwardVarargsParameters const& p) {
+    return p.bit_field_;
+  }
+
+  typedef BitField<uint32_t, 0, 30> StartIndexField;
+  typedef BitField<TailCallMode, 31, 1> TailCallModeField;
+
+  uint32_t const bit_field_;
+};
+
+std::ostream& operator<<(std::ostream&, CallForwardVarargsParameters const&);
+
+CallForwardVarargsParameters const& CallForwardVarargsParametersOf(
+    Operator const*) WARN_UNUSED_RESULT;
 
 // Defines the arity and the call flags for a JavaScript function call. This is
 // used as a parameter by JSCallFunction operators.
@@ -159,6 +199,31 @@ std::ostream& operator<<(std::ostream&, CallFunctionParameters const&);
 
 const CallFunctionParameters& CallFunctionParametersOf(const Operator* op);
 
+// Defines the arity for a JavaScript constructor call with a spread as the last
+// parameters. This is used as a parameter by JSConstructWithSpread
+// operators.
+class CallFunctionWithSpreadParameters final {
+ public:
+  explicit CallFunctionWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+
+  uint32_t arity() const { return arity_; }
+
+ private:
+  uint32_t const arity_;
+};
+
+bool operator==(CallFunctionWithSpreadParameters const&,
+                CallFunctionWithSpreadParameters const&);
+bool operator!=(CallFunctionWithSpreadParameters const&,
+                CallFunctionWithSpreadParameters const&);
+
+size_t hash_value(CallFunctionWithSpreadParameters const&);
+
+std::ostream& operator<<(std::ostream&,
+                         CallFunctionWithSpreadParameters const&);
+
+CallFunctionWithSpreadParameters const& CallFunctionWithSpreadParametersOf(
+    Operator const*);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
@@ -541,23 +606,26 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
                                      int literal_flags, int literal_index,
                                      int number_of_elements);
-  const Operator* CreateLiteralObject(Handle<FixedArray> constant_properties,
+  const Operator* CreateLiteralObject(Handle<BoilerplateDescription> constant,
                                       int literal_flags, int literal_index,
                                       int number_of_properties);
   const Operator* CreateLiteralRegExp(Handle<String> constant_pattern,
                                       int literal_flags, int literal_index);
 
+  const Operator* CallForwardVarargs(uint32_t start_index,
+                                     TailCallMode tail_call_mode);
   const Operator* CallFunction(
       size_t arity, float frequency = 0.0f,
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
       TailCallMode tail_call_mode = TailCallMode::kDisallow);
+  const Operator* CallFunctionWithSpread(uint32_t arity);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
-  const Operator* CallConstruct(uint32_t arity, float frequency,
-                                VectorSlotPair const& feedback);
-  const Operator* CallConstructWithSpread(uint32_t arity);
+  const Operator* Construct(uint32_t arity, float frequency,
+                            VectorSlotPair const& feedback);
+  const Operator* ConstructWithSpread(uint32_t arity);
 
   const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 
@@ -590,6 +658,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LoadModule(int32_t cell_index);
   const Operator* StoreModule(int32_t cell_index);
 
+  const Operator* ClassOf();
   const Operator* TypeOf();
   const Operator* InstanceOf();
   const Operator* OrdinaryHasInstance();
@@ -608,6 +677,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* GeneratorRestoreRegister(int index);
 
   const Operator* StackCheck();
+  const Operator* Debugger();
 
   const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,

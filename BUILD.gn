@@ -30,7 +30,7 @@ declare_args() {
   v8_deprecation_warnings = false
 
   # Enable compiler warnings when using V8_DEPRECATE_SOON apis.
-  v8_imminent_deprecation_warnings = ""
+  v8_imminent_deprecation_warnings = false
 
   # Embeds the given script into the snapshot.
   v8_embed_script = ""
@@ -46,6 +46,9 @@ declare_args() {
 
   # Enable slow dchecks.
   v8_enable_slow_dchecks = false
+
+  # Enable code-generation-time checking of types in the CodeStubAssembler.
+  v8_enable_verify_csa = false
 
   # Interpreted regexp engine exists as platform-independent alternative
   # based where the regular expression is compiled to a bytecode.
@@ -76,23 +79,22 @@ declare_args() {
 
   # Similar to the ARM hard float ABI but on MIPS.
   v8_use_mips_abi_hardfloat = true
-}
 
-# Set project-specific defaults for some args if not provided in args.gn. The
-# defaults can be set in the respective build_overrides files.
-if (v8_imminent_deprecation_warnings == "") {
-  if (defined(v8_imminent_deprecation_warnings_default)) {
-    v8_imminent_deprecation_warnings = v8_imminent_deprecation_warnings_default
-  } else {
-    v8_imminent_deprecation_warnings = false
-  }
-}
-if (v8_enable_gdbjit == "") {
-  if (defined(v8_enable_gdbjit_default)) {
-    v8_enable_gdbjit = v8_enable_gdbjit_default
-  } else {
-    v8_enable_gdbjit = false
-  }
+  # List of extra files to snapshot. They will be snapshotted in order so
+  # if files export symbols used by later files, they should go first.
+  #
+  # This default is used by cctests. Projects using V8 will want to override.
+  v8_extra_library_files = [ "//test/cctest/test-extra.js" ]
+
+  # Like v8_extra_library_files but for experimental features.
+  #
+  # This default is used by cctests. Projects using V8 will want to override.
+  v8_experimental_extra_library_files =
+      [ "//test/cctest/test-experimental-extra.js" ]
+
+  v8_enable_gdbjit = ((v8_current_cpu == "x86" || v8_current_cpu == "x64" ||
+                       v8_current_cpu == "x87") && (is_linux || is_mac)) ||
+                     (v8_current_cpu == "ppc64" && is_linux)
 }
 
 # Derived defaults.
@@ -381,6 +383,10 @@ config("toolchain") {
     defines += [ "DEBUG" ]
   }
 
+  if (v8_enable_verify_csa) {
+    defines += [ "ENABLE_VERIFY_CSA" ]
+  }
+
   if (v8_no_inline) {
     cflags += [
       "-fno-inline-functions",
@@ -437,7 +443,6 @@ action("js2c") {
     "src/js/templates.js",
     "src/js/spread.js",
     "src/js/proxy.js",
-    "src/js/async-await.js",
     "src/js/harmony-string-padding.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
@@ -928,8 +933,6 @@ v8_source_set("v8_base") {
     "src/ast/ast-expression-rewriter.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
-    "src/ast/ast-literal-reindexer.cc",
-    "src/ast/ast-literal-reindexer.h",
     "src/ast/ast-numbering.cc",
     "src/ast/ast-numbering.h",
     "src/ast/ast-traversal-visitor.h",
@@ -969,6 +972,9 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-api.cc",
     "src/builtins/builtins-array.cc",
     "src/builtins/builtins-arraybuffer.cc",
+    "src/builtins/builtins-async-function.cc",
+    "src/builtins/builtins-async.cc",
+    "src/builtins/builtins-async.h",
     "src/builtins/builtins-boolean.cc",
     "src/builtins/builtins-call.cc",
     "src/builtins/builtins-callsite.cc",
@@ -1132,8 +1138,6 @@ v8_source_set("v8_base") {
     "src/compiler/js-frame-specialization.h",
     "src/compiler/js-generic-lowering.cc",
     "src/compiler/js-generic-lowering.h",
-    "src/compiler/js-global-object-specialization.cc",
-    "src/compiler/js-global-object-specialization.h",
     "src/compiler/js-graph.cc",
     "src/compiler/js-graph.h",
     "src/compiler/js-inlining-heuristic.cc",
@@ -1377,6 +1381,8 @@ v8_source_set("v8_base") {
     "src/fast-accessor-assembler.h",
     "src/fast-dtoa.cc",
     "src/fast-dtoa.h",
+    "src/ffi/ffi-compiler.cc",
+    "src/ffi/ffi-compiler.h",
     "src/field-index-inl.h",
     "src/field-index.h",
     "src/field-type.cc",
@@ -1450,7 +1456,6 @@ v8_source_set("v8_base") {
     "src/ic/access-compiler-data.h",
     "src/ic/access-compiler.cc",
     "src/ic/access-compiler.h",
-    "src/ic/accessor-assembler-impl.h",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
     "src/ic/call-optimization.cc",
@@ -1534,6 +1539,7 @@ v8_source_set("v8_base") {
     "src/json-stringifier.h",
     "src/keys.cc",
     "src/keys.h",
+    "src/label.h",
     "src/layout-descriptor-inl.h",
     "src/layout-descriptor.cc",
     "src/layout-descriptor.h",
@@ -1566,9 +1572,12 @@ v8_source_set("v8_base") {
     "src/objects-printer.cc",
     "src/objects.cc",
     "src/objects.h",
+    "src/objects/literal-objects.cc",
+    "src/objects/literal-objects.h",
     "src/objects/module-info.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
+    "src/objects/regexp-match-info.h",
     "src/objects/scope-info.cc",
     "src/objects/scope-info.h",
     "src/ostreams.cc",
@@ -1591,6 +1600,8 @@ v8_source_set("v8_base") {
     "src/parsing/preparse-data-format.h",
     "src/parsing/preparse-data.cc",
     "src/parsing/preparse-data.h",
+    "src/parsing/preparsed-scope-data.cc",
+    "src/parsing/preparsed-scope-data.h",
     "src/parsing/preparser.cc",
     "src/parsing/preparser.h",
     "src/parsing/rewriter.cc",
@@ -1632,8 +1643,6 @@ v8_source_set("v8_base") {
     "src/profiler/tracing-cpu-profiler.h",
     "src/profiler/unbound-queue-inl.h",
     "src/profiler/unbound-queue.h",
-    "src/promise-utils.cc",
-    "src/promise-utils.h",
     "src/property-descriptor.cc",
     "src/property-descriptor.h",
     "src/property-details.h",

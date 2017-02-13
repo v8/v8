@@ -1065,14 +1065,31 @@ class V8_EXPORT_PRIVATE Constant final {
   }
 
   float ToFloat32() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     DCHECK_EQ(kFloat32, type());
     return bit_cast<float>(static_cast<int32_t>(value_));
   }
 
+  uint32_t ToFloat32AsInt() const {
+    DCHECK_EQ(kFloat32, type());
+    return bit_cast<uint32_t>(static_cast<int32_t>(value_));
+  }
+
   double ToFloat64() const {
+    // TODO(ahaas): We should remove this function. If value_ has the bit
+    // representation of a signalling NaN, then returning it as float can cause
+    // the signalling bit to flip, and value_ is returned as a quiet NaN.
     if (type() == kInt32) return ToInt32();
     DCHECK_EQ(kFloat64, type());
     return bit_cast<double>(value_);
+  }
+
+  uint64_t ToFloat64AsInt() const {
+    if (type() == kInt32) return ToInt32();
+    DCHECK_EQ(kFloat64, type());
+    return bit_cast<uint64_t>(value_);
   }
 
   ExternalReference ToExternalReference() const {
@@ -1105,6 +1122,7 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant);
 class FrameStateDescriptor;
 
 enum class StateValueKind : uint8_t {
+  kArguments,
   kPlain,
   kOptimizedOut,
   kNested,
@@ -1118,6 +1136,10 @@ class StateValueDescriptor {
         type_(MachineType::AnyTagged()),
         id_(0) {}
 
+  static StateValueDescriptor Arguments() {
+    return StateValueDescriptor(StateValueKind::kArguments,
+                                MachineType::AnyTagged(), 0);
+  }
   static StateValueDescriptor Plain(MachineType type) {
     return StateValueDescriptor(StateValueKind::kPlain, type, 0);
   }
@@ -1134,10 +1156,11 @@ class StateValueDescriptor {
                                 MachineType::AnyTagged(), id);
   }
 
-  int IsPlain() { return kind_ == StateValueKind::kPlain; }
-  int IsOptimizedOut() { return kind_ == StateValueKind::kOptimizedOut; }
-  int IsNested() { return kind_ == StateValueKind::kNested; }
-  int IsDuplicate() { return kind_ == StateValueKind::kDuplicate; }
+  bool IsArguments() const { return kind_ == StateValueKind::kArguments; }
+  bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
+  bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
+  bool IsNested() const { return kind_ == StateValueKind::kNested; }
+  bool IsDuplicate() const { return kind_ == StateValueKind::kDuplicate; }
   MachineType type() const { return type_; }
   size_t id() const { return id_; }
 
@@ -1206,6 +1229,7 @@ class StateValueList {
     nested_.push_back(nested);
     return nested;
   }
+  void PushArguments() { fields_.push_back(StateValueDescriptor::Arguments()); }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));
   }

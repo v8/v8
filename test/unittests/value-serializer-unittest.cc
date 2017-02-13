@@ -54,6 +54,17 @@ class ValueSerializerTest : public TestWithIsolate {
           .ToChecked();
     }
     host_object_constructor_template_ = function_template;
+    isolate_ = reinterpret_cast<i::Isolate*>(isolate());
+  }
+
+  ~ValueSerializerTest() {
+    // In some cases unhandled scheduled exceptions from current test produce
+    // that Context::New(isolate()) from next test's constructor returns NULL.
+    // In order to prevent that, we added destructor which will clear scheduled
+    // exceptions just for the current test from test case.
+    if (isolate_->has_scheduled_exception()) {
+      isolate_->clear_scheduled_exception();
+    }
   }
 
   const Local<Context>& serialization_context() {
@@ -256,6 +267,7 @@ class ValueSerializerTest : public TestWithIsolate {
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
   Local<FunctionTemplate> host_object_constructor_template_;
+  i::Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(ValueSerializerTest);
 };
@@ -455,6 +467,24 @@ TEST_F(ValueSerializerTest, DecodeString) {
                EXPECT_EQ(kEmojiString, Utf8Value(value));
              });
 
+  // And from Latin-1 (for the ones that fit).
+  DecodeTest({0xff, 0x0a, 0x22, 0x00}, [](Local<Value> value) {
+    ASSERT_TRUE(value->IsString());
+    EXPECT_EQ(0, String::Cast(*value)->Length());
+  });
+  DecodeTest({0xff, 0x0a, 0x22, 0x05, 'H', 'e', 'l', 'l', 'o'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(5, String::Cast(*value)->Length());
+               EXPECT_EQ(kHelloString, Utf8Value(value));
+             });
+  DecodeTest({0xff, 0x0a, 0x22, 0x06, 'Q', 'u', 0xe9, 'b', 'e', 'c'},
+             [](Local<Value> value) {
+               ASSERT_TRUE(value->IsString());
+               EXPECT_EQ(6, String::Cast(*value)->Length());
+               EXPECT_EQ(kQuebecString, Utf8Value(value));
+             });
+
 // And from two-byte strings (endianness dependent).
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x63, 0x00},
@@ -489,6 +519,8 @@ TEST_F(ValueSerializerTest, DecodeString) {
 TEST_F(ValueSerializerTest, DecodeInvalidString) {
   // UTF-8 string with too few bytes available.
   InvalidDecodeTest({0xff, 0x09, 0x53, 0x10, 'v', '8'});
+  // One-byte string with too few bytes available.
+  InvalidDecodeTest({0xff, 0x0a, 0x22, 0x10, 'v', '8'});
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   // Two-byte string with too few bytes available.
   InvalidDecodeTest({0xff, 0x09, 0x63, 0x10, 'v', '\0', '8', '\0'});
@@ -513,12 +545,16 @@ TEST_F(ValueSerializerTest, EncodeTwoByteStringUsesPadding) {
         return StringFromUtf8(string.c_str());
       },
       [](const std::vector<uint8_t>& data) {
-        // This is a sufficient but not necessary condition to be aligned.
-        // Note that the third byte (0x00) is padding.
-        const uint8_t expected_prefix[] = {0xff, 0x09, 0x00, 0x63, 0x94, 0x03};
-        ASSERT_GT(data.size(), sizeof(expected_prefix) / sizeof(uint8_t));
+        // This is a sufficient but not necessary condition. This test assumes
+        // that the wire format version is one byte long, but is flexible to
+        // what that value may be.
+        const uint8_t expected_prefix[] = {0x00, 0x63, 0x94, 0x03};
+        ASSERT_GT(data.size(), sizeof(expected_prefix) + 2);
+        EXPECT_EQ(0xff, data[0]);
+        EXPECT_GE(data[1], 0x09);
+        EXPECT_LE(data[1], 0x7f);
         EXPECT_TRUE(std::equal(std::begin(expected_prefix),
-                               std::end(expected_prefix), data.begin()));
+                               std::end(expected_prefix), data.begin() + 2));
       });
 }
 
@@ -1178,7 +1214,7 @@ TEST_F(ValueSerializerTest, RoundTripArrayWithTrickyGetters) {
 TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
   // Empty (sparse) array.
   DecodeTestForVersion0({0x40, 0x00, 0x00, 0x00},
-                        [this](Local<Value> value) {
+                        [](Local<Value> value) {
                           ASSERT_TRUE(value->IsArray());
                           ASSERT_EQ(0u, Array::Cast(*value)->Length());
                         });
@@ -1209,17 +1245,47 @@ TEST_F(ValueSerializerTest, DecodeSparseArrayVersion0) {
       });
 }
 
+TEST_F(ValueSerializerTest, RoundTripDenseArrayContainingUndefined) {
+  // In previous serialization versions, this would be interpreted as an absent
+  // property.
+  RoundTripTest("[undefined]", [this](Local<Value> value) {
+    ASSERT_TRUE(value->IsArray());
+    EXPECT_EQ(1u, Array::Cast(*value)->Length());
+    EXPECT_TRUE(EvaluateScriptForResultBool("result.hasOwnProperty(0)"));
+    EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === undefined"));
+  });
+}
+
+TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
+  // In previous versions, "undefined" in a dense array signified absence of the
+  // element (for compatibility). In new versions, it has a separate encoding.
+  DecodeTest({0xff, 0x09, 0x41, 0x01, 0x5f, 0x24, 0x00, 0x01},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
+             });
+  DecodeTest(
+      {0xff, 0x0b, 0x41, 0x01, 0x5f, 0x24, 0x00, 0x01},
+      [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool("0 in result"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result[0] === undefined"));
+      });
+  DecodeTest({0xff, 0x0b, 0x41, 0x01, 0x2d, 0x24, 0x00, 0x01},
+             [this](Local<Value> value) {
+               EXPECT_TRUE(EvaluateScriptForResultBool("!(0 in result)"));
+             });
+}
+
 TEST_F(ValueSerializerTest, RoundTripDate) {
-  RoundTripTest("new Date(1e6)", [this](Local<Value> value) {
+  RoundTripTest("new Date(1e6)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
     EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
   });
-  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [this](Local<Value> value) {
+  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
   });
-  RoundTripTest("new Date(NaN)", [this](Local<Value> value) {
+  RoundTripTest("new Date(NaN)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
   });
@@ -1235,7 +1301,7 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
               0x2e, 0x41, 0x00},
-             [this](Local<Value> value) {
+             [](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
                EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
@@ -1243,13 +1309,13 @@ TEST_F(ValueSerializerTest, DecodeDate) {
   DecodeTest(
       {0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89, 0x87,
        0xc2, 0x00},
-      [this](Local<Value> value) {
+      [](Local<Value> value) {
         ASSERT_TRUE(value->IsDate());
         EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
       });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
               0xf8, 0x7f, 0x00},
-             [this](Local<Value> value) {
+             [](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_TRUE(std::isnan(Date::Cast(*value)->ValueOf()));
              });
@@ -1742,6 +1808,38 @@ TEST_F(ValueSerializerTest, DecodeArrayBuffer) {
 
 TEST_F(ValueSerializerTest, DecodeInvalidArrayBuffer) {
   InvalidDecodeTest({0xff, 0x09, 0x42, 0xff, 0xff, 0x00});
+}
+
+// An array buffer allocator that never has available memory.
+class OOMArrayBufferAllocator : public ArrayBuffer::Allocator {
+ public:
+  void* Allocate(size_t) override { return nullptr; }
+  void* AllocateUninitialized(size_t) override { return nullptr; }
+  void Free(void*, size_t) override {}
+};
+
+TEST_F(ValueSerializerTest, DecodeArrayBufferOOM) {
+  // This test uses less of the harness, because it has to customize the
+  // isolate.
+  OOMArrayBufferAllocator allocator;
+  Isolate::CreateParams params;
+  params.array_buffer_allocator = &allocator;
+  Isolate* isolate = Isolate::New(params);
+  Isolate::Scope isolate_scope(isolate);
+  HandleScope handle_scope(isolate);
+  Local<Context> context = Context::New(isolate);
+  Context::Scope context_scope(context);
+  TryCatch try_catch(isolate);
+
+  const std::vector<uint8_t> data = {0xff, 0x09, 0x3f, 0x00, 0x42,
+                                     0x03, 0x00, 0x80, 0xff, 0x00};
+  ValueDeserializer deserializer(isolate, &data[0],
+                                 static_cast<int>(data.size()), nullptr);
+  deserializer.SetSupportsLegacyWireFormat(true);
+  ASSERT_TRUE(deserializer.ReadHeader(context).FromMaybe(false));
+  ASSERT_FALSE(try_catch.HasCaught());
+  EXPECT_TRUE(deserializer.ReadValue(context).IsEmpty());
+  EXPECT_TRUE(try_catch.HasCaught());
 }
 
 // Includes an ArrayBuffer wrapper marked for transfer from the serialization

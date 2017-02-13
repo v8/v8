@@ -131,16 +131,6 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
 
 // -------------------------------------------------------------------------
 
-JavaScriptFrameIterator::JavaScriptFrameIterator(Isolate* isolate,
-                                                 StackFrame::Id id)
-    : iterator_(isolate) {
-  while (!done()) {
-    Advance();
-    if (frame()->id() == id) return;
-  }
-}
-
-
 void JavaScriptFrameIterator::Advance() {
   do {
     iterator_.Advance();
@@ -1263,12 +1253,15 @@ FrameSummary::~FrameSummary() {
 #undef FRAME_SUMMARY_DESTR
 }
 
-FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
-  DCHECK_LE(0, index);
+FrameSummary FrameSummary::GetTop(const StandardFrame* frame) {
   List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
-  DCHECK_GT(frames.length(), index);
-  return frames[index];
+  DCHECK_LT(0, frames.length());
+  return frames.last();
+}
+
+FrameSummary FrameSummary::GetBottom(const StandardFrame* frame) {
+  return Get(frame, 0);
 }
 
 FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
@@ -1276,6 +1269,14 @@ FrameSummary FrameSummary::GetSingle(const StandardFrame* frame) {
   frame->Summarize(&frames);
   DCHECK_EQ(1, frames.length());
   return frames.first();
+}
+
+FrameSummary FrameSummary::Get(const StandardFrame* frame, int index) {
+  DCHECK_LE(0, index);
+  List<FrameSummary> frames(FLAG_max_inlining_levels + 1);
+  frame->Summarize(&frames);
+  DCHECK_GT(frames.length(), index);
+  return frames[index];
 }
 
 #define FRAME_SUMMARY_DISPATCH(ret, name)        \
@@ -1752,7 +1753,7 @@ void WasmInterpreterEntryFrame::Iterate(ObjectVisitor* v) const {
 void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
                                       int index) const {
   PrintIndex(accumulator, mode, index);
-  accumulator->Add("WASM TO INTERPRETER [");
+  accumulator->Add("WASM INTERPRETER ENTRY [");
   Script* script = this->script();
   accumulator->PrintName(script->name());
   accumulator->Add("]");
@@ -1761,8 +1762,15 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
 
 void WasmInterpreterEntryFrame::Summarize(List<FrameSummary>* functions,
                                           FrameSummary::Mode mode) const {
-  // TODO(clemensh): Implement this.
-  UNIMPLEMENTED();
+  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  std::vector<std::pair<uint32_t, int>> interpreted_stack =
+      instance->debug_info()->GetInterpretedStack(fp());
+
+  for (auto& e : interpreted_stack) {
+    FrameSummary::WasmInterpretedFrameSummary summary(isolate(), instance,
+                                                      e.first, e.second);
+    functions->Add(summary);
+  }
 }
 
 Code* WasmInterpreterEntryFrame::unchecked_code() const {
@@ -1781,7 +1789,7 @@ Script* WasmInterpreterEntryFrame::script() const {
 }
 
 int WasmInterpreterEntryFrame::position() const {
-  return FrameSummary::GetFirst(this).AsWasmInterpreted().SourcePosition();
+  return FrameSummary::GetBottom(this).AsWasmInterpreted().SourcePosition();
 }
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {

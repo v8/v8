@@ -34,9 +34,15 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
   EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
   if (strlen(debug_name.get()) > 0) {
-    SNPrintF(filename, "turbo-%s", debug_name.get());
+    if (info->has_shared_info()) {
+      int attempt = info->shared_info()->opt_count();
+      SNPrintF(filename, "turbo-%s-%i", debug_name.get(), attempt);
+    } else {
+      SNPrintF(filename, "turbo-%s", debug_name.get());
+    }
   } else if (info->has_shared_info()) {
-    SNPrintF(filename, "turbo-%p", static_cast<void*>(info));
+    int attempt = info->shared_info()->opt_count();
+    SNPrintF(filename, "turbo-%p-%i", static_cast<void*>(info), attempt);
   } else {
     SNPrintF(filename, "turbo-none-%s", phase);
   }

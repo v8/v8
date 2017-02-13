@@ -7,7 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
-#include "src/ic/accessor-assembler-impl.h"
+#include "src/ic/accessor-assembler.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
 
@@ -16,10 +16,10 @@ namespace internal {
 
 using compiler::Node;
 
-class KeyedStoreGenericAssembler : public AccessorAssemblerImpl {
+class KeyedStoreGenericAssembler : public AccessorAssembler {
  public:
   explicit KeyedStoreGenericAssembler(compiler::CodeAssemblerState* state)
-      : AccessorAssemblerImpl(state) {}
+      : AccessorAssembler(state) {}
 
   void KeyedStoreGeneric(LanguageMode language_mode);
 
@@ -461,6 +461,8 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
 
   // Out-of-capacity accesses (index >= capacity) jump here. Additionally,
   // an ElementsKind transition might be necessary.
+  // The index can also be negative at this point! Jump to the runtime in that
+  // case to convert it to a named property.
   Bind(&if_grow);
   {
     Comment("Grow backing store");
@@ -727,20 +729,17 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   Bind(&stub_cache);
   {
     Comment("stub cache probe");
+    // The stub cache lookup is opportunistic: if we find a handler, use it;
+    // otherwise take the slow path. Since this is a generic stub, compiling
+    // a handler (as KeyedStoreIC_Miss would do) is probably a waste of time.
     Variable var_handler(this, MachineRepresentation::kTagged);
-    Label found_handler(this, &var_handler), stub_cache_miss(this);
+    Label found_handler(this, &var_handler);
     TryProbeStubCache(isolate()->store_stub_cache(), receiver, p->name,
-                      &found_handler, &var_handler, &stub_cache_miss);
+                      &found_handler, &var_handler, slow);
     Bind(&found_handler);
     {
       Comment("KeyedStoreGeneric found handler");
       HandleStoreICHandlerCase(p, var_handler.value(), slow);
-    }
-    Bind(&stub_cache_miss);
-    {
-      Comment("KeyedStoreGeneric_miss");
-      TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value,
-                      p->slot, p->vector, p->receiver, p->name);
     }
   }
 }
@@ -756,6 +755,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
   Node* context = Parameter(Descriptor::kContext);
 
   Variable var_index(this, MachineType::PointerRepresentation());
+  Variable var_unique(this, MachineRepresentation::kTagged);
+  var_unique.Bind(name);  // Dummy initialization.
   Label if_index(this), if_unique_name(this), slow(this);
 
   GotoIf(TaggedIsSmi(receiver), &slow);
@@ -767,7 +768,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
                               Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
          &slow);
 
-  TryToName(name, &if_index, &var_index, &if_unique_name, &slow);
+  TryToName(name, &if_index, &var_index, &if_unique_name, &var_unique, &slow);
 
   Bind(&if_index);
   {
@@ -779,8 +780,8 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(LanguageMode language_mode) {
   Bind(&if_unique_name);
   {
     Comment("key is unique name");
-    KeyedStoreGenericAssembler::StoreICParameters p(context, receiver, name,
-                                                    value, slot, vector);
+    StoreICParameters p(context, receiver, var_unique.value(), value, slot,
+                        vector);
     EmitGenericPropertyStore(receiver, receiver_map, &p, &slow, language_mode);
   }
 

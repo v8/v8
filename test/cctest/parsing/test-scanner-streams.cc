@@ -132,6 +132,13 @@ TEST(Utf8StreamBOM) {
 
   stream->Seek(5);
   CHECK_EQ(unicode_ucs2[5], stream->Advance());
+
+  // Try again, but make sure we have to seek 'backwards'.
+  while (v8::internal::Utf16CharacterStream::kEndOfInput != stream->Advance()) {
+    // Do nothing. We merely advance the stream to the end of its input.
+  }
+  stream->Seek(5);
+  CHECK_EQ(unicode_ucs2[5], stream->Advance());
 }
 
 TEST(Utf8SplitBOM) {

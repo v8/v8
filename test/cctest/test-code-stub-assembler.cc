@@ -8,7 +8,6 @@
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
 #include "src/isolate.h"
-#include "src/promise-utils.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 
@@ -181,47 +180,6 @@ TEST(ToString) {
   }
 }
 
-TEST(FlattenString) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-  const int kNumParams = 1;
-  CodeAssemblerTester data(isolate, kNumParams);
-  CodeStubAssembler m(data.state());
-  m.Return(m.FlattenString(m.Parameter(0)));
-
-  Handle<Code> code = data.GenerateCode();
-  FunctionTester ft(code, kNumParams);
-
-  Handle<FixedArray> test_cases(isolate->factory()->NewFixedArray(4));
-  Handle<String> expected(
-      isolate->factory()->InternalizeUtf8String("hello, world!"));
-  test_cases->set(0, *expected);
-
-  Handle<String> string(
-      isolate->factory()->InternalizeUtf8String("filler hello, world! filler"));
-  Handle<String> sub_string(
-      isolate->factory()->NewProperSubString(string, 7, 20));
-  test_cases->set(1, *sub_string);
-
-  Handle<String> hello(isolate->factory()->InternalizeUtf8String("hello,"));
-  Handle<String> world(isolate->factory()->InternalizeUtf8String(" world!"));
-  Handle<String> cons_str(
-      isolate->factory()->NewConsString(hello, world).ToHandleChecked());
-  test_cases->set(2, *cons_str);
-
-  Handle<String> empty(isolate->factory()->InternalizeUtf8String(""));
-  Handle<String> fake_cons_str(
-      isolate->factory()->NewConsString(expected, empty).ToHandleChecked());
-  test_cases->set(3, *fake_cons_str);
-
-  for (int i = 0; i < 4; ++i) {
-    Handle<String> test = handle(String::cast(test_cases->get(i)));
-    Handle<Object> result = ft.Call(test).ToHandleChecked();
-    CHECK(result->IsString());
-    CHECK(Handle<String>::cast(result)->IsFlat());
-    CHECK(String::Equals(Handle<String>::cast(result), expected));
-  }
-}
-
 TEST(TryToName) {
   typedef CodeAssemblerLabel Label;
   typedef CodeAssemblerVariable Variable;
@@ -239,22 +197,26 @@ TEST(TryToName) {
 
     Label passed(&m), failed(&m);
     Label if_keyisindex(&m), if_keyisunique(&m), if_bailout(&m);
-    Variable var_index(&m, MachineType::PointerRepresentation());
+    {
+      Variable var_index(&m, MachineType::PointerRepresentation());
+      Variable var_unique(&m, MachineRepresentation::kTagged);
 
-    m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &if_bailout);
+      m.TryToName(key, &if_keyisindex, &var_index, &if_keyisunique, &var_unique,
+                  &if_bailout);
 
-    m.Bind(&if_keyisindex);
-    m.GotoUnless(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
-        &failed);
-    m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()), &passed,
-             &failed);
+      m.Bind(&if_keyisindex);
+      m.GotoUnless(m.WordEqual(expected_result,
+                               m.SmiConstant(Smi::FromInt(kKeyIsIndex))),
+                   &failed);
+      m.Branch(m.WordEqual(m.SmiUntag(expected_arg), var_index.value()),
+               &passed, &failed);
 
-    m.Bind(&if_keyisunique);
-    m.GotoUnless(
-        m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
-        &failed);
-    m.Branch(m.WordEqual(expected_arg, key), &passed, &failed);
+      m.Bind(&if_keyisunique);
+      m.GotoUnless(m.WordEqual(expected_result,
+                               m.SmiConstant(Smi::FromInt(kKeyIsUnique))),
+                   &failed);
+      m.Branch(m.WordEqual(expected_arg, var_unique.value()), &passed, &failed);
+    }
 
     m.Bind(&if_bailout);
     m.Branch(
@@ -349,6 +311,23 @@ TEST(TryToName) {
     // TryToName(<non-internalized string>) => bailout.
     Handle<Object> key = isolate->factory()->NewStringFromAsciiChecked("test");
     ft.CheckTrue(key, expect_bailout);
+  }
+
+  if (FLAG_thin_strings) {
+    // TryToName(<thin string>) => internalized version.
+    Handle<String> s = isolate->factory()->NewStringFromAsciiChecked("foo");
+    Handle<String> internalized = isolate->factory()->InternalizeString(s);
+    ft.CheckTrue(s, expect_unique, internalized);
+  }
+
+  if (FLAG_thin_strings) {
+    // TryToName(<thin two-byte string>) => internalized version.
+    uc16 array1[] = {2001, 2002, 2003};
+    Vector<const uc16> str1(array1);
+    Handle<String> s =
+        isolate->factory()->NewStringFromTwoByte(str1).ToHandleChecked();
+    Handle<String> internalized = isolate->factory()->InternalizeString(s);
+    ft.CheckTrue(s, expect_unique, internalized);
   }
 }
 
@@ -1527,7 +1506,7 @@ TEST(Arguments) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.Int32Constant(3));
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CSA_ASSERT(
       &m, m.WordEqual(arguments.AtIndex(0), m.SmiConstant(Smi::FromInt(12))));
@@ -1557,7 +1536,7 @@ TEST(ArgumentsForEach) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  CodeStubArguments arguments(&m, m.Int32Constant(3));
+  CodeStubArguments arguments(&m, m.IntPtrConstant(3));
 
   CodeAssemblerVariable sum(&m, MachineRepresentation::kTagged);
   CodeAssemblerVariableList list({&sum}, m.zone());
@@ -1637,7 +1616,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     JSObject::SetElement(isolate, array, 1,
                          Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
         .Check();
-    CodeStubArguments args(this, Int32Constant(kNumParams));
+    CodeStubArguments args(this, IntPtrConstant(kNumParams));
     Variable arg_index(this, MachineType::PointerRepresentation());
     Label bailout(this);
     arg_index.Bind(IntPtrConstant(0));
@@ -1770,7 +1749,7 @@ TEST(IsPromiseHookEnabled) {
   CodeAssemblerTester data(isolate, kNumParams);
   CodeStubAssembler m(data.state());
 
-  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabled()));
+  m.Return(m.SelectBooleanConstant(m.IsPromiseHookEnabledOrDebugIsActive()));
 
   Handle<Code> code = data.GenerateCode();
   CHECK(!code.is_null());
@@ -1868,7 +1847,6 @@ TEST(AllocatePromiseReactionJobInfo) {
   CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
   CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
   CHECK(promise_info->context()->IsContext());
-  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
 }
 
 TEST(AllocatePromiseResolveThenableJobInfo) {
@@ -1907,7 +1885,6 @@ TEST(AllocatePromiseResolveThenableJobInfo) {
   CHECK(promise_info->then()->IsJSFunction());
   CHECK(promise_info->resolve()->IsJSFunction());
   CHECK(promise_info->reject()->IsJSFunction());
-  CHECK_EQ(kDebugPromiseNoID, promise_info->debug_id());
   CHECK(promise_info->context()->IsContext());
 }
 
@@ -2005,10 +1982,11 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
   CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK_EQ(Smi::FromInt(0), context_js->get(PromiseUtils::kAlreadyVisitedSlot));
-  CHECK(context_js->get(PromiseUtils::kPromiseSlot)->IsJSPromise());
+  CHECK_EQ(Smi::FromInt(0),
+           context_js->get(PromiseBuiltinsAssembler::kAlreadyVisitedSlot));
+  CHECK(context_js->get(PromiseBuiltinsAssembler::kPromiseSlot)->IsJSPromise());
   CHECK_EQ(isolate->heap()->false_value(),
-           context_js->get(PromiseUtils::kDebugEventSlot));
+           context_js->get(PromiseBuiltinsAssembler::kDebugEventSlot));
 }
 
 TEST(CreatePromiseResolvingFunctions) {
@@ -2138,7 +2116,8 @@ TEST(AllocateFunctionWithMapAndContext) {
   Handle<JSFunction> fun = Handle<JSFunction>::cast(result_obj);
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->properties());
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
-  CHECK_EQ(isolate->heap()->empty_literals_array(), fun->literals());
+  CHECK_EQ(isolate->heap()->empty_type_feedback_vector(),
+           fun->feedback_vector());
   CHECK_EQ(isolate->heap()->the_hole_value(), fun->prototype_or_initial_map());
   CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
   CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());
@@ -2175,11 +2154,12 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
       ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
   CHECK(result_obj->IsContext());
   Handle<Context> context_js = Handle<Context>::cast(result_obj);
-  CHECK_EQ(GetPromiseCapabilityExecutor::kContextLength, context_js->length());
+  CHECK_EQ(PromiseBuiltinsAssembler::kCapabilitiesContextLength,
+           context_js->length());
   CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
   CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK(context_js->get(GetPromiseCapabilityExecutor::kCapabilitySlot)
+  CHECK(context_js->get(PromiseBuiltinsAssembler::kCapabilitySlot)
             ->IsJSPromiseCapability());
 }
 
@@ -2226,8 +2206,10 @@ TEST(NewPromiseCapability) {
       CHECK_EQ(isolate->native_context()->closure(), context->closure());
       CHECK_EQ(isolate->heap()->the_hole_value(), context->extension());
       CHECK_EQ(*isolate->native_context(), context->native_context());
-      CHECK_EQ(PromiseUtils::kPromiseContextLength, context->length());
-      CHECK_EQ(context->get(PromiseUtils::kPromiseSlot), result->promise());
+      CHECK_EQ(PromiseBuiltinsAssembler::kPromiseContextLength,
+               context->length());
+      CHECK_EQ(context->get(PromiseBuiltinsAssembler::kPromiseSlot),
+               result->promise());
     }
   }
 

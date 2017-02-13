@@ -46,6 +46,7 @@ class PlatformInterfaceDescriptor;
   V(CallFunction)                         \
   V(CallFunctionWithFeedback)             \
   V(CallFunctionWithFeedbackAndVector)    \
+  V(CallForwardVarargs)                   \
   V(CallConstruct)                        \
   V(CallTrampoline)                       \
   V(ConstructStub)                        \
@@ -77,6 +78,7 @@ class PlatformInterfaceDescriptor;
   V(StringCharAt)                         \
   V(StringCharCodeAt)                     \
   V(StringCompare)                        \
+  V(StringIndexOf)                        \
   V(SubString)                            \
   V(Keyed)                                \
   V(Named)                                \
@@ -98,6 +100,7 @@ class PlatformInterfaceDescriptor;
   V(InterpreterPushArgsAndConstructArray) \
   V(InterpreterCEntry)                    \
   V(ResumeGenerator)                      \
+  V(FrameDropperTrampoline)               \
   V(PromiseHandleReject)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -560,6 +563,12 @@ class CallTrampolineDescriptor : public CallInterfaceDescriptor {
                                                CallInterfaceDescriptor)
 };
 
+class CallForwardVarargsDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kTarget, kStartIndex)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(CallForwardVarargsDescriptor,
+                                               CallInterfaceDescriptor)
+};
 
 class ConstructStubDescriptor : public CallInterfaceDescriptor {
  public:
@@ -745,6 +754,13 @@ class SubStringDescriptor : public CallInterfaceDescriptor {
                                      CallInterfaceDescriptor)
 };
 
+class StringIndexOfDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kReceiver, kSearchString, kPosition)
+  DECLARE_DEFAULT_DESCRIPTOR(StringIndexOfDescriptor, CallInterfaceDescriptor,
+                             kParameterCount)
+};
+
 // TODO(ishell): not used, remove.
 class KeyedDescriptor : public CallInterfaceDescriptor {
  public:
@@ -874,6 +890,11 @@ class InterpreterCEntryDescriptor : public CallInterfaceDescriptor {
 class ResumeGeneratorDescriptor final : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(ResumeGeneratorDescriptor, CallInterfaceDescriptor)
+};
+
+class FrameDropperTrampolineDescriptor final : public CallInterfaceDescriptor {
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FrameDropperTrampolineDescriptor,
+                                               CallInterfaceDescriptor)
 };
 
 class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {

@@ -3175,6 +3175,9 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
                              rep == MachineRepresentation::kSimd128))
     GetFPRegisterSet(rep, &num_regs, &num_codes, &codes);
 
+  // use_pos keeps track of positions a register/alias is used at.
+  // block_pos keeps track of positions where a register/alias is blocked
+  // from.
   LifetimePosition use_pos[RegisterConfiguration::kMaxFPRegisters];
   LifetimePosition block_pos[RegisterConfiguration::kMaxFPRegisters];
   for (int i = 0; i < num_regs; i++) {
@@ -3190,6 +3193,8 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
         block_pos[cur_reg] = use_pos[cur_reg] =
             LifetimePosition::GapFromInstructionIndex(0);
       } else {
+        DCHECK_NE(LifetimePosition::GapFromInstructionIndex(0),
+                  block_pos[cur_reg]);
         use_pos[cur_reg] =
             range->NextLifetimePositionRegisterIsBeneficial(current->Start());
       }
@@ -3205,7 +3210,9 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
               LifetimePosition::GapFromInstructionIndex(0);
         } else {
           use_pos[aliased_reg] =
-              range->NextLifetimePositionRegisterIsBeneficial(current->Start());
+              Min(block_pos[aliased_reg],
+                  range->NextLifetimePositionRegisterIsBeneficial(
+                      current->Start()));
         }
       }
     }
@@ -3219,10 +3226,12 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
     // Don't perform costly intersections if they are guaranteed to not update
     // block_pos or use_pos.
     // TODO(mtrofin): extend to aliased ranges, too.
-    if ((kSimpleFPAliasing || !check_fp_aliasing()) && is_fixed) {
-      if (block_pos[cur_reg] < range->Start()) continue;
-    } else {
-      if (use_pos[cur_reg] < range->Start()) continue;
+    if ((kSimpleFPAliasing || !check_fp_aliasing())) {
+      if (is_fixed) {
+        if (block_pos[cur_reg] < range->Start()) continue;
+      } else {
+        if (use_pos[cur_reg] < range->Start()) continue;
+      }
     }
 
     LifetimePosition next_intersection = range->FirstIntersection(current);
@@ -3269,8 +3278,32 @@ void LinearScanAllocator::AllocateBlockedReg(LiveRange* current) {
                                                    register_use->pos())) {
       SpillBetween(current, current->Start(), register_use->pos());
     } else {
-      SetLiveRangeAssignedRegister(current, reg);
-      SplitAndSpillIntersecting(current);
+      // We can't spill up to the first register use, because there is no gap
+      // where the fill before the register use may happen. This happens when
+      // there is high register pressure, we are at the beginning of an
+      // instruction, we are the input to that instruction, and we can't hold
+      // on to the register past the instruction (we likely lose due to an
+      // output or a temp).
+      // We give the `reg` register to this range, but then we need to spill
+      // until the next register use, if any.
+      LifetimePosition after_this_reg_use = register_use->pos().NextFullStart();
+      if (after_this_reg_use >= current->End()) {
+        // The range ends at this instruction, since the end is at or before
+        // the next gap. It should follow that there is no other use either.
+        DCHECK_NULL(register_use->next());
+        SetLiveRangeAssignedRegister(current, reg);
+      } else {
+        const UsePosition* next_reg_pos = register_use->next();
+        for (; next_reg_pos != nullptr; next_reg_pos = next_reg_pos->next()) {
+          if (next_reg_pos->type() == UsePositionType::kRequiresRegister) break;
+        }
+        SetLiveRangeAssignedRegister(current, reg);
+        if (next_reg_pos == nullptr) {
+          SpillAfter(current, after_this_reg_use);
+        } else {
+          SpillBetween(current, after_this_reg_use, next_reg_pos->pos());
+        }
+      }
     }
     return;
   }

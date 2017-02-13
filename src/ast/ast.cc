@@ -16,6 +16,7 @@
 #include "src/contexts.h"
 #include "src/conversions.h"
 #include "src/elements.h"
+#include "src/objects/literal-objects.h"
 #include "src/property-details.h"
 #include "src/property.h"
 #include "src/string-stream.h"
@@ -28,6 +29,21 @@ namespace internal {
 // Implementation of other node functionality.
 
 #ifdef DEBUG
+
+static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
+  switch (idx) {
+#define NATIVE_CONTEXT_FIELDS_IDX(NAME, Type, name) \
+  case Context::NAME:                               \
+    return #name;
+
+    NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELDS_IDX)
+
+    default:
+      break;
+  }
+
+  return "UnknownIntrinsicIndex";
+}
 
 void AstNode::Print() { Print(Isolate::Current()); }
 
@@ -202,6 +218,7 @@ void VariableProxy::BindTo(Variable* var) {
   set_var(var);
   set_is_resolved();
   var->set_is_used();
+  if (is_assigned()) var->set_maybe_assigned();
 }
 
 void VariableProxy::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
@@ -412,6 +429,8 @@ bool ObjectLiteral::Property::emit_store() const { return emit_store_; }
 
 void ObjectLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                               FeedbackVectorSlotCache* cache) {
+  MaterializedLiteral::AssignFeedbackVectorSlots(spec, cache);
+
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitObjectLiteral.
   int property_index = 0;
@@ -585,9 +604,31 @@ void ObjectLiteral::InitDepthAndFlags() {
 void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
   if (!constant_properties_.is_null()) return;
 
-  // Allocate a fixed array to hold all the constant properties.
-  Handle<FixedArray> constant_properties =
-      isolate->factory()->NewFixedArray(boilerplate_properties_ * 2, TENURED);
+  int index_keys = 0;
+  bool has_seen_proto = false;
+  for (int i = 0; i < properties()->length(); i++) {
+    ObjectLiteral::Property* property = properties()->at(i);
+    if (!IsBoilerplateProperty(property)) {
+      has_seen_proto = true;
+      continue;
+    }
+    if (property->is_computed_name()) {
+      continue;
+    }
+
+    Handle<Object> key = property->key()->AsLiteral()->value();
+
+    uint32_t element_index = 0;
+    if (key->ToArrayIndex(&element_index) ||
+        (key->IsString() && String::cast(*key)->AsArrayIndex(&element_index))) {
+      index_keys++;
+    }
+  }
+
+  Handle<BoilerplateDescription> constant_properties =
+      isolate->factory()->NewBoilerplateDescription(boilerplate_properties_,
+                                                    properties()->length(),
+                                                    index_keys, has_seen_proto);
 
   int position = 0;
   for (int i = 0; i < properties()->length(); i++) {
@@ -635,6 +676,10 @@ bool ObjectLiteral::IsFastCloningSupported() const {
   return fast_elements() && has_shallow_properties() &&
          properties_count() <= ConstructorBuiltinsAssembler::
                                    kMaximumClonedShallowObjectProperties;
+}
+
+ElementsKind ArrayLiteral::constant_elements_kind() const {
+  return static_cast<ElementsKind>(constant_elements()->elements_kind());
 }
 
 void ArrayLiteral::InitDepthAndFlags() {
@@ -739,6 +784,8 @@ bool ArrayLiteral::IsFastCloningSupported() const {
 
 void ArrayLiteral::AssignFeedbackVectorSlots(FeedbackVectorSpec* spec,
                                              FeedbackVectorSlotCache* cache) {
+  MaterializedLiteral::AssignFeedbackVectorSlots(spec, cache);
+
   // This logic that computes the number of slots needed for vector store
   // ics must mirror FullCodeGenerator::VisitArrayLiteral.
   for (int array_index = 0; array_index < values()->length(); array_index++) {
@@ -1043,6 +1090,14 @@ bool Literal::Match(void* literal1, void* literal2) {
   const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
   return (x->IsString() && y->IsString() && x->AsString() == y->AsString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
+}
+
+const char* CallRuntime::debug_name() {
+#ifdef DEBUG
+  return NameForNativeContextIntrinsicIndex(context_index_);
+#else
+  return is_jsruntime() ? "(context function)" : function_->name;
+#endif  // DEBUG
 }
 
 }  // namespace internal

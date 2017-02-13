@@ -12,8 +12,6 @@
 #include "src/code-stub-assembler.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
-#include "src/ic/accessor-assembler.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic-stats.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
@@ -73,7 +71,7 @@ void CodeStubDescriptor::Initialize(Register stack_parameter_count,
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
   UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
-  int index = stubs->FindEntry(GetKey());
+  int index = stubs->FindEntry(isolate(), GetKey());
   if (index != UnseededNumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
     return true;
@@ -193,8 +191,7 @@ Handle<Code> CodeStub::GetCode() {
   }
 
   Activate(code);
-  DCHECK(!NeedsImmovableCode() ||
-         heap->lo_space()->Contains(code) ||
+  DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code) ||
          heap->code_space()->FirstPage()->Contains(code->address()));
   return Handle<Code>(code, isolate());
 }
@@ -438,11 +435,6 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
                                      GetCodeFlags(), name);
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
-}
-
-void LoadICProtoArrayStub::GenerateAssembly(CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateLoadICProtoArray(
-      state, throw_reference_error_if_nonexistent());
 }
 
 void ElementsTransitionAndStoreStub::GenerateAssembly(
@@ -1619,11 +1611,6 @@ void StoreGlobalStub::GenerateAssembly(
   }
 }
 
-void LoadFieldStub::GenerateAssembly(
-    compiler::CodeAssemblerState* state) const {
-  AccessorAssembler::GenerateLoadField(state);
-}
-
 void KeyedLoadSloppyArgumentsStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   typedef CodeStubAssembler::Label Label;
@@ -1780,25 +1767,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
   code->set_handler_table(*handler_table);
 }
 
-
-void HandlerStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
-  DCHECK(kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC);
-  if (kind() == Code::KEYED_LOAD_IC) {
-    descriptor->Initialize(
-        FUNCTION_ADDR(Runtime_KeyedLoadIC_MissFromStubFailure));
-  }
-}
-
-
-CallInterfaceDescriptor HandlerStub::GetCallInterfaceDescriptor() const {
-  if (kind() == Code::LOAD_IC || kind() == Code::KEYED_LOAD_IC) {
-    return LoadWithVectorDescriptor(isolate());
-  } else {
-    DCHECK(kind() == Code::STORE_IC || kind() == Code::KEYED_STORE_IC);
-    return StoreWithVectorDescriptor(isolate());
-  }
-}
-
 void TransitionElementsKindStub::InitializeDescriptor(
     CodeStubDescriptor* descriptor) {
   descriptor->Initialize(
@@ -1873,7 +1841,7 @@ void GetPropertyStub::GenerateAssembly(
       };
 
   CodeStubAssembler::LookupInHolder lookup_element_in_holder =
-      [&assembler, context, &var_result, &end](
+      [&assembler](
           Node* receiver, Node* holder, Node* holder_map,
           Node* holder_instance_type, Node* index, Label* next_holder,
           Label* if_bailout) {

@@ -382,3 +382,32 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(3, instance.exports.mem_size());
   assertEquals(3*kPageSize, instance.exports.exported_mem.buffer.byteLength);
 })();
+
+(function TestImportTooLarge() {
+  print("TestImportTooLarge");
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "m", 1, 2);
+
+  // initial size is too large
+  assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 3, maximum: 3})}}));
+
+  // maximum size is too large
+  assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 1, maximum: 4})}}));
+
+  // no maximum
+  assertThrows(() => builder.instantiate({m: {m: new WebAssembly.Memory({initial: 1})}}));
+})();
+
+(function TestMemoryGrowDetachBuffer() {
+  print("TestMemoryGrowDetachBuffer");
+  let memory = new WebAssembly.Memory({initial: 1, maximum: 5});
+  var builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem");
+  let instance = builder.instantiate({m: {imported_mem: memory}});
+  let buffer = memory.buffer;
+  assertEquals(kPageSize, buffer.byteLength);
+  assertEquals(1, memory.grow(2));
+  assertTrue(buffer !== memory.buffer);
+  assertEquals(0, buffer.byteLength);
+  assertEquals(3*kPageSize, memory.buffer.byteLength);
+})();

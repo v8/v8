@@ -5,14 +5,17 @@
 #ifndef V8_WASM_OBJECTS_H_
 #define V8_WASM_OBJECTS_H_
 
+#include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/objects-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/managed.h"
+#include "src/wasm/wasm-limits.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+class InterpretedFrame;
 struct WasmModule;
 }
 
@@ -34,6 +37,10 @@ class WasmInstanceWrapper;
 #define DECLARE_OPTIONAL_ACCESSORS(name, type) \
   bool has_##name();                           \
   DECLARE_ACCESSORS(name, type)
+
+#define DECLARE_OPTIONAL_GETTER(name, type) \
+  bool has_##name();                        \
+  DECLARE_GETTER(name, type)
 
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
@@ -60,10 +67,11 @@ class WasmTableObject : public JSObject {
 
   FixedArray* dispatch_tables();
   uint32_t current_length();
-  uint32_t maximum_length();
+  bool has_maximum_length();
+  int64_t maximum_length();  // Returns < 0 if no maximum.
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
-                                     uint32_t maximum,
+                                     int64_t maximum,
                                      Handle<FixedArray>* js_functions);
   static void Grow(Isolate* isolate, Handle<WasmTableObject> table,
                    uint32_t count);
@@ -86,11 +94,12 @@ class WasmMemoryObject : public JSObject {
   void AddInstance(Isolate* isolate, Handle<WasmInstanceObject> object);
   void ResetInstancesLink(Isolate* isolate);
   uint32_t current_pages();
-  int32_t maximum_pages();  // returns < 0 if there is no maximum
+  bool has_maximum_pages();
+  int32_t maximum_pages();  // Returns < 0 if there is no maximum.
 
   static Handle<WasmMemoryObject> New(Isolate* isolate,
                                       Handle<JSArrayBuffer> buffer,
-                                      int maximum);
+                                      int32_t maximum);
 
   static bool Grow(Isolate* isolate, Handle<WasmMemoryObject> memory,
                    uint32_t count);
@@ -155,6 +164,7 @@ class WasmSharedModuleData : public FixedArray {
     kModuleBytes,
     kScript,
     kAsmJsOffsetTable,
+    kBreakPointInfos,
     kFieldCount
   };
 
@@ -165,6 +175,7 @@ class WasmSharedModuleData : public FixedArray {
   DECLARE_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString);
   DECLARE_GETTER(script, Script);
   DECLARE_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray);
+  DECLARE_OPTIONAL_GETTER(breakpoint_infos, FixedArray);
 
   static Handle<WasmSharedModuleData> New(
       Isolate* isolate, Handle<Foreign> module_wrapper,
@@ -174,8 +185,14 @@ class WasmSharedModuleData : public FixedArray {
   // Check whether this module was generated from asm.js source.
   bool is_asm_js();
 
-  // Recreate the ModuleWrapper from the module bytes after deserialization.
-  static void RecreateModuleWrapper(Isolate*, Handle<WasmSharedModuleData>);
+  static void ReinitializeAfterDeserialization(Isolate*,
+                                               Handle<WasmSharedModuleData>);
+
+  static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
+                            Handle<Object> break_point_object);
+
+  static void SetBreakpointsOnNewInstance(Handle<WasmSharedModuleData>,
+                                          Handle<WasmInstanceObject>);
 };
 
 class WasmCompiledModule : public FixedArray {
@@ -237,20 +254,21 @@ class WasmCompiledModule : public FixedArray {
     return handle(TYPE::cast(weak_##NAME()->value()));                      \
   }
 
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                \
-  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)    \
-  MACRO(OBJECT, Context, native_context)              \
-  MACRO(OBJECT, FixedArray, code_table)               \
-  MACRO(OBJECT, FixedArray, weak_exported_functions)  \
-  MACRO(OBJECT, FixedArray, function_tables)          \
-  MACRO(OBJECT, FixedArray, signature_tables)         \
-  MACRO(OBJECT, FixedArray, empty_function_tables)    \
-  MACRO(OBJECT, JSArrayBuffer, memory)                \
-  MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)        \
-  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)        \
-  MACRO(WEAK_LINK, WasmCompiledModule, next_instance) \
-  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance) \
-  MACRO(WEAK_LINK, JSObject, owning_instance)         \
+#define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
+  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)      \
+  MACRO(OBJECT, Context, native_context)                \
+  MACRO(SMALL_NUMBER, uint32_t, num_imported_functions) \
+  MACRO(OBJECT, FixedArray, code_table)                 \
+  MACRO(OBJECT, FixedArray, weak_exported_functions)    \
+  MACRO(OBJECT, FixedArray, function_tables)            \
+  MACRO(OBJECT, FixedArray, signature_tables)           \
+  MACRO(OBJECT, FixedArray, empty_function_tables)      \
+  MACRO(OBJECT, JSArrayBuffer, memory)                  \
+  MACRO(SMALL_NUMBER, uint32_t, min_mem_pages)          \
+  MACRO(SMALL_NUMBER, uint32_t, max_mem_pages)          \
+  MACRO(WEAK_LINK, WasmCompiledModule, next_instance)   \
+  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)   \
+  MACRO(WEAK_LINK, JSObject, owning_instance)           \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
 #if DEBUG
@@ -307,9 +325,8 @@ class WasmCompiledModule : public FixedArray {
 
   void PrintInstancesChain();
 
-  // Recreate the ModuleWrapper from the module bytes after deserialization.
-  static void RecreateModuleWrapper(Isolate* isolate,
-                                    Handle<WasmCompiledModule> compiled_module);
+  static void ReinitializeAfterDeserialization(Isolate*,
+                                               Handle<WasmCompiledModule>);
 
   // Get the function name of the function identified by the given index.
   // Returns a null handle if the function is unnamed or the name is not a valid
@@ -371,6 +388,19 @@ class WasmCompiledModule : public FixedArray {
                               const debug::Location& end,
                               std::vector<debug::Location>* locations);
 
+  // Set a breakpoint on the given byte position inside the given module.
+  // This will affect all live and future instances of the module.
+  // The passed position might be modified to point to the next breakable
+  // location inside the same function.
+  // If it points outside a function, or behind the last breakable location,
+  // this function returns false and does not set any breakpoint.
+  static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
+                            Handle<Object> break_point_object);
+
+  // Return an empty handle if no breakpoint is hit at that location, or a
+  // FixedArray with all hit breakpoint objects.
+  MaybeHandle<FixedArray> CheckBreakPoints(int position);
+
  private:
   void InitId();
 
@@ -393,8 +423,17 @@ class WasmDebugInfo : public FixedArray {
 
   static void SetBreakpoint(Handle<WasmDebugInfo>, int func_index, int offset);
 
-  static void RunInterpreter(Handle<WasmDebugInfo>, int func_index,
-                             uint8_t* arg_buffer);
+  void PrepareStep(StepAction);
+
+  void RunInterpreter(int func_index, uint8_t* arg_buffer);
+
+  // Get the stack of the wasm interpreter as pairs of <function index, byte
+  // offset>. The list is ordered bottom-to-top, i.e. caller before callee.
+  std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
+      Address frame_pointer);
+
+  std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
+      Address frame_pointer, int idx);
 
   DECLARE_GETTER(wasm_instance, WasmInstanceObject);
 };

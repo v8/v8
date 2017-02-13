@@ -8,7 +8,7 @@
   "total": true,
   "resources": ["base.js"],
   "tests": [
-        {
+    {
       "name": "Array pattern destructuring",
       "path": ["SixSpeed/array_destructuring"],
       "main": "run.js",
@@ -49,6 +49,22 @@
         {"name": "Spread-ES5"},
         {"name": "Spread-Traceur"},
         {"name": "Spread-ES6"}
+      ]
+    },
+    {
+      "name": "SuperSpread",
+      "path": ["SixSpeed/super_spread"],
+      "main": "run.js",
+      "resources": [
+        "run.js",
+        "super_spread.js"
+      ],
+      "flags": ["--future"],
+      "results_regexp": "^%s\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "SuperSpread-ES5"},
+        {"name": "SuperSpread-Babel"},
+        {"name": "SuperSpread-ES6"}
       ]
     }
   ]

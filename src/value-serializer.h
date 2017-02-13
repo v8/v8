@@ -86,7 +86,7 @@ class ValueSerializer {
 
  private:
   // Managing allocations of the internal buffer.
-  void ExpandBuffer(size_t required_capacity);
+  Maybe<bool> ExpandBuffer(size_t required_capacity);
 
   // Writing the wire format.
   void WriteTag(SerializationTag tag);
@@ -96,7 +96,7 @@ class ValueSerializer {
   void WriteZigZag(T value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
-  uint8_t* ReserveRawBytes(size_t bytes);
+  Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
   void WriteOddball(Oddball* oddball);
@@ -134,11 +134,14 @@ class ValueSerializer {
   V8_NOINLINE void ThrowDataCloneError(MessageTemplate::Template template_index,
                                        Handle<Object> arg0);
 
+  Maybe<bool> ThrowIfOutOfMemory();
+
   Isolate* const isolate_;
   v8::ValueSerializer::Delegate* const delegate_;
   uint8_t* buffer_ = nullptr;
   size_t buffer_size_ = 0;
   size_t buffer_capacity_ = 0;
+  bool out_of_memory_ = false;
   Zone zone_;
 
   // To avoid extra lookups in the identity map, ID+1 is actually stored in the
@@ -229,6 +232,7 @@ class ValueDeserializer {
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
   MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
+  MaybeHandle<String> ReadOneByteString() WARN_UNUSED_RESULT;
   MaybeHandle<String> ReadTwoByteString() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadJSObject() WARN_UNUSED_RESULT;
   MaybeHandle<JSArray> ReadSparseJSArray() WARN_UNUSED_RESULT;

@@ -33,8 +33,9 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
   void StoreLastIndex(Node* context, Node* regexp, Node* value,
                       bool is_fastpath);
 
-  Node* ConstructNewResultFromMatchInfo(Node* context, Node* match_info,
-                                        Node* string);
+  Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
+                                        Node* const match_info,
+                                        Node* const string);
 
   Node* RegExpPrototypeExecBodyWithoutResult(Node* const context,
                                              Node* const regexp,
@@ -141,10 +142,10 @@ void RegExpBuiltinsAssembler::StoreLastIndex(Node* context, Node* regexp,
   }
 }
 
-Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
-                                                               Node* match_info,
-                                                               Node* string) {
-  Label out(this);
+Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
+    Node* const context, Node* const regexp, Node* const match_info,
+    Node* const string) {
+  Label named_captures(this), out(this);
 
   Node* const num_indices = SmiUntag(LoadFixedArrayElement(
       match_info, RegExpMatchInfo::kNumberOfCapturesIndex));
@@ -164,17 +165,18 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
 
   StoreFixedArrayElement(result_elements, 0, first, SKIP_WRITE_BARRIER);
 
-  GotoIf(SmiEqual(num_results, SmiConstant(Smi::FromInt(1))), &out);
+  // If no captures exist we can skip named capture handling as well.
+  GotoIf(SmiEqual(num_results, SmiConstant(1)), &out);
 
   // Store all remaining captures.
   Node* const limit = IntPtrAdd(
       IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex), num_indices);
 
-  Variable var_from_cursor(this, MachineType::PointerRepresentation());
-  Variable var_to_cursor(this, MachineType::PointerRepresentation());
-
-  var_from_cursor.Bind(IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
-  var_to_cursor.Bind(IntPtrConstant(1));
+  Variable var_from_cursor(
+      this, MachineType::PointerRepresentation(),
+      IntPtrConstant(RegExpMatchInfo::kFirstCaptureIndex + 2));
+  Variable var_to_cursor(this, MachineType::PointerRepresentation(),
+                         IntPtrConstant(1));
 
   Variable* vars[] = {&var_from_cursor, &var_to_cursor};
   Label loop(this, 2, vars);
@@ -187,7 +189,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
     Node* const start = LoadFixedArrayElement(match_info, from_cursor);
 
     Label next_iter(this);
-    GotoIf(SmiEqual(start, SmiConstant(Smi::FromInt(-1))), &next_iter);
+    GotoIf(SmiEqual(start, SmiConstant(-1)), &next_iter);
 
     Node* const from_cursor_plus1 = IntPtrAdd(from_cursor, IntPtrConstant(1));
     Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
@@ -199,7 +201,83 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(Node* context,
     Bind(&next_iter);
     var_from_cursor.Bind(IntPtrAdd(from_cursor, IntPtrConstant(2)));
     var_to_cursor.Bind(IntPtrAdd(to_cursor, IntPtrConstant(1)));
-    Branch(UintPtrLessThan(var_from_cursor.value(), limit), &loop, &out);
+    Branch(UintPtrLessThan(var_from_cursor.value(), limit), &loop,
+           &named_captures);
+  }
+
+  Bind(&named_captures);
+  {
+    // We reach this point only if captures exist, implying that this is an
+    // IRREGEXP JSRegExp.
+
+    CSA_ASSERT(this, HasInstanceType(regexp, JS_REGEXP_TYPE));
+    CSA_ASSERT(this, SmiGreaterThan(num_results, SmiConstant(1)));
+
+    // Preparations for named capture properties. Exit early if the result does
+    // not have any named captures to minimize performance impact.
+
+    Node* const data = LoadObjectField(regexp, JSRegExp::kDataOffset);
+    CSA_ASSERT(this, SmiEqual(LoadFixedArrayElement(data, JSRegExp::kTagIndex),
+                              SmiConstant(JSRegExp::IRREGEXP)));
+
+    // The names fixed array associates names at even indices with a capture
+    // index at odd indices.
+    Node* const names =
+        LoadFixedArrayElement(data, JSRegExp::kIrregexpCaptureNameMapIndex);
+    GotoIf(SmiEqual(names, SmiConstant(0)), &out);
+
+    // Allocate a new object to store the named capture properties.
+    // TODO(jgruber): Could be optimized by adding the object map to the heap
+    // root list.
+
+    Node* const native_context = LoadNativeContext(context);
+    Node* const map = LoadContextElement(
+        native_context, Context::SLOW_OBJECT_WITH_NULL_PROTOTYPE_MAP);
+    Node* const properties =
+        AllocateNameDictionary(NameDictionary::kInitialCapacity);
+
+    Node* const group_object = AllocateJSObjectFromMap(map, properties);
+
+    // Store it on the result as a 'group' property.
+
+    {
+      Node* const name = HeapConstant(isolate()->factory()->group_string());
+      CallRuntime(Runtime::kCreateDataProperty, context, result, name,
+                  group_object);
+    }
+
+    // One or more named captures exist, add a property for each one.
+
+    CSA_ASSERT(this, HasInstanceType(names, FIXED_ARRAY_TYPE));
+    Node* const names_length = LoadAndUntagFixedArrayBaseLength(names);
+    CSA_ASSERT(this, IntPtrGreaterThan(names_length, IntPtrConstant(0)));
+
+    Variable var_i(this, MachineType::PointerRepresentation());
+    var_i.Bind(IntPtrConstant(0));
+
+    Variable* vars[] = {&var_i};
+    const int vars_count = sizeof(vars) / sizeof(vars[0]);
+    Label loop(this, vars_count, vars);
+
+    Goto(&loop);
+    Bind(&loop);
+    {
+      Node* const i = var_i.value();
+      Node* const i_plus_1 = IntPtrAdd(i, IntPtrConstant(1));
+      Node* const i_plus_2 = IntPtrAdd(i_plus_1, IntPtrConstant(1));
+
+      Node* const name = LoadFixedArrayElement(names, i);
+      Node* const index = LoadFixedArrayElement(names, i_plus_1);
+      Node* const capture =
+          LoadFixedArrayElement(result_elements, SmiUntag(index));
+
+      CallRuntime(Runtime::kCreateDataProperty, context, group_object, name,
+                  capture);
+
+      var_i.Bind(i_plus_2);
+      Branch(IntPtrGreaterThanOrEqual(var_i.value(), names_length), &out,
+             &loop);
+    }
   }
 
   Bind(&out);
@@ -352,7 +430,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
   {
     Node* const match_indices = indices_or_null;
     Node* const result =
-        ConstructNewResultFromMatchInfo(context, match_indices, string);
+        ConstructNewResultFromMatchInfo(context, regexp, match_indices, string);
     var_result.Bind(result);
     Goto(&out);
   }
@@ -492,13 +570,11 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 
   Node* const int_zero = IntPtrConstant(0);
   Node* const int_one = IntPtrConstant(1);
-  Variable var_length(this, MachineType::PointerRepresentation());
+  Variable var_length(this, MachineType::PointerRepresentation(), int_zero);
   Variable var_flags(this, MachineType::PointerRepresentation());
 
   // First, count the number of characters we will need and check which flags
   // are set.
-
-  var_length.Bind(int_zero);
 
   if (is_fastpath) {
     // Refer to JSRegExp's flag property on the fast-path.
@@ -559,8 +635,8 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Node* const result = AllocateSeqOneByteString(context, var_length.value());
     Node* const flags_intptr = var_flags.value();
 
-    Variable var_offset(this, MachineType::PointerRepresentation());
-    var_offset.Bind(
+    Variable var_offset(
+        this, MachineType::PointerRepresentation(),
         IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
 
 #define CASE_FOR_FLAG(FLAG, CHAR)                              \
@@ -591,8 +667,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
                                         Node* const maybe_receiver) {
   Label out(this), if_isregexp(this);
 
-  Variable var_result(this, MachineRepresentation::kWord32);
-  var_result.Bind(Int32Constant(0));
+  Variable var_result(this, MachineRepresentation::kWord32, Int32Constant(0));
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
   GotoUnless(IsJSReceiver(maybe_receiver), &out);
@@ -676,13 +751,9 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
   Isolate* isolate = this->isolate();
 
-  Variable var_flags(this, MachineRepresentation::kTagged);
-  Variable var_pattern(this, MachineRepresentation::kTagged);
-  Variable var_new_target(this, MachineRepresentation::kTagged);
-
-  var_flags.Bind(flags);
-  var_pattern.Bind(pattern);
-  var_new_target.Bind(new_target);
+  Variable var_flags(this, MachineRepresentation::kTagged, flags);
+  Variable var_pattern(this, MachineRepresentation::kTagged, pattern);
+  Variable var_new_target(this, MachineRepresentation::kTagged, new_target);
 
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_function =
@@ -814,11 +885,8 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
                          "RegExp.prototype.compile");
   Node* const receiver = maybe_receiver;
 
-  Variable var_flags(this, MachineRepresentation::kTagged);
-  Variable var_pattern(this, MachineRepresentation::kTagged);
-
-  var_flags.Bind(maybe_flags);
-  var_pattern.Bind(maybe_pattern);
+  Variable var_flags(this, MachineRepresentation::kTagged, maybe_flags);
+  Variable var_pattern(this, MachineRepresentation::kTagged, maybe_pattern);
 
   // Handle a JSRegExp pattern.
   {
@@ -1306,11 +1374,9 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
 Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
                                                   Node* const index,
                                                   Node* const is_unicode) {
-  Variable var_result(this, MachineRepresentation::kTagged);
-
   // Default to last_index + 1.
   Node* const index_plus_one = SmiAdd(index, SmiConstant(1));
-  var_result.Bind(index_plus_one);
+  Variable var_result(this, MachineRepresentation::kTagged, index_plus_one);
 
   Label if_isunicode(this), out(this);
   Branch(is_unicode, &if_isunicode, &out);
@@ -2522,7 +2588,7 @@ TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
   Bind(&if_matched);
   {
     Node* result =
-        ConstructNewResultFromMatchInfo(context, match_indices, string);
+        ConstructNewResultFromMatchInfo(context, regexp, match_indices, string);
     Return(result);
   }
 }

@@ -182,6 +182,10 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     JavaScriptFrameIterator top_it(isolate);
     JavaScriptFrame* top_frame = top_it.frame();
     isolate->set_context(Context::cast(top_frame->context()));
+  } else {
+    // TODO(turbofan): We currently need the native context to materialize
+    // the arguments object, but only to get to its map.
+    isolate->set_context(function->native_context());
   }
 
   // Make sure to materialize objects before causing any allocation.

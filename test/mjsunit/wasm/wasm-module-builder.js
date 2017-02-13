@@ -103,6 +103,11 @@ class WasmFunctionBuilder {
     return this;
   }
 
+  addBodyWithEnd(body) {
+    this.body = body;
+    return this;
+  }
+
   addLocals(locals) {
     this.locals = locals;
     return this;
@@ -158,6 +163,22 @@ class WasmModuleBuilder {
   addExplicitSection(bytes) {
     this.explicit.push(bytes);
     return this;
+  }
+
+  stringToBytes(name) {
+    var result = new Binary();
+    result.emit_u32v(name.length);
+    for (var i = 0; i < name.length; i++) {
+      result.emit_u8(name.charCodeAt(i));
+    }
+    return result;
+  }
+
+  addCustomSection(name, bytes) {
+    name = this.stringToBytes(name);
+    var length = new Binary();
+    length.emit_u32v(name.length + bytes.length);
+    this.explicit.push([0, ...length, ...name, ...bytes]);
   }
 
   addType(type) {
@@ -227,12 +248,12 @@ class WasmModuleBuilder {
     this.exports.push({name: name, kind: kExternalMemory, index: 0});
   }
 
-  addFunctionTableInit(base, is_global, array) {
+  addFunctionTableInit(base, is_global, array, is_import = false) {
     this.function_table_inits.push({base: base, is_global: is_global,
                                     array: array});
     if (!is_global) {
       var length = base + array.length;
-      if (length > this.function_table_length) {
+      if (length > this.function_table_length && !is_import) {
         this.function_table_length = length;
       }
     }

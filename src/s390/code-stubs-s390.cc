@@ -1370,7 +1370,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (6) External string.  Make it, offset-wise, look like a sequential string.
   //     Go to (4).
   // (7) Short external string or not a string?  If yes, bail out to runtime.
-  // (8) Sliced string.  Replace subject with parent.  Go to (1).
+  // (8) Sliced or thin string.  Replace subject with parent.  Go to (1).
 
   Label seq_string /* 4 */, external_string /* 6 */, check_underlying /* 1 */,
       not_seq_nor_cons /* 5 */, not_long_external /* 7 */;
@@ -1382,7 +1382,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (1) Sequential string?  If yes, go to (4).
 
   STATIC_ASSERT((kIsNotStringMask | kStringRepresentationMask |
-                 kShortExternalStringMask) == 0x93);
+                 kShortExternalStringMask) == 0xa7);
   __ mov(r3, Operand(kIsNotStringMask | kStringRepresentationMask |
                      kShortExternalStringMask));
   __ AndP(r3, r2);
@@ -1392,6 +1392,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // (2) Sequential or cons? If not, go to (5).
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
   STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  STATIC_ASSERT(kThinStringTag > kExternalStringTag);
   STATIC_ASSERT(kIsNotStringMask > kExternalStringTag);
   STATIC_ASSERT(kShortExternalStringTag > kExternalStringTag);
   STATIC_ASSERT(kExternalStringTag < 0xffffu);
@@ -1420,9 +1421,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ble(&runtime);
   __ SmiUntag(r3);
 
-  STATIC_ASSERT(4 == kOneByteStringTag);
+  STATIC_ASSERT(8 == kOneByteStringTag);
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  STATIC_ASSERT(kStringEncodingMask == 4);
+  STATIC_ASSERT(kStringEncodingMask == 8);
   __ ExtractBitMask(r5, r2, kStringEncodingMask, SetRC);
   __ beq(&encoding_type_UC16, Label::kNear);
   __ LoadP(code,
@@ -1679,11 +1680,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ AndP(r0, r3);
   __ bne(&runtime);
 
-  // (8) Sliced string.  Replace subject with parent.  Go to (4).
+  // (8) Sliced or thin string.  Replace subject with parent.  Go to (4).
+  Label thin_string;
+  __ CmpP(r3, Operand(kThinStringTag));
+  __ beq(&thin_string);
   // Load offset into ip and replace subject string with parent.
   __ LoadP(ip, FieldMemOperand(subject, SlicedString::kOffsetOffset));
   __ SmiUntag(ip);
   __ LoadP(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
+  __ b(&check_underlying);  // Go to (4).
+
+  __ bind(&thin_string);
+  __ LoadP(subject, FieldMemOperand(subject, ThinString::kActualOffset));
   __ b(&check_underlying);  // Go to (4).
 #endif  // V8_INTERPRETED_REGEXP
 }

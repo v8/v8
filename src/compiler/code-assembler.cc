@@ -249,6 +249,13 @@ Node* CodeAssembler::Parameter(int value) {
   return raw_assembler()->Parameter(value);
 }
 
+Node* CodeAssembler::GetJSContextParameter() {
+  CallDescriptor* desc = raw_assembler()->call_descriptor();
+  DCHECK(desc->IsJSFunctionCall());
+  return Parameter(Linkage::GetJSCallContextParamIndex(
+      static_cast<int>(desc->JSParameterCount())));
+}
+
 void CodeAssembler::Return(Node* value) {
   return raw_assembler()->Return(value);
 }
@@ -602,6 +609,12 @@ template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
     Node*, Node*);
 
+Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
+                                    int input_count, Node* const* inputs) {
+  CallDescriptor* desc = Linkage::GetSimplifiedCDescriptor(zone(), signature);
+  return raw_assembler()->CallN(desc, input_count, inputs);
+}
+
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
                                     MachineType arg0_type,
                                     MachineType arg1_type, Node* function,
@@ -687,6 +700,13 @@ CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
   state_->variables_.insert(impl_);
 }
 
+CodeAssemblerVariable::CodeAssemblerVariable(CodeAssembler* assembler,
+                                             MachineRepresentation rep,
+                                             Node* initial_value)
+    : CodeAssemblerVariable(assembler, rep) {
+  Bind(initial_value);
+}
+
 CodeAssemblerVariable::~CodeAssemblerVariable() {
   state_->variables_.erase(impl_);
 }
@@ -718,6 +738,8 @@ CodeAssemblerLabel::CodeAssemblerLabel(CodeAssembler* assembler,
     variable_phis_[vars[i]->impl_] = nullptr;
   }
 }
+
+CodeAssemblerLabel::~CodeAssemblerLabel() { label_->~RawMachineLabel(); }
 
 void CodeAssemblerLabel::MergeVariables() {
   ++merge_count_;

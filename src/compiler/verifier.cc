@@ -490,6 +490,7 @@ void Verifier::Visitor::Check(Node* node) {
     }
     case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:
+    case IrOpcode::kArgumentsObjectState:
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       // TODO(jarin): what are the constraints on these?
@@ -636,9 +637,13 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Boolean.
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kJSClassOf:
+      // Type is InternaliedString \/ Null.
+      CheckTypeIs(node, Type::InternalizedStringOrNull());
+      break;
     case IrOpcode::kJSTypeOf:
-      // Type is String.
-      CheckTypeIs(node, Type::String());
+      // Type is InternalizedString.
+      CheckTypeIs(node, Type::InternalizedString());
       break;
     case IrOpcode::kJSGetSuperConstructor:
       // We don't check the input for Type::Function because
@@ -670,13 +675,15 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
 
-    case IrOpcode::kJSCallConstruct:
-    case IrOpcode::kJSCallConstructWithSpread:
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithSpread:
     case IrOpcode::kJSConvertReceiver:
       // Type is Receiver.
       CheckTypeIs(node, Type::Receiver());
       break;
+    case IrOpcode::kJSCallForwardVarargs:
     case IrOpcode::kJSCallFunction:
+    case IrOpcode::kJSCallFunctionWithSpread:
     case IrOpcode::kJSCallRuntime:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());
@@ -716,6 +723,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
 
     case IrOpcode::kJSStackCheck:
+    case IrOpcode::kJSDebugger:
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -919,13 +927,22 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());
       break;
-    case IrOpcode::kReferenceEqual: {
+    case IrOpcode::kStringIndexOf:
+      // (String, String, SignedSmall) -> SignedSmall
+      CheckValueInputIs(node, 0, Type::String());
+      CheckValueInputIs(node, 1, Type::String());
+      CheckValueInputIs(node, 2, Type::SignedSmall());
+      CheckTypeIs(node, Type::SignedSmall());
+      break;
+
+    case IrOpcode::kReferenceEqual:
       // (Unique, Any) -> Boolean  and
       // (Any, Unique) -> Boolean
       CheckTypeIs(node, Type::Boolean());
       break;
-    }
+
     case IrOpcode::kObjectIsCallable:
+    case IrOpcode::kObjectIsNonCallable:
     case IrOpcode::kObjectIsNumber:
     case IrOpcode::kObjectIsReceiver:
     case IrOpcode::kObjectIsSmi:
@@ -995,6 +1012,8 @@ void Verifier::Visitor::Check(Node* node) {
       // CheckTypeIs(node, to));
       break;
     }
+    case IrOpcode::kChangeTaggedToTaggedSigned:
+      break;
     case IrOpcode::kTruncateTaggedToFloat64: {
       // NumberOrUndefined /\ Tagged -> Number /\ UntaggedFloat64
       // TODO(neis): Activate once ChangeRepresentation works in typer.
@@ -1100,6 +1119,10 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckNumber:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
+      break;
+    case IrOpcode::kCheckReceiver:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Receiver());
       break;
     case IrOpcode::kCheckSmi:
       CheckValueInputIs(node, 0, Type::Any());

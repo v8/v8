@@ -86,18 +86,6 @@ const BreakPositionAlignment = {
 };
 Debug.BreakPositionAlignment = BreakPositionAlignment;
 
-/** @enum */
-Debug.StepAction = { StepOut: 0,
-                     StepNext: 1,
-                     StepIn: 2,
-                     StepFrame: 3 };
-
-/** @enum */
-const ScriptCompilationType = { Host: 0,
-                              Eval: 1,
-                              JSON: 2 };
-Debug.ScriptCompilationType = ScriptCompilationType;
-
 
 /** @interface */
 function DebuggerFlag() {}
@@ -157,13 +145,6 @@ BreakPoint.prototype.script_break_point = function() {}
 
 /** @return {number} */
 BreakPoint.prototype.number = function() {}
-
-
-/** @interface */
-function BreakEvent() {}
-
-/** @return {!Array<!BreakPoint>|undefined} */
-BreakEvent.prototype.breakPointsHit = function() {}
 
 
 /** @interface */

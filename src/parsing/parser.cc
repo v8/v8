@@ -9,7 +9,6 @@
 #include "src/api.h"
 #include "src/ast/ast-expression-rewriter.h"
 #include "src/ast/ast-function-literal-id-reindexer.h"
-#include "src/ast/ast-literal-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
 #include "src/bailout-reason.h"
@@ -519,7 +518,8 @@ Parser::Parser(ParseInfo* info)
       cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
       temp_zoned_(false),
-      log_(nullptr) {
+      log_(nullptr),
+      preparsed_scope_data_(info->preparsed_scope_data()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
@@ -552,7 +552,8 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_trailing_commas(FLAG_harmony_trailing_commas);
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
-  set_allow_harmony_object_spread(FLAG_harmony_object_spread);
+  set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
+  set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_types(FLAG_harmony_types);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -560,7 +561,8 @@ Parser::Parser(ParseInfo* info)
   }
   if (info->ast_value_factory() == NULL) {
     // info takes ownership of AstValueFactory.
-    info->set_ast_value_factory(new AstValueFactory(zone(), info->hash_seed()));
+    info->set_ast_value_factory(new AstValueFactory(
+        zone(), info->isolate()->ast_string_constants(), info->hash_seed()));
     info->set_ast_value_factory_owned();
     ast_value_factory_ = info->ast_value_factory();
     ast_node_factory_.set_ast_value_factory(ast_value_factory_);
@@ -969,15 +971,21 @@ Statement* Parser::ParseModuleItem(bool* ok) {
   //    ExportDeclaration
   //    StatementListItem
 
-  switch (peek()) {
-    case Token::IMPORT:
-      ParseImportDeclaration(CHECK_OK);
-      return factory()->NewEmptyStatement(kNoSourcePosition);
-    case Token::EXPORT:
-      return ParseExportDeclaration(ok);
-    default:
-      return ParseStatementListItem(ok);
+  Token::Value next = peek();
+
+  if (next == Token::EXPORT) {
+    return ParseExportDeclaration(ok);
   }
+
+  // We must be careful not to parse a dynamic import expression as an import
+  // declaration.
+  if (next == Token::IMPORT &&
+      (!allow_harmony_dynamic_import() || PeekAhead() != Token::LPAREN)) {
+    ParseImportDeclaration(CHECK_OK);
+    return factory()->NewEmptyStatement(kNoSourcePosition);
+  }
+
+  return ParseStatementListItem(ok);
 }
 
 
@@ -1550,6 +1558,10 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
                                    bool* ok) {
   VariableProxy* proxy =
       factory()->NewVariableProxy(variable_name, NORMAL_VARIABLE);
+
+  DeclarationScope* target_scope = GetDeclarationScope();
+  MarkTopLevelVariableAsAssigned(target_scope, proxy);
+
   Declaration* declaration =
       factory()->NewFunctionDeclaration(proxy, function, scope(), pos);
   Declare(declaration, DeclarationDescriptor::NORMAL, mode, kCreatedInitialized,
@@ -1558,7 +1570,6 @@ Statement* Parser::DeclareFunction(const AstRawString* variable_name,
   if (is_sloppy_block_function) {
     SloppyBlockFunctionStatement* statement =
         factory()->NewSloppyBlockFunctionStatement();
-    DeclarationScope* target_scope = GetDeclarationScope();
     target_scope->DeclareSloppyBlockFunction(variable_name, scope(), statement);
     return statement;
   }
@@ -1739,8 +1750,7 @@ void Parser::RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {
     DCHECK_NOT_NULL(catch_info->pattern);
     catch_info->name = ast_value_factory()->dot_catch_string();
   }
-  catch_info->variable = catch_info->scope->DeclareLocal(
-      catch_info->name, VAR, kCreatedInitialized, NORMAL_VARIABLE);
+  catch_info->variable = catch_info->scope->DeclareLocal(catch_info->name, VAR);
   if (catch_info->pattern != nullptr) {
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
@@ -1822,6 +1832,70 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
   } else {
     DCHECK_NOT_NULL(finally_block);
     return factory()->NewTryFinallyStatement(try_block, finally_block, pos);
+  }
+}
+
+void Parser::ParseAndRewriteGeneratorFunctionBody(int pos, FunctionKind kind,
+                                                  ZoneList<Statement*>* body,
+                                                  bool* ok) {
+  // We produce:
+  //
+  // try { InitialYield; ...body...; return {value: undefined, done: true} }
+  // finally { %_GeneratorClose(generator) }
+  //
+  // - InitialYield yields the actual generator object.
+  // - Any return statement inside the body will have its argument wrapped
+  //   in a "done" iterator result object.
+  // - If the generator terminates for whatever reason, we must close it.
+  //   Hence the finally clause.
+
+  Block* try_block = factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
+  Expression* initial_yield = BuildInitialYield(pos, kind);
+  try_block->statements()->Add(
+      factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
+      zone());
+  ParseStatementList(try_block->statements(), Token::RBRACE, ok);
+  if (!*ok) return;
+
+  Statement* final_return = factory()->NewReturnStatement(
+      BuildIteratorResult(nullptr, true), kNoSourcePosition);
+  try_block->statements()->Add(final_return, zone());
+
+  Block* finally_block =
+      factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
+  VariableProxy* call_proxy =
+      factory()->NewVariableProxy(function_state_->generator_object_variable());
+  args->Add(call_proxy, zone());
+  Expression* call = factory()->NewCallRuntime(Runtime::kInlineGeneratorClose,
+                                               args, kNoSourcePosition);
+  finally_block->statements()->Add(
+      factory()->NewExpressionStatement(call, kNoSourcePosition), zone());
+
+  body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
+                                              kNoSourcePosition),
+            zone());
+}
+
+void Parser::CreateFunctionNameAssignment(
+    const AstRawString* function_name, int pos,
+    FunctionLiteral::FunctionType function_type,
+    DeclarationScope* function_scope, ZoneList<Statement*>* result, int index) {
+  if (function_type == FunctionLiteral::kNamedExpression) {
+    StatementT statement = factory()->NewEmptyStatement(kNoSourcePosition);
+    if (function_scope->LookupLocal(function_name) == nullptr) {
+      // Now that we know the language mode, we can create the const assignment
+      // in the previously reserved spot.
+      DCHECK_EQ(function_scope, scope());
+      Variable* fvar = function_scope->DeclareFunctionVar(function_name);
+      VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
+      statement = factory()->NewExpressionStatement(
+          factory()->NewAssignment(Token::INIT, fproxy,
+                                   factory()->NewThisFunction(pos),
+                                   kNoSourcePosition),
+          kNoSourcePosition);
+    }
+    result->Set(index, statement);
   }
 }
 
@@ -2470,19 +2544,6 @@ void Parser::DeclareArrowFunctionFormalParameters(
   DCHECK_EQ(parameters->is_simple, parameters->scope->has_simple_parameters());
 }
 
-void Parser::ReindexLiterals(const ParserFormalParameters& parameters) {
-  if (function_state_->materialized_literal_count() > 0) {
-    AstLiteralReindexer reindexer;
-
-    for (auto p : parameters.params) {
-      if (p->pattern != nullptr) reindexer.Reindex(p->pattern);
-      if (p->initializer != nullptr) reindexer.Reindex(p->initializer);
-    }
-
-    DCHECK(reindexer.count() <= function_state_->materialized_literal_count());
-  }
-}
-
 void Parser::PrepareGeneratorVariables() {
   // For generators, allocating variables in contexts is currently a win because
   // it minimizes the work needed to suspend and resume an activation.  The
@@ -2715,7 +2776,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       // If the preconditions are correct the function body should never be
       // accessed, but do this anyway for better behaviour if they're wrong.
       body = nullptr;
-      scope->AnalyzePartially(&previous_zone_ast_node_factory);
+      scope->AnalyzePartially(&previous_zone_ast_node_factory,
+                              preparsed_scope_data_);
     }
 
     DCHECK_IMPLIES(use_temp_zone, temp_zoned_);
@@ -2834,7 +2896,8 @@ Parser::LazyParsingResult Parser::SkipFunction(
     SET_ALLOW(harmony_function_sent);
     SET_ALLOW(harmony_trailing_commas);
     SET_ALLOW(harmony_class_fields);
-    SET_ALLOW(harmony_object_spread);
+    SET_ALLOW(harmony_object_rest_spread);
+    SET_ALLOW(harmony_dynamic_import);
     SET_ALLOW(harmony_types);
 #undef SET_ALLOW
   }
@@ -3018,7 +3081,7 @@ Block* Parser::BuildParameterInitializationBlock(
   return init_block;
 }
 
-Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
+Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   // .promise = %AsyncFunctionPromiseCreate();
   // try {
   //   <inner_block>
@@ -3048,8 +3111,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block, bool* ok) {
   Scope* catch_scope = NewScope(CATCH_SCOPE);
   catch_scope->set_is_hidden();
   Variable* catch_variable =
-      catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
-                                kCreatedInitialized, NORMAL_VARIABLE);
+      catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
   Block* catch_block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
 
   Expression* promise_reject = BuildRejectPromise(
@@ -3117,15 +3179,15 @@ Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
 }
 
 Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
-  // %RejectPromiseNoDebugEvent(.promise, value, true), .promise
-  // The NoDebugEvent variant disables the additional debug event for the
-  // rejection since a debug event already happened for the exception that got
-  // us here.
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
+  // %promise_internal_reject(.promise, value, false), .promise
+  // Disables the additional debug event for the rejection since a debug event
+  // already happened for the exception that got us here.
+  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(3, zone());
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
   args->Add(value, zone());
+  args->Add(factory()->NewBooleanLiteral(false, pos), zone());
   Expression* call_runtime = factory()->NewCallRuntime(
-      Context::REJECT_PROMISE_NO_DEBUG_EVENT_INDEX, args, pos);
+      Context::PROMISE_INTERNAL_REJECT_INDEX, args, pos);
   return factory()->NewBinaryOperation(
       Token::COMMA, call_runtime,
       factory()->NewVariableProxy(PromiseVariable()), pos);
@@ -3201,8 +3263,8 @@ ZoneList<Statement*>* Parser::ParseFunction(
 
   Expect(Token::LBRACE, CHECK_OK);
 
-  ZoneList<Statement*>* body = ParseEagerFunctionBody(
-      function_name, pos, formals, kind, function_type, ok);
+  ZoneList<Statement*>* body = new (zone()) ZoneList<Statement*>(8, zone());
+  ParseFunctionBody(body, function_name, pos, formals, kind, function_type, ok);
 
   // Validate parameter names. We can do this only after parsing the function,
   // since the function can declare itself strict.
@@ -3220,162 +3282,6 @@ ZoneList<Statement*>* Parser::ParseFunction(
   *materialized_literal_count = function_state.materialized_literal_count();
   *expected_property_count = function_state.expected_property_count();
   return body;
-}
-
-ZoneList<Statement*>* Parser::ParseEagerFunctionBody(
-    const AstRawString* function_name, int pos,
-    const ParserFormalParameters& parameters, FunctionKind kind,
-    FunctionLiteral::FunctionType function_type, bool* ok) {
-  ZoneList<Statement*>* result = new(zone()) ZoneList<Statement*>(8, zone());
-
-  static const int kFunctionNameAssignmentIndex = 0;
-  if (function_type == FunctionLiteral::kNamedExpression) {
-    DCHECK(function_name != NULL);
-    // If we have a named function expression, we add a local variable
-    // declaration to the body of the function with the name of the
-    // function and let it refer to the function itself (closure).
-    // Not having parsed the function body, the language mode may still change,
-    // so we reserve a spot and create the actual const assignment later.
-    DCHECK_EQ(kFunctionNameAssignmentIndex, result->length());
-    result->Add(NULL, zone());
-  }
-
-  ZoneList<Statement*>* body = result;
-  DeclarationScope* function_scope = scope()->AsDeclarationScope();
-  DeclarationScope* inner_scope = function_scope;
-  Block* inner_block = nullptr;
-  if (!parameters.is_simple) {
-    inner_scope = NewVarblockScope();
-    inner_scope->set_start_position(scanner()->location().beg_pos);
-    inner_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
-    inner_block->set_scope(inner_scope);
-    body = inner_block->statements();
-  }
-
-  {
-    BlockState block_state(&scope_state_, inner_scope);
-
-    if (IsGeneratorFunction(kind)) {
-      // We produce:
-      //
-      // try { InitialYield; ...body...; return {value: undefined, done: true} }
-      // finally { %_GeneratorClose(generator) }
-      //
-      // - InitialYield yields the actual generator object.
-      // - Any return statement inside the body will have its argument wrapped
-      //   in a "done" iterator result object.
-      // - If the generator terminates for whatever reason, we must close it.
-      //   Hence the finally clause.
-
-      Block* try_block =
-          factory()->NewBlock(nullptr, 3, false, kNoSourcePosition);
-      Expression* initial_yield = BuildInitialYield(pos, kind);
-      try_block->statements()->Add(
-          factory()->NewExpressionStatement(initial_yield, kNoSourcePosition),
-          zone());
-      ParseStatementList(try_block->statements(), Token::RBRACE, CHECK_OK);
-
-      Statement* final_return = factory()->NewReturnStatement(
-          BuildIteratorResult(nullptr, true), kNoSourcePosition);
-      try_block->statements()->Add(final_return, zone());
-
-      Block* finally_block =
-          factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
-      ZoneList<Expression*>* args =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      VariableProxy* call_proxy = factory()->NewVariableProxy(
-          function_state_->generator_object_variable());
-      args->Add(call_proxy, zone());
-      Expression* call = factory()->NewCallRuntime(
-          Runtime::kInlineGeneratorClose, args, kNoSourcePosition);
-      finally_block->statements()->Add(
-          factory()->NewExpressionStatement(call, kNoSourcePosition), zone());
-
-      body->Add(factory()->NewTryFinallyStatement(try_block, finally_block,
-                                                  kNoSourcePosition),
-                zone());
-    } else if (IsAsyncFunction(kind)) {
-      const bool accept_IN = true;
-      ParseAsyncFunctionBody(inner_scope, body, kind, FunctionBodyType::kNormal,
-                             accept_IN, pos, CHECK_OK);
-    } else {
-      ParseStatementList(body, Token::RBRACE, CHECK_OK);
-    }
-
-    if (IsDerivedConstructor(kind)) {
-      body->Add(factory()->NewReturnStatement(ThisExpression(kNoSourcePosition),
-                                              kNoSourcePosition),
-                zone());
-    }
-  }
-
-  Expect(Token::RBRACE, CHECK_OK);
-  scope()->set_end_position(scanner()->location().end_pos);
-
-  if (!parameters.is_simple) {
-    DCHECK_NOT_NULL(inner_scope);
-    DCHECK_EQ(function_scope, scope());
-    DCHECK_EQ(function_scope, inner_scope->outer_scope());
-    DCHECK_EQ(body, inner_block->statements());
-    SetLanguageMode(function_scope, inner_scope->language_mode());
-    if (inner_scope->typed()) function_scope->SetTyped();
-    Block* init_block = BuildParameterInitializationBlock(parameters, CHECK_OK);
-
-    if (is_sloppy(inner_scope->language_mode())) {
-      InsertSloppyBlockFunctionVarBindings(inner_scope);
-    }
-
-    // TODO(littledan): Merge the two rejection blocks into one
-    if (IsAsyncFunction(kind)) {
-      init_block = BuildRejectPromiseOnException(init_block, CHECK_OK);
-    }
-
-    DCHECK_NOT_NULL(init_block);
-
-    inner_scope->set_end_position(scanner()->location().end_pos);
-    if (inner_scope->FinalizeBlockScope() != nullptr) {
-      CheckConflictingVarDeclarations(inner_scope, CHECK_OK);
-      InsertShadowingVarBindingInitializers(inner_block);
-    }
-    inner_scope = nullptr;
-
-    result->Add(init_block, zone());
-    result->Add(inner_block, zone());
-  } else {
-    DCHECK_EQ(inner_scope, function_scope);
-    if (is_sloppy(function_scope->language_mode())) {
-      InsertSloppyBlockFunctionVarBindings(function_scope);
-    }
-  }
-
-  if (!IsArrowFunction(kind)) {
-    // Declare arguments after parsing the function since lexical 'arguments'
-    // masks the arguments object. Declare arguments before declaring the
-    // function var since the arguments object masks 'function arguments'.
-    function_scope->DeclareArguments(ast_value_factory());
-  }
-
-  if (function_type == FunctionLiteral::kNamedExpression) {
-    Statement* statement;
-    if (function_scope->LookupLocal(function_name) == nullptr) {
-      // Now that we know the language mode, we can create the const assignment
-      // in the previously reserved spot.
-      DCHECK_EQ(function_scope, scope());
-      Variable* fvar = function_scope->DeclareFunctionVar(function_name);
-      VariableProxy* fproxy = factory()->NewVariableProxy(fvar);
-      statement = factory()->NewExpressionStatement(
-          factory()->NewAssignment(Token::INIT, fproxy,
-                                   factory()->NewThisFunction(pos),
-                                   kNoSourcePosition),
-          kNoSourcePosition);
-    } else {
-      statement = factory()->NewEmptyStatement(kNoSourcePosition);
-    }
-    result->Set(kFunctionNameAssignmentIndex, statement);
-  }
-
-  MarkCollectedTailCallExpressions();
-  return result;
 }
 
 void Parser::DeclareClassVariable(const AstRawString* name, Scope* block_scope,
@@ -3742,19 +3648,18 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   } else {
     uint32_t hash = ComputeTemplateLiteralHash(lit);
 
-    int cooked_idx = function_state_->NextMaterializedLiteralIndex();
-    int raw_idx = function_state_->NextMaterializedLiteralIndex();
+    // cooked and raw indexes.
+    function_state_->NextMaterializedLiteralIndex();
+    function_state_->NextMaterializedLiteralIndex();
 
     // $getTemplateCallSite
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
     args->Add(factory()->NewArrayLiteral(
-                  const_cast<ZoneList<Expression*>*>(cooked_strings),
-                  cooked_idx, pos),
+                  const_cast<ZoneList<Expression*>*>(cooked_strings), pos),
               zone());
-    args->Add(
-        factory()->NewArrayLiteral(
-            const_cast<ZoneList<Expression*>*>(raw_strings), raw_idx, pos),
-        zone());
+    args->Add(factory()->NewArrayLiteral(
+                  const_cast<ZoneList<Expression*>*>(raw_strings), pos),
+              zone());
 
     // Truncate hash to Smi-range.
     Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
@@ -3802,6 +3707,19 @@ uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
   return running_hash;
 }
 
+namespace {
+
+bool OnlyLastArgIsSpread(ZoneList<Expression*>* args) {
+  for (int i = 0; i < args->length() - 1; i++) {
+    if (args->at(i)->IsSpread()) {
+      return false;
+    }
+  }
+  return args->at(args->length() - 1)->IsSpread();
+}
+
+}  // namespace
+
 ZoneList<Expression*>* Parser::PrepareSpreadArguments(
     ZoneList<Expression*>* list) {
   ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
@@ -3838,9 +3756,8 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
         while (i < n && !list->at(i)->IsSpread()) {
           unspread->Add(list->at(i++), zone());
         }
-        int literal_index = function_state_->NextMaterializedLiteralIndex();
-        args->Add(factory()->NewArrayLiteral(unspread, literal_index,
-                                             kNoSourcePosition),
+        function_state_->NextMaterializedLiteralIndex();
+        args->Add(factory()->NewArrayLiteral(unspread, kNoSourcePosition),
                   zone());
 
         if (i == n) break;
@@ -3865,27 +3782,20 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
 }
 
 Expression* Parser::SpreadCall(Expression* function,
-                               ZoneList<Expression*>* args, int pos) {
+                               ZoneList<Expression*>* args, int pos,
+                               Call::PossiblyEval is_possibly_eval) {
+  // Handle these cases in BytecodeGenerator.
+  // [Call,New]WithSpread bytecodes aren't used with tailcalls - see
+  // https://crbug.com/v8/5867
+  if (!allow_tailcalls() && OnlyLastArgIsSpread(args)) {
+    return factory()->NewCall(function, args, pos);
+  }
+
   if (function->IsSuperCallReference()) {
     // Super calls
     // $super_constructor = %_GetSuperConstructor(<this-function>)
     // %reflect_construct($super_constructor, args, new.target)
 
-    bool only_last_arg_is_spread = false;
-    for (int i = 0; i < args->length(); i++) {
-      if (args->at(i)->IsSpread()) {
-        if (i == args->length() - 1) {
-          only_last_arg_is_spread = true;
-        }
-        break;
-      }
-    }
-
-    if (only_last_arg_is_spread) {
-      // Handle in BytecodeGenerator.
-      Expression* super_call_ref = NewSuperCallReference(pos);
-      return factory()->NewCall(super_call_ref, args, pos);
-    }
     args = PrepareSpreadArguments(args);
     ZoneList<Expression*>* tmp = new (zone()) ZoneList<Expression*>(1, zone());
     tmp->Add(function->AsSuperCallReference()->this_function_var(), zone());
@@ -3927,6 +3837,10 @@ Expression* Parser::SpreadCall(Expression* function,
 
 Expression* Parser::SpreadCallNew(Expression* function,
                                   ZoneList<Expression*>* args, int pos) {
+  if (OnlyLastArgIsSpread(args)) {
+    // Handle in BytecodeGenerator.
+    return factory()->NewCallNew(function, args, pos);
+  }
   args = PrepareSpreadArguments(args);
   args->InsertAt(0, function, zone());
 
@@ -4000,7 +3914,7 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
   block->statements()->Add(
       factory()->NewReturnStatement(return_value, return_value->position()),
       zone());
-  block = BuildRejectPromiseOnException(block, CHECK_OK_VOID);
+  block = BuildRejectPromiseOnException(block);
   body->Add(block, zone());
 }
 
@@ -4354,7 +4268,7 @@ void Parser::SetFunctionName(Expression* value, const AstRawString* name) {
 //     const kReturn = 1;
 //     const kThrow = 2;
 //
-//     let input = function.sent;
+//     let input = undefined;
 //     let mode = kNext;
 //     let output = undefined;
 //
@@ -4704,8 +4618,7 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     Scope* catch_scope = NewScope(CATCH_SCOPE);
     catch_scope->set_is_hidden();
     const AstRawString* name = ast_value_factory()->dot_catch_string();
-    Variable* catch_variable = catch_scope->DeclareLocal(
-        name, VAR, kCreatedInitialized, NORMAL_VARIABLE);
+    Variable* catch_variable = catch_scope->DeclareLocal(name, VAR);
 
     try_catch = factory()->NewTryCatchStatementForDesugaring(
         try_block, catch_scope, catch_variable, catch_block, nopos);
@@ -4991,8 +4904,7 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
   {
     Scope* catch_scope = NewScopeWithParent(use_scope, CATCH_SCOPE);
     Variable* catch_variable =
-        catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
-                                  kCreatedInitialized, NORMAL_VARIABLE);
+        catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
     catch_scope->set_is_hidden();
 
     Statement* rethrow;
@@ -5098,8 +5010,7 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
 
     Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
     Variable* catch_variable =
-        catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR,
-                                  kCreatedInitialized, NORMAL_VARIABLE);
+        catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
     catch_scope->set_is_hidden();
 
     try_call_return = factory()->NewTryCatchStatement(

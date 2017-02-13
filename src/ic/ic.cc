@@ -1579,6 +1579,8 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
     }
   } else if (key->IsUndefined(isolate)) {
     key = isolate->factory()->undefined_string();
+  } else if (key->IsString()) {
+    key = isolate->factory()->InternalizeString(Handle<String>::cast(key));
   }
   return key;
 }
@@ -2657,24 +2659,6 @@ RUNTIME_FUNCTION(Runtime_KeyedLoadIC_Miss) {
   ic.UpdateState(receiver, key);
   RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
 }
-
-
-RUNTIME_FUNCTION(Runtime_KeyedLoadIC_MissFromStubFailure) {
-  HandleScope scope(isolate);
-  typedef LoadWithVectorDescriptor Descriptor;
-  DCHECK_EQ(Descriptor::kParameterCount, args.length());
-  Handle<Object> receiver = args.at(Descriptor::kReceiver);
-  Handle<Object> key = args.at(Descriptor::kName);
-  Handle<Smi> slot = args.at<Smi>(Descriptor::kSlot);
-  Handle<TypeFeedbackVector> vector =
-      args.at<TypeFeedbackVector>(Descriptor::kVector);
-  FeedbackVectorSlot vector_slot = vector->ToSlot(slot->value());
-  KeyedLoadICNexus nexus(vector, vector_slot);
-  KeyedLoadIC ic(IC::EXTRA_CALL_FRAME, isolate, &nexus);
-  ic.UpdateState(receiver, key);
-  RETURN_RESULT_OR_FAILURE(isolate, ic.Load(receiver, key));
-}
-
 
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {

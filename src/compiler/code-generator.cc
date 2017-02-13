@@ -33,10 +33,8 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(
-    Frame* frame, Linkage* linkage, InstructionSequence* code,
-    CompilationInfo* info,
-    ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions)
+CodeGenerator::CodeGenerator(Frame* frame, Linkage* linkage,
+                             InstructionSequence* code, CompilationInfo* info)
     : frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
@@ -60,8 +58,7 @@ CodeGenerator::CodeGenerator(
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
       source_position_table_builder_(code->zone(),
-                                     info->SourcePositionRecordingMode()),
-      protected_instructions_(protected_instructions) {
+                                     info->SourcePositionRecordingMode()) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -75,14 +72,6 @@ void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   frame_access_state_ = new (code()->zone()) FrameAccessState(frame);
 }
 
-void CodeGenerator::AddProtectedInstruction(int instr_offset,
-                                            int landing_offset) {
-  if (protected_instructions_ != nullptr) {
-    trap_handler::ProtectedInstructionData data = {instr_offset,
-                                                   landing_offset};
-    protected_instructions_->emplace_back(data);
-  }
-}
 
 Handle<Code> CodeGenerator::GenerateCode() {
   CompilationInfo* info = this->info();
@@ -703,6 +692,10 @@ void CodeGenerator::TranslateStateValueDescriptor(
       TranslateStateValueDescriptor(field.desc, field.nested, translation,
                                     iter);
     }
+  } else if (desc->IsArguments()) {
+    if (translation != nullptr) {
+      translation->BeginArgumentsObject(0);
+    }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {
       translation->DuplicateObject(static_cast<int>(desc->id()));
@@ -863,16 +856,15 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
                type == MachineType::Uint32()) {
       translation->StoreUint32StackSlot(LocationOperand::cast(op)->index());
-    } else if (IsAnyTagged(type.representation())) {
-      translation->StoreStackSlot(LocationOperand::cast(op)->index());
     } else {
-      CHECK(false);
+      CHECK_EQ(MachineRepresentation::kTagged, type.representation());
+      translation->StoreStackSlot(LocationOperand::cast(op)->index());
     }
   } else if (op->IsFPStackSlot()) {
     if (type.representation() == MachineRepresentation::kFloat64) {
       translation->StoreDoubleStackSlot(LocationOperand::cast(op)->index());
     } else {
-      DCHECK_EQ(MachineRepresentation::kFloat32, type.representation());
+      CHECK_EQ(MachineRepresentation::kFloat32, type.representation());
       translation->StoreFloatStackSlot(LocationOperand::cast(op)->index());
     }
   } else if (op->IsRegister()) {
@@ -885,27 +877,26 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
     } else if (type == MachineType::Uint8() || type == MachineType::Uint16() ||
                type == MachineType::Uint32()) {
       translation->StoreUint32Register(converter.ToRegister(op));
-    } else if (IsAnyTagged(type.representation())) {
-      translation->StoreRegister(converter.ToRegister(op));
     } else {
-      CHECK(false);
+      CHECK_EQ(MachineRepresentation::kTagged, type.representation());
+      translation->StoreRegister(converter.ToRegister(op));
     }
   } else if (op->IsFPRegister()) {
     InstructionOperandConverter converter(this, instr);
     if (type.representation() == MachineRepresentation::kFloat64) {
       translation->StoreDoubleRegister(converter.ToDoubleRegister(op));
     } else {
-      DCHECK_EQ(MachineRepresentation::kFloat32, type.representation());
+      CHECK_EQ(MachineRepresentation::kFloat32, type.representation());
       translation->StoreFloatRegister(converter.ToFloatRegister(op));
     }
-  } else if (op->IsImmediate()) {
+  } else {
+    CHECK(op->IsImmediate());
     InstructionOperandConverter converter(this, instr);
     Constant constant = converter.ToConstant(op);
     Handle<Object> constant_object;
     switch (constant.type()) {
       case Constant::kInt32:
-        if (type.representation() == MachineRepresentation::kTagged ||
-            type.representation() == MachineRepresentation::kTaggedSigned) {
+        if (type.representation() == MachineRepresentation::kTagged) {
           // When pointers are 4 bytes, we can use int32 constants to represent
           // Smis.
           DCHECK_EQ(4, kPointerSize);
@@ -928,9 +919,13 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
                  type.representation() == MachineRepresentation::kNone);
           DCHECK(type.representation() != MachineRepresentation::kNone ||
                  constant.ToInt32() == FrameStateDescriptor::kImpossibleValue);
-
-          constant_object =
-              isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+          if (type == MachineType::Uint32()) {
+            constant_object =
+                isolate()->factory()->NewNumberFromUint(constant.ToInt32());
+          } else {
+            constant_object =
+                isolate()->factory()->NewNumberFromInt(constant.ToInt32());
+          }
         }
         break;
       case Constant::kInt64:
@@ -939,37 +934,28 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         // TODO(jarin,bmeurer): We currently pass in raw pointers to the
         // JSFunction::entry here. We should really consider fixing this.
         DCHECK(type.representation() == MachineRepresentation::kWord64 ||
-               type.representation() == MachineRepresentation::kTagged ||
-               type.representation() == MachineRepresentation::kTaggedSigned);
+               type.representation() == MachineRepresentation::kTagged);
         DCHECK_EQ(8, kPointerSize);
         constant_object =
             handle(reinterpret_cast<Smi*>(constant.ToInt64()), isolate());
         DCHECK(constant_object->IsSmi());
         break;
       case Constant::kFloat32:
-        if (type.representation() == MachineRepresentation::kTaggedSigned) {
-          DCHECK(IsSmiDouble(constant.ToFloat32()));
-        } else {
-          DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
-                 CanBeTaggedPointer(type.representation()));
-        }
+        DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
+               type.representation() == MachineRepresentation::kTagged);
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat32());
         break;
       case Constant::kFloat64:
-        if (type.representation() == MachineRepresentation::kTaggedSigned) {
-          DCHECK(IsSmiDouble(constant.ToFloat64()));
-        } else {
-          DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
-                 CanBeTaggedPointer(type.representation()));
-        }
+        DCHECK(type.representation() == MachineRepresentation::kFloat64 ||
+               type.representation() == MachineRepresentation::kTagged);
         constant_object = isolate()->factory()->NewNumber(constant.ToFloat64());
         break;
       case Constant::kHeapObject:
-        DCHECK(CanBeTaggedPointer(type.representation()));
+        DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         constant_object = constant.ToHeapObject();
         break;
       default:
-        CHECK(false);
+        UNREACHABLE();
     }
     if (constant_object.is_identical_to(info()->closure())) {
       translation->StoreJSFrameFunction();
@@ -977,8 +963,6 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
       int literal_id = DefineDeoptimizationLiteral(constant_object);
       translation->StoreLiteral(literal_id);
     }
-  } else {
-    CHECK(false);
   }
 }
 

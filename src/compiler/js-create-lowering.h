@@ -33,12 +33,13 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
   JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
-                   JSGraph* jsgraph, MaybeHandle<LiteralsArray> literals_array,
+                   JSGraph* jsgraph,
+                   MaybeHandle<TypeFeedbackVector> feedback_vector,
                    Handle<Context> native_context, Zone* zone)
       : AdvancedReducer(editor),
         dependencies_(dependencies),
         jsgraph_(jsgraph),
-        literals_array_(literals_array),
+        feedback_vector_(feedback_vector),
         native_context_(native_context),
         zone_(zone) {}
   ~JSCreateLowering() final {}
@@ -79,8 +80,9 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
 
   Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 
-  // Infers the LiteralsArray to use for a given {node}.
-  MaybeHandle<LiteralsArray> GetSpecializationLiterals(Node* node);
+  // Infers the TypeFeedbackVector to use for a given {node}.
+  MaybeHandle<TypeFeedbackVector> GetSpecializationTypeFeedbackVector(
+      Node* node);
 
   Factory* factory() const;
   Graph* graph() const;
@@ -96,7 +98,7 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
-  MaybeHandle<LiteralsArray> const literals_array_;
+  MaybeHandle<TypeFeedbackVector> const feedback_vector_;
   Handle<Context> const native_context_;
   Zone* const zone_;
 };

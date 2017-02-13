@@ -395,6 +395,10 @@ Node* InterpreterAssembler::BytecodeOperandUImm(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+Node* InterpreterAssembler::BytecodeOperandUImmWord(int operand_index) {
+  return ChangeUint32ToWord(BytecodeOperandUImm(operand_index));
+}
+
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
   DCHECK_EQ(OperandType::kImm,
             Bytecodes::GetOperandType(bytecode_, operand_index));
@@ -463,9 +467,7 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
 
 Node* InterpreterAssembler::LoadTypeFeedbackVector() {
   Node* function = LoadRegister(Register::function_closure());
-  Node* literals = LoadObjectField(function, JSFunction::kLiteralsOffset);
-  Node* vector =
-      LoadObjectField(literals, LiteralsArray::kFeedbackVectorOffset);
+  Node* vector = LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
   return vector;
 }
 
@@ -543,7 +545,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
     // Call using call function builtin.
     Callable callable = CodeFactory::InterpreterPushArgsAndCall(
-        isolate(), tail_call_mode, CallableType::kJSFunction);
+        isolate(), tail_call_mode, InterpreterPushArgsMode::kJSFunction);
     Node* code_target = HeapConstant(callable.code());
     Node* ret_value = CallStub(callable.descriptor(), code_target, context,
                                arg_count, first_arg, function);
@@ -659,7 +661,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
 
     // Call using call builtin.
     Callable callable_call = CodeFactory::InterpreterPushArgsAndCall(
-        isolate(), tail_call_mode, CallableType::kAny);
+        isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
     Node* code_target_call = HeapConstant(callable_call.code());
     Node* ret_value = CallStub(callable_call.descriptor(), code_target_call,
                                context, arg_count, first_arg, function);
@@ -675,17 +677,28 @@ Node* InterpreterAssembler::CallJS(Node* function, Node* context,
                                    Node* first_arg, Node* arg_count,
                                    TailCallMode tail_call_mode) {
   Callable callable = CodeFactory::InterpreterPushArgsAndCall(
-      isolate(), tail_call_mode, CallableType::kAny);
+      isolate(), tail_call_mode, InterpreterPushArgsMode::kOther);
   Node* code_target = HeapConstant(callable.code());
 
   return CallStub(callable.descriptor(), code_target, context, arg_count,
                   first_arg, function);
 }
 
-Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
-                                          Node* new_target, Node* first_arg,
-                                          Node* arg_count, Node* slot_id,
-                                          Node* type_feedback_vector) {
+Node* InterpreterAssembler::CallJSWithSpread(Node* function, Node* context,
+                                             Node* first_arg, Node* arg_count) {
+  Callable callable = CodeFactory::InterpreterPushArgsAndCall(
+      isolate(), TailCallMode::kDisallow,
+      InterpreterPushArgsMode::kWithFinalSpread);
+  Node* code_target = HeapConstant(callable.code());
+
+  return CallStub(callable.descriptor(), code_target, context, arg_count,
+                  first_arg, function);
+}
+
+Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
+                                      Node* new_target, Node* first_arg,
+                                      Node* arg_count, Node* slot_id,
+                                      Node* type_feedback_vector) {
   Variable return_value(this, MachineRepresentation::kTagged);
   Variable allocation_feedback(this, MachineRepresentation::kTagged);
   Label call_construct_function(this, &allocation_feedback),
@@ -715,10 +728,10 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
   Bind(&call_construct_function);
   {
-    Comment("call using callConstructFunction");
+    Comment("call using ConstructFunction");
     IncrementCallCount(type_feedback_vector, slot_id);
     Callable callable_function = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), CallableType::kJSFunction);
+        isolate(), InterpreterPushArgsMode::kJSFunction);
     return_value.Bind(CallStub(callable_function.descriptor(),
                                HeapConstant(callable_function.code()), context,
                                arg_count, new_target, constructor,
@@ -819,9 +832,9 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
 
   Bind(&call_construct);
   {
-    Comment("call using callConstruct builtin");
+    Comment("call using Construct builtin");
     Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
-        isolate(), CallableType::kAny);
+        isolate(), InterpreterPushArgsMode::kOther);
     Node* code_target = HeapConstant(callable.code());
     return_value.Bind(CallStub(callable.descriptor(), code_target, context,
                                arg_count, new_target, constructor,
@@ -830,6 +843,22 @@ Node* InterpreterAssembler::CallConstruct(Node* constructor, Node* context,
   }
 
   Bind(&end);
+  return return_value.value();
+}
+
+Node* InterpreterAssembler::ConstructWithSpread(Node* constructor,
+                                                Node* context, Node* new_target,
+                                                Node* first_arg,
+                                                Node* arg_count) {
+  Variable return_value(this, MachineRepresentation::kTagged);
+  Comment("call using ConstructWithSpread");
+  Callable callable = CodeFactory::InterpreterPushArgsAndConstruct(
+      isolate(), InterpreterPushArgsMode::kWithFinalSpread);
+  Node* code_target = HeapConstant(callable.code());
+  return_value.Bind(CallStub(callable.descriptor(), code_target, context,
+                             arg_count, new_target, constructor,
+                             UndefinedConstant(), first_arg));
+
   return return_value.value();
 }
 
@@ -854,10 +883,7 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
                    arg_count, first_arg, function_entry);
 }
 
-void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
-  // TODO(rmcilroy): It might be worthwhile to only update the budget for
-  // backwards branches. Those are distinguishable by the {JumpLoop} bytecode.
-
+void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   Label ok(this), interrupt_check(this, Label::kDeferred), end(this);
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
@@ -866,7 +892,11 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight) {
   Variable new_budget(this, MachineRepresentation::kWord32);
   Node* old_budget =
       Load(MachineType::Int32(), BytecodeArrayTaggedPointer(), budget_offset);
-  new_budget.Bind(Int32Add(old_budget, weight));
+  if (backward) {
+    new_budget.Bind(Int32Sub(old_budget, weight));
+  } else {
+    new_budget.Bind(Int32Add(old_budget, weight));
+  }
   Node* condition =
       Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
   Branch(condition, &ok, &interrupt_check);
@@ -894,22 +924,29 @@ Node* InterpreterAssembler::Advance(int delta) {
   return Advance(IntPtrConstant(delta));
 }
 
-Node* InterpreterAssembler::Advance(Node* delta) {
+Node* InterpreterAssembler::Advance(Node* delta, bool backward) {
   if (FLAG_trace_ignition) {
     TraceBytecode(Runtime::kInterpreterTraceBytecodeExit);
   }
-  Node* next_offset = IntPtrAdd(BytecodeOffset(), delta);
+  Node* next_offset = backward ? IntPtrSub(BytecodeOffset(), delta)
+                               : IntPtrAdd(BytecodeOffset(), delta);
   bytecode_offset_.Bind(next_offset);
   return next_offset;
 }
 
-Node* InterpreterAssembler::Jump(Node* delta) {
+Node* InterpreterAssembler::Jump(Node* delta, bool backward) {
   DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
 
-  UpdateInterruptBudget(TruncateWordToWord32(delta));
-  Node* new_bytecode_offset = Advance(delta);
+  UpdateInterruptBudget(TruncateWordToWord32(delta), backward);
+  Node* new_bytecode_offset = Advance(delta, backward);
   Node* target_bytecode = LoadBytecode(new_bytecode_offset);
   return DispatchToBytecode(target_bytecode, new_bytecode_offset);
+}
+
+Node* InterpreterAssembler::Jump(Node* delta) { return Jump(delta, false); }
+
+Node* InterpreterAssembler::JumpBackward(Node* delta) {
+  return Jump(delta, true);
 }
 
 void InterpreterAssembler::JumpConditional(Node* condition, Node* delta) {
@@ -1147,7 +1184,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   Node* profiling_weight =
       Int32Sub(Int32Constant(kHeapObjectTag + BytecodeArray::kHeaderSize),
                TruncateWordToWord32(BytecodeOffset()));
-  UpdateInterruptBudget(profiling_weight);
+  UpdateInterruptBudget(profiling_weight, false);
 }
 
 Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
@@ -1178,6 +1215,26 @@ void InterpreterAssembler::AbortIfWordNotEqual(Node* lhs, Node* rhs,
 
   Bind(&abort);
   Abort(bailout_reason);
+  Goto(&ok);
+
+  Bind(&ok);
+}
+
+void InterpreterAssembler::MaybeDropFrames(Node* context) {
+  Node* restart_fp_address =
+      ExternalConstant(ExternalReference::debug_restart_fp_address(isolate()));
+
+  Node* restart_fp = Load(MachineType::Pointer(), restart_fp_address);
+  Node* null = IntPtrConstant(0);
+
+  Label ok(this), drop_frames(this);
+  Branch(IntPtrEqual(restart_fp, null), &ok, &drop_frames);
+
+  Bind(&drop_frames);
+  // We don't expect this call to return since the frame dropper tears down
+  // the stack and jumps into the function on the target frame to restart it.
+  CallStub(CodeFactory::FrameDropperTrampoline(isolate()), context, restart_fp);
+  Abort(kUnexpectedReturnFromFrameDropper);
   Goto(&ok);
 
   Bind(&ok);

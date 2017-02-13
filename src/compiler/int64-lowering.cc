@@ -105,6 +105,9 @@ static int GetReturnCountAfterLowering(
 
 void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
                                   Node*& index_high) {
+  if (HasReplacementLow(index)) {
+    index = GetReplacementLow(index);
+  }
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   index_low = index;
   index_high = graph()->NewNode(machine()->Int32Add(), index,
@@ -234,9 +237,7 @@ void Int64Lowering::LowerNode(Node* node) {
         NodeProperties::ChangeOp(node, store_op);
         ReplaceNode(node, node, high_node);
       } else {
-        if (HasReplacementLow(node->InputAt(2))) {
-          node->ReplaceInput(2, GetReplacementLow(node->InputAt(2)));
-        }
+        DefaultLowering(node);
       }
       break;
     }

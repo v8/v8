@@ -780,7 +780,7 @@ void Page::ResetFreeListStatistics() {
 
 size_t Page::AvailableInFreeList() {
   size_t sum = 0;
-  ForAllFreeListCategories([this, &sum](FreeListCategory* category) {
+  ForAllFreeListCategories([&sum](FreeListCategory* category) {
     sum += category->available();
   });
   return sum;
@@ -1459,7 +1459,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
       object->IterateBody(map->instance_type(), size, visitor);
-      if (Marking::IsBlack(ObjectMarking::MarkBitFrom(object))) {
+      if (ObjectMarking::IsBlack(object)) {
         black_size += size;
       }
 
@@ -2636,7 +2636,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 size_t FreeList::EvictFreeListItems(Page* page) {
   size_t sum = 0;
   page->ForAllFreeListCategories(
-      [this, &sum, page](FreeListCategory* category) {
+      [this, &sum](FreeListCategory* category) {
         DCHECK_EQ(this, category->owner());
         sum += category->available();
         RemoveCategory(category);
@@ -2990,7 +2990,8 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   AllocationStep(object->address(), object_size);
 
   if (heap()->incremental_marking()->black_allocation()) {
-    Marking::MarkBlack(ObjectMarking::MarkBitFrom(object));
+    // We cannot use ObjectMarking here as the object still lacks a size.
+    Marking::WhiteToBlack(ObjectMarking::MarkBitFrom(object));
     MemoryChunk::IncrementLiveBytes(object, object_size);
   }
   return object;
@@ -3039,9 +3040,8 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
-    DCHECK(Marking::IsBlack(mark_bit));
-    Marking::BlackToWhite(mark_bit);
+    DCHECK(ObjectMarking::IsBlack(object));
+    ObjectMarking::ClearMarkBit(object);
     Page::FromAddress(object->address())->ResetProgressBar();
     Page::FromAddress(object->address())->ResetLiveBytes();
     current = current->next_page();
@@ -3086,9 +3086,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargePage* current = first_page_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(object);
-    DCHECK(!Marking::IsGrey(mark_bit));
-    if (Marking::IsBlack(mark_bit)) {
+    DCHECK(!ObjectMarking::IsGrey(object));
+    if (ObjectMarking::IsBlack(object)) {
       Address free_start;
       if ((free_start = current->GetAddressToShrink()) != 0) {
         // TODO(hpayer): Perform partial free concurrently.
@@ -3156,11 +3155,13 @@ void LargeObjectSpace::Verify() {
 
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
-    // strings), fixed arrays, byte arrays, and constant pool arrays in the
-    // large object space.
+    // strings), thin strings (sequential strings that have been
+    // morphed into thin strings), fixed arrays, byte arrays, and
+    // constant pool arrays in the large object space.
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
-          object->IsExternalString() || object->IsFixedArray() ||
-          object->IsFixedDoubleArray() || object->IsByteArray());
+          object->IsExternalString() || object->IsThinString() ||
+          object->IsFixedArray() || object->IsFixedDoubleArray() ||
+          object->IsByteArray());
 
     // The object itself should look OK.
     object->ObjectVerify();
@@ -3221,7 +3222,7 @@ void Page::Print() {
   unsigned mark_size = 0;
   for (HeapObject* object = objects.Next(); object != NULL;
        object = objects.Next()) {
-    bool is_marked = Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object));
+    bool is_marked = ObjectMarking::IsBlackOrGrey(object);
     PrintF(" %c ", (is_marked ? '!' : ' '));  // Indent a little.
     if (is_marked) {
       mark_size += object->Size();

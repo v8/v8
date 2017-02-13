@@ -245,8 +245,10 @@ class MacroAssembler : public Assembler {
 
   // Add (Register - Immediate)
   void Add32(Register dst, const Operand& imm);
+  void Add32_RI(Register dst, const Operand& imm);
   void AddP(Register dst, const Operand& imm);
   void Add32(Register dst, Register src, const Operand& imm);
+  void Add32_RRI(Register dst, Register src, const Operand& imm);
   void AddP(Register dst, Register src, const Operand& imm);
 
   // Add (Register - Register)
@@ -282,8 +284,12 @@ class MacroAssembler : public Assembler {
 
   // Subtract (Register - Immediate)
   void Sub32(Register dst, const Operand& imm);
+  void Sub32_RI(Register dst, const Operand& imm) { Sub32(dst, imm); }
   void SubP(Register dst, const Operand& imm);
   void Sub32(Register dst, Register src, const Operand& imm);
+  void Sub32_RRI(Register dst, Register src, const Operand& imm) {
+    Sub32(dst, src, imm);
+  }
   void SubP(Register dst, Register src, const Operand& imm);
 
   // Subtract (Register - Register)
@@ -316,12 +322,37 @@ class MacroAssembler : public Assembler {
   void Mul32(Register dst, const MemOperand& src1);
   void Mul32(Register dst, Register src1);
   void Mul32(Register dst, const Operand& src1);
+  void MulHigh32(Register dst, Register src1, const MemOperand& src2);
+  void MulHigh32(Register dst, Register src1, Register src2);
+  void MulHigh32(Register dst, Register src1, const Operand& src2);
+  void MulHighU32(Register dst, Register src1, const MemOperand& src2);
+  void MulHighU32(Register dst, Register src1, Register src2);
+  void MulHighU32(Register dst, Register src1, const Operand& src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                    const MemOperand& src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1, Register src2);
+  void Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
+                                    const Operand& src2);
   void Mul64(Register dst, const MemOperand& src1);
   void Mul64(Register dst, Register src1);
   void Mul64(Register dst, const Operand& src1);
 
   // Divide
   void DivP(Register dividend, Register divider);
+  void Div32(Register dst, Register src1, const MemOperand& src2);
+  void Div32(Register dst, Register src1, Register src2);
+  void Div32(Register dst, Register src1, const Operand& src2);
+  void DivU32(Register dst, Register src1, const MemOperand& src2);
+  void DivU32(Register dst, Register src1, Register src2);
+  void DivU32(Register dst, Register src1, const Operand& src2);
+
+  // Mod
+  void Mod32(Register dst, Register src1, const MemOperand& src2);
+  void Mod32(Register dst, Register src1, Register src2);
+  void Mod32(Register dst, Register src1, const Operand& src2);
+  void ModU32(Register dst, Register src1, const MemOperand& src2);
+  void ModU32(Register dst, Register src1, Register src2);
+  void ModU32(Register dst, Register src1, const Operand& src2);
 
   // Square root
   void Sqrt(DoubleRegister result, DoubleRegister input);
@@ -358,6 +389,7 @@ class MacroAssembler : public Assembler {
   void LoadB(Register dst, const MemOperand& opnd);
   void LoadB(Register dst, Register src);
   void LoadlB(Register dst, const MemOperand& opnd);
+  void LoadlB(Register dst, Register src);
 
   void LoadLogicalReversedWordP(Register dst, const MemOperand& opnd);
   void LoadLogicalReversedHalfWordP(Register dst, const MemOperand& opnd);
@@ -918,6 +950,7 @@ class MacroAssembler : public Assembler {
   // Debugger Support
 
   void DebugBreak();
+  void MaybeDropFrames();
 
   // ---------------------------------------------------------------------------
   // Exception handling

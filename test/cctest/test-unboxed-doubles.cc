@@ -70,6 +70,12 @@ static double GetDoubleFieldValue(JSObject* obj, FieldIndex field_index) {
   }
 }
 
+void WriteToField(JSObject* object, int descriptor, Object* value) {
+  DescriptorArray* descriptors = object->map()->instance_descriptors();
+  PropertyDetails details = descriptors->GetDetails(descriptor);
+  object->WriteToField(descriptor, details, value);
+}
+
 const int kNumberOfBits = 32;
 
 
@@ -920,11 +926,11 @@ TEST(Regress436816) {
   HeapObject* fake_object = HeapObject::FromAddress(fake_address);
   CHECK(fake_object->IsHeapObject());
 
-  double boom_value = bit_cast<double>(fake_object);
+  uint64_t boom_value = bit_cast<uint64_t>(fake_object);
   for (int i = 0; i < kPropsCount; i++) {
     FieldIndex index = FieldIndex::ForDescriptor(*map, i);
     CHECK(map->IsUnboxedDoubleField(index));
-    object->RawFastDoublePropertyAtPut(index, boom_value);
+    object->RawFastDoublePropertyAsBitsAtPut(index, boom_value);
   }
   CHECK(object->HasFastProperties());
   CHECK(!object->map()->HasFastPointerLayout());
@@ -1047,7 +1053,7 @@ TEST(DoScavenge) {
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
-  obj->WriteToField(0, *heap_number);
+  WriteToField(*obj, 0, *heap_number);
 
   {
     // Ensure the object is properly set up.
@@ -1123,8 +1129,8 @@ TEST(DoScavengeWithIncrementalWriteBarrier) {
   Handle<JSObject> obj = factory->NewJSObjectFromMap(map, NOT_TENURED);
 
   Handle<HeapNumber> heap_number = factory->NewHeapNumber(42.5);
-  obj->WriteToField(0, *heap_number);
-  obj->WriteToField(1, *obj_value);
+  WriteToField(*obj, 0, *heap_number);
+  WriteToField(*obj, 1, *obj_value);
 
   {
     // Ensure the object is properly set up.
@@ -1406,12 +1412,12 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   JSObject::MigrateToMap(obj, new_map);
 
   Address fake_object = reinterpret_cast<Address>(*obj_value) + kPointerSize;
-  double boom_value = bit_cast<double>(fake_object);
+  uint64_t boom_value = bit_cast<uint64_t>(fake_object);
 
   FieldIndex double_field_index =
       FieldIndex::ForDescriptor(*new_map, double_descriptor);
   CHECK(obj->IsUnboxedDoubleField(double_field_index));
-  obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
+  obj->RawFastDoublePropertyAsBitsAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
   CcTest::CollectGarbage(NEW_SPACE);
@@ -1421,7 +1427,7 @@ static void TestWriteBarrier(Handle<Map> map, Handle<Map> new_map,
         FieldIndex::ForDescriptor(*new_map, tagged_descriptor);
     CHECK_EQ(*obj_value, obj->RawFastPropertyAt(tagged_field_index));
   }
-  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
+  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAsBitsAt(double_field_index));
 }
 
 
@@ -1485,12 +1491,12 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
   // barrier.
   JSObject::MigrateToMap(obj, new_map);
 
-  double boom_value = bit_cast<double>(UINT64_C(0xbaad0176a37c28e1));
+  uint64_t boom_value = UINT64_C(0xbaad0176a37c28e1);
 
   FieldIndex double_field_index =
       FieldIndex::ForDescriptor(*new_map, double_descriptor);
   CHECK(obj->IsUnboxedDoubleField(double_field_index));
-  obj->RawFastDoublePropertyAtPut(double_field_index, boom_value);
+  obj->RawFastDoublePropertyAsBitsAtPut(double_field_index, boom_value);
 
   // Trigger GC to evacuate all candidates.
   CcTest::CollectGarbage(OLD_SPACE);
@@ -1503,7 +1509,7 @@ static void TestIncrementalWriteBarrier(Handle<Map> map, Handle<Map> new_map,
         FieldIndex::ForDescriptor(*new_map, tagged_descriptor);
     CHECK_EQ(*obj_value, obj->RawFastPropertyAt(tagged_field_index));
   }
-  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAt(double_field_index));
+  CHECK_EQ(boom_value, obj->RawFastDoublePropertyAsBitsAt(double_field_index));
 }
 
 enum OldToWriteBarrierKind {
@@ -1534,7 +1540,7 @@ static void TestWriteBarrierObjectShiftFieldsRight(
 
   // Shift fields right by turning constant property to a field.
   Handle<Map> new_map = Map::ReconfigureProperty(
-      map, 0, kData, NONE, Representation::Tagged(), any_type, FORCE_FIELD);
+      map, 0, kData, NONE, Representation::Tagged(), any_type);
 
   if (write_barrier_kind == OLD_TO_NEW_WRITE_BARRIER) {
     TestWriteBarrier(map, new_map, 2, 1);
