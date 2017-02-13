@@ -897,8 +897,6 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   Variable* arguments_;
 
   struct RareData : public ZoneObject {
-    void* operator new(size_t size, Zone* zone) { return zone->New(size); }
-
     // Convenience variable; Subclass constructor only
     Variable* this_function = nullptr;
 
