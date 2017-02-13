@@ -36,6 +36,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysisReducer final
   Reduction ReduceNode(Node* node);
   Reduction ReduceLoad(Node* node);
   Reduction ReduceStore(Node* node);
+  Reduction ReduceCheckMaps(Node* node);
   Reduction ReduceAllocate(Node* node);
   Reduction ReduceFinishRegion(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
