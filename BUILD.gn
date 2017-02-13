@@ -493,6 +493,7 @@ action("js2c_experimental") {
     "src/js/macros.py",
     "src/messages.h",
     "src/js/harmony-atomics.js",
+    "src/js/harmony-simd.js",
   ]
 
   outputs = [
@@ -1716,6 +1717,7 @@ v8_source_set("v8_base") {
     "src/runtime/runtime-proxy.cc",
     "src/runtime/runtime-regexp.cc",
     "src/runtime/runtime-scopes.cc",
+    "src/runtime/runtime-simd.cc",
     "src/runtime/runtime-strings.cc",
     "src/runtime/runtime-symbol.cc",
     "src/runtime/runtime-test.cc",

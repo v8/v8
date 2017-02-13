@@ -205,6 +205,9 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ cmpi(r7, Operand(SYMBOL_TYPE));
     __ beq(slow);
+    // Call runtime on identical SIMD values since we must throw a TypeError.
+    __ cmpi(r7, Operand(SIMD128_VALUE_TYPE));
+    __ beq(slow);
   } else {
     __ CompareObjectType(r3, r7, r7, HEAP_NUMBER_TYPE);
     __ beq(&heap_number);
@@ -214,6 +217,9 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
       __ bge(slow);
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpi(r7, Operand(SYMBOL_TYPE));
+      __ beq(slow);
+      // Call runtime on identical SIMD values since we must throw a TypeError.
+      __ cmpi(r7, Operand(SIMD128_VALUE_TYPE));
       __ beq(slow);
       // Normally here we fall through to return_equal, but undefined is
       // special: (undefined == undefined) == true, but

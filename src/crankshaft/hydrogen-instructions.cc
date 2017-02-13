@@ -1072,9 +1072,9 @@ std::ostream& HReturn::PrintDataTo(std::ostream& os) const {  // NOLINT
 
 
 Representation HBranch::observed_input_representation(int index) {
-  if (expected_input_types_ &
-      (ToBooleanHint::kNull | ToBooleanHint::kReceiver |
-       ToBooleanHint::kString | ToBooleanHint::kSymbol)) {
+  if (expected_input_types_ & (ToBooleanHint::kNull | ToBooleanHint::kReceiver |
+                               ToBooleanHint::kString | ToBooleanHint::kSymbol |
+                               ToBooleanHint::kSimdValue)) {
     return Representation::Tagged();
   }
   if (expected_input_types_ & ToBooleanHint::kUndefined) {
@@ -1244,6 +1244,17 @@ String* TypeOfString(HConstant* constant, Isolate* isolate) {
     }
     case SYMBOL_TYPE:
       return heap->symbol_string();
+    case SIMD128_VALUE_TYPE: {
+      Unique<Map> map = constant->ObjectMap();
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (map.IsKnownGlobal(heap->type##_map())) {                \
+    return heap->type##_string();                             \
+  }
+      SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+      UNREACHABLE();
+      return nullptr;
+    }
     default:
       if (constant->IsUndetectable()) return heap->undefined_string();
       if (constant->IsCallable()) return heap->function_string();

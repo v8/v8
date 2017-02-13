@@ -190,6 +190,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     }
     case HEAP_NUMBER_TYPE:
       return kNumber;
+    case SIMD128_VALUE_TYPE:
+      return kSimd;
     case JS_OBJECT_TYPE:
     case JS_ARGUMENTS_TYPE:
     case JS_ERROR_TYPE:

@@ -18,6 +18,7 @@
       '../tools/whitespace.txt',
       'js-perf-test/',
       'memory/',
+      'simdjs/',
     ],
   },
   'includes': [

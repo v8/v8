@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --stack-size=100 --harmony
+// Flags: --harmony-simd
 
 function test(f, expected, type) {
   try {
@@ -318,6 +319,11 @@ test(function() {
 test(function() {
   1 + Symbol();
 }, "Cannot convert a Symbol value to a number", TypeError);
+
+// kSimdToNumber
+test(function() {
+  1 + SIMD.Float32x4(1, 2, 3, 4);
+}, "Cannot convert a SIMD value to a number", TypeError);
 
 // kUndefinedOrNullToObject
 test(function() {

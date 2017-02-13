@@ -56,9 +56,10 @@ enum class ToBooleanHint : uint16_t {
   kString = 1u << 5,
   kSymbol = 1u << 6,
   kHeapNumber = 1u << 7,
+  kSimdValue = 1u << 8,
   kAny = kUndefined | kBoolean | kNull | kSmallInteger | kReceiver | kString |
-         kSymbol | kHeapNumber,
-  kNeedsMap = kReceiver | kString | kSymbol | kHeapNumber,
+         kSymbol | kHeapNumber | kSimdValue,
+  kNeedsMap = kReceiver | kString | kSymbol | kHeapNumber | kSimdValue,
   kCanBeUndetectable = kReceiver,
 };
 

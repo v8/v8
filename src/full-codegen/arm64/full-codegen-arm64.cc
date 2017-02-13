@@ -2578,6 +2578,18 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ Ldrb(x10, FieldMemOperand(x10, Map::kBitFieldOffset));
     __ TestAndSplit(x10, (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable),
                     if_true, if_false, fall_through);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
+  } else if (String::Equals(check, factory->type##_string())) { \
+    ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof " \
+                 #type "_string");                              \
+    __ JumpIfSmi(x0, if_true);                                  \
+    __ Ldr(x0, FieldMemOperand(x0, HeapObject::kMapOffset));    \
+    __ CompareRoot(x0, Heap::k##Type##MapRootIndex);            \
+    Split(eq, if_true, if_false, fall_through);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
   } else {
     ASM_LOCATION("FullCodeGenerator::EmitLiteralCompareTypeof other");
     if (if_false != fall_through) __ B(if_false);

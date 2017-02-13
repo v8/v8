@@ -2146,6 +2146,14 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ Branch(instr->TrueLabel(chunk_), eq, scratch, Operand(SYMBOL_TYPE));
       }
 
+      if (expected & ToBooleanHint::kSimdValue) {
+        // SIMD value -> true.
+        const Register scratch = scratch1();
+        __ lbu(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+        __ Branch(instr->TrueLabel(chunk_), eq, scratch,
+                  Operand(SIMD128_VALUE_TYPE));
+      }
+
       if (expected & ToBooleanHint::kHeapNumber) {
         // heap number -> false iff +0, -0, or NaN.
         DoubleRegister dbl_scratch = double_scratch0();
@@ -5354,6 +5362,20 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     *cmp1 = at;
     *cmp2 = Operand(zero_reg);
     final_branch_condition = eq;
+
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
+  } else if (String::Equals(type_name, factory->type##_string())) {  \
+    __ JumpIfSmi(input, false_label);                                \
+    __ ld(input, FieldMemOperand(input, HeapObject::kMapOffset));    \
+    __ LoadRoot(at, Heap::k##Type##MapRootIndex);                    \
+    *cmp1 = input;                                                   \
+    *cmp2 = Operand(at);                                             \
+    final_branch_condition = eq;
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
+
 
   } else {
     *cmp1 = at;

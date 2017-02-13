@@ -55,6 +55,16 @@ class PlatformInterfaceDescriptor;
   V(CopyFastSmiOrObjectElements)          \
   V(TransitionElementsKind)               \
   V(AllocateHeapNumber)                   \
+  V(AllocateFloat32x4)                    \
+  V(AllocateInt32x4)                      \
+  V(AllocateUint32x4)                     \
+  V(AllocateBool32x4)                     \
+  V(AllocateInt16x8)                      \
+  V(AllocateUint16x8)                     \
+  V(AllocateBool16x8)                     \
+  V(AllocateInt8x16)                      \
+  V(AllocateUint8x16)                     \
+  V(AllocateBool8x16)                     \
   V(Builtin)                              \
   V(ArrayConstructor)                     \
   V(ForEach)                              \
@@ -683,6 +693,14 @@ class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(AllocateHeapNumberDescriptor, CallInterfaceDescriptor)
 };
+
+#define SIMD128_ALLOC_DESC(TYPE, Type, type, lane_count, lane_type)         \
+  class Allocate##Type##Descriptor : public CallInterfaceDescriptor {       \
+   public:                                                                  \
+    DECLARE_DESCRIPTOR(Allocate##Type##Descriptor, CallInterfaceDescriptor) \
+  };
+SIMD128_TYPES(SIMD128_ALLOC_DESC)
+#undef SIMD128_ALLOC_DESC
 
 class BuiltinDescriptor : public CallInterfaceDescriptor {
  public:

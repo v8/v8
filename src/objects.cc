@@ -158,6 +158,10 @@ MaybeHandle<Object> Object::ConvertToNumber(Isolate* isolate,
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
                       Object);
     }
+    if (input->IsSimd128Value()) {
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSimdToNumber),
+                      Object);
+    }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
                                                 ToPrimitiveHint::kNumber),
@@ -241,6 +245,9 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToString),
                       String);
     }
+    if (input->IsSimd128Value()) {
+      return Simd128Value::ToString(Handle<Simd128Value>::cast(input));
+    }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
                                                 ToPrimitiveHint::kString),
@@ -297,7 +304,8 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
                                              Handle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
-  if (input->IsString() || input->IsNumber() || input->IsOddball()) {
+  if (input->IsString() || input->IsNumber() || input->IsOddball() ||
+      input->IsSimd128Value()) {
     return Object::ToString(isolate, input).ToHandleChecked();
   } else if (input->IsFunction()) {
     // -- F u n c t i o n
@@ -572,6 +580,18 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
       } else {
         return Just(false);
       }
+    } else if (x->IsSimd128Value()) {
+      if (y->IsSimd128Value()) {
+        return Just(Simd128Value::Equals(Handle<Simd128Value>::cast(x),
+                                         Handle<Simd128Value>::cast(y)));
+      } else if (y->IsJSReceiver()) {
+        if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
+                 .ToHandle(&y)) {
+          return Nothing<bool>();
+        }
+      } else {
+        return Just(false);
+      }
     } else if (x->IsJSReceiver()) {
       if (y->IsJSReceiver()) {
         return Just(x.is_identical_to(y));
@@ -597,6 +617,9 @@ bool Object::StrictEquals(Object* that) {
   } else if (this->IsString()) {
     if (!that->IsString()) return false;
     return String::cast(this)->Equals(String::cast(that));
+  } else if (this->IsSimd128Value()) {
+    if (!that->IsSimd128Value()) return false;
+    return Simd128Value::cast(this)->Equals(Simd128Value::cast(that));
   }
   return this == that;
 }
@@ -612,6 +635,10 @@ Handle<String> Object::TypeOf(Isolate* isolate, Handle<Object> object) {
   if (object->IsString()) return isolate->factory()->string_string();
   if (object->IsSymbol()) return isolate->factory()->symbol_string();
   if (object->IsString()) return isolate->factory()->string_string();
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (object->Is##Type()) return isolate->factory()->type##_string();
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
   if (object->IsCallable()) return isolate->factory()->function_string();
   return isolate->factory()->object_string();
 }
@@ -2154,8 +2181,8 @@ Map* Object::GetPrototypeChainRootMap(Isolate* isolate) {
     return native_context->number_function()->initial_map();
   }
 
-  // The object is either a number, a string, a symbol, a boolean, a real JS
-  // object, or a Harmony proxy.
+  // The object is either a number, a string, a symbol, a boolean, a SIMD value,
+  // a real JS object, or a Harmony proxy.
   HeapObject* heap_object = HeapObject::cast(this);
   return heap_object->map()->GetPrototypeChainRootMap(isolate);
 }
@@ -2181,8 +2208,8 @@ namespace {
 // objects.  This avoids a double lookup in the cases where we know we will
 // add the hash to the JSObject if it does not already exist.
 Object* GetSimpleHash(Object* object) {
-  // The object is either a Smi, a HeapNumber, a name, an odd-ball, a real JS
-  // object, or a Harmony proxy.
+  // The object is either a Smi, a HeapNumber, a name, an odd-ball,
+  // a SIMD value type, a real JS object, or a Harmony proxy.
   if (object->IsSmi()) {
     uint32_t hash =
         ComputeIntegerHash(Smi::cast(object)->value(), kZeroHashSeed);
@@ -2205,6 +2232,10 @@ Object* GetSimpleHash(Object* object) {
   if (object->IsOddball()) {
     uint32_t hash = Oddball::cast(object)->to_string()->Hash();
     return Smi::FromInt(hash);
+  }
+  if (object->IsSimd128Value()) {
+    uint32_t hash = Simd128Value::cast(object)->Hash();
+    return Smi::FromInt(hash & Smi::kMaxValue);
   }
   DCHECK(object->IsJSReceiver());
   // Simply return the receiver as it is guaranteed to not be a SMI.
@@ -2252,6 +2283,23 @@ bool Object::SameValue(Object* other) {
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
   }
+  if (IsFloat32x4() && other->IsFloat32x4()) {
+    Float32x4* a = Float32x4::cast(this);
+    Float32x4* b = Float32x4::cast(other);
+    for (int i = 0; i < 4; i++) {
+      float x = a->get_lane(i);
+      float y = b->get_lane(i);
+      // Implements the ES5 SameValue operation for floating point types.
+      // http://www.ecma-international.org/ecma-262/6.0/#sec-samevalue
+      if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
+      if (std::signbit(x) != std::signbit(y)) return false;
+    }
+    return true;
+  } else if (IsSimd128Value() && other->IsSimd128Value()) {
+    Simd128Value* a = Simd128Value::cast(this);
+    Simd128Value* b = Simd128Value::cast(other);
+    return a->map() == b->map() && a->BitwiseEquals(b);
+  }
   return false;
 }
 
@@ -2270,6 +2318,23 @@ bool Object::SameValueZero(Object* other) {
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
+  }
+  if (IsFloat32x4() && other->IsFloat32x4()) {
+    Float32x4* a = Float32x4::cast(this);
+    Float32x4* b = Float32x4::cast(other);
+    for (int i = 0; i < 4; i++) {
+      float x = a->get_lane(i);
+      float y = b->get_lane(i);
+      // Implements the ES6 SameValueZero operation for floating point types.
+      // http://www.ecma-international.org/ecma-262/6.0/#sec-samevaluezero
+      if (x != y && !(std::isnan(x) && std::isnan(y))) return false;
+      // SameValueZero doesn't distinguish between 0 and -0.
+    }
+    return true;
+  } else if (IsSimd128Value() && other->IsSimd128Value()) {
+    Simd128Value* a = Simd128Value::cast(this);
+    Simd128Value* b = Simd128Value::cast(other);
+    return a->map() == b->map() && a->BitwiseEquals(b);
   }
   return false;
 }
@@ -3012,6 +3077,17 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << '>';
       break;
     }
+    case SIMD128_VALUE_TYPE: {
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (Is##Type()) {                                           \
+    os << "<" #Type ">";                                      \
+    break;                                                    \
+  }
+      SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+      UNREACHABLE();
+      break;
+    }
     case JS_PROXY_TYPE:
       os << "<JSProxy>";
       break;
@@ -3101,6 +3177,101 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
 
 #define READ_BYTE_FIELD(p, offset) \
   (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
+
+
+// static
+Handle<String> Simd128Value::ToString(Handle<Simd128Value> input) {
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type) \
+  if (input->Is##Type()) return Type::ToString(Handle<Type>::cast(input));
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+  UNREACHABLE();
+  return Handle<String>::null();
+}
+
+
+// static
+Handle<String> Float32x4::ToString(Handle<Float32x4> input) {
+  Isolate* const isolate = input->GetIsolate();
+  char arr[100];
+  Vector<char> buffer(arr, arraysize(arr));
+  std::ostringstream os;
+  os << "SIMD.Float32x4("
+     << std::string(DoubleToCString(input->get_lane(0), buffer)) << ", "
+     << std::string(DoubleToCString(input->get_lane(1), buffer)) << ", "
+     << std::string(DoubleToCString(input->get_lane(2), buffer)) << ", "
+     << std::string(DoubleToCString(input->get_lane(3), buffer)) << ")";
+  return isolate->factory()->NewStringFromAsciiChecked(os.str().c_str());
+}
+
+
+#define SIMD128_BOOL_TO_STRING(Type, lane_count)                            \
+  Handle<String> Type::ToString(Handle<Type> input) {                       \
+    Isolate* const isolate = input->GetIsolate();                           \
+    std::ostringstream os;                                                  \
+    os << "SIMD." #Type "(";                                                \
+    os << (input->get_lane(0) ? "true" : "false");                          \
+    for (int i = 1; i < lane_count; i++) {                                  \
+      os << ", " << (input->get_lane(i) ? "true" : "false");                \
+    }                                                                       \
+    os << ")";                                                              \
+    return isolate->factory()->NewStringFromAsciiChecked(os.str().c_str()); \
+  }
+SIMD128_BOOL_TO_STRING(Bool32x4, 4)
+SIMD128_BOOL_TO_STRING(Bool16x8, 8)
+SIMD128_BOOL_TO_STRING(Bool8x16, 16)
+#undef SIMD128_BOOL_TO_STRING
+
+
+#define SIMD128_INT_TO_STRING(Type, lane_count)                             \
+  Handle<String> Type::ToString(Handle<Type> input) {                       \
+    Isolate* const isolate = input->GetIsolate();                           \
+    char arr[100];                                                          \
+    Vector<char> buffer(arr, arraysize(arr));                               \
+    std::ostringstream os;                                                  \
+    os << "SIMD." #Type "(";                                                \
+    os << IntToCString(input->get_lane(0), buffer);                         \
+    for (int i = 1; i < lane_count; i++) {                                  \
+      os << ", " << IntToCString(input->get_lane(i), buffer);               \
+    }                                                                       \
+    os << ")";                                                              \
+    return isolate->factory()->NewStringFromAsciiChecked(os.str().c_str()); \
+  }
+SIMD128_INT_TO_STRING(Int32x4, 4)
+SIMD128_INT_TO_STRING(Uint32x4, 4)
+SIMD128_INT_TO_STRING(Int16x8, 8)
+SIMD128_INT_TO_STRING(Uint16x8, 8)
+SIMD128_INT_TO_STRING(Int8x16, 16)
+SIMD128_INT_TO_STRING(Uint8x16, 16)
+#undef SIMD128_INT_TO_STRING
+
+
+bool Simd128Value::BitwiseEquals(const Simd128Value* other) const {
+  return READ_INT64_FIELD(this, kValueOffset) ==
+             READ_INT64_FIELD(other, kValueOffset) &&
+         READ_INT64_FIELD(this, kValueOffset + kInt64Size) ==
+             READ_INT64_FIELD(other, kValueOffset + kInt64Size);
+}
+
+
+uint32_t Simd128Value::Hash() const {
+  uint32_t seed = v8::internal::kZeroHashSeed;
+  uint32_t hash;
+  hash = ComputeIntegerHash(READ_INT32_FIELD(this, kValueOffset), seed);
+  hash = ComputeIntegerHash(
+      READ_INT32_FIELD(this, kValueOffset + 1 * kInt32Size), hash * 31);
+  hash = ComputeIntegerHash(
+      READ_INT32_FIELD(this, kValueOffset + 2 * kInt32Size), hash * 31);
+  hash = ComputeIntegerHash(
+      READ_INT32_FIELD(this, kValueOffset + 3 * kInt32Size), hash * 31);
+  return hash;
+}
+
+
+void Simd128Value::CopyBits(void* destination) const {
+  memcpy(destination, &READ_BYTE_FIELD(this, kValueOffset), kSimd128Size);
+}
+
 
 String* JSReceiver::class_name() {
   if (IsFunction()) {
@@ -12558,6 +12729,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case ODDBALL_TYPE:
     case PROPERTY_CELL_TYPE:
     case SHARED_FUNCTION_INFO_TYPE:
+    case SIMD128_VALUE_TYPE:
     case SYMBOL_TYPE:
     case WEAK_CELL_TYPE:
 

@@ -61,7 +61,8 @@ Handle<Object> TypeFeedbackOracle::GetInfo(FeedbackSlot slot) {
     obj = cell->value();
   }
 
-  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol()) {
+  if (obj->IsJSFunction() || obj->IsAllocationSite() || obj->IsSymbol() ||
+      obj->IsSimd128Value()) {
     return Handle<Object>(obj, isolate());
   }
 

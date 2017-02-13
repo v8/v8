@@ -2562,6 +2562,16 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ tm(FieldMemOperand(r2, Map::kBitFieldOffset),
           Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     Split(eq, if_true, if_false, fall_through);
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)   \
+  } else if (String::Equals(check, factory->type##_string())) { \
+    __ JumpIfSmi(r2, if_false);                                 \
+    __ LoadP(r2, FieldMemOperand(r2, HeapObject::kMapOffset));  \
+    __ CompareRoot(r2, Heap::k##Type##MapRootIndex);            \
+    Split(eq, if_true, if_false, fall_through);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
   } else {
     if (if_false != fall_through) __ b(if_false);
   }

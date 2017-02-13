@@ -183,6 +183,7 @@
       'test-representation.cc',
       'test-sampler-api.cc',
       'test-serialize.cc',
+      'test-simd.cc',
       'test-strings.cc',
       'test-symbols.cc',
       'test-strtod.cc',

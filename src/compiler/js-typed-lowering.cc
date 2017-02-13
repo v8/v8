@@ -1000,10 +1000,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
       return Replace(replacement);
     }
   }
-  if (r.OneInputCannotBe(Type::NumberOrString())) {
+  if (r.OneInputCannotBe(Type::NumberOrSimdOrString())) {
     // For values with canonical representation (i.e. neither String, nor
-    // Number) an empty type intersection means the values cannot be strictly
-    // equal.
+    // Simd128Value nor Number) an empty type intersection means the values
+    // cannot be strictly equal.
     if (!r.left_type()->Maybe(r.right_type())) {
       Node* replacement = jsgraph()->BooleanConstant(invert);
       ReplaceWithValue(node, replacement);
