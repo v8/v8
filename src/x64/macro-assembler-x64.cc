@@ -2465,10 +2465,19 @@ void MacroAssembler::Push(Smi* source) {
   intptr_t smi = reinterpret_cast<intptr_t>(source);
   if (is_int32(smi)) {
     Push(Immediate(static_cast<int32_t>(smi)));
-  } else {
-    Register constant = GetSmiConstant(source);
-    Push(constant);
+    return;
   }
+  int first_byte_set = base::bits::CountTrailingZeros64(smi) / 8;
+  int last_byte_set = (63 - base::bits::CountLeadingZeros64(smi)) / 8;
+  if (first_byte_set == last_byte_set && kPointerSize == kInt64Size) {
+    // This sequence has only 7 bytes, compared to the 12 bytes below.
+    Push(Immediate(0));
+    movb(Operand(rsp, first_byte_set),
+         Immediate(static_cast<int8_t>(smi >> (8 * first_byte_set))));
+    return;
+  }
+  Register constant = GetSmiConstant(source);
+  Push(constant);
 }
 
 
