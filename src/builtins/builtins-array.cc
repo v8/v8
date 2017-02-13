@@ -9,6 +9,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/elements.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {

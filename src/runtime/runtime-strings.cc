@@ -5,6 +5,9 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 #include "src/regexp/jsregexp-inl.h"
 #include "src/string-builder.h"
 #include "src/string-case.h"

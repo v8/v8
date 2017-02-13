@@ -12,6 +12,7 @@
 #include "src/base/platform/platform.h"
 #include "src/compilation-cache.h"
 #include "src/execution.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/unicode-inl.h"

@@ -5,6 +5,8 @@
 #include "src/runtime/runtime-utils.h"
 
 #include "src/arguments.h"
+#include "src/counters.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
