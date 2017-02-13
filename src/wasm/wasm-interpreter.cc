@@ -6,6 +6,8 @@
 
 #include "src/wasm/wasm-interpreter.h"
 
+#include "src/conversions.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"

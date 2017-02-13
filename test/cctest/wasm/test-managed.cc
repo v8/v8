@@ -8,6 +8,7 @@
 
 #include "src/wasm/managed.h"
 
+#include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/wasm/test-signatures.h"
 

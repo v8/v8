@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/utils.h"
 #include "src/wasm/wasm-interpreter.h"

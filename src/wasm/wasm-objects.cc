@@ -7,6 +7,7 @@
 
 #include "src/base/iterator.h"
 #include "src/debug/debug-interface.h"
+#include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-text.h"

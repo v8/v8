@@ -4,9 +4,11 @@
 
 #include "src/signature.h"
 
+#include "src/base/platform/elapsed-timer.h"
 #include "src/bit-vector.h"
 #include "src/flags.h"
 #include "src/handles.h"
+#include "src/objects-inl.h"
 #include "src/zone/zone-containers.h"
 
 #include "src/wasm/decoder.h"

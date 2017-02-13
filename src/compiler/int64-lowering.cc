@@ -12,6 +12,7 @@
 #include "src/compiler/node-properties.h"
 
 #include "src/compiler/node.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone.h"
 

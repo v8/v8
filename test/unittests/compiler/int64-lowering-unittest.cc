@@ -10,6 +10,7 @@
 
 #include "src/compiler/node-properties.h"
 
+#include "src/objects-inl.h"
 #include "src/signature.h"
 
 #include "src/wasm/wasm-module.h"
