@@ -1865,6 +1865,12 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ B(eq, true_label);
       }
 
+      if (expected & ToBooleanHint::kSimdValue) {
+        // SIMD value -> true.
+        __ CompareInstanceType(map, scratch, SIMD128_VALUE_TYPE);
+        __ B(eq, true_label);
+      }
+
       if (expected & ToBooleanHint::kHeapNumber) {
         Label not_heap_number;
         __ JumpIfNotRoot(map, Heap::kHeapNumberMapRootIndex, &not_heap_number);
@@ -5445,6 +5451,20 @@ void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
     __ Ldrb(scratch, FieldMemOperand(map, Map::kBitFieldOffset));
     EmitTestAndBranch(instr, eq, scratch,
                       (1 << Map::kIsCallable) | (1 << Map::kIsUndetectable));
+
+// clang-format off
+#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)       \
+  } else if (String::Equals(type_name, factory->type##_string())) { \
+    DCHECK((instr->temp1() != NULL) && (instr->temp2() != NULL));   \
+    Register map = ToRegister(instr->temp1());                      \
+                                                                    \
+    __ JumpIfSmi(value, false_label);                               \
+    __ Ldr(map, FieldMemOperand(value, HeapObject::kMapOffset));    \
+    __ CompareRoot(map, Heap::k##Type##MapRootIndex);               \
+    EmitBranch(instr, eq);
+  SIMD128_TYPES(SIMD128_TYPE)
+#undef SIMD128_TYPE
+    // clang-format on
 
   } else {
     __ B(false_label);

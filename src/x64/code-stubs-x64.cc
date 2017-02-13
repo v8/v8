@@ -866,6 +866,9 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpb(rcx, Immediate(static_cast<uint8_t>(SYMBOL_TYPE)));
       __ j(equal, &runtime_call, Label::kFar);
+      // Call runtime on identical SIMD values since we must throw a TypeError.
+      __ cmpb(rcx, Immediate(static_cast<uint8_t>(SIMD128_VALUE_TYPE)));
+      __ j(equal, &runtime_call, Label::kFar);
     }
     __ Set(rax, EQUAL);
     __ ret(0);

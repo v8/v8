@@ -11137,9 +11137,11 @@ bool IsLiteralCompareStrict(Isolate* isolate, HValue* left, Token::Value op,
   return op == Token::EQ_STRICT &&
          ((left->IsConstant() &&
            !HConstant::cast(left)->handle(isolate)->IsNumber() &&
+           !HConstant::cast(left)->handle(isolate)->IsSimd128Value() &&
            !HConstant::cast(left)->handle(isolate)->IsString()) ||
           (right->IsConstant() &&
            !HConstant::cast(right)->handle(isolate)->IsNumber() &&
+           !HConstant::cast(right)->handle(isolate)->IsSimd128Value() &&
            !HConstant::cast(right)->handle(isolate)->IsString()));
 }
 

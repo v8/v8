@@ -163,6 +163,10 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable NewRestParameterElements(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
+#define SIMD128_ALLOC(TYPE, Type, type, lane_count, lane_type) \
+  static Callable Allocate##Type(Isolate* isolate);
+  SIMD128_TYPES(SIMD128_ALLOC)
+#undef SIMD128_ALLOC
 
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,

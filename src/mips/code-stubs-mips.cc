@@ -235,6 +235,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
     __ Branch(slow, greater, t4, Operand(FIRST_JS_RECEIVER_TYPE));
     // Call runtime on identical symbols since we need to throw a TypeError.
     __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
+    // Call runtime on identical SIMD values since we must throw a TypeError.
+    __ Branch(slow, eq, t4, Operand(SIMD128_VALUE_TYPE));
   } else {
     __ Branch(&heap_number, eq, t4, Operand(HEAP_NUMBER_TYPE));
     // Comparing JS objects with <=, >= is complicated.
@@ -242,6 +244,8 @@ static void EmitIdenticalObjectComparison(MacroAssembler* masm, Label* slow,
       __ Branch(slow, greater, t4, Operand(FIRST_JS_RECEIVER_TYPE));
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ Branch(slow, eq, t4, Operand(SYMBOL_TYPE));
+      // Call runtime on identical SIMD values since we must throw a TypeError.
+      __ Branch(slow, eq, t4, Operand(SIMD128_VALUE_TYPE));
       // Normally here we fall through to return_equal, but undefined is
       // special: (undefined == undefined) == true, but
       // (undefined <= undefined) == false!  See ECMAScript 11.8.5.

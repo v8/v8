@@ -31,6 +31,7 @@ group("gn_all") {
       ":bot_default_run",
       ":default_run",
       ":mozilla_run",
+      ":simdjs_run",
       "test262:test262_run",
     ]
   }
@@ -182,6 +183,14 @@ v8_isolate_run("preparser") {
   ]
 
   isolate = "preparser/preparser.isolate"
+}
+
+v8_isolate_run("simdjs") {
+  deps = [
+    "..:d8_run",
+  ]
+
+  isolate = "simdjs/simdjs.isolate"
 }
 
 v8_isolate_run("unittests") {

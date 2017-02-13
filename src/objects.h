@@ -122,6 +122,17 @@
 //             - ExternalTwoByteInternalizedString
 //       - Symbol
 //     - HeapNumber
+//     - Simd128Value
+//       - Float32x4
+//       - Int32x4
+//       - Uint32x4
+//       - Bool32x4
+//       - Int16x8
+//       - Uint16x8
+//       - Bool16x8
+//       - Int8x16
+//       - Uint8x16
+//       - Bool8x16
 //     - Cell
 //     - PropertyCell
 //     - Code
@@ -319,6 +330,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(SYMBOL_TYPE)                                                \
   V(HEAP_NUMBER_TYPE)                                           \
+  V(SIMD128_VALUE_TYPE)                                         \
   V(ODDBALL_TYPE)                                               \
                                                                 \
   V(MAP_TYPE)                                                   \
@@ -656,6 +668,7 @@ enum InstanceType {
 
   // Other primitives (cannot contain non-map-word pointers to heap objects).
   HEAP_NUMBER_TYPE,
+  SIMD128_VALUE_TYPE,
   ODDBALL_TYPE,  // LAST_PRIMITIVE_TYPE
 
   // Objects allocated in their own spaces (never in new space).
@@ -972,6 +985,17 @@ template <class C> inline bool Is(Object* obj);
 #define HEAP_OBJECT_TYPE_LIST(V) \
   V(HeapNumber)                  \
   V(MutableHeapNumber)           \
+  V(Simd128Value)                \
+  V(Float32x4)                   \
+  V(Int32x4)                     \
+  V(Uint32x4)                    \
+  V(Bool32x4)                    \
+  V(Int16x8)                     \
+  V(Uint16x8)                    \
+  V(Bool16x8)                    \
+  V(Int8x16)                     \
+  V(Uint8x16)                    \
+  V(Bool8x16)                    \
   V(Name)                        \
   V(UniqueName)                  \
   V(String)                      \
@@ -1841,6 +1865,71 @@ class HeapNumber: public HeapObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
 };
+
+
+// The Simd128Value class describes heap allocated 128 bit SIMD values.
+class Simd128Value : public HeapObject {
+ public:
+  DECLARE_CAST(Simd128Value)
+
+  DECLARE_PRINTER(Simd128Value)
+  DECLARE_VERIFIER(Simd128Value)
+
+  static Handle<String> ToString(Handle<Simd128Value> input);
+
+  // Equality operations.
+  inline bool Equals(Simd128Value* that);
+  static inline bool Equals(Handle<Simd128Value> one, Handle<Simd128Value> two);
+
+  // Checks that another instance is bit-wise equal.
+  bool BitwiseEquals(const Simd128Value* other) const;
+  // Computes a hash from the 128 bit value, viewed as 4 32-bit integers.
+  uint32_t Hash() const;
+  // Copies the 16 bytes of SIMD data to the destination address.
+  void CopyBits(void* destination) const;
+
+  // Layout description.
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kSimd128Size;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Simd128Value);
+};
+
+
+// V has parameters (TYPE, Type, type, lane count, lane type)
+#define SIMD128_TYPES(V)                       \
+  V(FLOAT32X4, Float32x4, float32x4, 4, float) \
+  V(INT32X4, Int32x4, int32x4, 4, int32_t)     \
+  V(UINT32X4, Uint32x4, uint32x4, 4, uint32_t) \
+  V(BOOL32X4, Bool32x4, bool32x4, 4, bool)     \
+  V(INT16X8, Int16x8, int16x8, 8, int16_t)     \
+  V(UINT16X8, Uint16x8, uint16x8, 8, uint16_t) \
+  V(BOOL16X8, Bool16x8, bool16x8, 8, bool)     \
+  V(INT8X16, Int8x16, int8x16, 16, int8_t)     \
+  V(UINT8X16, Uint8x16, uint8x16, 16, uint8_t) \
+  V(BOOL8X16, Bool8x16, bool8x16, 16, bool)
+
+#define SIMD128_VALUE_CLASS(TYPE, Type, type, lane_count, lane_type) \
+  class Type final : public Simd128Value {                           \
+   public:                                                           \
+    inline lane_type get_lane(int lane) const;                       \
+    inline void set_lane(int lane, lane_type value);                 \
+                                                                     \
+    DECLARE_CAST(Type)                                               \
+                                                                     \
+    DECLARE_PRINTER(Type)                                            \
+                                                                     \
+    static Handle<String> ToString(Handle<Type> input);              \
+                                                                     \
+    inline bool Equals(Type* that);                                  \
+                                                                     \
+   private:                                                          \
+    DISALLOW_IMPLICIT_CONSTRUCTORS(Type);                            \
+  };
+SIMD128_TYPES(SIMD128_VALUE_CLASS)
+#undef SIMD128_VALUE_CLASS
+
 
 enum EnsureElementsMode {
   DONT_ALLOW_DOUBLE_ELEMENTS,

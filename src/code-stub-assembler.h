@@ -307,6 +307,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // otherwise goes to {if_false}.
   void BranchIfToBooleanIsTrue(Node* value, Label* if_true, Label* if_false);
 
+  void BranchIfSimd128Equal(Node* lhs, Node* lhs_map, Node* rhs, Node* rhs_map,
+                            Label* if_equal, Label* if_notequal);
+  void BranchIfSimd128Equal(Node* lhs, Node* rhs, Label* if_equal,
+                            Label* if_notequal) {
+    BranchIfSimd128Equal(lhs, LoadMap(lhs), rhs, LoadMap(rhs), if_equal,
+                         if_notequal);
+  }
+
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
   void BranchIfJSObject(Node* object, Label* if_true, Label* if_false);
 

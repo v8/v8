@@ -478,6 +478,48 @@ TEST(HeapSnapshotSymbol) {
   CHECK(v8_str("mySymbol")->Equals(env.local(), name->GetName()).FromJust());
 }
 
+
+void CheckSimdSnapshot(const char* program, const char* var_name) {
+  i::FLAG_harmony_simd = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(program);
+  // The TakeHeapSnapshot function does not do enough GCs to ensure
+  // that all garbage is collected. We perform addition GC here
+  // to reclaim a floating AllocationSite and to fix the following failure:
+  // # Check failed: ValidateSnapshot(snapshot).
+  // Stdout:
+  //     28 @ 13523   entry with no retainer: /hidden/ system / AllocationSite
+  //     44 @   767    $map: /hidden/ system / Map
+  //     44 @    59      $map: /hidden/ system / Map
+  CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
+
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* var =
+      GetProperty(global, v8::HeapGraphEdge::kProperty, var_name);
+  CHECK(var);
+  CHECK_EQ(var->GetType(), v8::HeapGraphNode::kSimdValue);
+}
+
+
+TEST(HeapSnapshotSimd) {
+  CheckSimdSnapshot("a = SIMD.Float32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool32x4();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool16x8();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Int8x16();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Uint8x16();\n", "a");
+  CheckSimdSnapshot("a = SIMD.Bool8x16();\n", "a");
+}
+
+
 TEST(HeapSnapshotWeakCollection) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());

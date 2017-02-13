@@ -1340,6 +1340,16 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                      HeapNumber);
 }
 
+#define SIMD128_NEW_DEF(TYPE, Type, type, lane_count, lane_type)               \
+  Handle<Type> Factory::New##Type(lane_type lanes[lane_count],                 \
+                                  PretenureFlag pretenure) {                   \
+    CALL_HEAP_FUNCTION(                                                        \
+        isolate(), isolate()->heap()->Allocate##Type(lanes, pretenure), Type); \
+  }
+SIMD128_TYPES(SIMD128_NEW_DEF)
+#undef SIMD128_NEW_DEF
+
+
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
                                  MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,

@@ -610,6 +610,77 @@ Node* CodeStubAssembler::WordIsWordAligned(Node* word) {
                    WordAnd(word, IntPtrConstant((1 << kPointerSizeLog2) - 1)));
 }
 
+void CodeStubAssembler::BranchIfSimd128Equal(Node* lhs, Node* lhs_map,
+                                             Node* rhs, Node* rhs_map,
+                                             Label* if_equal,
+                                             Label* if_notequal) {
+  Label if_mapsame(this), if_mapnotsame(this);
+  Branch(WordEqual(lhs_map, rhs_map), &if_mapsame, &if_mapnotsame);
+
+  Bind(&if_mapsame);
+  {
+    // Both {lhs} and {rhs} are Simd128Values with the same map, need special
+    // handling for Float32x4 because of NaN comparisons.
+    Label if_float32x4(this), if_notfloat32x4(this);
+    Node* float32x4_map = HeapConstant(factory()->float32x4_map());
+    Branch(WordEqual(lhs_map, float32x4_map), &if_float32x4, &if_notfloat32x4);
+
+    Bind(&if_float32x4);
+    {
+      // Both {lhs} and {rhs} are Float32x4, compare the lanes individually
+      // using a floating point comparison.
+      for (int offset = Float32x4::kValueOffset - kHeapObjectTag;
+           offset < Float32x4::kSize - kHeapObjectTag;
+           offset += sizeof(float)) {
+        // Load the floating point values for {lhs} and {rhs}.
+        Node* lhs_value =
+            Load(MachineType::Float32(), lhs, IntPtrConstant(offset));
+        Node* rhs_value =
+            Load(MachineType::Float32(), rhs, IntPtrConstant(offset));
+
+        // Perform a floating point comparison.
+        Label if_valueequal(this), if_valuenotequal(this);
+        Branch(Float32Equal(lhs_value, rhs_value), &if_valueequal,
+               &if_valuenotequal);
+        Bind(&if_valuenotequal);
+        Goto(if_notequal);
+        Bind(&if_valueequal);
+      }
+
+      // All 4 lanes match, {lhs} and {rhs} considered equal.
+      Goto(if_equal);
+    }
+
+    Bind(&if_notfloat32x4);
+    {
+      // For other Simd128Values we just perform a bitwise comparison.
+      for (int offset = Simd128Value::kValueOffset - kHeapObjectTag;
+           offset < Simd128Value::kSize - kHeapObjectTag;
+           offset += kPointerSize) {
+        // Load the word values for {lhs} and {rhs}.
+        Node* lhs_value =
+            Load(MachineType::Pointer(), lhs, IntPtrConstant(offset));
+        Node* rhs_value =
+            Load(MachineType::Pointer(), rhs, IntPtrConstant(offset));
+
+        // Perform a bitwise word-comparison.
+        Label if_valueequal(this), if_valuenotequal(this);
+        Branch(WordEqual(lhs_value, rhs_value), &if_valueequal,
+               &if_valuenotequal);
+        Bind(&if_valuenotequal);
+        Goto(if_notequal);
+        Bind(&if_valueequal);
+      }
+
+      // Bitwise comparison succeeded, {lhs} and {rhs} considered equal.
+      Goto(if_equal);
+    }
+  }
+
+  Bind(&if_mapnotsame);
+  Goto(if_notequal);
+}
+
 void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* receiver_map, Label* definitely_no_elements,
     Label* possibly_elements) {
@@ -751,6 +822,7 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
   Variable adjusted_size(this, MachineType::PointerRepresentation(),
                          size_in_bytes);
   if (flags & kDoubleAlignment) {
+    // TODO(epertoso): Simd128 alignment.
     Label aligned(this), not_aligned(this), merge(this, &adjusted_size);
     Branch(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)), &not_aligned,
            &aligned);
@@ -778,6 +850,8 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
 
   Bind(&needs_filler);
   // Store a filler and increase the address by kPointerSize.
+  // TODO(epertoso): this code assumes that we only align to kDoubleSize. Change
+  // it when Simd128 alignment is supported.
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top,
                       LoadRoot(Heap::kOnePointerFillerMapRootIndex));
   address.Bind(BitcastWordToTagged(
@@ -3944,8 +4018,8 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
 
     Bind(&if_inputisother);
     {
-      // The {input} is something else (e.g. Symbol), let the runtime figure
-      // out the correct exception.
+      // The {input} is something else (i.e. Symbol or Simd128Value), let the
+      // runtime figure out the correct exception.
       // Note: We cannot tail call to the runtime here, as js-to-wasm
       // trampolines also use this code currently, and they declare all
       // outgoing parameters as untagged, while we would push a tagged
@@ -6771,6 +6845,8 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, Node* value,
   // In case of abstract or strict equality checks, we need additional checks
   // for NaN values because they are not considered equal, even if both the
   // left and the right hand side reference exactly the same value.
+  // TODO(bmeurer): This seems to violate the SIMD.js specification, but it
+  // seems to be what is tested in the current SIMD.js testsuite.
 
   typedef CodeStubAssembler::Label Label;
 
@@ -6805,6 +6881,15 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, Node* value,
   assembler->Bind(&if_valueissmi);
   assembler->Goto(if_equal);
 }
+
+void GenerateEqual_Simd128Value_HeapObject(
+    CodeStubAssembler* assembler, Node* lhs, Node* lhs_map, Node* rhs,
+    Node* rhs_map, CodeStubAssembler::Label* if_equal,
+    CodeStubAssembler::Label* if_notequal) {
+  assembler->BranchIfSimd128Equal(lhs, lhs_map, rhs, rhs_map, if_equal,
+                                  if_notequal);
+}
+
 }  // namespace
 
 // ES6 section 7.2.12 Abstract Equality Comparison
@@ -6962,8 +7047,8 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
         Bind(&if_rhsisnotsmi);
         {
           Label if_lhsisstring(this), if_lhsisnumber(this),
-              if_lhsissymbol(this), if_lhsisoddball(this),
-              if_lhsisreceiver(this);
+              if_lhsissymbol(this), if_lhsissimd128value(this),
+              if_lhsisoddball(this), if_lhsisreceiver(this);
 
           // Both {lhs} and {rhs} are HeapObjects, load their maps
           // and their instance types.
@@ -6975,7 +7060,7 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
           Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
 
           // Dispatch based on the instance type of {lhs}.
-          size_t const kNumCases = FIRST_NONSTRING_TYPE + 3;
+          size_t const kNumCases = FIRST_NONSTRING_TYPE + 4;
           Label* case_labels[kNumCases];
           int32_t case_values[kNumCases];
           for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
@@ -6986,8 +7071,10 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
           case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
           case_labels[FIRST_NONSTRING_TYPE + 1] = &if_lhsissymbol;
           case_values[FIRST_NONSTRING_TYPE + 1] = SYMBOL_TYPE;
-          case_labels[FIRST_NONSTRING_TYPE + 2] = &if_lhsisoddball;
-          case_values[FIRST_NONSTRING_TYPE + 2] = ODDBALL_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 2] = &if_lhsissimd128value;
+          case_values[FIRST_NONSTRING_TYPE + 2] = SIMD128_VALUE_TYPE;
+          case_labels[FIRST_NONSTRING_TYPE + 3] = &if_lhsisoddball;
+          case_values[FIRST_NONSTRING_TYPE + 3] = ODDBALL_TYPE;
           Switch(lhs_instance_type, &if_lhsisreceiver, case_values, case_labels,
                  arraysize(case_values));
           for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
@@ -7171,6 +7258,47 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
             }
           }
 
+          Bind(&if_lhsissimd128value);
+          {
+            // Check if the {rhs} is also a Simd128Value.
+            Label if_rhsissimd128value(this), if_rhsisnotsimd128value(this);
+            Branch(Word32Equal(lhs_instance_type, rhs_instance_type),
+                   &if_rhsissimd128value, &if_rhsisnotsimd128value);
+
+            Bind(&if_rhsissimd128value);
+            {
+              // Both {lhs} and {rhs} is a Simd128Value.
+              GenerateEqual_Simd128Value_HeapObject(
+                  this, lhs, lhs_map, rhs, rhs_map, &if_equal, &if_notequal);
+            }
+
+            Bind(&if_rhsisnotsimd128value);
+            {
+              // Check if the {rhs} is a JSReceiver.
+              Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+              STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+              Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                     &if_rhsisreceiver, &if_rhsisnotreceiver);
+
+              Bind(&if_rhsisreceiver);
+              {
+                // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+                // Swapping {lhs} and {rhs} is not observable and doesn't
+                // matter for the result, so we can just swap them and use
+                // the JSReceiver handling below (for {lhs} being a JSReceiver).
+                var_lhs.Bind(rhs);
+                var_rhs.Bind(lhs);
+                Goto(&loop);
+              }
+
+              Bind(&if_rhsisnotreceiver);
+              {
+                // The {rhs} is some other Primitive.
+                Goto(&if_notequal);
+              }
+            }
+          }
+
           Bind(&if_lhsisreceiver);
           {
             // Check if the {rhs} is also a JSReceiver.
@@ -7289,6 +7417,10 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
   //         } else {
   //           return false;
   //         }
+  //       } else if (lhs->IsSimd128()) {
+  //         if (rhs->IsSimd128()) {
+  //           return %StrictEqual(lhs, rhs);
+  //         }
   //       } else {
   //         return false;
   //       }
@@ -7322,8 +7454,8 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
 
   Bind(&if_notsame);
   {
-    // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber
-    // and String they can still be considered equal.
+    // The {lhs} and {rhs} reference different objects, yet for Smi, HeapNumber,
+    // String and Simd128Value they can still be considered equal.
 
     // Check if {lhs} is a Smi or a HeapObject.
     Label if_lhsissmi(this), if_lhsisnotsmi(this);
@@ -7422,7 +7554,26 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
           }
 
           Bind(&if_lhsisnotstring);
-          Goto(&if_notequal);
+          {
+            // Check if {lhs} is a Simd128Value.
+            Label if_lhsissimd128value(this), if_lhsisnotsimd128value(this);
+            Branch(Word32Equal(lhs_instance_type,
+                               Int32Constant(SIMD128_VALUE_TYPE)),
+                   &if_lhsissimd128value, &if_lhsisnotsimd128value);
+
+            Bind(&if_lhsissimd128value);
+            {
+              // Load the map of {rhs}.
+              Node* rhs_map = LoadMap(rhs);
+
+              // Check if {rhs} is also a Simd128Value that is equal to {lhs}.
+              GenerateEqual_Simd128Value_HeapObject(
+                  this, lhs, lhs_map, rhs, rhs_map, &if_equal, &if_notequal);
+            }
+
+            Bind(&if_lhsisnotsimd128value);
+            Goto(&if_notequal);
+          }
         }
       }
     }
@@ -7729,6 +7880,13 @@ Node* CodeStubAssembler::Typeof(Node* value, Node* context) {
 
   GotoIf(IsStringInstanceType(instance_type), &return_string);
 
+#define SIMD128_BRANCH(TYPE, Type, type, lane_count, lane_type) \
+  Label return_##type(this);                                    \
+  Node* type##_map = HeapConstant(factory()->type##_map());     \
+  GotoIf(WordEqual(map, type##_map), &return_##type);
+  SIMD128_TYPES(SIMD128_BRANCH)
+#undef SIMD128_BRANCH
+
   CSA_ASSERT(this, Word32Equal(instance_type, Int32Constant(SYMBOL_TYPE)));
   result_var.Bind(HeapConstant(isolate()->factory()->symbol_string()));
   Goto(&return_result);
@@ -7769,6 +7927,15 @@ Node* CodeStubAssembler::Typeof(Node* value, Node* context) {
     result_var.Bind(HeapConstant(isolate()->factory()->string_string()));
     Goto(&return_result);
   }
+
+#define SIMD128_BIND_RETURN(TYPE, Type, type, lane_count, lane_type)      \
+  Bind(&return_##type);                                                   \
+  {                                                                       \
+    result_var.Bind(HeapConstant(isolate()->factory()->type##_string())); \
+    Goto(&return_result);                                                 \
+  }
+  SIMD128_TYPES(SIMD128_BIND_RETURN)
+#undef SIMD128_BIND_RETURN
 
   Bind(&return_result);
   return result_var.value();

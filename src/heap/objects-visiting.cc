@@ -180,6 +180,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
+    case SIMD128_VALUE_TYPE:
       return GetVisitorIdForSize(kVisitDataObject, kVisitDataObjectGeneric,
                                  instance_size, has_unboxed_fields);
 
