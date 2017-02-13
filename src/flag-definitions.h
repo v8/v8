@@ -902,7 +902,7 @@ DEFINE_BOOL(trace_maps, false, "trace map creation")
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
 DEFINE_BOOL(trace_parse, false, "trace parsing and preparsing")
 DEFINE_BOOL(trace_preparse, false, "trace preparsing decisions")
-DEFINE_BOOL(lazy_inner_functions, false, "enable lazy parsing inner functions")
+DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
 DEFINE_BOOL(aggressive_lazy_inner_functions, false,
             "even lazier inner function parsing")
 DEFINE_IMPLICATION(aggressive_lazy_inner_functions, lazy_inner_functions)
