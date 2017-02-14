@@ -20,6 +20,8 @@ namespace internal {
   V(kArgumentsObjectValueInATestContext,                                       \
     "Arguments object value in a test context")                                \
   V(kArrayIndexConstantValueTooBig, "Array index constant value too big")      \
+  V(kAssignmentToLetVariableBeforeInitialization,                              \
+    "Assignment to let variable before initialization")                        \
   V(kAssignmentToLOOKUPVariable, "Assignment to LOOKUP variable")              \
   V(kAssignmentToParameterFunctionUsesArgumentsObject,                         \
     "Assignment to parameter, function uses arguments object")                 \
@@ -172,7 +174,6 @@ namespace internal {
   V(kReceivedInvalidReturnAddress, "Received invalid return address")          \
   V(kReferenceToAVariableWhichRequiresDynamicLookup,                           \
     "Reference to a variable which requires dynamic lookup")                   \
-  V(kReferenceToLetOrConstVariable, "Reference to let or const variable")      \
   V(kReferenceToGlobalLexicalVariable, "Reference to global lexical variable") \
   V(kReferenceToModuleVariable, "Reference to module-allocated variable")      \
   V(kReferenceToUninitializedVariable, "Reference to uninitialized variable")  \
@@ -243,6 +244,7 @@ namespace internal {
     "Unexpected type for RegExp data, FixedArray expected")                    \
   V(kUnexpectedValue, "Unexpected value")                                      \
   V(kUnsupportedDoubleImmediate, "Unsupported double immediate")               \
+  V(kUnsupportedLetCompoundAssignment, "Unsupported let compound assignment")  \
   V(kUnsupportedLookupSlotInDeclaration,                                       \
     "Unsupported lookup slot in declaration")                                  \
   V(kUnsupportedModuleOperation, "Unsupported module operation")               \
