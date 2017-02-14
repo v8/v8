@@ -310,11 +310,11 @@ class JSBitwiseShiftTypedLoweringTester : public JSTypedLoweringTester {
  public:
   JSBitwiseShiftTypedLoweringTester() : JSTypedLoweringTester() {
     int i = 0;
-    set(i++, javascript.ShiftLeft(binop_hints), true);
+    set(i++, javascript.ShiftLeft(), true);
     set(i++, simplified.NumberShiftLeft(), false);
-    set(i++, javascript.ShiftRight(binop_hints), true);
+    set(i++, javascript.ShiftRight(), true);
     set(i++, simplified.NumberShiftRight(), false);
-    set(i++, javascript.ShiftRightLogical(binop_hints), false);
+    set(i++, javascript.ShiftRightLogical(), false);
     set(i++, simplified.NumberShiftRightLogical(), false);
   }
   static const int kNumberOps = 6;
@@ -366,11 +366,11 @@ class JSBitwiseTypedLoweringTester : public JSTypedLoweringTester {
  public:
   JSBitwiseTypedLoweringTester() : JSTypedLoweringTester() {
     int i = 0;
-    set(i++, javascript.BitwiseOr(binop_hints), true);
+    set(i++, javascript.BitwiseOr(), true);
     set(i++, simplified.NumberBitwiseOr(), true);
-    set(i++, javascript.BitwiseXor(binop_hints), true);
+    set(i++, javascript.BitwiseXor(), true);
     set(i++, simplified.NumberBitwiseXor(), true);
-    set(i++, javascript.BitwiseAnd(binop_hints), true);
+    set(i++, javascript.BitwiseAnd(), true);
     set(i++, simplified.NumberBitwiseAnd(), true);
   }
   static const int kNumberOps = 6;

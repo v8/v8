@@ -572,12 +572,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* LessThanOrEqual(CompareOperationHint hint);
   const Operator* GreaterThanOrEqual(CompareOperationHint hint);
 
-  const Operator* BitwiseOr(BinaryOperationHint hint);
-  const Operator* BitwiseXor(BinaryOperationHint hint);
-  const Operator* BitwiseAnd(BinaryOperationHint hint);
-  const Operator* ShiftLeft(BinaryOperationHint hint);
-  const Operator* ShiftRight(BinaryOperationHint hint);
-  const Operator* ShiftRightLogical(BinaryOperationHint hint);
+  const Operator* BitwiseOr();
+  const Operator* BitwiseXor();
+  const Operator* BitwiseAnd();
+  const Operator* ShiftLeft();
+  const Operator* ShiftRight();
+  const Operator* ShiftRightLogical();
   const Operator* Add(BinaryOperationHint hint);
   const Operator* Subtract(BinaryOperationHint hint);
   const Operator* Multiply(BinaryOperationHint hint);

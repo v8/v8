@@ -518,13 +518,7 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
 }
 
 BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSBitwiseOr ||
-         op->opcode() == IrOpcode::kJSBitwiseXor ||
-         op->opcode() == IrOpcode::kJSBitwiseAnd ||
-         op->opcode() == IrOpcode::kJSShiftLeft ||
-         op->opcode() == IrOpcode::kJSShiftRight ||
-         op->opcode() == IrOpcode::kJSShiftRightLogical ||
-         op->opcode() == IrOpcode::kJSAdd ||
+  DCHECK(op->opcode() == IrOpcode::kJSAdd ||
          op->opcode() == IrOpcode::kJSSubtract ||
          op->opcode() == IrOpcode::kJSMultiply ||
          op->opcode() == IrOpcode::kJSDivide ||
@@ -545,6 +539,12 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
 }
 
 #define CACHED_OP_LIST(V)                                       \
+  V(BitwiseOr, Operator::kNoProperties, 2, 1)                   \
+  V(BitwiseXor, Operator::kNoProperties, 2, 1)                  \
+  V(BitwiseAnd, Operator::kNoProperties, 2, 1)                  \
+  V(ShiftLeft, Operator::kNoProperties, 2, 1)                   \
+  V(ShiftRight, Operator::kNoProperties, 2, 1)                  \
+  V(ShiftRightLogical, Operator::kNoProperties, 2, 1)           \
   V(ToInteger, Operator::kNoProperties, 1, 1)                   \
   V(ToLength, Operator::kNoProperties, 1, 1)                    \
   V(ToName, Operator::kNoProperties, 1, 1)                      \
@@ -569,12 +569,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(GetSuperConstructor, Operator::kNoWrite, 1, 1)
 
 #define BINARY_OP_LIST(V) \
-  V(BitwiseOr)            \
-  V(BitwiseXor)           \
-  V(BitwiseAnd)           \
-  V(ShiftLeft)            \
-  V(ShiftRight)           \
-  V(ShiftRightLogical)    \
   V(Add)                  \
   V(Subtract)             \
   V(Multiply)             \

@@ -2748,22 +2748,22 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
   BinaryOperationHint hint = BinaryOperationHint::kAny;
   switch (op) {
     case Token::BIT_OR:
-      js_op = javascript()->BitwiseOr(hint);
+      js_op = javascript()->BitwiseOr();
       break;
     case Token::BIT_AND:
-      js_op = javascript()->BitwiseAnd(hint);
+      js_op = javascript()->BitwiseAnd();
       break;
     case Token::BIT_XOR:
-      js_op = javascript()->BitwiseXor(hint);
+      js_op = javascript()->BitwiseXor();
       break;
     case Token::SHL:
-      js_op = javascript()->ShiftLeft(hint);
+      js_op = javascript()->ShiftLeft();
       break;
     case Token::SAR:
-      js_op = javascript()->ShiftRight(hint);
+      js_op = javascript()->ShiftRight();
       break;
     case Token::SHR:
-      js_op = javascript()->ShiftRightLogical(hint);
+      js_op = javascript()->ShiftRightLogical();
       break;
     case Token::ADD:
       js_op = javascript()->Add(hint);

@@ -155,6 +155,13 @@ class BytecodeGraphBuilder {
   void BuildForInNext();
   void BuildInvokeIntrinsic();
 
+  // Optional early lowering to the simplified operator level. Returns the node
+  // representing the lowered operation or {nullptr} if no lowering available.
+  // Note that the result has already been wired into the environment just like
+  // any other invocation of {NewNode} would do.
+  Node* TryBuildSimplifiedBinaryOp(const Operator* op, Node* left, Node* right,
+                                   FeedbackSlot slot);
+
   // Check the context chain for extensions, for lookup fast paths.
   Environment* CheckContextExtensions(uint32_t depth);
 

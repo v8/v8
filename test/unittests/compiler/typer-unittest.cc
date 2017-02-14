@@ -265,27 +265,27 @@ TEST_F(TyperTest, TypeJSModulus) {
 
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {
-  TestBinaryBitOp(javascript_.BitwiseOr(hints_), bit_or);
+  TestBinaryBitOp(javascript_.BitwiseOr(), bit_or);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseAnd) {
-  TestBinaryBitOp(javascript_.BitwiseAnd(hints_), bit_and);
+  TestBinaryBitOp(javascript_.BitwiseAnd(), bit_and);
 }
 
 
 TEST_F(TyperTest, TypeJSBitwiseXor) {
-  TestBinaryBitOp(javascript_.BitwiseXor(hints_), bit_xor);
+  TestBinaryBitOp(javascript_.BitwiseXor(), bit_xor);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftLeft) {
-  TestBinaryBitOp(javascript_.ShiftLeft(hints_), shift_left);
+  TestBinaryBitOp(javascript_.ShiftLeft(), shift_left);
 }
 
 
 TEST_F(TyperTest, TypeJSShiftRight) {
-  TestBinaryBitOp(javascript_.ShiftRight(hints_), shift_right);
+  TestBinaryBitOp(javascript_.ShiftRight(), shift_right);
 }
 
 
@@ -356,9 +356,9 @@ TEST_BINARY_MONOTONICITY(LessThanOrEqual)
 TEST_BINARY_MONOTONICITY(GreaterThanOrEqual)
 #undef TEST_BINARY_MONOTONICITY
 
-#define TEST_BINARY_MONOTONICITY(name)                                   \
-  TEST_F(TyperTest, Monotonicity_##name) {                               \
-    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
+#define TEST_BINARY_MONOTONICITY(name)          \
+  TEST_F(TyperTest, Monotonicity_##name) {      \
+    TestBinaryMonotonicity(javascript_.name()); \
   }
 TEST_BINARY_MONOTONICITY(BitwiseOr)
 TEST_BINARY_MONOTONICITY(BitwiseXor)
@@ -366,6 +366,12 @@ TEST_BINARY_MONOTONICITY(BitwiseAnd)
 TEST_BINARY_MONOTONICITY(ShiftLeft)
 TEST_BINARY_MONOTONICITY(ShiftRight)
 TEST_BINARY_MONOTONICITY(ShiftRightLogical)
+#undef TEST_BINARY_MONOTONICITY
+
+#define TEST_BINARY_MONOTONICITY(name)                                   \
+  TEST_F(TyperTest, Monotonicity_##name) {                               \
+    TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
+  }
 TEST_BINARY_MONOTONICITY(Add)
 TEST_BINARY_MONOTONICITY(Subtract)
 TEST_BINARY_MONOTONICITY(Multiply)

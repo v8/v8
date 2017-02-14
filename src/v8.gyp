@@ -648,6 +648,8 @@
         'compiler/js-native-context-specialization.h',
         'compiler/js-operator.cc',
         'compiler/js-operator.h',
+        'compiler/js-type-hint-lowering.cc',
+        'compiler/js-type-hint-lowering.h',
         'compiler/js-typed-lowering.cc',
         'compiler/js-typed-lowering.h',
         'compiler/jump-threading.cc',

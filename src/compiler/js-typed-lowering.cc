@@ -624,11 +624,6 @@ Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
 
 Reduction JSTypedLowering::ReduceInt32Binop(Node* node) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    return r.ChangeToSpeculativeOperator(r.SpeculativeNumberOp(hint),
-                                         Type::Signed32());
-  }
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
@@ -640,12 +635,6 @@ Reduction JSTypedLowering::ReduceInt32Binop(Node* node) {
 
 Reduction JSTypedLowering::ReduceUI32Shift(Node* node, Signedness signedness) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    return r.ChangeToSpeculativeOperator(
-        r.SpeculativeNumberOp(hint),
-        signedness == kUnsigned ? Type::Unsigned32() : Type::Signed32());
-  }
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();

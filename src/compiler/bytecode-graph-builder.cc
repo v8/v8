@@ -8,6 +8,7 @@
 #include "src/ast/scopes.h"
 #include "src/compilation-info.h"
 #include "src/compiler/compiler-source-position-table.h"
+#include "src/compiler/js-type-hint-lowering.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
@@ -1484,12 +1485,39 @@ void BytecodeGraphBuilder::VisitReThrow() {
   MergeControlToLeaveFunction(control);
 }
 
-void BytecodeGraphBuilder::BuildBinaryOp(const Operator* js_op) {
+Node* BytecodeGraphBuilder::TryBuildSimplifiedBinaryOp(const Operator* op,
+                                                       Node* left, Node* right,
+                                                       FeedbackSlot slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering type_hint_lowering(jsgraph(), feedback_vector());
+  Reduction early_reduction = type_hint_lowering.ReduceBinaryOperation(
+      op, left, right, effect, control, slot);
+  if (early_reduction.Changed()) {
+    Node* node = early_reduction.replacement();
+    if (node->op()->EffectOutputCount() > 0) {
+      environment()->UpdateEffectDependency(node);
+    }
+    return node;
+  }
+  return nullptr;
+}
+
+void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
   PrepareEagerCheckpoint();
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
-  Node* node = NewNode(js_op, left, right);
+
+  Node* node = nullptr;
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kBinaryOperationHintIndex));
+  if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
+    node = simplified;
+  } else {
+    node = NewNode(op, left, right);
+  }
+
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1549,41 +1577,44 @@ void BytecodeGraphBuilder::VisitMod() {
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
-  BuildBinaryOp(javascript()->BitwiseOr(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->BitwiseOr());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseXor() {
-  BuildBinaryOp(javascript()->BitwiseXor(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->BitwiseXor());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAnd() {
-  BuildBinaryOp(javascript()->BitwiseAnd(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->BitwiseAnd());
 }
 
 void BytecodeGraphBuilder::VisitShiftLeft() {
-  BuildBinaryOp(javascript()->ShiftLeft(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->ShiftLeft());
 }
 
 void BytecodeGraphBuilder::VisitShiftRight() {
-  BuildBinaryOp(javascript()->ShiftRight(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->ShiftRight());
 }
 
 void BytecodeGraphBuilder::VisitShiftRightLogical() {
-  BuildBinaryOp(javascript()->ShiftRightLogical(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->ShiftRightLogical());
 }
 
-void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* js_op) {
+void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
   PrepareEagerCheckpoint();
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
   Node* right = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
-  Node* node = NewNode(js_op, left, right);
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kBinaryOperationSmiHintIndex));
+
+  Node* node = nullptr;
+  if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
+    node = simplified;
+  } else {
+    node = NewNode(op, left, right);
+  }
+
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1598,23 +1629,19 @@ void BytecodeGraphBuilder::VisitSubSmi() {
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
-  BuildBinaryOpWithImmediate(javascript()->BitwiseOr(
-      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseOr());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseAndSmi() {
-  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd(
-      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
+  BuildBinaryOpWithImmediate(javascript()->BitwiseAnd());
 }
 
 void BytecodeGraphBuilder::VisitShiftLeftSmi() {
-  BuildBinaryOpWithImmediate(javascript()->ShiftLeft(
-      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
+  BuildBinaryOpWithImmediate(javascript()->ShiftLeft());
 }
 
 void BytecodeGraphBuilder::VisitShiftRightSmi() {
-  BuildBinaryOpWithImmediate(javascript()->ShiftRight(
-      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
+  BuildBinaryOpWithImmediate(javascript()->ShiftRight());
 }
 
 void BytecodeGraphBuilder::VisitInc() {
