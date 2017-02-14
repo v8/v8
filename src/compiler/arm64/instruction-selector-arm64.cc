@@ -946,7 +946,8 @@ void InstructionSelector::VisitWord64And(Node* node) {
     uint64_t mask = m.right().Value();
     uint64_t mask_width = base::bits::CountPopulation64(mask);
     uint64_t mask_msb = base::bits::CountLeadingZeros64(mask);
-    if ((mask_width != 0) && (mask_msb + mask_width == 64)) {
+    if ((mask_width != 0) && (mask_width != 64) &&
+        (mask_msb + mask_width == 64)) {
       // The mask must be contiguous, and occupy the least-significant bits.
       DCHECK_EQ(0u, base::bits::CountTrailingZeros64(mask));
 

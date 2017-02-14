@@ -1205,7 +1205,7 @@ function CreateNumberFormat(locales, options) {
   var mnsd = options['minimumSignificantDigits'];
   var mxsd = options['maximumSignificantDigits'];
   if (!IS_UNDEFINED(mnsd) || !IS_UNDEFINED(mxsd)) {
-    mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 0);
+    mnsd = getNumberOption(options, 'minimumSignificantDigits', 1, 21, 1);
     defineWEProperty(internalOptions, 'minimumSignificantDigits', mnsd);
 
     mxsd = getNumberOption(options, 'maximumSignificantDigits', mnsd, 21, 21);

@@ -1465,7 +1465,7 @@ class ParserBase {
     impl()->ReportMessageAt(location, MessageTemplate::kInvalidType);
     return type;
   }
-  
+
   // Validation per ES6 object literals.
   class ObjectLiteralChecker {
    public:

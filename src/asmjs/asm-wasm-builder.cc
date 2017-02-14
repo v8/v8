@@ -105,7 +105,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       foreign_init_function_->EmitGetLocal(static_cast<uint32_t>(pos));
       ForeignVariable* fv = &foreign_variables_[pos];
       uint32_t index = LookupOrInsertGlobal(fv->var, fv->type);
-      foreign_init_function_->EmitWithVarInt(kExprSetGlobal, index);
+      foreign_init_function_->EmitWithVarUint(kExprSetGlobal, index);
     }
     foreign_init_function_->Emit(kExprEnd);
   }
@@ -318,7 +318,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       auto elem = breakable_blocks_.at(i);
       if (elem.first == target && elem.second == type) {
         int block_distance = static_cast<int>(breakable_blocks_.size() - i - 1);
-        current_function_builder_->EmitWithVarInt(kExprBr, block_distance);
+        current_function_builder_->EmitWithVarUint(kExprBr, block_distance);
         return;
       }
     }
@@ -389,8 +389,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
       DCHECK(case_to_block.find(node->begin) != case_to_block.end());
       current_function_builder_->Emit(kExprBr);
-      current_function_builder_->EmitVarInt(1 + if_depth +
-                                            case_to_block[node->begin]);
+      current_function_builder_->EmitVarUint(1 + if_depth +
+                                             case_to_block[node->begin]);
       current_function_builder_->Emit(kExprEnd);
     } else {
       if (node->begin != 0) {
@@ -401,21 +401,21 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         VisitVariableProxy(tag);
       }
       current_function_builder_->Emit(kExprBrTable);
-      current_function_builder_->EmitVarInt(node->end - node->begin + 1);
+      current_function_builder_->EmitVarUint(node->end - node->begin + 1);
       for (int v = node->begin; v <= node->end; ++v) {
         if (case_to_block.find(v) != case_to_block.end()) {
           uint32_t target = if_depth + case_to_block[v];
-          current_function_builder_->EmitVarInt(target);
+          current_function_builder_->EmitVarUint(target);
         } else {
           uint32_t target = if_depth + default_block;
-          current_function_builder_->EmitVarInt(target);
+          current_function_builder_->EmitVarUint(target);
         }
         if (v == kMaxInt) {
           break;
         }
       }
       uint32_t target = if_depth + default_block;
-      current_function_builder_->EmitVarInt(target);
+      current_function_builder_->EmitVarUint(target);
     }
 
     while (if_depth-- != prev_if_depth) {
@@ -463,7 +463,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       if (root->left != nullptr || root->right != nullptr ||
           root->begin == root->end) {
         current_function_builder_->Emit(kExprBr);
-        current_function_builder_->EmitVarInt(default_block);
+        current_function_builder_->EmitVarUint(default_block);
       }
     }
     for (int i = 0; i < case_count; ++i) {
@@ -657,7 +657,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       ValueType var_type = TypeOf(expr);
       DCHECK_NE(kWasmStmt, var_type);
       if (var->IsContextSlot()) {
-        current_function_builder_->EmitWithVarInt(
+        current_function_builder_->EmitWithVarUint(
             kExprGetGlobal, LookupOrInsertGlobal(var, var_type));
       } else {
         current_function_builder_->EmitGetLocal(
@@ -683,35 +683,26 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
     if (type->IsA(AsmType::Signed())) {
       int32_t i = 0;
-      if (!value->ToInt32(&i)) {
-        UNREACHABLE();
-      }
-      byte code[] = {WASM_I32V(i)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+      CHECK(value->ToInt32(&i));
+      current_function_builder_->EmitI32Const(i);
     } else if (type->IsA(AsmType::Unsigned()) || type->IsA(AsmType::FixNum())) {
       uint32_t u = 0;
-      if (!value->ToUint32(&u)) {
-        UNREACHABLE();
-      }
-      int32_t i = static_cast<int32_t>(u);
-      byte code[] = {WASM_I32V(i)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+      CHECK(value->ToUint32(&u));
+      current_function_builder_->EmitI32Const(bit_cast<int32_t>(u));
     } else if (type->IsA(AsmType::Int())) {
       // The parser can collapse !0, !1 etc to true / false.
       // Allow these as int literals.
       if (expr->raw_value()->IsTrue()) {
-        byte code[] = {WASM_I32V(1)};
+        byte code[] = {WASM_ONE};
         current_function_builder_->EmitCode(code, sizeof(code));
       } else if (expr->raw_value()->IsFalse()) {
-        byte code[] = {WASM_I32V(0)};
+        byte code[] = {WASM_ZERO};
         current_function_builder_->EmitCode(code, sizeof(code));
       } else if (expr->raw_value()->IsNumber()) {
         // This can happen when -x becomes x * -1 (due to the parser).
         int32_t i = 0;
-        if (!value->ToInt32(&i) || i != -1) {
-          UNREACHABLE();
-        }
-        byte code[] = {WASM_I32V(i)};
+        CHECK(value->ToInt32(&i) && i == -1);
+        byte code[] = {WASM_I32V_1(-1)};
         current_function_builder_->EmitCode(code, sizeof(code));
       } else {
         UNREACHABLE();
@@ -961,9 +952,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       DCHECK_NE(kWasmStmt, var_type);
       if (var->IsContextSlot()) {
         uint32_t index = LookupOrInsertGlobal(var, var_type);
-        current_function_builder_->EmitWithVarInt(kExprSetGlobal, index);
+        current_function_builder_->EmitWithVarUint(kExprSetGlobal, index);
         if (fate == kLeaveOnStack) {
-          current_function_builder_->EmitWithVarInt(kExprGetGlobal, index);
+          current_function_builder_->EmitWithVarUint(kExprGetGlobal, index);
         }
       } else {
         if (fate == kDrop) {
@@ -1473,7 +1464,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
           int parent_pos = returns_value ? parent_binop->position() : pos;
           current_function_builder_->AddAsmWasmOffset(pos, parent_pos);
           current_function_builder_->Emit(kExprCallFunction);
-          current_function_builder_->EmitVarInt(index);
+          current_function_builder_->EmitVarUint(index);
         } else {
           WasmFunctionBuilder* function = LookupOrInsertFunction(vp->var());
           VisitCallArgs(expr);
@@ -1507,8 +1498,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         current_function_builder_->AddAsmWasmOffset(expr->position(),
                                                     expr->position());
         current_function_builder_->Emit(kExprCallIndirect);
-        current_function_builder_->EmitVarInt(indices->signature_index);
-        current_function_builder_->EmitVarInt(0);  // table index
+        current_function_builder_->EmitVarUint(indices->signature_index);
+        current_function_builder_->EmitVarUint(0);  // table index
         returns_value =
             builder_->GetSignature(indices->signature_index)->return_count() >
             0;
