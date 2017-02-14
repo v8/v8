@@ -280,9 +280,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
   // TODO(eholk): Refactor this method to take the code generator as a
   // parameter.
   void Generate() final {
-    Address current_pc = __ pc();
-
-    __ RecordProtectedInstruction(pc_, current_pc);
+    __ RecordProtectedInstructionLanding(pc_);
 
     if (frame_elided_) {
       __ EnterFrame(StackFrame::WASM_COMPILED);
