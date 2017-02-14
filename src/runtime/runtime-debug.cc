@@ -1894,43 +1894,73 @@ RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   return NULL;
 }
 
+namespace {
+Handle<JSObject> CreateRangeObject(Isolate* isolate,
+                                   const Coverage::Range* range,
+                                   Handle<String> inner_string,
+                                   Handle<String> start_string,
+                                   Handle<String> end_string,
+                                   Handle<String> count_string) {
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
+  Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(range_obj, start_string,
+                        factory->NewNumberFromInt(range->start), NONE);
+  JSObject::AddProperty(range_obj, end_string,
+                        factory->NewNumberFromInt(range->end), NONE);
+  JSObject::AddProperty(range_obj, count_string,
+                        factory->NewNumberFromUint(range->count), NONE);
+  Handle<String> name = factory->anonymous_string();
+  if (!range->name.empty()) {
+    Vector<const uc16> name_vector(range->name.data(),
+                                   static_cast<int>(range->name.size()));
+    name = factory->NewStringFromTwoByte(name_vector).ToHandleChecked();
+  }
+  JSObject::AddProperty(range_obj, factory->name_string(), name, NONE);
+  if (!range->inner.empty()) {
+    int size = static_cast<int>(range->inner.size());
+    Handle<FixedArray> inner_array = factory->NewFixedArray(size);
+    for (int i = 0; i < size; i++) {
+      Handle<JSObject> element =
+          CreateRangeObject(isolate, &range->inner[i], inner_string,
+                            start_string, end_string, count_string);
+      inner_array->set(i, *element);
+    }
+    Handle<JSArray> inner =
+        factory->NewJSArrayWithElements(inner_array, FAST_ELEMENTS);
+    JSObject::AddProperty(range_obj, inner_string, inner, NONE);
+  }
+  return scope.CloseAndEscape(range_obj);
+}
+}  // anonymous namespace
+
 RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   HandleScope scope(isolate);
   // Collect coverage data.
-  std::vector<Coverage::ScriptData> scripts = Coverage::Collect(isolate);
+  std::vector<Coverage::ScriptData> script_data = Coverage::Collect(isolate);
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.
   // Create an array of scripts.
-  int num_scripts = static_cast<int>(scripts.size());
+  int num_scripts = static_cast<int>(script_data.size());
   // Prepare property keys.
   Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
-  Handle<String> id_string = factory->NewStringFromStaticChars("script_id");
-  Handle<String> entries_string = factory->NewStringFromStaticChars("entries");
-  Handle<String> end_string = factory->NewStringFromStaticChars("end_position");
+  Handle<String> script_string = factory->NewStringFromStaticChars("script");
+  Handle<String> toplevel_string =
+      factory->NewStringFromStaticChars("toplevel");
+  Handle<String> inner_string = factory->NewStringFromStaticChars("inner");
+  Handle<String> start_string = factory->NewStringFromStaticChars("start");
+  Handle<String> end_string = factory->NewStringFromStaticChars("end");
   Handle<String> count_string = factory->NewStringFromStaticChars("count");
   for (int i = 0; i < num_scripts; i++) {
-    // Create an object for each script, containing the script id and entries.
-    const auto& script = scripts[i];
+    const auto& data = script_data[i];
     HandleScope inner_scope(isolate);
-    int num_entries = static_cast<int>(script.entries.size());
-    Handle<FixedArray> entries_array = factory->NewFixedArray(num_entries);
-    for (int j = 0; j < num_entries; j++) {
-      // Create an object for each entry, containing the end position and count.
-      const auto& entry = script.entries[j];
-      Handle<JSObject> entry_obj = factory->NewJSObjectWithNullProto();
-      JSObject::AddProperty(entry_obj, end_string,
-                            factory->NewNumberFromInt(entry.end_position),
-                            NONE);
-      JSObject::AddProperty(entry_obj, count_string,
-                            factory->NewNumberFromUint(entry.count), NONE);
-      entries_array->set(j, *entry_obj);
-    }
     Handle<JSObject> script_obj = factory->NewJSObjectWithNullProto();
-    JSObject::AddProperty(script_obj, id_string,
-                          factory->NewNumberFromInt(script.script_id), NONE);
-    JSObject::AddProperty(
-        script_obj, entries_string,
-        factory->NewJSArrayWithElements(entries_array, FAST_ELEMENTS), NONE);
+    Handle<JSObject> wrapper = Script::GetWrapper(data.script);
+    JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
+    Handle<JSObject> toplevel =
+        CreateRangeObject(isolate, &data.toplevel, inner_string, start_string,
+                          end_string, count_string);
+    JSObject::AddProperty(script_obj, toplevel_string, toplevel, NONE);
     scripts_array->set(i, *script_obj);
   }
   return *factory->NewJSArrayWithElements(scripts_array, FAST_ELEMENTS);

@@ -7,32 +7,28 @@
 // Test precise code coverage.
 
 function GetCoverage(source) {
-  var scripts = %DebugGetLoadedScripts();
-  for (var script of scripts) {
-    if (script.source == source) {
-      var coverage = %DebugCollectCoverage();
-      for (var data of coverage) {
-        if (data.script_id == script.id) return data.entries;
-      }
-    }
+  for (var script of %DebugCollectCoverage()) {
+    if (script.script.source == source) return script.toplevel;
   }
   return undefined;
 }
 
-function ApplyCoverageToSource(source, coverage) {
-  var result = "";
-  var cursor = 0;
-  for (var entry of coverage) {
-    var chunk = source.substring(cursor, entry.end_position);
-    cursor = entry.end_position;
-    result += `[${chunk}[${entry.count}]]`;
+function ApplyCoverageToSource(source, range) {
+  var content = "";
+  var cursor = range.start;
+  if (range.inner) for (var inner of range.inner) {
+    content += source.substring(cursor, inner.start);
+    content += ApplyCoverageToSource(source, inner);
+    cursor = inner.end;
   }
-  return result;
+  content += source.substring(cursor, range.end);
+  return `[${content}](${range.name}:${range.count})`;
 }
 
 function TestCoverage(name, source, expectation) {
   source = source.trim();
   eval(source);
+  %CollectGarbage("remove dead objects");
   var coverage = GetCoverage(source);
   if (expectation === undefined) {
     assertEquals(undefined, coverage);
@@ -74,7 +70,7 @@ TestCoverage(
 (function f() {})();
 `,
 `
-[(function f() {})();[1]]
+[([function f() {}](f:1))();](anonymous:1)
 `
 );
 
@@ -88,9 +84,9 @@ for (var i = 0; i < 10; i++) {
 `,
 `
 [for (var i = 0; i < 10; i++) {
-  let f = [1]][() => 1[5]][;
+  let f = [() => 1](f:5);
   i += f();
-}[1]]
+}](anonymous:1)
 `
 );
 

@@ -8,6 +8,8 @@
 #include <vector>
 
 #include "src/allocation.h"
+#include "src/debug/debug-interface.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -17,16 +19,21 @@ class Isolate;
 
 class Coverage : public AllStatic {
  public:
-  struct RangeEntry {
-    int end_position;
+  struct Range {
+    Range(int s, int e, uint32_t c) : start(s), end(e), count(c) {}
+    int start;
+    int end;
     uint32_t count;
+    std::vector<uint16_t> name;
+    std::vector<Range> inner;
   };
 
   struct ScriptData {
-    ScriptData(int s, std::vector<RangeEntry> e)
-        : script_id(s), entries(std::move(e)) {}
-    int script_id;
-    std::vector<RangeEntry> entries;
+    // Initialize top-level function in case it has been garbage-collected.
+    ScriptData(Handle<Script> s, int source_length)
+        : script(s), toplevel(0, source_length, 1) {}
+    Handle<Script> script;
+    Range toplevel;
   };
 
   static std::vector<ScriptData> Collect(Isolate* isolate);

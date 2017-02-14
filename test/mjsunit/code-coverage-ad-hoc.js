@@ -7,27 +7,22 @@
 // Test code coverage without explicitly activating it upfront.
 
 function GetCoverage(source) {
-  var scripts = %DebugGetLoadedScripts();
-  for (var script of scripts) {
-    if (script.source == source) {
-      var coverage = %DebugCollectCoverage();
-      for (var data of coverage) {
-        if (data.script_id == script.id) return data.entries;
-      }
-    }
+  for (var script of %DebugCollectCoverage()) {
+    if (script.script.source == source) return script.toplevel;
   }
   return undefined;
 }
 
-function ApplyCoverageToSource(source, coverage) {
-  var result = "";
-  var cursor = 0;
-  for (var entry of coverage) {
-    var chunk = source.substring(cursor, entry.end_position);
-    cursor = entry.end_position;
-    result += `[${chunk}[${entry.count}]]`;
+function ApplyCoverageToSource(source, range) {
+  var content = "";
+  var cursor = range.start;
+  if (range.inner) for (var inner of range.inner) {
+    content += source.substring(cursor, inner.start);
+    content += ApplyCoverageToSource(source, inner);
+    cursor = inner.end;
   }
-  return result;
+  content += source.substring(cursor, range.end);
+  return `[${content}](${range.name}:${range.count})`;
 }
 
 function TestCoverage(name, source, expectation) {
@@ -48,9 +43,9 @@ f();
 f();
 `,
 `
-[function f() {}[2]][
+[[function f() {}](f:2)
 f();
-f();[1]]
+f();](anonymous:1)
 `
 );
 
@@ -62,9 +57,9 @@ f();
 f();
 `,
 `
-[var f = [1]][() => 1[2]][;
+[var f = [() => 1](f:2);
 f();
-f();[1]]
+f();](anonymous:1)
 `
 );
 
@@ -80,13 +75,14 @@ f();
 f();
 `,
 `
-[function f() {
-  [2]][function g() {}[4]][
+[[function f() {
+  [function g() {}](g:4)
   g();
   g();
-}[2]][
+}](f:2)
 f();
-f();[1]]
+f();](anonymous:1)
+
 `
 );
 
@@ -100,10 +96,10 @@ function fib(x) {
 fib(5);
 `,
 `
-[function fib(x) {
+[[function fib(x) {
   if (x < 2) return 1;
   return fib(x-1) + fib(x-2);
-}[15]][
-fib(5);[1]]
+}](fib:15)
+fib(5);](anonymous:1)
 `
 );

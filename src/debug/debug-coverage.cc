@@ -39,30 +39,8 @@ class SharedToCounterMap
   static uint32_t Hash(SharedFunctionInfo* key) {
     return static_cast<uint32_t>(reinterpret_cast<intptr_t>(key));
   }
-};
 
-class ScriptDataBuilder {
- public:
-  void Add(int end_position, uint32_t count) {
-    DCHECK(entries_.empty() || entries_.back().end_position <= end_position);
-    if (entries_.empty()) {
-      if (end_position > 0) entries_.push_back({end_position, count});
-    } else if (entries_.back().count == count) {
-      // Extend last range.
-      entries_.back().end_position = end_position;
-    } else if (entries_.back().end_position < end_position) {
-      // Add new range.
-      entries_.push_back({end_position, count});
-    }
-  }
-  std::vector<Coverage::RangeEntry> Finish() {
-    std::vector<Coverage::RangeEntry> result;
-    std::swap(result, entries_);
-    return result;
-  }
-
- private:
-  std::vector<Coverage::RangeEntry> entries_;
+  DisallowHeapAllocation no_gc;
 };
 
 std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
@@ -99,14 +77,7 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
   // Make sure entries in the counter map is not invalidated by GC.
   DisallowHeapAllocation no_gc;
 
-  // Stack to track nested functions.
-  struct FunctionNode {
-    FunctionNode(int s, int e, uint32_t c) : start(s), end(e), count(c) {}
-    int start;
-    int end;
-    uint32_t count;
-  };
-  std::vector<FunctionNode> stack;
+  std::vector<Range*> stack;
 
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
@@ -116,11 +87,9 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
     // Dismiss non-user scripts.
     if (script->type() != Script::TYPE_NORMAL) continue;
     DCHECK(stack.empty());
-    int script_end = String::cast(script->source())->length();
-    // If not rooted, the top-level function is likely no longer alive. Set the
-    // outer-most count to 1 to indicate that the script has run at least once.
-    stack.push_back({0, script_end, 1});
-    ScriptDataBuilder builder;
+    int source_length = String::cast(script->source())->length();
+    result.emplace_back(Handle<Script>(script, isolate), source_length);
+    stack.push_back(&result.back().toplevel);
     // Iterate through the list of shared function infos, reconstruct the
     // nesting, and compute the ranges covering different invocation counts.
     HandleScope scope(isolate);
@@ -130,30 +99,29 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
       if (start == kNoSourcePosition) start = info->start_position();
       int end = info->end_position();
       uint32_t count = counter_map.Get(info);
-      // The shared function infos are sorted by start.
-      DCHECK_LE(stack.back().start, start);
-      // If the start are the same, the outer function comes before the inner.
-      DCHECK(stack.back().start < start || stack.back().end >= end);
-      // Drop the stack to the outer function.
-      while (start > stack.back().end) {
-        // Write out rest of function being dropped.
-        builder.Add(stack.back().end, stack.back().count);
-        stack.pop_back();
+      if (info->is_toplevel()) {
+        // Top-level function is available.
+        DCHECK_EQ(1, stack.size());
+        result.back().toplevel.start = start;
+        result.back().toplevel.end = end;
+        result.back().toplevel.count = count;
+      } else {
+        // The shared function infos are sorted by start.
+        DCHECK_LE(stack.back()->start, start);
+        // Drop the stack to the outer function.
+        while (start > stack.back()->end) stack.pop_back();
+        Range* outer = stack.back();
+        // New nested function.
+        DCHECK_LE(end, outer->end);
+        outer->inner.emplace_back(start, end, count);
+        Range& nested = outer->inner.back();
+        String* name = info->DebugName();
+        nested.name.resize(name->length());
+        String::WriteToFlat(name, nested.name.data(), 0, name->length());
+        stack.push_back(&nested);
       }
-      // Write out outer function up to the start of new function.
-      builder.Add(start, stack.back().count);
-      // New nested function.
-      DCHECK_LE(end, stack.back().end);
-      stack.emplace_back(start, end, count);
     }
-
-    // Drop the stack to the script level.
-    while (!stack.empty()) {
-      // Write out rest of function being dropped.
-      builder.Add(stack.back().end, stack.back().count);
-      stack.pop_back();
-    }
-    result.emplace_back(script->id(), builder.Finish());
+    stack.clear();
   }
   return result;
 }
