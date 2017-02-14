@@ -83,9 +83,6 @@ class CodeStubGraphBuilderBase : public HGraphBuilder {
                             Representation representation,
                             bool transition_to_field);
 
-  HValue* BuildPushElement(HValue* object, HValue* argc,
-                           HValue* argument_elements, ElementsKind kind);
-
   HValue* BuildToString(HValue* input, bool convert);
   HValue* BuildToPrimitive(HValue* input, HValue* input_map);
 
@@ -329,52 +326,6 @@ static Handle<Code> DoGenerateCode(Stub* stub) {
   return code;
 }
 
-
-HValue* CodeStubGraphBuilderBase::BuildPushElement(HValue* object, HValue* argc,
-                                                   HValue* argument_elements,
-                                                   ElementsKind kind) {
-  // Precheck whether all elements fit into the array.
-  if (!IsFastObjectElementsKind(kind)) {
-    LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
-    HValue* start = graph()->GetConstant0();
-    HValue* key = builder.BeginBody(start, argc, Token::LT);
-    {
-      HInstruction* argument =
-          Add<HAccessArgumentsAt>(argument_elements, argc, key);
-      IfBuilder can_store(this);
-      can_store.IfNot<HIsSmiAndBranch>(argument);
-      if (IsFastDoubleElementsKind(kind)) {
-        can_store.And();
-        can_store.IfNot<HCompareMap>(argument,
-                                     isolate()->factory()->heap_number_map());
-      }
-      can_store.ThenDeopt(DeoptimizeReason::kFastPathFailed);
-      can_store.End();
-    }
-    builder.EndBody();
-  }
-
-  HValue* length = Add<HLoadNamedField>(object, nullptr,
-                                        HObjectAccess::ForArrayLength(kind));
-  HValue* new_length = AddUncasted<HAdd>(length, argc);
-  HValue* max_key = AddUncasted<HSub>(new_length, graph()->GetConstant1());
-
-  HValue* elements = Add<HLoadNamedField>(object, nullptr,
-                                          HObjectAccess::ForElementsPointer());
-  elements = BuildCheckForCapacityGrow(object, elements, kind, length, max_key,
-                                       true, STORE);
-
-  LoopBuilder builder(this, context(), LoopBuilder::kPostIncrement);
-  HValue* start = graph()->GetConstant0();
-  HValue* key = builder.BeginBody(start, argc, Token::LT);
-  {
-    HValue* argument = Add<HAccessArgumentsAt>(argument_elements, argc, key);
-    HValue* index = AddUncasted<HAdd>(key, length);
-    AddElementAccess(elements, index, argument, object, nullptr, kind, STORE);
-  }
-  builder.EndBody();
-  return new_length;
-}
 
 HLoadNamedField* CodeStubGraphBuilderBase::BuildLoadNamedField(
     HValue* object, FieldIndex index) {
