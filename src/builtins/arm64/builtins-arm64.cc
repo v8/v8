@@ -2148,14 +2148,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ Bind(&target_not_constructor);
   {
     __ Poke(target, 0);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
   __ Bind(&new_target_not_constructor);
   {
     __ Poke(new_target, 0);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 }
 

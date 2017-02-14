@@ -237,6 +237,14 @@ RUNTIME_FUNCTION(Runtime_ThrowNonObjectInInstanceOfCheck) {
       isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor, object));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -377,7 +385,6 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
 }
 
 }  // namespace
-
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);
