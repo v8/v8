@@ -683,35 +683,26 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
     if (type->IsA(AsmType::Signed())) {
       int32_t i = 0;
-      if (!value->ToInt32(&i)) {
-        UNREACHABLE();
-      }
-      byte code[] = {WASM_I32V(i)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+      CHECK(value->ToInt32(&i));
+      current_function_builder_->EmitI32Const(i);
     } else if (type->IsA(AsmType::Unsigned()) || type->IsA(AsmType::FixNum())) {
       uint32_t u = 0;
-      if (!value->ToUint32(&u)) {
-        UNREACHABLE();
-      }
-      int32_t i = static_cast<int32_t>(u);
-      byte code[] = {WASM_I32V(i)};
-      current_function_builder_->EmitCode(code, sizeof(code));
+      CHECK(value->ToUint32(&u));
+      current_function_builder_->EmitI32Const(bit_cast<int32_t>(u));
     } else if (type->IsA(AsmType::Int())) {
       // The parser can collapse !0, !1 etc to true / false.
       // Allow these as int literals.
       if (expr->raw_value()->IsTrue()) {
-        byte code[] = {WASM_I32V(1)};
+        byte code[] = {WASM_ONE};
         current_function_builder_->EmitCode(code, sizeof(code));
       } else if (expr->raw_value()->IsFalse()) {
-        byte code[] = {WASM_I32V(0)};
+        byte code[] = {WASM_ZERO};
         current_function_builder_->EmitCode(code, sizeof(code));
       } else if (expr->raw_value()->IsNumber()) {
         // This can happen when -x becomes x * -1 (due to the parser).
         int32_t i = 0;
-        if (!value->ToInt32(&i) || i != -1) {
-          UNREACHABLE();
-        }
-        byte code[] = {WASM_I32V(i)};
+        CHECK(value->ToInt32(&i) && i == -1);
+        byte code[] = {WASM_I32V_1(-1)};
         current_function_builder_->EmitCode(code, sizeof(code));
       } else {
         UNREACHABLE();
