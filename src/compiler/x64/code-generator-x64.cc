@@ -2097,30 +2097,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ incl(i.OutputRegister());
       break;
     case kX64Push:
-      if (HasImmediateInput(instr, 0)) {
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ pushq(operand);
+        frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
+      } else if (HasImmediateInput(instr, 0)) {
         __ pushq(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kPointerSize);
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ pushq(i.InputRegister(0));
+        frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
+      } else if (instr->InputAt(0)->IsFPRegister()) {
+        // TODO(titzer): use another machine instruction?
+        __ subq(rsp, Immediate(kDoubleSize));
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kDoubleSize);
+        __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
       } else {
-        if (instr->InputAt(0)->IsRegister()) {
-          __ pushq(i.InputRegister(0));
-          frame_access_state()->IncreaseSPDelta(1);
-          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                           kPointerSize);
-        } else if (instr->InputAt(0)->IsFPRegister()) {
-          // TODO(titzer): use another machine instruction?
-          __ subq(rsp, Immediate(kDoubleSize));
-          frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
-          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                           kDoubleSize);
-          __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
-        } else {
-          __ pushq(i.InputOperand(0));
-          frame_access_state()->IncreaseSPDelta(1);
-          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                           kPointerSize);
-        }
+        __ pushq(i.InputOperand(0));
+        frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
       }
       break;
     case kX64Poke: {

@@ -58,6 +58,7 @@ class X64OperandGenerator final : public OperandGenerator {
     MachineRepresentation rep =
         LoadRepresentationOf(input->op()).representation();
     switch (opcode) {
+      case kX64Push:
       case kX64Cmp:
       case kX64Test:
         return rep == MachineRepresentation::kWord64 || IsAnyTagged(rep);
@@ -1504,17 +1505,29 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
+    int effect_level = GetEffectLevel(node);
     for (PushParameter input : base::Reversed(*arguments)) {
-      // TODO(titzer): X64Push cannot handle stack->stack double moves
-      // because there is no way to encode fixed double slots.
-      InstructionOperand value =
-          g.CanBeImmediate(input.node())
-              ? g.UseImmediate(input.node())
-              : IsSupported(ATOM) ||
-                        sequence()->IsFP(GetVirtualRegister(input.node()))
-                    ? g.UseRegister(input.node())
-                    : g.Use(input.node());
-      Emit(kX64Push, g.NoOutput(), value);
+      Node* input_node = input.node();
+      if (g.CanBeImmediate(input_node)) {
+        Emit(kX64Push, g.NoOutput(), g.UseImmediate(input_node));
+      } else if (IsSupported(ATOM) ||
+                 sequence()->IsFP(GetVirtualRegister(input_node))) {
+        // TODO(titzer): X64Push cannot handle stack->stack double moves
+        // because there is no way to encode fixed double slots.
+        Emit(kX64Push, g.NoOutput(), g.UseRegister(input_node));
+      } else if (g.CanBeMemoryOperand(kX64Push, node, input_node,
+                                      effect_level)) {
+        InstructionOperand outputs[1];
+        InstructionOperand inputs[4];
+        size_t input_count = 0;
+        InstructionCode opcode = kX64Push;
+        AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
+            input_node, inputs, &input_count);
+        opcode |= AddressingModeField::encode(mode);
+        Emit(opcode, 0, outputs, input_count, inputs);
+      } else {
+        Emit(kX64Push, g.NoOutput(), g.Use(input_node));
+      }
     }
   }
 }

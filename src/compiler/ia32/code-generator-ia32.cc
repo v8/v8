@@ -1862,7 +1862,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kIA32Push:
-      if (instr->InputAt(0)->IsFPRegister()) {
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ push(operand);
+        frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
+      } else if (instr->InputAt(0)->IsFPRegister()) {
         __ sub(esp, Immediate(kFloatSize));
         __ movsd(Operand(esp, 0), i.InputDoubleRegister(0));
         frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);

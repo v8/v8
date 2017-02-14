@@ -847,6 +847,7 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
 
   int effect_level = 0;
   for (Node* const node : *block) {
+    SetEffectLevel(node, effect_level);
     if (node->opcode() == IrOpcode::kStore ||
         node->opcode() == IrOpcode::kUnalignedStore ||
         node->opcode() == IrOpcode::kCheckedStore ||
@@ -855,7 +856,6 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
         node->opcode() == IrOpcode::kProtectedStore) {
       ++effect_level;
     }
-    SetEffectLevel(node, effect_level);
   }
 
   // We visit the control first, then the nodes in the block, so the block's
