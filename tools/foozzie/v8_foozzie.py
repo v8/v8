@@ -273,7 +273,7 @@ def main():
     # will require changes on the clusterfuzz side.
     first_config_label = '%s,%s' % (options.first_arch, options.first_config)
     second_config_label = '%s,%s' % (options.second_arch, options.second_config)
-    print FAILURE_TEMPLATE % dict(
+    print (FAILURE_TEMPLATE % dict(
         configs='%s:%s' % (first_config_label, second_config_label),
         source_key=source_key,
         suppression='', # We can't tie bugs to differences.
@@ -282,12 +282,12 @@ def main():
         first_config_flags=' '.join(first_config_flags),
         second_config_flags=' '.join(second_config_flags),
         first_config_output=
-            first_config_output.stdout.decode('ascii', 'replace'),
+            first_config_output.stdout.decode('utf-8', 'replace'),
         second_config_output=
-            second_config_output.stdout.decode('ascii', 'replace'),
+            second_config_output.stdout.decode('utf-8', 'replace'),
         source=source,
-        difference=difference.decode('ascii', 'replace'),
-    )
+        difference=difference.decode('utf-8', 'replace'),
+    )).encode('utf-8', 'replace')
     return RETURN_FAIL
 
   # TODO(machenbach): Figure out if we could also return a bug in case there's
