@@ -447,9 +447,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5855
   'language/expressions/async-generators/*': [SKIP],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5534
-  'built-ins/Date/UTC/return-value': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4614
   'built-ins/SharedArrayBuffer/*': [SKIP],
   'built-ins/Atomics/*': [SKIP],

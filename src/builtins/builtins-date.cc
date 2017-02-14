@@ -302,8 +302,8 @@ BUILTIN(DateUTC) {
   HandleScope scope(isolate);
   int const argc = args.length() - 1;
   double year = std::numeric_limits<double>::quiet_NaN();
-  double month = std::numeric_limits<double>::quiet_NaN();
-  double date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0, ms = 0.0;
+  double month = 0.0, date = 1.0, hours = 0.0, minutes = 0.0, seconds = 0.0,
+         ms = 0.0;
   if (argc >= 1) {
     Handle<Object> year_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, year_object,
