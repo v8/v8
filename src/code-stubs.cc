@@ -104,8 +104,7 @@ Code::Flags CodeStub::GetCodeFlags() const {
   return Code::ComputeFlags(GetCodeKind(), GetExtraICState());
 }
 
-
-Handle<Code> CodeStub::GetCodeCopy(const Code::FindAndReplacePattern& pattern) {
+Handle<Code> CodeStub::GetCodeCopy(const FindAndReplacePattern& pattern) {
   Handle<Code> ic = GetCode();
   ic = isolate()->factory()->CopyCode(ic);
   ic->FindAndReplace(pattern);

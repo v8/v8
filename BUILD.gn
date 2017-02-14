@@ -1403,6 +1403,7 @@ v8_source_set("v8_base") {
     "src/field-index.h",
     "src/field-type.cc",
     "src/field-type.h",
+    "src/find-and-replace-pattern.h",
     "src/fixed-dtoa.cc",
     "src/fixed-dtoa.h",
     "src/flag-definitions.h",
@@ -2564,8 +2565,8 @@ group("v8_clusterfuzz") {
   if (v8_multi_arch_build) {
     deps += [
       ":d8(//build/toolchain/linux:clang_x64)",
-      ":d8(//build/toolchain/linux:clang_x86)",
       ":d8(//build/toolchain/linux:clang_x64_v8_arm64)",
+      ":d8(//build/toolchain/linux:clang_x86)",
       ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
     ]
   }

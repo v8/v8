@@ -8,6 +8,7 @@
 #include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/codegen.h"
+#include "src/find-and-replace-pattern.h"
 #include "src/globals.h"
 #include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
@@ -175,7 +176,7 @@ class CodeStub BASE_EMBEDDED {
   Handle<Code> GetCode();
 
   // Retrieve the code for the stub, make and return a copy of the code.
-  Handle<Code> GetCodeCopy(const Code::FindAndReplacePattern& pattern);
+  Handle<Code> GetCodeCopy(const FindAndReplacePattern& pattern);
 
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));
@@ -919,7 +920,7 @@ class StoreGlobalStub : public TurboFanCodeStub {
 
   Handle<Code> GetCodeCopyFromTemplate(Handle<JSGlobalObject> global,
                                        Handle<PropertyCell> cell) {
-    Code::FindAndReplacePattern pattern;
+    FindAndReplacePattern pattern;
     if (check_global()) {
       pattern.Add(handle(global_map_placeholder(isolate())->map()),
                   Map::WeakCellForMap(Handle<Map>(global->map())));
@@ -1053,7 +1054,7 @@ class BinaryOpICWithAllocationSiteStub final : public PlatformCodeStub {
   static void GenerateAheadOfTime(Isolate* isolate);
 
   Handle<Code> GetCodeCopyFromTemplate(Handle<AllocationSite> allocation_site) {
-    Code::FindAndReplacePattern pattern;
+    FindAndReplacePattern pattern;
     pattern.Add(isolate()->factory()->undefined_map(), allocation_site);
     return CodeStub::GetCodeCopy(pattern);
   }
