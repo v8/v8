@@ -18,6 +18,7 @@
 #include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
 #include "src/factory.h"
+#include "src/feedback-vector-inl.h"
 #include "src/field-index-inl.h"
 #include "src/field-type.h"
 #include "src/handles-inl.h"
@@ -37,7 +38,6 @@
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
-#include "src/type-feedback-vector-inl.h"
 #include "src/v8memory.h"
 
 namespace v8 {
@@ -174,7 +174,6 @@ TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(Simd128Value, SIMD128_VALUE_TYPE)
 TYPE_CHECKER(Symbol, SYMBOL_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
@@ -203,11 +202,6 @@ bool HeapObject::IsBoilerplateDescription() const { return IsFixedArray(); }
 bool HeapObject::IsExternal() const {
   return map() == GetHeap()->external_map();
 }
-
-#define SIMD128_TYPE_CHECKER(TYPE, Type, type, lane_count, lane_type) \
-  bool HeapObject::Is##Type() const { return map() == GetHeap()->type##_map(); }
-SIMD128_TYPES(SIMD128_TYPE_CHECKER)
-#undef SIMD128_TYPE_CHECKER
 
 #define IS_TYPE_FUNCTION_DEF(type_)                               \
   bool Object::Is##type_() const {                                \
@@ -372,11 +366,11 @@ bool Object::IsLayoutDescriptor() const {
   return IsSmi() || IsFixedTypedArrayBase();
 }
 
-bool HeapObject::IsTypeFeedbackVector() const {
-  return map() == GetHeap()->type_feedback_vector_map();
+bool HeapObject::IsFeedbackVector() const {
+  return map() == GetHeap()->feedback_vector_map();
 }
 
-bool HeapObject::IsTypeFeedbackMetadata() const { return IsFixedArray(); }
+bool HeapObject::IsFeedbackMetadata() const { return IsFixedArray(); }
 
 bool HeapObject::IsDeoptimizationInputData() const {
   // Must be a fixed array.
@@ -617,9 +611,6 @@ bool Object::IsMinusZero() const {
 CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(BoilerplateDescription)
-CAST_ACCESSOR(Bool16x8)
-CAST_ACCESSOR(Bool32x4)
-CAST_ACCESSOR(Bool8x16)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Cell)
@@ -638,15 +629,11 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
-CAST_ACCESSOR(Float32x4)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(FrameArray)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HandlerTable)
 CAST_ACCESSOR(HeapObject)
-CAST_ACCESSOR(Int16x8)
-CAST_ACCESSOR(Int32x4)
-CAST_ACCESSOR(Int8x16)
 CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSArrayBuffer)
 CAST_ACCESSOR(JSArrayBufferView)
@@ -697,7 +684,6 @@ CAST_ACCESSOR(SeqOneByteString)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(SharedFunctionInfo)
-CAST_ACCESSOR(Simd128Value)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(Smi)
 CAST_ACCESSOR(String)
@@ -707,9 +693,6 @@ CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(Symbol)
 CAST_ACCESSOR(TemplateInfo)
 CAST_ACCESSOR(ThinString)
-CAST_ACCESSOR(Uint16x8)
-CAST_ACCESSOR(Uint32x4)
-CAST_ACCESSOR(Uint8x16)
 CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakFixedArray)
@@ -1575,110 +1558,6 @@ int HeapNumber::get_sign() {
   return READ_INT_FIELD(this, kExponentOffset) & kSignMask;
 }
 
-
-bool Simd128Value::Equals(Simd128Value* that) {
-  // TODO(bmeurer): This doesn't match the SIMD.js specification, but it seems
-  // to be consistent with what the CompareICStub does, and what is tested in
-  // the current SIMD.js testsuite.
-  if (this == that) return true;
-#define SIMD128_VALUE(TYPE, Type, type, lane_count, lane_type) \
-  if (this->Is##Type()) {                                      \
-    if (!that->Is##Type()) return false;                       \
-    return Type::cast(this)->Equals(Type::cast(that));         \
-  }
-  SIMD128_TYPES(SIMD128_VALUE)
-#undef SIMD128_VALUE
-  return false;
-}
-
-
-// static
-bool Simd128Value::Equals(Handle<Simd128Value> one, Handle<Simd128Value> two) {
-  return one->Equals(*two);
-}
-
-
-#define SIMD128_VALUE_EQUALS(TYPE, Type, type, lane_count, lane_type) \
-  bool Type::Equals(Type* that) {                                     \
-    for (int lane = 0; lane < lane_count; ++lane) {                   \
-      if (this->get_lane(lane) != that->get_lane(lane)) return false; \
-    }                                                                 \
-    return true;                                                      \
-  }
-SIMD128_TYPES(SIMD128_VALUE_EQUALS)
-#undef SIMD128_VALUE_EQUALS
-
-
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-#define SIMD128_READ_LANE(lane_type, lane_count, field_type, field_size) \
-  lane_type value =                                                      \
-      READ_##field_type##_FIELD(this, kValueOffset + lane * field_size);
-#elif defined(V8_TARGET_BIG_ENDIAN)
-#define SIMD128_READ_LANE(lane_type, lane_count, field_type, field_size) \
-  lane_type value = READ_##field_type##_FIELD(                           \
-      this, kValueOffset + (lane_count - lane - 1) * field_size);
-#else
-#error Unknown byte ordering
-#endif
-
-#if defined(V8_TARGET_LITTLE_ENDIAN)
-#define SIMD128_WRITE_LANE(lane_count, field_type, field_size, value) \
-  WRITE_##field_type##_FIELD(this, kValueOffset + lane * field_size, value);
-#elif defined(V8_TARGET_BIG_ENDIAN)
-#define SIMD128_WRITE_LANE(lane_count, field_type, field_size, value) \
-  WRITE_##field_type##_FIELD(                                         \
-      this, kValueOffset + (lane_count - lane - 1) * field_size, value);
-#else
-#error Unknown byte ordering
-#endif
-
-#define SIMD128_NUMERIC_LANE_FNS(type, lane_type, lane_count, field_type, \
-                                 field_size)                              \
-  lane_type type::get_lane(int lane) const {                              \
-    DCHECK(lane < lane_count && lane >= 0);                               \
-    SIMD128_READ_LANE(lane_type, lane_count, field_type, field_size)      \
-    return value;                                                         \
-  }                                                                       \
-                                                                          \
-  void type::set_lane(int lane, lane_type value) {                        \
-    DCHECK(lane < lane_count && lane >= 0);                               \
-    SIMD128_WRITE_LANE(lane_count, field_type, field_size, value)         \
-  }
-
-SIMD128_NUMERIC_LANE_FNS(Float32x4, float, 4, FLOAT, kFloatSize)
-SIMD128_NUMERIC_LANE_FNS(Int32x4, int32_t, 4, INT32, kInt32Size)
-SIMD128_NUMERIC_LANE_FNS(Uint32x4, uint32_t, 4, UINT32, kInt32Size)
-SIMD128_NUMERIC_LANE_FNS(Int16x8, int16_t, 8, INT16, kShortSize)
-SIMD128_NUMERIC_LANE_FNS(Uint16x8, uint16_t, 8, UINT16, kShortSize)
-SIMD128_NUMERIC_LANE_FNS(Int8x16, int8_t, 16, INT8, kCharSize)
-SIMD128_NUMERIC_LANE_FNS(Uint8x16, uint8_t, 16, UINT8, kCharSize)
-#undef SIMD128_NUMERIC_LANE_FNS
-
-
-#define SIMD128_BOOLEAN_LANE_FNS(type, lane_type, lane_count, field_type, \
-                                 field_size)                              \
-  bool type::get_lane(int lane) const {                                   \
-    DCHECK(lane < lane_count && lane >= 0);                               \
-    SIMD128_READ_LANE(lane_type, lane_count, field_type, field_size)      \
-    DCHECK(value == 0 || value == -1);                                    \
-    return value != 0;                                                    \
-  }                                                                       \
-                                                                          \
-  void type::set_lane(int lane, bool value) {                             \
-    DCHECK(lane < lane_count && lane >= 0);                               \
-    int32_t int_val = value ? -1 : 0;                                     \
-    SIMD128_WRITE_LANE(lane_count, field_type, field_size, int_val)       \
-  }
-
-SIMD128_BOOLEAN_LANE_FNS(Bool32x4, int32_t, 4, INT32, kInt32Size)
-SIMD128_BOOLEAN_LANE_FNS(Bool16x8, int16_t, 8, INT16, kShortSize)
-SIMD128_BOOLEAN_LANE_FNS(Bool8x16, int8_t, 16, INT8, kCharSize)
-#undef SIMD128_BOOLEAN_LANE_FNS
-
-#undef SIMD128_READ_LANE
-#undef SIMD128_WRITE_LANE
-
-
 ACCESSORS(JSReceiver, properties, FixedArray, kPropertiesOffset)
 
 
@@ -2458,8 +2337,8 @@ void Object::VerifyApiCallResultType() {
   DCHECK(IsHeapObject());
   Isolate* isolate = HeapObject::cast(this)->GetIsolate();
   if (!(IsString() || IsSymbol() || IsJSReceiver() || IsHeapNumber() ||
-        IsSimd128Value() || IsUndefined(isolate) || IsTrue(isolate) ||
-        IsFalse(isolate) || IsNull(isolate))) {
+        IsUndefined(isolate) || IsTrue(isolate) || IsFalse(isolate) ||
+        IsNull(isolate))) {
     FATAL("API call returned invalid object");
   }
 #endif  // DEBUG
@@ -2722,7 +2601,6 @@ AllocationAlignment HeapObject::RequiredAlignment() {
     return kDoubleAligned;
   }
   if (IsHeapNumber()) return kDoubleUnaligned;
-  if (IsSimd128Value()) return kSimd128Unaligned;
 #endif  // V8_HOST_ARCH_32_BIT
   return kWordAligned;
 }
@@ -2833,7 +2711,7 @@ int DescriptorArray::number_of_descriptors() {
 
 int DescriptorArray::number_of_descriptors_storage() {
   int len = length();
-  return len == 0 ? 0 : (len - kFirstIndex) / kDescriptorSize;
+  return len == 0 ? 0 : (len - kFirstIndex) / kEntrySize;
 }
 
 
@@ -3133,7 +3011,6 @@ PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
   Object* details = get(ToDetailsIndex(descriptor_number));
   return PropertyDetails(Smi::cast(details));
 }
-
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
   DCHECK(GetDetails(descriptor_number).location() == kField);
@@ -4982,7 +4859,8 @@ bool Code::IsCodeStubOrIC() {
 }
 
 ExtraICState Code::extra_ic_state() {
-  DCHECK(is_inline_cache_stub() || is_debug_stub());
+  DCHECK(is_binary_op_stub() || is_compare_ic_stub() ||
+         is_to_boolean_ic_stub() || is_debug_stub());
   return ExtractExtraICStateFromFlags(flags());
 }
 
@@ -5279,7 +5157,7 @@ bool Code::is_debug_stub() {
   return false;
 }
 bool Code::is_handler() { return kind() == HANDLER; }
-bool Code::is_call_stub() { return kind() == CALL_IC; }
+bool Code::is_stub() { return kind() == STUB; }
 bool Code::is_binary_op_stub() { return kind() == BINARY_OP_IC; }
 bool Code::is_compare_ic_stub() { return kind() == COMPARE_IC; }
 bool Code::is_to_boolean_ic_stub() { return kind() == TO_BOOLEAN_IC; }
@@ -5379,23 +5257,6 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
   return false;
 }
 
-
-class Code::FindAndReplacePattern {
- public:
-  FindAndReplacePattern() : count_(0) { }
-  void Add(Handle<Map> map_to_find, Handle<Object> obj_to_replace) {
-    DCHECK(count_ < kMaxCount);
-    find_[count_] = map_to_find;
-    replace_[count_] = obj_to_replace;
-    ++count_;
-  }
- private:
-  static const int kMaxCount = 4;
-  int count_;
-  Handle<Map> find_[kMaxCount];
-  Handle<Object> replace_[kMaxCount];
-  friend class Code;
-};
 
 int AbstractCode::instruction_size() {
   if (IsCode()) {
@@ -5655,8 +5516,7 @@ ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, feedback_vector, TypeFeedbackVector,
-          kFeedbackVectorOffset)
+ACCESSORS(JSFunction, feedback_vector_cell, Cell, kFeedbackVectorOffset)
 ACCESSORS(JSFunction, next_function_link, Object, kNextFunctionLinkOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
@@ -5973,7 +5833,7 @@ ACCESSORS(SharedFunctionInfo, name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, optimized_code_map, FixedArray,
           kOptimizedCodeMapOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
-ACCESSORS(SharedFunctionInfo, feedback_metadata, TypeFeedbackMetadata,
+ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
 SMI_ACCESSORS(SharedFunctionInfo, function_literal_id, kFunctionLiteralIdOffset)
 #if TRACE_MAPS
@@ -6494,6 +6354,10 @@ bool SharedFunctionInfo::OptimizedCodeMapIsCleared() const {
   return optimized_code_map() == GetHeap()->empty_fixed_array();
 }
 
+FeedbackVector* JSFunction::feedback_vector() const {
+  DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
+  return FeedbackVector::cast(feedback_vector_cell()->value());
+}
 
 bool JSFunction::IsOptimized() {
   return code()->kind() == Code::OPTIMIZED_FUNCTION;
@@ -6601,6 +6465,21 @@ void JSFunction::ReplaceCode(Code* code) {
   }
 }
 
+bool JSFunction::has_feedback_vector() const {
+  return !feedback_vector_cell()->value()->IsUndefined(GetIsolate());
+}
+
+JSFunction::FeedbackVectorState JSFunction::GetFeedbackVectorState(
+    Isolate* isolate) const {
+  Cell* cell = feedback_vector_cell();
+  if (cell == isolate->heap()->undefined_cell()) {
+    return TOP_LEVEL_SCRIPT_NEEDS_VECTOR;
+  } else if (cell->value() == isolate->heap()->undefined_value() ||
+             !has_feedback_vector()) {
+    return NEEDS_VECTOR;
+  }
+  return HAS_VECTOR;
+}
 
 Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));

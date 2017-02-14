@@ -21,17 +21,16 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-
-// Helper class to access JSCallFunction nodes that are potential candidates
+// Helper class to access JSCall nodes that are potential candidates
 // for reduction when they have a BuiltinFunctionId associated with them.
 class JSCallReduction {
  public:
   explicit JSCallReduction(Node* node) : node_(node) {}
 
-  // Determines whether the node is a JSCallFunction operation that targets a
+  // Determines whether the node is a JSCall operation that targets a
   // constant callee being a well-known builtin with a BuiltinFunctionId.
   bool HasBuiltinFunctionId() {
-    if (node_->opcode() != IrOpcode::kJSCallFunction) return false;
+    if (node_->opcode() != IrOpcode::kJSCall) return false;
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     if (!m.HasValue() || !m.Value()->IsJSFunction()) return false;
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
@@ -40,7 +39,7 @@ class JSCallReduction {
 
   // Retrieves the BuiltinFunctionId as described above.
   BuiltinFunctionId GetBuiltinFunctionId() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
     return function->shared()->builtin_function_id();
@@ -81,13 +80,13 @@ class JSCallReduction {
   Node* right() { return GetJSCallInput(1); }
 
   int GetJSCallArity() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
     return node_->op()->ValueInputCount() - 2;
   }
 
   Node* GetJSCallInput(int index) {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, node_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
     DCHECK_LT(index, GetJSCallArity());
     // Skip first (i.e. callee) and second (i.e. receiver) operand.
     return NodeProperties::GetValueInput(node_, index + 2);

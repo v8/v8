@@ -894,6 +894,7 @@ class RepresentationSelector {
   // Helper for handling selects.
   void VisitSelect(Node* node, Truncation truncation,
                    SimplifiedLowering* lowering) {
+    DCHECK(TypeOf(node->InputAt(0))->Is(Type::Boolean()));
     ProcessInput(node, 0, UseInfo::Bool());
 
     MachineRepresentation output =
@@ -1424,10 +1425,12 @@ class RepresentationSelector {
         return;
       }
 
-      case IrOpcode::kBranch:
+      case IrOpcode::kBranch: {
+        DCHECK(TypeOf(node->InputAt(0))->Is(Type::Boolean()));
         ProcessInput(node, 0, UseInfo::Bool());
         EnqueueInput(node, NodeProperties::FirstControlIndex(node));
         return;
+      }
       case IrOpcode::kSwitch:
         ProcessInput(node, 0, UseInfo::TruncatingWord32());
         EnqueueInput(node, NodeProperties::FirstControlIndex(node));

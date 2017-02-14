@@ -207,6 +207,8 @@ void Verifier::Visitor::Check(Node* node) {
       }
       CHECK_EQ(1, count_true);
       CHECK_EQ(1, count_false);
+      // The condition must be a Boolean.
+      CheckValueInputIs(node, 0, Type::Boolean());
       // Type is empty.
       CheckNotTyped(node);
       break;
@@ -408,6 +410,10 @@ void Verifier::Visitor::Check(Node* node) {
       CHECK_EQ(0, effect_count);
       CHECK_EQ(0, control_count);
       CHECK_EQ(3, value_count);
+      // The condition must be a Boolean.
+      CheckValueInputIs(node, 0, Type::Boolean());
+      // Type can be anything.
+      CheckTypeIs(node, Type::Any());
       break;
     }
     case IrOpcode::kPhi: {
@@ -682,8 +688,8 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Receiver());
       break;
     case IrOpcode::kJSCallForwardVarargs:
-    case IrOpcode::kJSCallFunction:
-    case IrOpcode::kJSCallFunctionWithSpread:
+    case IrOpcode::kJSCall:
+    case IrOpcode::kJSCallWithSpread:
     case IrOpcode::kJSCallRuntime:
       // Type can be anything.
       CheckTypeIs(node, Type::Any());

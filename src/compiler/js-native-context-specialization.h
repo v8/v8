@@ -8,7 +8,7 @@
 #include "src/base/flags.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
-#include "src/type-feedback-vector.h"
+#include "src/feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -84,8 +84,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               MapHandleList const& receiver_maps,
                               Handle<Name> name, AccessMode access_mode,
                               LanguageMode language_mode,
-                              Handle<TypeFeedbackVector> vector,
-                              FeedbackVectorSlot slot, Node* index = nullptr);
+                              Handle<FeedbackVector> vector, FeedbackSlot slot,
+                              Node* index = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
                                Handle<Name> name, AccessMode access_mode);
 
@@ -112,8 +112,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
       Node* receiver, Node* value, Node* context, Node* frame_state,
       Node* effect, Node* control, Handle<Name> name,
       PropertyAccessInfo const& access_info, AccessMode access_mode,
-      LanguageMode language_mode, Handle<TypeFeedbackVector> vector,
-      FeedbackVectorSlot slot);
+      LanguageMode language_mode, Handle<FeedbackVector> vector,
+      FeedbackSlot slot);
 
   // Construct the appropriate subgraph for element access.
   ValueEffectControl BuildElementAccess(Node* receiver, Node* index,

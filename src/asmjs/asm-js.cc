@@ -9,11 +9,13 @@
 #include "src/asmjs/asm-typer.h"
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/assert-scope.h"
+#include "src/base/platform/elapsed-timer.h"
 #include "src/compilation-info.h"
 #include "src/execution.h"
 #include "src/factory.h"
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 

@@ -969,9 +969,10 @@ void MacroAssembler::Prologue(bool code_pre_aging, Register base,
   }
 }
 
-void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
   LoadP(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   LoadP(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
+  LoadP(vector, FieldMemOperand(vector, Cell::kValueOffset));
 }
 
 void MacroAssembler::EnterFrame(StackFrame::Type type,
@@ -1098,17 +1099,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // location.
   lay(r1, MemOperand(sp, kStackFrameSPSlot * kPointerSize));
   StoreP(r1, MemOperand(fp, ExitFrameConstants::kSPOffset));
-}
-
-void MacroAssembler::InitializeNewString(Register string, Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1, Register scratch2) {
-  SmiTag(scratch1, length);
-  LoadRoot(scratch2, map_index);
-  StoreP(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  StoreP(FieldMemOperand(string, String::kHashFieldSlot),
-         Operand(String::kEmptyHashField), scratch1);
-  StoreP(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
 }
 
 int MacroAssembler::ActivationFrameAlignment() {
@@ -1638,7 +1628,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1737,7 +1727,7 @@ void MacroAssembler::Allocate(Register object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1797,7 +1787,7 @@ void MacroAssembler::FastAllocate(Register object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1865,7 +1855,7 @@ void MacroAssembler::FastAllocate(int object_size, Register result,
     // Prefetch the allocation_top's next cache line in advance to
     // help alleviate potential cache misses.
     // Mode 2 - Prefetch the data into a cache line for store access.
-    pfd(r2, MemOperand(result, 256));
+    pfd(static_cast<Condition>(2), MemOperand(result, 256));
   }
 
   // Tag object.
@@ -1973,30 +1963,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bne(&done);
   LoadP(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
   b(&loop);
-  bind(&done);
-}
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  // Get the prototype or initial map from the function.
-  LoadP(result,
-        FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  CompareRoot(result, Heap::kTheHoleValueRootIndex);
-  beq(miss);
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  CompareObjectType(result, scratch, scratch, MAP_TYPE);
-  bne(&done, Label::kNear);
-
-  // Get the prototype from the initial map.
-  LoadP(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  // All done.
   bind(&done);
 }
 
@@ -3374,13 +3340,17 @@ void MacroAssembler::Mul64(Register dst, const Operand& src1) {
 }
 
 void MacroAssembler::Mul(Register dst, Register src1, Register src2) {
-  if (dst.is(src2)) {
-    MulP(dst, src1);
-  } else if (dst.is(src1)) {
-    MulP(dst, src2);
+  if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
+    MulPWithCondition(dst, src1, src2);
   } else {
-    Move(dst, src1);
-    MulP(dst, src2);
+    if (dst.is(src2)) {
+      MulP(dst, src1);
+    } else if (dst.is(src1)) {
+      MulP(dst, src2);
+    } else {
+      Move(dst, src1);
+      MulP(dst, src2);
+    }
   }
 }
 
@@ -3509,6 +3479,16 @@ void MacroAssembler::MulP(Register dst, Register src) {
   msgr(dst, src);
 #else
   msr(dst, src);
+#endif
+}
+
+void MacroAssembler::MulPWithCondition(Register dst, Register src1,
+                                       Register src2) {
+  CHECK(CpuFeatures::IsSupported(MISC_INSTR_EXT2));
+#if V8_TARGET_ARCH_S390X
+  msgrkc(dst, src1, src2);
+#else
+  msrkc(dst, src1, src2);
 #endif
 }
 

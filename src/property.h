@@ -44,6 +44,10 @@ class Descriptor final BASE_EMBEDDED {
                       value->OptimalRepresentation(), 0);
   }
 
+  static Descriptor DataConstant(Handle<Name> key, int field_index,
+                                 Handle<Object> value,
+                                 PropertyAttributes attributes);
+
   static Descriptor AccessorConstant(Handle<Name> key, Handle<Object> foreign,
                                      PropertyAttributes attributes) {
     return Descriptor(key, foreign, kAccessor, attributes, kDescriptor, kConst,

@@ -912,6 +912,11 @@ class Isolate {
 
   RegExpStack* regexp_stack() { return regexp_stack_; }
 
+  size_t total_regexp_code_generated() { return total_regexp_code_generated_; }
+  void IncreaseTotalRegexpCodeGenerated(int size) {
+    total_regexp_code_generated_ += size;
+  }
+
   List<int>* regexp_indices() { return &regexp_indices_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
@@ -960,11 +965,14 @@ class Isolate {
   bool IsDead() { return has_fatal_error_; }
   void SignalFatalError() { has_fatal_error_ = true; }
 
-  bool use_crankshaft() const;
+  bool use_crankshaft();
 
   bool initialized_from_snapshot() { return initialized_from_snapshot_; }
 
   bool NeedsSourcePositionsForProfiling() const;
+
+  bool IsCodeCoverageEnabled();
+  void SetCodeCoverageList(Object* value);
 
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
@@ -988,7 +996,6 @@ class Isolate {
 
   bool IsFastArrayConstructorPrototypeChainIntact();
   inline bool IsArraySpeciesLookupChainIntact();
-  inline bool IsHasInstanceLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1015,7 +1022,6 @@ class Isolate {
     UpdateArrayProtectorOnSetElement(object);
   }
   void InvalidateArraySpeciesProtector();
-  void InvalidateHasInstanceProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
@@ -1159,7 +1165,7 @@ class Isolate {
     return cancelable_task_manager_;
   }
 
-  AstStringConstants* ast_string_constants() const {
+  const AstStringConstants* ast_string_constants() const {
     return ast_string_constants_;
   }
 
@@ -1409,7 +1415,7 @@ class Isolate {
   std::unique_ptr<CodeEventDispatcher> code_event_dispatcher_;
   FunctionEntryHook function_entry_hook_;
 
-  AstStringConstants* ast_string_constants_;
+  const AstStringConstants* ast_string_constants_;
 
   interpreter::Interpreter* interpreter_;
 
@@ -1480,6 +1486,8 @@ class Isolate {
 #endif
 
   bool allow_atomics_wait_;
+
+  size_t total_regexp_code_generated_;
 
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;

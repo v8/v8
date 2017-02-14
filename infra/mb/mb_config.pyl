@@ -18,6 +18,12 @@
       'ia32.debug': 'default_debug_x86',
       'ia32.optdebug': 'default_optdebug_x86',
       'ia32.release': 'default_release_x86',
+      'mipsel.debug': 'default_debug_mipsel',
+      'mipsel.optdebug': 'default_optdebug_mipsel',
+      'mipsel.release': 'default_release_mipsel',
+      'mips64el.debug': 'default_debug_mips64el',
+      'mips64el.optdebug': 'default_optdebug_mips64el',
+      'mips64el.release': 'default_release_mips64el',
       'x64.debug': 'default_debug_x64',
       'x64.optdebug': 'default_optdebug_x64',
       'x64.release': 'default_release_x64',
@@ -214,6 +220,20 @@
       'gn', 'debug', 'simulate_arm64', 'v8_enable_slow_dchecks'],
     'default_release_arm64': [
       'gn', 'release', 'simulate_arm64'],
+    'default_debug_mipsel': [
+      'gn', 'debug', 'simulate_mipsel', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_mipsel': [
+      'gn', 'debug', 'simulate_mipsel', 'v8_enable_slow_dchecks'],
+    'default_release_mipsel': [
+      'gn', 'release', 'simulate_mipsel'],
+    'default_debug_mips64el': [
+      'gn', 'debug', 'simulate_mips64el', 'v8_enable_slow_dchecks',
+      'v8_full_debug'],
+    'default_optdebug_mips64el': [
+      'gn', 'debug', 'simulate_mips64el', 'v8_enable_slow_dchecks'],
+    'default_release_mips64el': [
+      'gn', 'release', 'simulate_mips64el'],
     'default_debug_x64': [
       'gn', 'debug', 'x64', 'v8_enable_slow_dchecks', 'v8_full_debug'],
     'default_optdebug_x64': [
@@ -638,7 +658,7 @@
     },
 
     'v8_correctness_fuzzer': {
-      'gn_args': 'v8_correctness_fuzzer=true',
+      'gn_args': 'v8_correctness_fuzzer=true v8_multi_arch_build=true',
     },
 
     'v8_disable_inspector': {

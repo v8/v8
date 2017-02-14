@@ -4,17 +4,19 @@
 
 #include "src/parsing/parse-info.h"
 
+#include "src/api.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/ast.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects-inl.h"
 #include "src/objects/scope-info.h"
+#include "src/zone/zone.h"
 
 namespace v8 {
 namespace internal {
 
-ParseInfo::ParseInfo(Zone* zone)
-    : zone_(zone),
+ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
+    : zone_(std::make_shared<Zone>(zone_allocator, ZONE_NAME)),
       flags_(0),
       source_stream_(nullptr),
       source_stream_encoding_(ScriptCompiler::StreamedSource::ONE_BYTE),
@@ -35,10 +37,11 @@ ParseInfo::ParseInfo(Zone* zone)
       cached_data_(nullptr),
       ast_value_factory_(nullptr),
       function_name_(nullptr),
-      literal_(nullptr) {}
+      literal_(nullptr),
+      deferred_handles_(nullptr) {}
 
-ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
-    : ParseInfo(zone) {
+ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
+    : ParseInfo(shared->GetIsolate()->allocator()) {
   isolate_ = shared->GetIsolate();
 
   set_toplevel(shared->is_toplevel());
@@ -69,7 +72,14 @@ ParseInfo::ParseInfo(Zone* zone, Handle<SharedFunctionInfo> shared)
   }
 }
 
-ParseInfo::ParseInfo(Zone* zone, Handle<Script> script) : ParseInfo(zone) {
+ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared,
+                     std::shared_ptr<Zone> zone)
+    : ParseInfo(shared) {
+  zone_.swap(zone);
+}
+
+ParseInfo::ParseInfo(Handle<Script> script)
+    : ParseInfo(script->GetIsolate()->allocator()) {
   isolate_ = script->GetIsolate();
 
   set_allow_lazy_parsing();
@@ -99,6 +109,17 @@ bool ParseInfo::is_declaration() const {
 
 FunctionKind ParseInfo::function_kind() const {
   return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
+}
+
+void ParseInfo::set_deferred_handles(
+    std::shared_ptr<DeferredHandles> deferred_handles) {
+  DCHECK(deferred_handles_.get() == nullptr);
+  deferred_handles_.swap(deferred_handles);
+}
+
+void ParseInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
+  DCHECK(deferred_handles_.get() == nullptr);
+  deferred_handles_.reset(deferred_handles);
 }
 
 #ifdef DEBUG

@@ -6,6 +6,7 @@
 
 #include "src/arguments.h"
 #include "src/compiler.h"
+#include "src/debug/debug-coverage.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-frames.h"
 #include "src/debug/debug-scopes.h"
@@ -79,8 +80,13 @@ RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
   CHECK(args[0]->IsJSFunction() || args[0]->IsNullOrUndefined(isolate));
   CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
-  isolate->debug()->SetEventListener(callback, data);
-
+  if (callback->IsJSFunction()) {
+    JavaScriptDebugDelegate* delegate = new JavaScriptDebugDelegate(
+        isolate, Handle<JSFunction>::cast(callback), data);
+    isolate->debug()->SetDebugDelegate(delegate, true);
+  } else {
+    isolate->debug()->SetDebugDelegate(nullptr, false);
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -1204,19 +1210,20 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  DCHECK_EQ(4, args.length());
+  DCHECK_EQ(5, args.length());
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   CHECK(isolate->debug()->CheckExecutionState(break_id));
 
   CONVERT_SMI_ARG_CHECKED(wrapped_id, 1);
   CONVERT_NUMBER_CHECKED(int, inlined_jsframe_index, Int32, args[2]);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 3);
+  CONVERT_BOOLEAN_ARG_CHECKED(throw_on_side_effect, 4);
 
   StackFrame::Id id = DebugFrameHelper::UnwrapFrameId(wrapped_id);
 
   RETURN_RESULT_OR_FAILURE(
-      isolate,
-      DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source));
+      isolate, DebugEvaluate::Local(isolate, id, inlined_jsframe_index, source,
+                                    throw_on_side_effect));
 }
 
 
@@ -1238,10 +1245,6 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 RUNTIME_FUNCTION(Runtime_DebugGetLoadedScripts) {
   HandleScope scope(isolate);
   DCHECK_EQ(0, args.length());
-
-  // This runtime function is used by the debugger to determine whether the
-  // debugger is active or not. Hence we fail gracefully here and don't crash.
-  if (!isolate->debug()->is_active()) return isolate->ThrowIllegalOperation();
 
   Handle<FixedArray> instances;
   {
@@ -1852,7 +1855,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   JSObject::SetProperty(promise, async_stack_id_symbol,
                         handle(Smi::FromInt(id), isolate), STRICT)
       .Assert();
-  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id);
+  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -1875,7 +1878,7 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
     isolate->debug()->OnAsyncTaskEvent(
         status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
                                           : debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise));
+        isolate->debug()->NextAsyncTaskId(promise), 0);
   }
   return isolate->heap()->undefined_value();
 }
@@ -1889,6 +1892,89 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
   return NULL;
+}
+
+namespace {
+Handle<JSObject> CreateRangeObject(Isolate* isolate,
+                                   const Coverage::Range* range,
+                                   Handle<String> inner_string,
+                                   Handle<String> start_string,
+                                   Handle<String> end_string,
+                                   Handle<String> count_string) {
+  HandleScope scope(isolate);
+  Factory* factory = isolate->factory();
+  Handle<JSObject> range_obj = factory->NewJSObjectWithNullProto();
+  JSObject::AddProperty(range_obj, start_string,
+                        factory->NewNumberFromInt(range->start), NONE);
+  JSObject::AddProperty(range_obj, end_string,
+                        factory->NewNumberFromInt(range->end), NONE);
+  JSObject::AddProperty(range_obj, count_string,
+                        factory->NewNumberFromUint(range->count), NONE);
+  Handle<String> name = factory->anonymous_string();
+  if (!range->name.empty()) {
+    Vector<const uc16> name_vector(range->name.data(),
+                                   static_cast<int>(range->name.size()));
+    name = factory->NewStringFromTwoByte(name_vector).ToHandleChecked();
+  }
+  JSObject::AddProperty(range_obj, factory->name_string(), name, NONE);
+  if (!range->inner.empty()) {
+    int size = static_cast<int>(range->inner.size());
+    Handle<FixedArray> inner_array = factory->NewFixedArray(size);
+    for (int i = 0; i < size; i++) {
+      Handle<JSObject> element =
+          CreateRangeObject(isolate, &range->inner[i], inner_string,
+                            start_string, end_string, count_string);
+      inner_array->set(i, *element);
+    }
+    Handle<JSArray> inner =
+        factory->NewJSArrayWithElements(inner_array, FAST_ELEMENTS);
+    JSObject::AddProperty(range_obj, inner_string, inner, NONE);
+  }
+  return scope.CloseAndEscape(range_obj);
+}
+}  // anonymous namespace
+
+RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
+  HandleScope scope(isolate);
+  // Collect coverage data.
+  std::vector<Coverage::ScriptData> script_data = Coverage::Collect(isolate);
+  Factory* factory = isolate->factory();
+  // Turn the returned data structure into JavaScript.
+  // Create an array of scripts.
+  int num_scripts = static_cast<int>(script_data.size());
+  // Prepare property keys.
+  Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
+  Handle<String> script_string = factory->NewStringFromStaticChars("script");
+  Handle<String> toplevel_string =
+      factory->NewStringFromStaticChars("toplevel");
+  Handle<String> inner_string = factory->NewStringFromStaticChars("inner");
+  Handle<String> start_string = factory->NewStringFromStaticChars("start");
+  Handle<String> end_string = factory->NewStringFromStaticChars("end");
+  Handle<String> count_string = factory->NewStringFromStaticChars("count");
+  for (int i = 0; i < num_scripts; i++) {
+    const auto& data = script_data[i];
+    HandleScope inner_scope(isolate);
+    Handle<JSObject> script_obj = factory->NewJSObjectWithNullProto();
+    Handle<JSObject> wrapper = Script::GetWrapper(data.script);
+    JSObject::AddProperty(script_obj, script_string, wrapper, NONE);
+    Handle<JSObject> toplevel =
+        CreateRangeObject(isolate, &data.toplevel, inner_string, start_string,
+                          end_string, count_string);
+    JSObject::AddProperty(script_obj, toplevel_string, toplevel, NONE);
+    scripts_array->set(i, *script_obj);
+  }
+  return *factory->NewJSArrayWithElements(scripts_array, FAST_ELEMENTS);
+}
+
+RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
+  SealHandleScope shs(isolate);
+  CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
+  if (enable) {
+    Coverage::EnablePrecise(isolate);
+  } else {
+    Coverage::DisablePrecise(isolate);
+  }
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

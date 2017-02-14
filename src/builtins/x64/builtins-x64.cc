@@ -117,6 +117,8 @@ namespace {
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
                                     bool check_derived_construct) {
+  Label post_instantiation_deopt_entry;
+
   // ----------- S t a t e -------------
   //  -- rax: number of arguments
   //  -- rsi: context
@@ -161,6 +163,9 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     }
 
+    // Deoptimizer re-enters stub code here.
+    __ bind(&post_instantiation_deopt_entry);
+
     // Set up pointer to last argument.
     __ leap(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
 
@@ -181,7 +186,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
-      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+      masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+          masm->pc_offset());
     }
 
     // Restore context from the frame.
@@ -240,6 +246,35 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ IncrementCounter(counters->constructed_objects(), 1);
   }
   __ ret(0);
+
+  // Store offset of trampoline address for deoptimizer. This is the bailout
+  // point after the receiver instantiation but before the function invocation.
+  // We need to restore some registers in order to continue the above code.
+  if (create_implicit_receiver && !is_api_function) {
+    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+        masm->pc_offset());
+
+    // ----------- S t a t e -------------
+    //  -- rax    : newly allocated object
+    //  -- rsp[0] : constructor function
+    // -----------------------------------
+
+    __ Pop(rdi);
+    __ Push(rax);
+    __ Push(rax);
+
+    // Retrieve smi-tagged arguments count from the stack.
+    __ SmiToInteger32(rax,
+                      Operand(rbp, ConstructFrameConstants::kLengthOffset));
+
+    // Retrieve the new target value from the stack. This was placed into the
+    // frame description in place of the receiver by the optimizing compiler.
+    __ movp(rdx, Operand(rbp, rax, times_pointer_size,
+                         StandardFrameConstants::kCallerSPOffset));
+
+    // Continue with constructor function invocation.
+    __ jmp(&post_instantiation_deopt_entry);
+  }
 }
 
 }  // namespace
@@ -623,10 +658,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Increment invocation count for the function.
   __ movp(rcx, FieldOperand(rdi, JSFunction::kFeedbackVectorOffset));
+  __ movp(rcx, FieldOperand(rcx, Cell::kValueOffset));
   __ SmiAddConstant(
-      FieldOperand(rcx,
-                   TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                       TypeFeedbackVector::kHeaderSize),
+      FieldOperand(rcx, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize),
       Smi::FromInt(1));
 
   // Check function data field is actually a BytecodeArray object.
@@ -995,13 +1030,18 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register closure = rdi;
   Register map = r8;
   Register index = r9;
+
+  // Do we have a valid feedback vector?
+  __ movp(rbx, FieldOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ movp(rbx, FieldOperand(rbx, Cell::kValueOffset));
+  __ JumpIfRoot(rbx, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
+
   __ movp(map, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ movp(map, FieldOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ SmiToInteger32(index, FieldOperand(map, FixedArray::kLengthOffset));
   __ cmpl(index, Immediate(2));
-  __ j(less, &gotta_call_runtime);
+  __ j(less, &try_shared);
 
-  // Find literals.
   // r14 : native context
   // r9  : length / index
   // r8  : optimized code map
@@ -1018,17 +1058,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ movp(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ cmpp(temp, native_context);
   __ j(not_equal, &loop_bottom);
-  // Feedback vector available?
-  __ movp(temp, FieldOperand(map, index, times_pointer_size,
-                             SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ movp(temp, FieldOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the feedback vector in the closure.
-  __ movp(FieldOperand(closure, JSFunction::kFeedbackVectorOffset), temp);
-  __ movp(r15, index);
-  __ RecordWriteField(closure, JSFunction::kFeedbackVectorOffset, temp, r15,
-                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
 
   // Code available?
   Register entry = rcx;
@@ -1037,7 +1066,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ movp(entry, FieldOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   __ leap(entry, FieldOperand(entry, Code::kHeaderSize));
   __ movp(FieldOperand(closure, JSFunction::kCodeEntryOffset), entry);
   __ RecordWriteCodeEntryField(closure, entry, r15);
@@ -1068,9 +1097,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ cmpl(index, Immediate(1));
   __ j(greater, &loop_top);
 
-  // We found neither literals nor code.
-  __ jmp(&gotta_call_runtime);
-
+  // We found no code.
   __ bind(&try_shared);
   __ movp(entry, FieldOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   // Is the shared function marked for tier up?
@@ -1583,7 +1610,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   {
     StackArgumentsAccessor args(rsp, 0);
     __ movp(args.GetReceiverOperand(), rdi);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
@@ -1591,7 +1618,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   {
     StackArgumentsAccessor args(rsp, 0);
     __ movp(args.GetReceiverOperand(), rdx);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 }
 
@@ -2908,10 +2935,6 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ bind(&push_args);
     // rax += r9 - 1. Subtract 1 for the spread itself.
     __ leap(rax, Operand(rax, r9, times_1, -1));
-
-    // Pop the return address and spread argument.
-    __ PopReturnAddressTo(r8);
-    __ Pop(rcx);
   }
 
   // Check for stack overflow.
@@ -2934,6 +2957,10 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
 
   // Put the evaluated spread onto the stack as additional arguments.
   {
+    // Pop the return address and spread argument.
+    __ PopReturnAddressTo(r8);
+    __ Pop(rcx);
+
     __ Set(rcx, 0);
     Label done, loop;
     __ bind(&loop);

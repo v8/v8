@@ -930,10 +930,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDeoptimize: {
       int deopt_state_id =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      Deoptimizer::BailoutType bailout_type =
-          Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      CodeGenResult result = AssembleDeoptimizerCall(
-          deopt_state_id, bailout_type, current_source_position_);
+      CodeGenResult result =
+          AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
       if (result != kSuccess) return result;
       break;
     }
@@ -2099,30 +2097,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ incl(i.OutputRegister());
       break;
     case kX64Push:
-      if (HasImmediateInput(instr, 0)) {
+      if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ pushq(operand);
+        frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
+      } else if (HasImmediateInput(instr, 0)) {
         __ pushq(i.InputImmediate(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kPointerSize);
+      } else if (instr->InputAt(0)->IsRegister()) {
+        __ pushq(i.InputRegister(0));
+        frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
+      } else if (instr->InputAt(0)->IsFPRegister()) {
+        // TODO(titzer): use another machine instruction?
+        __ subq(rsp, Immediate(kDoubleSize));
+        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kDoubleSize);
+        __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
       } else {
-        if (instr->InputAt(0)->IsRegister()) {
-          __ pushq(i.InputRegister(0));
-          frame_access_state()->IncreaseSPDelta(1);
-          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                           kPointerSize);
-        } else if (instr->InputAt(0)->IsFPRegister()) {
-          // TODO(titzer): use another machine instruction?
-          __ subq(rsp, Immediate(kDoubleSize));
-          frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
-          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                           kDoubleSize);
-          __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
-        } else {
-          __ pushq(i.InputOperand(0));
-          frame_access_state()->IncreaseSPDelta(1);
-          unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
-                                                           kPointerSize);
-        }
+        __ pushq(i.InputOperand(0));
+        frame_access_state()->IncreaseSPDelta(1);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kPointerSize);
       }
       break;
     case kX64Poke: {
@@ -2327,9 +2330,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       if (frame_elided_) {
         __ set_has_frame(old_has_frame);
       }
-      if (FLAG_debug_code) {
-        __ ud2();
-      }
     }
 
    private:
@@ -2341,15 +2341,20 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
             0);
+        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ Ret();
       } else {
-        __ Move(rsi, isolate()->native_context());
+        __ Move(rsi, Smi::kZero);
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
+        ReferenceMap* reference_map =
+            new (gen_->zone()) ReferenceMap(gen_->zone());
+        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                              Safepoint::kNoLazyDeopt);
+        if (FLAG_debug_code) {
+          __ ud2();
+        }
       }
-      ReferenceMap* reference_map =
-          new (gen_->zone()) ReferenceMap(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                            Safepoint::kNoLazyDeopt);
     }
 
     bool frame_elided_;
@@ -2423,13 +2428,16 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type,
-    SourcePosition pos) {
+    int deoptimization_id, SourcePosition pos) {
+  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
+  DeoptimizeReason deoptimization_reason =
+      GetDeoptimizationReason(deoptimization_id);
+  Deoptimizer::BailoutType bailout_type =
+      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
+                                                   : Deoptimizer::EAGER;
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
   __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   __ call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;

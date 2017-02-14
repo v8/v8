@@ -470,23 +470,12 @@ class ParserBase {
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
-    void set_generator_object_variable(typename Types::Variable* variable) {
-      DCHECK_NOT_NULL(variable);
-      DCHECK(IsResumableFunction(kind()));
-      DCHECK(scope()->has_forced_context_allocation());
-      generator_object_variable_ = variable;
-    }
     typename Types::Variable* generator_object_variable() const {
-      return generator_object_variable_;
+      return scope()->generator_object_var();
     }
 
-    void set_promise_variable(typename Types::Variable* variable) {
-      DCHECK(variable != NULL);
-      DCHECK(IsAsyncFunction(kind()));
-      promise_variable_ = variable;
-    }
     typename Types::Variable* promise_variable() const {
-      return promise_variable_;
+      return scope()->promise_var();
     }
 
     const ZoneList<DestructuringAssignment>&
@@ -550,14 +539,6 @@ class ParserBase {
 
     // Properties count estimation.
     int expected_property_count_;
-
-    // For generators, this variable may hold the generator object. It variable
-    // is used by yield expressions and return statements. It is not necessary
-    // for generator functions to have this variable set.
-    Variable* generator_object_variable_;
-    // For async functions, this variable holds a temporary for the Promise
-    // being created as output of the async function.
-    Variable* promise_variable_;
 
     FunctionState** function_state_stack_;
     FunctionState* outer_function_state_;
@@ -654,7 +635,6 @@ class ParserBase {
   struct DeclarationDescriptor {
     enum Kind { NORMAL, PARAMETER };
     Scope* scope;
-    Scope* hoist_scope;
     VariableMode mode;
     int declaration_pos;
     int initialization_pos;
@@ -1405,6 +1385,24 @@ class ParserBase {
     return expression->IsObjectLiteral() || expression->IsArrayLiteral();
   }
 
+  // Due to hoisting, the value of a 'var'-declared variable may actually change
+  // even if the code contains only the "initial" assignment, namely when that
+  // assignment occurs inside a loop.  For example:
+  //
+  //   let i = 10;
+  //   do { var x = i } while (i--):
+  //
+  // As a simple and very conservative approximation of this, we explicitly mark
+  // as maybe-assigned any non-lexical variable whose initializing "declaration"
+  // does not syntactically occur in the function scope.  (In the example above,
+  // it occurs in a block scope.)
+  //
+  // Note that non-lexical variables include temporaries, which may also get
+  // assigned inside a loop due to the various rewritings that the parser
+  // performs.
+  //
+  static void MarkLoopVariableAsAssigned(Scope* scope, Variable* var);
+
   // Keep track of eval() calls since they disable all local variable
   // optimizations. This checks if expression is an eval call, and if yes,
   // forwards the information to scope.
@@ -1421,6 +1419,15 @@ class ParserBase {
       return Call::IS_POSSIBLY_EVAL;
     }
     return Call::NOT_EVAL;
+  }
+
+  // Convenience method which determines the type of return statement to emit
+  // depending on the current function type.
+  inline StatementT BuildReturnStatement(ExpressionT expr, int pos) {
+    if (V8_UNLIKELY(is_async_function())) {
+      return factory()->NewAsyncReturnStatement(expr, pos);
+    }
+    return factory()->NewReturnStatement(expr, pos);
   }
 
   // Parsing optional types.
@@ -1458,7 +1465,7 @@ class ParserBase {
     impl()->ReportMessageAt(location, MessageTemplate::kInvalidType);
     return type;
   }
-
+  
   // Validation per ES6 object literals.
   class ObjectLiteralChecker {
    public:
@@ -1595,8 +1602,6 @@ ParserBase<Impl>::FunctionState::FunctionState(
     : ScopeState(scope_stack, scope),
       next_materialized_literal_index_(0),
       expected_property_count_(0),
-      generator_object_variable_(nullptr),
-      promise_variable_(nullptr),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
       destructuring_assignments_to_rewrite_(16, scope->zone()),
@@ -1926,7 +1931,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       }
       // Heuristically try to detect immediately called functions before
       // seeing the call parentheses.
-      if (peek() == Token::FUNCTION) {
+      if (peek() == Token::FUNCTION ||
+          (peek() == Token::ASYNC && PeekAhead() == Token::FUNCTION)) {
         function_state_->set_next_function_is_likely_called();
       }
       ExpressionT expr =
@@ -4056,12 +4062,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
   }
 
   parsing_result->descriptor.scope = scope();
-  parsing_result->descriptor.hoist_scope = nullptr;
 
-  // The scope of a var/const declared variable anywhere inside a function
-  // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). The scope
-  // of a let declared variable is the scope of the immediately enclosing
-  // block.
   int bindings_start = peek_position();
   do {
     // Parse binding pattern.
@@ -4265,7 +4266,6 @@ ParserBase<Impl>::ParseHoistableDeclaration(
       !is_async && !(allow_harmony_restrictive_generators() && is_generator);
 
   return impl()->DeclareFunction(variable_name, function, mode, pos,
-                                 is_generator, is_async,
                                  is_sloppy_block_function, names, ok);
 }
 
@@ -4652,9 +4652,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         ExpressionT expression = ParseAssignmentExpression(
             accept_IN, typesystem::kNoCover, CHECK_OK);
         impl()->RewriteNonPattern(CHECK_OK);
-        body->Add(
-            factory()->NewReturnStatement(expression, expression->position()),
-            zone());
+        body->Add(BuildReturnStatement(expression, expression->position()),
+                  zone());
         if (allow_tailcalls() && !is_sloppy(language_mode())) {
           // ES6 14.6.1 Static Semantics: IsInTailPosition
           impl()->MarkTailPosition(expression);
@@ -4733,8 +4732,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
   RaiseLanguageMode(STRICT);
 
   ClassInfo class_info(this);
-  impl()->DeclareClassVariable(name, block_state.scope(), &class_info,
-                               class_token_pos, CHECK_OK);
+  impl()->DeclareClassVariable(name, &class_info, class_token_pos, CHECK_OK);
 
   // Parse optional type parameters.
   typename TypeSystem::TypeParameters type_parameters =
@@ -5641,7 +5639,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseReturnStatement(
   }
   ExpectSemicolon(CHECK_OK);
   return_value = impl()->RewriteReturn(return_value, loc.beg_pos);
-  return factory()->NewReturnStatement(return_value, loc.beg_pos);
+  return BuildReturnStatement(return_value, loc.beg_pos);
 }
 
 template <typename Impl>
@@ -6138,6 +6136,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     auto result = impl()->DesugarLexicalBindingsInForStatement(
         loop, init, cond, next, body, inner_scope, *for_info, CHECK_OK);
     for_state->set_end_position(scanner()->location().end_pos);
+    inner_scope->set_end_position(scanner()->location().end_pos);
     return result;
   }
 
@@ -6174,6 +6173,13 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
 
   loop->Initialize(init, cond, next, body);
   return loop;
+}
+
+template <typename Impl>
+void ParserBase<Impl>::MarkLoopVariableAsAssigned(Scope* scope, Variable* var) {
+  if (!IsLexicalVariableMode(var->mode()) && !scope->is_function_scope()) {
+    var->set_maybe_assigned();
+  }
 }
 
 template <typename Impl>
@@ -6790,6 +6796,8 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
   }
 }
 
+#undef CHECK_OK
+#undef CHECK_OK_CUSTOM
 #undef CHECK_OK_VOID
 
 }  // namespace internal

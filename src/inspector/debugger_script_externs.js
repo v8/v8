@@ -29,12 +29,9 @@ var RawLocation;
 var JavaScriptCallFrameDetails;
 
 /** @typedef {{
-        sourceID: function():(number),
-        line: function():number,
-        column: function():number,
         contextId: function():number,
         thisObject: !Object,
-        evaluate: function(string):*,
+        evaluate: function(string, boolean):*,
         restart: function():undefined,
         setVariableValue: function(number, string, *):undefined,
         isAtReturn: boolean,
@@ -75,30 +72,12 @@ Debug.findBreakPointActualLocations = function(breakId) {}
  */
 Debug.findBreakPoint = function(breakId, remove) {}
 
-/** @return {!DebuggerFlags} */
-Debug.debuggerFlags = function() {}
-
-
 /** @enum */
 const BreakPositionAlignment = {
     Statement: 0,
     BreakPosition: 1
 };
 Debug.BreakPositionAlignment = BreakPositionAlignment;
-
-
-/** @interface */
-function DebuggerFlag() {}
-
-/** @param {boolean} value */
-DebuggerFlag.prototype.setValue = function(value) {}
-
-
-/** @typedef {{
- *    breakPointsActive: !DebuggerFlag
- *  }}
- */
-var DebuggerFlags;
 
 /** @const */
 var LiveEdit = {}
@@ -238,16 +217,11 @@ FrameDetails.prototype.returnValue = function() {}
 /** @return {number} */
 FrameDetails.prototype.scopeCount = function() {}
 
-
-/** @param {boolean} value */
-function ToggleMirrorCache(value) {}
-
 /**
  * @param {*} value
- * @param {boolean=} transient
  * @return {!Mirror}
  */
-function MakeMirror(value, transient) {}
+function MakeMirror(value) {}
 
 
 /** @interface */
@@ -258,16 +232,6 @@ Mirror.prototype.isFunction = function() {}
 
 /** @return {boolean} */
 Mirror.prototype.isGenerator = function() {}
-
-/** @return {boolean} */
-Mirror.prototype.isMap = function() {}
-
-/** @return {boolean} */
-Mirror.prototype.isSet = function() {}
-
-/** @return {boolean} */
-Mirror.prototype.isIterator = function() {}
-
 
 /**
  * @interface
@@ -318,60 +282,11 @@ FunctionMirror.prototype.context = function() {}
  */
 function UnresolvedFunctionMirror(value) {}
 
-
-/**
- * @interface
- * @extends {ObjectMirror}
- */
-function MapMirror () {}
-
-/**
- * @param {number=} limit
- * @return {!Array<!{key: *, value: *}>}
- */
-MapMirror.prototype.entries = function(limit) {}
-
-
-/**
- * @interface
- * @extends {ObjectMirror}
- */
-function SetMirror () {}
-
-/**
- * @param {number=} limit
- * @return {!Array<*>}
- */
-SetMirror.prototype.values = function(limit) {}
-
-
-/**
- * @interface
- * @extends {ObjectMirror}
- */
-function IteratorMirror () {}
-
-/**
- * @param {number=} limit
- * @return {!Array<*>}
- */
-IteratorMirror.prototype.preview = function(limit) {}
-
-
 /**
  * @interface
  * @extends {ObjectMirror}
  */
 function GeneratorMirror () {}
-
-/** @return {string} */
-GeneratorMirror.prototype.status = function() {}
-
-/** @return {!SourceLocation|undefined} */
-GeneratorMirror.prototype.sourceLocation = function() {}
-
-/** @return {!FunctionMirror} */
-GeneratorMirror.prototype.func = function() {}
 
 /** @return {number} */
 GeneratorMirror.prototype.scopeCount = function() {}
@@ -418,8 +333,9 @@ FrameMirror.prototype.script = function() {}
 
 /**
  * @param {string} source
+ * @param {boolean} throwOnSideEffect
  */
-FrameMirror.prototype.evaluate = function(source) {}
+FrameMirror.prototype.evaluate = function(source, throwOnSideEffect) {}
 
 FrameMirror.prototype.restart = function() {}
 

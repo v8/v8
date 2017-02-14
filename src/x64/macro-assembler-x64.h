@@ -1353,13 +1353,6 @@ class MacroAssembler: public Assembler {
   // |temp| holds |result|'s map when done.
   void GetMapConstructor(Register result, Register map, Register temp);
 
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other register may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result, Label* miss);
-
   // Find the function context up the context chain.
   void LoadContext(Register dst, int context_chain_length);
 
@@ -1511,7 +1504,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadTypeFeedbackVector(Register vector);
+  void EmitLoadFeedbackVector(Register vector);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);

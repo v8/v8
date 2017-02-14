@@ -2173,7 +2173,12 @@ void Assembler::emit_test(const Operand& op, Register reg, int size) {
   bool byte_operand = size == sizeof(int8_t);
   if (byte_operand) {
     size = sizeof(int32_t);
-    if (!reg.is_byte_register()) emit_rex_32(reg, op);
+    if (!reg.is_byte_register()) {
+      // Register is not one of al, bl, cl, dl.  Its encoding needs REX.
+      emit_rex_32(reg, op);
+    } else {
+      emit_optional_rex_32(reg, op);
+    }
   } else {
     emit_rex(reg, op, size);
   }

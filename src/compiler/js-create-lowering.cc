@@ -210,8 +210,6 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
-    case IrOpcode::kJSCreateClosure:
-      return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateKeyValueArray:
@@ -240,6 +238,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const new_target = NodeProperties::GetValueInput(node, 1);
   Type* const new_target_type = NodeProperties::GetType(new_target);
   Node* const effect = NodeProperties::GetEffectInput(node);
+  Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
   if (target_type->IsHeapConstant() && new_target_type->IsHeapConstant() &&
       new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
@@ -267,7 +266,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
 
       // Emit code to allocate the JSObject instance for the
       // {original_constructor}.
-      AllocationBuilder a(jsgraph(), effect, graph()->start());
+      AllocationBuilder a(jsgraph(), effect, control);
       a.Allocate(instance_size);
       a.Store(AccessBuilder::ForMap(), initial_map);
       a.Store(AccessBuilder::ForJSObjectProperties(),
@@ -278,6 +277,7 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
         a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
                 jsgraph()->UndefinedConstant());
       }
+      RelaxControls(node);
       a.FinishAndChange(node);
       return Changed(node);
     }
@@ -750,45 +750,6 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   return ReduceNewArrayToStubCall(node, site);
 }
 
-Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
-  if (!FLAG_turbo_lower_create_closure) return NoChange();
-  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
-  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-  Handle<SharedFunctionInfo> shared = p.shared_info();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* context = NodeProperties::GetContextInput(node);
-
-  int const function_map_index =
-      Context::FunctionMapIndex(shared->language_mode(), shared->kind());
-  Node* function_map = jsgraph()->HeapConstant(
-      handle(Map::cast(native_context()->get(function_map_index)), isolate()));
-
-  // Note that it is only safe to embed the raw entry point of the compile
-  // lazy stub into the code, because that stub is immortal and immovable.
-  Node* compile_entry = jsgraph()->PointerConstant(
-      jsgraph()->isolate()->builtins()->CompileLazy()->entry());
-  Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
-  Node* empty_feedback_vector = jsgraph()->EmptyFeedbackVectorConstant();
-  Node* the_hole = jsgraph()->TheHoleConstant();
-  Node* undefined = jsgraph()->UndefinedConstant();
-  AllocationBuilder a(jsgraph(), effect, control);
-  STATIC_ASSERT(JSFunction::kSize == 9 * kPointerSize);
-  a.Allocate(JSFunction::kSize, p.pretenure());
-  a.Store(AccessBuilder::ForMap(), function_map);
-  a.Store(AccessBuilder::ForJSObjectProperties(), empty_fixed_array);
-  a.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
-  a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), empty_feedback_vector);
-  a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(), the_hole);
-  a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
-  a.Store(AccessBuilder::ForJSFunctionContext(), context);
-  a.Store(AccessBuilder::ForJSFunctionCodeEntry(), compile_entry);
-  a.Store(AccessBuilder::ForJSFunctionNextFunctionLink(), undefined);
-  RelaxControls(node);
-  a.FinishAndChange(node);
-  return Changed(node);
-}
-
 Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateIterResultObject, node->opcode());
   Node* value = NodeProperties::GetValueInput(node, 0);
@@ -850,9 +811,9 @@ Reduction JSCreateLowering::ReduceJSCreateLiteral(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Handle<TypeFeedbackVector> feedback_vector;
-  if (GetSpecializationTypeFeedbackVector(node).ToHandle(&feedback_vector)) {
-    FeedbackVectorSlot slot(TypeFeedbackVector::ToSlot(p.index()));
+  Handle<FeedbackVector> feedback_vector;
+  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
+    FeedbackSlot slot(FeedbackVector::ToSlot(p.index()));
     Handle<Object> literal(feedback_vector->Get(slot), isolate());
     if (literal->IsAllocationSite()) {
       Handle<AllocationSite> site = Handle<AllocationSite>::cast(literal);
@@ -1344,8 +1305,8 @@ Node* JSCreateLowering::AllocateFastLiteralElements(
   return builder.Finish();
 }
 
-MaybeHandle<TypeFeedbackVector>
-JSCreateLowering::GetSpecializationTypeFeedbackVector(Node* node) {
+MaybeHandle<FeedbackVector> JSCreateLowering::GetSpecializationFeedbackVector(
+    Node* node) {
   Node* const closure = NodeProperties::GetValueInput(node, 0);
   switch (closure->opcode()) {
     case IrOpcode::kHeapConstant: {
@@ -1365,7 +1326,7 @@ JSCreateLowering::GetSpecializationTypeFeedbackVector(Node* node) {
     default:
       break;
   }
-  return MaybeHandle<TypeFeedbackVector>();
+  return MaybeHandle<FeedbackVector>();
 }
 
 Factory* JSCreateLowering::factory() const { return isolate()->factory(); }

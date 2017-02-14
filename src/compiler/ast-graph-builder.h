@@ -246,10 +246,10 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
   Node** EnsureInputBufferSize(int size);
 
   // Named and keyed loads require a VectorSlotPair for successful lowering.
-  VectorSlotPair CreateVectorSlotPair(FeedbackVectorSlot slot) const;
+  VectorSlotPair CreateVectorSlotPair(FeedbackSlot slot) const;
 
-  // Computes the frequency for JSCallFunction and JSConstruct nodes.
-  float ComputeCallFrequency(FeedbackVectorSlot slot) const;
+  // Computes the frequency for JSCall and JSConstruct nodes.
+  float ComputeCallFrequency(FeedbackSlot slot) const;
 
   // ===========================================================================
   // The following build methods all generate graph fragments and return one
@@ -390,11 +390,6 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
                               Node* nil_value);
   void VisitLiteralCompareTypeof(CompareOperation* expr, Expression* sub_expr,
                                  Handle<String> check);
-
-  // Dispatched from VisitForInStatement.
-  void VisitForInAssignment(Expression* expr, Node* value,
-                            const VectorSlotPair& feedback,
-                            BailoutId bailout_id);
 
   // Dispatched from VisitObjectLiteral.
   void VisitObjectLiteralAccessor(Node* home_object,

@@ -12,6 +12,30 @@
 namespace v8 {
 namespace internal {
 
+TF_BUILTIN(KeyedLoadIC_IndexedString, CodeStubAssembler) {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* index = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  Node* index_intptr = TryToIntptr(index, &miss);
+  Node* length = SmiUntag(LoadStringLength(receiver));
+  GotoIf(UintPtrGreaterThanOrEqual(index_intptr, length), &miss);
+
+  Node* code = StringCharCodeAt(receiver, index_intptr, INTPTR_PARAMETERS);
+  Node* result = StringFromCharCode(code);
+  Return(result);
+
+  Bind(&miss);
+  TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, index, slot,
+                  vector);
+}
+
 TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
   typedef LoadWithVectorDescriptor Descriptor;
 
@@ -45,12 +69,34 @@ void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(
   KeyedStoreGenericGenerator::Generate(state, STRICT);
 }
 
-void Builtins::Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateMiss(masm);
+TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  TailCallRuntime(Runtime::kKeyedStoreIC_Miss, context, value, slot, vector,
+                  receiver, name);
 }
 
-void Builtins::Generate_KeyedStoreIC_Slow(MacroAssembler* masm) {
-  KeyedStoreIC::GenerateSlow(masm);
+TF_BUILTIN(KeyedStoreIC_Slow, CodeStubAssembler) {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  TailCallRuntime(Runtime::kKeyedStoreIC_Slow, context, value, slot, vector,
+                  receiver, name);
 }
 
 TF_BUILTIN(LoadGlobalIC_Miss, CodeStubAssembler) {
@@ -68,13 +114,44 @@ TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
   typedef LoadGlobalWithVectorDescriptor Descriptor;
 
   Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name);
+  TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name, slot, vector);
 }
 
 void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
   NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
+}
+
+TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label miss(this);
+
+  Node* proto_or_map =
+      LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
+  GotoIf(IsTheHole(proto_or_map), &miss);
+
+  Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
+  Label done(this, &var_result);
+  GotoUnless(IsMap(proto_or_map), &done);
+
+  var_result.Bind(LoadMapPrototype(proto_or_map));
+  Goto(&done);
+
+  Bind(&done);
+  Return(var_result.value());
+
+  Bind(&miss);
+  TailCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name, slot, vector);
 }
 
 TF_BUILTIN(LoadIC_Miss, CodeStubAssembler) {
@@ -162,21 +239,15 @@ TF_BUILTIN(StoreIC_Normal, CodeStubAssembler) {
                                          &var_name_index, &slow);
     Bind(&found);
     {
-      const int kNameToDetailsOffset = (NameDictionary::kEntryDetailsIndex -
-                                        NameDictionary::kEntryKeyIndex) *
-                                       kPointerSize;
-      Node* details = LoadFixedArrayElement(properties, var_name_index.value(),
-                                            kNameToDetailsOffset);
+      Node* details = LoadDetailsByKeyIndex<NameDictionary>(
+          properties, var_name_index.value());
       // Check that the property is a writable data property (no accessor).
       const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
                                        PropertyDetails::kAttributesReadOnlyMask;
       STATIC_ASSERT(kData == 0);
-      GotoIf(IsSetSmi(details, kTypeAndReadOnlyMask), &slow);
-      const int kNameToValueOffset =
-          (NameDictionary::kEntryValueIndex - NameDictionary::kEntryKeyIndex) *
-          kPointerSize;
-      StoreFixedArrayElement(properties, var_name_index.value(), value,
-                             UPDATE_WRITE_BARRIER, kNameToValueOffset);
+      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), &slow);
+      StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
+                                           value);
       Return(value);
     }
   }
@@ -188,36 +259,6 @@ TF_BUILTIN(StoreIC_Normal, CodeStubAssembler) {
 
 void Builtins::Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
-}
-
-namespace {
-void Generate_StoreIC_Slow(compiler::CodeAssemblerState* state,
-                           LanguageMode language_mode) {
-  typedef compiler::Node Node;
-  typedef StoreWithVectorDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
-
-  Node* receiver = assembler.Parameter(Descriptor::kReceiver);
-  Node* name = assembler.Parameter(Descriptor::kName);
-  Node* value = assembler.Parameter(Descriptor::kValue);
-  Node* context = assembler.Parameter(Descriptor::kContext);
-  Node* lang_mode = assembler.SmiConstant(Smi::FromInt(language_mode));
-
-  // The slow case calls into the runtime to complete the store without causing
-  // an IC miss that would otherwise cause a transition to the generic stub.
-  assembler.TailCallRuntime(Runtime::kSetProperty, context, receiver, name,
-                            value, lang_mode);
-}
-}  // anonymous namespace
-
-void Builtins::Generate_StoreIC_SlowSloppy(
-    compiler::CodeAssemblerState* state) {
-  Generate_StoreIC_Slow(state, SLOPPY);
-}
-
-void Builtins::Generate_StoreIC_SlowStrict(
-    compiler::CodeAssemblerState* state) {
-  Generate_StoreIC_Slow(state, STRICT);
 }
 
 }  // namespace internal

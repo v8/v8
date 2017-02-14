@@ -153,19 +153,36 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   }
 
   Expect(Token::LBRACE, CHECK_OK_VALUE(kPreParseSuccess));
-  LazyParsingResult result = ParseStatementListAndLogFunction(
-      &formals, has_duplicate_parameters, may_abort, ok);
-  DCHECK_NE(result, kLazyParsingSignature);
+  DeclarationScope* inner_scope = function_scope;
+  LazyParsingResult result;
+
+  if (!formals.is_simple) {
+    inner_scope = NewVarblockScope();
+    inner_scope->set_start_position(scanner()->location().beg_pos);
+  }
+
+  {
+    BlockState block_state(&scope_state_, inner_scope);
+    result = ParseStatementListAndLogFunction(
+        &formals, has_duplicate_parameters, may_abort, ok);
+    DCHECK_NE(result, kLazyParsingSignature);
+  }
+
+  if (is_sloppy(inner_scope->language_mode())) {
+    inner_scope->HoistSloppyBlockFunctions(nullptr);
+  }
+
+  if (!formals.is_simple) {
+    SetLanguageMode(function_scope, inner_scope->language_mode());
+    inner_scope->set_end_position(scanner()->peek_location().end_pos);
+    inner_scope->FinalizeBlockScope();
+  }
 
   if (!IsArrowFunction(kind) && track_unresolved_variables_) {
     // Declare arguments after parsing the function since lexical 'arguments'
     // masks the arguments object. Declare arguments before declaring the
     // function var since the arguments object masks 'function arguments'.
     function_scope->DeclareArguments(ast_value_factory());
-  }
-
-  if (is_sloppy(function_scope->language_mode())) {
-    function_scope->HoistSloppyBlockFunctions(nullptr);
   }
 
   use_counts_ = nullptr;
@@ -321,7 +338,7 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   // Position right after terminal '}'.
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
-  DCHECK(this->scope()->is_function_scope());
+  DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
   log_.LogFunction(
       body_end, formals->num_parameters(), formals->function_length,
       has_duplicate_parameters, function_state_->materialized_literal_count(),
@@ -351,14 +368,20 @@ void PreParser::DeclareAndInitializeVariables(
     ZoneList<const AstRawString*>* names, bool* ok) {
   if (declaration->pattern.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
-    Scope* scope = declaration_descriptor->hoist_scope;
-    if (scope == nullptr) {
-      scope = this->scope();
-    }
+    DCHECK(track_unresolved_variables_);
     for (auto variable : *(declaration->pattern.variables_)) {
       declaration_descriptor->scope->RemoveUnresolved(variable);
-      scope->DeclareVariableName(variable->raw_name(),
-                                 declaration_descriptor->mode);
+      Variable* var = scope()->DeclareVariableName(
+          variable->raw_name(), declaration_descriptor->mode);
+      if (FLAG_preparser_scope_analysis) {
+        MarkLoopVariableAsAssigned(declaration_descriptor->scope, var);
+        // This is only necessary if there is an initializer, but we don't have
+        // that information here.  Consequently, the preparser sometimes says
+        // maybe-assigned where the parser (correctly) says never-assigned.
+      }
+      if (names) {
+        names->Add(variable->raw_name(), zone());
+      }
     }
   }
 }

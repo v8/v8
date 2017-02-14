@@ -23,7 +23,7 @@ namespace interpreter {
 class BytecodeArrayWriterUnittest : public TestWithIsolateAndZone {
  public:
   BytecodeArrayWriterUnittest()
-      : constant_array_builder_(zone(), isolate()->factory()->the_hole_value()),
+      : constant_array_builder_(zone()),
         bytecode_array_writer_(
             zone(), &constant_array_builder_,
             SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS) {}

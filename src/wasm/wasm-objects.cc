@@ -7,6 +7,7 @@
 
 #include "src/base/iterator.h"
 #include "src/debug/debug-interface.h"
+#include "src/objects-inl.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-text.h"
@@ -1161,7 +1162,8 @@ Handle<WasmInstanceWrapper> WasmInstanceWrapper::New(
       isolate->factory()->NewFixedArray(kWrapperPropertyCount, TENURED);
   Handle<WasmInstanceWrapper> instance_wrapper(
       reinterpret_cast<WasmInstanceWrapper*>(*array), isolate);
-  instance_wrapper->set_instance_object(instance, isolate);
+  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
+  instance_wrapper->set(kWrapperInstanceObject, *cell);
   return instance_wrapper;
 }
 
@@ -1178,10 +1180,4 @@ bool WasmInstanceWrapper::IsWasmInstanceWrapper(Object* obj) {
       !array->get(kPreviousInstanceWrapper)->IsFixedArray())
     return false;
   return true;
-}
-
-void WasmInstanceWrapper::set_instance_object(Handle<JSObject> instance,
-                                              Isolate* isolate) {
-  Handle<WeakCell> cell = isolate->factory()->NewWeakCell(instance);
-  set(kWrapperInstanceObject, *cell);
 }

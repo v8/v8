@@ -56,7 +56,7 @@ void Generate_TypedArrayPrototypeGetter(compiler::CodeAssemblerState* state,
 
   assembler.Bind(&if_receiverisincompatible);
   {
-    // The {receiver} is not a valid JSGeneratorObject.
+    // The {receiver} is not a valid JSTypedArray.
     Node* result = assembler.CallRuntime(
         Runtime::kThrowIncompatibleMethodReceiver, context,
         assembler.HeapConstant(assembler.factory()->NewStringFromAsciiChecked(

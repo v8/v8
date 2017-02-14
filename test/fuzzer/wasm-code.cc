@@ -7,6 +7,7 @@
 
 #include "include/v8.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/ostreams.h"
 #include "src/wasm/wasm-interpreter.h"
@@ -38,7 +39,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     os << std::endl;
     os << "(function() {" << std::endl;
     os << "  var builder = new WasmModuleBuilder();" << std::endl;
-    os << "  builder.addMemory(32, 32, false);" << std::endl;
+    os << "  builder.addMemory(16, 32, false);" << std::endl;
     os << "  builder.addFunction(\"test\", kSig_i_iii)" << std::endl;
     os << "    .addBodyWithEnd([" << std::endl;
   }
@@ -136,7 +137,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         i_isolate, instance, &compiler_thrower, "main", arraysize(arguments),
         arguments, v8::internal::wasm::ModuleOrigin::kWasmOrigin);
   }
-  if (result_interpreted == bit_cast<int32_t>(0xdeadbeef)) {
+  if (result_interpreted == bit_cast<int32_t>(0xdeadbeef) &&
+      !possible_nondeterminism) {
     CHECK(i_isolate->has_pending_exception());
     i_isolate->clear_pending_exception();
   } else {

@@ -7,6 +7,7 @@
 
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
+#include "src/globals.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -63,7 +64,7 @@ class PostponeInterruptsScope;
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class StackGuard final {
+class V8_EXPORT_PRIVATE StackGuard final {
  public:
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.

@@ -715,21 +715,23 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallJS) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, LoadTypeFeedbackVector) {
+TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
     InterpreterAssemblerForTest m(&state, bytecode);
-    Node* feedback_vector = m.LoadTypeFeedbackVector();
+    Node* feedback_vector = m.LoadFeedbackVector();
 
     Matcher<Node*> load_function_matcher =
         m.IsLoad(MachineType::AnyTagged(), IsLoadParentFramePointer(),
                  IsIntPtrConstant(Register::function_closure().ToOperand()
                                   << kPointerSizeLog2));
-
-    EXPECT_THAT(feedback_vector,
-                m.IsLoad(MachineType::AnyTagged(), load_function_matcher,
-                         IsIntPtrConstant(JSFunction::kFeedbackVectorOffset -
-                                          kHeapObjectTag)));
+    Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
+        MachineType::AnyTagged(), load_function_matcher,
+        IsIntPtrConstant(JSFunction::kFeedbackVectorOffset - kHeapObjectTag));
+    EXPECT_THAT(
+        feedback_vector,
+        m.IsLoad(MachineType::AnyTagged(), load_vector_cell_matcher,
+                 IsIntPtrConstant(Cell::kValueOffset - kHeapObjectTag)));
   }
 }
 

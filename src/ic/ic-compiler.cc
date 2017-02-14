@@ -105,7 +105,8 @@ Handle<Object> PropertyICCompiler::CompileKeyedStoreMonomorphicHandler(
                                 store_mode).GetCode();
   } else {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
-    stub = StoreElementStub(isolate(), elements_kind, store_mode).GetCode();
+    DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
+    stub = StoreSlowElementStub(isolate(), store_mode).GetCode();
   }
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());

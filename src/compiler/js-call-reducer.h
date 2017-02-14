@@ -23,7 +23,7 @@ class JSGraph;
 class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 
-// Performs strength reduction on {JSConstruct} and {JSCallFunction} nodes,
+// Performs strength reduction on {JSConstruct} and {JSCall} nodes,
 // which might allow inlining or other optimizations to be performed afterwards.
 class JSCallReducer final : public AdvancedReducer {
  public:
@@ -55,9 +55,11 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceFunctionPrototypeCall(Node* node);
   Reduction ReduceFunctionPrototypeHasInstance(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
+  Reduction ReduceSpreadCall(Node* node, int arity);
   Reduction ReduceJSConstruct(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
-  Reduction ReduceJSCallFunction(Node* node);
+  Reduction ReduceJSCall(Node* node);
+  Reduction ReduceJSCallWithSpread(Node* node);
 
   enum HolderLookup { kHolderNotFound, kHolderIsReceiver, kHolderFound };
 

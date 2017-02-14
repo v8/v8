@@ -27,26 +27,12 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   }
 }
 
-
-void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
-  DCHECK(ObjectMarking::MarkBitFrom(obj) == mark_bit);
+void MarkCompactCollector::MarkObject(HeapObject* obj) {
   if (ObjectMarking::IsWhite(obj)) {
     ObjectMarking::WhiteToBlack(obj);
     PushBlack(obj);
   }
 }
-
-void MarkCompactCollector::SetMark(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsWhite(obj));
-  ObjectMarking::WhiteToBlack(obj);
-}
-
-
-bool MarkCompactCollector::IsMarked(Object* obj) {
-  DCHECK(obj->IsHeapObject());
-  return ObjectMarking::IsBlackOrGrey(HeapObject::cast(obj));
-}
-
 
 void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
                                       Object* target) {
@@ -54,7 +40,7 @@ void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));
   if (target_page->IsEvacuationCandidate() &&
       !ShouldSkipEvacuationSlotRecording(object)) {
-    DCHECK(IsMarked(object));
+    DCHECK(ObjectMarking::IsBlackOrGrey(object));
     RememberedSet<OLD_TO_OLD>::Insert(source_page,
                                       reinterpret_cast<Address>(slot));
   }

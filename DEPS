@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "47e07d6798693fd71c02e25097c97865b5271c40",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "0fdcf96e9928229dd4b3b366b00a49da8eae00ed",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -33,13 +33,12 @@ deps = {
     Var("chromium_url") + "/v8/deps/third_party/benchmarks.git" + "@" + "05d7188267b4560491ff9155c5ee13e207ecd65f",
   "v8/test/mozilla/data":
     Var("chromium_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
-  "v8/test/simdjs/data": Var("chromium_url") + "/external/github.com/tc39/ecmascript_simd.git" + "@" + "baf493985cb9ea7cdbd0d68704860a8156de9556",
   "v8/test/test262/data":
-    Var("chromium_url") + "/external/github.com/tc39/test262.git" + "@" + "6a0f1189eb00d38ef9760cb65cbc41c066876cde",
+    Var("chromium_url") + "/external/github.com/tc39/test262.git" + "@" + "a72ee6d91275aa6524e84a9b7070103411ef2689",
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "960cc3ec8c679adad9b6f9019f737c8cd9ad0a75",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "404d5421df201261afb240fd562872841d3850e0",
 }
 
 deps_os = {
@@ -47,7 +46,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "b43a6a289a7588b1769814f04dd6c7d7176974cc",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "4ee31ea3b497ffe08391e88a5434e0a340e48342",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "7f34a592a6801189715f083205eb041794f05314",
   },
   "win": {
     "v8/third_party/cygwin":

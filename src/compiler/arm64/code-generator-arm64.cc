@@ -774,10 +774,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDeoptimize: {
       int deopt_state_id =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      Deoptimizer::BailoutType bailout_type =
-          Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      CodeGenResult result = AssembleDeoptimizerCall(
-          deopt_state_id, bailout_type, current_source_position_);
+      CodeGenResult result =
+          AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
       if (result != kSuccess) return result;
       break;
     }
@@ -1723,10 +1721,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       if (frame_elided_) {
         __ set_has_frame(old_has_frame);
       }
-      if (FLAG_debug_code) {
-        // The trap code should never return.
-        __ Brk(0);
-      }
     }
 
    private:
@@ -1737,18 +1731,24 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
             0);
+        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ Ret();
       } else {
         DCHECK(csp.Is(__ StackPointer()));
-        __ Move(cp, isolate()->native_context());
+        __ Move(cp, Smi::kZero);
         // Initialize the jssp because it is required for the runtime call.
         __ Mov(jssp, csp);
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
+        ReferenceMap* reference_map =
+            new (gen_->zone()) ReferenceMap(gen_->zone());
+        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                              Safepoint::kNoLazyDeopt);
+        if (FLAG_debug_code) {
+          // The trap code should never return.
+          __ Brk(0);
+        }
       }
-      ReferenceMap* reference_map =
-          new (gen_->zone()) ReferenceMap(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                            Safepoint::kNoLazyDeopt);
     }
     bool frame_elided_;
     Instruction* instr_;
@@ -1807,13 +1807,16 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type,
-    SourcePosition pos) {
+    int deoptimization_id, SourcePosition pos) {
+  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
+  DeoptimizeReason deoptimization_reason =
+      GetDeoptimizationReason(deoptimization_id);
+  Deoptimizer::BailoutType bailout_type =
+      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
+                                                   : Deoptimizer::EAGER;
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
   __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   return kSuccess;
@@ -1886,7 +1889,6 @@ void CodeGenerator::AssembleConstructFrame() {
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= OsrHelper(info()).UnoptimizedFrameSlots();
     }
-
     // Build remainder of frame, including accounting for and filling-in
     // frame-specific header information, e.g. claiming the extra slot that
     // other platforms explicitly push for STUB frames and frames recording

@@ -9,6 +9,7 @@
 #include "src/ast/scopes.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/preparse-data.h"
+#include "src/pending-compilation-error-handler.h"
 
 namespace v8 {
 namespace internal {
@@ -207,9 +208,10 @@ class PreParserExpression {
                                IsUseTypesField::encode(true));
   }
 
-  static PreParserExpression This() {
+  static PreParserExpression This(ZoneList<VariableProxy*>* variables) {
     return PreParserExpression(TypeField::encode(kExpression) |
-                               ExpressionTypeField::encode(kThisExpression));
+                                   ExpressionTypeField::encode(kThisExpression),
+                               variables);
   }
 
   static PreParserExpression ThisProperty() {
@@ -854,6 +856,10 @@ class PreParserFactory {
                                         int pos) {
     return PreParserStatement::Jump();
   }
+  PreParserStatement NewAsyncReturnStatement(PreParserExpression expression,
+                                             int pos) {
+    return PreParserStatement::Jump();
+  }
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, Scope* scope, PreParserStatementList body,
       int materialized_literal_count, int expected_property_count,
@@ -1070,11 +1076,13 @@ class PreParserFactory {
 
 struct PreParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
-    explicit Parameter(PreParserExpression pattern) : pattern(pattern) {}
+    Parameter(PreParserExpression pattern, bool is_rest)
+        : pattern(pattern), is_rest(is_rest) {}
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
     PreParserExpression pattern;
     Parameter* next_parameter = nullptr;
+    bool is_rest;
   };
   explicit PreParserFormalParameters(DeclarationScope* scope)
       : FormalParametersBase(scope) {}
@@ -1413,9 +1421,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserStatement DeclareFunction(
       PreParserIdentifier variable_name, PreParserExpression function,
-      VariableMode mode, int pos, bool is_generator, bool is_async,
-      bool is_sloppy_block_function, ZoneList<const AstRawString*>* names,
-      bool* ok) {
+      VariableMode mode, int pos, bool is_sloppy_block_function,
+      ZoneList<const AstRawString*>* names, bool* ok) {
     DCHECK_NULL(names);
     if (variable_name.string_ != nullptr) {
       DCHECK(track_unresolved_variables_);
@@ -1441,7 +1448,7 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserStatement::Default();
   }
   V8_INLINE void DeclareClassVariable(PreParserIdentifier name,
-                                      Scope* block_scope, ClassInfo* class_info,
+                                      ClassInfo* class_info,
                                       int class_token_pos, bool* ok) {}
   V8_INLINE void DeclareClassProperty(PreParserIdentifier class_name,
                                       PreParserExpression property,
@@ -1633,14 +1640,30 @@ class PreParser : public ParserBase<PreParser> {
       PreParserExpression* each_variable, bool* ok) {
     if (track_unresolved_variables_) {
       DCHECK(for_info->parsing_result.declarations.length() == 1);
+      bool is_for_var_of =
+          for_info->mode == ForEachStatement::ITERATE &&
+          for_info->parsing_result.descriptor.mode == VariableMode::VAR;
+      bool collect_names =
+          IsLexicalVariableMode(for_info->parsing_result.descriptor.mode) ||
+          is_for_var_of;
+
       DeclareAndInitializeVariables(
           PreParserStatement::Default(), &for_info->parsing_result.descriptor,
-          &for_info->parsing_result.declarations[0], nullptr, ok);
+          &for_info->parsing_result.declarations[0],
+          collect_names ? &for_info->bound_names : nullptr, ok);
     }
   }
 
   V8_INLINE PreParserStatement CreateForEachStatementTDZ(
       PreParserStatement init_block, const ForInfo& for_info, bool* ok) {
+    if (track_unresolved_variables_) {
+      if (IsLexicalVariableMode(for_info.parsing_result.descriptor.mode)) {
+        for (auto name : for_info.bound_names) {
+          scope()->DeclareVariableName(name, LET);
+        }
+        return PreParserStatement::Default();
+      }
+    }
     return init_block;
   }
 
@@ -1649,6 +1672,13 @@ class PreParser : public ParserBase<PreParser> {
       PreParserExpression cond, PreParserStatement next,
       PreParserStatement body, Scope* inner_scope, const ForInfo& for_info,
       bool* ok) {
+    // See Parser::DesugarLexicalBindingsInForStatement.
+    if (track_unresolved_variables_) {
+      for (auto name : for_info.bound_names) {
+        inner_scope->DeclareVariableName(
+            name, for_info.parsing_result.descriptor.mode);
+      }
+    }
     return loop;
   }
 
@@ -1829,7 +1859,19 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserExpression ThisExpression(int pos = kNoSourcePosition) {
-    return PreParserExpression::This();
+    ZoneList<VariableProxy*>* variables = nullptr;
+    if (track_unresolved_variables_) {
+      AstNodeFactory factory(ast_value_factory());
+      // Setting the Zone is necessary because zone_ might be the temp Zone, and
+      // AstValueFactory doesn't know about it.
+      factory.set_zone(zone());
+      VariableProxy* proxy = scope()->NewUnresolved(
+          &factory, ast_value_factory()->this_string(), pos, THIS_VARIABLE);
+
+      variables = new (zone()) ZoneList<VariableProxy*>(1, zone());
+      variables->Add(proxy, zone());
+    }
+    return PreParserExpression::This(variables);
   }
 
   V8_INLINE PreParserExpression NewSuperPropertyReference(int pos) {
@@ -1908,8 +1950,8 @@ class PreParser : public ParserBase<PreParser> {
                                     bool is_rest) {
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
-      parameters->params.Add(new (zone())
-                                 PreParserFormalParameters::Parameter(pattern));
+      parameters->params.Add(
+          new (zone()) PreParserFormalParameters::Parameter(pattern, is_rest));
     }
     parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }
@@ -1925,7 +1967,8 @@ class PreParser : public ParserBase<PreParser> {
       for (auto parameter : parameters) {
         if (parameter->pattern.variables_ != nullptr) {
           for (auto variable : *parameter->pattern.variables_) {
-            scope->DeclareVariableName(variable->raw_name(), VAR);
+            scope->DeclareParameterName(
+                variable->raw_name(), parameter->is_rest, ast_value_factory());
           }
         }
       }

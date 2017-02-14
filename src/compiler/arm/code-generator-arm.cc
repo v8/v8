@@ -737,10 +737,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchDeoptimize: {
       int deopt_state_id =
           BuildTranslation(instr, -1, 0, OutputFrameStateCombine::Ignore());
-      Deoptimizer::BailoutType bailout_type =
-          Deoptimizer::BailoutType(MiscField::decode(instr->opcode()));
-      CodeGenResult result = AssembleDeoptimizerCall(
-          deopt_state_id, bailout_type, current_source_position_);
+      CodeGenResult result =
+          AssembleDeoptimizerCall(deopt_state_id, current_source_position_);
       if (result != kSuccess) return result;
       break;
     }
@@ -1582,6 +1580,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmInt32x4ShiftLeftByScalar: {
+      __ vshl(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt5(1));
+      break;
+    }
+    case kArmInt32x4ShiftRightByScalar: {
+      __ vshr(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt5(1));
+      break;
+    }
     case kArmInt32x4Add: {
       __ vadd(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1630,6 +1638,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmUint32x4ShiftRightByScalar: {
+      __ vshr(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt5(1));
+      break;
+    }
+    case kArmUint32x4Min: {
+      __ vmin(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint32x4Max: {
+      __ vmax(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
     case kArmUint32x4GreaterThan: {
       __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1639,15 +1662,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonU32, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
-      break;
-    }
-    case kArmSimd32x4Select: {
-      // Select is a ternary op, so we need to move one input into the
-      // destination. Use vtst to canonicalize the 'boolean' input #0.
-      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
       break;
     }
     case kArmInt16x8Splat: {
@@ -1668,14 +1682,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmInt16x8ShiftLeftByScalar: {
+      __ vshl(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt4(1));
+      break;
+    }
+    case kArmInt16x8ShiftRightByScalar: {
+      __ vshr(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt4(1));
+      break;
+    }
     case kArmInt16x8Add: {
       __ vadd(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
+    case kArmInt16x8AddSaturate: {
+      __ vqadd(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
     case kArmInt16x8Sub: {
       __ vsub(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt16x8SubSaturate: {
+      __ vqsub(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kArmInt16x8Mul: {
@@ -1716,6 +1750,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmUint16x8ShiftRightByScalar: {
+      __ vshr(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt4(1));
+      break;
+    }
+    case kArmUint16x8AddSaturate: {
+      __ vqadd(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint16x8SubSaturate: {
+      __ vqsub(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint16x8Min: {
+      __ vmin(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint16x8Max: {
+      __ vmax(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
     case kArmUint16x8GreaterThan: {
       __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1745,14 +1804,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmInt8x16ShiftLeftByScalar: {
+      __ vshl(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt3(1));
+      break;
+    }
+    case kArmInt8x16ShiftRightByScalar: {
+      __ vshr(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt3(1));
+      break;
+    }
     case kArmInt8x16Add: {
       __ vadd(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
+    case kArmInt8x16AddSaturate: {
+      __ vqadd(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
     case kArmInt8x16Sub: {
       __ vsub(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmInt8x16SubSaturate: {
+      __ vqsub(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
       break;
     }
     case kArmInt8x16Mul: {
@@ -1792,6 +1871,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmUint8x16ShiftRightByScalar: {
+      __ vshr(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputInt3(1));
+      break;
+    }
+    case kArmUint8x16AddSaturate: {
+      __ vqadd(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16SubSaturate: {
+      __ vqsub(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16Min: {
+      __ vmin(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmUint8x16Max: {
+      __ vmax(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
     case kArmUint8x16GreaterThan: {
       __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1801,6 +1905,49 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vcge(NeonU8, dst, i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128And: {
+      __ vand(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128Or: {
+      __ vorr(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128Xor: {
+      __ veor(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmSimd128Not: {
+      __ vmvn(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmSimd32x4Select: {
+      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
+      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
+      break;
+    }
+    case kArmSimd16x8Select: {
+      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
+      __ vtst(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
+      break;
+    }
+    case kArmSimd8x16Select: {
+      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
+      __ vtst(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(0));
+      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(2));
       break;
     }
     case kCheckedLoadInt8:
@@ -1913,9 +2060,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
       if (frame_elided_) {
         __ set_has_frame(old_has_frame);
       }
-      if (FLAG_debug_code) {
-        __ stop(GetBailoutReason(kUnexpectedReturnFromWasmTrap));
-      }
     }
 
    private:
@@ -1929,15 +2073,20 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ CallCFunction(
             ExternalReference::wasm_call_trap_callback_for_testing(isolate()),
             0);
+        __ LeaveFrame(StackFrame::WASM_COMPILED);
+        __ Ret();
       } else {
-        __ Move(cp, isolate()->native_context());
+        __ Move(cp, Smi::kZero);
         gen_->AssembleSourcePosition(instr_);
         __ CallRuntime(trap_id);
+        ReferenceMap* reference_map =
+            new (gen_->zone()) ReferenceMap(gen_->zone());
+        gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
+                              Safepoint::kNoLazyDeopt);
+        if (FLAG_debug_code) {
+          __ stop(GetBailoutReason(kUnexpectedReturnFromWasmTrap));
+        }
       }
-      ReferenceMap* reference_map =
-          new (gen_->zone()) ReferenceMap(gen_->zone());
-      gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                            Safepoint::kNoLazyDeopt);
     }
 
     bool frame_elided_;
@@ -1993,16 +2142,19 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
-    int deoptimization_id, Deoptimizer::BailoutType bailout_type,
-    SourcePosition pos) {
+    int deoptimization_id, SourcePosition pos) {
+  DeoptimizeKind deoptimization_kind = GetDeoptimizationKind(deoptimization_id);
+  DeoptimizeReason deoptimization_reason =
+      GetDeoptimizationReason(deoptimization_id);
+  Deoptimizer::BailoutType bailout_type =
+      deoptimization_kind == DeoptimizeKind::kSoft ? Deoptimizer::SOFT
+                                                   : Deoptimizer::EAGER;
   Address deopt_entry = Deoptimizer::GetDeoptimizationEntry(
       isolate(), deoptimization_id, bailout_type);
   // TODO(turbofan): We should be able to generate better code by sharing the
   // actual final call site and just bl'ing to it here, similar to what we do
   // in the lithium backend.
   if (deopt_entry == nullptr) return kTooManyDeoptimizationBailouts;
-  DeoptimizeReason deoptimization_reason =
-      GetDeoptimizationReason(deoptimization_id);
   __ RecordDeoptReason(deoptimization_reason, pos, deoptimization_id);
   __ Call(deopt_entry, RelocInfo::RUNTIME_ENTRY);
   __ CheckConstPool(false, false);

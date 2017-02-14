@@ -586,6 +586,7 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   if (!object->IsJSObject()) return Smi::kZero;
   Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+  // It could have been a DCHECK but we call this function directly from tests.
   if (!js_object->map()->is_deprecated()) return Smi::kZero;
   // This call must not cause lazy deopts, because it's called from deferred
   // code where we can't handle lazy deopts for lack of a suitable bailout
@@ -639,7 +640,7 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(flag, 3);
-  CONVERT_ARG_HANDLE_CHECKED(TypeFeedbackVector, vector, 4);
+  CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 4);
   CONVERT_SMI_ARG_CHECKED(index, 5);
 
   StoreDataPropertyInLiteralICNexus nexus(vector, vector->ToSlot(index));

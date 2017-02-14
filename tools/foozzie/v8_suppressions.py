@@ -38,9 +38,13 @@ CARET_RE = re.compile(r'^\s*\^\s*$')
 # be suppressed if one of the files below was used to mutate the test.
 IGNORE_SOURCES = {
   # This contains a usage of f.arguments that often fires.
-  'crbug.com/662424': ['/v8/test/mjsunit/regress/regress-2989.js'],
+  'crbug.com/662424': [
+    '/v8/test/mjsunit/bugs/bug-222.js',
+    '/v8/test/mjsunit/bugs/bug-941049.js',
+    '/v8/test/mjsunit/regress/regress-crbug-668795.js',
+    '/v8/test/mjsunit/regress/regress-2989.js',
+  ],
 
-  # crbug.com/681088
   'crbug.com/681088': [
     '/v8/test/mjsunit/asm/asm-validation.js',
     '/v8/test/mjsunit/asm/b5528-comma.js',
@@ -55,10 +59,13 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/wasm/asm-wasm-stack.js',
   ],
 
-  # crbug.com/681241
   'crbug.com/681241': [
     '/v8/test/mjsunit/regress/regress-617526.js',
     '/v8/test/mjsunit/regress/wasm/regression-02862.js',
+  ],
+
+  'crbug.com/688159': [
+    '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
 }
 
@@ -73,8 +80,6 @@ IGNORE_SOURCES = {
 # TODO(machenbach): Insert a JS sentinel between the two parts, because
 # comments are stripped during minimization.
 IGNORE_TEST_CASES = {
-  'crbug.com/679957':
-      re.compile(r'.*performance\.now.*', re.S),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
@@ -88,7 +93,7 @@ IGNORE_TEST_CASES = {
 IGNORE_OUTPUT = {
   '': {
     'crbug.com/664068':
-        re.compile(r'RangeError', re.S),
+        re.compile(r'RangeError(?!: byte length)', re.S),
     'crbug.com/667678':
         re.compile(r'\[native code\]', re.S),
     'crbug.com/681806':
@@ -154,6 +159,9 @@ IGNORE_LINES = [
 
   # crbug.com/680064
   r'^\s*at .* \(<anonymous>\)$',
+
+  # crbug.com/689877
+  r'^.*SyntaxError: .*Stack overflow$',
 ]
 
 

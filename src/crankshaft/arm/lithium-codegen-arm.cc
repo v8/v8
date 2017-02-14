@@ -2130,12 +2130,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ b(eq, instr->TrueLabel(chunk_));
       }
 
-      if (expected & ToBooleanHint::kSimdValue) {
-        // SIMD value -> true.
-        __ CompareInstanceType(map, ip, SIMD128_VALUE_TYPE);
-        __ b(eq, instr->TrueLabel(chunk_));
-      }
-
       if (expected & ToBooleanHint::kHeapNumber) {
         // heap number -> false iff +0, -0, or NaN.
         DwVfpRegister dbl_scratch = double_scratch0();
@@ -4045,13 +4039,17 @@ void LCodeGen::DoDeferredMaybeGrowElements(LMaybeGrowElements* instr) {
       if (Smi::IsValid(int_key)) {
         __ mov(r3, Operand(Smi::FromInt(int_key)));
       } else {
-        // We should never get here at runtime because there is a smi check on
-        // the key before this point.
-        __ stop("expected smi");
+        Abort(kArrayIndexConstantValueTooBig);
       }
     } else {
-      __ Move(r3, ToRegister(key));
-      __ SmiTag(r3);
+      Label is_smi;
+      __ SmiTag(r3, ToRegister(key), SetCC);
+      // Deopt if the key is outside Smi range. The stub expects Smi and would
+      // bump the elements into dictionary mode (and trigger a deopt) anyways.
+      __ b(vc, &is_smi);
+      __ PopSafepointRegisters();
+      DeoptimizeIf(al, instr, DeoptimizeReason::kOverflow);
+      __ bind(&is_smi);
     }
 
     GrowArrayElementsStub stub(isolate(), instr->hydrogen()->kind());
@@ -4759,6 +4757,13 @@ void LCodeGen::DoCheckValue(LCheckValue* instr) {
 
 
 void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
+  Label deopt, done;
+  // If the map is not deprecated the migration attempt does not make sense.
+  __ ldr(scratch0(), FieldMemOperand(object, HeapObject::kMapOffset));
+  __ ldr(scratch0(), FieldMemOperand(scratch0(), Map::kBitField3Offset));
+  __ tst(scratch0(), Operand(Map::Deprecated::kMask));
+  __ b(eq, &deopt);
+
   {
     PushSafepointRegistersScope scope(this);
     __ push(object);
@@ -4769,7 +4774,12 @@ void LCodeGen::DoDeferredInstanceMigration(LCheckMaps* instr, Register object) {
     __ StoreToSafepointRegisterSlot(r0, scratch0());
   }
   __ tst(scratch0(), Operand(kSmiTagMask));
-  DeoptimizeIf(eq, instr, DeoptimizeReason::kInstanceMigrationFailed);
+  __ b(ne, &done);
+
+  __ bind(&deopt);
+  DeoptimizeIf(al, instr, DeoptimizeReason::kInstanceMigrationFailed);
+
+  __ bind(&done);
 }
 
 
@@ -5119,17 +5129,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ tst(scratch,
            Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     final_branch_condition = eq;
-
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)        \
-  } else if (String::Equals(type_name, factory->type##_string())) {  \
-    __ JumpIfSmi(input, false_label);                                \
-    __ ldr(scratch, FieldMemOperand(input, HeapObject::kMapOffset)); \
-    __ CompareRoot(scratch, Heap::k##Type##MapRootIndex);            \
-    final_branch_condition = eq;
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
 
   } else {
     __ b(false_label);

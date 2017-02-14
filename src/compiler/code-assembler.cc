@@ -260,6 +260,14 @@ void CodeAssembler::Return(Node* value) {
   return raw_assembler()->Return(value);
 }
 
+void CodeAssembler::Return(Node* value1, Node* value2) {
+  return raw_assembler()->Return(value1, value2);
+}
+
+void CodeAssembler::Return(Node* value1, Node* value2, Node* value3) {
+  return raw_assembler()->Return(value1, value2, value3);
+}
+
 void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
   return raw_assembler()->PopAndReturn(pop, value);
 }

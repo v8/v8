@@ -481,7 +481,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else {
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
   }
@@ -1223,11 +1223,14 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
     selector->Emit(opcode, 0, nullptr, input_count, inputs);
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
-                             cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+                             cont->kind(), cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     InstructionOperand output = g.DefineAsRegister(cont->result());
     selector->Emit(opcode, 1, &output, input_count, inputs);
+  } else {
+    DCHECK(cont->IsTrap());
+    inputs[input_count++] = g.UseImmediate(cont->trap_id());
+    selector->Emit(opcode, 0, nullptr, input_count, inputs);
   }
 }
 
@@ -1241,11 +1244,14 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
-                             cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
+                             cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsByteRegister(cont->result()), left, right);
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(opcode, g.NoOutput(), left, right,
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1354,11 +1360,14 @@ void VisitFloat32Compare(InstructionSelector* selector, Node* node,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(cont->Encode(kX87Float32Cmp), g.NoOutput(),
                              g.Use(node->InputAt(0)), g.Use(node->InputAt(1)),
-                             cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+                             cont->kind(), cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     selector->Emit(cont->Encode(kX87Float32Cmp),
                    g.DefineAsByteRegister(cont->result()));
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(cont->Encode(kX87Float32Cmp), g.NoOutput(),
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1375,11 +1384,14 @@ void VisitFloat64Compare(InstructionSelector* selector, Node* node,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(cont->Encode(kX87Float64Cmp), g.NoOutput(),
                              g.Use(node->InputAt(0)), g.Use(node->InputAt(1)),
-                             cont->reason(), cont->frame_state());
-  } else {
-    DCHECK(cont->IsSet());
+                             cont->kind(), cont->reason(), cont->frame_state());
+  } else if (cont->IsSet()) {
     selector->Emit(cont->Encode(kX87Float64Cmp),
                    g.DefineAsByteRegister(cont->result()));
+  } else {
+    DCHECK(cont->IsTrap());
+    selector->Emit(cont->Encode(kX87Float64Cmp), g.NoOutput(),
+                   g.UseImmediate(cont->trap_id()));
   }
 }
 
@@ -1453,8 +1465,8 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
         selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
                        g.Label(cont->false_block()));
       } else if (cont->IsDeoptimize()) {
-        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->reason(),
-                                 cont->frame_state());
+        selector->EmitDeoptimize(opcode, 0, nullptr, 0, nullptr, cont->kind(),
+                                 cont->reason(), cont->frame_state());
       } else {
         DCHECK(cont->IsSet());
         selector->Emit(opcode, g.DefineAsRegister(cont->result()));
@@ -1567,24 +1579,30 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kNotEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapIf(Node* node, Runtime::FunctionId func_id) {
-  UNREACHABLE();
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kNotEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitTrapUnless(Node* node,
                                           Runtime::FunctionId func_id) {
-  UNREACHABLE();
+  FlagsContinuation cont =
+      FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
+  VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {

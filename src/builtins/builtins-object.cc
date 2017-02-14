@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-object.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
@@ -11,16 +12,27 @@
 namespace v8 {
 namespace internal {
 
-class ObjectBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit ObjectBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
+typedef compiler::Node Node;
 
- protected:
-  void IsString(Node* object, Label* if_string, Label* if_notstring);
-  void ReturnToStringFormat(Node* context, Node* string);
-};
+std::tuple<Node*, Node*, Node*> ObjectBuiltinsAssembler::EmitForInPrepare(
+    Node* object, Node* context, Label* call_runtime,
+    Label* nothing_to_iterate) {
+  Label use_cache(this);
+  CSA_ASSERT(this, IsJSReceiver(object));
 
+  CheckEnumCache(object, &use_cache, call_runtime);
+  Bind(&use_cache);
+  Node* map = LoadMap(object);
+  Node* enum_length = EnumLength(map);
+  GotoIf(WordEqual(enum_length, SmiConstant(0)), nothing_to_iterate);
+  Node* descriptors = LoadMapDescriptors(map);
+  Node* cache_offset =
+      LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+  Node* enum_cache = LoadObjectField(
+      cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+
+  return std::make_tuple(map, enum_cache, enum_length);
+}
 // -----------------------------------------------------------------------------
 // ES6 section 19.1 Object Objects
 
@@ -908,6 +920,49 @@ TF_BUILTIN(ForInFilter, ObjectBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   Return(ForInFilter(key, object, context));
+}
+
+TF_BUILTIN(ForInNext, ObjectBuiltinsAssembler) {
+  typedef ForInNextDescriptor Descriptor;
+
+  Label filter(this);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* cache_array = Parameter(Descriptor::kCacheArray);
+  Node* cache_type = Parameter(Descriptor::kCacheType);
+  Node* index = Parameter(Descriptor::kIndex);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Node* key = LoadFixedArrayElement(cache_array, SmiUntag(index));
+  Node* map = LoadMap(object);
+  GotoUnless(WordEqual(map, cache_type), &filter);
+  Return(key);
+  Bind(&filter);
+  Return(ForInFilter(key, object, context));
+}
+
+TF_BUILTIN(ForInPrepare, ObjectBuiltinsAssembler) {
+  typedef ForInPrepareDescriptor Descriptor;
+
+  Label call_runtime(this), nothing_to_iterate(this);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Node* cache_type;
+  Node* cache_array;
+  Node* cache_length;
+  std::tie(cache_type, cache_array, cache_length) =
+      EmitForInPrepare(object, context, &call_runtime, &nothing_to_iterate);
+
+  Return(cache_type, cache_array, cache_length);
+
+  Bind(&call_runtime);
+  TailCallRuntime(Runtime::kForInPrepare, context, object);
+
+  Bind(&nothing_to_iterate);
+  {
+    Node* zero = SmiConstant(0);
+    Return(zero, zero, zero);
+  }
 }
 
 TF_BUILTIN(InstanceOf, ObjectBuiltinsAssembler) {

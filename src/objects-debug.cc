@@ -64,9 +64,6 @@ void HeapObject::HeapObjectVerify() {
     case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
       break;
-    case SIMD128_VALUE_TYPE:
-      Simd128Value::cast(this)->Simd128ValueVerify();
-      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
@@ -268,10 +265,6 @@ void Symbol::SymbolVerify() {
 void HeapNumber::HeapNumberVerify() {
   CHECK(IsHeapNumber() || IsMutableHeapNumber());
 }
-
-
-void Simd128Value::Simd128ValueVerify() { CHECK(IsSimd128Value()); }
-
 
 void ByteArray::ByteArrayVerify() {
   CHECK(IsByteArray());
@@ -552,6 +545,7 @@ void JSMessageObject::JSMessageObjectVerify() {
 void String::StringVerify() {
   CHECK(IsString());
   CHECK(length() >= 0 && length() <= Smi::kMaxValue);
+  CHECK_IMPLIES(length() == 0, this == GetHeap()->empty_string());
   if (IsInternalizedString()) {
     CHECK(!GetHeap()->InNewSpace(this));
   }
@@ -921,10 +915,11 @@ void JSPromise::JSPromiseVerify() {
         deferred_on_reject()->IsCallable() ||
         deferred_on_reject()->IsFixedArray());
   CHECK(fulfill_reactions()->IsUndefined(isolate) ||
-        fulfill_reactions()->IsCallable() ||
+        fulfill_reactions()->IsCallable() || fulfill_reactions()->IsSymbol() ||
         fulfill_reactions()->IsFixedArray());
   CHECK(reject_reactions()->IsUndefined(isolate) ||
-        reject_reactions()->IsCallable() || reject_reactions()->IsFixedArray());
+        reject_reactions()->IsSymbol() || reject_reactions()->IsCallable() ||
+        reject_reactions()->IsFixedArray());
 }
 
 void JSRegExp::JSRegExpVerify() {
@@ -1050,7 +1045,8 @@ void PromiseReactionJobInfo::PromiseReactionJobInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(IsPromiseReactionJobInfo());
   CHECK(value()->IsObject());
-  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable());
+  CHECK(tasks()->IsFixedArray() || tasks()->IsCallable() ||
+        tasks()->IsSymbol());
   CHECK(deferred_promise()->IsUndefined(isolate) ||
         deferred_promise()->IsJSReceiver() ||
         deferred_promise()->IsFixedArray());

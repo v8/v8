@@ -1110,14 +1110,6 @@ class MacroAssembler: public Assembler {
   void GetMapConstructor(Register result, Register map, Register temp,
                          Register temp2);
 
-  // Try to get function prototype of a function and puts the value in
-  // the result register. Checks that the function really is a
-  // function and jumps to the miss label if the fast checks fail. The
-  // function register will be untouched; the other registers may be
-  // clobbered.
-  void TryGetFunctionPrototype(Register function, Register result,
-                               Register scratch, Label* miss);
-
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);
@@ -1669,7 +1661,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void Prologue(bool code_pre_aging);
 
   // Load the type feedback vector from a JavaScript frame.
-  void EmitLoadTypeFeedbackVector(Register vector);
+  void EmitLoadFeedbackVector(Register vector);
 
   // Activation support.
   void EnterFrame(StackFrame::Type type);
@@ -1742,12 +1734,6 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                       bool* definitely_mismatches,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper);
-
-  void InitializeNewString(Register string,
-                           Register length,
-                           Heap::RootListIndex map_index,
-                           Register scratch1,
-                           Register scratch2);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object, Register scratch,

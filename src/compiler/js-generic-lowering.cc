@@ -88,11 +88,12 @@ void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
                                             CallDescriptor::Flags flags,
-                                            Operator::Properties properties) {
+                                            Operator::Properties properties,
+                                            int result_size) {
   const CallInterfaceDescriptor& descriptor = callable.descriptor();
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(), flags,
-      properties);
+      properties, MachineType::AnyTagged(), result_size);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
   node->InsertInput(zone(), 0, stub_code);
   NodeProperties::ChangeOp(node, common()->Call(desc));
@@ -204,9 +205,8 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   PropertyAccess const& p = PropertyAccessOf(node->op());
-  LanguageMode language_mode = p.language_mode();
   Callable callable =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), language_mode);
+      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), p.language_mode());
   Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
   typedef StoreWithVectorDescriptor Descriptor;
   node->InsertInputs(zone(), 0, 2);
@@ -545,8 +545,8 @@ void JSGenericLowering::LowerJSCallForwardVarargs(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
-void JSGenericLowering::LowerJSCallFunction(Node* node) {
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+void JSGenericLowering::LowerJSCall(Node* node) {
+  CallParameters const& p = CallParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode const mode = p.convert_mode();
   Callable callable = CodeFactory::Call(isolate(), mode);
@@ -563,9 +563,8 @@ void JSGenericLowering::LowerJSCallFunction(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
-void JSGenericLowering::LowerJSCallFunctionWithSpread(Node* node) {
-  CallFunctionWithSpreadParameters const& p =
-      CallFunctionWithSpreadParametersOf(node->op());
+void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
+  CallWithSpreadParameters const& p = CallWithSpreadParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   Callable callable = CodeFactory::CallWithSpread(isolate());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
@@ -588,12 +587,15 @@ void JSGenericLowering::LowerJSConvertReceiver(Node* node) {
 }
 
 void JSGenericLowering::LowerJSForInNext(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInNext);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::ForInNext(isolate());
+  ReplaceWithStubCall(node, callable, flags);
 }
 
-
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kForInPrepare);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable = CodeFactory::ForInPrepare(isolate());
+  ReplaceWithStubCall(node, callable, flags, node->op()->properties(), 3);
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {

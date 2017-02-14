@@ -67,6 +67,7 @@ class V8DebuggerScript {
   int endColumn() const { return m_endColumn; }
   int executionContextId() const { return m_executionContextId; }
   virtual bool isLiveEdit() const = 0;
+  virtual bool isModule() const = 0;
 
   void setSourceURL(const String16&);
   virtual void setSourceMappingURL(const String16&) = 0;

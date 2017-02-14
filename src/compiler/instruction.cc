@@ -926,9 +926,11 @@ void InstructionSequence::MarkAsRepresentation(MachineRepresentation rep,
 }
 
 int InstructionSequence::AddDeoptimizationEntry(
-    FrameStateDescriptor* descriptor, DeoptimizeReason reason) {
+    FrameStateDescriptor* descriptor, DeoptimizeKind kind,
+    DeoptimizeReason reason) {
   int deoptimization_id = static_cast<int>(deoptimization_entries_.size());
-  deoptimization_entries_.push_back(DeoptimizationEntry(descriptor, reason));
+  deoptimization_entries_.push_back(
+      DeoptimizationEntry(descriptor, kind, reason));
   return deoptimization_id;
 }
 

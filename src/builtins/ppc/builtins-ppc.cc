@@ -560,6 +560,7 @@ namespace {
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
                                     bool check_derived_construct) {
+  Label post_instantiation_deopt_entry;
   // ----------- S t a t e -------------
   //  -- r3     : number of arguments
   //  -- r4     : constructor function
@@ -608,6 +609,9 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       __ Push(r7, r7);
     }
 
+    // Deoptimizer re-enters stub code here.
+    __ bind(&post_instantiation_deopt_entry);
+
     // Set up pointer to last argument.
     __ addi(r5, fp, Operand(StandardFrameConstants::kCallerSPOffset));
 
@@ -643,7 +647,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
-      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+      masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+          masm->pc_offset());
     }
 
     // Restore context from the frame.
@@ -708,6 +713,34 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ IncrementCounter(isolate->counters()->constructed_objects(), 1, r4, r5);
   }
   __ blr();
+  // Store offset of trampoline address for deoptimizer. This is the bailout
+  // point after the receiver instantiation but before the function invocation.
+  // We need to restore some registers in order to continue the above code.
+  if (create_implicit_receiver && !is_api_function) {
+    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+        masm->pc_offset());
+
+    // ----------- S t a t e -------------
+    //  -- r3    : newly allocated object
+    //  -- sp[0] : constructor function
+    // -----------------------------------
+
+    __ pop(r4);
+    __ Push(r3, r3);
+
+    // Retrieve smi-tagged arguments count from the stack.
+    __ LoadP(r3, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(r3);
+
+    // Retrieve the new target value from the stack. This was placed into the
+    // frame description in place of the receiver by the optimizing compiler.
+    __ addi(r6, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+    __ ShiftLeftImm(ip, r3, Operand(kPointerSizeLog2));
+    __ LoadPX(r6, MemOperand(r6, ip));
+
+    // Continue with constructor function invocation.
+    __ b(&post_instantiation_deopt_entry);
+  }
 }
 
 }  // namespace
@@ -1034,13 +1067,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Increment invocation count for the function.
   __ LoadP(r7, FieldMemOperand(r4, JSFunction::kFeedbackVectorOffset));
-  __ LoadP(r8, FieldMemOperand(r7, TypeFeedbackVector::kInvocationCountIndex *
-                                           kPointerSize +
-                                       TypeFeedbackVector::kHeaderSize));
+  __ LoadP(r7, FieldMemOperand(r7, Cell::kValueOffset));
+  __ LoadP(r8, FieldMemOperand(
+                   r7, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                           FeedbackVector::kHeaderSize));
   __ AddSmiLiteral(r8, r8, Smi::FromInt(1), r0);
-  __ StoreP(r8, FieldMemOperand(r7, TypeFeedbackVector::kInvocationCountIndex *
-                                            kPointerSize +
-                                        TypeFeedbackVector::kHeaderSize),
+  __ StoreP(r8, FieldMemOperand(
+                    r7, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize),
             r0);
 
   // Check function data field is actually a BytecodeArray object.
@@ -1364,15 +1398,20 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register closure = r4;
   Register map = r9;
   Register index = r5;
+
+  // Do we have a valid feedback vector?
+  __ LoadP(index, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ LoadP(index, FieldMemOperand(index, Cell::kValueOffset));
+  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
+
   __ LoadP(map,
            FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ LoadP(map,
            FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ LoadP(index, FieldMemOperand(map, FixedArray::kLengthOffset));
   __ CmpSmiLiteral(index, Smi::FromInt(2), r0);
-  __ blt(&gotta_call_runtime);
+  __ blt(&try_shared);
 
-  // Find literals.
   // r10 : native context
   // r5  : length / index
   // r9  : optimized code map
@@ -1393,19 +1432,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ LoadP(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ cmp(temp, native_context);
   __ bne(&loop_bottom);
-  // Feedback vector available?
-  __ LoadP(temp,
-           FieldMemOperand(array_pointer,
-                           SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ LoadP(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the feedback vector in the closure.
-  __ StoreP(temp, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset),
-            r0);
-  __ RecordWriteField(closure, JSFunction::kFeedbackVectorOffset, temp, r7,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
 
   // Code available?
   Register entry = r7;
@@ -1415,7 +1441,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ LoadP(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   // Store code entry in the closure.
   __ addi(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ StoreP(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset), r0);
@@ -1449,7 +1475,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ CmpSmiLiteral(index, Smi::FromInt(1), r0);
   __ bgt(&loop_top);
 
-  // We found neither literals nor code.
+  // We found no code.
   __ b(&gotta_call_runtime);
 
   __ bind(&try_shared);
@@ -2118,14 +2144,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ bind(&target_not_constructor);
   {
     __ StoreP(r4, MemOperand(sp, 0));
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
   __ bind(&new_target_not_constructor);
   {
     __ StoreP(r6, MemOperand(sp, 0));
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 }
 
@@ -2810,7 +2836,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // For FastPacked kinds, iteration will have the same effect as simply
   // accessing each property in order.
   Label no_protector_check;
-  __ LoadP(scratch, FieldMemOperand(spread_map, Map::kBitField2Offset));
+  __ lbz(scratch, FieldMemOperand(spread_map, Map::kBitField2Offset));
   __ DecodeField<Map::ElementsKindBits>(scratch);
   __ cmpi(scratch, Operand(FAST_HOLEY_ELEMENTS));
   __ bgt(&runtime_call);

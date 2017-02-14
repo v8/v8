@@ -1427,10 +1427,10 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
   }
 }
 
-
-void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
   ldr(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   ldr(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
+  ldr(vector, FieldMemOperand(vector, Cell::kValueOffset));
 }
 
 
@@ -1536,21 +1536,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   add(ip, sp, Operand(kPointerSize));
   str(ip, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
-
-
-void MacroAssembler::InitializeNewString(Register string,
-                                         Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1,
-                                         Register scratch2) {
-  SmiTag(scratch1, length);
-  LoadRoot(scratch2, map_index);
-  str(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  mov(scratch1, Operand(String::kEmptyHashField));
-  str(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
-  str(scratch1, FieldMemOperand(string, String::kHashFieldOffset));
-}
-
 
 int MacroAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_ARM
@@ -2437,33 +2422,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   b(&loop);
   bind(&done);
 }
-
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  // Get the prototype or initial map from the function.
-  ldr(result,
-      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-  cmp(result, ip);
-  b(eq, miss);
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  CompareObjectType(result, scratch, scratch, MAP_TYPE);
-  b(ne, &done);
-
-  // Get the prototype from the initial map.
-  ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  // All done.
-  bind(&done);
-}
-
 
 void MacroAssembler::CallStub(CodeStub* stub,
                               TypeFeedbackId ast_id,

@@ -237,7 +237,8 @@ void LCodeGenBase::WriteTranslationFrame(LEnvironment* environment,
       int shared_id = DefineDeoptimizationLiteral(
           environment->entry() ? environment->entry()->shared()
                                : info()->shared_info());
-      translation->BeginConstructStubFrame(shared_id, translation_size);
+      translation->BeginConstructStubFrame(BailoutId::ConstructStubInvoke(),
+                                           shared_id, translation_size);
       if (info()->closure().is_identical_to(environment->closure())) {
         translation->StoreJSFrameFunction();
       } else {

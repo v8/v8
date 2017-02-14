@@ -548,11 +548,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ j(not_equal, &switch_to_different_code_kind);
 
   // Increment invocation count for the function.
-  __ EmitLoadTypeFeedbackVector(ecx);
-  __ add(FieldOperand(ecx,
-                      TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                          TypeFeedbackVector::kHeaderSize),
-         Immediate(Smi::FromInt(1)));
+  __ EmitLoadFeedbackVector(ecx);
+  __ add(
+      FieldOperand(ecx, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                            FeedbackVector::kHeaderSize),
+      Immediate(Smi::FromInt(1)));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
@@ -1029,6 +1029,12 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register new_target = edx;
   Register argument_count = eax;
 
+  // Do we have a valid feedback vector?
+  __ mov(ebx, FieldOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ mov(ebx, FieldOperand(ebx, Cell::kValueOffset));
+  __ cmp(ebx, masm->isolate()->factory()->undefined_value());
+  __ j(equal, &gotta_call_runtime_no_stack);
+
   __ push(argument_count);
   __ push(new_target);
   __ push(closure);
@@ -1039,9 +1045,8 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(map, FieldOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ mov(index, FieldOperand(map, FixedArray::kLengthOffset));
   __ cmp(index, Immediate(Smi::FromInt(2)));
-  __ j(less, &gotta_call_runtime);
+  __ j(less, &try_shared);
 
-  // Find literals.
   // edx : native context
   // ebx : length / index
   // eax : optimized code map
@@ -1059,20 +1064,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
   __ cmp(temp, native_context);
   __ j(not_equal, &loop_bottom);
-  // Literals available?
-  __ mov(temp, FieldOperand(map, index, times_half_pointer_size,
-                            SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ mov(temp, FieldOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the literals in the closure.
-  __ mov(ecx, Operand(esp, 0));
-  __ mov(FieldOperand(ecx, JSFunction::kLiteralsOffset), temp);
-  __ push(index);
-  __ RecordWriteField(ecx, JSFunction::kLiteralsOffset, temp, index,
-                      kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ pop(index);
-
   // Code available?
   Register entry = ecx;
   __ mov(entry, FieldOperand(map, index, times_half_pointer_size,
@@ -1080,7 +1071,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ mov(entry, FieldOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   __ pop(closure);
   // Store code entry in the closure.
   __ lea(entry, FieldOperand(entry, Code::kHeaderSize));
@@ -1114,7 +1105,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ cmp(index, Immediate(Smi::FromInt(1)));
   __ j(greater, &loop_top);
 
-  // We found neither literals nor code.
+  // We found no code.
   __ jmp(&gotta_call_runtime);
 
   __ bind(&try_shared);
@@ -1626,14 +1617,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ bind(&target_not_constructor);
   {
     __ mov(Operand(esp, kPointerSize), edi);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
   __ bind(&new_target_not_constructor);
   {
     __ mov(Operand(esp, kPointerSize), edx);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 }
 
@@ -2813,7 +2804,6 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ lea(esp, Operand(esp, 2 * kFloatSize));
   }
 
-  Register return_address = edi;
   {
     // Calculate the new nargs including the result of the spread.
     __ mov(spread_len, FieldOperand(spread, FixedArray::kLengthOffset));
@@ -2822,10 +2812,6 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ bind(&push_args);
     // argc += spread_len - 1. Subtract 1 for the spread itself.
     __ lea(argc, Operand(argc, spread_len, times_1, -1));
-
-    // Pop the return address and spread argument.
-    __ PopReturnAddressTo(return_address);
-    __ Pop(scratch);
   }
 
   // Check for stack overflow.
@@ -2848,6 +2834,11 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
 
   // Put the evaluated spread onto the stack as additional arguments.
   {
+    Register return_address = edi;
+    // Pop the return address and spread argument.
+    __ PopReturnAddressTo(return_address);
+    __ Pop(scratch);
+
     Register scratch2 = esi;
     // Save esi to stX0, edx/edi in stX1/stX2 now.
     __ push(esi);

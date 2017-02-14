@@ -229,6 +229,11 @@ class ValueDeserializer {
   // "stack machine".
   MaybeHandle<Object> ReadObjectInternal() WARN_UNUSED_RESULT;
 
+  // Reads a string intended to be part of a more complicated object.
+  // Before v12, these are UTF-8 strings. After, they can be any encoding
+  // permissible for a string (with the relevant tag).
+  MaybeHandle<String> ReadString() WARN_UNUSED_RESULT;
+
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
   MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;

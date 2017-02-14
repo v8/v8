@@ -42,7 +42,7 @@ class Isolate;
 // TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
 //      Args: name, arguments count
 // TFS: Builtin in Turbofan, with CodeStub linkage.
-//      Args: name, code kind, extra IC state, interface descriptor
+//      Args: name, code kind, extra IC state, interface descriptor, return_size
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name
 // ASH: Handlers implemented in platform-dependent assembly.
@@ -56,8 +56,9 @@ class Isolate;
                                                                                \
   /* Declared first for dependency reasons */                                  \
   ASM(CompileLazy)                                                             \
-  TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion)                      \
-  TFS(FastNewObject, BUILTIN, kNoExtraICState, FastNewObject)                  \
+  TFS(ToObject, BUILTIN, kNoExtraICState, TypeConversion, 1)                   \
+  TFS(FastNewObject, BUILTIN, kNoExtraICState, FastNewObject, 1)               \
+  TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty, 1)                   \
                                                                                \
   /* Calls */                                                                  \
   ASM(ArgumentsAdaptorTrampoline)                                              \
@@ -97,30 +98,33 @@ class Isolate;
   ASM(JSConstructStubGeneric)                                                  \
   ASM(JSBuiltinsConstructStub)                                                 \
   ASM(JSBuiltinsConstructStubForDerived)                                       \
-  TFS(FastNewClosure, BUILTIN, kNoExtraICState, FastNewClosure)                \
+  TFS(FastNewClosure, BUILTIN, kNoExtraICState, FastNewClosure, 1)             \
   TFS(FastNewFunctionContextEval, BUILTIN, kNoExtraICState,                    \
-      FastNewFunctionContext)                                                  \
+      FastNewFunctionContext, 1)                                               \
   TFS(FastNewFunctionContextFunction, BUILTIN, kNoExtraICState,                \
-      FastNewFunctionContext)                                                  \
-  TFS(FastCloneRegExp, BUILTIN, kNoExtraICState, FastCloneRegExp)              \
+      FastNewFunctionContext, 1)                                               \
+  TFS(FastNewStrictArguments, BUILTIN, kNoExtraICState, FastNewArguments, 1)   \
+  TFS(FastNewSloppyArguments, BUILTIN, kNoExtraICState, FastNewArguments, 1)   \
+  TFS(FastNewRestParameter, BUILTIN, kNoExtraICState, FastNewArguments, 1)     \
+  TFS(FastCloneRegExp, BUILTIN, kNoExtraICState, FastCloneRegExp, 1)           \
   TFS(FastCloneShallowArrayTrack, BUILTIN, kNoExtraICState,                    \
-      FastCloneShallowArray)                                                   \
+      FastCloneShallowArray, 1)                                                \
   TFS(FastCloneShallowArrayDontTrack, BUILTIN, kNoExtraICState,                \
-      FastCloneShallowArray)                                                   \
+      FastCloneShallowArray, 1)                                                \
   TFS(FastCloneShallowObject0, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
   TFS(FastCloneShallowObject1, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
   TFS(FastCloneShallowObject2, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
   TFS(FastCloneShallowObject3, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
   TFS(FastCloneShallowObject4, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
   TFS(FastCloneShallowObject5, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
   TFS(FastCloneShallowObject6, BUILTIN, kNoExtraICState,                       \
-      FastCloneShallowObject)                                                  \
+      FastCloneShallowObject, 1)                                               \
                                                                                \
   /* Apply and entries */                                                      \
   ASM(Apply)                                                                   \
@@ -133,15 +137,15 @@ class Isolate;
   ASM(StackCheck)                                                              \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringCharAt, BUILTIN, kNoExtraICState, StringCharAt)                    \
-  TFS(StringCharCodeAt, BUILTIN, kNoExtraICState, StringCharCodeAt)            \
-  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare)                          \
-  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare)                    \
-  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)             \
-  TFS(StringIndexOf, BUILTIN, kNoExtraICState, StringIndexOf)                  \
-  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare)                       \
-  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                \
-  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare)                       \
+  TFS(StringCharAt, BUILTIN, kNoExtraICState, StringCharAt, 1)                 \
+  TFS(StringCharCodeAt, BUILTIN, kNoExtraICState, StringCharCodeAt, 1)         \
+  TFS(StringEqual, BUILTIN, kNoExtraICState, Compare, 1)                       \
+  TFS(StringGreaterThan, BUILTIN, kNoExtraICState, Compare, 1)                 \
+  TFS(StringGreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)          \
+  TFS(StringIndexOf, BUILTIN, kNoExtraICState, StringIndexOf, 1)               \
+  TFS(StringLessThan, BUILTIN, kNoExtraICState, Compare, 1)                    \
+  TFS(StringLessThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)             \
+  TFS(StringNotEqual, BUILTIN, kNoExtraICState, Compare, 1)                    \
                                                                                \
   /* Interpreter */                                                            \
   ASM(InterpreterEntryTrampoline)                                              \
@@ -186,14 +190,14 @@ class Isolate;
                                                                                \
   /* TurboFan support builtins */                                              \
   TFS(CopyFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                   \
-      CopyFastSmiOrObjectElements)                                             \
-  TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements)     \
+      CopyFastSmiOrObjectElements, 1)                                          \
+  TFS(GrowFastDoubleElements, BUILTIN, kNoExtraICState, GrowArrayElements, 1)  \
   TFS(GrowFastSmiOrObjectElements, BUILTIN, kNoExtraICState,                   \
-      GrowArrayElements)                                                       \
+      GrowArrayElements, 1)                                                    \
   TFS(NewUnmappedArgumentsElements, BUILTIN, kNoExtraICState,                  \
-      NewArgumentsElements)                                                    \
+      NewArgumentsElements, 1)                                                 \
   TFS(NewRestParameterElements, BUILTIN, kNoExtraICState,                      \
-      NewArgumentsElements)                                                    \
+      NewArgumentsElements, 1)                                                 \
                                                                                \
   /* Debugger */                                                               \
   DBG(FrameDropperTrampoline)                                                  \
@@ -202,51 +206,51 @@ class Isolate;
   DBG(Slot_DebugBreak)                                                         \
                                                                                \
   /* Type conversions */                                                       \
-  TFS(ToBoolean, BUILTIN, kNoExtraICState, TypeConversion)                     \
-  TFS(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion)    \
-  TFS(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion)    \
+  TFS(ToBoolean, BUILTIN, kNoExtraICState, TypeConversion, 1)                  \
+  TFS(OrdinaryToPrimitive_Number, BUILTIN, kNoExtraICState, TypeConversion, 1) \
+  TFS(OrdinaryToPrimitive_String, BUILTIN, kNoExtraICState, TypeConversion, 1) \
   TFS(NonPrimitiveToPrimitive_Default, BUILTIN, kNoExtraICState,               \
-      TypeConversion)                                                          \
+      TypeConversion, 1)                                                       \
   TFS(NonPrimitiveToPrimitive_Number, BUILTIN, kNoExtraICState,                \
-      TypeConversion)                                                          \
+      TypeConversion, 1)                                                       \
   TFS(NonPrimitiveToPrimitive_String, BUILTIN, kNoExtraICState,                \
-      TypeConversion)                                                          \
-  TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion)                \
-  TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion)                        \
-  TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion)             \
-  TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion)                      \
-  TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion)                      \
-  TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion)                     \
-  TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion)                      \
-  TFS(ClassOf, BUILTIN, kNoExtraICState, Typeof)                               \
-  TFS(Typeof, BUILTIN, kNoExtraICState, Typeof)                                \
-  TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion)           \
+      TypeConversion, 1)                                                       \
+  TFS(StringToNumber, BUILTIN, kNoExtraICState, TypeConversion, 1)             \
+  TFS(ToName, BUILTIN, kNoExtraICState, TypeConversion, 1)                     \
+  TFS(NonNumberToNumber, BUILTIN, kNoExtraICState, TypeConversion, 1)          \
+  TFS(ToNumber, BUILTIN, kNoExtraICState, TypeConversion, 1)                   \
+  TFS(ToString, BUILTIN, kNoExtraICState, TypeConversion, 1)                   \
+  TFS(ToInteger, BUILTIN, kNoExtraICState, TypeConversion, 1)                  \
+  TFS(ToLength, BUILTIN, kNoExtraICState, TypeConversion, 1)                   \
+  TFS(ClassOf, BUILTIN, kNoExtraICState, Typeof, 1)                            \
+  TFS(Typeof, BUILTIN, kNoExtraICState, Typeof, 1)                             \
+  TFS(GetSuperConstructor, BUILTIN, kNoExtraICState, TypeConversion, 1)        \
                                                                                \
   /* Handlers */                                                               \
-  TFS(LoadICProtoArray, HANDLER, Code::LOAD_IC, LoadICProtoArray)              \
-  TFS(LoadICProtoArrayThrowIfNonexistent, HANDLER, Code::LOAD_IC,              \
-      LoadICProtoArray)                                                        \
-  TFS(KeyedLoadIC_Megamorphic, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector) \
-  TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)              \
-  TFS(KeyedLoadIC_Slow, HANDLER, Code::KEYED_LOAD_IC, LoadWithVector)          \
-  TFS(KeyedStoreIC_Megamorphic, KEYED_STORE_IC, kNoExtraICState,               \
-      StoreWithVector)                                                         \
-  TFS(KeyedStoreIC_Megamorphic_Strict, KEYED_STORE_IC,                         \
-      StoreICState::kStrictModeState, StoreWithVector)                         \
-  ASM(KeyedStoreIC_Miss)                                                       \
-  ASH(KeyedStoreIC_Slow, HANDLER, Code::KEYED_STORE_IC)                        \
-  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
-  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
-  TFS(LoadField, HANDLER, Code::LOAD_IC, LoadField)                            \
-  ASH(LoadIC_Getter_ForDeopt, LOAD_IC, kNoExtraICState)                        \
-  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                   \
-  TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector)                   \
-  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                     \
-  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                 \
-  TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector)                \
-  ASH(StoreIC_Setter_ForDeopt, STORE_IC, StoreICState::kStrictModeState)       \
-  TFS(StoreIC_SlowSloppy, HANDLER, Code::STORE_IC, StoreWithVector)            \
-  TFS(StoreIC_SlowStrict, HANDLER, Code::STORE_IC, StoreWithVector)            \
+  TFS(LoadICProtoArray, BUILTIN, kNoExtraICState, LoadICProtoArray, 1)         \
+  TFS(LoadICProtoArrayThrowIfNonexistent, BUILTIN, kNoExtraICState,            \
+      LoadICProtoArray, 1)                                                     \
+  TFS(KeyedLoadIC_Megamorphic, BUILTIN, kNoExtraICState, LoadWithVector, 1)    \
+  TFS(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)           \
+  TFS(KeyedLoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector, 1)             \
+  TFS(KeyedLoadIC_IndexedString, HANDLER, Code::LOAD_IC, LoadWithVector, 1)    \
+  TFS(KeyedStoreIC_Megamorphic, BUILTIN, kNoExtraICState, StoreWithVector, 1)  \
+  TFS(KeyedStoreIC_Megamorphic_Strict, BUILTIN, kNoExtraICState,               \
+      StoreWithVector, 1)                                                      \
+  TFS(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector, 1)         \
+  TFS(KeyedStoreIC_Slow, HANDLER, Code::STORE_IC, StoreWithVector, 1)          \
+  TFS(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector, 1)    \
+  TFS(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector,  \
+      1)                                                                       \
+  TFS(LoadField, BUILTIN, kNoExtraICState, LoadField, 1)                       \
+  TFS(LoadIC_FunctionPrototype, HANDLER, Code::LOAD_IC, LoadWithVector, 1)     \
+  ASH(LoadIC_Getter_ForDeopt, BUILTIN, kNoExtraICState)                        \
+  TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)                \
+  TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                \
+  TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                  \
+  TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector, 1)              \
+  TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector, 1)             \
+  ASH(StoreIC_Setter_ForDeopt, BUILTIN, kNoExtraICState)                       \
                                                                                \
   /* Built-in functions for Javascript */                                      \
   /* Special internal builtins */                                              \
@@ -273,6 +277,7 @@ class Isolate;
   CPP(ArraySlice)                                                              \
   CPP(ArraySplice)                                                             \
   CPP(ArrayUnshift)                                                            \
+  TFJ(ArrayForEach, 2)                                                         \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
   /* ES6 #sec-array.prototype.keys */                                          \
@@ -438,7 +443,7 @@ class Isolate;
                                                                                \
   /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
   TFS(CreateIterResultObject, BUILTIN, kNoExtraICState,                        \
-      CreateIterResultObject)                                                  \
+      CreateIterResultObject, 1)                                               \
                                                                                \
   /* Generator and Async */                                                    \
   CPP(GeneratorFunctionConstructor)                                            \
@@ -468,30 +473,24 @@ class Isolate;
   CPP(JsonStringify)                                                           \
                                                                                \
   /* ICs */                                                                    \
-  TFS(LoadIC, LOAD_IC, kNoExtraICState, LoadWithVector)                        \
-  TFS(LoadICTrampoline, LOAD_IC, kNoExtraICState, Load)                        \
-  TFS(KeyedLoadIC, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector)             \
-  TFS(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load)             \
-  TFS(StoreIC, STORE_IC, kNoExtraICState, StoreWithVector)                     \
-  TFS(StoreICTrampoline, STORE_IC, kNoExtraICState, Store)                     \
-  TFS(StoreICStrict, STORE_IC, StoreICState::kStrictModeState,                 \
-      StoreWithVector)                                                         \
-  TFS(StoreICStrictTrampoline, STORE_IC, StoreICState::kStrictModeState,       \
-      Store)                                                                   \
-  TFS(KeyedStoreIC, KEYED_STORE_IC, kNoExtraICState, StoreWithVector)          \
-  TFS(KeyedStoreICTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)          \
-  TFS(KeyedStoreICStrict, KEYED_STORE_IC, StoreICState::kStrictModeState,      \
-      StoreWithVector)                                                         \
-  TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC,                            \
-      StoreICState::kStrictModeState, Store)                                   \
-  TFS(LoadGlobalIC, LOAD_GLOBAL_IC, LoadGlobalICState::kNotInsideTypeOfState,  \
-      LoadGlobalWithVector)                                                    \
-  TFS(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC,                                \
-      LoadGlobalICState::kInsideTypeOfState, LoadGlobalWithVector)             \
-  TFS(LoadGlobalICTrampoline, LOAD_GLOBAL_IC,                                  \
-      LoadGlobalICState::kNotInsideTypeOfState, LoadGlobal)                    \
-  TFS(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC,                      \
-      LoadGlobalICState::kInsideTypeOfState, LoadGlobal)                       \
+  TFS(LoadIC, LOAD_IC, kNoExtraICState, LoadWithVector, 1)                     \
+  TFS(LoadICTrampoline, LOAD_IC, kNoExtraICState, Load, 1)                     \
+  TFS(KeyedLoadIC, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector, 1)          \
+  TFS(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load, 1)          \
+  TFS(StoreIC, STORE_IC, kNoExtraICState, StoreWithVector, 1)                  \
+  TFS(StoreICTrampoline, STORE_IC, kNoExtraICState, Store, 1)                  \
+  TFS(StoreICStrict, STORE_IC, kNoExtraICState, StoreWithVector, 1)            \
+  TFS(StoreICStrictTrampoline, STORE_IC, kNoExtraICState, Store, 1)            \
+  TFS(KeyedStoreIC, KEYED_STORE_IC, kNoExtraICState, StoreWithVector, 1)       \
+  TFS(KeyedStoreICTrampoline, KEYED_STORE_IC, kNoExtraICState, Store, 1)       \
+  TFS(KeyedStoreICStrict, KEYED_STORE_IC, kNoExtraICState, StoreWithVector, 1) \
+  TFS(KeyedStoreICStrictTrampoline, KEYED_STORE_IC, kNoExtraICState, Store, 1) \
+  TFS(LoadGlobalIC, LOAD_GLOBAL_IC, kNoExtraICState, LoadGlobalWithVector, 1)  \
+  TFS(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC, kNoExtraICState,               \
+      LoadGlobalWithVector, 1)                                                 \
+  TFS(LoadGlobalICTrampoline, LOAD_GLOBAL_IC, kNoExtraICState, LoadGlobal, 1)  \
+  TFS(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, kNoExtraICState,     \
+      LoadGlobal, 1)                                                           \
                                                                                \
   /* Math */                                                                   \
   /* ES6 section 20.2.2.1 Math.abs ( x ) */                                    \
@@ -589,25 +588,25 @@ class Isolate;
   CPP(NumberPrototypeToString)                                                 \
   /* ES6 section 20.1.3.7 Number.prototype.valueOf ( ) */                      \
   TFJ(NumberPrototypeValueOf, 0)                                               \
-  TFS(Add, BUILTIN, kNoExtraICState, BinaryOp)                                 \
-  TFS(Subtract, BUILTIN, kNoExtraICState, BinaryOp)                            \
-  TFS(Multiply, BUILTIN, kNoExtraICState, BinaryOp)                            \
-  TFS(Divide, BUILTIN, kNoExtraICState, BinaryOp)                              \
-  TFS(Modulus, BUILTIN, kNoExtraICState, BinaryOp)                             \
-  TFS(BitwiseAnd, BUILTIN, kNoExtraICState, BinaryOp)                          \
-  TFS(BitwiseOr, BUILTIN, kNoExtraICState, BinaryOp)                           \
-  TFS(BitwiseXor, BUILTIN, kNoExtraICState, BinaryOp)                          \
-  TFS(ShiftLeft, BUILTIN, kNoExtraICState, BinaryOp)                           \
-  TFS(ShiftRight, BUILTIN, kNoExtraICState, BinaryOp)                          \
-  TFS(ShiftRightLogical, BUILTIN, kNoExtraICState, BinaryOp)                   \
-  TFS(LessThan, BUILTIN, kNoExtraICState, Compare)                             \
-  TFS(LessThanOrEqual, BUILTIN, kNoExtraICState, Compare)                      \
-  TFS(GreaterThan, BUILTIN, kNoExtraICState, Compare)                          \
-  TFS(GreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare)                   \
-  TFS(Equal, BUILTIN, kNoExtraICState, Compare)                                \
-  TFS(NotEqual, BUILTIN, kNoExtraICState, Compare)                             \
-  TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare)                          \
-  TFS(StrictNotEqual, BUILTIN, kNoExtraICState, Compare)                       \
+  TFS(Add, BUILTIN, kNoExtraICState, BinaryOp, 1)                              \
+  TFS(Subtract, BUILTIN, kNoExtraICState, BinaryOp, 1)                         \
+  TFS(Multiply, BUILTIN, kNoExtraICState, BinaryOp, 1)                         \
+  TFS(Divide, BUILTIN, kNoExtraICState, BinaryOp, 1)                           \
+  TFS(Modulus, BUILTIN, kNoExtraICState, BinaryOp, 1)                          \
+  TFS(BitwiseAnd, BUILTIN, kNoExtraICState, BinaryOp, 1)                       \
+  TFS(BitwiseOr, BUILTIN, kNoExtraICState, BinaryOp, 1)                        \
+  TFS(BitwiseXor, BUILTIN, kNoExtraICState, BinaryOp, 1)                       \
+  TFS(ShiftLeft, BUILTIN, kNoExtraICState, BinaryOp, 1)                        \
+  TFS(ShiftRight, BUILTIN, kNoExtraICState, BinaryOp, 1)                       \
+  TFS(ShiftRightLogical, BUILTIN, kNoExtraICState, BinaryOp, 1)                \
+  TFS(LessThan, BUILTIN, kNoExtraICState, Compare, 1)                          \
+  TFS(LessThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)                   \
+  TFS(GreaterThan, BUILTIN, kNoExtraICState, Compare, 1)                       \
+  TFS(GreaterThanOrEqual, BUILTIN, kNoExtraICState, Compare, 1)                \
+  TFS(Equal, BUILTIN, kNoExtraICState, Compare, 1)                             \
+  TFS(NotEqual, BUILTIN, kNoExtraICState, Compare, 1)                          \
+  TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare, 1)                       \
+  TFS(StrictNotEqual, BUILTIN, kNoExtraICState, Compare, 1)                    \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \
@@ -642,10 +641,14 @@ class Isolate;
   CPP(ObjectSeal)                                                              \
   CPP(ObjectValues)                                                            \
                                                                                \
-  TFS(HasProperty, BUILTIN, kNoExtraICState, HasProperty)                      \
-  TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare)                           \
-  TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare)                  \
-  TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter)                      \
+  /* instanceof */                                                             \
+  TFS(OrdinaryHasInstance, BUILTIN, kNoExtraICState, Compare, 1)               \
+  TFS(InstanceOf, BUILTIN, kNoExtraICState, Compare, 1)                        \
+                                                                               \
+  /* for-in */                                                                 \
+  TFS(ForInFilter, BUILTIN, kNoExtraICState, ForInFilter, 1)                   \
+  TFS(ForInNext, BUILTIN, kNoExtraICState, ForInNext, 1)                       \
+  TFS(ForInPrepare, BUILTIN, kNoExtraICState, ForInPrepare, 3)                 \
                                                                                \
   /* Promise */                                                                \
   TFJ(PromiseGetCapabilitiesExecutor, 2)                                       \
@@ -658,7 +661,7 @@ class Isolate;
   TFJ(PromiseThen, 2)                                                          \
   TFJ(PromiseCatch, 1)                                                         \
   TFJ(ResolvePromise, 2)                                                       \
-  TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject)      \
+  TFS(PromiseHandleReject, BUILTIN, kNoExtraICState, PromiseHandleReject, 1)   \
   TFJ(PromiseHandle, 5)                                                        \
   TFJ(PromiseResolve, 1)                                                       \
   TFJ(PromiseReject, 1)                                                        \
@@ -707,15 +710,19 @@ class Isolate;
   TFJ(RegExpPrototypeIgnoreCaseGetter, 0)                                      \
   TFJ(RegExpPrototypeMatch, 1)                                                 \
   TFJ(RegExpPrototypeMultilineGetter, 0)                                       \
-  TFJ(RegExpPrototypeReplace, 2)                                               \
   TFJ(RegExpPrototypeSearch, 1)                                                \
   TFJ(RegExpPrototypeSourceGetter, 0)                                          \
-  TFJ(RegExpPrototypeSplit, 2)                                                 \
   TFJ(RegExpPrototypeStickyGetter, 0)                                          \
   TFJ(RegExpPrototypeTest, 1)                                                  \
   CPP(RegExpPrototypeToString)                                                 \
   TFJ(RegExpPrototypeUnicodeGetter, 0)                                         \
   CPP(RegExpRightContextGetter)                                                \
+                                                                               \
+  TFS(RegExpReplace, BUILTIN, kNoExtraICState, RegExpReplace, 1)               \
+  TFJ(RegExpPrototypeReplace, 2)                                               \
+                                                                               \
+  TFS(RegExpSplit, BUILTIN, kNoExtraICState, RegExpSplit, 1)                   \
+  TFJ(RegExpPrototypeSplit, 2)                                                 \
                                                                                \
   /* SharedArrayBuffer */                                                      \
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
@@ -748,6 +755,10 @@ class Isolate;
   CPP(StringPrototypeLocaleCompare)                                            \
   /* ES6 section 21.1.3.12 String.prototype.normalize ( [form] ) */            \
   CPP(StringPrototypeNormalize)                                                \
+  /* ES6 section 21.1.3.16 String.prototype.replace ( search, replace ) */     \
+  TFJ(StringPrototypeReplace, 2)                                               \
+  /* ES6 section 21.1.3.19 String.prototype.split ( separator, limit )  */     \
+  TFJ(StringPrototypeSplit, 2)                                                 \
   /* ES6 section B.2.3.1 String.prototype.substr ( start, length ) */          \
   TFJ(StringPrototypeSubstr, 2)                                                \
   /* ES6 section 21.1.3.19 String.prototype.substring ( start, end ) */        \

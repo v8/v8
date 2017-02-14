@@ -83,6 +83,8 @@ enum ExceptionBreakState {
  */
 void ChangeBreakOnException(Isolate* isolate, ExceptionBreakState state);
 
+void SetBreakPointsActive(Isolate* isolate, bool is_active);
+
 enum StepAction {
   StepOut = 0,   // Step out of the current function.
   StepNext = 1,  // Step to the next statement in the current function.
@@ -123,6 +125,7 @@ class Script {
   MaybeLocal<Value> ContextData() const;
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
+  bool IsModule() const;
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
                               std::vector<debug::Location>* locations) const;
@@ -162,7 +165,8 @@ class DebugDelegate {
   virtual void ExceptionThrown(v8::Local<v8::Context> paused_context,
                                v8::Local<v8::Object> exec_state,
                                v8::Local<v8::Value> exception,
-                               bool is_promise_rejection, bool is_uncaught) {}
+                               v8::Local<v8::Value> promise, bool is_uncaught) {
+  }
   virtual bool IsFunctionBlackboxed(v8::Local<debug::Script> script,
                                     const debug::Location& start,
                                     const debug::Location& end) {
@@ -176,6 +180,23 @@ void ResetBlackboxedStateCache(Isolate* isolate,
                                v8::Local<debug::Script> script);
 
 int EstimatedValueSize(Isolate* isolate, v8::Local<v8::Value> value);
+
+v8::MaybeLocal<v8::Array> EntriesPreview(Isolate* isolate,
+                                         v8::Local<v8::Value> value,
+                                         bool* is_key_value);
+
+/**
+ * Native wrapper around v8::internal::JSGeneratorObject object.
+ */
+class GeneratorObject {
+ public:
+  v8::MaybeLocal<debug::Script> Script();
+  v8::Local<v8::Function> Function();
+  debug::Location SuspendedLocation();
+  bool IsSuspended();
+
+  static v8::Local<debug::GeneratorObject> Cast(v8::Local<v8::Value> value);
+};
 
 }  // namespace debug
 }  // namespace v8

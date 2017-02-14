@@ -5,10 +5,11 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
+#include "src/feedback-vector.h"
 #include "src/globals.h"
 #include "src/isolate.h"
 #include "src/messages.h"
-#include "src/type-feedback-vector.h"
+#include "src/objects/scope-info.h"
 
 namespace v8 {
 namespace internal {
@@ -372,6 +373,10 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
 
+  Handle<Cell> NewNoClosuresCell(Handle<Object> value);
+  Handle<Cell> NewOneClosureCell(Handle<Object> value);
+  Handle<Cell> NewManyClosuresCell(Handle<Object> value);
+
   Handle<TransitionArray> NewTransitionArray(int capacity);
 
   // Allocate a tenured AllocationSite. It's payload is null.
@@ -463,12 +468,6 @@ class V8_EXPORT_PRIVATE Factory final {
   // Creates heap number object with not yet set value field.
   Handle<HeapNumber> NewHeapNumber(MutableMode mode,
                                    PretenureFlag pretenure = NOT_TENURED);
-
-#define SIMD128_NEW_DECL(TYPE, Type, type, lane_count, lane_type) \
-  Handle<Type> New##Type(lane_type lanes[lane_count],             \
-                         PretenureFlag pretenure = NOT_TENURED);
-  SIMD128_TYPES(SIMD128_NEW_DECL)
-#undef SIMD128_NEW_DECL
 
   Handle<JSWeakMap> NewJSWeakMap();
 
@@ -602,12 +601,12 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Object> context_or_undefined, Handle<TypeFeedbackVector> vector,
+      Handle<Object> context_or_undefined, Handle<Cell> vector,
       PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
-      Handle<TypeFeedbackVector> vector, PretenureFlag pretenure = TENURED);
+      Handle<Cell> vector, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,

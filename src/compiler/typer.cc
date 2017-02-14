@@ -43,13 +43,14 @@ Typer::Typer(Isolate* isolate, Flags flags, Graph* graph)
   Zone* zone = this->zone();
   Factory* const factory = isolate->factory();
 
-  singleton_false_ = Type::HeapConstant(factory->false_value(), zone);
-  singleton_true_ = Type::HeapConstant(factory->true_value(), zone);
-  singleton_the_hole_ = Type::HeapConstant(factory->the_hole_value(), zone);
+  singleton_empty_string_ = Type::HeapConstant(factory->empty_string(), zone);
+  singleton_false_ = operation_typer_.singleton_false();
+  singleton_true_ = operation_typer_.singleton_true();
   falsish_ = Type::Union(
       Type::Undetectable(),
       Type::Union(Type::Union(singleton_false_, cache_.kZeroish, zone),
-                  singleton_the_hole_, zone),
+                  Type::Union(singleton_empty_string_, Type::Hole(), zone),
+                  zone),
       zone);
   truish_ = Type::Union(
       singleton_true_,
@@ -297,7 +298,7 @@ class Typer::Visitor : public Reducer {
   JS_SIMPLE_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
-  static Type* JSCallFunctionTyper(Type*, Typer*);
+  static Type* JSCallTyper(Type*, Typer*);
 
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* StringFromCharCodeTyper(Type*, Typer*);
@@ -908,8 +909,7 @@ Type* Typer::Visitor::JSStrictEqualTyper(Type* lhs, Type* rhs, Typer* t) {
       (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
     return t->singleton_false_;
   }
-  if ((lhs->Is(t->singleton_the_hole_) || rhs->Is(t->singleton_the_hole_)) &&
-      !lhs->Maybe(rhs)) {
+  if ((lhs->Is(Type::Hole()) || rhs->Is(Type::Hole())) && !lhs->Maybe(rhs)) {
     return t->singleton_false_;
   }
   if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
@@ -1328,7 +1328,7 @@ Type* Typer::Visitor::TypeJSConstructWithSpread(Node* node) {
   return Type::Receiver();
 }
 
-Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
+Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
   if (fun->IsHeapConstant() && fun->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(fun->AsHeapConstant()->Value());
@@ -1579,17 +1579,17 @@ Type* Typer::Visitor::JSCallFunctionTyper(Type* fun, Typer* t) {
 }
 
 Type* Typer::Visitor::TypeJSCallForwardVarargs(Node* node) {
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
-Type* Typer::Visitor::TypeJSCallFunction(Node* node) {
+Type* Typer::Visitor::TypeJSCall(Node* node) {
   // TODO(bmeurer): We could infer better types if we wouldn't ignore the
-  // argument types for the JSCallFunctionTyper above.
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+  // argument types for the JSCallTyper above.
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
-Type* Typer::Visitor::TypeJSCallFunctionWithSpread(Node* node) {
-  return TypeUnaryOp(node, JSCallFunctionTyper);
+Type* Typer::Visitor::TypeJSCallWithSpread(Node* node) {
+  return TypeUnaryOp(node, JSCallTyper);
 }
 
 Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {

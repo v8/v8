@@ -92,6 +92,13 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
                  g.UseRegister(node->InputAt(1)));
 }
 
+void VisitRRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
+  ArmOperandGenerator g(selector);
+  selector->Emit(
+      opcode, g.DefineAsRegister(node), g.UseRegister(node->InputAt(0)),
+      g.UseRegister(node->InputAt(1)), g.UseRegister(node->InputAt(2)));
+}
+
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
   int32_t imm = OpParameter<int32_t>(node);
@@ -280,7 +287,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else if (cont->IsTrap()) {
     inputs[input_count++] = g.UseImmediate(cont->trap_id());
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
@@ -906,7 +913,7 @@ void VisitShift(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else if (cont->IsTrap()) {
     inputs[input_count++] = g.UseImmediate(cont->trap_id());
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
@@ -1268,8 +1275,8 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
     InstructionOperand in[] = {temp_operand, result_operand, shift_31};
-    selector->EmitDeoptimize(opcode, 0, nullptr, 3, in, cont->reason(),
-                             cont->frame_state());
+    selector->EmitDeoptimize(opcode, 0, nullptr, 3, in, cont->kind(),
+                             cont->reason(), cont->frame_state());
   } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), temp_operand,
                    result_operand, shift_31);
@@ -1540,8 +1547,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
     selector->Emit(opcode, g.NoOutput(), left, right,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->reason(),
-                             cont->frame_state());
+    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
+                             cont->reason(), cont->frame_state());
   } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
   } else {
@@ -1737,7 +1744,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else if (cont->IsTrap()) {
     inputs[input_count++] = g.UseImmediate(cont->trap_id());
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
@@ -1896,7 +1903,7 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), value_operand, value_operand,
-                             cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->frame_state());
   } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
                    value_operand);
@@ -1916,14 +1923,16 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kNotEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
+  DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, DeoptimizeReasonOf(node->op()), node->InputAt(1));
+      kEqual, p.kind(), p.reason(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
@@ -2165,6 +2174,11 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int16x8)              \
   V(Int8x16)
 
+#define SIMD_FORMAT_LIST(V) \
+  V(32x4)                   \
+  V(16x8)                   \
+  V(8x16)
+
 #define SIMD_UNOP_LIST(V)  \
   V(Float32x4FromInt32x4)  \
   V(Float32x4FromUint32x4) \
@@ -2174,7 +2188,8 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Uint32x4FromFloat32x4) \
   V(Int32x4Neg)            \
   V(Int16x8Neg)            \
-  V(Int8x16Neg)
+  V(Int8x16Neg)            \
+  V(Simd128Not)
 
 #define SIMD_BINOP_LIST(V)      \
   V(Float32x4Add)               \
@@ -2190,10 +2205,14 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int32x4NotEqual)            \
   V(Int32x4GreaterThan)         \
   V(Int32x4GreaterThanOrEqual)  \
+  V(Uint32x4Min)                \
+  V(Uint32x4Max)                \
   V(Uint32x4GreaterThan)        \
   V(Uint32x4GreaterThanOrEqual) \
   V(Int16x8Add)                 \
+  V(Int16x8AddSaturate)         \
   V(Int16x8Sub)                 \
+  V(Int16x8SubSaturate)         \
   V(Int16x8Mul)                 \
   V(Int16x8Min)                 \
   V(Int16x8Max)                 \
@@ -2201,10 +2220,16 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int16x8NotEqual)            \
   V(Int16x8GreaterThan)         \
   V(Int16x8GreaterThanOrEqual)  \
+  V(Uint16x8AddSaturate)        \
+  V(Uint16x8SubSaturate)        \
+  V(Uint16x8Min)                \
+  V(Uint16x8Max)                \
   V(Uint16x8GreaterThan)        \
   V(Uint16x8GreaterThanOrEqual) \
   V(Int8x16Add)                 \
+  V(Int8x16AddSaturate)         \
   V(Int8x16Sub)                 \
+  V(Int8x16SubSaturate)         \
   V(Int8x16Mul)                 \
   V(Int8x16Min)                 \
   V(Int8x16Max)                 \
@@ -2212,8 +2237,26 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int8x16NotEqual)            \
   V(Int8x16GreaterThan)         \
   V(Int8x16GreaterThanOrEqual)  \
+  V(Uint8x16AddSaturate)        \
+  V(Uint8x16SubSaturate)        \
+  V(Uint8x16Min)                \
+  V(Uint8x16Max)                \
   V(Uint8x16GreaterThan)        \
-  V(Uint8x16GreaterThanOrEqual)
+  V(Uint8x16GreaterThanOrEqual) \
+  V(Simd128And)                 \
+  V(Simd128Or)                  \
+  V(Simd128Xor)
+
+#define SIMD_SHIFT_OP_LIST(V)   \
+  V(Int32x4ShiftLeftByScalar)   \
+  V(Int32x4ShiftRightByScalar)  \
+  V(Uint32x4ShiftRightByScalar) \
+  V(Int16x8ShiftLeftByScalar)   \
+  V(Int16x8ShiftRightByScalar)  \
+  V(Uint16x8ShiftRightByScalar) \
+  V(Int8x16ShiftLeftByScalar)   \
+  V(Int8x16ShiftRightByScalar)  \
+  V(Uint8x16ShiftRightByScalar)
 
 #define SIMD_VISIT_SPLAT(Type)                              \
   void InstructionSelector::VisitCreate##Type(Node* node) { \
@@ -2250,12 +2293,19 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
 
-void InstructionSelector::VisitSimd32x4Select(Node* node) {
-  ArmOperandGenerator g(this);
-  Emit(kArmSimd32x4Select, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
-       g.UseRegister(node->InputAt(2)));
-}
+#define SIMD_VISIT_SHIFT_OP(Name)                     \
+  void InstructionSelector::Visit##Name(Node* node) { \
+    VisitRRI(this, kArm##Name, node);                 \
+  }
+SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
+#undef SIMD_VISIT_SHIFT_OP
+
+#define SIMD_VISIT_SELECT_OP(format)                                \
+  void InstructionSelector::VisitSimd##format##Select(Node* node) { \
+    VisitRRRR(this, kArmSimd##format##Select, node);                \
+  }
+SIMD_FORMAT_LIST(SIMD_VISIT_SELECT_OP)
+#undef SIMD_VISIT_SELECT_OP
 
 // static
 MachineOperatorBuilder::Flags

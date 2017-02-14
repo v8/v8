@@ -50,6 +50,9 @@ class V8_EXPORT_PRIVATE Zone final {
     return static_cast<T*>(New(length * sizeof(T)));
   }
 
+  // Seals the zone to prevent any further allocation.
+  void Seal() { sealed_ = true; }
+
   // Returns true if more memory has been allocated in zones than
   // the limit allows.
   bool excess_allocation() const {
@@ -63,16 +66,8 @@ class V8_EXPORT_PRIVATE Zone final {
   AccountingAllocator* allocator() const { return allocator_; }
 
  private:
-// All pointers returned from New() have this alignment.  In addition, if the
-// object being allocated has a size that is divisible by 8 then its alignment
-// will be 8. ASan requires 8-byte alignment. MIPS also requires 8-byte
-// alignment.
-#if defined(V8_USE_ADDRESS_SANITIZER) || defined(V8_TARGET_ARCH_MIPS)
-  static const size_t kAlignment = 8;
-  STATIC_ASSERT(kPointerSize <= 8);
-#else
-  static const size_t kAlignment = kPointerSize;
-#endif
+  // All pointers returned from New() are 8-byte aligned.
+  static const size_t kAlignmentInBytes = 8;
 
   // Never allocate segments smaller than this size in bytes.
   static const size_t kMinimumSegmentSize = 8 * KB;
@@ -114,6 +109,7 @@ class V8_EXPORT_PRIVATE Zone final {
 
   Segment* segment_head_;
   const char* name_;
+  bool sealed_;
 };
 
 // ZoneObject is an abstraction that helps define classes of objects

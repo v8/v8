@@ -16,7 +16,11 @@ namespace v8 {
 namespace internal {
 
 StoreBuffer::StoreBuffer(Heap* heap)
-    : heap_(heap), top_(nullptr), current_(0), virtual_memory_(nullptr) {
+    : heap_(heap),
+      top_(nullptr),
+      current_(0),
+      mode_(NOT_IN_GC),
+      virtual_memory_(nullptr) {
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;
     limit_[i] = nullptr;
@@ -101,7 +105,6 @@ void StoreBuffer::MoveEntriesToRememberedSet(int index) {
   DCHECK_LT(index, kStoreBuffers);
   for (Address* current = start_[index]; current < lazy_top_[index];
        current++) {
-    DCHECK(!heap_->code_space()->Contains(*current));
     Address addr = *current;
     Page* page = Page::FromAnyPointerAddress(heap_, addr);
     if (IsDeletionAddress(addr)) {

@@ -98,7 +98,8 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate,
 Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
                                    CodeAssemblerGenerator generator,
                                    CallDescriptors::Key interface_descriptor,
-                                   Code::Flags flags, const char* name) {
+                                   Code::Flags flags, const char* name,
+                                   int result_size) {
   HandleScope scope(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME);
   // The interface descriptor with given key must be initialized at this point
@@ -106,7 +107,8 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
   CallInterfaceDescriptor descriptor(isolate, interface_descriptor);
   // Ensure descriptor is already initialized.
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
-  compiler::CodeAssemblerState state(isolate, &zone, descriptor, flags, name);
+  compiler::CodeAssemblerState state(isolate, &zone, descriptor, flags, name,
+                                     result_size);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
   PostBuildProfileAndTracing(isolate, *code, name);
@@ -136,11 +138,11 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
   code = BuildWithCodeStubAssemblerJS(isolate, &Generate_##Name, Argc, \
                                       kBuiltinFlags, #Name);           \
   builtins_[index++] = code;
-#define BUILD_TFS(Name, Kind, Extra, InterfaceDescriptor)              \
+#define BUILD_TFS(Name, Kind, Extra, InterfaceDescriptor, result_size) \
   { InterfaceDescriptor##Descriptor descriptor(isolate); }             \
   code = BuildWithCodeStubAssemblerCS(                                 \
       isolate, &Generate_##Name, CallDescriptors::InterfaceDescriptor, \
-      Code::ComputeFlags(Code::Kind, Extra), #Name);                   \
+      Code::ComputeFlags(Code::Kind, Extra), #Name, result_size);      \
   builtins_[index++] = code;
 #define BUILD_ASM(Name)                                                        \
   code =                                                                       \

@@ -235,16 +235,17 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeserializeScopeChain(ParseInfo* info,
                              MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
-  // Handle errors detected during parsing, move statistics to Isolate,
-  // internalize strings (move them to the heap).
-  void Internalize(Isolate* isolate, Handle<Script> script, bool error);
+  // Handle errors detected during parsing
+  void ReportErrors(Isolate* isolate, Handle<Script> script);
+  // Move statistics to Isolate
+  void UpdateStatistics(Isolate* isolate, Handle<Script> script);
   void HandleSourceURLComments(Isolate* isolate, Handle<Script> script);
 
  private:
   friend class ParserBase<Parser>;
   friend class v8::internal::ExpressionClassifier<ParserTypes<Parser>>;
-  friend bool v8::internal::parsing::ParseProgram(ParseInfo*);
-  friend bool v8::internal::parsing::ParseFunction(ParseInfo*);
+  friend bool v8::internal::parsing::ParseProgram(ParseInfo*, bool);
+  friend bool v8::internal::parsing::ParseFunction(ParseInfo*, bool);
 
   bool AllowsLazyParsingWithoutUnresolvedVariables() const {
     return scope()->AllowsLazyParsingWithoutUnresolvedVariables(
@@ -364,15 +365,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, VariableMode mode,
-                             int pos, bool is_generator, bool is_async,
-                             bool is_sloppy_block_function,
+                             int pos, bool is_sloppy_block_function,
                              ZoneList<const AstRawString*>* names, bool* ok);
   V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
                                     Expression* value,
                                     ZoneList<const AstRawString*>* names,
                                     int class_token_pos, int end_pos, bool* ok);
   V8_INLINE void DeclareClassVariable(const AstRawString* name,
-                                      Scope* block_scope, ClassInfo* class_info,
+                                      ClassInfo* class_info,
                                       int class_token_pos, bool* ok);
   V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
                                       ClassLiteralProperty* property,
@@ -442,6 +442,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     PatternContext SetAssignmentContextIfNeeded(Expression* node);
     PatternContext SetInitializerContextIfNeeded(Expression* node);
 
+    bool DeclaresParameterContainingSloppyEval() const;
     void RewriteParameterScopes(Expression* expr);
 
     Variable* CreateTempVar(Expression* value = nullptr);
@@ -843,20 +844,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     DCHECK_NOT_NULL(expression);
     if (expression->IsVariableProxy()) {
       expression->AsVariableProxy()->set_is_assigned();
-    }
-  }
-
-  // Pessimistically assume that top-level variables will be assigned.
-  //
-  // Top-level variables in a script can be accessed by other scripts or even
-  // become global properties. While this does not apply to top-level variables
-  // in a module (assuming they are not exported), we must still mark these as
-  // assigned because they might be accessed by a lazily parsed top-level
-  // function, which, for efficiency, we preparse without variable tracking.
-  V8_INLINE static void MarkTopLevelVariableAsAssigned(Scope* scope,
-                                                       VariableProxy* proxy) {
-    if (scope->is_script_scope() || scope->is_module_scope()) {
-      proxy->set_is_assigned();
     }
   }
 

@@ -885,24 +885,21 @@ inline bool operator>(TypeFeedbackId lhs, TypeFeedbackId rhs) {
   return lhs.ToInt() > rhs.ToInt();
 }
 
-
-class FeedbackVectorSlot {
+class FeedbackSlot {
  public:
-  FeedbackVectorSlot() : id_(kInvalidSlot) {}
-  explicit FeedbackVectorSlot(int id) : id_(id) {}
+  FeedbackSlot() : id_(kInvalidSlot) {}
+  explicit FeedbackSlot(int id) : id_(id) {}
 
   int ToInt() const { return id_; }
 
-  static FeedbackVectorSlot Invalid() { return FeedbackVectorSlot(); }
+  static FeedbackSlot Invalid() { return FeedbackSlot(); }
   bool IsInvalid() const { return id_ == kInvalidSlot; }
 
-  bool operator==(FeedbackVectorSlot that) const {
-    return this->id_ == that.id_;
-  }
-  bool operator!=(FeedbackVectorSlot that) const { return !(*this == that); }
+  bool operator==(FeedbackSlot that) const { return this->id_ == that.id_; }
+  bool operator!=(FeedbackSlot that) const { return !(*this == that); }
 
-  friend size_t hash_value(FeedbackVectorSlot slot) { return slot.ToInt(); }
-  friend std::ostream& operator<<(std::ostream& os, FeedbackVectorSlot);
+  friend size_t hash_value(FeedbackSlot slot) { return slot.ToInt(); }
+  friend std::ostream& operator<<(std::ostream& os, FeedbackSlot);
 
  private:
   static const int kInvalidSlot = -1;
@@ -923,6 +920,17 @@ class BailoutId {
   static BailoutId Declarations() { return BailoutId(kDeclarationsId); }
   static BailoutId FirstUsable() { return BailoutId(kFirstUsableId); }
   static BailoutId StubEntry() { return BailoutId(kStubEntryId); }
+
+  // Special bailout id support for deopting into the {JSConstructStub} stub.
+  // The following hard-coded deoptimization points are supported by the stub:
+  //  - {ConstructStubCreate} maps to {construct_stub_create_deopt_pc_offset}.
+  //  - {ConstructStubInvoke} maps to {construct_stub_invoke_deopt_pc_offset}.
+  static BailoutId ConstructStubCreate() { return BailoutId(1); }
+  static BailoutId ConstructStubInvoke() { return BailoutId(2); }
+  bool IsValidForConstructStub() const {
+    return id_ == ConstructStubCreate().ToInt() ||
+           id_ == ConstructStubInvoke().ToInt();
+  }
 
   bool IsNone() const { return id_ == kNoneId; }
   bool operator==(const BailoutId& other) const { return id_ == other.id_; }

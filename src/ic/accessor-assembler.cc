@@ -80,7 +80,7 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
   Node* init = IntPtrConstant(unroll_count * kEntrySize);
   Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
   BuildFastLoop(
-      MachineType::PointerRepresentation(), init, length,
+      init, length,
       [this, receiver_map, feedback, if_handler, var_handler](Node* index) {
         Node* cached_map =
             LoadWeakCellValue(LoadFixedArrayElement(feedback, index));
@@ -95,7 +95,7 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
 
         Bind(&next_entry);
       },
-      kEntrySize, IndexAdvanceMode::kPost);
+      kEntrySize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
   // The loop falls through if no handler was found.
   Goto(if_miss);
 }
@@ -111,7 +111,7 @@ void AccessorAssembler::HandleKeyedStorePolymorphicCase(
 
   Node* init = IntPtrConstant(0);
   Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
-  BuildFastLoop(MachineType::PointerRepresentation(), init, length,
+  BuildFastLoop(init, length,
                 [this, receiver_map, feedback, if_handler, var_handler,
                  if_transition_handler, var_transition_map_cell](Node* index) {
                   Node* cached_map =
@@ -132,7 +132,7 @@ void AccessorAssembler::HandleKeyedStorePolymorphicCase(
 
                   Bind(&next_entry);
                 },
-                kEntrySize, IndexAdvanceMode::kPost);
+                kEntrySize, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
   // The loop falls through if no handler was found.
   Goto(if_miss);
 }
@@ -141,6 +141,8 @@ void AccessorAssembler::HandleLoadICHandlerCase(
     const LoadICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
   Comment("have_handler");
+  ExitPoint direct_exit(this);
+
   Variable var_holder(this, MachineRepresentation::kTagged);
   var_holder.Bind(p->receiver);
   Variable var_smi_handler(this, MachineRepresentation::kTagged);
@@ -157,14 +159,14 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   Bind(&if_smi_handler);
   {
     HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
-                               miss, support_elements);
+                               miss, &direct_exit, support_elements);
   }
 
   Bind(&try_proto_handler);
   {
     GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
     HandleLoadICProtoHandlerCase(p, handler, &var_holder, &var_smi_handler,
-                                 &if_smi_handler, miss, false);
+                                 &if_smi_handler, miss, &direct_exit, false);
   }
 
   Bind(&call_handler);
@@ -177,7 +179,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LoadICParameters* p, Node* holder, Node* smi_handler, Label* miss,
-    ElementSupport support_elements) {
+    ExitPoint* exit_point, ElementSupport support_elements) {
   Variable var_double_value(this, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
@@ -201,7 +203,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     EmitElementLoad(holder, elements, elements_kind, intptr_index,
                     is_jsarray_condition, &if_hole, &rebox_double,
                     &var_double_value, &unimplemented_elements_kind,
-                    out_of_bounds, miss);
+                    out_of_bounds, miss, exit_point);
 
     Bind(&unimplemented_elements_kind);
     {
@@ -221,7 +223,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
           WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                     SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
           miss);
-      Return(UndefinedConstant());
+      exit_point->Return(UndefinedConstant());
     }
 
     Bind(&property);
@@ -245,7 +247,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     {
       Label is_double(this);
       GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-      Return(LoadObjectField(holder, offset));
+      exit_point->Return(LoadObjectField(holder, offset));
 
       Bind(&is_double);
       if (FLAG_unbox_double_fields) {
@@ -264,7 +266,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Node* properties = LoadProperties(holder);
       Node* value = LoadObjectField(properties, offset);
       GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-      Return(value);
+      exit_point->Return(value);
 
       Bind(&is_double);
       var_double_value.Bind(LoadHeapNumberValue(value));
@@ -272,7 +274,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     }
 
     Bind(&rebox_double);
-    Return(AllocateHeapNumberWithValue(var_double_value.value()));
+    exit_point->Return(AllocateHeapNumberWithValue(var_double_value.value()));
   }
 
   Bind(&constant);
@@ -289,18 +291,19 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     Label if_accessor_info(this);
     GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
            &if_accessor_info);
-    Return(value);
+    exit_point->Return(value);
 
     Bind(&if_accessor_info);
     Callable callable = CodeFactory::ApiGetter(isolate());
-    TailCallStub(callable, p->context, p->receiver, holder, value);
+    exit_point->ReturnCallStub(callable, p->context, p->receiver, holder,
+                               value);
   }
 }
 
 void AccessorAssembler::HandleLoadICProtoHandlerCase(
     const LoadICParameters* p, Node* handler, Variable* var_holder,
     Variable* var_smi_handler, Label* if_smi_handler, Label* miss,
-    bool throw_reference_error_if_nonexistent) {
+    ExitPoint* exit_point, bool throw_reference_error_if_nonexistent) {
   DCHECK_EQ(MachineRepresentation::kTagged, var_holder->rep());
   DCHECK_EQ(MachineRepresentation::kTagged, var_smi_handler->rep());
 
@@ -352,9 +355,10 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
     GotoIf(WordNotEqual(maybe_holder_cell, NullConstant()), &load_existent);
     // This is a handler for a load of a non-existent value.
     if (throw_reference_error_if_nonexistent) {
-      TailCallRuntime(Runtime::kThrowReferenceError, p->context, p->name);
+      exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError, p->context,
+                                    p->name);
     } else {
-      Return(UndefinedConstant());
+      exit_point->Return(UndefinedConstant());
     }
 
     Bind(&load_existent);
@@ -370,9 +374,10 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
 
   Bind(&array_handler);
   {
-    TailCallStub(CodeFactory::LoadICProtoArray(
-                     isolate(), throw_reference_error_if_nonexistent),
-                 p->context, p->receiver, p->name, p->slot, p->vector, handler);
+    exit_point->ReturnCallStub(
+        CodeFactory::LoadICProtoArray(isolate(),
+                                      throw_reference_error_if_nonexistent),
+        p->context, p->receiver, p->name, p->slot, p->vector, handler);
   }
 }
 
@@ -410,13 +415,13 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(
   }
   Bind(&can_access);
 
-  BuildFastLoop(
-      MachineType::PointerRepresentation(), start_index.value(), handler_length,
-      [this, p, handler, miss](Node* current) {
-        Node* prototype_cell = LoadFixedArrayElement(handler, current);
-        CheckPrototype(prototype_cell, p->name, miss);
-      },
-      1, IndexAdvanceMode::kPost);
+  BuildFastLoop(start_index.value(), handler_length,
+                [this, p, handler, miss](Node* current) {
+                  Node* prototype_cell =
+                      LoadFixedArrayElement(handler, current);
+                  CheckPrototype(prototype_cell, p->name, miss);
+                },
+                1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
   Node* maybe_holder_cell =
       LoadFixedArrayElement(handler, LoadHandler::kHolderCellIndex);
@@ -440,7 +445,7 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(
 
 void AccessorAssembler::HandleLoadGlobalICHandlerCase(
     const LoadICParameters* pp, Node* handler, Label* miss,
-    bool throw_reference_error_if_nonexistent) {
+    ExitPoint* exit_point, bool throw_reference_error_if_nonexistent) {
   LoadICParameters p = *pp;
   DCHECK_NULL(p.receiver);
   Node* native_context = LoadNativeContext(p.context);
@@ -450,11 +455,11 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
   Variable var_smi_handler(this, MachineRepresentation::kTagged);
   Label if_smi_handler(this);
   HandleLoadICProtoHandlerCase(&p, handler, &var_holder, &var_smi_handler,
-                               &if_smi_handler, miss,
+                               &if_smi_handler, miss, exit_point,
                                throw_reference_error_if_nonexistent);
   Bind(&if_smi_handler);
   HandleLoadICSmiHandlerCase(&p, var_holder.value(), var_smi_handler.value(),
-                             miss, kOnlyProperties);
+                             miss, exit_point, kOnlyProperties);
 }
 
 void AccessorAssembler::HandleStoreICHandlerCase(
@@ -564,14 +569,13 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
   Bind(&array_handler);
   {
     Node* length = SmiUntag(maybe_transition_cell);
-    BuildFastLoop(MachineType::PointerRepresentation(),
-                  IntPtrConstant(StoreHandler::kFirstPrototypeIndex), length,
+    BuildFastLoop(IntPtrConstant(StoreHandler::kFirstPrototypeIndex), length,
                   [this, p, handler, miss](Node* current) {
                     Node* prototype_cell =
                         LoadFixedArrayElement(handler, current);
                     CheckPrototype(prototype_cell, p->name, miss);
                   },
-                  1, IndexAdvanceMode::kPost);
+                  1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
 
     Node* maybe_transition_cell =
         LoadFixedArrayElement(handler, StoreHandler::kTransitionCellIndex);
@@ -630,8 +634,17 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
             WordEqual(handler_kind,
                       IntPtrConstant(StoreHandler::kTransitionToConstant))));
   } else {
-    CSA_ASSERT(this, WordEqual(handler_kind,
-                               IntPtrConstant(StoreHandler::kStoreField)));
+    if (FLAG_track_constant_fields) {
+      CSA_ASSERT(
+          this,
+          Word32Or(WordEqual(handler_kind,
+                             IntPtrConstant(StoreHandler::kStoreField)),
+                   WordEqual(handler_kind,
+                             IntPtrConstant(StoreHandler::kStoreConstField))));
+    } else {
+      CSA_ASSERT(this, WordEqual(handler_kind,
+                                 IntPtrConstant(StoreHandler::kStoreField)));
+    }
   }
 #endif
 
@@ -698,7 +711,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
   Bind(&if_inobject);
   {
     StoreNamedField(handler_word, holder, true, representation, prepared_value,
-                    transition_to_field);
+                    transition_to_field, miss);
     if (transition_to_field) {
       StoreMap(holder, transition);
     }
@@ -720,7 +733,7 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
     }
 
     StoreNamedField(handler_word, holder, false, representation, prepared_value,
-                    transition_to_field);
+                    transition_to_field, miss);
     if (transition_to_field) {
       StoreMap(holder, transition);
     }
@@ -737,6 +750,15 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
 
   } else if (representation.IsHeapObject()) {
     GotoIf(TaggedIsSmi(value), bailout);
+
+    Label done(this);
+    if (FLAG_track_constant_fields && !transition) {
+      // Skip field type check in favor of constant value check when storing
+      // to constant field.
+      GotoIf(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                       IntPtrConstant(StoreHandler::kStoreConstField)),
+             &done);
+    }
     Node* value_index_in_descriptor =
         DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
     Node* descriptors =
@@ -744,7 +766,6 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
     Node* maybe_field_type =
         LoadFixedArrayElement(descriptors, value_index_in_descriptor);
 
-    Label done(this);
     GotoIf(TaggedIsSmi(maybe_field_type), &done);
     // Check that value type matches the field type.
     {
@@ -801,7 +822,8 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object) {
 void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
                                         bool is_inobject,
                                         Representation representation,
-                                        Node* value, bool transition_to_field) {
+                                        Node* value, bool transition_to_field,
+                                        Label* bailout) {
   bool store_value_as_double = representation.IsDouble();
   Node* property_storage = object;
   if (!is_inobject) {
@@ -825,6 +847,27 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
     }
   }
 
+  // Do constant value check if necessary.
+  if (FLAG_track_constant_fields && !transition_to_field) {
+    Label done(this);
+    GotoUnless(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                         IntPtrConstant(StoreHandler::kStoreConstField)),
+               &done);
+    {
+      if (store_value_as_double) {
+        Node* current_value =
+            LoadObjectField(property_storage, offset, MachineType::Float64());
+        GotoUnless(Float64Equal(current_value, value), bailout);
+      } else {
+        Node* current_value = LoadObjectField(property_storage, offset);
+        GotoUnless(WordEqual(current_value, value), bailout);
+      }
+      Goto(&done);
+    }
+    Bind(&done);
+  }
+
+  // Do the store.
   if (store_value_as_double) {
     StoreObjectFieldNoWriteBarrier(property_storage, offset, value,
                                    MachineRepresentation::kFloat64);
@@ -857,13 +900,11 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(Node* object,
   GotoUnless(UintPtrLessThan(intptr_index, var_length.value()), miss);
 }
 
-void AccessorAssembler::EmitElementLoad(Node* object, Node* elements,
-                                        Node* elements_kind, Node* intptr_index,
-                                        Node* is_jsarray_condition,
-                                        Label* if_hole, Label* rebox_double,
-                                        Variable* var_double_value,
-                                        Label* unimplemented_elements_kind,
-                                        Label* out_of_bounds, Label* miss) {
+void AccessorAssembler::EmitElementLoad(
+    Node* object, Node* elements, Node* elements_kind, Node* intptr_index,
+    Node* is_jsarray_condition, Label* if_hole, Label* rebox_double,
+    Variable* var_double_value, Label* unimplemented_elements_kind,
+    Label* out_of_bounds, Label* miss, ExitPoint* exit_point) {
   Label if_typed_array(this), if_fast_packed(this), if_fast_holey(this),
       if_fast_double(this), if_fast_holey_double(this), if_nonfast(this),
       if_dictionary(this);
@@ -895,7 +936,7 @@ void AccessorAssembler::EmitElementLoad(Node* object, Node* elements,
   Bind(&if_fast_packed);
   {
     Comment("fast packed elements");
-    Return(LoadFixedArrayElement(elements, intptr_index));
+    exit_point->Return(LoadFixedArrayElement(elements, intptr_index));
   }
 
   Bind(&if_fast_holey);
@@ -903,7 +944,7 @@ void AccessorAssembler::EmitElementLoad(Node* object, Node* elements,
     Comment("fast holey elements");
     Node* element = LoadFixedArrayElement(elements, intptr_index);
     GotoIf(WordEqual(element, TheHoleConstant()), if_hole);
-    Return(element);
+    exit_point->Return(element);
   }
 
   Bind(&if_fast_double);
@@ -946,16 +987,15 @@ void AccessorAssembler::EmitElementLoad(Node* object, Node* elements,
         elements, intptr_index, &if_found, &var_entry, if_hole);
     Bind(&if_found);
     // Check that the value is a data property.
-    Node* details_index = EntryToIndex<SeededNumberDictionary>(
-        var_entry.value(), SeededNumberDictionary::kEntryDetailsIndex);
-    Node* details = SmiToWord32(LoadFixedArrayElement(elements, details_index));
+    Node* index = EntryToIndex<SeededNumberDictionary>(var_entry.value());
+    Node* details =
+        LoadDetailsByKeyIndex<SeededNumberDictionary>(elements, index);
     Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
     // TODO(jkummerow): Support accessors without missing?
     GotoUnless(Word32Equal(kind, Int32Constant(kData)), miss);
     // Finally, load the value.
-    Node* value_index = EntryToIndex<SeededNumberDictionary>(
-        var_entry.value(), SeededNumberDictionary::kEntryValueIndex);
-    Return(LoadFixedArrayElement(elements, value_index));
+    exit_point->Return(
+        LoadValueByKeyIndex<SeededNumberDictionary>(elements, index));
   }
 
   Bind(&if_typed_array);
@@ -1001,41 +1041,41 @@ void AccessorAssembler::EmitElementLoad(Node* object, Node* elements,
     {
       Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
       Node* element = Load(MachineType::Uint8(), backing_store, intptr_index);
-      Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromWord32(element));
     }
     Bind(&int8_elements);
     {
       Comment("INT8_ELEMENTS");
       Node* element = Load(MachineType::Int8(), backing_store, intptr_index);
-      Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromWord32(element));
     }
     Bind(&uint16_elements);
     {
       Comment("UINT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
       Node* element = Load(MachineType::Uint16(), backing_store, index);
-      Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromWord32(element));
     }
     Bind(&int16_elements);
     {
       Comment("INT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
       Node* element = Load(MachineType::Int16(), backing_store, index);
-      Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromWord32(element));
     }
     Bind(&uint32_elements);
     {
       Comment("UINT32_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(2));
       Node* element = Load(MachineType::Uint32(), backing_store, index);
-      Return(ChangeUint32ToTagged(element));
+      exit_point->Return(ChangeUint32ToTagged(element));
     }
     Bind(&int32_elements);
     {
       Comment("INT32_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(2));
       Node* element = Load(MachineType::Int32(), backing_store, index);
-      Return(ChangeInt32ToTagged(element));
+      exit_point->Return(ChangeInt32ToTagged(element));
     }
     Bind(&float32_elements);
     {
@@ -1102,6 +1142,9 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
                                            Node* instance_type, Node* index,
                                            Label* slow) {
   Comment("integer index");
+
+  ExitPoint direct_exit(this);
+
   Label if_element_hole(this), if_oob(this);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
@@ -1120,8 +1163,8 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
   IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
   EmitElementLoad(receiver, elements, elements_kind, index,
                   is_jsarray_condition, &if_element_hole, &rebox_double,
-                  &var_double_value, unimplemented_elements_kind, &if_oob,
-                  slow);
+                  &var_double_value, unimplemented_elements_kind, &if_oob, slow,
+                  &direct_exit);
 
   Bind(&rebox_double);
   Return(AllocateHeapNumberWithValue(var_double_value.value()));
@@ -1157,37 +1200,11 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Variable var_value(this, MachineRepresentation::kTagged);
 
   // Receivers requiring non-standard accesses (interceptors, access
-  // checks, string wrappers, proxies) are handled in the runtime.
-  // We special-case strings here, to support loading <Symbol.split> etc.
-  Variable var_receiver(this, MachineRepresentation::kTagged);
-  Variable var_receiver_map(this, MachineRepresentation::kTagged);
-  Variable var_instance_type(this, MachineRepresentation::kWord32);
-  var_receiver.Bind(receiver);
-  var_receiver_map.Bind(receiver_map);
-  var_instance_type.Bind(instance_type);
-  Label normal_receiver(this);
-  GotoIf(Int32GreaterThan(instance_type,
-                          Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
-         &normal_receiver);
-  GotoIf(Int32GreaterThanOrEqual(instance_type,
-                                 Int32Constant(FIRST_NONSTRING_TYPE)),
+  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  GotoIf(Int32LessThanOrEqual(instance_type,
+                              Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
          slow);
-  CSA_ASSERT(this, WordEqual(LoadMapConstructorFunctionIndex(receiver_map),
-                             IntPtrConstant(Context::STRING_FUNCTION_INDEX)));
-  Node* native_context = LoadNativeContext(p->context);
-  Node* constructor_function =
-      LoadContextElement(native_context, Context::STRING_FUNCTION_INDEX);
-  Node* initial_map = LoadObjectField(constructor_function,
-                                      JSFunction::kPrototypeOrInitialMapOffset);
-  var_receiver.Bind(LoadMapPrototype(initial_map));
-  var_receiver_map.Bind(LoadMap(var_receiver.value()));
-  var_instance_type.Bind(LoadMapInstanceType(var_receiver_map.value()));
-  Goto(&normal_receiver);
 
-  Bind(&normal_receiver);
-  receiver = var_receiver.value();
-  receiver_map = var_receiver_map.value();
-  instance_type = var_instance_type.value();
   // Check if the receiver has fast or slow properties.
   Node* properties = LoadProperties(receiver);
   Node* properties_map = LoadMap(properties);
@@ -1196,25 +1213,17 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   // Try looking up the property on the receiver; if unsuccessful, look
   // for a handler in the stub cache.
-  Comment("DescriptorArray lookup");
+  Node* bitfield3 = LoadMapBitField3(receiver_map);
+  Node* descriptors = LoadMapDescriptors(receiver_map);
 
-  // Skip linear search if there are too many descriptors.
-  // TODO(jkummerow): Consider implementing binary search.
-  // See also TryLookupProperty() which has the same limitation.
-  const int32_t kMaxLinear = 210;
-  Label stub_cache(this);
-  Node* bitfield3 = LoadMapBitField3(var_receiver_map.value());
-  Node* nof = DecodeWordFromWord32<Map::NumberOfOwnDescriptorsBits>(bitfield3);
-  GotoIf(UintPtrLessThan(IntPtrConstant(kMaxLinear), nof), &stub_cache);
-  Node* descriptors = LoadMapDescriptors(var_receiver_map.value());
+  Label if_descriptor_found(this), stub_cache(this);
   Variable var_name_index(this, MachineType::PointerRepresentation());
-  Label if_descriptor_found(this);
-  DescriptorLookupLinear(key, descriptors, nof, &if_descriptor_found,
-                         &var_name_index, &stub_cache);
+  DescriptorLookup(key, descriptors, bitfield3, &if_descriptor_found,
+                   &var_name_index, &stub_cache);
 
   Bind(&if_descriptor_found);
   {
-    LoadPropertyFromFastObject(receiver, var_receiver_map.value(), descriptors,
+    LoadPropertyFromFastObject(receiver, receiver_map, descriptors,
                                var_name_index.value(), &var_details,
                                &var_value);
     Goto(&if_found_on_receiver);
@@ -1262,7 +1271,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   Bind(&if_found_on_receiver);
   {
     Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
-                                       p->context, var_receiver.value(), slow);
+                                       p->context, receiver, slow);
     IncrementCounter(isolate()->counters()->ic_keyed_load_generic_symbol(), 1);
     Return(value);
   }
@@ -1275,8 +1284,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     Variable* merged_variables[] = {&var_holder_map, &var_holder_instance_type};
     Label loop(this, arraysize(merged_variables), merged_variables);
 
-    var_holder_map.Bind(var_receiver_map.value());
-    var_holder_instance_type.Bind(var_instance_type.value());
+    var_holder_map.Bind(receiver_map);
+    var_holder_instance_type.Bind(instance_type);
     // Private symbols must not be looked up on the prototype chain.
     GotoIf(IsPrivateSymbol(key), &return_undefined);
     Goto(&loop);
@@ -1293,7 +1302,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
       var_holder_map.Bind(proto_map);
       var_holder_instance_type.Bind(proto_instance_type);
       Label next_proto(this), return_value(this, &var_value), goto_slow(this);
-      TryGetOwnProperty(p->context, var_receiver.value(), proto, proto_map,
+      TryGetOwnProperty(p->context, receiver, proto, proto_map,
                         proto_instance_type, key, &return_value, &var_value,
                         &next_proto, &goto_slow);
 
@@ -1444,6 +1453,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1486,6 +1496,8 @@ void AccessorAssembler::LoadICProtoArray(
   CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
   CSA_ASSERT(this, IsFixedArrayMap(LoadMap(handler)));
 
+  ExitPoint direct_exit(this);
+
   Node* smi_handler = LoadObjectField(handler, LoadHandler::kSmiHandlerOffset);
   Node* handler_flags = SmiUntag(smi_handler);
 
@@ -1495,7 +1507,8 @@ void AccessorAssembler::LoadICProtoArray(
       EmitLoadICProtoArrayCheck(p, handler, handler_length, handler_flags,
                                 &miss, throw_reference_error_if_nonexistent);
 
-  HandleLoadICSmiHandlerCase(p, holder, smi_handler, &miss, kOnlyProperties);
+  HandleLoadICSmiHandlerCase(p, holder, smi_handler, &miss, &direct_exit,
+                             kOnlyProperties);
 
   Bind(&miss);
   {
@@ -1504,36 +1517,41 @@ void AccessorAssembler::LoadICProtoArray(
   }
 }
 
-void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
-                                     TypeofMode typeof_mode) {
-  Label try_handler(this), call_handler(this), miss(this);
-  Node* weak_cell =
-      LoadFixedArrayElement(p->vector, p->slot, 0, SMI_PARAMETERS);
+void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
+    Node* vector, Node* slot, ExitPoint* exit_point, Label* try_handler,
+    Label* miss, ParameterMode slot_mode) {
+  Comment("LoadGlobalIC_TryPropertyCellCase");
+
+  Node* weak_cell = LoadFixedArrayElement(vector, slot, 0, slot_mode);
   CSA_ASSERT(this, HasInstanceType(weak_cell, WEAK_CELL_TYPE));
 
   // Load value or try handler case if the {weak_cell} is cleared.
-  Node* property_cell = LoadWeakCellValue(weak_cell, &try_handler);
+  Node* property_cell = LoadWeakCellValue(weak_cell, try_handler);
   CSA_ASSERT(this, HasInstanceType(property_cell, PROPERTY_CELL_TYPE));
 
   Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
-  GotoIf(WordEqual(value, TheHoleConstant()), &miss);
-  Return(value);
+  GotoIf(WordEqual(value, TheHoleConstant()), miss);
+  exit_point->Return(value);
+}
 
-  Node* handler;
-  Bind(&try_handler);
-  {
-    handler =
-        LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
-    CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
-    GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-           &miss);
-    GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
+void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* p,
+                                                    TypeofMode typeof_mode,
+                                                    ExitPoint* exit_point,
+                                                    Label* miss) {
+  Comment("LoadGlobalIC_TryHandlerCase");
 
-    bool throw_reference_error_if_nonexistent =
-        typeof_mode == NOT_INSIDE_TYPEOF;
-    HandleLoadGlobalICHandlerCase(p, handler, &miss,
-                                  throw_reference_error_if_nonexistent);
-  }
+  Label call_handler(this);
+
+  Node* handler =
+      LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
+  CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(handler)));
+  GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+         miss);
+  GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
+
+  bool throw_reference_error_if_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF;
+  HandleLoadGlobalICHandlerCase(p, handler, miss, exit_point,
+                                throw_reference_error_if_nonexistent);
 
   Bind(&call_handler);
   {
@@ -1541,14 +1559,32 @@ void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
     Node* native_context = LoadNativeContext(p->context);
     Node* receiver =
         LoadContextElement(native_context, Context::EXTENSION_INDEX);
-    TailCallStub(descriptor, handler, p->context, receiver, p->name, p->slot,
-                 p->vector);
+    exit_point->ReturnCallStub(descriptor, handler, p->context, receiver,
+                               p->name, p->slot, p->vector);
   }
+}
+
+void AccessorAssembler::LoadGlobalIC_MissCase(const LoadICParameters* p,
+                                              ExitPoint* exit_point) {
+  Comment("LoadGlobalIC_MissCase");
+
+  exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context,
+                                p->name, p->slot, p->vector);
+}
+
+void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
+                                     TypeofMode typeof_mode) {
+  ExitPoint direct_exit(this);
+
+  Label try_handler(this), miss(this);
+  LoadGlobalIC_TryPropertyCellCase(p->vector, p->slot, &direct_exit,
+                                   &try_handler, &miss);
+
+  Bind(&try_handler);
+  LoadGlobalIC_TryHandlerCase(p, typeof_mode, &direct_exit, &miss);
+
   Bind(&miss);
-  {
-    TailCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context, p->name, p->slot,
-                    p->vector);
-  }
+  LoadGlobalIC_MissCase(p, &direct_exit);
 }
 
 void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
@@ -1560,6 +1596,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1655,6 +1692,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1707,6 +1745,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
         try_polymorphic_name(this /*, Label::kDeferred*/);
 
     Node* receiver_map = LoadReceiverMap(p->receiver);
+    GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
     // Check monomorphic case.
     Node* feedback =
@@ -1825,7 +1864,7 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC(&p);
@@ -1856,8 +1895,10 @@ void AccessorAssembler::GenerateLoadField() {
   Node* context = Parameter(Descriptor::kContext);
   LoadICParameters p(context, receiver, name, slot, vector);
 
+  ExitPoint direct_exit(this);
+
   HandleLoadICSmiHandlerCase(&p, receiver, Parameter(Descriptor::kSmiHandler),
-                             nullptr, kOnlyProperties);
+                             nullptr, &direct_exit, kOnlyProperties);
 }
 
 void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
@@ -1878,7 +1919,7 @@ void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   LoadICParameters p(context, nullptr, name, slot, vector);
   LoadGlobalIC(&p, typeof_mode);
@@ -1904,7 +1945,7 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   Node* name = Parameter(Descriptor::kName);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   LoadICParameters p(context, receiver, name, slot, vector);
   KeyedLoadIC(&p);
@@ -1945,7 +1986,7 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
   Node* value = Parameter(Descriptor::kValue);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
   StoreIC(&p);
@@ -1974,7 +2015,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline(
   Node* value = Parameter(Descriptor::kValue);
   Node* slot = Parameter(Descriptor::kSlot);
   Node* context = Parameter(Descriptor::kContext);
-  Node* vector = LoadTypeFeedbackVectorForStub();
+  Node* vector = LoadFeedbackVectorForStub();
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
   KeyedStoreIC(&p, language_mode);

@@ -120,14 +120,34 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
-  Node* empty_feedback_vector =
-      HeapConstant(factory->empty_type_feedback_vector());
   StoreObjectFieldNoWriteBarrier(result, JSObject::kPropertiesOffset,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
+  Node* literals_cell = LoadFixedArrayElement(
+      feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
+  {
+    // Bump the closure counter encoded in the cell's map.
+    Node* cell_map = LoadMap(literals_cell);
+    Label no_closures(this), one_closure(this), cell_done(this);
+
+    GotoIf(IsNoClosuresCellMap(cell_map), &no_closures);
+    GotoIf(IsOneClosureCellMap(cell_map), &one_closure);
+    CSA_ASSERT(this, IsManyClosuresCellMap(cell_map));
+    Goto(&cell_done);
+
+    Bind(&no_closures);
+    StoreMapNoWriteBarrier(literals_cell, Heap::kOneClosureCellMapRootIndex);
+    Goto(&cell_done);
+
+    Bind(&one_closure);
+    StoreMapNoWriteBarrier(literals_cell, Heap::kManyClosuresCellMapRootIndex);
+    Goto(&cell_done);
+
+    Bind(&cell_done);
+  }
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
-                                 empty_feedback_vector);
+                                 literals_cell);
   StoreObjectFieldNoWriteBarrier(
       result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
@@ -401,9 +421,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
 
   Variable result(this, MachineRepresentation::kTagged);
 
-  Node* vector_array =
-      LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
-  Node* boilerplate = LoadFixedArrayElement(vector_array, literal_index, 0,
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
+  Node* boilerplate = LoadFixedArrayElement(feedback_vector, literal_index, 0,
                                             CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(boilerplate), &call_runtime);
 
@@ -484,13 +504,13 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
       return_result(this);
   Variable result(this, MachineRepresentation::kTagged);
 
-  Node* vector_array =
-      LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
-      vector_array, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      feedback_vector, literal_index, 0, CodeStubAssembler::SMI_PARAMETERS);
 
   GotoIf(IsUndefined(allocation_site), call_runtime);
-  allocation_site = LoadFixedArrayElement(vector_array, literal_index, 0,
+  allocation_site = LoadFixedArrayElement(feedback_vector, literal_index, 0,
                                           CodeStubAssembler::SMI_PARAMETERS);
 
   Node* boilerplate =
@@ -642,10 +662,10 @@ int ConstructorBuiltinsAssembler::FastCloneShallowObjectPropertiesCount(
 Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
     CodeAssemblerLabel* call_runtime, Node* closure, Node* literals_index,
     Node* properties_count) {
-  Node* vector_array =
-      LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* cell = LoadObjectField(closure, JSFunction::kFeedbackVectorOffset);
+  Node* feedback_vector = LoadObjectField(cell, Cell::kValueOffset);
   Node* allocation_site = LoadFixedArrayElement(
-      vector_array, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
+      feedback_vector, literals_index, 0, CodeStubAssembler::SMI_PARAMETERS);
   GotoIf(IsUndefined(allocation_site), call_runtime);
 
   // Calculate the object and allocation size based on the properties count.

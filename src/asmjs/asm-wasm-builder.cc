@@ -36,6 +36,8 @@ namespace wasm {
     if (HasStackOverflow()) return; \
   } while (false)
 
+namespace {
+
 enum AsmScope { kModuleScope, kInitScope, kFuncScope, kExportScope };
 enum ValueFate { kDrop, kLeaveOnStack };
 
@@ -44,6 +46,10 @@ struct ForeignVariable {
   Variable* var;
   ValueType type;
 };
+
+enum TargetType : uint8_t { NoTarget, BreakTarget, ContinueTarget };
+
+}  // namespace
 
 class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
  public:
@@ -142,27 +148,27 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     DCHECK_EQ(kModuleScope, scope_);
     DCHECK_NULL(current_function_builder_);
     FunctionLiteral* old_func = decl->fun();
-    Zone zone(isolate_->allocator(), ZONE_NAME);
     DeclarationScope* new_func_scope = nullptr;
+    std::unique_ptr<ParseInfo> info;
     if (decl->fun()->body() == nullptr) {
       // TODO(titzer/bradnelson): Reuse SharedFunctionInfos used here when
       // compiling the wasm module.
       Handle<SharedFunctionInfo> shared =
           Compiler::GetSharedFunctionInfo(decl->fun(), script_, info_);
       shared->set_is_toplevel(false);
-      ParseInfo info(&zone, script_);
-      info.set_shared_info(shared);
-      info.set_toplevel(false);
-      info.set_language_mode(decl->fun()->scope()->language_mode());
-      info.set_allow_lazy_parsing(false);
-      info.set_function_literal_id(shared->function_literal_id());
-      info.set_ast_value_factory(ast_value_factory_);
-      info.set_ast_value_factory_owned(false);
+      info.reset(new ParseInfo(script_));
+      info->set_shared_info(shared);
+      info->set_toplevel(false);
+      info->set_language_mode(decl->fun()->scope()->language_mode());
+      info->set_allow_lazy_parsing(false);
+      info->set_function_literal_id(shared->function_literal_id());
+      info->set_ast_value_factory(ast_value_factory_);
+      info->set_ast_value_factory_owned(false);
       // Create fresh function scope to use to parse the function in.
-      new_func_scope = new (info.zone()) DeclarationScope(
-          info.zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
-      info.set_asm_function_scope(new_func_scope);
-      if (!Compiler::ParseAndAnalyze(&info)) {
+      new_func_scope = new (info->zone()) DeclarationScope(
+          info->zone(), decl->fun()->scope()->outer_scope(), FUNCTION_SCOPE);
+      info->set_asm_function_scope(new_func_scope);
+      if (!Compiler::ParseAndAnalyze(info.get())) {
         decl->fun()->scope()->outer_scope()->RemoveInnerScope(new_func_scope);
         if (isolate_->has_pending_exception()) {
           isolate_->clear_pending_exception();
@@ -171,7 +177,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
         typer_failed_ = true;
         return;
       }
-      FunctionLiteral* func = info.literal();
+      FunctionLiteral* func = info->literal();
       DCHECK_NOT_NULL(func);
       decl->set_fun(func);
     }
@@ -231,7 +237,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       }
     }
     if (scope_ == kFuncScope) {
-      BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock);
+      BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock,
+                           BreakTarget);
       RECURSE(VisitStatements(stmt->statements()));
     } else {
       RECURSE(VisitStatements(stmt->statements()));
@@ -244,10 +251,9 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
    public:
     BlockVisitor(AsmWasmBuilderImpl* builder, BreakableStatement* stmt,
-                 WasmOpcode opcode)
+                 WasmOpcode opcode, TargetType target_type = NoTarget)
         : builder_(builder) {
-      builder_->breakable_blocks_.push_back(
-          std::make_pair(stmt, opcode == kExprLoop));
+      builder_->breakable_blocks_.emplace_back(stmt, target_type);
       // block and loops have a type immediate.
       builder_->current_function_builder_->EmitWithU8(opcode, kLocalVoid);
     }
@@ -295,9 +301,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitIfStatement(IfStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(stmt->condition()));
-    current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
-    // WASM ifs come with implement blocks for both arms.
-    breakable_blocks_.push_back(std::make_pair(nullptr, false));
+    // Wasm ifs come with implicit blocks for both arms.
+    BlockVisitor block(this, nullptr, kExprIf);
     if (stmt->HasThenStatement()) {
       RECURSE(Visit(stmt->then_statement()));
     }
@@ -305,18 +310,15 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       current_function_builder_->Emit(kExprElse);
       RECURSE(Visit(stmt->else_statement()));
     }
-    current_function_builder_->Emit(kExprEnd);
-    breakable_blocks_.pop_back();
   }
 
-  void DoBreakOrContinue(BreakableStatement* target, bool is_continue) {
+  void DoBreakOrContinue(BreakableStatement* target, TargetType type) {
     DCHECK_EQ(kFuncScope, scope_);
     for (int i = static_cast<int>(breakable_blocks_.size()) - 1; i >= 0; --i) {
       auto elem = breakable_blocks_.at(i);
-      if (elem.first == target && elem.second == is_continue) {
+      if (elem.first == target && elem.second == type) {
         int block_distance = static_cast<int>(breakable_blocks_.size() - i - 1);
-        current_function_builder_->Emit(kExprBr);
-        current_function_builder_->EmitVarInt(block_distance);
+        current_function_builder_->EmitWithVarInt(kExprBr, block_distance);
         return;
       }
     }
@@ -324,11 +326,11 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   }
 
   void VisitContinueStatement(ContinueStatement* stmt) {
-    DoBreakOrContinue(stmt->target(), true);
+    DoBreakOrContinue(stmt->target(), ContinueTarget);
   }
 
   void VisitBreakStatement(BreakStatement* stmt) {
-    DoBreakOrContinue(stmt->target(), false);
+    DoBreakOrContinue(stmt->target(), BreakTarget);
   }
 
   void VisitReturnStatement(ReturnStatement* stmt) {
@@ -366,7 +368,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       current_function_builder_->Emit(kExprI32LtS);
       current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
       if_depth++;
-      breakable_blocks_.push_back(std::make_pair(nullptr, false));
+      breakable_blocks_.emplace_back(nullptr, NoTarget);
       HandleCase(node->left, case_to_block, tag, default_block, if_depth);
       current_function_builder_->Emit(kExprElse);
     }
@@ -376,7 +378,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
       current_function_builder_->Emit(kExprI32GtS);
       current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
       if_depth++;
-      breakable_blocks_.push_back(std::make_pair(nullptr, false));
+      breakable_blocks_.emplace_back(nullptr, NoTarget);
       HandleCase(node->right, case_to_block, tag, default_block, if_depth);
       current_function_builder_->Emit(kExprElse);
     }
@@ -430,7 +432,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (case_count == 0) {
       return;
     }
-    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock);
+    BlockVisitor visitor(this, stmt->AsBreakableStatement(), kExprBlock,
+                         BreakTarget);
     ZoneVector<BlockVisitor*> blocks(zone_);
     ZoneVector<int32_t> cases(zone_);
     ZoneMap<int, unsigned int> case_to_block(zone_);
@@ -476,26 +479,28 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
 
   void VisitDoWhileStatement(DoWhileStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
-    BlockVisitor block(this, stmt->AsBreakableStatement(), kExprBlock);
+    BlockVisitor block(this, stmt->AsBreakableStatement(), kExprBlock,
+                       BreakTarget);
     BlockVisitor loop(this, stmt->AsBreakableStatement(), kExprLoop);
-    RECURSE(Visit(stmt->body()));
+    {
+      BlockVisitor inner_block(this, stmt->AsBreakableStatement(), kExprBlock,
+                               ContinueTarget);
+      RECURSE(Visit(stmt->body()));
+    }
     RECURSE(Visit(stmt->cond()));
-    current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
-    current_function_builder_->EmitWithU8(kExprBr, 1);
-    current_function_builder_->Emit(kExprEnd);
+    current_function_builder_->EmitWithU8(kExprBrIf, 0);
   }
 
   void VisitWhileStatement(WhileStatement* stmt) {
     DCHECK_EQ(kFuncScope, scope_);
-    BlockVisitor block(this, stmt->AsBreakableStatement(), kExprBlock);
-    BlockVisitor loop(this, stmt->AsBreakableStatement(), kExprLoop);
+    BlockVisitor block(this, stmt->AsBreakableStatement(), kExprBlock,
+                       BreakTarget);
+    BlockVisitor loop(this, stmt->AsBreakableStatement(), kExprLoop,
+                      ContinueTarget);
     RECURSE(Visit(stmt->cond()));
-    breakable_blocks_.push_back(std::make_pair(nullptr, false));
-    current_function_builder_->EmitWithU8(kExprIf, kLocalVoid);
+    BlockVisitor if_block(this, nullptr, kExprIf);
     RECURSE(Visit(stmt->body()));
     current_function_builder_->EmitWithU8(kExprBr, 1);
-    current_function_builder_->Emit(kExprEnd);
-    breakable_blocks_.pop_back();
   }
 
   void VisitForStatement(ForStatement* stmt) {
@@ -503,8 +508,10 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
     if (stmt->init() != nullptr) {
       RECURSE(Visit(stmt->init()));
     }
-    BlockVisitor block(this, stmt->AsBreakableStatement(), kExprBlock);
-    BlockVisitor loop(this, stmt->AsBreakableStatement(), kExprLoop);
+    BlockVisitor block(this, stmt->AsBreakableStatement(), kExprBlock,
+                       BreakTarget);
+    BlockVisitor loop(this, stmt->AsBreakableStatement(), kExprLoop,
+                      ContinueTarget);
     if (stmt->cond() != nullptr) {
       RECURSE(Visit(stmt->cond()));
       current_function_builder_->Emit(kExprI32Eqz);
@@ -562,8 +569,8 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   void VisitConditional(Conditional* expr) {
     DCHECK_EQ(kFuncScope, scope_);
     RECURSE(Visit(expr->condition()));
-    // WASM ifs come with implicit blocks for both arms.
-    breakable_blocks_.push_back(std::make_pair(nullptr, false));
+    // Wasm ifs come with implicit blocks for both arms.
+    breakable_blocks_.emplace_back(nullptr, NoTarget);
     ValueTypeCode type;
     switch (TypeOf(expr)) {
       case kWasmI32:
@@ -1969,7 +1976,7 @@ class AsmWasmBuilderImpl final : public AstVisitor<AsmWasmBuilderImpl> {
   AsmTyper* typer_;
   bool typer_failed_;
   bool typer_finished_;
-  ZoneVector<std::pair<BreakableStatement*, bool>> breakable_blocks_;
+  ZoneVector<std::pair<BreakableStatement*, TargetType>> breakable_blocks_;
   ZoneVector<ForeignVariable> foreign_variables_;
   WasmFunctionBuilder* init_function_;
   WasmFunctionBuilder* foreign_init_function_;

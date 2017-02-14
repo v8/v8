@@ -132,8 +132,6 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(MacroAssembler* masm,
       info->prologue_offset(), info->is_debug() && !is_crankshafted);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
-  isolate->heap()->IncrementCodeGeneratedBytes(is_crankshafted,
-      code->instruction_size());
   return code;
 }
 
@@ -239,7 +237,8 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
           ? FLAG_print_builtin_code
           : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
              (info->IsOptimizing() && FLAG_print_opt_code &&
-              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)));
+              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)) ||
+             (info->IsWasm() && FLAG_print_wasm_code));
   if (print_code) {
     std::unique_ptr<char[]> debug_name = info->GetDebugName();
     CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());

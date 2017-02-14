@@ -53,7 +53,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kLoopPeelingEnabled = 1 << 16,
   };
 
-  CompilationInfo(ParseInfo* parse_info, Handle<JSFunction> closure);
+  CompilationInfo(Zone* zone, ParseInfo* parse_info,
+                  Handle<JSFunction> closure);
   CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
                   Code::Flags code_flags);
   ~CompilationInfo();
@@ -209,6 +210,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Accessors for the different compilation modes.
   bool IsOptimizing() const { return mode_ == OPTIMIZE; }
   bool IsStub() const { return mode_ == STUB; }
+  bool IsWasm() const { return output_code_kind() == Code::WASM_FUNCTION; }
   void SetOptimizing();
   void SetOptimizingForOsr(BailoutId osr_ast_id, JavaScriptFrame* osr_frame) {
     SetOptimizing();
@@ -231,9 +233,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // Determines whether or not to insert a self-optimization header.
   bool ShouldSelfOptimize();
 
-  void set_deferred_handles(DeferredHandles* deferred_handles) {
-    DCHECK(deferred_handles_ == NULL);
-    deferred_handles_ = deferred_handles;
+  void set_deferred_handles(std::shared_ptr<DeferredHandles> deferred_handles);
+  void set_deferred_handles(DeferredHandles* deferred_handles);
+  std::shared_ptr<DeferredHandles> deferred_handles() {
+    return deferred_handles_;
   }
 
   void ReopenHandlesInNewHandleScope();
@@ -363,7 +366,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   // CompilationInfo allocates.
   Zone* zone_;
 
-  DeferredHandles* deferred_handles_;
+  std::shared_ptr<DeferredHandles> deferred_handles_;
 
   // Dependencies for this compilation, e.g. stable maps.
   CompilationDependencies dependencies_;

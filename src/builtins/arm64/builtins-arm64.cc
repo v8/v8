@@ -540,6 +540,8 @@ namespace {
 void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
                                     bool create_implicit_receiver,
                                     bool check_derived_construct) {
+  Label post_instantiation_deopt_entry;
+
   // ----------- S t a t e -------------
   //  -- x0     : number of arguments
   //  -- x1     : constructor function
@@ -597,6 +599,9 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
       __ PushRoot(Heap::kTheHoleValueRootIndex);
     }
 
+    // Deoptimizer re-enters stub code here.
+    __ Bind(&post_instantiation_deopt_entry);
+
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
 
@@ -635,7 +640,8 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {
-      masm->isolate()->heap()->SetConstructStubDeoptPCOffset(masm->pc_offset());
+      masm->isolate()->heap()->SetConstructStubInvokeDeoptPCOffset(
+          masm->pc_offset());
     }
 
     // Restore the context from the frame.
@@ -698,6 +704,34 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     __ IncrementCounter(isolate->counters()->constructed_objects(), 1, x1, x2);
   }
   __ Ret();
+
+  // Store offset of trampoline address for deoptimizer. This is the bailout
+  // point after the receiver instantiation but before the function invocation.
+  // We need to restore some registers in order to continue the above code.
+  if (create_implicit_receiver && !is_api_function) {
+    masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
+        masm->pc_offset());
+
+    // ----------- S t a t e -------------
+    //  -- x0    : newly allocated object
+    //  -- sp[0] : constructor function
+    // -----------------------------------
+
+    __ Pop(x1);
+    __ Push(x0, x0);
+
+    // Retrieve smi-tagged arguments count from the stack.
+    __ Ldr(x0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ SmiUntag(x0);
+
+    // Retrieve the new target value from the stack. This was placed into the
+    // frame description in place of the receiver by the optimizing compiler.
+    __ Add(x3, fp, Operand(StandardFrameConstants::kCallerSPOffset));
+    __ Ldr(x3, MemOperand(x3, x0, LSL, kPointerSizeLog2));
+
+    // Continue with constructor function invocation.
+    __ B(&post_instantiation_deopt_entry);
+  }
 }
 
 }  // namespace
@@ -1020,13 +1054,14 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Increment invocation count for the function.
   __ Ldr(x11, FieldMemOperand(x1, JSFunction::kFeedbackVectorOffset));
-  __ Ldr(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
-                                           kPointerSize +
-                                       TypeFeedbackVector::kHeaderSize));
+  __ Ldr(x11, FieldMemOperand(x11, Cell::kValueOffset));
+  __ Ldr(x10, FieldMemOperand(
+                  x11, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                           FeedbackVector::kHeaderSize));
   __ Add(x10, x10, Operand(Smi::FromInt(1)));
-  __ Str(x10, FieldMemOperand(x11, TypeFeedbackVector::kInvocationCountIndex *
-                                           kPointerSize +
-                                       TypeFeedbackVector::kHeaderSize));
+  __ Str(x10, FieldMemOperand(
+                  x11, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                           FeedbackVector::kHeaderSize));
 
   // Check function data field is actually a BytecodeArray object.
   if (FLAG_debug_code) {
@@ -1350,14 +1385,19 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   Register closure = x1;
   Register map = x13;
   Register index = x2;
+
+  // Do we have a valid feedback vector?
+  __ Ldr(index, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+  __ Ldr(index, FieldMemOperand(index, Cell::kValueOffset));
+  __ JumpIfRoot(index, Heap::kUndefinedValueRootIndex, &gotta_call_runtime);
+
   __ Ldr(map, FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(map,
          FieldMemOperand(map, SharedFunctionInfo::kOptimizedCodeMapOffset));
   __ Ldrsw(index, UntagSmiFieldMemOperand(map, FixedArray::kLengthOffset));
   __ Cmp(index, Operand(2));
-  __ B(lt, &gotta_call_runtime);
+  __ B(lt, &try_shared);
 
-  // Find literals.
   // x3  : native context
   // x2  : length / index
   // x13 : optimized code map
@@ -1377,17 +1417,6 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Ldr(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
   __ Cmp(temp, native_context);
   __ B(ne, &loop_bottom);
-  // Feedback vector available?
-  __ Ldr(temp, FieldMemOperand(array_pointer,
-                               SharedFunctionInfo::kOffsetToPreviousLiterals));
-  __ Ldr(temp, FieldMemOperand(temp, WeakCell::kValueOffset));
-  __ JumpIfSmi(temp, &gotta_call_runtime);
-
-  // Save the feedback vector in the closure.
-  __ Str(temp, FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
-  __ RecordWriteField(closure, JSFunction::kFeedbackVectorOffset, temp, x7,
-                      kLRHasNotBeenSaved, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
-                      OMIT_SMI_CHECK);
 
   // Code available?
   Register entry = x7;
@@ -1397,7 +1426,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Ldr(entry, FieldMemOperand(entry, WeakCell::kValueOffset));
   __ JumpIfSmi(entry, &try_shared);
 
-  // Found literals and code. Get them into the closure and return.
+  // Found code. Get it into the closure and return.
   __ Add(entry, entry, Operand(Code::kHeaderSize - kHeapObjectTag));
   __ Str(entry, FieldMemOperand(closure, JSFunction::kCodeEntryOffset));
   __ RecordWriteCodeEntryField(closure, entry, x5);
@@ -1426,9 +1455,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   __ Cmp(index, Operand(1));
   __ B(gt, &loop_top);
 
-  // We found neither literals nor code.
-  __ B(&gotta_call_runtime);
-
+  // We found no code.
   __ Bind(&try_shared);
   __ Ldr(entry,
          FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
@@ -2121,14 +2148,14 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   __ Bind(&target_not_constructor);
   {
     __ Poke(target, 0);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 
   // 4c. The new.target is not a constructor, throw an appropriate TypeError.
   __ Bind(&new_target_not_constructor);
   {
     __ Poke(new_target, 0);
-    __ TailCallRuntime(Runtime::kThrowCalledNonCallable);
+    __ TailCallRuntime(Runtime::kThrowNotConstructor);
   }
 }
 

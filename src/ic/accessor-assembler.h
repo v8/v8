@@ -14,6 +14,8 @@ namespace compiler {
 class CodeAssemblerState;
 }
 
+class ExitPoint;
+
 class AccessorAssembler : public CodeStubAssembler {
  public:
   typedef compiler::Node Node;
@@ -49,7 +51,6 @@ class AccessorAssembler : public CodeStubAssembler {
     return StubCacheSecondaryOffset(name, map);
   }
 
- protected:
   struct LoadICParameters {
     LoadICParameters(Node* context, Node* receiver, Node* name, Node* slot,
                      Node* vector)
@@ -66,6 +67,15 @@ class AccessorAssembler : public CodeStubAssembler {
     Node* vector;
   };
 
+  void LoadGlobalIC_TryPropertyCellCase(
+      Node* vector, Node* slot, ExitPoint* exit_point, Label* try_handler,
+      Label* miss, ParameterMode slot_mode = SMI_PARAMETERS);
+  void LoadGlobalIC_TryHandlerCase(const LoadICParameters* p,
+                                   TypeofMode typeof_mode,
+                                   ExitPoint* exit_point, Label* miss);
+  void LoadGlobalIC_MissCase(const LoadICParameters* p, ExitPoint* exit_point);
+
+ protected:
   struct StoreICParameters : public LoadICParameters {
     StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
                       Node* slot, Node* vector)
@@ -114,12 +124,14 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
                                   Node* smi_handler, Label* miss,
+                                  ExitPoint* exit_point,
                                   ElementSupport support_elements);
 
   void HandleLoadICProtoHandlerCase(const LoadICParameters* p, Node* handler,
                                     Variable* var_holder,
                                     Variable* var_smi_handler,
                                     Label* if_smi_handler, Label* miss,
+                                    ExitPoint* exit_point,
                                     bool throw_reference_error_if_nonexistent);
 
   Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p, Node* handler,
@@ -130,7 +142,7 @@ class AccessorAssembler : public CodeStubAssembler {
   // LoadGlobalIC implementation.
 
   void HandleLoadGlobalICHandlerCase(const LoadICParameters* p, Node* handler,
-                                     Label* miss,
+                                     Label* miss, ExitPoint* exit_point,
                                      bool throw_reference_error_if_nonexistent);
 
   // StoreIC implementation.
@@ -170,7 +182,7 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void StoreNamedField(Node* handler_word, Node* object, bool is_inobject,
                        Representation representation, Node* value,
-                       bool transition_to_field);
+                       bool transition_to_field, Label* bailout);
 
   void EmitFastElementsBoundsCheck(Node* object, Node* elements,
                                    Node* intptr_index,
@@ -179,7 +191,7 @@ class AccessorAssembler : public CodeStubAssembler {
                        Node* key, Node* is_jsarray_condition, Label* if_hole,
                        Label* rebox_double, Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
-                       Label* miss);
+                       Label* miss, ExitPoint* exit_point);
   void CheckPrototype(Node* prototype_cell, Node* name, Label* miss);
   void NameDictionaryNegativeLookup(Node* object, Node* name, Label* miss);
 
@@ -196,6 +208,74 @@ class AccessorAssembler : public CodeStubAssembler {
                               Node* entry_offset, Node* name, Node* map,
                               Label* if_handler, Variable* var_handler,
                               Label* if_miss);
+};
+
+// Abstraction over direct and indirect exit points. Direct exits correspond to
+// tailcalls and Return, while indirect exits store the result in a variable
+// and then jump to an exit label.
+class ExitPoint {
+ private:
+  typedef compiler::Node Node;
+  typedef compiler::CodeAssemblerLabel CodeAssemblerLabel;
+  typedef compiler::CodeAssemblerVariable CodeAssemblerVariable;
+
+ public:
+  explicit ExitPoint(CodeStubAssembler* assembler)
+      : ExitPoint(assembler, nullptr, nullptr) {}
+  ExitPoint(CodeStubAssembler* assembler, CodeAssemblerLabel* out,
+            CodeAssemblerVariable* var_result)
+      : out_(out), var_result_(var_result), asm_(assembler) {
+    DCHECK_EQ(out != nullptr, var_result != nullptr);
+  }
+
+  template <class... TArgs>
+  void ReturnCallRuntime(Runtime::FunctionId function, Node* context,
+                         TArgs... args) {
+    if (IsDirect()) {
+      asm_->TailCallRuntime(function, context, args...);
+    } else {
+      IndirectReturn(asm_->CallRuntime(function, context, args...));
+    }
+  }
+
+  template <class... TArgs>
+  void ReturnCallStub(Callable const& callable, Node* context, TArgs... args) {
+    if (IsDirect()) {
+      asm_->TailCallStub(callable, context, args...);
+    } else {
+      IndirectReturn(asm_->CallStub(callable, context, args...));
+    }
+  }
+
+  template <class... TArgs>
+  void ReturnCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                      Node* context, TArgs... args) {
+    if (IsDirect()) {
+      asm_->TailCallStub(descriptor, target, context, args...);
+    } else {
+      IndirectReturn(asm_->CallStub(descriptor, target, context, args...));
+    }
+  }
+
+  void Return(Node* const result) {
+    if (IsDirect()) {
+      asm_->Return(result);
+    } else {
+      IndirectReturn(result);
+    }
+  }
+
+  bool IsDirect() const { return out_ == nullptr; }
+
+ private:
+  void IndirectReturn(Node* const result) {
+    var_result_->Bind(result);
+    asm_->Goto(out_);
+  }
+
+  CodeAssemblerLabel* const out_;
+  CodeAssemblerVariable* const var_result_;
+  CodeStubAssembler* const asm_;
 };
 
 }  // namespace internal

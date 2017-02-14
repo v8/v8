@@ -262,10 +262,9 @@ static void PartiallySerializeObject(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 
     Object* raw_foo;
     {
@@ -370,10 +369,10 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
         isolate->bootstrapper()->SourceLookup<Natives>(i);
       }
     }
+
     // If we don't do this then we end up with a stray root pointing at the
     // context even after we have disposed of env.
-    heap->CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask,
-                            i::GarbageCollectionReason::kTesting);
+    heap->CollectAllAvailableGarbage(i::GarbageCollectionReason::kTesting);
 
     {
       v8::HandleScope handle_scope(v8_isolate);
@@ -1005,11 +1004,11 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<SharedFunctionInfo> copy = CompileScript(
       isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
 
-  CHECK(isolate->compilation_cache()
-            ->LookupScript(src, src, 0, 0, v8::ScriptOriginOptions(),
-                           isolate->native_context(), SLOPPY)
-            .ToHandleChecked()
-            .is_identical_to(copy));
+  InfoVectorPair pair = isolate->compilation_cache()->LookupScript(
+      src, src, 0, 0, v8::ScriptOriginOptions(), isolate->native_context(),
+      SLOPPY);
+
+  CHECK(pair.shared() == *copy);
 
   delete cache;
 }

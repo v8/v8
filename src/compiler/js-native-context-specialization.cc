@@ -14,9 +14,9 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/type-cache.h"
+#include "src/feedback-vector.h"
 #include "src/field-index-inl.h"
 #include "src/isolate-inl.h"
-#include "src/type-feedback-vector.h"
 
 namespace v8 {
 namespace internal {
@@ -210,8 +210,8 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
     node->ReplaceInput(5, effect);
     NodeProperties::ChangeOp(
         node,
-        javascript()->CallFunction(3, 0.0f, VectorSlotPair(),
-                                   ConvertReceiverMode::kNotNullOrUndefined));
+        javascript()->Call(3, 0.0f, VectorSlotPair(),
+                           ConvertReceiverMode::kNotNullOrUndefined));
 
     // Rewire the value uses of {node} to ToBoolean conversion of the result.
     Node* value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny),
@@ -514,15 +514,14 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandleList const& receiver_maps,
     Handle<Name> name, AccessMode access_mode, LanguageMode language_mode,
-    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot, Node* index) {
+    Handle<FeedbackVector> vector, FeedbackSlot slot, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* frame_state_eager = NodeProperties::FindFrameStateBefore(node);
-  Node* frame_state_lazy = NodeProperties::GetFrameStateInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -564,7 +563,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       // We do not handle generic calls in try blocks.
       if (is_exceptional) return NoChange();
       // We only handle the generic store IC case.
-      if (vector->GetKind(slot) != FeedbackVectorSlotKind::STORE_IC) {
+      if (!vector->IsStoreIC(slot)) {
         return NoChange();
       }
     }
@@ -604,7 +603,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
-        receiver, value, context, frame_state_lazy, effect, control, name,
+        receiver, value, context, frame_state, effect, control, name,
         access_info, access_mode, language_mode, vector, slot);
     value = continuation.value();
     effect = continuation.effect();
@@ -704,20 +703,14 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           this_effect =
               graph()->NewNode(common()->EffectPhi(this_control_count),
                                this_control_count + 1, &this_effects.front());
-
-          // TODO(turbofan): The effect/control linearization will not find a
-          // FrameState after the EffectPhi that is generated above.
-          this_effect =
-              graph()->NewNode(common()->Checkpoint(), frame_state_eager,
-                               this_effect, this_control);
         }
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation = BuildPropertyAccess(
-          this_receiver, this_value, context, frame_state_lazy, this_effect,
-          this_control, name, access_info, access_mode, language_mode, vector,
-          slot);
+      ValueEffectControl continuation =
+          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
+                              this_effect, this_control, name, access_info,
+                              access_mode, language_mode, vector, slot);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -757,11 +750,13 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
   Node* const receiver = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
 
-  // Check if we are accessing the current native contexts' global proxy.
-  HeapObjectMatcher m(receiver);
-  if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
-    // Optimize accesses to the current native contexts' global proxy.
-    return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
+  if (flags() & kDeoptimizationEnabled) {
+    // Check if we are accessing the current native contexts' global proxy.
+    HeapObjectMatcher m(receiver);
+    if (m.HasValue() && m.Value().is_identical_to(global_proxy())) {
+      // Optimize accesses to the current native contexts' global proxy.
+      return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
+    }
   }
 
   // Check if the {nexus} reports type feedback for the IC.
@@ -1059,11 +1054,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
             this_effect =
                 graph()->NewNode(common()->EffectPhi(this_control_count),
                                  this_control_count + 1, &this_effects.front());
-
-            // TODO(turbofan): The effect/control linearization will not find a
-            // FrameState after the EffectPhi that is generated above.
-            this_effect = graph()->NewNode(common()->Checkpoint(), frame_state,
-                                           this_effect, this_control);
           }
         }
 
@@ -1277,7 +1267,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, PropertyAccessInfo const& access_info,
     AccessMode access_mode, LanguageMode language_mode,
-    Handle<TypeFeedbackVector> vector, FeedbackVectorSlot slot) {
+    Handle<FeedbackVector> vector, FeedbackSlot slot) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   if (access_info.holder().ToHandle(&holder)) {
@@ -1323,9 +1313,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // Introduce the call to the getter function.
         if (access_info.constant()->IsJSFunction()) {
           value = effect = graph()->NewNode(
-              javascript()->CallFunction(
-                  2, 0.0f, VectorSlotPair(),
-                  ConvertReceiverMode::kNotNullOrUndefined),
+              javascript()->Call(2, 0.0f, VectorSlotPair(),
+                                 ConvertReceiverMode::kNotNullOrUndefined),
               target, receiver, context, frame_state0, effect, control);
           control = graph()->NewNode(common()->IfSuccess(), value);
         } else {
@@ -1361,9 +1350,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // Introduce the call to the setter function.
         if (access_info.constant()->IsJSFunction()) {
           effect = graph()->NewNode(
-              javascript()->CallFunction(
-                  3, 0.0f, VectorSlotPair(),
-                  ConvertReceiverMode::kNotNullOrUndefined),
+              javascript()->Call(3, 0.0f, VectorSlotPair(),
+                                 ConvertReceiverMode::kNotNullOrUndefined),
               target, receiver, value, context, frame_state0, effect, control);
           control = graph()->NewNode(common()->IfSuccess(), effect);
         } else {
@@ -1558,7 +1546,8 @@ JSNativeContextSpecialization::BuildPropertyAccess(
   } else {
     DCHECK(access_info.IsGeneric());
     DCHECK_EQ(AccessMode::kStore, access_mode);
-    DCHECK_EQ(FeedbackVectorSlotKind::STORE_IC, vector->GetKind(slot));
+    DCHECK(vector->IsStoreIC(slot));
+    DCHECK_EQ(vector->GetLanguageMode(slot), language_mode);
     Callable callable =
         CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
     const CallInterfaceDescriptor& descriptor = callable.descriptor();
@@ -1611,7 +1600,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
     return NoChange();
   }
 
-  Handle<Map> receiver_map(nexus.FindFirstMap(), isolate());
+  Handle<Map> receiver_map(map, isolate());
   Handle<Name> cached_name =
       handle(Name::cast(nexus.GetFeedbackExtra()), isolate());
 

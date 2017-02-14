@@ -104,6 +104,11 @@
   %SetAllowAtomicsWait(true);
 })();
 
+(function TestWakePositiveInfinity() {
+  var i32a = new Int32Array(new SharedArrayBuffer(16));
+  Atomics.wake(i32a, 0, Number.POSITIVE_INFINITY);
+})();
+
 //// WORKER ONLY TESTS
 
 if (this.Worker) {

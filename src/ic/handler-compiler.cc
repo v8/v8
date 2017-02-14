@@ -352,7 +352,7 @@ Handle<Object> ElementHandlerCompiler::GetKeyedLoadHandler(
   }
   if (receiver_map->IsStringMap()) {
     TRACE_HANDLER_STATS(isolate, KeyedLoadIC_LoadIndexedStringStub);
-    return LoadIndexedStringStub(isolate).GetCode();
+    return isolate->builtins()->KeyedLoadIC_IndexedString();
   }
   InstanceType instance_type = receiver_map->instance_type();
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {

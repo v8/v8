@@ -20,6 +20,7 @@ class AstValueFactory;
 class CompilerDispatcherTracer;
 class CompilationInfo;
 class CompilationJob;
+class DeferredHandles;
 class FunctionLiteral;
 class Isolate;
 class ParseInfo;
@@ -28,7 +29,6 @@ class SharedFunctionInfo;
 class String;
 class UnicodeCache;
 class Utf16CharacterStream;
-class Zone;
 
 enum class CompileJobStatus {
   kInitial,
@@ -50,11 +50,18 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
                         size_t max_stack_size);
   // Creates a CompilerDispatcherJob in the analyzed state.
   CompilerDispatcherJob(Isolate* isolate, CompilerDispatcherTracer* tracer,
+                        Handle<Script> script,
                         Handle<SharedFunctionInfo> shared,
-                        FunctionLiteral* literal, size_t max_stack_size);
+                        FunctionLiteral* literal,
+                        std::shared_ptr<Zone> parse_zone,
+                        std::shared_ptr<DeferredHandles> parse_handles,
+                        std::shared_ptr<DeferredHandles> compile_handles,
+                        size_t max_stack_size);
   ~CompilerDispatcherJob();
 
   CompileJobStatus status() const { return status_; }
+
+  Context* context() { return *context_; }
 
   // Returns true if this CompilerDispatcherJob was created for the given
   // function.
@@ -101,6 +108,7 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
   CompileJobStatus status_;
   Isolate* isolate_;
   CompilerDispatcherTracer* tracer_;
+  Handle<Context> context_;            // Global handle.
   Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;        // Global handle.
   Handle<String> wrapper_;       // Global handle.
@@ -109,11 +117,12 @@ class V8_EXPORT_PRIVATE CompilerDispatcherJob {
 
   // Members required for parsing.
   std::unique_ptr<UnicodeCache> unicode_cache_;
-  std::unique_ptr<Zone> zone_;
   std::unique_ptr<Utf16CharacterStream> character_stream_;
   std::unique_ptr<ParseInfo> parse_info_;
   std::unique_ptr<Parser> parser_;
-  std::unique_ptr<DeferredHandles> handles_from_parsing_;
+
+  // Members required for compiling a parsed function.
+  std::shared_ptr<Zone> parse_zone_;
 
   // Members required for compiling.
   std::unique_ptr<CompilationInfo> compile_info_;

@@ -45,16 +45,10 @@ class IC {
   // Clear the inline cache to initial state.
   static void Clear(Isolate* isolate, Address address, Address constant_pool);
 
-#ifdef DEBUG
-  bool IsLoadStub() const {
-    return kind_ == Code::LOAD_IC || kind_ == Code::LOAD_GLOBAL_IC ||
-           kind_ == Code::KEYED_LOAD_IC;
+  bool IsAnyLoad() const {
+    return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
-  bool IsStoreStub() const {
-    return kind_ == Code::STORE_IC || kind_ == Code::KEYED_STORE_IC;
-  }
-  bool IsCallStub() const { return kind_ == Code::CALL_IC; }
-#endif
+  bool IsAnyStore() const { return IsStoreIC() || IsKeyedStoreIC(); }
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
                                                   bool receiver_is_holder,
@@ -71,8 +65,13 @@ class IC {
 
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
-           kind == Code::KEYED_LOAD_IC || kind == Code::CALL_IC ||
-           kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC;
+           kind == Code::KEYED_LOAD_IC || kind == Code::STORE_IC ||
+           kind == Code::KEYED_STORE_IC;
+  }
+  static bool ICUseVector(FeedbackSlotKind kind) {
+    return IsLoadICKind(kind) || IsLoadGlobalICKind(kind) ||
+           IsKeyedLoadICKind(kind) || IsStoreICKind(kind) ||
+           IsKeyedStoreICKind(kind);
   }
 
   // The ICs that don't pass slot and vector through the stack have to
@@ -165,15 +164,17 @@ class IC {
   void CopyICToMegamorphicCache(Handle<Name> name);
   bool IsTransitionOfMonomorphicTarget(Map* source_map, Map* target_map);
   void PatchCache(Handle<Name> name, Handle<Object> code);
-  Code::Kind kind() const { return kind_; }
-  bool is_keyed() const {
-    return kind_ == Code::KEYED_LOAD_IC || kind_ == Code::KEYED_STORE_IC;
-  }
+  FeedbackSlotKind kind() const { return kind_; }
+  bool IsLoadIC() const { return IsLoadICKind(kind_); }
+  bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
+  bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
+  bool IsStoreIC() const { return IsStoreICKind(kind_); }
+  bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
+  bool is_keyed() const { return IsKeyedLoadIC() || IsKeyedStoreIC(); }
   Code::Kind handler_kind() const {
-    if (kind_ == Code::KEYED_LOAD_IC) return Code::LOAD_IC;
-    DCHECK(kind_ == Code::LOAD_IC || kind_ == Code::STORE_IC ||
-           kind_ == Code::KEYED_STORE_IC);
-    return kind_;
+    if (IsAnyLoad()) return Code::LOAD_IC;
+    DCHECK(IsAnyStore());
+    return Code::STORE_IC;
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
@@ -200,8 +201,8 @@ class IC {
     return target_maps_.length() > 0 ? *target_maps_.at(0) : NULL;
   }
 
-  Handle<TypeFeedbackVector> vector() const { return nexus()->vector_handle(); }
-  FeedbackVectorSlot slot() const { return nexus()->slot(); }
+  Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
+  FeedbackSlot slot() const { return nexus()->slot(); }
   State saved_state() const {
     return state() == RECOMPUTE_HANDLER ? old_state_ : state();
   }
@@ -244,7 +245,7 @@ class IC {
   bool vector_set_;
   State old_state_;  // For saving if we marked as prototype failure.
   State state_;
-  Code::Kind kind_;
+  FeedbackSlotKind kind_;
   Handle<Map> receiver_map_;
   MaybeHandle<Object> maybe_handler_;
 
@@ -265,24 +266,24 @@ class CallIC : public IC {
     DCHECK(nexus != NULL);
   }
 
-  void HandleMiss(Handle<Object> function);
-
   static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
 
 
 class LoadIC : public IC {
  public:
-  LoadIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
-      : IC(depth, isolate, nexus) {
+  LoadIC(Isolate* isolate, FeedbackNexus* nexus)
+      : IC(NO_EXTRA_FRAME, isolate, nexus) {
     DCHECK(nexus != NULL);
-    DCHECK(IsLoadStub());
+    DCHECK(IsAnyLoad());
+  }
+
+  static bool ShouldThrowReferenceError(FeedbackSlotKind kind) {
+    return kind == FeedbackSlotKind::kLoadGlobalNotInsideTypeof;
   }
 
   bool ShouldThrowReferenceError() const {
-    return kind() == Code::LOAD_GLOBAL_IC &&
-           LoadGlobalICState::GetTypeofMode(extra_ic_state()) ==
-               NOT_INSIDE_TYPEOF;
+    return ShouldThrowReferenceError(kind());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
@@ -324,8 +325,8 @@ class LoadIC : public IC {
 
 class LoadGlobalIC : public LoadIC {
  public:
-  LoadGlobalIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
-      : LoadIC(depth, isolate, nexus) {}
+  LoadGlobalIC(Isolate* isolate, FeedbackNexus* nexus)
+      : LoadIC(isolate, nexus) {}
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
 
@@ -339,9 +340,8 @@ class LoadGlobalIC : public LoadIC {
 
 class KeyedLoadIC : public LoadIC {
  public:
-  KeyedLoadIC(FrameDepth depth, Isolate* isolate,
-              KeyedLoadICNexus* nexus = NULL)
-      : LoadIC(depth, isolate, nexus) {
+  KeyedLoadIC(Isolate* isolate, KeyedLoadICNexus* nexus)
+      : LoadIC(isolate, nexus) {
     DCHECK(nexus != NULL);
   }
 
@@ -361,13 +361,13 @@ class KeyedLoadIC : public LoadIC {
 
 class StoreIC : public IC {
  public:
-  StoreIC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL)
-      : IC(depth, isolate, nexus) {
-    DCHECK(IsStoreStub());
+  StoreIC(Isolate* isolate, FeedbackNexus* nexus)
+      : IC(NO_EXTRA_FRAME, isolate, nexus) {
+    DCHECK(IsAnyStore());
   }
 
   LanguageMode language_mode() const {
-    return StoreICState::GetLanguageMode(extra_ic_state());
+    return nexus()->vector()->GetLanguageMode(nexus()->slot());
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Store(
@@ -383,15 +383,8 @@ class StoreIC : public IC {
  protected:
   // Stub accessors.
   Handle<Code> slow_stub() const {
-    switch (language_mode()) {
-      case SLOPPY:
-        return isolate()->builtins()->StoreIC_SlowSloppy();
-      case STRICT:
-        return isolate()->builtins()->StoreIC_SlowStrict();
-      default:
-        UNREACHABLE();
-        return Handle<Code>();
-    }
+    // StoreIC and KeyedStoreIC share the same slow stub.
+    return isolate()->builtins()->KeyedStoreIC_Slow();
   }
 
   // Update the inline cache and the global stub cache based on the
@@ -423,19 +416,12 @@ class KeyedStoreIC : public StoreIC {
     return casted_nexus<KeyedStoreICNexus>()->GetKeyedAccessStoreMode();
   }
 
-  KeyedStoreIC(FrameDepth depth, Isolate* isolate,
-               KeyedStoreICNexus* nexus = NULL)
-      : StoreIC(depth, isolate, nexus) {}
+  KeyedStoreIC(Isolate* isolate, KeyedStoreICNexus* nexus)
+      : StoreIC(isolate, nexus) {}
 
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                             Handle<Object> name,
                                             Handle<Object> value);
-
-  // Code generators for stub routines.  Only called once at startup.
-  static void GenerateMiss(MacroAssembler* masm);
-  static void GenerateSlow(MacroAssembler* masm);
-  static void GenerateMegamorphic(MacroAssembler* masm,
-                                  LanguageMode language_mode);
 
   static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 

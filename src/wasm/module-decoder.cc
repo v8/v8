@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/function-body-decoder-impl.h"
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
@@ -238,7 +239,8 @@ class ModuleDecoder : public Decoder {
     pos = pc_;
     {
       uint32_t magic_version = consume_u32("wasm version");
-      if (magic_version != kWasmVersion) {
+      if (magic_version != kWasmVersion &&
+          magic_version != kWasmLegacyVersion) {
         error(pos, pos,
               "expected version %02x %02x %02x %02x, "
               "found %02x %02x %02x %02x",
@@ -628,7 +630,7 @@ class ModuleDecoder : public Decoder {
         }
 
         uint32_t local_names_count = inner.consume_u32v("local names count");
-        for (uint32_t j = 0; ok() && j < local_names_count; j++) {
+        for (uint32_t j = 0; inner.ok() && j < local_names_count; j++) {
           uint32_t length = inner.consume_u32v("string length");
           inner.consume_bytes(length, "string");
         }

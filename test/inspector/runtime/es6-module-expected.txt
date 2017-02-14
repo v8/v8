@@ -8,6 +8,7 @@ Checks basic ES6 modules support.
         hasSourceURL : false
         hash : 9C014F7249BAFA12B91017817AD15091D01A9155
         isLiveEdit : false
+        isModule : true
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -24,6 +25,7 @@ Checks basic ES6 modules support.
         hasSourceURL : false
         hash : 443A2FA24A6112E6B9101781E6A19B56BDC396D4
         isLiveEdit : false
+        isModule : true
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -40,6 +42,7 @@ Checks basic ES6 modules support.
         hasSourceURL : false
         hash : 54D834614FBF9B389082DAE06CD3EFC499BEBF13
         isLiveEdit : false
+        isModule : true
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0
@@ -183,6 +186,7 @@ console.log(239)
         executionContextId : <executionContextId>
         hasSourceURL : false
         hash : FF746120E4E4F1BA4CB5762843D429DC872EBA18
+        isModule : true
         scriptId : <scriptId>
         sourceMapURL : 
         startColumn : 0

@@ -281,59 +281,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ ret(0);
 }
 
-
-void FunctionPrototypeStub::Generate(MacroAssembler* masm) {
-  Label miss;
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  // With careful management, we won't have to save slot and vector on
-  // the stack. Simply handle the possibly missing case first.
-  // TODO(mvstanton): this code can be more efficient.
-  __ cmp(FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset),
-         Immediate(isolate()->factory()->the_hole_value()));
-  __ j(equal, &miss);
-  __ TryGetFunctionPrototype(receiver, eax, ebx, &miss);
-  __ ret(0);
-
-  __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::LOAD_IC));
-}
-
-
-void LoadIndexedStringStub::Generate(MacroAssembler* masm) {
-  // Return address is on the stack.
-  Label miss;
-
-  Register receiver = LoadDescriptor::ReceiverRegister();
-  Register index = LoadDescriptor::NameRegister();
-  Register scratch = edi;
-  DCHECK(!scratch.is(receiver) && !scratch.is(index));
-  Register result = eax;
-  DCHECK(!result.is(scratch));
-  DCHECK(!scratch.is(LoadWithVectorDescriptor::VectorRegister()) &&
-         result.is(LoadDescriptor::SlotRegister()));
-
-  // StringCharAtGenerator doesn't use the result register until it's passed
-  // the different miss possibilities. If it did, we would have a conflict
-  // when FLAG_vector_ics is true.
-
-  StringCharAtGenerator char_at_generator(receiver, index, scratch, result,
-                                          &miss,  // When not a string.
-                                          &miss,  // When not a number.
-                                          &miss,  // When index out of range.
-                                          RECEIVER_IS_STRING);
-  char_at_generator.GenerateFast(masm);
-  __ ret(0);
-
-  StubRuntimeCallHelper call_helper;
-  char_at_generator.GenerateSlow(masm, PART_OF_IC_HANDLER, call_helper);
-
-  __ bind(&miss);
-  PropertyAccessCompiler::TailCallBuiltin(
-      masm, PropertyAccessCompiler::MissBuiltin(Code::KEYED_LOAD_IC));
-}
-
-
 void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Just jump directly to runtime if native RegExp is not selected at compile
   // time or if regexp entry in generated code is turned off runtime switch or
@@ -845,9 +792,6 @@ void CompareICStub::GenerateGeneric(MacroAssembler* masm) {
       // Call runtime on identical symbols since we need to throw a TypeError.
       __ cmpb(ecx, Immediate(SYMBOL_TYPE));
       __ j(equal, &runtime_call, Label::kFar);
-      // Call runtime on identical SIMD values since we must throw a TypeError.
-      __ cmpb(ecx, Immediate(SIMD128_VALUE_TYPE));
-      __ j(equal, &runtime_call, Label::kFar);
     }
     __ Move(eax, Immediate(Smi::FromInt(EQUAL)));
     __ ret(0);
@@ -1131,8 +1075,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   // A monomorphic cache hit or an already megamorphic state: invoke the
   // function without changing the state.
   // We don't know if ecx is a WeakCell or a Symbol, but it's harmless to read
-  // at this position in a symbol (see static asserts in
-  // type-feedback-vector.h).
+  // at this position in a symbol (see static asserts in feedback-vector.h).
   Label check_allocation_site;
   __ cmp(edi, FieldOperand(ecx, WeakCell::kValueOffset));
   __ j(equal, &done, Label::kFar);
@@ -1171,7 +1114,7 @@ static void GenerateRecordCallTarget(MacroAssembler* masm) {
   __ bind(&megamorphic);
   __ mov(
       FieldOperand(ebx, edx, times_half_pointer_size, FixedArray::kHeaderSize),
-      Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
+      Immediate(FeedbackVector::MegamorphicSentinel(isolate)));
   __ jmp(&done, Label::kFar);
 
   // An uninitialized cache is patched with the function or sentinel to
@@ -1320,7 +1263,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ bind(&extra_checks_or_miss);
   Label uninitialized, miss, not_allocation_site;
 
-  __ cmp(ecx, Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
+  __ cmp(ecx, Immediate(FeedbackVector::MegamorphicSentinel(isolate)));
   __ j(equal, &call);
 
   // Check if we have an allocation site.
@@ -1339,7 +1282,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
     __ jmp(&miss);
   }
 
-  __ cmp(ecx, Immediate(TypeFeedbackVector::UninitializedSentinel(isolate)));
+  __ cmp(ecx, Immediate(FeedbackVector::UninitializedSentinel(isolate)));
   __ j(equal, &uninitialized);
 
   // We are going megamorphic. If the feedback is a JSFunction, it is fine
@@ -1349,7 +1292,7 @@ void CallICStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &miss);
   __ mov(
       FieldOperand(ebx, edx, times_half_pointer_size, FixedArray::kHeaderSize),
-      Immediate(TypeFeedbackVector::MegamorphicSentinel(isolate)));
+      Immediate(FeedbackVector::MegamorphicSentinel(isolate)));
 
   __ bind(&call);
 
@@ -1828,52 +1771,6 @@ void StringCharCodeAtGenerator::GenerateSlow(
   __ jmp(&exit_);
 
   __ Abort(kUnexpectedFallthroughFromCharCodeAtSlowCase);
-}
-
-
-// -------------------------------------------------------------------------
-// StringCharFromCodeGenerator
-
-void StringCharFromCodeGenerator::GenerateFast(MacroAssembler* masm) {
-  // Fast case of Heap::LookupSingleCharacterStringFromCode.
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  DCHECK(base::bits::IsPowerOfTwo32(String::kMaxOneByteCharCodeU + 1));
-  __ test(code_, Immediate(kSmiTagMask |
-                           ((~String::kMaxOneByteCharCodeU) << kSmiTagSize)));
-  __ j(not_zero, &slow_case_);
-
-  Factory* factory = masm->isolate()->factory();
-  __ Move(result_, Immediate(factory->single_character_string_cache()));
-  STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);
-  STATIC_ASSERT(kSmiShiftSize == 0);
-  // At this point code register contains smi tagged one byte char code.
-  __ mov(result_, FieldOperand(result_,
-                               code_, times_half_pointer_size,
-                               FixedArray::kHeaderSize));
-  __ cmp(result_, factory->undefined_value());
-  __ j(equal, &slow_case_);
-  __ bind(&exit_);
-}
-
-
-void StringCharFromCodeGenerator::GenerateSlow(
-    MacroAssembler* masm,
-    const RuntimeCallHelper& call_helper) {
-  __ Abort(kUnexpectedFallthroughToCharFromCodeSlowCase);
-
-  __ bind(&slow_case_);
-  call_helper.BeforeCall(masm);
-  __ push(code_);
-  __ CallRuntime(Runtime::kStringCharFromCode);
-  if (!result_.is(eax)) {
-    __ mov(result_, eax);
-  }
-  call_helper.AfterCall(masm);
-  __ jmp(&exit_);
-
-  __ Abort(kUnexpectedFallthroughFromCharFromCodeSlowCase);
 }
 
 void StringHelper::GenerateFlatOneByteStringEquals(MacroAssembler* masm,
@@ -2735,12 +2632,6 @@ void StubFailureTrampolineStub::Generate(MacroAssembler* masm) {
       function_mode() == JS_FUNCTION_STUB_MODE ? kPointerSize : 0;
   __ lea(esp, MemOperand(esp, ebx, times_pointer_size, additional_offset));
   __ jmp(ecx);  // Return to IC Miss stub, continuation still on stack.
-}
-
-void CallICTrampolineStub::Generate(MacroAssembler* masm) {
-  __ EmitLoadTypeFeedbackVector(ebx);
-  CallICStub stub(isolate(), state());
-  __ jmp(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {

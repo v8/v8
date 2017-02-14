@@ -1047,6 +1047,12 @@ TEST(Neon) {
               "f2142860       vadd.i16 q1, q2, q8");
       COMPARE(vadd(Neon32, q15, q0, q8),
               "f260e860       vadd.i32 q15, q0, q8");
+      COMPARE(vqadd(NeonU8, q0, q1, q2),
+              "f3020054       vqadd.u8 q0, q1, q2");
+      COMPARE(vqadd(NeonS16, q1, q2, q8),
+              "f2142070       vqadd.s16 q1, q2, q8");
+      COMPARE(vqadd(NeonU32, q15, q0, q8),
+              "f360e070       vqadd.u32 q15, q0, q8");
       COMPARE(vsub(q15, q0, q8),
               "f260ed60       vsub.f32 q15, q0, q8");
       COMPARE(vsub(Neon8, q0, q1, q2),
@@ -1055,6 +1061,12 @@ TEST(Neon) {
               "f3142860       vsub.i16 q1, q2, q8");
       COMPARE(vsub(Neon32, q15, q0, q8),
               "f360e860       vsub.i32 q15, q0, q8");
+      COMPARE(vqsub(NeonU8, q0, q1, q2),
+              "f3020254       vqsub.u8 q0, q1, q2");
+      COMPARE(vqsub(NeonS16, q1, q2, q8),
+              "f2142270       vqsub.s16 q1, q2, q8");
+      COMPARE(vqsub(NeonU32, q15, q0, q8),
+              "f360e270       vqsub.u32 q15, q0, q8");
       COMPARE(vmul(q0, q1, q2),
               "f3020d54       vmul.f32 q0, q1, q2");
       COMPARE(vmul(Neon8, q0, q1, q2),

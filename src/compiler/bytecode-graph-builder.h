@@ -25,7 +25,7 @@ class SourcePositionTable;
 class BytecodeGraphBuilder {
  public:
   BytecodeGraphBuilder(Zone* local_zone, Handle<SharedFunctionInfo> shared,
-                       Handle<TypeFeedbackVector> feedback_vector,
+                       Handle<FeedbackVector> feedback_vector,
                        BailoutId osr_ast_id, JSGraph* jsgraph,
                        float invocation_frequency,
                        SourcePositionTable* source_positions,
@@ -111,13 +111,14 @@ class BytecodeGraphBuilder {
 
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t arity);
-  Node* ProcessCallNewArguments(const Operator* call_new_op, Node* callee,
-                                Node* new_target,
-                                interpreter::Register first_arg, size_t arity);
-  Node* ProcessCallNewWithSpreadArguments(const Operator* op, Node* callee,
-                                          Node* new_target,
-                                          interpreter::Register first_arg,
-                                          size_t arity);
+  Node* ProcessConstructArguments(const Operator* call_new_op, Node* callee,
+                                  Node* new_target,
+                                  interpreter::Register first_arg,
+                                  size_t arity);
+  Node* ProcessConstructWithSpreadArguments(const Operator* op, Node* callee,
+                                            Node* new_target,
+                                            interpreter::Register first_arg,
+                                            size_t arity);
   Node* ProcessCallRuntimeArguments(const Operator* call_runtime_op,
                                     interpreter::Register first_arg,
                                     size_t arity);
@@ -237,7 +238,7 @@ class BytecodeGraphBuilder {
   const Handle<HandlerTable>& exception_handler_table() const {
     return exception_handler_table_;
   }
-  const Handle<TypeFeedbackVector>& feedback_vector() const {
+  const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;
   }
   const FrameStateFunctionInfo* frame_state_function_info() const {
@@ -270,7 +271,7 @@ class BytecodeGraphBuilder {
   float const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
   Handle<HandlerTable> exception_handler_table_;
-  Handle<TypeFeedbackVector> feedback_vector_;
+  Handle<FeedbackVector> feedback_vector_;
   const FrameStateFunctionInfo* frame_state_function_info_;
   const interpreter::BytecodeArrayIterator* bytecode_iterator_;
   const BytecodeAnalysis* bytecode_analysis_;

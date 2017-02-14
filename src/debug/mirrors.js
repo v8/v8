@@ -77,58 +77,14 @@ var MirrorType = {
   GENERATOR_TYPE : 'generator',
 }
 
-
-// Handle id counters.
-var next_handle_ = 0;
-var next_transient_handle_ = -1;
-
-// Mirror cache.
-var mirror_cache_ = [];
-var mirror_cache_enabled_ = true;
-
-
-function MirrorCacheIsEmpty() {
-  return next_handle_ == 0 && mirror_cache_.length == 0;
-}
-
-
-function ToggleMirrorCache(value) {
-  mirror_cache_enabled_ = value;
-  ClearMirrorCache();
-}
-
-
-function ClearMirrorCache(value) {
-  next_handle_ = 0;
-  mirror_cache_ = [];
-}
-
-
 /**
  * Returns the mirror for a specified value or object.
  *
  * @param {value or Object} value the value or object to retrieve the mirror for
- * @param {boolean} transient indicate whether this object is transient and
- *    should not be added to the mirror cache. The default is not transient.
  * @returns {Mirror} the mirror reflects the passed value or object
  */
-function MakeMirror(value, opt_transient) {
+function MakeMirror(value) {
   var mirror;
-
-  // Look for non transient mirrors in the mirror cache.
-  if (!opt_transient && mirror_cache_enabled_) {
-    for (var id in mirror_cache_) {
-      mirror = mirror_cache_[id];
-      if (mirror.value() === value) {
-        return mirror;
-      }
-      // Special check for NaN as NaN == NaN is false.
-      if (mirror.isNumber() && IsNaN(mirror.value()) &&
-          typeof value == 'number' && IsNaN(value)) {
-        return mirror;
-      }
-    }
-  }
 
   if (IS_UNDEFINED(value)) {
     mirror = new UndefinedMirror();
@@ -165,26 +121,10 @@ function MakeMirror(value, opt_transient) {
   } else if (IS_GENERATOR(value)) {
     mirror = new GeneratorMirror(value);
   } else {
-    mirror = new ObjectMirror(value, MirrorType.OBJECT_TYPE, opt_transient);
+    mirror = new ObjectMirror(value, MirrorType.OBJECT_TYPE);
   }
 
-  if (mirror_cache_enabled_) mirror_cache_[mirror.handle()] = mirror;
   return mirror;
-}
-
-
-/**
- * Returns the mirror for a specified mirror handle.
- *
- * @param {number} handle the handle to find the mirror for
- * @returns {Mirror or undefiend} the mirror with the requested handle or
- *     undefined if no mirror with the requested handle was found
- */
-function LookupMirror(handle) {
-  if (!mirror_cache_enabled_) {
-    throw %make_error(kDebugger, "Mirror cache is disabled");
-  }
-  return mirror_cache_[handle];
 }
 
 
@@ -491,23 +431,6 @@ Mirror.prototype.isIterator = function() {
 };
 
 
-/**
- * Allocate a handle id for this object.
- */
-Mirror.prototype.allocateHandle_ = function() {
-  if (mirror_cache_enabled_) this.handle_ = next_handle_++;
-};
-
-
-/**
- * Allocate a transient handle id for this object. Transient handles are
- * negative.
- */
-Mirror.prototype.allocateTransientHandle_ = function() {
-  this.handle_ = next_transient_handle_--;
-};
-
-
 Mirror.prototype.toText = function() {
   // Simpel to text which is used when on specialization in subclass.
   return "#<" + this.constructor.name + ">";
@@ -518,26 +441,14 @@ Mirror.prototype.toText = function() {
  * Base class for all value mirror objects.
  * @param {string} type The type of the mirror
  * @param {value} value The value reflected by this mirror
- * @param {boolean} transient indicate whether this object is transient with a
- *    transient handle
  * @constructor
  * @extends Mirror
  */
-function ValueMirror(type, value, transient) {
+function ValueMirror(type, value) {
   %_Call(Mirror, this, type);
   this.value_ = value;
-  if (!transient) {
-    this.allocateHandle_();
-  } else {
-    this.allocateTransientHandle_();
-  }
 }
 inherits(ValueMirror, Mirror);
-
-
-Mirror.prototype.handle = function() {
-  return this.handle_;
-};
 
 
 /**
@@ -626,7 +537,7 @@ inherits(NumberMirror, ValueMirror);
 
 
 NumberMirror.prototype.toText = function() {
-  return %_NumberToString(this.value_);
+  return %NumberToString(this.value_);
 };
 
 
@@ -684,14 +595,12 @@ SymbolMirror.prototype.toText = function() {
 /**
  * Mirror object for objects.
  * @param {object} value The object reflected by this mirror
- * @param {boolean} transient indicate whether this object is transient with a
- *    transient handle
  * @constructor
  * @extends ValueMirror
  */
-function ObjectMirror(value, type, transient) {
+function ObjectMirror(value, type) {
   type = type || MirrorType.OBJECT_TYPE;
-  %_Call(ValueMirror, this, type, value, transient);
+  %_Call(ValueMirror, this, type, value);
 }
 inherits(ObjectMirror, ValueMirror);
 
@@ -2010,11 +1919,12 @@ FrameMirror.prototype.allScopes = function(opt_ignore_nested_scopes) {
 };
 
 
-FrameMirror.prototype.evaluate = function(source) {
+FrameMirror.prototype.evaluate = function(source, throw_on_side_effect = false) {
   return MakeMirror(%DebugEvaluate(this.break_id_,
                                    this.details_.frameId(),
                                    this.details_.inlinedFrameIndex(),
-                                   source));
+                                   source,
+                                   throw_on_side_effect));
 };
 
 
@@ -2313,13 +2223,10 @@ ScopeMirror.prototype.scopeType = function() {
 
 
 ScopeMirror.prototype.scopeObject = function() {
-  // For local, closure and script scopes create a transient mirror
+  // For local, closure and script scopes create a mirror
   // as these objects are created on the fly materializing the local
   // or closure scopes and therefore will not preserve identity.
-  var transient = this.scopeType() == ScopeType.Local ||
-                  this.scopeType() == ScopeType.Closure ||
-                  this.scopeType() == ScopeType.Script;
-  return MakeMirror(this.details_.object(), transient);
+  return MakeMirror(this.details_.object());
 };
 
 
@@ -2338,7 +2245,6 @@ function ScriptMirror(script) {
   %_Call(Mirror, this, MirrorType.SCRIPT_TYPE);
   this.script_ = script;
   this.context_ = new ContextMirror(script.context_data);
-  this.allocateHandle_();
 }
 inherits(ScriptMirror, Mirror);
 
@@ -2454,7 +2360,6 @@ ScriptMirror.prototype.toText = function() {
 function ContextMirror(data) {
   %_Call(Mirror, this, MirrorType.CONTEXT_TYPE);
   this.data_ = data;
-  this.allocateHandle_();
 }
 inherits(ContextMirror, Mirror);
 
@@ -2468,9 +2373,6 @@ ContextMirror.prototype.data = function() {
 
 utils.InstallFunctions(global, DONT_ENUM, [
   "MakeMirror", MakeMirror,
-  "LookupMirror", LookupMirror,
-  "ToggleMirrorCache", ToggleMirrorCache,
-  "MirrorCacheIsEmpty", MirrorCacheIsEmpty,
 ]);
 
 utils.InstallConstants(global, [
@@ -2505,13 +2407,4 @@ utils.InstallConstants(global, [
   "FrameDetails", FrameDetails,
 ]);
 
-// Functions needed by the debugger runtime.
-utils.InstallFunctions(utils, DONT_ENUM, [
-  "ClearMirrorCache", ClearMirrorCache
-]);
-
-// Export to debug.js
-utils.Export(function(to) {
-  to.MirrorType = MirrorType;
-});
 })

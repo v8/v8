@@ -1460,6 +1460,9 @@ void Isolate::CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler) {
     DCHECK(scheduled_exception() != heap()->termination_exception());
     clear_scheduled_exception();
   }
+  if (thread_local_top_.pending_message_obj_ == handler->message_obj_) {
+    clear_pending_message();
+  }
 }
 
 
@@ -1875,6 +1878,11 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
                                Handle<JSReceiver>::cast(deferred_promise));
   }
 
+  if (queue->IsSymbol()) {
+    return InternalPromiseHasUserDefinedRejectHandler(
+        isolate, Handle<JSPromise>::cast(deferred_promise));
+  }
+
   Handle<FixedArray> queue_arr = Handle<FixedArray>::cast(queue);
   Handle<FixedArray> deferred_promise_arr =
       Handle<FixedArray>::cast(deferred_promise);
@@ -2128,8 +2136,7 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\","
-        "\"nesting\": %zu"
-        "}\n",
+        "\"nesting\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time,
         reinterpret_cast<const void*>(zone), zone->name(),
         nesting_deepth_.Value());
@@ -2146,9 +2153,9 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
         "\"name\": \"%s\", "
-        "\"size\": %zu,"
-        "\"nesting\": %zu"
-        "}\n",
+        "\"size\": %" PRIuS
+        ","
+        "\"nesting\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time,
         reinterpret_cast<const void*>(zone), zone->name(),
         zone->allocation_size(), nesting_deepth_.Value());
@@ -2164,9 +2171,9 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"type\": \"zone\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
-        "\"allocated\": %zu,"
-        "\"pooled\": %zu"
-        "}\n",
+        "\"allocated\": %" PRIuS
+        ","
+        "\"pooled\": %" PRIuS "}\n",
         reinterpret_cast<void*>(heap_->isolate()), time, malloced, pooled);
   }
 
@@ -2238,7 +2245,8 @@ Isolate::Isolate(bool enable_serializer)
       use_counter_callback_(NULL),
       basic_block_profiler_(NULL),
       cancelable_task_manager_(new CancelableTaskManager()),
-      abort_on_uncaught_exception_callback_(NULL) {
+      abort_on_uncaught_exception_callback_(NULL),
+      total_regexp_code_generated_(0) {
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     CHECK(thread_data_table_);
@@ -2644,9 +2652,7 @@ bool Isolate::Init(Deserializer* des) {
 
   bootstrapper_->Initialize(create_heap_objects);
   builtins_.SetUp(this, create_heap_objects);
-  if (create_heap_objects) {
-    heap_.CreateFixedStubs();
-  }
+  if (create_heap_objects) heap_.CreateFixedStubs();
 
   if (FLAG_log_internal_timer_events) {
     set_event_logger(Logger::DefaultEventLoggerSentinel);
@@ -2900,16 +2906,24 @@ Map* Isolate::get_initial_js_array_map(ElementsKind kind) {
   return nullptr;
 }
 
-
-bool Isolate::use_crankshaft() const {
+bool Isolate::use_crankshaft() {
   return FLAG_opt && FLAG_crankshaft && !serializer_enabled_ &&
-         CpuFeatures::SupportsCrankshaft();
+         CpuFeatures::SupportsCrankshaft() && !IsCodeCoverageEnabled();
 }
 
 bool Isolate::NeedsSourcePositionsForProfiling() const {
   return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
          FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
          debug_->is_active() || logger_->is_logging();
+}
+
+bool Isolate::IsCodeCoverageEnabled() {
+  return heap()->code_coverage_list()->IsArrayList();
+}
+
+void Isolate::SetCodeCoverageList(Object* value) {
+  DCHECK(value->IsUndefined(this) || value->IsArrayList());
+  heap()->set_code_coverage_list(value);
 }
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {
@@ -3057,15 +3071,6 @@ void Isolate::UpdateArrayProtectorOnSetElement(Handle<JSObject> object) {
   PropertyCell::SetValueWithInvalidation(
       factory()->array_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
-}
-
-void Isolate::InvalidateHasInstanceProtector() {
-  DCHECK(factory()->has_instance_protector()->value()->IsSmi());
-  DCHECK(IsHasInstanceLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->has_instance_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsHasInstanceLookupChainIntact());
 }
 
 void Isolate::InvalidateIsConcatSpreadableProtector() {

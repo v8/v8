@@ -31,21 +31,21 @@ namespace compiler {
 
 
 // Provides convenience accessors for the common layout of nodes having either
-// the {JSCallFunction} or the {JSConstruct} operator.
+// the {JSCall} or the {JSConstruct} operator.
 class JSCallAccessor {
  public:
   explicit JSCallAccessor(Node* call) : call_(call) {
-    DCHECK(call->opcode() == IrOpcode::kJSCallFunction ||
+    DCHECK(call->opcode() == IrOpcode::kJSCall ||
            call->opcode() == IrOpcode::kJSConstruct);
   }
 
   Node* target() {
-    // Both, {JSCallFunction} and {JSConstruct}, have same layout here.
+    // Both, {JSCall} and {JSConstruct}, have same layout here.
     return call_->InputAt(0);
   }
 
   Node* receiver() {
-    DCHECK_EQ(IrOpcode::kJSCallFunction, call_->opcode());
+    DCHECK_EQ(IrOpcode::kJSCall, call_->opcode());
     return call_->InputAt(1);
   }
 
@@ -55,20 +55,20 @@ class JSCallAccessor {
   }
 
   Node* frame_state() {
-    // Both, {JSCallFunction} and {JSConstruct}, have frame state.
+    // Both, {JSCall} and {JSConstruct}, have frame state.
     return NodeProperties::GetFrameStateInput(call_);
   }
 
   int formal_arguments() {
-    // Both, {JSCallFunction} and {JSConstruct}, have two extra inputs:
+    // Both, {JSCall} and {JSConstruct}, have two extra inputs:
     //  - JSConstruct: Includes target function and new target.
-    //  - JSCallFunction: Includes target function and receiver.
+    //  - JSCall: Includes target function and receiver.
     return call_->op()->ValueInputCount() - 2;
   }
 
   float frequency() const {
-    return (call_->opcode() == IrOpcode::kJSCallFunction)
-               ? CallFunctionParametersOf(call_->op()).frequency()
+    return (call_->opcode() == IrOpcode::kJSCall)
+               ? CallParametersOf(call_->op()).frequency()
                : ConstructParametersOf(call_->op()).frequency();
   }
 
@@ -220,9 +220,9 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
   }
 }
 
-
 Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                             int parameter_count,
+                                            BailoutId bailout_id,
                                             FrameStateType frame_state_type,
                                             Handle<SharedFunctionInfo> shared) {
   const FrameStateFunctionInfo* state_info =
@@ -230,7 +230,7 @@ Node* JSInliner::CreateArtificialFrameState(Node* node, Node* outer_frame_state,
                                              parameter_count + 1, 0, shared);
 
   const Operator* op = common()->FrameState(
-      BailoutId(-1), OutputFrameStateCombine::Ignore(), state_info);
+      bailout_id, OutputFrameStateCombine::Ignore(), state_info);
   const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
   Node* node0 = graph()->NewNode(op0);
   NodeVector params(local_zone_);
@@ -347,29 +347,120 @@ bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {
 
 }  // namespace
 
-
-Reduction JSInliner::Reduce(Node* node) {
-  if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
+// Determines whether the call target of the given call {node} is statically
+// known and can be used as an inlining candidate. The {SharedFunctionInfo} of
+// the call target is provided (the exact closure might be unknown).
+bool JSInliner::DetermineCallTarget(
+    Node* node, Handle<SharedFunctionInfo>& shared_info_out) {
+  DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  HeapObjectMatcher match(node->InputAt(0));
 
   // This reducer can handle both normal function calls as well a constructor
   // calls whenever the target is a constant function object, as follows:
-  //  - JSCallFunction(target:constant, receiver, args...)
+  //  - JSCall(target:constant, receiver, args...)
   //  - JSConstruct(target:constant, args..., new.target)
-  HeapObjectMatcher match(node->InputAt(0));
-  if (!match.HasValue() || !match.Value()->IsJSFunction()) return NoChange();
-  Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
+  if (match.HasValue() && match.Value()->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
 
-  return ReduceJSCall(node, function);
+    // Disallow cross native-context inlining for now. This means that all parts
+    // of the resulting code will operate on the same global object. This also
+    // prevents cross context leaks, where we could inline functions from a
+    // different context and hold on to that context (and closure) from the code
+    // object.
+    // TODO(turbofan): We might want to revisit this restriction later when we
+    // have a need for this, and we know how to model different native contexts
+    // in the same graph in a compositional way.
+    if (function->context()->native_context() !=
+        info_->context()->native_context()) {
+      return false;
+    }
+
+    shared_info_out = handle(function->shared());
+    return true;
+  }
+
+  // This reducer can also handle calls where the target is statically known to
+  // be the result of a closure instantiation operation, as follows:
+  //  - JSCall(JSCreateClosure[shared](context), receiver, args...)
+  //  - JSConstruct(JSCreateClosure[shared](context), args..., new.target)
+  if (match.IsJSCreateClosure()) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
+
+    // Disallow inlining in case the instantiation site was never run and hence
+    // the vector cell does not contain a valid feedback vector for the call
+    // target.
+    // TODO(turbofan): We might consider to eagerly create the feedback vector
+    // in such a case (in {DetermineCallContext} below) eventually.
+    FeedbackSlot slot = p.feedback().slot();
+    Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
+    if (!cell->value()->IsFeedbackVector()) return false;
+
+    shared_info_out = p.shared_info();
+    return true;
+  }
+
+  return false;
 }
 
-Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
+// Determines statically known information about the call target (assuming that
+// the call target is known according to {DetermineCallTarget} above). The
+// following static information is provided:
+//  - context         : The context (as SSA value) bound by the call target.
+//  - feedback_vector : The target is guaranteed to use this feedback vector.
+void JSInliner::DetermineCallContext(
+    Node* node, Node*& context_out,
+    Handle<FeedbackVector>& feedback_vector_out) {
   DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  HeapObjectMatcher match(node->InputAt(0));
+
+  if (match.HasValue() && match.Value()->IsJSFunction()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(match.Value());
+
+    // If the target function was never invoked, its literals array might not
+    // contain a feedback vector. We ensure at this point that it is created.
+    JSFunction::EnsureLiterals(function);
+
+    // The inlinee specializes to the context from the JSFunction object.
+    context_out = jsgraph()->Constant(handle(function->context()));
+    feedback_vector_out = handle(function->feedback_vector());
+    return;
+  }
+
+  if (match.IsJSCreateClosure()) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(match.op());
+
+    // Load the feedback vector of the target by looking up its vector cell at
+    // the instantiation site (we only decide to inline if it's populated).
+    FeedbackSlot slot = p.feedback().slot();
+    Handle<Cell> cell(Cell::cast(p.feedback().vector()->Get(slot)));
+    DCHECK(cell->value()->IsFeedbackVector());
+
+    // The inlinee uses the locally provided context at instantiation.
+    context_out = NodeProperties::GetContextInput(match.node());
+    feedback_vector_out = handle(FeedbackVector::cast(cell->value()));
+    return;
+  }
+
+  // Must succeed.
+  UNREACHABLE();
+}
+
+Reduction JSInliner::Reduce(Node* node) {
+  if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
+  return ReduceJSCall(node);
+}
+
+Reduction JSInliner::ReduceJSCall(Node* node) {
+  DCHECK(IrOpcode::IsInlineeOpcode(node->opcode()));
+  Handle<SharedFunctionInfo> shared_info;
   JSCallAccessor call(node);
-  Handle<SharedFunctionInfo> shared_info(function->shared());
+
+  // Determine the call target.
+  if (!DetermineCallTarget(node, shared_info)) return NoChange();
 
   // Inlining is only supported in the bytecode pipeline.
   if (!info_->is_optimizing_from_bytecode()) {
-    TRACE("Inlining %s into %s is not supported in the deprecated pipeline\n",
+    TRACE("Not inlining %s into %s due to use of the deprecated pipeline\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -394,7 +485,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   // Class constructors are callable, but [[Call]] will raise an exception.
   // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
-  if (node->opcode() == IrOpcode::kJSCallFunction &&
+  if (node->opcode() == IrOpcode::kJSCall &&
       IsClassConstructor(shared_info->kind())) {
     TRACE("Not inlining %s into %s because callee is a class constructor.\n",
           shared_info->DebugName()->ToCString().get(),
@@ -405,22 +496,6 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // Function contains break points.
   if (shared_info->HasDebugInfo()) {
     TRACE("Not inlining %s into %s because callee may contain break points\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-    return NoChange();
-  }
-
-  // Disallow cross native-context inlining for now. This means that all parts
-  // of the resulting code will operate on the same global object.
-  // This also prevents cross context leaks for asm.js code, where we could
-  // inline functions from a different context and hold on to that context (and
-  // closure) from the code object.
-  // TODO(turbofan): We might want to revisit this restriction later when we
-  // have a need for this, and we know how to model different native contexts
-  // in the same graph in a compositional way.
-  if (function->context()->native_context() !=
-      info_->context()->native_context()) {
-    TRACE("Not inlining %s into %s because of different native contexts\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());
     return NoChange();
@@ -474,9 +549,9 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     }
   }
 
-  Zone zone(info_->isolate()->allocator(), ZONE_NAME);
-  ParseInfo parse_info(&zone, shared_info);
-  CompilationInfo info(&parse_info, Handle<JSFunction>::null());
+  ParseInfo parse_info(shared_info);
+  CompilationInfo info(parse_info.zone(), &parse_info,
+                       Handle<JSFunction>::null());
   if (info_->is_deoptimization_enabled()) info.MarkAsDeoptimizationEnabled();
   info.MarkAsOptimizeFromBytecode();
 
@@ -504,8 +579,10 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
         shared_info->DebugName()->ToCString().get(),
         info_->shared_info()->DebugName()->ToCString().get());
 
-  // If function was lazily compiled, its literals array may not yet be set up.
-  JSFunction::EnsureLiterals(function);
+  // Determine the targets feedback vector and its context.
+  Node* context;
+  Handle<FeedbackVector> feedback_vector;
+  DetermineCallContext(node, context, feedback_vector);
 
   // Create the subgraph for the inlinee.
   Node* start;
@@ -514,9 +591,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
     // Run the BytecodeGraphBuilder to create the subgraph.
     Graph::SubgraphScope scope(graph());
     BytecodeGraphBuilder graph_builder(
-        &zone, shared_info, handle(function->feedback_vector()),
-        BailoutId::None(), jsgraph(), call.frequency(), source_positions_,
-        inlining_id);
+        parse_info.zone(), shared_info, feedback_vector, BailoutId::None(),
+        jsgraph(), call.frequency(), source_positions_, inlining_id);
     graph_builder.CreateGraph(false);
 
     // Extract the inlinee start/end nodes.
@@ -552,18 +628,36 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
 
   // Inline {JSConstruct} requires some additional magic.
   if (node->opcode() == IrOpcode::kJSConstruct) {
+    // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
+    // normal {JSCall} node so that the rest of the inlining machinery
+    // behaves as if we were dealing with a regular function invocation.
+    new_target = call.new_target();  // Retrieve new target value input.
+    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
+    node->InsertInput(graph()->zone(), 1, new_target);
+
     // Insert nodes around the call that model the behavior required for a
     // constructor dispatch (allocate implicit receiver and check return value).
     // This models the behavior usually accomplished by our {JSConstructStub}.
     // Note that the context has to be the callers context (input to call node).
+    // Also note that by splitting off the {JSCreate} piece of the constructor
+    // call, we create an observable deoptimization point after the receiver
+    // instantiation but before the invocation (i.e. inside {JSConstructStub}
+    // where execution continues at {construct_stub_create_deopt_pc_offset}).
     Node* receiver = jsgraph()->TheHoleConstant();  // Implicit receiver.
     if (NeedsImplicitReceiver(shared_info)) {
-      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
       Node* effect = NodeProperties::GetEffectInput(node);
+      Node* control = NodeProperties::GetControlInput(node);
       Node* context = NodeProperties::GetContextInput(node);
-      Node* create = graph()->NewNode(javascript()->Create(), call.target(),
-                                      call.new_target(), context,
-                                      frame_state_before, effect);
+      Node* frame_state_inside = CreateArtificialFrameState(
+          node, frame_state, call.formal_arguments(),
+          BailoutId::ConstructStubCreate(), FrameStateType::kConstructStub,
+          info.shared_info());
+      Node* create =
+          graph()->NewNode(javascript()->Create(), call.target(), new_target,
+                           context, frame_state_inside, effect, control);
+      Node* success = graph()->NewNode(common()->IfSuccess(), create);
+      uncaught_subcalls.push_back(create);  // Adds {IfException}.
+      NodeProperties::ReplaceControlInput(node, success);
       NodeProperties::ReplaceEffectInput(node, create);
       // Insert a check of the return value to determine whether the return
       // value or the implicit receiver should be selected as a result of the
@@ -578,42 +672,26 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
       NodeProperties::ReplaceValueInput(check, node, 0);   // Fix-up input.
       receiver = create;  // The implicit receiver.
     }
-
-    // Swizzle the inputs of the {JSConstruct} node to look like inputs to a
-    // normal {JSCallFunction} node so that the rest of the inlining machinery
-    // behaves as if we were dealing with a regular function invocation.
-    new_target = call.new_target();  // Retrieve new target value input.
-    node->RemoveInput(call.formal_arguments() + 1);  // Drop new target.
-    node->InsertInput(graph()->zone(), 1, receiver);
+    node->ReplaceInput(1, receiver);
 
     // Insert a construct stub frame into the chain of frame states. This will
     // reconstruct the proper frame when deoptimizing within the constructor.
     frame_state = CreateArtificialFrameState(
         node, frame_state, call.formal_arguments(),
-        FrameStateType::kConstructStub, info.shared_info());
+        BailoutId::ConstructStubInvoke(), FrameStateType::kConstructStub,
+        info.shared_info());
   }
 
-  // The inlinee specializes to the context from the JSFunction object.
-  // TODO(turbofan): We might want to load the context from the JSFunction at
-  // runtime in case we only know the SharedFunctionInfo once we have dynamic
-  // type feedback in the compiler.
-  Node* context = jsgraph()->Constant(handle(function->context()));
-
   // Insert a JSConvertReceiver node for sloppy callees. Note that the context
-  // passed into this node has to be the callees context (loaded above). Note
-  // that the frame state passed to the JSConvertReceiver must be the frame
-  // state _before_ the call; it is not necessary to fiddle with the receiver
-  // in that frame state tho, as the conversion of the receiver can be repeated
-  // any number of times, it's not observable.
-  if (node->opcode() == IrOpcode::kJSCallFunction &&
+  // passed into this node has to be the callees context (loaded above).
+  if (node->opcode() == IrOpcode::kJSCall &&
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NeedsConvertReceiver(call.receiver(), effect)) {
-      const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
-      Node* frame_state_before = NodeProperties::FindFrameStateBefore(node);
-      Node* convert = effect = graph()->NewNode(
-          javascript()->ConvertReceiver(p.convert_mode()), call.receiver(),
-          context, frame_state_before, effect, start);
+      const CallParameters& p = CallParametersOf(node->op());
+      Node* convert = effect =
+          graph()->NewNode(javascript()->ConvertReceiver(p.convert_mode()),
+                           call.receiver(), context, effect, start);
       NodeProperties::ReplaceValueInput(node, convert, 1);
       NodeProperties::ReplaceEffectInput(node, effect);
     }
@@ -626,8 +704,8 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   // the case when the outermost function inlines a tail call (it should remove
   // potential arguments adaptor frame that belongs to outermost function when
   // deopt happens).
-  if (node->opcode() == IrOpcode::kJSCallFunction) {
-    const CallFunctionParameters& p = CallFunctionParametersOf(node->op());
+  if (node->opcode() == IrOpcode::kJSCall) {
+    const CallParameters& p = CallParametersOf(node->op());
     if (p.tail_call_mode() == TailCallMode::kAllow) {
       frame_state = CreateTailCallerFrameState(node, frame_state);
     }
@@ -641,7 +719,7 @@ Reduction JSInliner::ReduceJSCall(Node* node, Handle<JSFunction> function) {
   DCHECK_EQ(parameter_count, start->op()->ValueOutputCount() - 5);
   if (call.formal_arguments() != parameter_count) {
     frame_state = CreateArtificialFrameState(
-        node, frame_state, call.formal_arguments(),
+        node, frame_state, call.formal_arguments(), BailoutId::None(),
         FrameStateType::kArgumentsAdaptor, shared_info);
   }
 

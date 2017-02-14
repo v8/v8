@@ -141,13 +141,14 @@ void FullCodeGenerator::Generate() {
   {
     Comment cmnt(masm_, "[ Increment invocation count");
     __ ld(a0, FieldMemOperand(a1, JSFunction::kFeedbackVectorOffset));
+    __ ld(a0, FieldMemOperand(a0, Cell::kValueOffset));
     __ ld(a4, FieldMemOperand(
-                  a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                          TypeFeedbackVector::kHeaderSize));
+                  a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                          FeedbackVector::kHeaderSize));
     __ Daddu(a4, a4, Operand(Smi::FromInt(1)));
     __ sd(a4, FieldMemOperand(
-                  a0, TypeFeedbackVector::kInvocationCountIndex * kPointerSize +
-                          TypeFeedbackVector::kHeaderSize));
+                  a0, FeedbackVector::kInvocationCountIndex * kPointerSize +
+                          FeedbackVector::kHeaderSize));
   }
 
   { Comment cmnt(masm_, "[ Allocate locals");
@@ -279,14 +280,16 @@ void FullCodeGenerator::Generate() {
       __ ld(a1, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     }
     if (is_strict(language_mode()) || !has_simple_parameters()) {
-      FastNewStrictArgumentsStub stub(isolate());
-      __ CallStub(&stub);
+      Callable callable = CodeFactory::FastNewStrictArguments(isolate());
+      __ Call(callable.code(), RelocInfo::CODE_TARGET);
+      RestoreContext();
     } else if (literal()->has_duplicate_parameters()) {
       __ Push(a1);
       __ CallRuntime(Runtime::kNewSloppyArguments_Generic);
     } else {
-      FastNewSloppyArgumentsStub stub(isolate());
-      __ CallStub(&stub);
+      Callable callable = CodeFactory::FastNewSloppyArguments(isolate());
+      __ Call(callable.code(), RelocInfo::CODE_TARGET);
+      RestoreContext();
     }
 
     SetVar(arguments, v0, a1, a2);
@@ -755,7 +758,7 @@ void FullCodeGenerator::VisitVariableDeclaration(
     case VariableLocation::UNALLOCATED: {
       DCHECK(!variable->binding_needs_init());
       globals_->Add(variable->name(), zone());
-      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      FeedbackSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
       globals_->Add(isolate()->factory()->undefined_value(), zone());
@@ -796,7 +799,7 @@ void FullCodeGenerator::VisitFunctionDeclaration(
   switch (variable->location()) {
     case VariableLocation::UNALLOCATED: {
       globals_->Add(variable->name(), zone());
-      FeedbackVectorSlot slot = proxy->VariableFeedbackSlot();
+      FeedbackSlot slot = proxy->VariableFeedbackSlot();
       DCHECK(!slot.IsInvalid());
       globals_->Add(handle(Smi::FromInt(slot.ToInt()), isolate()), zone());
 
@@ -851,7 +854,7 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   // Call the runtime to declare the globals.
   __ li(a1, Operand(pairs));
   __ li(a0, Operand(Smi::FromInt(DeclareGlobalsFlags())));
-  __ EmitLoadTypeFeedbackVector(a2);
+  __ EmitLoadFeedbackVector(a2);
   __ Push(a1, a0, a2);
   __ CallRuntime(Runtime::kDeclareGlobals);
   // Return value is ignored.
@@ -955,7 +958,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   Comment cmnt(masm_, "[ ForInStatement");
   SetStatementPosition(stmt, SKIP_BREAK);
 
-  FeedbackVectorSlot slot = stmt->ForInFeedbackSlot();
+  FeedbackSlot slot = stmt->ForInFeedbackSlot();
 
   // Get the object to enumerate over. If the object is null or undefined, skip
   // over the loop.  See ECMA-262 version 5, section 12.6.4.
@@ -1075,8 +1078,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // We need to filter the key, record slow-path here.
   int const vector_index = SmiFromSlot(slot)->value();
-  __ EmitLoadTypeFeedbackVector(a3);
-  __ li(a2, Operand(TypeFeedbackVector::MegamorphicSentinel(isolate())));
+  __ EmitLoadFeedbackVector(a3);
+  __ li(a2, Operand(FeedbackVector::MegamorphicSentinel(isolate())));
   __ sd(a2, FieldMemOperand(a3, FixedArray::OffsetOfElementAt(vector_index)));
 
   __ mov(a0, result_register());
@@ -1125,9 +1128,8 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   decrement_loop_depth();
 }
 
-
 void FullCodeGenerator::EmitSetHomeObject(Expression* initializer, int offset,
-                                          FeedbackVectorSlot slot) {
+                                          FeedbackSlot slot) {
   DCHECK(NeedsHomeObject(initializer));
   __ ld(StoreDescriptor::ReceiverRegister(), MemOperand(sp));
   __ ld(StoreDescriptor::ValueRegister(),
@@ -1135,10 +1137,9 @@ void FullCodeGenerator::EmitSetHomeObject(Expression* initializer, int offset,
   CallStoreIC(slot, isolate()->factory()->home_object_symbol());
 }
 
-
 void FullCodeGenerator::EmitSetHomeObjectAccumulator(Expression* initializer,
                                                      int offset,
-                                                     FeedbackVectorSlot slot) {
+                                                     FeedbackSlot slot) {
   DCHECK(NeedsHomeObject(initializer));
   __ Move(StoreDescriptor::ReceiverRegister(), v0);
   __ ld(StoreDescriptor::ValueRegister(),
@@ -1684,9 +1685,7 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr, Token::Value op) {
   context()->Plug(v0);
 }
 
-
-void FullCodeGenerator::EmitAssignment(Expression* expr,
-                                       FeedbackVectorSlot slot) {
+void FullCodeGenerator::EmitAssignment(Expression* expr, FeedbackSlot slot) {
   DCHECK(expr->IsValidReferenceExpressionOrThis());
 
   Property* prop = expr->AsProperty();
@@ -1740,7 +1739,7 @@ void FullCodeGenerator::EmitStoreToStackLocalOrContextSlot(
 }
 
 void FullCodeGenerator::EmitVariableAssignment(Variable* var, Token::Value op,
-                                               FeedbackVectorSlot slot,
+                                               FeedbackSlot slot,
                                                HoleCheckMode hole_check_mode) {
   if (var->IsUnallocated()) {
     // Global var, const, or let.
@@ -1913,8 +1912,9 @@ void FullCodeGenerator::EmitCall(Call* expr, ConvertReceiverMode mode) {
     EmitProfilingCounterHandlingForReturnSequence(true);
   }
   Handle<Code> code =
-      CodeFactory::CallIC(isolate(), mode, expr->tail_call_mode()).code();
-  __ li(a3, Operand(SmiFromSlot(expr->CallFeedbackICSlot())));
+      CodeFactory::CallICTrampoline(isolate(), mode, expr->tail_call_mode())
+          .code();
+  __ li(a3, Operand(IntFromSlot(expr->CallFeedbackICSlot())));
   __ ld(a1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ li(a0, Operand(arg_count));
   CallIC(code);
@@ -1953,7 +1953,7 @@ void FullCodeGenerator::VisitCallNew(CallNew* expr) {
   __ ld(a1, MemOperand(sp, arg_count * kPointerSize));
 
   // Record call targets in unoptimized code.
-  __ EmitLoadTypeFeedbackVector(a2);
+  __ EmitLoadFeedbackVector(a2);
   __ li(a3, Operand(SmiFromSlot(expr->CallNewFeedbackSlot())));
 
   CallConstructStub stub(isolate());
@@ -2635,16 +2635,6 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ And(a1, a1,
            Operand((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     Split(eq, a1, Operand(zero_reg), if_true, if_false, fall_through);
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)    \
-  } else if (String::Equals(check, factory->type##_string())) {  \
-    __ JumpIfSmi(v0, if_false);                                  \
-    __ ld(v0, FieldMemOperand(v0, HeapObject::kMapOffset));      \
-    __ LoadRoot(at, Heap::k##Type##MapRootIndex);                \
-    Split(eq, v0, Operand(at), if_true, if_false, fall_through);
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }
@@ -2686,6 +2676,7 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       __ mov(a0, result_register());
       PopOperand(a1);
       __ Call(isolate()->builtins()->InstanceOf(), RelocInfo::CODE_TARGET);
+      RestoreContext();
       PrepareForBailoutBeforeSplit(expr, false, NULL, NULL);
       __ LoadRoot(a4, Heap::kTrueValueRootIndex);
       Split(eq, v0, Operand(a4), if_true, if_false, fall_through);

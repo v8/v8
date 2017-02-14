@@ -125,7 +125,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchTableSwitch(Instruction* instr);
 
   CodeGenResult AssembleDeoptimizerCall(int deoptimization_id,
-                                        Deoptimizer::BailoutType bailout_type,
                                         SourcePosition pos);
 
   // Generates an architecture-specific, descriptor-specific prologue
@@ -210,6 +209,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   int DefineDeoptimizationLiteral(Handle<Object> literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);
+  DeoptimizeKind GetDeoptimizationKind(int deoptimization_id) const;
   DeoptimizeReason GetDeoptimizationReason(int deoptimization_id) const;
   int BuildTranslation(Instruction* instr, int pc_offset,
                        size_t frame_state_offset,
@@ -238,21 +238,24 @@ class CodeGenerator final : public GapResolver::Assembler {
   class DeoptimizationState final : public ZoneObject {
    public:
     DeoptimizationState(BailoutId bailout_id, int translation_id, int pc_offset,
-                        DeoptimizeReason reason)
+                        DeoptimizeKind kind, DeoptimizeReason reason)
         : bailout_id_(bailout_id),
           translation_id_(translation_id),
           pc_offset_(pc_offset),
+          kind_(kind),
           reason_(reason) {}
 
     BailoutId bailout_id() const { return bailout_id_; }
     int translation_id() const { return translation_id_; }
     int pc_offset() const { return pc_offset_; }
+    DeoptimizeKind kind() const { return kind_; }
     DeoptimizeReason reason() const { return reason_; }
 
    private:
     BailoutId bailout_id_;
     int translation_id_;
     int pc_offset_;
+    DeoptimizeKind kind_;
     DeoptimizeReason reason_;
   };
 

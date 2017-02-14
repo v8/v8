@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-regexp.h"
+
 #include "src/builtins/builtins-constructor.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
@@ -14,82 +16,8 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
 typedef CodeStubAssembler::ParameterMode ParameterMode;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
 
-class RegExpBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit RegExpBuiltinsAssembler(CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
-
- protected:
-  Node* FastLoadLastIndex(Node* regexp);
-  Node* SlowLoadLastIndex(Node* context, Node* regexp);
-  Node* LoadLastIndex(Node* context, Node* regexp, bool is_fastpath);
-
-  void FastStoreLastIndex(Node* regexp, Node* value);
-  void SlowStoreLastIndex(Node* context, Node* regexp, Node* value);
-  void StoreLastIndex(Node* context, Node* regexp, Node* value,
-                      bool is_fastpath);
-
-  Node* ConstructNewResultFromMatchInfo(Node* const context, Node* const regexp,
-                                        Node* const match_info,
-                                        Node* const string);
-
-  Node* RegExpPrototypeExecBodyWithoutResult(Node* const context,
-                                             Node* const regexp,
-                                             Node* const string,
-                                             Label* if_didnotmatch,
-                                             const bool is_fastpath);
-  Node* RegExpPrototypeExecBody(Node* const context, Node* const regexp,
-                                Node* const string, const bool is_fastpath);
-
-  Node* ThrowIfNotJSReceiver(Node* context, Node* maybe_receiver,
-                             MessageTemplate::Template msg_template,
-                             char const* method_name);
-
-  Node* IsInitialRegExpMap(Node* context, Node* map);
-  void BranchIfFastRegExp(Node* context, Node* map, Label* if_isunmodified,
-                          Label* if_ismodified);
-  void BranchIfFastRegExpResult(Node* context, Node* map,
-                                Label* if_isunmodified, Label* if_ismodified);
-
-  Node* FlagsGetter(Node* const context, Node* const regexp, bool is_fastpath);
-
-  Node* FastFlagGetter(Node* const regexp, JSRegExp::Flag flag);
-  Node* SlowFlagGetter(Node* const context, Node* const regexp,
-                       JSRegExp::Flag flag);
-  Node* FlagGetter(Node* const context, Node* const regexp, JSRegExp::Flag flag,
-                   bool is_fastpath);
-  void FlagGetter(JSRegExp::Flag flag, v8::Isolate::UseCounterFeature counter,
-                  const char* method_name);
-
-  Node* IsRegExp(Node* const context, Node* const maybe_receiver);
-  Node* RegExpInitialize(Node* const context, Node* const regexp,
-                         Node* const maybe_pattern, Node* const maybe_flags);
-
-  Node* RegExpExec(Node* context, Node* regexp, Node* string);
-
-  Node* AdvanceStringIndex(Node* const string, Node* const index,
-                           Node* const is_unicode);
-
-  void RegExpPrototypeMatchBody(Node* const context, Node* const regexp,
-                                Node* const string, const bool is_fastpath);
-
-  void RegExpPrototypeSearchBodyFast(Node* const context, Node* const regexp,
-                                     Node* const string);
-  void RegExpPrototypeSearchBodySlow(Node* const context, Node* const regexp,
-                                     Node* const string);
-
-  void RegExpPrototypeSplitBody(Node* const context, Node* const regexp,
-                                Node* const string, Node* const limit);
-
-  Node* ReplaceGlobalCallableFastPath(Node* context, Node* regexp, Node* string,
-                                      Node* replace_callable);
-  Node* ReplaceSimpleStringFastPath(Node* context, Node* regexp, Node* string,
-                                    Node* replace_string);
-};
 
 // -----------------------------------------------------------------------------
 // ES6 section 21.2 RegExp Objects
@@ -313,6 +241,27 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   Node* const native_context = LoadNativeContext(context);
   Node* const string_length = LoadStringLength(string);
 
+  // Load lastIndex.
+  Variable var_lastindex(this, MachineRepresentation::kTagged);
+  {
+    Node* const regexp_lastindex = LoadLastIndex(context, regexp, is_fastpath);
+    var_lastindex.Bind(regexp_lastindex);
+
+    // Omit ToLength if lastindex is a non-negative smi.
+    Label call_tolength(this, Label::kDeferred), next(this);
+    Branch(TaggedIsPositiveSmi(regexp_lastindex), &next, &call_tolength);
+
+    Bind(&call_tolength);
+    {
+      Callable tolength_callable = CodeFactory::ToLength(isolate);
+      var_lastindex.Bind(
+          CallStub(tolength_callable, context, regexp_lastindex));
+      Goto(&next);
+    }
+
+    Bind(&next);
+  }
+
   // Check whether the regexp is global or sticky, which determines whether we
   // update last index later on.
   Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
@@ -323,33 +272,12 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
   // Grab and possibly update last index.
   Label run_exec(this);
-  Variable var_lastindex(this, MachineRepresentation::kTagged);
   {
     Label if_doupdate(this), if_dontupdate(this);
     Branch(should_update_last_index, &if_doupdate, &if_dontupdate);
 
     Bind(&if_doupdate);
     {
-      Node* const regexp_lastindex =
-          LoadLastIndex(context, regexp, is_fastpath);
-      var_lastindex.Bind(regexp_lastindex);
-
-      // Omit ToLength if lastindex is a non-negative smi.
-      {
-        Label call_tolength(this, Label::kDeferred), next(this);
-        Branch(TaggedIsPositiveSmi(regexp_lastindex), &next, &call_tolength);
-
-        Bind(&call_tolength);
-        {
-          Callable tolength_callable = CodeFactory::ToLength(isolate);
-          var_lastindex.Bind(
-              CallStub(tolength_callable, context, regexp_lastindex));
-          Goto(&next);
-        }
-
-        Bind(&next);
-      }
-
       Node* const lastindex = var_lastindex.value();
 
       Label if_isoob(this, Label::kDeferred);
@@ -494,9 +422,10 @@ Node* RegExpBuiltinsAssembler::IsInitialRegExpMap(Node* context, Node* map) {
 // We use a fairly coarse granularity for this and simply check whether both
 // the regexp itself is unmodified (i.e. its map has not changed) and its
 // prototype is unmodified.
-void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* context, Node* map,
-                                                 Label* if_isunmodified,
-                                                 Label* if_ismodified) {
+void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
+                                                 Node* const map,
+                                                 Label* const if_isunmodified,
+                                                 Label* const if_ismodified) {
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_fun =
       LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
@@ -516,6 +445,25 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* context, Node* map,
   // tracking are landing.
 
   Branch(proto_has_initialmap, if_isunmodified, if_ismodified);
+}
+
+Node* RegExpBuiltinsAssembler::IsFastRegExpMap(Node* const context,
+                                               Node* const map) {
+  Label yup(this), nope(this), out(this);
+  Variable var_result(this, MachineRepresentation::kWord32);
+
+  BranchIfFastRegExp(context, map, &yup, &nope);
+
+  Bind(&yup);
+  var_result.Bind(Int32Constant(1));
+  Goto(&out);
+
+  Bind(&nope);
+  var_result.Bind(Int32Constant(0));
+  Goto(&out);
+
+  Bind(&out);
+  return var_result.value();
 }
 
 void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* context, Node* map,
@@ -2101,6 +2049,51 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
   }
 }
 
+// Helper that skips a few initial checks.
+TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
+  typedef RegExpSplitDescriptor Descriptor;
+
+  Node* const regexp = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kString);
+  Node* const maybe_limit = Parameter(Descriptor::kLimit);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsFastRegExpMap(context, LoadMap(regexp)));
+  CSA_ASSERT(this, IsString(string));
+
+  // TODO(jgruber): Even if map checks send us to the fast path, we still need
+  // to verify the constructor property and jump to the slow path if it has
+  // been changed.
+
+  // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
+  Variable var_limit(this, MachineRepresentation::kTagged);
+  Label if_limitissmimax(this), limit_done(this);
+
+  GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
+
+  {
+    Node* const limit = ToUint32(context, maybe_limit);
+    GotoUnless(TaggedIsSmi(limit), &if_limitissmimax);
+
+    var_limit.Bind(limit);
+    Goto(&limit_done);
+  }
+
+  Bind(&if_limitissmimax);
+  {
+    // TODO(jgruber): In this case, we can probably avoid generation of limit
+    // checks in Generate_RegExpPrototypeSplitBody.
+    var_limit.Bind(SmiConstant(Smi::kMaxValue));
+    Goto(&limit_done);
+  }
+
+  Bind(&limit_done);
+  {
+    Node* const limit = var_limit.value();
+    RegExpPrototypeSplitBody(context, regexp, string, limit);
+  }
+}
+
 // ES#sec-regexp.prototype-@@split
 // RegExp.prototype [ @@split ] ( string, limit )
 TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
@@ -2118,51 +2111,16 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   // Convert {maybe_string} to a String.
   Node* const string = ToString(context, maybe_string);
 
-  Label fast_path(this), slow_path(this);
-  BranchIfFastRegExp(context, map, &fast_path, &slow_path);
+  Label stub(this), runtime(this, Label::kDeferred);
+  BranchIfFastRegExp(context, map, &stub, &runtime);
 
-  Bind(&fast_path);
-  {
-    // TODO(jgruber): Even if map checks send us to the fast path, we still need
-    // to verify the constructor property and jump to the slow path if it has
-    // been changed.
+  Bind(&stub);
+  Callable split_callable = CodeFactory::RegExpSplit(isolate());
+  Return(CallStub(split_callable, context, receiver, string, maybe_limit));
 
-    // Convert {maybe_limit} to a uint32, capping at the maximal smi value.
-    Variable var_limit(this, MachineRepresentation::kTagged);
-    Label if_limitissmimax(this), limit_done(this);
-
-    GotoIf(IsUndefined(maybe_limit), &if_limitissmimax);
-
-    {
-      Node* const limit = ToUint32(context, maybe_limit);
-      GotoUnless(TaggedIsSmi(limit), &if_limitissmimax);
-
-      var_limit.Bind(limit);
-      Goto(&limit_done);
-    }
-
-    Bind(&if_limitissmimax);
-    {
-      // TODO(jgruber): In this case, we can probably generation of limit checks
-      // in Generate_RegExpPrototypeSplitBody.
-      Node* const smi_max = SmiConstant(Smi::kMaxValue);
-      var_limit.Bind(smi_max);
-      Goto(&limit_done);
-    }
-
-    Bind(&limit_done);
-    {
-      Node* const limit = var_limit.value();
-      RegExpPrototypeSplitBody(context, receiver, string, limit);
-    }
-  }
-
-  Bind(&slow_path);
-  {
-    Node* const result = CallRuntime(Runtime::kRegExpSplit, context, receiver,
-                                     string, maybe_limit);
-    Return(result);
-  }
+  Bind(&runtime);
+  Return(CallRuntime(Runtime::kRegExpSplit, context, receiver, string,
+                     maybe_limit));
 }
 
 Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
@@ -2323,7 +2281,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     const int increment = 1;
 
     BuildFastLoop(
-        MachineType::PointerRepresentation(), from, to,
+        from, to,
         [this, res_elems, isolate, native_context, context, undefined,
          replace_callable](Node* index) {
           Node* const elem = LoadFixedArrayElement(res_elems, index);
@@ -2354,7 +2312,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           Goto(&do_continue);
           Bind(&do_continue);
         },
-        increment, CodeStubAssembler::IndexAdvanceMode::kPost);
+        increment, CodeStubAssembler::INTPTR_PARAMETERS,
+        CodeStubAssembler::IndexAdvanceMode::kPost);
 
     Goto(&create_result);
   }
@@ -2477,6 +2436,68 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   return var_result.value();
 }
 
+// Helper that skips a few initial checks.
+TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
+  typedef RegExpReplaceDescriptor Descriptor;
+
+  Node* const regexp = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kString);
+  Node* const replace_value = Parameter(Descriptor::kReplaceValue);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsFastRegExpMap(context, LoadMap(regexp)));
+  CSA_ASSERT(this, IsString(string));
+
+  Label checkreplacestring(this), if_iscallable(this),
+      runtime(this, Label::kDeferred);
+
+  // 2. Is {replace_value} callable?
+  GotoIf(TaggedIsSmi(replace_value), &checkreplacestring);
+  Branch(IsCallableMap(LoadMap(replace_value)), &if_iscallable,
+         &checkreplacestring);
+
+  // 3. Does ToString({replace_value}) contain '$'?
+  Bind(&checkreplacestring);
+  {
+    Callable tostring_callable = CodeFactory::ToString(isolate());
+    Node* const replace_string =
+        CallStub(tostring_callable, context, replace_value);
+
+    Callable indexof_callable = CodeFactory::StringIndexOf(isolate());
+    Node* const dollar_string = HeapConstant(
+        isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+    Node* const dollar_ix = CallStub(indexof_callable, context, replace_string,
+                                     dollar_string, SmiConstant(0));
+    GotoUnless(SmiEqual(dollar_ix, SmiConstant(-1)), &runtime);
+
+    Return(
+        ReplaceSimpleStringFastPath(context, regexp, string, replace_string));
+  }
+
+  // {regexp} is unmodified and {replace_value} is callable.
+  Bind(&if_iscallable);
+  {
+    Node* const replace_fn = replace_value;
+
+    // Check if the {regexp} is global.
+    Label if_isglobal(this), if_isnotglobal(this);
+
+    Node* const is_global = FastFlagGetter(regexp, JSRegExp::kGlobal);
+    Branch(is_global, &if_isglobal, &if_isnotglobal);
+
+    Bind(&if_isglobal);
+    Return(ReplaceGlobalCallableFastPath(context, regexp, string, replace_fn));
+
+    Bind(&if_isnotglobal);
+    Return(CallRuntime(Runtime::kStringReplaceNonGlobalRegExpWithFunction,
+                       context, string, regexp, replace_fn));
+  }
+
+  Bind(&runtime);
+  Return(CallRuntime(Runtime::kRegExpReplace, context, regexp, string,
+                     replace_value));
+}
+
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
 TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
@@ -2496,69 +2517,16 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const string = CallStub(tostring_callable, context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
-  Label checkreplacecallable(this), runtime(this, Label::kDeferred),
-      fastpath(this);
-  BranchIfFastRegExp(context, map, &checkreplacecallable, &runtime);
+  Label stub(this), runtime(this, Label::kDeferred);
+  BranchIfFastRegExp(context, map, &stub, &runtime);
 
-  Bind(&checkreplacecallable);
-  Node* const regexp = receiver;
-
-  // 2. Is {replace_value} callable?
-  Label checkreplacestring(this), if_iscallable(this);
-  GotoIf(TaggedIsSmi(replace_value), &checkreplacestring);
-
-  Node* const replace_value_map = LoadMap(replace_value);
-  Branch(IsCallableMap(replace_value_map), &if_iscallable, &checkreplacestring);
-
-  // 3. Does ToString({replace_value}) contain '$'?
-  Bind(&checkreplacestring);
-  {
-    Node* const replace_string =
-        CallStub(tostring_callable, context, replace_value);
-
-    Node* const dollar_char = Int32Constant('$');
-    Node* const smi_minusone = SmiConstant(Smi::FromInt(-1));
-    GotoUnless(SmiEqual(StringIndexOfChar(context, replace_string, dollar_char,
-                                          SmiConstant(0)),
-                        smi_minusone),
-               &runtime);
-
-    Return(
-        ReplaceSimpleStringFastPath(context, regexp, string, replace_string));
-  }
-
-  // {regexp} is unmodified and {replace_value} is callable.
-  Bind(&if_iscallable);
-  {
-    Node* const replace_callable = replace_value;
-
-    // Check if the {regexp} is global.
-    Label if_isglobal(this), if_isnotglobal(this);
-    Node* const is_global = FastFlagGetter(regexp, JSRegExp::kGlobal);
-    Branch(is_global, &if_isglobal, &if_isnotglobal);
-
-    Bind(&if_isglobal);
-    {
-      Node* const result = ReplaceGlobalCallableFastPath(
-          context, regexp, string, replace_callable);
-      Return(result);
-    }
-
-    Bind(&if_isnotglobal);
-    {
-      Node* const result =
-          CallRuntime(Runtime::kStringReplaceNonGlobalRegExpWithFunction,
-                      context, string, regexp, replace_callable);
-      Return(result);
-    }
-  }
+  Bind(&stub);
+  Callable replace_callable = CodeFactory::RegExpReplace(isolate());
+  Return(CallStub(replace_callable, context, receiver, string, replace_value));
 
   Bind(&runtime);
-  {
-    Node* const result = CallRuntime(Runtime::kRegExpReplace, context, receiver,
-                                     string, replace_value);
-    Return(result);
-  }
+  Return(CallRuntime(Runtime::kRegExpReplace, context, receiver, string,
+                     replace_value));
 }
 
 // Simple string matching functionality for internal use which does not modify

@@ -516,7 +516,6 @@ class MarkCompactCollector {
   static const uint32_t kSingleFreeEncoding = 0;
   static const uint32_t kMultiFreeEncoding = 1;
 
-  static inline bool IsMarked(Object* obj);
   static bool IsUnmarkedHeapObjectWithHeap(Heap* heap, Object** p);
 
   inline Heap* heap() const { return heap_; }
@@ -568,10 +567,6 @@ class MarkCompactCollector {
   void set_evacuation(bool evacuation) { evacuation_ = evacuation; }
 
   bool evacuation() const { return evacuation_; }
-
-  // Special case for processing weak references in a full collection. We need
-  // to artificially keep AllocationSites alive for a time.
-  void MarkAllocationSite(AllocationSite* site);
 
   // Mark objects in implicit references groups if their parent object
   // is marked.
@@ -661,11 +656,7 @@ class MarkCompactCollector {
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
-  INLINE(void MarkObject(HeapObject* obj, MarkBit mark_bit));
-
-  // Marks the object black assuming that it is not yet marked.
-  // This is for non-incremental marking only.
-  INLINE(void SetMark(HeapObject* obj));
+  INLINE(void MarkObject(HeapObject* obj));
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor<MarkCompactMode::FULL>* visitor);

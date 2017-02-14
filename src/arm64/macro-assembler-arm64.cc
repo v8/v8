@@ -1780,23 +1780,6 @@ void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {
   JumpToExternalReference(ExternalReference(fid, isolate()));
 }
 
-
-void MacroAssembler::InitializeNewString(Register string,
-                                         Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1,
-                                         Register scratch2) {
-  DCHECK(!AreAliased(string, length, scratch1, scratch2));
-  LoadRoot(scratch2, map_index);
-  SmiTag(scratch1, length);
-  Str(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
-
-  Mov(scratch2, String::kEmptyHashField);
-  Str(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  Str(scratch2, FieldMemOperand(string, String::kHashFieldOffset));
-}
-
-
 int MacroAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_ARM64
   // Running on the real platform. Use the alignment as mandated by the local
@@ -2634,10 +2617,10 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
   }
 }
 
-
-void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
   Ldr(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   Ldr(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
+  Ldr(vector, FieldMemOperand(vector, Cell::kValueOffset));
 }
 
 
@@ -2668,13 +2651,13 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
-    Push(xzr, lr);
-    Push(fp, type_reg);
-    Add(fp, csp, TypedFrameConstants::kFixedFrameSizeFromFp);
-    // csp[3] for alignment
-    // csp[2] : lr
-    // csp[1] : fp
-    // csp[0] : type
+    Push(lr, fp);
+    Mov(fp, csp);
+    Push(type_reg, xzr);
+    // csp[3] : lr
+    // csp[2] : fp
+    // csp[1] : type
+    // csp[0] : for alignment
   } else {
     DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, Smi::FromInt(type));
@@ -2689,12 +2672,19 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
-  DCHECK(jssp.Is(StackPointer()));
-  // Drop the execution stack down to the frame pointer and restore
-  // the caller frame pointer and return address.
-  Mov(jssp, fp);
-  AssertStackConsistency();
-  Pop(fp, lr);
+  if (type == StackFrame::WASM_COMPILED) {
+    DCHECK(csp.Is(StackPointer()));
+    Mov(csp, fp);
+    AssertStackConsistency();
+    Pop(fp, lr);
+  } else {
+    DCHECK(jssp.Is(StackPointer()));
+    // Drop the execution stack down to the frame pointer and restore
+    // the caller frame pointer and return address.
+    Mov(jssp, fp);
+    AssertStackConsistency();
+    Pop(fp, lr);
+  }
 }
 
 
@@ -3416,32 +3406,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   B(&loop);
   Bind(&done);
 }
-
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  DCHECK(!AreAliased(function, result, scratch));
-
-  // Get the prototype or initial map from the function.
-  Ldr(result,
-      FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and simply
-  // miss the cache instead. This will allow us to allocate a prototype object
-  // on-demand in the runtime system.
-  JumpIfRoot(result, Heap::kTheHoleValueRootIndex, miss);
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  JumpIfNotObjectType(result, scratch, scratch, MAP_TYPE, &done);
-
-  // Get the prototype from the initial map.
-  Ldr(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  // All done.
-  Bind(&done);
-}
-
 
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   UseScratchRegisterScope temps(this);

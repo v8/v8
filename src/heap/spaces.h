@@ -1097,7 +1097,7 @@ class SkipList {
 // A space acquires chunks of memory from the operating system. The memory
 // allocator allocates and deallocates pages for the paged heap spaces and large
 // pages for large object space.
-class MemoryAllocator {
+class V8_EXPORT_PRIVATE MemoryAllocator {
  public:
   // Unmapper takes care of concurrently unmapping and uncommitting memory
   // chunks.
@@ -1149,6 +1149,11 @@ class MemoryAllocator {
       kNumberOfChunkQueues,
     };
 
+    enum class FreeMode {
+      kUncommitPooled,
+      kReleasePooled,
+    };
+
     template <ChunkQueueType type>
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
       base::LockGuard<base::Mutex> guard(&mutex_);
@@ -1170,6 +1175,7 @@ class MemoryAllocator {
     }
 
     void ReconsiderDelayedChunks();
+    template <FreeMode mode>
     void PerformFreeMemoryOnQueuedChunks();
 
     base::Mutex mutex_;
@@ -1192,6 +1198,7 @@ class MemoryAllocator {
 
   enum FreeMode {
     kFull,
+    kAlreadyPooled,
     kPreFreeAndQueue,
     kPooledAndQueue,
   };
@@ -1381,6 +1388,15 @@ class MemoryAllocator {
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryAllocator);
 };
 
+extern template Page*
+MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
+    size_t size, PagedSpace* owner, Executability executable);
+extern template Page*
+MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
+    size_t size, SemiSpace* owner, Executability executable);
+extern template Page*
+MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, SemiSpace>(
+    size_t size, SemiSpace* owner, Executability executable);
 
 // -----------------------------------------------------------------------------
 // Interface for heap object iterator to be implemented by all object space
@@ -1648,7 +1664,7 @@ class AllocationStats BASE_EMBEDDED {
 //   words in size.
 // At least 16384 words (huge): This list is for objects of 2048 words or
 //   larger. Empty pages are also added to this list.
-class FreeList {
+class V8_EXPORT_PRIVATE FreeList {
  public:
   // This method returns how much memory can be allocated after freeing
   // maximum_freed memory.
@@ -1885,7 +1901,7 @@ class LocalAllocationBuffer {
   AllocationInfo allocation_info_;
 };
 
-class PagedSpace : public Space {
+class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
  public:
   typedef PageIterator iterator;
 
@@ -2440,34 +2456,24 @@ class NewSpace : public Space {
   }
 
   size_t AllocatedSinceLastGC() {
-    bool seen_age_mark = false;
-    Address age_mark = to_space_.age_mark();
-    Page* current_page = to_space_.first_page();
-    Page* age_mark_page = Page::FromAddress(age_mark);
-    Page* last_page = Page::FromAddress(top() - kPointerSize);
-    if (age_mark_page == last_page) {
-      if (top() - age_mark >= 0) {
-        return top() - age_mark;
-      }
-      // Top was reset at some point, invalidating this metric.
-      return 0;
-    }
-    while (current_page != last_page) {
-      if (current_page == age_mark_page) {
-        seen_age_mark = true;
-        break;
-      }
+    const Address age_mark = to_space_.age_mark();
+    DCHECK_NOT_NULL(age_mark);
+    DCHECK_NOT_NULL(top());
+    Page* const age_mark_page = Page::FromAllocationAreaAddress(age_mark);
+    Page* const last_page = Page::FromAllocationAreaAddress(top());
+    Page* current_page = age_mark_page;
+    size_t allocated = 0;
+    if (current_page != last_page) {
+      DCHECK_EQ(current_page, age_mark_page);
+      DCHECK_GE(age_mark_page->area_end(), age_mark);
+      allocated += age_mark_page->area_end() - age_mark;
       current_page = current_page->next_page();
+    } else {
+      DCHECK_GE(top(), age_mark);
+      return top() - age_mark;
     }
-    if (!seen_age_mark) {
-      // Top was reset at some point, invalidating this metric.
-      return 0;
-    }
-    DCHECK_GE(age_mark_page->area_end(), age_mark);
-    size_t allocated = age_mark_page->area_end() - age_mark;
-    DCHECK_EQ(current_page, age_mark_page);
-    current_page = age_mark_page->next_page();
     while (current_page != last_page) {
+      DCHECK_NE(current_page, age_mark_page);
       allocated += Page::kAllocatableMemory;
       current_page = current_page->next_page();
     }

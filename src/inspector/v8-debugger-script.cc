@@ -142,10 +142,13 @@ class ActualScript : public V8DebuggerScript {
       }
     }
 
+    m_isModule = script->IsModule();
+
     m_script.Reset(m_isolate, script);
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
+  bool isModule() const override { return m_isModule; }
 
   const String16& sourceMappingURL() const override {
     return m_sourceMappingURL;
@@ -191,6 +194,7 @@ class ActualScript : public V8DebuggerScript {
   String16 m_sourceMappingURL;
   v8::Global<v8::String> m_sourceObj;
   bool m_isLiveEdit = false;
+  bool m_isModule = false;
   v8::Global<v8::debug::Script> m_script;
 };
 
@@ -219,6 +223,7 @@ class WasmVirtualScript : public V8DebuggerScript {
 
   const String16& sourceMappingURL() const override { return emptyString(); }
   bool isLiveEdit() const override { return false; }
+  bool isModule() const override { return false; }
   void setSourceMappingURL(const String16&) override {}
 
   bool getPossibleBreakpoints(

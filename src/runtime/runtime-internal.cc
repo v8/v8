@@ -225,6 +225,26 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowNonCallableInInstanceOfCheck) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonCallableInInstanceOfCheck));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNonObjectInInstanceOfCheck) {
+  HandleScope scope(isolate);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck));
+}
+
+RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor, object));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowNotGeneric) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -352,8 +372,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
 Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
   MessageLocation location;
   if (ComputeLocation(isolate, &location)) {
-    Zone zone(isolate->allocator(), ZONE_NAME);
-    std::unique_ptr<ParseInfo> info(new ParseInfo(&zone, location.shared()));
+    std::unique_ptr<ParseInfo> info(new ParseInfo(location.shared()));
     if (parsing::ParseAny(info.get())) {
       CallPrinter printer(isolate, location.shared()->IsUserJavaScript());
       Handle<String> str = printer.Print(info->literal(), location.start_pos());
@@ -366,7 +385,6 @@ Handle<String> RenderCallSite(Isolate* isolate, Handle<Object> object) {
 }
 
 }  // namespace
-
 
 RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   HandleScope scope(isolate);

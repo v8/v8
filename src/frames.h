@@ -1029,6 +1029,8 @@ class JavaScriptFrame : public StandardFrame {
   // Return a list with {SharedFunctionInfo} objects of this frame.
   virtual void GetFunctions(List<SharedFunctionInfo*>* functions) const;
 
+  void GetFunctions(List<Handle<SharedFunctionInfo>>* functions) const;
+
   // Lookup exception handler for current {pc}, returns -1 if none found. Also
   // returns data associated with the handler site specific to the frame type:
   //  - OptimizedFrame  : Data is the stack slot count of the entire frame.

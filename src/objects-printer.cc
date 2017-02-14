@@ -74,9 +74,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">\n";
       break;
-    case SIMD128_VALUE_TYPE:
-      Simd128Value::cast(this)->Simd128ValuePrint(os);
-      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;
@@ -252,59 +249,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
   }
 }
-
-
-void Simd128Value::Simd128ValuePrint(std::ostream& os) {  // NOLINT
-#define PRINT_SIMD128_VALUE(TYPE, Type, type, lane_count, lane_type) \
-  if (Is##Type()) return Type::cast(this)->Type##Print(os);
-  SIMD128_TYPES(PRINT_SIMD128_VALUE)
-#undef PRINT_SIMD128_VALUE
-  UNREACHABLE();
-}
-
-
-void Float32x4::Float32x4Print(std::ostream& os) {  // NOLINT
-  char arr[100];
-  Vector<char> buffer(arr, arraysize(arr));
-  os << std::string(DoubleToCString(get_lane(0), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(1), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(2), buffer)) << ", "
-     << std::string(DoubleToCString(get_lane(3), buffer));
-}
-
-
-#define SIMD128_INT_PRINT_FUNCTION(type, lane_count)                \
-  void type::type##Print(std::ostream& os) {                        \
-    char arr[100];                                                  \
-    Vector<char> buffer(arr, arraysize(arr));                       \
-    os << std::string(IntToCString(get_lane(0), buffer));           \
-    for (int i = 1; i < lane_count; i++) {                          \
-      os << ", " << std::string(IntToCString(get_lane(i), buffer)); \
-    }                                                               \
-  }
-SIMD128_INT_PRINT_FUNCTION(Int32x4, 4)
-SIMD128_INT_PRINT_FUNCTION(Uint32x4, 4)
-SIMD128_INT_PRINT_FUNCTION(Int16x8, 8)
-SIMD128_INT_PRINT_FUNCTION(Uint16x8, 8)
-SIMD128_INT_PRINT_FUNCTION(Int8x16, 16)
-SIMD128_INT_PRINT_FUNCTION(Uint8x16, 16)
-#undef SIMD128_INT_PRINT_FUNCTION
-
-
-#define SIMD128_BOOL_PRINT_FUNCTION(type, lane_count)            \
-  void type::type##Print(std::ostream& os) {                     \
-    char arr[100];                                               \
-    Vector<char> buffer(arr, arraysize(arr));                    \
-    os << std::string(get_lane(0) ? "true" : "false");           \
-    for (int i = 1; i < lane_count; i++) {                       \
-      os << ", " << std::string(get_lane(i) ? "true" : "false"); \
-    }                                                            \
-  }
-SIMD128_BOOL_PRINT_FUNCTION(Bool32x4, 4)
-SIMD128_BOOL_PRINT_FUNCTION(Bool16x8, 8)
-SIMD128_BOOL_PRINT_FUNCTION(Bool8x16, 16)
-#undef SIMD128_BOOL_PRINT_FUNCTION
-
 
 void ByteArray::ByteArrayPrint(std::ostream& os) {  // NOLINT
   os << "byte array, data starts at " << GetDataStartAddress();
@@ -594,6 +538,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   }
   if (is_deprecated()) os << "\n - deprecated_map";
   if (is_stable()) os << "\n - stable_map";
+  if (is_migration_target()) os << "\n - migration_target";
   if (is_dictionary_map()) os << "\n - dictionary_map";
   if (has_hidden_prototype()) os << "\n - has_hidden_prototype";
   if (has_named_interceptor()) os << "\n - named_interceptor";
@@ -697,8 +642,8 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
   }
 
   for (int slot = 0; slot < slot_count;) {
-    FeedbackVectorSlotKind kind = This()->GetKind(slot);
-    int entry_size = TypeFeedbackMetadata::GetSlotSize(kind);
+    FeedbackSlotKind kind = This()->GetKind(FeedbackSlot(slot));
+    int entry_size = FeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
     os << "\n Slot #" << slot << " " << kind;
     slot += entry_size;
@@ -706,16 +651,14 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
   os << "\n";
 }
 
-void TypeFeedbackMetadata::Print() {
+void FeedbackMetadata::Print() {
   OFStream os(stdout);
-  TypeFeedbackMetadataPrint(os);
+  FeedbackMetadataPrint(os);
   os << std::flush;
 }
 
-
-void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
-    std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeFeedbackMetadata");
+void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "FeedbackMetadata");
   os << "\n - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
@@ -723,90 +666,92 @@ void TypeFeedbackMetadata::TypeFeedbackMetadataPrint(
   }
   os << "\n - slot_count: " << slot_count();
 
-  TypeFeedbackMetadataIterator iter(this);
+  FeedbackMetadataIterator iter(this);
   while (iter.HasNext()) {
-    FeedbackVectorSlot slot = iter.Next();
-    FeedbackVectorSlotKind kind = iter.kind();
+    FeedbackSlot slot = iter.Next();
+    FeedbackSlotKind kind = iter.kind();
     os << "\n Slot " << slot << " " << kind;
   }
   os << "\n";
 }
 
-
-void TypeFeedbackVector::Print() {
+void FeedbackVector::Print() {
   OFStream os(stdout);
-  TypeFeedbackVectorPrint(os);
+  FeedbackVectorPrint(os);
   os << std::flush;
 }
 
-
-void TypeFeedbackVector::TypeFeedbackVectorPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "TypeFeedbackVector");
+void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "FeedbackVector");
   os << "\n - length: " << length();
   if (length() == 0) {
     os << " (empty)\n";
     return;
   }
 
-  TypeFeedbackMetadataIterator iter(metadata());
+  FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
-    FeedbackVectorSlot slot = iter.Next();
-    FeedbackVectorSlotKind kind = iter.kind();
+    FeedbackSlot slot = iter.Next();
+    FeedbackSlotKind kind = iter.kind();
 
     os << "\n Slot " << slot << " " << kind;
     os << " ";
     switch (kind) {
-      case FeedbackVectorSlotKind::LOAD_IC: {
+      case FeedbackSlotKind::kLoadProperty: {
         LoadICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::LOAD_GLOBAL_IC: {
+      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
         LoadGlobalICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::KEYED_LOAD_IC: {
+      case FeedbackSlotKind::kLoadKeyed: {
         KeyedLoadICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::CALL_IC: {
+      case FeedbackSlotKind::kCall: {
         CallICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::STORE_IC: {
+      case FeedbackSlotKind::kStorePropertySloppy:
+      case FeedbackSlotKind::kStorePropertyStrict: {
         StoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::KEYED_STORE_IC: {
+      case FeedbackSlotKind::kStoreKeyedSloppy:
+      case FeedbackSlotKind::kStoreKeyedStrict: {
         KeyedStoreICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::INTERPRETER_BINARYOP_IC: {
+      case FeedbackSlotKind::kBinaryOp: {
         BinaryOpICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::INTERPRETER_COMPARE_IC: {
+      case FeedbackSlotKind::kCompareOp: {
         CompareICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::STORE_DATA_PROPERTY_IN_LITERAL_IC: {
+      case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
         StoreDataPropertyInLiteralICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
-      case FeedbackVectorSlotKind::CREATE_CLOSURE:
-      case FeedbackVectorSlotKind::LITERAL:
-      case FeedbackVectorSlotKind::GENERAL:
+      case FeedbackSlotKind::kCreateClosure:
+      case FeedbackSlotKind::kLiteral:
+      case FeedbackSlotKind::kGeneral:
         break;
-      case FeedbackVectorSlotKind::INVALID:
-      case FeedbackVectorSlotKind::KINDS_NUMBER:
+      case FeedbackSlotKind::kToBoolean:
+      case FeedbackSlotKind::kInvalid:
+      case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
         break;
     }
@@ -1052,7 +997,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     os << "\n   - async";
   }
   os << "\n - context = " << Brief(context());
-  os << "\n - feedback vector = " << Brief(feedback_vector());
+  os << "\n - feedback vector cell = " << Brief(feedback_vector_cell());
   os << "\n - code = " << Brief(code());
   JSObjectPrintBody(os, this);
 }
@@ -1098,7 +1043,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
   os << "\n - feedback_metadata = ";
-  feedback_metadata()->TypeFeedbackMetadataPrint(os);
+  feedback_metadata()->FeedbackMetadataPrint(os);
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
@@ -1684,11 +1629,19 @@ extern void _v8_internal_Print_Code(void* object) {
   isolate->FindCodeObject(reinterpret_cast<i::Address>(object))->Print();
 }
 
-extern void _v8_internal_Print_TypeFeedbackVector(void* object) {
+extern void _v8_internal_Print_FeedbackMetadata(void* object) {
   if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
-    printf("Not a type feedback vector\n");
+    printf("Not a feedback metadata object\n");
   } else {
-    reinterpret_cast<i::TypeFeedbackVector*>(object)->Print();
+    reinterpret_cast<i::FeedbackMetadata*>(object)->Print();
+  }
+}
+
+extern void _v8_internal_Print_FeedbackVector(void* object) {
+  if (reinterpret_cast<i::Object*>(object)->IsSmi()) {
+    printf("Not a feedback vector\n");
+  } else {
+    reinterpret_cast<i::FeedbackVector*>(object)->Print();
   }
 }
 

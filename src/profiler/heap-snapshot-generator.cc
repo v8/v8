@@ -154,7 +154,6 @@ const char* HeapEntry::TypeAsString() {
     case kConsString: return "/concatenated string/";
     case kSlicedString: return "/sliced string/";
     case kSymbol: return "/symbol/";
-    case kSimdValue: return "/simd/";
     default: return "???";
   }
 }
@@ -838,8 +837,6 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
     return AddEntry(object, HeapEntry::kArray, "");
   } else if (object->IsHeapNumber()) {
     return AddEntry(object, HeapEntry::kHeapNumber, "number");
-  } else if (object->IsSimd128Value()) {
-    return AddEntry(object, HeapEntry::kSimdValue, "simd");
   }
   return AddEntry(object, HeapEntry::kHidden, GetSystemEntryName(object));
 }
@@ -1112,9 +1109,10 @@ void V8HeapExplorer::ExtractJSObjectReferences(
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
-    TagObject(js_fun->feedback_vector(), "(function feedback vector)");
-    SetInternalReference(js_fun, entry, "feedback_vector",
-                         js_fun->feedback_vector(),
+    TagObject(js_fun->feedback_vector_cell(),
+              "(function feedback vector cell)");
+    SetInternalReference(js_fun, entry, "feedback_vector_cell",
+                         js_fun->feedback_vector_cell(),
                          JSFunction::kFeedbackVectorOffset);
     TagObject(shared_info, "(shared function info)");
     SetInternalReference(js_fun, entry,
@@ -1826,7 +1824,6 @@ bool V8HeapExplorer::IsEssentialObject(Object* object) {
          object != heap_->empty_byte_array() &&
          object != heap_->empty_fixed_array() &&
          object != heap_->empty_descriptor_array() &&
-         object != heap_->empty_type_feedback_vector() &&
          object != heap_->fixed_array_map() && object != heap_->cell_map() &&
          object != heap_->global_property_cell_map() &&
          object != heap_->shared_function_info_map() &&
@@ -2492,6 +2489,20 @@ HeapSnapshotGenerator::HeapSnapshotGenerator(
       heap_(heap) {
 }
 
+namespace {
+class NullContextScope {
+ public:
+  explicit NullContextScope(Isolate* isolate)
+      : isolate_(isolate), prev_(isolate->context()) {
+    isolate_->set_context(nullptr);
+  }
+  ~NullContextScope() { isolate_->set_context(prev_); }
+
+ private:
+  Isolate* isolate_;
+  Context* prev_;
+};
+}  //  namespace
 
 bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8_heap_explorer_.TagGlobalObjects();
@@ -2504,6 +2515,8 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
                            GarbageCollectionReason::kHeapProfiler);
   heap_->CollectAllGarbage(Heap::kMakeHeapIterableMask,
                            GarbageCollectionReason::kHeapProfiler);
+
+  NullContextScope null_context_scope(heap_->isolate());
 
 #ifdef VERIFY_HEAP
   Heap* debug_heap = heap_;

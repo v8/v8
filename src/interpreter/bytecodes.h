@@ -51,7 +51,10 @@ namespace interpreter {
   V(PopContext, AccumulatorUse::kNone, OperandType::kReg)                      \
   V(LdaContextSlot, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kIdx, OperandType::kUImm)                                     \
+  V(LdaImmutableContextSlot, AccumulatorUse::kWrite, OperandType::kReg,        \
+    OperandType::kIdx, OperandType::kUImm)                                     \
   V(LdaCurrentContextSlot, AccumulatorUse::kWrite, OperandType::kIdx)          \
+  V(LdaImmutableCurrentContextSlot, AccumulatorUse::kWrite, OperandType::kIdx) \
   V(StaContextSlot, AccumulatorUse::kRead, OperandType::kReg,                  \
     OperandType::kIdx, OperandType::kUImm)                                     \
   V(StaCurrentContextSlot, AccumulatorUse::kRead, OperandType::kIdx)           \
@@ -166,10 +169,10 @@ namespace interpreter {
   V(InvokeIntrinsic, AccumulatorUse::kWrite, OperandType::kIntrinsicId,        \
     OperandType::kRegList, OperandType::kRegCount)                             \
                                                                                \
-  /* New operators */                                                          \
-  V(New, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kRegList, \
-    OperandType::kRegCount, OperandType::kIdx)                                 \
-  V(NewWithSpread, AccumulatorUse::kReadWrite, OperandType::kReg,              \
+  /* Construct operators */                                                    \
+  V(Construct, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
+    OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
+  V(ConstructWithSpread, AccumulatorUse::kReadWrite, OperandType::kReg,        \
     OperandType::kRegList, OperandType::kRegCount)                             \
                                                                                \
   /* Test Operators */                                                         \
@@ -510,7 +513,9 @@ class V8_EXPORT_PRIVATE Bytecodes final {
            bytecode == Bytecode::kLdaTheHole ||
            bytecode == Bytecode::kLdaConstant ||
            bytecode == Bytecode::kLdaContextSlot ||
-           bytecode == Bytecode::kLdaCurrentContextSlot;
+           bytecode == Bytecode::kLdaCurrentContextSlot ||
+           bytecode == Bytecode::kLdaImmutableContextSlot ||
+           bytecode == Bytecode::kLdaImmutableCurrentContextSlot;
   }
 
   // Return true if |bytecode| is a register load without effects,
@@ -612,9 +617,9 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   }
 
   // Returns true if the bytecode is a call or a constructor call.
-  static constexpr bool IsCallOrNew(Bytecode bytecode) {
+  static constexpr bool IsCallOrConstruct(Bytecode bytecode) {
     return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
-           bytecode == Bytecode::kTailCall || bytecode == Bytecode::kNew;
+           bytecode == Bytecode::kTailCall || bytecode == Bytecode::kConstruct;
   }
 
   // Returns true if the bytecode is a call to the runtime.

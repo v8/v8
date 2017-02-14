@@ -549,10 +549,9 @@ class PipelineCompilationJob final : public CompilationJob {
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
       : CompilationJob(isolate, &info_, "TurboFan"),
-        zone_(isolate->allocator(), ZONE_NAME),
+        parse_info_(handle(function->shared())),
         zone_stats_(isolate->allocator()),
-        parse_info_(&zone_, handle(function->shared())),
-        info_(&parse_info_, function),
+        info_(parse_info_.zone(), &parse_info_, function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -564,9 +563,8 @@ class PipelineCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
-  Zone zone_;
-  ZoneStats zone_stats_;
   ParseInfo parse_info_;
+  ZoneStats zone_stats_;
   CompilationInfo info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
   PipelineData data_;
@@ -596,6 +594,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     if (FLAG_inline_accessors) {
       info()->MarkAsAccessorInliningEnabled();
     }
+    if (info()->closure()->feedback_vector_cell()->map() ==
+        isolate()->heap()->one_closure_cell_map()) {
+      info()->MarkAsFunctionContextSpecializing();
+    }
   }
   if (!info()->is_optimizing_from_bytecode()) {
     if (!Compiler::EnsureDeoptimizationSupport(info())) return FAILED;
@@ -603,7 +605,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl() {
     info()->MarkAsInliningEnabled();
   }
 
-  linkage_ = new (&zone_) Linkage(Linkage::ComputeIncoming(&zone_, info()));
+  linkage_ = new (info()->zone())
+      Linkage(Linkage::ComputeIncoming(info()->zone(), info()));
 
   if (!pipeline_.CreateGraph()) {
     if (isolate()->has_pending_exception()) return FAILED;  // Stack overflowed.
@@ -640,13 +643,15 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(
       CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions,
-      ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts)
+      ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
+      bool allow_signalling_nan)
       : CompilationJob(info->isolate(), info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
         data_(&zone_stats_, info, jsgraph, source_positions, protected_insts),
         pipeline_(&data_),
-        linkage_(descriptor) {}
+        linkage_(descriptor),
+        allow_signalling_nan_(allow_signalling_nan) {}
 
  protected:
   Status PrepareJobImpl() final;
@@ -658,6 +663,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage linkage_;
+  bool allow_signalling_nan_;
 };
 
 PipelineWasmCompilationJob::Status
@@ -682,7 +688,8 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    MachineOperatorReducer machine_reducer(data->jsgraph());
+    MachineOperatorReducer machine_reducer(data->jsgraph(),
+                                           allow_signalling_nan_);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -773,6 +780,7 @@ struct InliningPhase {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
+    CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     JSCallReducer::Flags call_reducer_flags = JSCallReducer::kNoFlags;
@@ -814,6 +822,7 @@ struct InliningPhase {
             ? JSIntrinsicLowering::kDeoptimizationEnabled
             : JSIntrinsicLowering::kDeoptimizationDisabled);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &checkpoint_elimination);
     AddReducer(data, &graph_reducer, &common_reducer);
     if (data->info()->is_frame_specializing()) {
       AddReducer(data, &graph_reducer, &frame_specialization);
@@ -897,7 +906,7 @@ struct TypedLoweringPhase {
             ? JSBuiltinReducer::kDeoptimizationEnabled
             : JSBuiltinReducer::kNoFlags,
         data->info()->dependencies(), data->native_context());
-    Handle<TypeFeedbackVector> feedback_vector(
+    Handle<FeedbackVector> feedback_vector(
         data->info()->closure()->feedback_vector());
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
@@ -940,7 +949,7 @@ struct EscapeAnalysisPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     EscapeAnalysis escape_analysis(data->graph(), data->jsgraph()->common(),
                                    temp_zone);
-    escape_analysis.Run();
+    if (!escape_analysis.Run()) return;
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
                                          &escape_analysis, temp_zone);
@@ -1749,10 +1758,11 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
 CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions,
-    ZoneVector<trap_handler::ProtectedInstructionData>*
-        protected_instructions) {
+    ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions,
+    bool allow_signalling_nan) {
   return new PipelineWasmCompilationJob(
-      info, jsgraph, descriptor, source_positions, protected_instructions);
+      info, jsgraph, descriptor, source_positions, protected_instructions,
+      allow_signalling_nan);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

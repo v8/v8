@@ -6,7 +6,6 @@
 #define V8_DEBUG_DEBUG_H_
 
 #include "src/allocation.h"
-#include "src/arguments.h"
 #include "src/assembler.h"
 #include "src/base/atomicops.h"
 #include "src/base/hashmap.h"
@@ -48,10 +47,6 @@ enum ExceptionBreakType {
   BreakException = 0,
   BreakUncaughtException = 1
 };
-
-
-// Type of exception break.
-enum BreakLocatorType { ALL_BREAK_LOCATIONS, CALLS_AND_RETURNS };
 
 
 // The different types of breakpoint position alignments.
@@ -122,8 +117,7 @@ class BreakLocation {
 class BreakIterator {
  public:
   static std::unique_ptr<BreakIterator> GetIterator(
-      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code,
-      BreakLocatorType type = ALL_BREAK_LOCATIONS);
+      Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code);
 
   virtual ~BreakIterator() {}
 
@@ -145,8 +139,7 @@ class BreakIterator {
   virtual void SetDebugBreak() = 0;
 
  protected:
-  explicit BreakIterator(Handle<DebugInfo> debug_info,
-                         BreakLocatorType break_locator_type);
+  explicit BreakIterator(Handle<DebugInfo> debug_info);
 
   int BreakIndexFromPosition(int position, BreakPositionAlignment alignment);
 
@@ -156,7 +149,6 @@ class BreakIterator {
   int break_index_;
   int position_;
   int statement_position_;
-  BreakLocatorType break_locator_type_;
 
  private:
   DisallowHeapAllocation no_gc_;
@@ -165,7 +157,7 @@ class BreakIterator {
 
 class CodeBreakIterator : public BreakIterator {
  public:
-  CodeBreakIterator(Handle<DebugInfo> debug_info, BreakLocatorType type);
+  explicit CodeBreakIterator(Handle<DebugInfo> debug_info);
   ~CodeBreakIterator() override {}
 
   BreakLocation GetBreakLocation() override;
@@ -184,7 +176,7 @@ class CodeBreakIterator : public BreakIterator {
   }
 
  private:
-  int GetModeMask(BreakLocatorType type);
+  int GetModeMask();
   DebugBreakType GetDebugBreakType();
 
   RelocInfo::Mode rmode() { return reloc_iterator_.rinfo()->rmode(); }
@@ -197,8 +189,7 @@ class CodeBreakIterator : public BreakIterator {
 
 class BytecodeArrayBreakIterator : public BreakIterator {
  public:
-  BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info,
-                             BreakLocatorType type);
+  explicit BytecodeArrayBreakIterator(Handle<DebugInfo> debug_info);
   ~BytecodeArrayBreakIterator() override {}
 
   BreakLocation GetBreakLocation() override;
@@ -239,28 +230,6 @@ class DebugInfoListNode {
   DebugInfoListNode* next_;
 };
 
-// Details of the debug event delivered to the debug event listener.
-class EventDetailsImpl : public v8::Debug::EventDetails {
- public:
-  EventDetailsImpl(DebugEvent event, Handle<JSObject> exec_state,
-                   Handle<JSObject> event_data, Handle<Object> callback_data);
-  virtual DebugEvent GetEvent() const;
-  virtual v8::Local<v8::Object> GetExecutionState() const;
-  virtual v8::Local<v8::Object> GetEventData() const;
-  virtual v8::Local<v8::Context> GetEventContext() const;
-  virtual v8::Local<v8::Value> GetCallbackData() const;
-  virtual v8::Debug::ClientData* GetClientData() const { return nullptr; }
-  virtual v8::Isolate* GetIsolate() const;
-
- private:
-  DebugEvent event_;  // Debug event causing the break.
-  Handle<JSObject> exec_state_;         // Current execution state.
-  Handle<JSObject> event_data_;         // Data associated with the event.
-  Handle<Object> callback_data_;        // User data passed with the callback
-                                        // when it was registered.
-};
-
-
 class DebugFeatureTracker {
  public:
   enum Feature {
@@ -299,10 +268,9 @@ class Debug {
   void OnPromiseReject(Handle<Object> promise, Handle<Object> value);
   void OnCompileError(Handle<Script> script);
   void OnAfterCompile(Handle<Script> script);
-  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id);
+  void OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
+                        int parent_id);
 
-  // API facing.
-  void SetEventListener(Handle<Object> callback, Handle<Object> data);
   MUST_USE_RESULT MaybeHandle<Object> Call(Handle<Object> fun,
                                            Handle<Object> data);
   Handle<Context> GetDebugContext();
@@ -355,13 +323,10 @@ class Debug {
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
 
-  void SetDebugDelegate(debug::DebugDelegate* delegate);
+  void SetDebugDelegate(debug::DebugDelegate* delegate, bool pass_ownership);
 
-  // Returns whether the operation succeeded. Compilation can only be triggered
-  // if a valid closure is passed as the second argument, otherwise the shared
-  // function needs to be compiled already.
-  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared,
-                       Handle<JSFunction> function);
+  // Returns whether the operation succeeded.
+  bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
   void CreateDebugInfo(Handle<SharedFunctionInfo> shared);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
 
@@ -458,20 +423,23 @@ class Debug {
 
  private:
   explicit Debug(Isolate* isolate);
+  ~Debug() { DCHECK_NULL(debug_delegate_); }
 
   void UpdateState();
   void UpdateHookOnFunctionCall();
+  void RemoveDebugDelegate();
   void Unload();
   void SetNextBreakId() {
     thread_local_.break_id_ = ++thread_local_.break_count_;
   }
 
+  // Return the number of virtual frames below debugger entry.
+  int CurrentFrameCount();
+
   inline bool ignore_events() const {
     return is_suppressed_ || !is_active_ || isolate_->needs_side_effect_check();
   }
-  inline bool break_disabled() const {
-    return break_disabled_ || in_debug_event_listener_;
-  }
+  inline bool break_disabled() const { return break_disabled_; }
 
   void clear_suspended_generator() {
     thread_local_.suspended_generator_ = Smi::kZero;
@@ -481,18 +449,6 @@ class Debug {
     return thread_local_.suspended_generator_ != Smi::kZero;
   }
 
-  // There are three types of event listeners: C++ message_handler,
-  // JavaScript event listener and C++ event listener.
-  // Currently inspector still uses C++ event listener and installs
-  // more specific event listeners for part of events. Calling of
-  // C++ event listener is redundant when more specific event listener
-  // is presented. Other clients can install JavaScript event listener
-  // (e.g. some of NodeJS module).
-  bool non_inspector_listener_exists() const {
-    return !event_listener_.is_null() && !event_listener_->IsForeign();
-  }
-
-  bool IsBlackboxed(SharedFunctionInfo* shared);
   bool IsExceptionBlackboxed(bool uncaught);
 
   void OnException(Handle<Object> exception, Handle<Object> promise);
@@ -507,11 +463,8 @@ class Debug {
       Handle<Object> promise);
   MUST_USE_RESULT MaybeHandle<Object> MakeCompileEvent(
       Handle<Script> script, v8::DebugEvent type);
-  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(Handle<Smi> type,
-                                                         Handle<Smi> id);
-
-  // Mirror cache handling.
-  void ClearMirrorCache();
+  MUST_USE_RESULT MaybeHandle<Object> MakeAsyncTaskEvent(
+      v8::debug::PromiseDebugActionType type, int id);
 
   void ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script);
   void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
@@ -526,8 +479,7 @@ class Debug {
   // Clear all code from instrumentation.
   void ClearAllBreakPoints();
   // Instrument a function with one-shots.
-  void FloodWithOneShot(Handle<JSFunction> function,
-                        BreakLocatorType type = ALL_BREAK_LOCATIONS);
+  void FloodWithOneShot(Handle<SharedFunctionInfo> function);
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
@@ -552,10 +504,9 @@ class Debug {
 
   // Global handles.
   Handle<Context> debug_context_;
-  Handle<Object> event_listener_;
-  Handle<Object> event_listener_data_;
 
   debug::DebugDelegate* debug_delegate_ = nullptr;
+  bool owns_debug_delegate_ = false;
 
   // Debugger is active, i.e. there is a debug event listener attached.
   bool is_active_;
@@ -570,8 +521,6 @@ class Debug {
   bool break_disabled_;
   // Do not break on break points.
   bool break_points_active_;
-  // Nested inside a debug event listener.
-  bool in_debug_event_listener_;
   // Trigger debug break events for all exceptions.
   bool break_on_exception_;
   // Trigger debug break events for uncaught exceptions.
@@ -607,10 +556,10 @@ class Debug {
     int last_statement_position_;
 
     // Frame pointer from last step next or step frame action.
-    Address last_fp_;
+    int last_frame_count_;
 
     // Frame pointer of the target frame we want to arrive at.
-    Address target_fp_;
+    int target_frame_count_;
 
     // Value of the accumulator at the point of entering the debugger.
     Object* return_value_;
@@ -635,6 +584,7 @@ class Debug {
   friend class LiveEdit;
   friend class SuppressDebug;
   friend class NoSideEffectScope;
+  friend class LegacyDebugDelegate;
 
   friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
   friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
@@ -642,6 +592,84 @@ class Debug {
   DISALLOW_COPY_AND_ASSIGN(Debug);
 };
 
+class LegacyDebugDelegate : public v8::debug::DebugDelegate {
+ public:
+  explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
+  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
+                            int parent_id) override;
+  void ScriptCompiled(v8::Local<v8::debug::Script> script,
+                      bool has_compile_error) override;
+  void BreakProgramRequested(v8::Local<v8::Context> paused_context,
+                             v8::Local<v8::Object> exec_state,
+                             v8::Local<v8::Value> break_points_hit) override;
+  void ExceptionThrown(v8::Local<v8::Context> paused_context,
+                       v8::Local<v8::Object> exec_state,
+                       v8::Local<v8::Value> exception,
+                       v8::Local<v8::Value> promise, bool is_uncaught) override;
+  bool IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
+                            const v8::debug::Location& start,
+                            const v8::debug::Location& end) override {
+    return false;
+  }
+
+ protected:
+  Isolate* isolate_;
+
+ private:
+  void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data);
+  virtual void ProcessDebugEvent(v8::DebugEvent event,
+                                 Handle<JSObject> event_data,
+                                 Handle<JSObject> exec_state) = 0;
+};
+
+class JavaScriptDebugDelegate : public LegacyDebugDelegate {
+ public:
+  JavaScriptDebugDelegate(Isolate* isolate, Handle<JSFunction> listener,
+                          Handle<Object> data);
+  virtual ~JavaScriptDebugDelegate();
+
+ private:
+  void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data,
+                         Handle<JSObject> exec_state) override;
+
+  Handle<JSFunction> listener_;
+  Handle<Object> data_;
+};
+
+class NativeDebugDelegate : public LegacyDebugDelegate {
+ public:
+  NativeDebugDelegate(Isolate* isolate, v8::Debug::EventCallback callback,
+                      Handle<Object> data);
+  virtual ~NativeDebugDelegate();
+
+ private:
+  // Details of the debug event delivered to the debug event listener.
+  class EventDetails : public v8::Debug::EventDetails {
+   public:
+    EventDetails(DebugEvent event, Handle<JSObject> exec_state,
+                 Handle<JSObject> event_data, Handle<Object> callback_data);
+    virtual DebugEvent GetEvent() const;
+    virtual v8::Local<v8::Object> GetExecutionState() const;
+    virtual v8::Local<v8::Object> GetEventData() const;
+    virtual v8::Local<v8::Context> GetEventContext() const;
+    virtual v8::Local<v8::Value> GetCallbackData() const;
+    virtual v8::Debug::ClientData* GetClientData() const { return nullptr; }
+    virtual v8::Isolate* GetIsolate() const;
+
+   private:
+    DebugEvent event_;              // Debug event causing the break.
+    Handle<JSObject> exec_state_;   // Current execution state.
+    Handle<JSObject> event_data_;   // Data associated with the event.
+    Handle<Object> callback_data_;  // User data passed with the callback
+                                    // when it was registered.
+  };
+
+  void ProcessDebugEvent(v8::DebugEvent event, Handle<JSObject> event_data,
+                         Handle<JSObject> exec_state) override;
+
+  v8::Debug::EventCallback callback_;
+  Handle<Object> data_;
+};
 
 // This scope is used to load and enter the debug context and create a new
 // break state.  Leaving the scope will restore the previous state.
@@ -675,21 +703,16 @@ class DebugScope BASE_EMBEDDED {
 class DisableBreak BASE_EMBEDDED {
  public:
   explicit DisableBreak(Debug* debug)
-      : debug_(debug),
-        previous_break_disabled_(debug->break_disabled_),
-        previous_in_debug_event_listener_(debug->in_debug_event_listener_) {
+      : debug_(debug), previous_break_disabled_(debug->break_disabled_) {
     debug_->break_disabled_ = true;
-    debug_->in_debug_event_listener_ = true;
   }
   ~DisableBreak() {
     debug_->break_disabled_ = previous_break_disabled_;
-    debug_->in_debug_event_listener_ = previous_in_debug_event_listener_;
   }
 
  private:
   Debug* debug_;
   bool previous_break_disabled_;
-  bool previous_in_debug_event_listener_;
   DISALLOW_COPY_AND_ASSIGN(DisableBreak);
 };
 

@@ -330,7 +330,6 @@ static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
          array->map() != heap->fixed_double_array_map() &&
          array != heap->empty_fixed_array() &&
          array != heap->empty_byte_array() &&
-         array != heap->empty_type_feedback_vector() &&
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
          array != heap->empty_descriptor_array() &&
@@ -540,10 +539,10 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     SharedFunctionInfo* sfi) {
   FixedArray* scope_info = sfi->scope_info();
   RecordFixedArrayHelper(sfi, scope_info, SCOPE_INFO_SUB_TYPE, 0);
-  TypeFeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
+  FeedbackMetadata* feedback_metadata = sfi->feedback_metadata();
   if (!feedback_metadata->is_empty()) {
-    RecordFixedArrayHelper(sfi, feedback_metadata,
-                           TYPE_FEEDBACK_METADATA_SUB_TYPE, 0);
+    RecordFixedArrayHelper(sfi, feedback_metadata, FEEDBACK_METADATA_SUB_TYPE,
+                           0);
   }
 
   if (!sfi->OptimizedCodeMapIsCleared()) {
@@ -551,31 +550,15 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
     RecordFixedArrayHelper(sfi, optimized_code_map, OPTIMIZED_CODE_MAP_SUB_TYPE,
                            0);
     // Optimized code map should be small, so skip accounting.
-    int len = optimized_code_map->length();
-    for (int i = SharedFunctionInfo::kEntriesStart; i < len;
-         i += SharedFunctionInfo::kEntryLength) {
-      Object* slot = optimized_code_map->get(
-          i + SharedFunctionInfo::kFeedbackVectorOffset);
-      TypeFeedbackVector* vector = nullptr;
-      if (slot->IsWeakCell()) {
-        WeakCell* cell = WeakCell::cast(slot);
-        if (!cell->cleared()) {
-          vector = TypeFeedbackVector::cast(cell->value());
-        }
-      } else {
-        vector = TypeFeedbackVector::cast(slot);
-      }
-      if (vector != nullptr) {
-        RecordFixedArrayHelper(sfi, vector, TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
-      }
-    }
   }
 }
 
 void ObjectStatsCollector::RecordJSFunctionDetails(JSFunction* function) {
-  TypeFeedbackVector* feedback_vector = function->feedback_vector();
-  RecordFixedArrayHelper(function, feedback_vector,
-                         TYPE_FEEDBACK_VECTOR_SUB_TYPE, 0);
+  if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
+    FeedbackVector* feedback_vector = function->feedback_vector();
+    RecordFixedArrayHelper(function, feedback_vector, FEEDBACK_VECTOR_SUB_TYPE,
+                           0);
+  }
 }
 
 void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {

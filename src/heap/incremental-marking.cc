@@ -623,7 +623,7 @@ void IncrementalMarking::ProcessWeakCells() {
     HeapObject* value = HeapObject::cast(weak_cell->value());
     // Remove weak cells with live objects from the list, they do not need
     // clearing.
-    if (MarkCompactCollector::IsMarked(value)) {
+    if (ObjectMarking::IsBlackOrGrey(value)) {
       // Record slot, if value is pointing to an evacuation candidate.
       Object** slot = HeapObject::RawField(weak_cell, WeakCell::kValueOffset);
       heap_->mark_compact_collector()->RecordSlot(weak_cell, slot, *slot);

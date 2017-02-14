@@ -125,6 +125,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt32x4FromFloat32x4:
     case kArmUint32x4FromFloat32x4:
     case kArmInt32x4Neg:
+    case kArmInt32x4ShiftLeftByScalar:
+    case kArmInt32x4ShiftRightByScalar:
     case kArmInt32x4Add:
     case kArmInt32x4Sub:
     case kArmInt32x4Mul:
@@ -134,15 +136,21 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt32x4NotEqual:
     case kArmInt32x4GreaterThan:
     case kArmInt32x4GreaterThanOrEqual:
+    case kArmUint32x4ShiftRightByScalar:
+    case kArmUint32x4Min:
+    case kArmUint32x4Max:
     case kArmUint32x4GreaterThan:
     case kArmUint32x4GreaterThanOrEqual:
-    case kArmSimd32x4Select:
     case kArmInt16x8Splat:
     case kArmInt16x8ExtractLane:
     case kArmInt16x8ReplaceLane:
     case kArmInt16x8Neg:
+    case kArmInt16x8ShiftLeftByScalar:
+    case kArmInt16x8ShiftRightByScalar:
     case kArmInt16x8Add:
+    case kArmInt16x8AddSaturate:
     case kArmInt16x8Sub:
+    case kArmInt16x8SubSaturate:
     case kArmInt16x8Mul:
     case kArmInt16x8Min:
     case kArmInt16x8Max:
@@ -150,14 +158,23 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt16x8NotEqual:
     case kArmInt16x8GreaterThan:
     case kArmInt16x8GreaterThanOrEqual:
+    case kArmUint16x8ShiftRightByScalar:
+    case kArmUint16x8AddSaturate:
+    case kArmUint16x8SubSaturate:
+    case kArmUint16x8Min:
+    case kArmUint16x8Max:
     case kArmUint16x8GreaterThan:
     case kArmUint16x8GreaterThanOrEqual:
     case kArmInt8x16Splat:
     case kArmInt8x16ExtractLane:
     case kArmInt8x16ReplaceLane:
     case kArmInt8x16Neg:
+    case kArmInt8x16ShiftLeftByScalar:
+    case kArmInt8x16ShiftRightByScalar:
     case kArmInt8x16Add:
+    case kArmInt8x16AddSaturate:
     case kArmInt8x16Sub:
+    case kArmInt8x16SubSaturate:
     case kArmInt8x16Mul:
     case kArmInt8x16Min:
     case kArmInt8x16Max:
@@ -165,8 +182,20 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmInt8x16NotEqual:
     case kArmInt8x16GreaterThan:
     case kArmInt8x16GreaterThanOrEqual:
+    case kArmUint8x16ShiftRightByScalar:
+    case kArmUint8x16AddSaturate:
+    case kArmUint8x16SubSaturate:
+    case kArmUint8x16Min:
+    case kArmUint8x16Max:
     case kArmUint8x16GreaterThan:
     case kArmUint8x16GreaterThanOrEqual:
+    case kArmSimd128And:
+    case kArmSimd128Or:
+    case kArmSimd128Xor:
+    case kArmSimd128Not:
+    case kArmSimd32x4Select:
+    case kArmSimd16x8Select:
+    case kArmSimd8x16Select:
       return kNoOpcodeFlags;
 
     case kArmVldrF32:

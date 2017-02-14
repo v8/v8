@@ -53,6 +53,8 @@
 #include "src/utils.h"
 
 #include "test/cctest/cctest.h"
+#include "test/cctest/scope-test-helper.h"
+#include "test/cctest/unicode-helpers.h"
 
 TEST(ScanKeywords) {
   struct KeywordToken {
@@ -702,29 +704,6 @@ TEST(RegExpScanning) {
   TestScanRegExp("/=?/", "=?");
 }
 
-static int Ucs2CharLength(unibrow::uchar c) {
-  if (c == unibrow::Utf8::kIncomplete || c == unibrow::Utf8::kBufferEmpty) {
-    return 0;
-  } else if (c < 0xffff) {
-    return 1;
-  } else {
-    return 2;
-  }
-}
-
-static int Utf8LengthHelper(const char* s) {
-  unibrow::Utf8::Utf8IncrementalBuffer buffer(unibrow::Utf8::kBufferEmpty);
-  int length = 0;
-  for (; *s != '\0'; s++) {
-    unibrow::uchar tmp = unibrow::Utf8::ValueOfIncremental(*s, &buffer);
-    length += Ucs2CharLength(tmp);
-  }
-  unibrow::uchar tmp = unibrow::Utf8::ValueOfIncrementalFinish(&buffer);
-  length += Ucs2CharLength(tmp);
-  return length;
-}
-
-
 TEST(ScopeUsesArgumentsSuperThis) {
   static const struct {
     const char* prefix;
@@ -825,8 +804,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
           factory->NewStringFromUtf8(i::CStrVector(program.start()))
               .ToHandleChecked();
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-      i::ParseInfo info(&zone, script);
+      i::ParseInfo info(script);
       // The information we're checking is only produced when eager parsing.
       info.set_allow_lazy_parsing(false);
       CHECK(i::parsing::ParseProgram(&info));
@@ -882,7 +860,7 @@ static void CheckParsesToNumber(const char* source, bool with_dot) {
 
   i::Handle<i::Script> script = factory->NewScript(source_code);
 
-  i::ParseInfo info(handles.main_zone(), script);
+  i::ParseInfo info(script);
   i::Parser parser(&info);
   info.set_allow_lazy_parsing(false);
   info.set_toplevel(true);
@@ -1180,8 +1158,7 @@ TEST(ScopePositions) {
         i::CStrVector(program.start())).ToHandleChecked();
     CHECK_EQ(source->length(), kProgramSize);
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo info(&zone, script);
+    i::ParseInfo info(script);
     info.set_language_mode(source_data[i].language_mode);
     i::parsing::ParseProgram(&info);
     CHECK_NOT_NULL(info.literal());
@@ -1189,7 +1166,7 @@ TEST(ScopePositions) {
     // Check scope types and positions.
     i::Scope* scope = info.literal()->scope();
     CHECK(scope->is_script_scope());
-    CHECK_EQ(scope->start_position(), 0);
+    CHECK_EQ(0, scope->start_position());
     CHECK_EQ(scope->end_position(), kProgramSize);
 
     i::Scope* inner_scope = scope->inner_scope();
@@ -1227,8 +1204,7 @@ TEST(DiscardFunctionBody) {
     i::Handle<i::String> source_code =
         factory->NewStringFromUtf8(i::CStrVector(source)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source_code);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo info(&zone, script);
+    i::ParseInfo info(script);
     i::parsing::ParseProgram(&info);
     function = info.literal();
     CHECK_NOT_NULL(function);
@@ -1361,8 +1337,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::FunctionLiteral* function;
   {
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo info(&zone, script);
+    i::ParseInfo info(script);
     info.set_allow_lazy_parsing(flags.Contains(kAllowLazy));
     SetGlobalFlags(flags);
     if (is_module) info.set_module();
@@ -2489,8 +2464,7 @@ TEST(DontRegressPreParserDataSizes) {
     i::Handle<i::String> source =
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo info(&zone, script);
+    i::ParseInfo info(script);
     i::ScriptData* sd = NULL;
     info.set_cached_data(&sd);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
@@ -3377,7 +3351,6 @@ TEST(InnerAssignment) {
         i::SNPrintF(program, "%s%s%s%s%s", prefix, outer, midfix, inner,
                     suffix);
 
-        i::Zone zone(isolate->allocator(), ZONE_NAME);
         std::unique_ptr<i::ParseInfo> info;
         if (lazy) {
           printf("%s\n", program.start());
@@ -3385,7 +3358,7 @@ TEST(InnerAssignment) {
           i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
           i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
           i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
           CHECK(i::parsing::ParseFunction(info.get()));
         } else {
           i::Handle<i::String> source =
@@ -3393,7 +3366,7 @@ TEST(InnerAssignment) {
           source->PrintOn(stdout);
           printf("\n");
           i::Handle<i::Script> script = factory->NewScript(source);
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
+          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
           info->set_allow_lazy_parsing(false);
           CHECK(i::parsing::ParseProgram(info.get()));
         }
@@ -3492,14 +3465,13 @@ TEST(MaybeAssignedParameters) {
       i::ScopedVector<char> program(Utf8LengthHelper(source) +
                                     Utf8LengthHelper(suffix) + 1);
       i::SNPrintF(program, "%s%s", source, suffix);
-      i::Zone zone(isolate->allocator(), ZONE_NAME);
       std::unique_ptr<i::ParseInfo> info;
       printf("%s\n", program.start());
       v8::Local<v8::Value> v = CompileRun(program.start());
       i::Handle<i::Object> o = v8::Utils::OpenHandle(*v);
       i::Handle<i::JSFunction> f = i::Handle<i::JSFunction>::cast(o);
       i::Handle<i::SharedFunctionInfo> shared = i::handle(f->shared());
-      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, shared));
+      info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(shared));
       info->set_allow_lazy_parsing(allow_lazy);
       CHECK(i::parsing::ParseFunction(info.get()));
       CHECK(i::Compiler::Analyze(info.get()));
@@ -3519,64 +3491,430 @@ TEST(MaybeAssignedParameters) {
   }
 }
 
+struct Input {
+  bool assigned;
+  std::string source;
+  std::vector<unsigned> location;  // "Directions" to the relevant scope.
+};
+
+static void TestMaybeAssigned(Input input, const char* variable, bool module,
+                              bool allow_lazy_parsing) {
+  i::Factory* factory = CcTest::i_isolate()->factory();
+  i::Handle<i::String> string =
+      factory->InternalizeUtf8String(input.source.c_str());
+  string->PrintOn(stdout);
+  printf("\n");
+  i::Handle<i::Script> script = factory->NewScript(string);
+
+  std::unique_ptr<i::ParseInfo> info;
+  info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(script));
+  info->set_module(module);
+  info->set_allow_lazy_parsing(allow_lazy_parsing);
+
+  CHECK(i::parsing::ParseProgram(info.get()));
+  CHECK(i::Compiler::Analyze(info.get()));
+
+  CHECK_NOT_NULL(info->literal());
+  i::Scope* scope = info->literal()->scope();
+  CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
+  CHECK_NULL(scope->sibling());
+  CHECK(module ? scope->is_module_scope() : scope->is_script_scope());
+
+  i::Variable* var;
+  {
+    // Find the variable.
+    for (auto it = input.location.begin(); it != input.location.end(); ++it) {
+      unsigned n = *it;
+      scope = scope->inner_scope();
+      while (n-- > 0) {
+        scope = scope->sibling();
+      }
+    }
+    CHECK_NOT_NULL(scope);
+    const i::AstRawString* var_name =
+        info->ast_value_factory()->GetOneByteString(variable);
+    var = scope->Lookup(var_name);
+  }
+
+  CHECK(var->is_used());
+  STATIC_ASSERT(true == i::kMaybeAssigned);
+  CHECK_EQ(input.assigned, var->maybe_assigned() == i::kMaybeAssigned);
+}
+
+static Input wrap(Input input) {
+  Input result;
+  result.assigned = input.assigned;
+  result.source = "function WRAPPED() { " + input.source + " }";
+  result.location.push_back(0);
+  for (auto n : input.location) {
+    result.location.push_back(n);
+  }
+  return result;
+}
+
+TEST(MaybeAssignedInsideLoop) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  std::vector<unsigned> top;  // Can't use {} in initializers below.
+
+  Input module_and_script_tests[] = {
+      {1, "for (j=x; j<10; ++j) { foo = j }", top},
+      {1, "for (j=x; j<10; ++j) { [foo] = [j] }", top},
+      {1, "for (j=x; j<10; ++j) { var foo = j }", top},
+      {1, "for (j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {0, "for (j=x; j<10; ++j) { let foo = j }", {0}},
+      {0, "for (j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {0, "for (j=x; j<10; ++j) { const foo = j }", {0}},
+      {0, "for (j=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {0, "for (j=x; j<10; ++j) { function foo() {return j} }", {0}},
+
+      {1, "for ({j}=x; j<10; ++j) { foo = j }", top},
+      {1, "for ({j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {1, "for ({j}=x; j<10; ++j) { var foo = j }", top},
+      {1, "for ({j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {0, "for ({j}=x; j<10; ++j) { let foo = j }", {0}},
+      {0, "for ({j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {0, "for ({j}=x; j<10; ++j) { const foo = j }", {0}},
+      {0, "for ({j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {0, "for ({j}=x; j<10; ++j) { function foo() {return j} }", {0}},
+
+      {1, "for (var j=x; j<10; ++j) { foo = j }", top},
+      {1, "for (var j=x; j<10; ++j) { [foo] = [j] }", top},
+      {1, "for (var j=x; j<10; ++j) { var foo = j }", top},
+      {1, "for (var j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {0, "for (var j=x; j<10; ++j) { let foo = j }", {0}},
+      {0, "for (var j=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {0, "for (var j=x; j<10; ++j) { const foo = j }", {0}},
+      {0, "for (var j=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {0, "for (var j=x; j<10; ++j) { function foo() {return j} }", {0}},
+
+      {1, "for (var {j}=x; j<10; ++j) { foo = j }", top},
+      {1, "for (var {j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {1, "for (var {j}=x; j<10; ++j) { var foo = j }", top},
+      {1, "for (var {j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {0, "for (var {j}=x; j<10; ++j) { let foo = j }", {0}},
+      {0, "for (var {j}=x; j<10; ++j) { let [foo] = [j] }", {0}},
+      {0, "for (var {j}=x; j<10; ++j) { const foo = j }", {0}},
+      {0, "for (var {j}=x; j<10; ++j) { const [foo] = [j] }", {0}},
+      {0, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", {0}},
+
+      {1, "for (let j=x; j<10; ++j) { foo = j }", top},
+      {1, "for (let j=x; j<10; ++j) { [foo] = [j] }", top},
+      {1, "for (let j=x; j<10; ++j) { var foo = j }", top},
+      {1, "for (let j=x; j<10; ++j) { var [foo] = [j] }", top},
+      {0, "for (let j=x; j<10; ++j) { let foo = j }", {0, 0, 0}},
+      {0, "for (let j=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let j=x; j<10; ++j) { const foo = j }", {0, 0, 0}},
+      {0, "for (let j=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let j=x; j<10; ++j) { function foo() {return j} }", {0, 0, 0}},
+
+      {1, "for (let {j}=x; j<10; ++j) { foo = j }", top},
+      {1, "for (let {j}=x; j<10; ++j) { [foo] = [j] }", top},
+      {1, "for (let {j}=x; j<10; ++j) { var foo = j }", top},
+      {1, "for (let {j}=x; j<10; ++j) { var [foo] = [j] }", top},
+      {0, "for (let {j}=x; j<10; ++j) { let foo = j }", {0, 0, 0}},
+      {0, "for (let {j}=x; j<10; ++j) { let [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let {j}=x; j<10; ++j) { const foo = j }", {0, 0, 0}},
+      {0, "for (let {j}=x; j<10; ++j) { const [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let {j}=x; j<10; ++j) { function foo(){return j} }", {0, 0, 0}},
+
+      {1, "for (j of x) { foo = j }", top},
+      {1, "for (j of x) { [foo] = [j] }", top},
+      {1, "for (j of x) { var foo = j }", top},
+      {1, "for (j of x) { var [foo] = [j] }", top},
+      {0, "for (j of x) { let foo = j }", {0}},
+      {0, "for (j of x) { let [foo] = [j] }", {0}},
+      {0, "for (j of x) { const foo = j }", {0}},
+      {0, "for (j of x) { const [foo] = [j] }", {0}},
+      {0, "for (j of x) { function foo() {return j} }", {0}},
+
+      {1, "for ({j} of x) { foo = j }", top},
+      {1, "for ({j} of x) { [foo] = [j] }", top},
+      {1, "for ({j} of x) { var foo = j }", top},
+      {1, "for ({j} of x) { var [foo] = [j] }", top},
+      {0, "for ({j} of x) { let foo = j }", {0}},
+      {0, "for ({j} of x) { let [foo] = [j] }", {0}},
+      {0, "for ({j} of x) { const foo = j }", {0}},
+      {0, "for ({j} of x) { const [foo] = [j] }", {0}},
+      {0, "for ({j} of x) { function foo() {return j} }", {0}},
+
+      {1, "for (var j of x) { foo = j }", top},
+      {1, "for (var j of x) { [foo] = [j] }", top},
+      {1, "for (var j of x) { var foo = j }", top},
+      {1, "for (var j of x) { var [foo] = [j] }", top},
+      {0, "for (var j of x) { let foo = j }", {0}},
+      {0, "for (var j of x) { let [foo] = [j] }", {0}},
+      {0, "for (var j of x) { const foo = j }", {0}},
+      {0, "for (var j of x) { const [foo] = [j] }", {0}},
+      {0, "for (var j of x) { function foo() {return j} }", {0}},
+
+      {1, "for (var {j} of x) { foo = j }", top},
+      {1, "for (var {j} of x) { [foo] = [j] }", top},
+      {1, "for (var {j} of x) { var foo = j }", top},
+      {1, "for (var {j} of x) { var [foo] = [j] }", top},
+      {0, "for (var {j} of x) { let foo = j }", {0}},
+      {0, "for (var {j} of x) { let [foo] = [j] }", {0}},
+      {0, "for (var {j} of x) { const foo = j }", {0}},
+      {0, "for (var {j} of x) { const [foo] = [j] }", {0}},
+      {0, "for (var {j} of x) { function foo() {return j} }", {0}},
+
+      {1, "for (let j of x) { foo = j }", top},
+      {1, "for (let j of x) { [foo] = [j] }", top},
+      {1, "for (let j of x) { var foo = j }", top},
+      {1, "for (let j of x) { var [foo] = [j] }", top},
+      {0, "for (let j of x) { let foo = j }", {0, 2, 0}},
+      {0, "for (let j of x) { let [foo] = [j] }", {0, 2, 0}},
+      {0, "for (let j of x) { const foo = j }", {0, 2, 0}},
+      {0, "for (let j of x) { const [foo] = [j] }", {0, 2, 0}},
+      {0, "for (let j of x) { function foo() {return j} }", {0, 2, 0}},
+
+      {1, "for (let {j} of x) { foo = j }", top},
+      {1, "for (let {j} of x) { [foo] = [j] }", top},
+      {1, "for (let {j} of x) { var foo = j }", top},
+      {1, "for (let {j} of x) { var [foo] = [j] }", top},
+      {0, "for (let {j} of x) { let foo = j }", {0, 2, 0}},
+      {0, "for (let {j} of x) { let [foo] = [j] }", {0, 2, 0}},
+      {0, "for (let {j} of x) { const foo = j }", {0, 2, 0}},
+      {0, "for (let {j} of x) { const [foo] = [j] }", {0, 2, 0}},
+      {0, "for (let {j} of x) { function foo() {return j} }", {0, 2, 0}},
+
+      {1, "for (const j of x) { foo = j }", top},
+      {1, "for (const j of x) { [foo] = [j] }", top},
+      {1, "for (const j of x) { var foo = j }", top},
+      {1, "for (const j of x) { var [foo] = [j] }", top},
+      {0, "for (const j of x) { let foo = j }", {0, 2, 0}},
+      {0, "for (const j of x) { let [foo] = [j] }", {0, 2, 0}},
+      {0, "for (const j of x) { const foo = j }", {0, 2, 0}},
+      {0, "for (const j of x) { const [foo] = [j] }", {0, 2, 0}},
+      {0, "for (const j of x) { function foo() {return j} }", {0, 2, 0}},
+
+      {1, "for (const {j} of x) { foo = j }", top},
+      {1, "for (const {j} of x) { [foo] = [j] }", top},
+      {1, "for (const {j} of x) { var foo = j }", top},
+      {1, "for (const {j} of x) { var [foo] = [j] }", top},
+      {0, "for (const {j} of x) { let foo = j }", {0, 2, 0}},
+      {0, "for (const {j} of x) { let [foo] = [j] }", {0, 2, 0}},
+      {0, "for (const {j} of x) { const foo = j }", {0, 2, 0}},
+      {0, "for (const {j} of x) { const [foo] = [j] }", {0, 2, 0}},
+      {0, "for (const {j} of x) { function foo() {return j} }", {0, 2, 0}},
+
+      {1, "for (j in x) { foo = j }", top},
+      {1, "for (j in x) { [foo] = [j] }", top},
+      {1, "for (j in x) { var foo = j }", top},
+      {1, "for (j in x) { var [foo] = [j] }", top},
+      {0, "for (j in x) { let foo = j }", {0}},
+      {0, "for (j in x) { let [foo] = [j] }", {0}},
+      {0, "for (j in x) { const foo = j }", {0}},
+      {0, "for (j in x) { const [foo] = [j] }", {0}},
+      {0, "for (j in x) { function foo() {return j} }", {0}},
+
+      {1, "for ({j} in x) { foo = j }", top},
+      {1, "for ({j} in x) { [foo] = [j] }", top},
+      {1, "for ({j} in x) { var foo = j }", top},
+      {1, "for ({j} in x) { var [foo] = [j] }", top},
+      {0, "for ({j} in x) { let foo = j }", {0}},
+      {0, "for ({j} in x) { let [foo] = [j] }", {0}},
+      {0, "for ({j} in x) { const foo = j }", {0}},
+      {0, "for ({j} in x) { const [foo] = [j] }", {0}},
+      {0, "for ({j} in x) { function foo() {return j} }", {0}},
+
+      {1, "for (var j in x) { foo = j }", top},
+      {1, "for (var j in x) { [foo] = [j] }", top},
+      {1, "for (var j in x) { var foo = j }", top},
+      {1, "for (var j in x) { var [foo] = [j] }", top},
+      {0, "for (var j in x) { let foo = j }", {0}},
+      {0, "for (var j in x) { let [foo] = [j] }", {0}},
+      {0, "for (var j in x) { const foo = j }", {0}},
+      {0, "for (var j in x) { const [foo] = [j] }", {0}},
+      {0, "for (var j in x) { function foo() {return j} }", {0}},
+
+      {1, "for (var {j} in x) { foo = j }", top},
+      {1, "for (var {j} in x) { [foo] = [j] }", top},
+      {1, "for (var {j} in x) { var foo = j }", top},
+      {1, "for (var {j} in x) { var [foo] = [j] }", top},
+      {0, "for (var {j} in x) { let foo = j }", {0}},
+      {0, "for (var {j} in x) { let [foo] = [j] }", {0}},
+      {0, "for (var {j} in x) { const foo = j }", {0}},
+      {0, "for (var {j} in x) { const [foo] = [j] }", {0}},
+      {0, "for (var {j} in x) { function foo() {return j} }", {0}},
+
+      {1, "for (let j in x) { foo = j }", top},
+      {1, "for (let j in x) { [foo] = [j] }", top},
+      {1, "for (let j in x) { var foo = j }", top},
+      {1, "for (let j in x) { var [foo] = [j] }", top},
+      {0, "for (let j in x) { let foo = j }", {0, 0, 0}},
+      {0, "for (let j in x) { let [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let j in x) { const foo = j }", {0, 0, 0}},
+      {0, "for (let j in x) { const [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let j in x) { function foo() {return j} }", {0, 0, 0}},
+
+      {1, "for (let {j} in x) { foo = j }", top},
+      {1, "for (let {j} in x) { [foo] = [j] }", top},
+      {1, "for (let {j} in x) { var foo = j }", top},
+      {1, "for (let {j} in x) { var [foo] = [j] }", top},
+      {0, "for (let {j} in x) { let foo = j }", {0, 0, 0}},
+      {0, "for (let {j} in x) { let [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let {j} in x) { const foo = j }", {0, 0, 0}},
+      {0, "for (let {j} in x) { const [foo] = [j] }", {0, 0, 0}},
+      {0, "for (let {j} in x) { function foo() {return j} }", {0, 0, 0}},
+
+      {1, "for (const j in x) { foo = j }", top},
+      {1, "for (const j in x) { [foo] = [j] }", top},
+      {1, "for (const j in x) { var foo = j }", top},
+      {1, "for (const j in x) { var [foo] = [j] }", top},
+      {0, "for (const j in x) { let foo = j }", {0, 0, 0}},
+      {0, "for (const j in x) { let [foo] = [j] }", {0, 0, 0}},
+      {0, "for (const j in x) { const foo = j }", {0, 0, 0}},
+      {0, "for (const j in x) { const [foo] = [j] }", {0, 0, 0}},
+      {0, "for (const j in x) { function foo() {return j} }", {0, 0, 0}},
+
+      {1, "for (const {j} in x) { foo = j }", top},
+      {1, "for (const {j} in x) { [foo] = [j] }", top},
+      {1, "for (const {j} in x) { var foo = j }", top},
+      {1, "for (const {j} in x) { var [foo] = [j] }", top},
+      {0, "for (const {j} in x) { let foo = j }", {0, 0, 0}},
+      {0, "for (const {j} in x) { let [foo] = [j] }", {0, 0, 0}},
+      {0, "for (const {j} in x) { const foo = j }", {0, 0, 0}},
+      {0, "for (const {j} in x) { const [foo] = [j] }", {0, 0, 0}},
+      {0, "for (const {j} in x) { function foo() {return j} }", {0, 0, 0}},
+
+      {1, "while (j) { foo = j }", top},
+      {1, "while (j) { [foo] = [j] }", top},
+      {1, "while (j) { var foo = j }", top},
+      {1, "while (j) { var [foo] = [j] }", top},
+      {0, "while (j) { let foo = j }", {0}},
+      {0, "while (j) { let [foo] = [j] }", {0}},
+      {0, "while (j) { const foo = j }", {0}},
+      {0, "while (j) { const [foo] = [j] }", {0}},
+      {0, "while (j) { function foo() {return j} }", {0}},
+
+      {1, "do { foo = j } while (j)", top},
+      {1, "do { [foo] = [j] } while (j)", top},
+      {1, "do { var foo = j } while (j)", top},
+      {1, "do { var [foo] = [j] } while (j)", top},
+      {0, "do { let foo = j } while (j)", {0}},
+      {0, "do { let [foo] = [j] } while (j)", {0}},
+      {0, "do { const foo = j } while (j)", {0}},
+      {0, "do { const [foo] = [j] } while (j)", {0}},
+      {0, "do { function foo() {return j} } while (j)", {0}},
+  };
+
+  Input script_only_tests[] = {
+      {1, "for (j=x; j<10; ++j) { function foo() {return j} }", top},
+      {1, "for ({j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {1, "for (var j=x; j<10; ++j) { function foo() {return j} }", top},
+      {1, "for (var {j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {1, "for (let j=x; j<10; ++j) { function foo() {return j} }", top},
+      {1, "for (let {j}=x; j<10; ++j) { function foo() {return j} }", top},
+      {1, "for (j of x) { function foo() {return j} }", top},
+      {1, "for ({j} of x) { function foo() {return j} }", top},
+      {1, "for (var j of x) { function foo() {return j} }", top},
+      {1, "for (var {j} of x) { function foo() {return j} }", top},
+      {1, "for (let j of x) { function foo() {return j} }", top},
+      {1, "for (let {j} of x) { function foo() {return j} }", top},
+      {1, "for (const j of x) { function foo() {return j} }", top},
+      {1, "for (const {j} of x) { function foo() {return j} }", top},
+      {1, "for (j in x) { function foo() {return j} }", top},
+      {1, "for ({j} in x) { function foo() {return j} }", top},
+      {1, "for (var j in x) { function foo() {return j} }", top},
+      {1, "for (var {j} in x) { function foo() {return j} }", top},
+      {1, "for (let j in x) { function foo() {return j} }", top},
+      {1, "for (let {j} in x) { function foo() {return j} }", top},
+      {1, "for (const j in x) { function foo() {return j} }", top},
+      {1, "for (const {j} in x) { function foo() {return j} }", top},
+      {1, "while (j) { function foo() {return j} }", top},
+      {1, "do { function foo() {return j} } while (j)", top},
+  };
+
+  for (unsigned i = 0; i < arraysize(module_and_script_tests); ++i) {
+    Input input = module_and_script_tests[i];
+    for (unsigned module = 0; module <= 1; ++module) {
+      for (unsigned allow_lazy_parsing = 0; allow_lazy_parsing <= 1;
+           ++allow_lazy_parsing) {
+        TestMaybeAssigned(input, "foo", module, allow_lazy_parsing);
+      }
+      TestMaybeAssigned(wrap(input), "foo", module, false);
+    }
+  }
+
+  for (unsigned i = 0; i < arraysize(script_only_tests); ++i) {
+    Input input = script_only_tests[i];
+    for (unsigned allow_lazy_parsing = 0; allow_lazy_parsing <= 1;
+         ++allow_lazy_parsing) {
+      TestMaybeAssigned(input, "foo", false, allow_lazy_parsing);
+    }
+    TestMaybeAssigned(wrap(input), "foo", false, false);
+  }
+}
+
 TEST(MaybeAssignedTopLevel) {
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
   LocalContext env;
-  i::Factory* factory = isolate->factory();
 
   const char* prefixes[] = {
-      "let foo; ",          "let foo = 0; ",
-      "let [foo] = [1]; ",  "let {foo} = {foo: 2}; ",
-      "let {foo=3} = {}; ", "function foo() {}; ",
-      "var foo; ",          "var foo = 0; ",
-      "var [foo] = [1]; ",  "var {foo} = {foo: 2}; ",
-      "var {foo=3} = {}; ", "function* foo() {}; ",
+      "let foo; ",
+      "let foo = 0; ",
+      "let [foo] = [1]; ",
+      "let {foo} = {foo: 2}; ",
+      "let {foo=3} = {}; ",
+      "var foo; ",
+      "var foo = 0; ",
+      "var [foo] = [1]; ",
+      "var {foo} = {foo: 2}; ",
+      "var {foo=3} = {}; ",
+      "{ var foo; }; ",
+      "{ var foo = 0; }; ",
+      "{ var [foo] = [1]; }; ",
+      "{ var {foo} = {foo: 2}; }; ",
+      "{ var {foo=3} = {}; }; ",
+      "function foo() {}; ",
+      "function* foo() {}; ",
+      "async function foo() {}; ",
+      "class foo {}; ",
+      "class foo extends null {}; ",
   };
-  const char* sources[] = {
+
+  const char* module_and_script_tests[] = {
       "function bar() {foo = 42}; ext(bar); ext(foo)",
       "ext(function() {foo++}); ext(foo)",
       "bar = () => --foo; ext(bar); ext(foo)",
       "function* bar() {eval(ext)}; ext(bar); ext(foo)",
   };
 
+  const char* script_only_tests[] = {
+      "",
+      "{ function foo() {}; }; ",
+      "{ function* foo() {}; }; ",
+      "{ async function foo() {}; }; ",
+  };
+
   for (unsigned i = 0; i < arraysize(prefixes); ++i) {
-    const char* prefix = prefixes[i];
-    for (unsigned j = 0; j < arraysize(sources); ++j) {
-      const char* source = sources[j];
-      i::ScopedVector<char> program(Utf8LengthHelper(prefix) +
-                                    Utf8LengthHelper(source) + 1);
-      i::SNPrintF(program, "%s%s", prefix, source);
-      i::Zone zone(isolate->allocator(), ZONE_NAME);
-
-      i::Handle<i::String> string =
-          factory->InternalizeUtf8String(program.start());
-      string->PrintOn(stdout);
-      printf("\n");
-      i::Handle<i::Script> script = factory->NewScript(string);
-
-      for (unsigned allow_lazy = 0; allow_lazy < 2; ++allow_lazy) {
-        for (unsigned module = 0; module < 2; ++module) {
-          std::unique_ptr<i::ParseInfo> info;
-          info = std::unique_ptr<i::ParseInfo>(new i::ParseInfo(&zone, script));
-          info->set_module(module);
-          info->set_allow_lazy_parsing(allow_lazy);
-
-          CHECK(i::parsing::ParseProgram(info.get()));
-          CHECK(i::Compiler::Analyze(info.get()));
-
-          CHECK_NOT_NULL(info->literal());
-          i::Scope* scope = info->literal()->scope();
-          CHECK(!scope->AsDeclarationScope()->was_lazily_parsed());
-          CHECK_NULL(scope->sibling());
-          CHECK(module ? scope->is_module_scope() : scope->is_script_scope());
-
-          const i::AstRawString* var_name =
-              info->ast_value_factory()->GetOneByteString("foo");
-          i::Variable* var = scope->Lookup(var_name);
-          CHECK(var->is_used());
-          CHECK(var->maybe_assigned() == i::kMaybeAssigned);
+    for (unsigned j = 0; j < arraysize(module_and_script_tests); ++j) {
+      std::string source(prefixes[i]);
+      source += module_and_script_tests[j];
+      std::vector<unsigned> top;
+      Input input({true, source, top});
+      for (unsigned module = 0; module <= 1; ++module) {
+        for (unsigned allow_lazy_parsing = 0; allow_lazy_parsing <= 1;
+             ++allow_lazy_parsing) {
+          TestMaybeAssigned(input, "foo", module, allow_lazy_parsing);
         }
+      }
+    }
+  }
+
+  for (unsigned i = 0; i < arraysize(prefixes); ++i) {
+    for (unsigned j = 0; j < arraysize(script_only_tests); ++j) {
+      std::string source(prefixes[i]);
+      source += script_only_tests[j];
+      std::vector<unsigned> top;
+      Input input({true, source, top});
+      for (unsigned allow_lazy_parsing = 0; allow_lazy_parsing <= 1;
+           ++allow_lazy_parsing) {
+        TestMaybeAssigned(input, "foo", false, allow_lazy_parsing);
       }
     }
   }
@@ -6011,8 +6349,7 @@ TEST(BasicImportExportParsing) {
     // Show that parsing as a module works
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-      i::ParseInfo info(&zone, script);
+      i::ParseInfo info(script);
       info.set_module();
       if (!i::parsing::ParseProgram(&info)) {
         i::Handle<i::JSObject> exception_handle(
@@ -6036,8 +6373,7 @@ TEST(BasicImportExportParsing) {
     // And that parsing a script does not.
     {
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-      i::ParseInfo info(&zone, script);
+      i::ParseInfo info(script);
       CHECK(!i::parsing::ParseProgram(&info));
       isolate->clear_pending_exception();
     }
@@ -6127,8 +6463,7 @@ TEST(ImportExportParsingErrors) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo info(&zone, script);
+    i::ParseInfo info(script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
@@ -6164,8 +6499,7 @@ TEST(ModuleTopLevelFunctionDecl) {
         factory->NewStringFromAsciiChecked(kErrorSources[i]);
 
     i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo info(&zone, script);
+    i::ParseInfo info(script);
     info.set_module();
     CHECK(!i::parsing::ParseProgram(&info));
     isolate->clear_pending_exception();
@@ -6362,8 +6696,7 @@ TEST(ModuleParsingInternals) {
       "export {foob};";
   i::Handle<i::String> source = factory->NewStringFromAsciiChecked(kSource);
   i::Handle<i::Script> script = factory->NewScript(source);
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::ParseInfo info(&zone, script);
+  i::ParseInfo info(script);
   info.set_module();
   CHECK(i::parsing::ParseProgram(&info));
   CHECK(i::Compiler::Analyze(&info));
@@ -6470,15 +6803,15 @@ TEST(ModuleParsingInternals) {
   CHECK_EQ(5u, descriptor->module_requests().size());
   for (const auto& elem : descriptor->module_requests()) {
     if (elem.first->IsOneByteEqualTo("m.js"))
-      CHECK_EQ(elem.second, 0);
+      CHECK_EQ(0, elem.second);
     else if (elem.first->IsOneByteEqualTo("n.js"))
-      CHECK_EQ(elem.second, 1);
+      CHECK_EQ(1, elem.second);
     else if (elem.first->IsOneByteEqualTo("p.js"))
-      CHECK_EQ(elem.second, 2);
+      CHECK_EQ(2, elem.second);
     else if (elem.first->IsOneByteEqualTo("q.js"))
-      CHECK_EQ(elem.second, 3);
+      CHECK_EQ(3, elem.second);
     else if (elem.first->IsOneByteEqualTo("bar.js"))
-      CHECK_EQ(elem.second, 4);
+      CHECK_EQ(4, elem.second);
     else
       CHECK(false);
   }
@@ -6622,8 +6955,7 @@ void TestLanguageMode(const char* source,
 
   i::Handle<i::Script> script =
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
-  i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-  i::ParseInfo info(&zone, script);
+  i::ParseInfo info(script);
   i::parsing::ParseProgram(&info);
   CHECK(info.literal() != NULL);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
@@ -8829,66 +9161,6 @@ TEST(ArgumentsRedeclaration) {
   }
 }
 
-namespace v8 {
-namespace internal {
-
-class ScopeTestHelper {
- public:
-  static bool MustAllocateInContext(Variable* var) {
-    return var->scope()->MustAllocateInContext(var);
-  }
-
-  static void CompareScopeToData(Scope* scope, const PreParsedScopeData* data,
-                                 size_t& index) {
-    CHECK_EQ(data->backing_store_[index++], scope->scope_type());
-    CHECK_EQ(data->backing_store_[index++], scope->start_position());
-    CHECK_EQ(data->backing_store_[index++], scope->end_position());
-
-    int inner_scope_count = 0;
-    for (Scope* inner = scope->inner_scope(); inner != nullptr;
-         inner = inner->sibling()) {
-      if (!inner->is_hidden()) {
-        ++inner_scope_count;
-      }
-    }
-    CHECK_EQ(data->backing_store_[index++], inner_scope_count);
-
-    int variable_count = 0;
-    for (Variable* local : scope->locals_) {
-      if (local->mode() == VAR || local->mode() == LET ||
-          local->mode() == CONST) {
-        ++variable_count;
-      }
-    }
-
-    CHECK_EQ(data->backing_store_[index++], variable_count);
-
-    for (Variable* local : scope->locals_) {
-      if (local->mode() == VAR || local->mode() == LET ||
-          local->mode() == CONST) {
-#ifdef DEBUG
-        const AstRawString* local_name = local->raw_name();
-        int name_length = data->backing_store_[index++];
-        CHECK_EQ(name_length, local_name->length());
-        for (int i = 0; i < name_length; ++i) {
-          CHECK_EQ(data->backing_store_[index++], local_name->raw_data()[i]);
-        }
-#endif
-        CHECK_EQ(data->backing_store_[index++], local->location());
-        CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
-      }
-    }
-
-    for (Scope* inner = scope->inner_scope(); inner != nullptr;
-         inner = inner->sibling()) {
-      if (!inner->is_hidden()) {
-        CompareScopeToData(inner, data, index);
-      }
-    }
-  }
-};
-}  // namespace internal
-}  // namespace v8
 
 // Test that lazily parsed inner functions don't result in overly pessimistic
 // context allocations.
@@ -8935,6 +9207,7 @@ TEST(NoPessimisticContextAllocation) {
       {"", "const {a = my_var} = {}", true},
       {"", "const {a: b = my_var} = {}", true},
       {"a = my_var", "", true},
+      {"a = my_var", "let my_var;", true},
       {"", "function inner2(a = my_var) { }", true},
       {"", "(a = my_var) => { }", true},
       {"{a} = {a: my_var}", "", true},
@@ -8988,6 +9261,10 @@ TEST(NoPessimisticContextAllocation) {
       {"",
        "if (true) { let my_var; if (true) { function my_var() {} } } my_var;",
        true},
+      {"", "function inner2(a = my_var) {}", true},
+      {"", "function inner2(a = my_var) { let my_var; }", true},
+      {"", "(a = my_var) => {}", true},
+      {"", "(a = my_var) => { let my_var; }", true},
       // No pessimistic context allocation:
       {"", "var my_var; my_var;", false},
       {"", "var my_var;", false},
@@ -9157,8 +9434,7 @@ TEST(NoPessimisticContextAllocation) {
       printf("\n");
 
       i::Handle<i::Script> script = factory->NewScript(source);
-      i::Zone zone(isolate->allocator(), ZONE_NAME);
-      i::ParseInfo info(&zone, script);
+      i::ParseInfo info(script);
 
       CHECK(i::parsing::ParseProgram(&info));
       CHECK(i::Compiler::Analyze(&info));
@@ -9174,213 +9450,6 @@ TEST(NoPessimisticContextAllocation) {
       CHECK_EQ(inners[i].ctxt_allocate,
                i::ScopeTestHelper::MustAllocateInContext(var));
     }
-  }
-}
-
-TEST(PreParserScopeAnalysis) {
-  i::FLAG_lazy_inner_functions = true;
-  i::FLAG_preparser_scope_analysis = true;
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::Factory* factory = isolate->factory();
-  i::HandleScope scope(isolate);
-  LocalContext env;
-
-  const char* prefix = "(function outer() { ";
-  const char* suffix = " })();";
-  int prefix_len = Utf8LengthHelper(prefix);
-  int suffix_len = Utf8LengthHelper(suffix);
-
-  // The scope start positions must match; note the extra space in lazy_inner.
-  const char* lazy_inner = " function inner(%s) { %s }";
-  const char* eager_inner = "(function inner(%s) { %s })()";
-
-  struct {
-    const char* params;
-    const char* source;
-  } inners[] = {
-      {"", "var1;"},
-      {"", "var1 = 5;"},
-      {"", "if (true) {}"},
-      {"", "function f1() {}"},
-
-      {"", "var var1;"},
-      {"", "var var1; var1 = 5;"},
-      {"", "if (true) { var var1; }"},
-      {"", "if (true) { var var1; var1 = 5; }"},
-      {"", "var var1; function f() { var1; }"},
-      {"", "var var1; var1 = 5; function f() { var1; }"},
-      {"", "var var1; function f() { var1 = 5; }"},
-
-      {"", "let var1;"},
-      {"", "let var1; var1 = 5;"},
-      {"", "if (true) { let var1; }"},
-      {"", "if (true) { let var1; var1 = 5; }"},
-      {"", "let var1; function f() { var1; }"},
-      {"", "let var1; var1 = 5; function f() { var1; }"},
-      {"", "let var1; function f() { var1 = 5; }"},
-
-      {"", "const var1 = 5;"},
-      {"", "if (true) { const var1 = 5; }"},
-      {"", "const var1 = 5; function f() { var1; }"},
-
-      {"", "var var1; var var1;"},
-      {"", "var var1; var var1; var1 = 5;"},
-      {"", "var var1; if (true) { var var1; }"},
-      {"", "if (true) { var var1; var var1; }"},
-      {"", "var var1; if (true) { var var1; var1 = 5; }"},
-      {"", "if (true) { var var1; var var1; var1 = 5; }"},
-      {"", "var var1; var var1; function f() { var1; }"},
-      {"", "var var1; var var1; function f() { var1 = 5; }"},
-
-      {"", "var var1; if (true) { var var1; }"},
-      {"", "var var1; if (true) { let var1; }"},
-      {"", "let var1; if (true) { let var1; }"},
-
-      {"", "var var1; if (true) { const var1 = 0; }"},
-      {"", "const var1 = 0; if (true) { const var1 = 0; }"},
-
-      {"", "arguments;"},
-      {"", "arguments = 5;"},
-      {"", "function f() { arguments; }"},
-      {"", "function f() { arguments = 5; }"},
-
-      {"", "var arguments;"},
-      {"", "var arguments; arguments = 5;"},
-      {"", "if (true) { var arguments; }"},
-      {"", "if (true) { var arguments; arguments = 5; }"},
-      {"", "var arguments; function f() { arguments; }"},
-      {"", "var arguments; arguments = 5; function f() { arguments; }"},
-      {"", "var arguments; function f() { arguments = 5; }"},
-
-      {"", "let arguments;"},
-      {"", "let arguments; arguments = 5;"},
-      {"", "if (true) { let arguments; }"},
-      {"", "if (true) { let arguments; arguments = 5; }"},
-      {"", "let arguments; function f() { arguments; }"},
-      {"", "let arguments; arguments = 5; function f() { arguments; }"},
-      {"", "let arguments; function f() { arguments = 5; }"},
-
-      {"", "const arguments = 5;"},
-      {"", "if (true) { const arguments = 5; }"},
-      {"", "const arguments = 5; function f() { arguments; }"},
-
-      {"", "var [var1, var2] = [1, 2];"},
-      {"", "var [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
-      {"", "var [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
-      {"", "var [var1, ...var2] = [1, 2, 3];"},
-
-      {"", "var {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
-      {"",
-       "var {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
-      {"", "var {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
-
-      {"", "let [var1, var2] = [1, 2];"},
-      {"", "let [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
-      {"", "let [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
-      {"", "let [var1, ...var2] = [1, 2, 3];"},
-
-      {"", "let {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
-      {"",
-       "let {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
-      {"", "let {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
-
-      {"", "const [var1, var2] = [1, 2];"},
-      {"", "const [var1, var2, [var3, var4]] = [1, 2, [3, 4]];"},
-      {"", "const [{var1: var2}, {var3: var4}] = [{var1: 1}, {var3: 2}];"},
-      {"", "const [var1, ...var2] = [1, 2, 3];"},
-
-      {"", "const {var1: var2, var3: var4} = {var1: 1, var3: 2};"},
-      {"",
-       "const {var1: var2, var3: {var4: var5}} = {var1: 1, var3: {var4: 2}};"},
-      {"", "const {var1: var2, var3: [var4, var5]} = {var1: 1, var3: [2, 3]};"},
-
-      {"", "inner;"},
-      {"", "function f1() { f1; }"},
-      {"", "function f1() { inner; }"},
-      {"", "function f1() { function f2() { f1; } }"},
-      {"", "function arguments() {}"},
-      {"", "function f1() {} function f1() {}"},
-      {"", "var f1; function f1() {}"},
-
-      {"", "inner = 3;"},
-      {"", "function f1() { f1 = 3; }"},
-      {"", "function f1() { f1; } f1 = 3;"},
-      {"", "function arguments() {} arguments = 8"},
-      {"", "function f1() {} f1 = 3; function f1() {}"},
-
-      {"", "var var1; eval('');"},
-      {"", "var var1; function f1() { eval(''); }"},
-      {"", "let var1; eval('');"},
-      {"", "let var1; function f1() { eval(''); }"},
-      {"", "const var1 = 10; eval('');"},
-      {"", "const var1 = 10; function f1() { eval(''); }"},
-  };
-
-  for (unsigned i = 0; i < arraysize(inners); ++i) {
-    // First compile with the lazy inner function and extract the scope data.
-    const char* inner_function = lazy_inner;
-    int inner_function_len = Utf8LengthHelper(inner_function) - 4;
-
-    int params_len = Utf8LengthHelper(inners[i].params);
-    int source_len = Utf8LengthHelper(inners[i].source);
-    int len =
-        prefix_len + inner_function_len + params_len + source_len + suffix_len;
-
-    i::ScopedVector<char> lazy_program(len + 1);
-    i::SNPrintF(lazy_program, "%s", prefix);
-    i::SNPrintF(lazy_program + prefix_len, inner_function, inners[i].params,
-                inners[i].source);
-    i::SNPrintF(lazy_program + prefix_len + inner_function_len + params_len +
-                    source_len,
-                "%s", suffix);
-
-    i::Handle<i::String> source =
-        factory->InternalizeUtf8String(lazy_program.start());
-    source->PrintOn(stdout);
-    printf("\n");
-
-    i::Handle<i::Script> script = factory->NewScript(source);
-    i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
-    i::ParseInfo lazy_info(&zone, script);
-
-    // No need to run scope analysis; preparser scope data is produced when
-    // parsing.
-    CHECK(i::parsing::ParseProgram(&lazy_info));
-
-    // Then parse eagerly and check against the scope data.
-    inner_function = eager_inner;
-    inner_function_len = Utf8LengthHelper(inner_function) - 4;
-    len =
-        prefix_len + inner_function_len + params_len + source_len + suffix_len;
-
-    i::ScopedVector<char> eager_program(len + 1);
-    i::SNPrintF(eager_program, "%s", prefix);
-    i::SNPrintF(eager_program + prefix_len, inner_function, inners[i].params,
-                inners[i].source);
-    i::SNPrintF(eager_program + prefix_len + inner_function_len + params_len +
-                    source_len,
-                "%s", suffix);
-
-    source = factory->InternalizeUtf8String(eager_program.start());
-    source->PrintOn(stdout);
-    printf("\n");
-
-    script = factory->NewScript(source);
-    i::ParseInfo eager_info(&zone, script);
-    eager_info.set_allow_lazy_parsing(false);
-
-    CHECK(i::parsing::ParseProgram(&eager_info));
-    CHECK(i::Compiler::Analyze(&eager_info));
-
-    i::Scope* scope =
-        eager_info.literal()->scope()->inner_scope()->inner_scope();
-    DCHECK_NOT_NULL(scope);
-    DCHECK_NULL(scope->sibling());
-    DCHECK(scope->is_function_scope());
-
-    size_t index = 0;
-    i::ScopeTestHelper::CompareScopeToData(
-        scope, lazy_info.preparsed_scope_data(), index);
   }
 }
 

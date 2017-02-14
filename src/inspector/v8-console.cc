@@ -366,8 +366,10 @@ void V8Console::countCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!helper.privateMap("V8Console#countMap").ToLocal(&countMap)) return;
   int32_t count = helper.getIntFromMap(countMap, identifier, 0) + 1;
   helper.setIntOnMap(countMap, identifier, count);
-  helper.reportCallWithArgument(ConsoleAPIType::kCount,
-                                title + ": " + String16::fromInteger(count));
+  String16 countString = String16::fromInteger(count);
+  helper.reportCallWithArgument(
+      ConsoleAPIType::kCount,
+      title.isEmpty() ? countString : (title + ": " + countString));
 }
 
 void V8Console::assertCallback(

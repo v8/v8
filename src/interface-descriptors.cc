@@ -88,6 +88,16 @@ const Register FastNewObjectDescriptor::NewTargetRegister() {
   return kJavaScriptCallNewTargetRegister;
 }
 
+void FastNewArgumentsDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  Register registers[] = {TargetRegister()};
+  data->InitializePlatformSpecific(arraysize(registers), registers);
+}
+
+const Register FastNewArgumentsDescriptor::TargetRegister() {
+  return kJSFunctionRegister;
+}
+
 void LoadDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kName, kSlot
@@ -461,21 +471,21 @@ void ConstructTrampolineDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void CallFunctionWithFeedbackDescriptor::InitializePlatformIndependent(
+void CallICDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kSlot
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::TaggedSigned()};
+  // kTarget, kActualArgumentsCount, kSlot, kVector
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::Int32(),
+                                 MachineType::AnyTagged()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
 
-void CallFunctionWithFeedbackAndVectorDescriptor::InitializePlatformIndependent(
+void CallICTrampolineDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kActualArgumentsCount, kSlot, kVector
-  MachineType machine_types[] = {
-      MachineType::TaggedPointer(), MachineType::Int32(),
-      MachineType::TaggedSigned(), MachineType::AnyTagged()};
+  // kTarget, kActualArgumentsCount, kSlot
+  MachineType machine_types[] = {MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }
@@ -507,6 +517,16 @@ const Register BuiltinDescriptor::TargetRegister() {
   return kJSFunctionRegister;
 }
 
+void ArrayConstructorDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::AnyTagged(), MachineType::Int32(),
+                                 MachineType::AnyTagged()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kAllocationSite, kActualArgumentsCount, kFunctionParameter
@@ -531,9 +551,8 @@ void ArraySingleArgumentConstructorDescriptor::InitializePlatformIndependent(
 void ArrayNArgumentsConstructorDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kAllocationSite, kActualArgumentsCount
-  MachineType machine_types[] = {MachineType::TaggedPointer(),
-                                 MachineType::AnyTagged(),
-                                 MachineType::Int32()};
+  MachineType machine_types[] = {
+      MachineType::AnyTagged(), MachineType::AnyTagged(), MachineType::Int32()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

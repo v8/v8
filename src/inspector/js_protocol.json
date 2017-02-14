@@ -635,7 +635,8 @@
                     { "name": "includeCommandLineAPI", "type": "boolean", "optional": true, "description": "Specifies whether command line API should be available to the evaluated expression, defaults to false." },
                     { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object that should be sent by value." },
-                    { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." }
+                    { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
+                    { "name": "throwOnSideEffect", "type": "boolean", "optional": true, "experimental": true, "description": "Whether to throw an exception if side effect cannot be ruled out during evaluation." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "Runtime.RemoteObject", "description": "Object wrapper for the evaluation result." },
@@ -693,7 +694,8 @@
                     { "name": "executionContextAuxData", "type": "object", "optional": true, "description": "Embedder-specific auxiliary data." },
                     { "name": "isLiveEdit", "type": "boolean", "optional": true, "description": "True, if this script is generated as a result of the live edit operation.", "experimental": true },
                     { "name": "sourceMapURL", "type": "string", "optional": true, "description": "URL of source map associated with script (if any)." },
-                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true }
+                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true },
+                    { "name": "isModule", "type": "boolean", "optional": true, "description": "True, if this script is ES6 module.", "experimental": true }
                 ],
                 "description": "Fired when virtual machine parses script. This event is also fired for all known and uncollected scripts upon enabling debugger."
             },
@@ -710,7 +712,8 @@
                     { "name": "hash", "type": "string", "description": "Content hash of the script."},
                     { "name": "executionContextAuxData", "type": "object", "optional": true, "description": "Embedder-specific auxiliary data." },
                     { "name": "sourceMapURL", "type": "string", "optional": true, "description": "URL of source map associated with script (if any)." },
-                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true }
+                    { "name": "hasSourceURL", "type": "boolean", "optional": true, "description": "True, if this script has sourceURL.", "experimental": true },
+                    { "name": "isModule", "type": "boolean", "optional": true, "description": "True, if this script is ES6 module.", "experimental": true }
                 ],
                 "description": "Fired when virtual machine fails to parse the script."
             },
@@ -726,7 +729,7 @@
                 "name": "paused",
                 "parameters": [
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "Call stack the virtual machine stopped on." },
-                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "OOM", "other" ], "description": "Pause reason." },
+                    { "name": "reason", "type": "string", "enum": [ "XHR", "DOM", "EventListener", "exception", "assert", "debugCommand", "promiseRejection", "OOM", "other", "ambiguous" ], "description": "Pause reason." },
                     { "name": "data", "type": "object", "optional": true, "description": "Object containing break-specific auxiliary properties." },
                     { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs" },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." }

@@ -80,6 +80,9 @@ enum ContextLookupFlags {
   V(ARRAY_SPLICE_INDEX, JSFunction, array_splice)                             \
   V(ARRAY_SLICE_INDEX, JSFunction, array_slice)                               \
   V(ARRAY_UNSHIFT_INDEX, JSFunction, array_unshift)                           \
+  V(ARRAY_ENTRIES_ITERATOR_INDEX, JSFunction, array_entries_iterator)         \
+  V(ARRAY_FOR_EACH_ITERATOR_INDEX, JSFunction, array_for_each_iterator)       \
+  V(ARRAY_KEYS_ITERATOR_INDEX, JSFunction, array_keys_iterator)               \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
   V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                            \
     async_function_await_caught)                                              \
@@ -104,8 +107,6 @@ enum ContextLookupFlags {
   V(OBJECT_TO_STRING, JSFunction, object_to_string)                           \
   V(PROMISE_CATCH_INDEX, JSFunction, promise_catch)                           \
   V(PROMISE_FUNCTION_INDEX, JSFunction, promise_function)                     \
-  V(PROMISE_ID_RESOLVE_HANDLER_INDEX, JSFunction, promise_id_resolve_handler) \
-  V(PROMISE_ID_REJECT_HANDLER_INDEX, JSFunction, promise_id_reject_handler)   \
   V(RANGE_ERROR_FUNCTION_INDEX, JSFunction, range_error_function)             \
   V(REFERENCE_ERROR_FUNCTION_INDEX, JSFunction, reference_error_function)     \
   V(SET_ADD_METHOD_INDEX, JSFunction, set_add)                                \
@@ -201,9 +202,6 @@ enum ContextLookupFlags {
   V(ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,               \
     async_function_await_resolve_shared_fun)                                   \
   V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
-  V(BOOL16X8_FUNCTION_INDEX, JSFunction, bool16x8_function)                    \
-  V(BOOL32X4_FUNCTION_INDEX, JSFunction, bool32x4_function)                    \
-  V(BOOL8X16_FUNCTION_INDEX, JSFunction, bool8x16_function)                    \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \
@@ -222,12 +220,11 @@ enum ContextLookupFlags {
     error_message_for_code_gen_from_strings)                                   \
   V(ERRORS_THROWN_INDEX, Smi, errors_thrown)                                   \
   V(EXTRAS_EXPORTS_OBJECT_INDEX, JSObject, extras_binding_object)              \
-  V(EXTRAS_UTILS_OBJECT_INDEX, JSObject, extras_utils_object)                  \
+  V(EXTRAS_UTILS_OBJECT_INDEX, Object, extras_utils_object)                    \
   V(FAST_ALIASED_ARGUMENTS_MAP_INDEX, Map, fast_aliased_arguments_map)         \
   V(FAST_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, FixedArray,                      \
     fast_template_instantiations_cache)                                        \
   V(FLOAT32_ARRAY_FUN_INDEX, JSFunction, float32_array_fun)                    \
-  V(FLOAT32X4_FUNCTION_INDEX, JSFunction, float32x4_function)                  \
   V(FLOAT64_ARRAY_FUN_INDEX, JSFunction, float64_array_fun)                    \
   V(FUNCTION_FUNCTION_INDEX, JSFunction, function_function)                    \
   V(GENERATOR_FUNCTION_FUNCTION_INDEX, JSFunction,                             \
@@ -242,11 +239,8 @@ enum ContextLookupFlags {
   V(INITIAL_ITERATOR_PROTOTYPE_INDEX, JSObject, initial_iterator_prototype)    \
   V(INITIAL_OBJECT_PROTOTYPE_INDEX, JSObject, initial_object_prototype)        \
   V(INT16_ARRAY_FUN_INDEX, JSFunction, int16_array_fun)                        \
-  V(INT16X8_FUNCTION_INDEX, JSFunction, int16x8_function)                      \
   V(INT32_ARRAY_FUN_INDEX, JSFunction, int32_array_fun)                        \
-  V(INT32X4_FUNCTION_INDEX, JSFunction, int32x4_function)                      \
   V(INT8_ARRAY_FUN_INDEX, JSFunction, int8_array_fun)                          \
-  V(INT8X16_FUNCTION_INDEX, JSFunction, int8x16_function)                      \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function)        \
   V(ITERATOR_RESULT_MAP_INDEX, Map, iterator_result_map)                       \
   V(INTL_DATE_TIME_FORMAT_FUNCTION_INDEX, JSFunction,                          \
@@ -345,12 +339,9 @@ enum ContextLookupFlags {
   V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
   V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \
-  V(UINT16X8_FUNCTION_INDEX, JSFunction, uint16x8_function)                    \
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun)                      \
-  V(UINT32X4_FUNCTION_INDEX, JSFunction, uint32x4_function)                    \
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
-  V(UINT8X16_FUNCTION_INDEX, JSFunction, uint8x16_function)                    \
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                                        \
   NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                            \
   NATIVE_CONTEXT_JS_ARRAY_ITERATOR_MAPS(V)
@@ -575,15 +566,14 @@ class Context: public FixedArray {
 
   // A native context keeps track of all osrd optimized functions.
   inline bool OptimizedCodeMapIsCleared();
-  void SearchOptimizedCodeMap(SharedFunctionInfo* shared, BailoutId osr_ast_id,
-                              Code** pcode, TypeFeedbackVector** pvector);
+  Code* SearchOptimizedCodeMap(SharedFunctionInfo* shared,
+                               BailoutId osr_ast_id);
   int SearchOptimizedCodeMapEntry(SharedFunctionInfo* shared,
                                   BailoutId osr_ast_id);
 
   static void AddToOptimizedCodeMap(Handle<Context> native_context,
                                     Handle<SharedFunctionInfo> shared,
                                     Handle<Code> code,
-                                    Handle<TypeFeedbackVector> vector,
                                     BailoutId osr_ast_id);
 
   // A native context holds a list of all functions with optimized code.

@@ -37,7 +37,7 @@ static void InstallCode(
     BuiltinFunctionId id = static_cast<BuiltinFunctionId>(-1)) {
   Handle<String> key = isolate->factory()->InternalizeUtf8String(name);
   Handle<JSFunction> optimized =
-      isolate->factory()->NewFunctionWithoutPrototype(key, code);
+      isolate->factory()->NewFunctionWithoutPrototype(key, code, true);
   if (argc < 0) {
     optimized->shared()->DontAdaptArguments();
   } else {
@@ -46,6 +46,8 @@ static void InstallCode(
   if (id >= 0) {
     optimized->shared()->set_builtin_function_id(id);
   }
+  optimized->shared()->set_language_mode(STRICT);
+  optimized->shared()->set_native(true);
   JSObject::AddProperty(holder, key, optimized, NONE);
 }
 
@@ -78,10 +80,8 @@ RUNTIME_FUNCTION(Runtime_SpecialArrayFunctions) {
                  kArrayValues);
   InstallBuiltin(isolate, holder, "entries", Builtins::kArrayPrototypeEntries,
                  0, kArrayEntries);
-
   return *holder;
 }
-
 
 RUNTIME_FUNCTION(Runtime_FixedArrayGet) {
   SealHandleScope shs(isolate);

@@ -9,6 +9,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
 #include "src/elements.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -424,6 +425,242 @@ BUILTIN(ArrayUnshift) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   int new_length = accessor->Unshift(array, &args, to_add);
   return Smi::FromInt(new_length);
+}
+
+class ForEachCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit ForEachCodeStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  void VisitOneElement(Node* context, Node* this_arg, Node* o, Node* k,
+                       Node* callbackfn) {
+    Comment("begin VisitOneElement");
+
+    // a. Let Pk be ToString(k).
+    Node* p_k = ToString(context, k);
+
+    // b. Let kPresent be HasProperty(O, Pk).
+    // c. ReturnIfAbrupt(kPresent).
+    Node* k_present =
+        CallStub(CodeFactory::HasProperty(isolate()), context, p_k, o);
+
+    // d. If kPresent is true, then
+    Label not_present(this);
+    GotoIf(WordNotEqual(k_present, TrueConstant()), &not_present);
+
+    // i. Let kValue be Get(O, Pk).
+    // ii. ReturnIfAbrupt(kValue).
+    Node* k_value =
+        CallStub(CodeFactory::GetProperty(isolate()), context, o, k);
+
+    // iii. Let funcResult be Call(callbackfn, T, «kValue, k, O»).
+    // iv. ReturnIfAbrupt(funcResult).
+    CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg, k_value,
+           k, o);
+
+    Goto(&not_present);
+    Bind(&not_present);
+    Comment("end VisitOneElement");
+  }
+
+  void VisitAllFastElements(Node* context, ElementsKind kind, Node* this_arg,
+                            Node* o, Node* len, Node* callbackfn,
+                            ParameterMode mode) {
+    Comment("begin VisitAllFastElements");
+    Variable original_map(this, MachineRepresentation::kTagged);
+    original_map.Bind(LoadMap(o));
+    VariableList list({&original_map}, zone());
+    BuildFastLoop(
+        list, IntPtrOrSmiConstant(0, mode), TaggedToParameter(len, mode),
+        [context, kind, this, o, &original_map, callbackfn, this_arg,
+         mode](Node* index) {
+          Label one_element_done(this), array_changed(this, Label::kDeferred),
+              hole_element(this);
+
+          // Check if o's map has changed during the callback. If so, we have to
+          // fall back to the slower spec implementation for the rest of the
+          // iteration.
+          Node* o_map = LoadMap(o);
+          GotoIf(WordNotEqual(o_map, original_map.value()), &array_changed);
+
+          // Check if o's length has changed during the callback and if the
+          // index is now out of range of the new length.
+          Node* tagged_index = ParameterToTagged(index, mode);
+          GotoIf(SmiGreaterThanOrEqual(tagged_index, LoadJSArrayLength(o)),
+                 &array_changed);
+
+          // Re-load the elements array. If may have been resized.
+          Node* elements = LoadElements(o);
+
+          // Fast case: load the element directly from the elements FixedArray
+          // and call the callback if the element is not the hole.
+          DCHECK(kind == FAST_ELEMENTS || kind == FAST_DOUBLE_ELEMENTS);
+          int base_size = kind == FAST_ELEMENTS
+                              ? FixedArray::kHeaderSize
+                              : (FixedArray::kHeaderSize - kHeapObjectTag);
+          Node* offset = ElementOffsetFromIndex(index, kind, mode, base_size);
+          Node* value = nullptr;
+          if (kind == FAST_ELEMENTS) {
+            value = LoadObjectField(elements, offset);
+            GotoIf(WordEqual(value, TheHoleConstant()), &hole_element);
+          } else {
+            Node* double_value =
+                LoadDoubleWithHoleCheck(elements, offset, &hole_element);
+            value = AllocateHeapNumberWithValue(double_value);
+          }
+          CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg,
+                 value, tagged_index, o);
+          Goto(&one_element_done);
+
+          Bind(&hole_element);
+          BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
+                                           &array_changed);
+
+          // O's changed during the forEach. Use the implementation precisely
+          // specified in the spec for the rest of the iteration, also making
+          // the failed original_map sticky in case of a subseuent change that
+          // goes back to the original map.
+          Bind(&array_changed);
+          VisitOneElement(context, this_arg, o, ParameterToTagged(index, mode),
+                          callbackfn);
+          original_map.Bind(UndefinedConstant());
+          Goto(&one_element_done);
+
+          Bind(&one_element_done);
+        },
+        1, mode, IndexAdvanceMode::kPost);
+    Comment("end VisitAllFastElements");
+  }
+};
+
+TF_BUILTIN(ArrayForEach, ForEachCodeStubAssembler) {
+  Label non_array(this), examine_elements(this), fast_elements(this),
+      slow(this), maybe_double_elements(this), fast_double_elements(this);
+
+  Node* receiver = Parameter(ForEachDescriptor::kReceiver);
+  Node* callbackfn = Parameter(ForEachDescriptor::kCallback);
+  Node* this_arg = Parameter(ForEachDescriptor::kThisArg);
+  Node* context = Parameter(ForEachDescriptor::kContext);
+
+  // TODO(danno): Seriously? Do we really need to throw the exact error message
+  // on null and undefined so that the webkit tests pass?
+  Label throw_null_undefined_exception(this, Label::kDeferred);
+  GotoIf(WordEqual(receiver, NullConstant()), &throw_null_undefined_exception);
+  GotoIf(WordEqual(receiver, UndefinedConstant()),
+         &throw_null_undefined_exception);
+
+  // By the book: taken directly from the ECMAScript 2015 specification
+
+  // 1. Let O be ToObject(this value).
+  // 2. ReturnIfAbrupt(O)
+  Node* o = CallStub(CodeFactory::ToObject(isolate()), context, receiver);
+
+  // 3. Let len be ToLength(Get(O, "length")).
+  // 4. ReturnIfAbrupt(len).
+  Variable merged_length(this, MachineRepresentation::kTagged);
+  Label has_length(this, &merged_length), not_js_array(this);
+  GotoIf(DoesntHaveInstanceType(o, JS_ARRAY_TYPE), &not_js_array);
+  merged_length.Bind(LoadJSArrayLength(o));
+  Goto(&has_length);
+  Bind(&not_js_array);
+  Node* len_property =
+      CallStub(CodeFactory::GetProperty(isolate()), context, o,
+               HeapConstant(isolate()->factory()->length_string()));
+  merged_length.Bind(
+      CallStub(CodeFactory::ToLength(isolate()), context, len_property));
+  Goto(&has_length);
+  Bind(&has_length);
+  Node* len = merged_length.value();
+
+  // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
+  Label type_exception(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(callbackfn), &type_exception);
+  GotoUnless(IsCallableMap(LoadMap(callbackfn)), &type_exception);
+
+  // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
+  // [Already done by the arguments adapter]
+
+  // Non-smi lengths must use the slow path.
+  GotoIf(TaggedIsNotSmi(len), &slow);
+
+  BranchIfFastJSArray(o, context,
+                      CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
+                      &examine_elements, &slow);
+
+  Bind(&examine_elements);
+
+  ParameterMode mode = OptimalParameterMode();
+
+  // Select by ElementsKind
+  Node* o_map = LoadMap(o);
+  Node* bit_field2 = LoadMapBitField2(o_map);
+  Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
+  Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_ELEMENTS)),
+         &maybe_double_elements, &fast_elements);
+
+  Bind(&fast_elements);
+  {
+    VisitAllFastElements(context, FAST_ELEMENTS, this_arg, o, len, callbackfn,
+                         mode);
+
+    // No exception, return success
+    Return(UndefinedConstant());
+  }
+
+  Bind(&maybe_double_elements);
+  Branch(Int32GreaterThan(kind, Int32Constant(FAST_HOLEY_DOUBLE_ELEMENTS)),
+         &slow, &fast_double_elements);
+
+  Bind(&fast_double_elements);
+  {
+    VisitAllFastElements(context, FAST_DOUBLE_ELEMENTS, this_arg, o, len,
+                         callbackfn, mode);
+
+    // No exception, return success
+    Return(UndefinedConstant());
+  }
+
+  Bind(&slow);
+  {
+    // By the book: taken from the ECMAScript 2015 specification (cont.)
+
+    // 7. Let k be 0.
+    Variable k(this, MachineRepresentation::kTagged);
+    k.Bind(SmiConstant(0));
+
+    // 8. Repeat, while k < len
+    Label loop(this, &k);
+    Label after_loop(this);
+    Goto(&loop);
+    Bind(&loop);
+    {
+      GotoUnlessNumberLessThan(k.value(), len, &after_loop);
+
+      VisitOneElement(context, this_arg, o, k.value(), callbackfn);
+
+      // e. Increase k by 1.
+      k.Bind(NumberInc(k.value()));
+      Goto(&loop);
+    }
+    Bind(&after_loop);
+    Return(UndefinedConstant());
+  }
+
+  Bind(&throw_null_undefined_exception);
+  {
+    CallRuntime(Runtime::kThrowTypeError, context,
+                SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
+                HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(
+                    "Array.prototype.forEach")));
+    Return(UndefinedConstant());
+  }
+
+  Bind(&type_exception);
+  {
+    CallRuntime(Runtime::kThrowTypeError, context,
+                SmiConstant(MessageTemplate::kCalledNonCallable), callbackfn);
+    Return(UndefinedConstant());
+  }
 }
 
 BUILTIN(ArraySlice) {
@@ -1572,9 +1809,8 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
     Label ident_loop(&assembler, &index_var),
         heap_num_loop(&assembler, &search_num),
-        string_loop(&assembler, &index_var), simd_loop(&assembler),
-        undef_loop(&assembler, &index_var), not_smi(&assembler),
-        not_heap_num(&assembler);
+        string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
+        not_smi(&assembler), not_heap_num(&assembler);
 
     assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
@@ -1591,10 +1827,6 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_heap_num);
     Node* search_type = assembler.LoadMapInstanceType(map);
     assembler.GotoIf(assembler.IsStringInstanceType(search_type), &string_loop);
-    assembler.GotoIf(
-        assembler.Word32Equal(search_type,
-                              assembler.Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
     assembler.Goto(&ident_loop);
 
     assembler.Bind(&ident_loop);
@@ -1705,31 +1937,6 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.Bind(&continue_loop);
       index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
       assembler.Goto(&string_loop);
-    }
-
-    assembler.Bind(&simd_loop);
-    {
-      Label continue_loop(&assembler, &index_var),
-          loop_body(&assembler, &index_var);
-      Node* map = assembler.LoadMap(search_element);
-
-      assembler.Goto(&loop_body);
-      assembler.Bind(&loop_body);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_false);
-
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler.LoadMap(element_k);
-      assembler.BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                     &return_true, &continue_loop);
-
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&loop_body);
     }
   }
 
@@ -2009,9 +2216,8 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
     Label ident_loop(&assembler, &index_var),
         heap_num_loop(&assembler, &search_num),
-        string_loop(&assembler, &index_var), simd_loop(&assembler),
-        undef_loop(&assembler, &index_var), not_smi(&assembler),
-        not_heap_num(&assembler);
+        string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
+        not_smi(&assembler), not_heap_num(&assembler);
 
     assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
@@ -2028,10 +2234,6 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_heap_num);
     Node* search_type = assembler.LoadMapInstanceType(map);
     assembler.GotoIf(assembler.IsStringInstanceType(search_type), &string_loop);
-    assembler.GotoIf(
-        assembler.Word32Equal(search_type,
-                              assembler.Int32Constant(SIMD128_VALUE_TYPE)),
-        &simd_loop);
     assembler.Goto(&ident_loop);
 
     assembler.Bind(&ident_loop);
@@ -2121,31 +2323,6 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.Bind(&continue_loop);
       index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
       assembler.Goto(&string_loop);
-    }
-
-    assembler.Bind(&simd_loop);
-    {
-      Label continue_loop(&assembler, &index_var),
-          loop_body(&assembler, &index_var);
-      Node* map = assembler.LoadMap(search_element);
-
-      assembler.Goto(&loop_body);
-      assembler.Bind(&loop_body);
-      assembler.GotoUnless(
-          assembler.UintPtrLessThan(index_var.value(), len_var.value()),
-          &return_not_found);
-
-      Node* element_k =
-          assembler.LoadFixedArrayElement(elements, index_var.value());
-      assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-
-      Node* map_k = assembler.LoadMap(element_k);
-      assembler.BranchIfSimd128Equal(search_element, map, element_k, map_k,
-                                     &return_found, &continue_loop);
-
-      assembler.Bind(&continue_loop);
-      index_var.Bind(assembler.IntPtrAdd(index_var.value(), intptr_one));
-      assembler.Goto(&loop_body);
     }
   }
 

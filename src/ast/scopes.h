@@ -39,7 +39,8 @@ class VariableMap: public ZoneHashMap {
 
   // Records that "name" exists (if not recorded yet) but doesn't create a
   // Variable. Useful for preparsing.
-  void DeclareName(Zone* zone, const AstRawString* name, VariableMode mode);
+  Variable* DeclareName(Zone* zone, const AstRawString* name,
+                        VariableMode mode);
 
   Variable* Lookup(const AstRawString* name);
   void Remove(Variable* var);
@@ -184,7 +185,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 
-  void DeclareVariableName(const AstRawString* name, VariableMode mode);
+  // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
 
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }
@@ -420,7 +422,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   Scope* GetOuterScopeWithContext();
 
   // Analyze() must have been called once to create the ScopeInfo.
-  Handle<ScopeInfo> scope_info() {
+  Handle<ScopeInfo> scope_info() const {
     DCHECK(!scope_info_.is_null());
     return scope_info_;
   }
@@ -622,7 +624,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   friend class ScopeTestHelper;
 };
 
-class DeclarationScope : public Scope {
+class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
  public:
   DeclarationScope(Zone* zone, Scope* outer_scope, ScopeType scope_type,
                    FunctionKind function_kind = kNormalFunction);
@@ -693,12 +695,22 @@ class DeclarationScope : public Scope {
   // calls sloppy eval.
   Variable* DeclareFunctionVar(const AstRawString* name);
 
+  // Declare some special internal variables which must be accessible to
+  // Ignition without ScopeInfo.
+  Variable* DeclareGeneratorObjectVar(const AstRawString* name);
+  Variable* DeclarePromiseVar(const AstRawString* name);
+
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
   Variable* DeclareParameter(const AstRawString* name, VariableMode mode,
                              bool is_optional, bool is_rest, bool* is_duplicate,
                              AstValueFactory* ast_value_factory);
+
+  // Declares that a parameter with the name exists. Creates a Variable and
+  // returns it if FLAG_preparser_scope_analysis is on.
+  Variable* DeclareParameterName(const AstRawString* name, bool is_rest,
+                                 AstValueFactory* ast_value_factory);
 
   // Declare an implicit global variable in this scope which must be a
   // script scope.  The variable was introduced (possibly from an inner
@@ -729,6 +741,17 @@ class DeclarationScope : public Scope {
   Variable* function_var() const {
     DCHECK(is_function_scope());
     return function_;
+  }
+
+  Variable* generator_object_var() const {
+    DCHECK(is_function_scope() || is_module_scope());
+    return GetRareVariable(RareVariable::kGeneratorObject);
+  }
+
+  Variable* promise_var() const {
+    DCHECK(is_function_scope());
+    DCHECK(IsAsyncFunction(function_kind_));
+    return GetRareVariable(RareVariable::kPromise);
   }
 
   // Parameters. The left-most parameter has index 0.
@@ -771,12 +794,14 @@ class DeclarationScope : public Scope {
   }
 
   Variable* this_function_var() const {
+    Variable* this_function = GetRareVariable(RareVariable::kThisFunction);
+
     // This is only used in derived constructors atm.
-    DCHECK(this_function_ == nullptr ||
+    DCHECK(this_function == nullptr ||
            (is_function_scope() && (IsClassConstructor(function_kind()) ||
                                     IsConciseMethod(function_kind()) ||
                                     IsAccessorFunction(function_kind()))));
-    return this_function_;
+    return this_function;
   }
 
   // Adds a local variable in this scope's locals list. This is for adjusting
@@ -885,8 +910,48 @@ class DeclarationScope : public Scope {
   Variable* new_target_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
-  // Convenience variable; Subclass constructor only
-  Variable* this_function_;
+
+  struct RareData : public ZoneObject {
+    // Convenience variable; Subclass constructor only
+    Variable* this_function = nullptr;
+
+    // Generator object, if any; generator function scopes and module scopes
+    // only.
+    Variable* generator_object = nullptr;
+    // Promise, if any; async function scopes only.
+    Variable* promise = nullptr;
+  };
+
+  enum class RareVariable {
+    kThisFunction = offsetof(RareData, this_function),
+    kGeneratorObject = offsetof(RareData, generator_object),
+    kPromise = offsetof(RareData, promise)
+  };
+
+  V8_INLINE RareData* EnsureRareData() {
+    if (rare_data_ == nullptr) {
+      rare_data_ = new (zone_) RareData;
+    }
+    return rare_data_;
+  }
+
+  V8_INLINE Variable* GetRareVariable(RareVariable id) const {
+    if (rare_data_ == nullptr) return nullptr;
+    return *reinterpret_cast<Variable**>(
+        reinterpret_cast<uint8_t*>(rare_data_) + static_cast<ptrdiff_t>(id));
+  }
+
+  // Set `var` to null if it's non-null and Predicate (Variable*) -> bool
+  // returns true.
+  template <typename Predicate>
+  V8_INLINE void NullifyRareVariableIf(RareVariable id, Predicate predicate) {
+    if (V8_LIKELY(rare_data_ == nullptr)) return;
+    Variable** var = reinterpret_cast<Variable**>(
+        reinterpret_cast<uint8_t*>(rare_data_) + static_cast<ptrdiff_t>(id));
+    if (*var && predicate(*var)) *var = nullptr;
+  }
+
+  RareData* rare_data_ = nullptr;
 };
 
 class ModuleScope final : public DeclarationScope {

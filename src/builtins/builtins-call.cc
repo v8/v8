@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

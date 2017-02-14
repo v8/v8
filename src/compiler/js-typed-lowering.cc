@@ -528,6 +528,13 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
       dependencies_(dependencies),
       flags_(flags),
       jsgraph_(jsgraph),
+      pointer_comparable_type_(Type::Union(
+          Type::Oddball(),
+          Type::Union(
+              Type::SymbolOrReceiver(),
+              Type::HeapConstant(factory()->empty_string(), graph()->zone()),
+              graph()->zone()),
+          graph()->zone())),
       type_cache_(TypeCache::Get()) {
   for (size_t k = 0; k < arraysize(shifted_int32_ranges_); ++k) {
     double min = kMinInt / (1 << k);
@@ -993,10 +1000,10 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
       return Replace(replacement);
     }
   }
-  if (r.OneInputCannotBe(Type::NumberOrSimdOrString())) {
+  if (r.OneInputCannotBe(Type::NumberOrString())) {
     // For values with canonical representation (i.e. neither String, nor
-    // Simd128Value nor Number) an empty type intersection means the values
-    // cannot be strictly equal.
+    // Number) an empty type intersection means the values cannot be strictly
+    // equal.
     if (!r.left_type()->Maybe(r.right_type())) {
       Node* replacement = jsgraph()->BooleanConstant(invert);
       ReplaceWithValue(node, replacement);
@@ -1010,7 +1017,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   if (r.BothInputsAre(Type::Unique())) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
-  if (r.OneInputIs(Type::NonStringUniqueOrHole())) {
+  if (r.OneInputIs(pointer_comparable_type_)) {
     return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
   }
   if (r.IsInternalizedStringCompareOperation()) {
@@ -1071,6 +1078,14 @@ Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
     //   => BooleanNot(ObjectIsUndetectable(x))
     node->ReplaceInput(
         0, graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  } else if (input_type->Is(Type::String())) {
+    // JSToBoolean(x:string) => BooleanNot(ReferenceEqual(x,""))
+    node->ReplaceInput(0,
+                       graph()->NewNode(simplified()->ReferenceEqual(), input,
+                                        jsgraph()->EmptyStringConstant()));
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->BooleanNot());
     return Changed(node);
@@ -1715,7 +1730,6 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* context = NodeProperties::GetContextInput(node);
   Type* context_type = NodeProperties::GetType(context);
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -1762,14 +1776,15 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
     Node* efalse = effect;
     Node* rfalse;
     {
-      // Convert {receiver} using the ToObjectStub.
+      // Convert {receiver} using the ToObjectStub. The call does not require a
+      // frame-state in this case, because neither null nor undefined is passed.
       Callable callable = CodeFactory::ToObject(isolate());
       CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNeedsFrameState, node->op()->properties());
+          CallDescriptor::kNoFlags, node->op()->properties());
       rfalse = efalse = graph()->NewNode(
           common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-          receiver, context, frame_state, efalse);
+          receiver, context, efalse);
     }
 
     control = graph()->NewNode(common()->Merge(2), if_true, if_false);
@@ -1819,14 +1834,15 @@ Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
   Node* econvert = effect;
   Node* rconvert;
   {
-    // Convert {receiver} using the ToObjectStub.
+    // Convert {receiver} using the ToObjectStub. The call does not require a
+    // frame-state in this case, because neither null nor undefined is passed.
     Callable callable = CodeFactory::ToObject(isolate());
     CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNeedsFrameState, node->op()->properties());
+        CallDescriptor::kNoFlags, node->op()->properties());
     rconvert = econvert = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-        receiver, context, frame_state, econvert);
+        receiver, context, econvert);
   }
 
   // Replace {receiver} with global proxy of {context}.
@@ -2052,9 +2068,9 @@ Reduction JSTypedLowering::ReduceJSCallForwardVarargs(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCallFunction, node->opcode());
-  CallFunctionParameters const& p = CallFunctionParametersOf(node->op());
+Reduction JSTypedLowering::ReduceJSCall(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
   int const arity = static_cast<int>(p.arity() - 2);
   ConvertReceiverMode convert_mode = p.convert_mode();
   Node* target = NodeProperties::GetValueInput(node, 0);
@@ -2063,7 +2079,6 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   Type* receiver_type = NodeProperties::GetType(receiver);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* frame_state = NodeProperties::FindFrameStateBefore(node);
 
   // Try to infer receiver {convert_mode} from {receiver} type.
   if (receiver_type->Is(Type::NullOrUndefined())) {
@@ -2096,7 +2111,7 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
         !receiver_type->Is(Type::Receiver())) {
       receiver = effect =
           graph()->NewNode(javascript()->ConvertReceiver(convert_mode),
-                           receiver, context, frame_state, effect, control);
+                           receiver, context, effect, control);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
 
@@ -2163,8 +2178,9 @@ Reduction JSTypedLowering::ReduceJSCallFunction(Node* node) {
   // Maybe we did at least learn something about the {receiver}.
   if (p.convert_mode() != convert_mode) {
     NodeProperties::ChangeOp(
-        node, javascript()->CallFunction(p.arity(), p.frequency(), p.feedback(),
-                                         convert_mode, p.tail_call_mode()));
+        node,
+        javascript()->Call(p.arity(), p.frequency(), p.feedback(), convert_mode,
+                           p.tail_call_mode()));
     return Changed(node);
   }
 
@@ -2416,8 +2432,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSConstruct(node);
     case IrOpcode::kJSCallForwardVarargs:
       return ReduceJSCallForwardVarargs(node);
-    case IrOpcode::kJSCallFunction:
-      return ReduceJSCallFunction(node);
+    case IrOpcode::kJSCall:
+      return ReduceJSCall(node);
     case IrOpcode::kJSForInNext:
       return ReduceJSForInNext(node);
     case IrOpcode::kJSLoadMessage:

@@ -350,6 +350,7 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
       } else {
         DCHECK_EQ(kDescriptor, details.location());
         if (details.kind() == kData) {
+          DCHECK(!FLAG_track_constant_fields);
           *access_info = PropertyAccessInfo::DataConstant(
               MapList{receiver_map},
               handle(descriptors->GetValue(number), isolate()), holder);

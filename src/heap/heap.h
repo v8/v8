@@ -58,8 +58,8 @@ using v8::MemoryPressureLevel;
   V(Map, foreign_map, ForeignMap)                                              \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, transition_array_map, TransitionArrayMap)                             \
+  V(Map, feedback_vector_map, FeedbackVectorMap)                               \
   V(ScopeInfo, empty_scope_info, EmptyScopeInfo)                               \
-  V(FixedArray, empty_type_feedback_vector, EmptyTypeFeedbackVector)           \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(DescriptorArray, empty_descriptor_array, EmptyDescriptorArray)             \
   /* Entries beyond the first 32                                            */ \
@@ -93,7 +93,9 @@ using v8::MemoryPressureLevel;
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
   V(Map, module_info_map, ModuleInfoMap)                                       \
-  V(Map, type_feedback_vector_map, TypeFeedbackVectorMap)                      \
+  V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
+  V(Map, one_closure_cell_map, OneClosureCellMap)                              \
+  V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -133,16 +135,6 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_float32_array_map, FixedFloat32ArrayMap)                        \
   V(Map, fixed_float64_array_map, FixedFloat64ArrayMap)                        \
   V(Map, fixed_uint8_clamped_array_map, FixedUint8ClampedArrayMap)             \
-  V(Map, float32x4_map, Float32x4Map)                                          \
-  V(Map, int32x4_map, Int32x4Map)                                              \
-  V(Map, uint32x4_map, Uint32x4Map)                                            \
-  V(Map, bool32x4_map, Bool32x4Map)                                            \
-  V(Map, int16x8_map, Int16x8Map)                                              \
-  V(Map, uint16x8_map, Uint16x8Map)                                            \
-  V(Map, bool16x8_map, Bool16x8Map)                                            \
-  V(Map, int8x16_map, Int8x16Map)                                              \
-  V(Map, uint8x16_map, Uint8x16Map)                                            \
-  V(Map, bool8x16_map, Bool8x16Map)                                            \
   /* Canonical empty values */                                                 \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
@@ -160,13 +152,11 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
     EmptySlowElementDictionary)                                                \
-  V(TypeFeedbackVector, dummy_vector, DummyVector)                             \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   /* Protectors */                                                             \
   V(PropertyCell, array_protector, ArrayProtector)                             \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
-  V(PropertyCell, has_instance_protector, HasInstanceProtector)                \
   V(Cell, species_protector, SpeciesProtector)                                 \
   V(PropertyCell, string_length_protector, StringLengthProtector)              \
   V(Cell, fast_array_iteration_protector, FastArrayIterationProtector)         \
@@ -210,6 +200,8 @@ using v8::MemoryPressureLevel;
   /* slots refer to the code with the reference to the weak object. */         \
   V(ArrayList, weak_new_space_object_to_code_list,                             \
     WeakNewSpaceObjectToCodeList)                                              \
+  /* List to hold onto feedback vectors that we need for code coverage */      \
+  V(Object, code_coverage_list, CodeCoverageList)                              \
   V(Object, weak_stack_trace_list, WeakStackTraceList)                         \
   V(Object, noscript_shared_function_infos, NoScriptSharedFunctionInfos)       \
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
@@ -245,7 +237,10 @@ using v8::MemoryPressureLevel;
   /* function cache of the native context. */                                  \
   V(Smi, next_template_serial_number, NextTemplateSerialNumber)                \
   V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)     \
-  V(Smi, construct_stub_deopt_pc_offset, ConstructStubDeoptPCOffset)           \
+  V(Smi, construct_stub_create_deopt_pc_offset,                                \
+    ConstructStubCreateDeoptPCOffset)                                          \
+  V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
+    ConstructStubInvokeDeoptPCOffset)                                          \
   V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
   V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
@@ -276,16 +271,6 @@ using v8::MemoryPressureLevel;
   V(MetaMap)                            \
   V(HeapNumberMap)                      \
   V(MutableHeapNumberMap)               \
-  V(Float32x4Map)                       \
-  V(Int32x4Map)                         \
-  V(Uint32x4Map)                        \
-  V(Bool32x4Map)                        \
-  V(Int16x8Map)                         \
-  V(Uint16x8Map)                        \
-  V(Bool16x8Map)                        \
-  V(Int8x16Map)                         \
-  V(Uint8x16Map)                        \
-  V(Bool8x16Map)                        \
   V(NativeContextMap)                   \
   V(FixedArrayMap)                      \
   V(CodeMap)                            \
@@ -319,6 +304,9 @@ using v8::MemoryPressureLevel;
   V(ArgumentsMarkerMap)                 \
   V(JSMessageObjectMap)                 \
   V(ForeignMap)                         \
+  V(NoClosuresCellMap)                  \
+  V(OneClosureCellMap)                  \
+  V(ManyClosuresCellMap)                \
   V(NanValue)                           \
   V(InfinityValue)                      \
   V(MinusZeroValue)                     \
@@ -768,9 +756,6 @@ class Heap {
   // Converts the given boolean condition to JavaScript boolean value.
   inline Oddball* ToBoolean(bool condition);
 
-  // Check whether the heap is currently iterable.
-  bool IsHeapIterable();
-
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed(bool dependant_context);
 
@@ -880,7 +865,8 @@ class Heap {
   inline int NextScriptId();
 
   inline void SetArgumentsAdaptorDeoptPCOffset(int pc_offset);
-  inline void SetConstructStubDeoptPCOffset(int pc_offset);
+  inline void SetConstructStubCreateDeoptPCOffset(int pc_offset);
+  inline void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
   inline void SetGetterStubDeoptPCOffset(int pc_offset);
   inline void SetSetterStubDeoptPCOffset(int pc_offset);
   inline void SetInterpreterEntryReturnPCOffset(int pc_offset);
@@ -1427,19 +1413,6 @@ class Heap {
   // Returns the size of objects residing in non new spaces.
   size_t PromotedSpaceSizeOfObjects();
 
-  double total_regexp_code_generated() { return total_regexp_code_generated_; }
-  void IncreaseTotalRegexpCodeGenerated(int size) {
-    total_regexp_code_generated_ += size;
-  }
-
-  void IncrementCodeGeneratedBytes(bool is_crankshafted, int size) {
-    if (is_crankshafted) {
-      crankshaft_codegen_bytes_generated_ += size;
-    } else {
-      full_codegen_bytes_generated_ += size;
-    }
-  }
-
   // ===========================================================================
   // Prologue/epilogue callback methods.========================================
   // ===========================================================================
@@ -1530,6 +1503,7 @@ class Heap {
       GarbageCollectionReason gc_reason);
 
  private:
+  class SkipStoreBufferScope;
   class PretenuringScope;
 
   // External strings table is a place where all external strings are
@@ -1964,13 +1938,6 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
       MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
 
-// Allocates SIMD values from the given lane values.
-#define SIMD_ALLOCATE_DECLARATION(TYPE, Type, type, lane_count, lane_type) \
-  AllocationResult Allocate##Type(lane_type lanes[lane_count],             \
-                                  PretenureFlag pretenure = NOT_TENURED);
-  SIMD128_TYPES(SIMD_ALLOCATE_DECLARATION)
-#undef SIMD_ALLOCATE_DECLARATION
-
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult
   AllocateByteArray(int length, PretenureFlag pretenure = NOT_TENURED);
@@ -2258,9 +2225,6 @@ class Heap {
   List<GCCallbackPair> gc_epilogue_callbacks_;
   List<GCCallbackPair> gc_prologue_callbacks_;
 
-  // Total RegExp code ever generated
-  double total_regexp_code_generated_;
-
   int deferred_counters_[v8::Isolate::kUseCounterFeatureCount];
 
   GCTracer* tracer_;
@@ -2310,10 +2274,6 @@ class Heap {
   ScavengeJob* scavenge_job_;
 
   AllocationObserver* idle_scavenge_observer_;
-
-  // These two counters are monotomically increasing and never reset.
-  size_t full_codegen_bytes_generated_;
-  size_t crankshaft_codegen_bytes_generated_;
 
   // This counter is increased before each GC and never reset.
   // To account for the bytes allocated since the last GC, use the
@@ -2550,17 +2510,8 @@ class HeapIterator BASE_EMBEDDED {
   HeapObject* next();
 
  private:
-  struct MakeHeapIterableHelper {
-    explicit MakeHeapIterableHelper(Heap* heap) { heap->MakeHeapIterable(); }
-  };
-
   HeapObject* NextObject();
 
-  // The following two fields need to be declared in this order. Initialization
-  // order guarantees that we first make the heap iterable (which may involve
-  // allocations) and only then lock it down by not allowing further
-  // allocations.
-  MakeHeapIterableHelper make_heap_iterable_helper_;
   DisallowHeapAllocation no_heap_allocation_;
 
   Heap* heap_;

@@ -820,6 +820,7 @@ MaybeHandle<String> Factory::NewExternalStringFromOneByte(
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
+  if (length == 0) return empty_string();
 
   Handle<Map> map;
   if (resource->IsCompressible()) {
@@ -844,6 +845,7 @@ MaybeHandle<String> Factory::NewExternalStringFromTwoByte(
   if (length > static_cast<size_t>(String::kMaxLength)) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), String);
   }
+  if (length == 0) return empty_string();
 
   // For small strings we check whether the resource contains only
   // one byte characters.  If yes, we use a different string map.
@@ -1163,7 +1165,6 @@ Handle<FixedTypedArrayBase> Factory::NewFixedTypedArray(
                      FixedTypedArrayBase);
 }
 
-
 Handle<Cell> Factory::NewCell(Handle<Object> value) {
   AllowDeferredHandleDereference convert_to_cell;
   CALL_HEAP_FUNCTION(
@@ -1172,6 +1173,23 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
       Cell);
 }
 
+Handle<Cell> Factory::NewNoClosuresCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*no_closures_cell_map());
+  return cell;
+}
+
+Handle<Cell> Factory::NewOneClosureCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*one_closure_cell_map());
+  return cell;
+}
+
+Handle<Cell> Factory::NewManyClosuresCell(Handle<Object> value) {
+  Handle<Cell> cell = NewCell(value);
+  cell->set_map_no_write_barrier(*many_closures_cell_map());
+  return cell;
+}
 
 Handle<PropertyCell> Factory::NewPropertyCell() {
   CALL_HEAP_FUNCTION(
@@ -1322,16 +1340,6 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                      HeapNumber);
 }
 
-#define SIMD128_NEW_DEF(TYPE, Type, type, lane_count, lane_type)               \
-  Handle<Type> Factory::New##Type(lane_type lanes[lane_count],                 \
-                                  PretenureFlag pretenure) {                   \
-    CALL_HEAP_FUNCTION(                                                        \
-        isolate(), isolate()->heap()->Allocate##Type(lanes, pretenure), Type); \
-  }
-SIMD128_TYPES(SIMD128_NEW_DEF)
-#undef SIMD128_NEW_DEF
-
-
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
                                  MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,
@@ -1421,8 +1429,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_code(info->code());
   function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
-  function->set_feedback_vector(
-      TypeFeedbackVector::cast(*empty_type_feedback_vector()));
+  function->set_feedback_vector_cell(*undefined_cell());
   function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
@@ -1555,7 +1562,7 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<TypeFeedbackVector> vector, PretenureFlag pretenure) {
+    Handle<Cell> vector, PretenureFlag pretenure) {
   int map_index =
       Context::FunctionMapIndex(info->language_mode(), info->kind());
   Handle<Map> initial_map(Map::cast(context->native_context()->get(map_index)));
@@ -1585,13 +1592,22 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, Handle<TypeFeedbackVector> vector,
+    Handle<Object> context_or_undefined, Handle<Cell> vector,
     PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  result->set_feedback_vector(*vector);
+  // Bump the closure count that is encoded in the vector cell's map.
+  if (vector->map() == *no_closures_cell_map()) {
+    vector->set_map(*one_closure_cell_map());
+  } else if (vector->map() == *one_closure_cell_map()) {
+    vector->set_map(*many_closures_cell_map());
+  } else {
+    DCHECK_EQ(vector->map(), *many_closures_cell_map());
+  }
+
+  result->set_feedback_vector_cell(*vector);
   if (info->ic_age() != isolate()->heap()->global_ic_age()) {
     info->ResetForNewContext(isolate()->heap()->global_ic_age());
   }
@@ -2411,8 +2427,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
   share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
   StaticFeedbackVectorSpec empty_spec;
-  Handle<TypeFeedbackMetadata> feedback_metadata =
-      TypeFeedbackMetadata::New(isolate(), &empty_spec);
+  Handle<FeedbackMetadata> feedback_metadata =
+      FeedbackMetadata::New(isolate(), &empty_spec);
   share->set_feedback_metadata(*feedback_metadata, SKIP_WRITE_BARRIER);
   share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
 #if TRACE_MAPS

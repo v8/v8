@@ -264,7 +264,7 @@ TEST(WasmStepInAndOut) {
                 WASM_SET_LOCAL(
                     0, WASM_BINOP(kExprI32Sub, WASM_GET_LOCAL(0), WASM_ONE)),
                 WASM_CALL_FUNCTION(runner.function_index(), WASM_GET_LOCAL(0)),
-                WASM_BR(1)));
+                WASM_DROP, WASM_BR(1)));
 
   Isolate* isolate = runner.main_isolate();
   Handle<JSFunction> main_fun_wrapper =

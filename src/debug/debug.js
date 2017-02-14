@@ -12,17 +12,10 @@ var FrameMirror = global.FrameMirror;
 var GlobalArray = global.Array;
 var GlobalRegExp = global.RegExp;
 var IsNaN = global.isNaN;
-var LookupMirror = global.LookupMirror;
 var MakeMirror = global.MakeMirror;
 var MathMin = global.Math.min;
 var Mirror = global.Mirror;
-var MirrorType;
-var ParseInt = global.parseInt;
 var ValueMirror = global.ValueMirror;
-
-utils.Import(function(from) {
-  MirrorType = from.MirrorType;
-});
 
 //----------------------------------------------------------------------------
 

@@ -163,8 +163,7 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
     }
     newByteLength = bufferByteLength - offset;
     if (newByteLength < 0) {
-      throw %make_range_error(kInvalidTypedArrayAlignment,
-                           "byte length", "NAME", ELEMENT_SIZE);
+      throw %make_range_error(kInvalidOffset, offset);
     }
   } else {
     newByteLength = length * ELEMENT_SIZE;

@@ -151,6 +151,9 @@
   'test-api/ExternalFloatArray': [SKIP],
   'test-api/Float32Array': [SKIP],
   'test-api/Float64Array': [SKIP],
+
+  # BUG(v8:5193): Flaky crash.
+  'test-sampler/LibSamplerCollectSample': [SKIP],
 }],  # 'arch == arm64 and mode == debug and simulator_run == True'
 
 ##############################################################################
@@ -215,7 +218,18 @@
 
   # BUG(5193): Flaky timeout.
   'test-sampler/LibSamplerCollectSample': [PASS, ['arch == x64', SKIP]],
+
+  # BUG(5920): Flaky crash.
+  'test-serialize/PartialSerializerContext': [PASS, ['arch == x64 and mode == debug', SKIP]],
 }],  # 'system == windows'
+
+##############################################################################
+['system == macos', {
+  # BUG(v8:5193) Flaky failures.
+  'test-cpu-profiler/FunctionApplySample': [SKIP],
+  'test-cpu-profiler/JsNativeJsSample': [SKIP],
+  'test-cpu-profiler/JsNativeJsRuntimeJsSampleMultiple': [SKIP],
+}],  # 'system == macos'
 
 ##############################################################################
 ['arch == arm', {

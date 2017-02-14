@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --validate-asm --ignition-staging
+// Flags: --validate-asm --ignition-staging --lazy-inner-functions
 
 function outer() {
   "use asm";

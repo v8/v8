@@ -55,6 +55,7 @@ class MapUpdater {
   // performs the steps 1-5.
   Handle<Map> ReconfigureToDataField(int descriptor,
                                      PropertyAttributes attributes,
+                                     PropertyConstness constness,
                                      Representation representation,
                                      Handle<FieldType> field_type);
 
@@ -140,6 +141,11 @@ class MapUpdater {
   inline Handle<FieldType> GetOrComputeFieldType(
       Handle<DescriptorArray> descriptors, int descriptor,
       PropertyLocation location, Representation representation);
+
+  void GeneralizeField(Handle<Map> map, int modify_index,
+                       PropertyConstness new_constness,
+                       Representation new_representation,
+                       Handle<FieldType> new_field_type);
 
   Isolate* isolate_;
   Handle<Map> old_map_;

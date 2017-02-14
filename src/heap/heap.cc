@@ -17,6 +17,7 @@
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/feedback-vector.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-stats.h"
@@ -41,7 +42,6 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
-#include "src/type-feedback-vector.h"
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/v8threads.h"
@@ -117,7 +117,6 @@ Heap::Heap()
 #endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
       inline_allocation_disabled_(false),
-      total_regexp_code_generated_(0),
       tracer_(nullptr),
       promoted_objects_size_(0),
       promotion_ratio_(0),
@@ -141,8 +140,6 @@ Heap::Heap()
       dead_object_stats_(nullptr),
       scavenge_job_(nullptr),
       idle_scavenge_observer_(nullptr),
-      full_codegen_bytes_generated_(0),
-      crankshaft_codegen_bytes_generated_(0),
       new_space_allocation_counter_(0),
       old_generation_allocation_counter_at_last_gc_(0),
       old_generation_size_at_last_gc_(0),
@@ -298,7 +295,6 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
 
 void Heap::SetGCState(HeapState state) {
   gc_state_ = state;
-  store_buffer_->SetMode(gc_state_);
 }
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
@@ -450,7 +446,6 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
-  store_buffer()->MoveAllEntriesToRememberedSet();
 }
 
 size_t Heap::SizeOfObjects() {
@@ -518,6 +513,22 @@ void Heap::MergeAllocationSitePretenuringFeedback(
   }
 }
 
+class Heap::SkipStoreBufferScope {
+ public:
+  explicit SkipStoreBufferScope(StoreBuffer* store_buffer)
+      : store_buffer_(store_buffer) {
+    store_buffer_->MoveAllEntriesToRememberedSet();
+    store_buffer_->SetMode(StoreBuffer::IN_GC);
+  }
+
+  ~SkipStoreBufferScope() {
+    DCHECK(store_buffer_->Empty());
+    store_buffer_->SetMode(StoreBuffer::NOT_IN_GC);
+  }
+
+ private:
+  StoreBuffer* store_buffer_;
+};
 
 class Heap::PretenuringScope {
  public:
@@ -1327,6 +1338,7 @@ bool Heap::PerformGarbageCollection(
 
   {
     Heap::PretenuringScope pretenuring_scope(this);
+    Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_);
 
     switch (collector) {
       case MARK_COMPACTOR:
@@ -2263,18 +2275,13 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, type_feedback_vector)
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, feedback_vector)
     ALLOCATE_PRIMITIVE_MAP(HEAP_NUMBER_TYPE, HeapNumber::kSize, heap_number,
                            Context::NUMBER_FUNCTION_INDEX)
     ALLOCATE_MAP(MUTABLE_HEAP_NUMBER_TYPE, HeapNumber::kSize,
                  mutable_heap_number)
     ALLOCATE_PRIMITIVE_MAP(SYMBOL_TYPE, Symbol::kSize, symbol,
                            Context::SYMBOL_FUNCTION_INDEX)
-#define ALLOCATE_SIMD128_MAP(TYPE, Type, type, lane_count, lane_type) \
-  ALLOCATE_PRIMITIVE_MAP(SIMD128_VALUE_TYPE, Type::kSize, type,       \
-                         Context::TYPE##_FUNCTION_INDEX)
-    SIMD128_TYPES(ALLOCATE_SIMD128_MAP)
-#undef ALLOCATE_SIMD128_MAP
     ALLOCATE_MAP(FOREIGN_TYPE, Foreign::kSize, foreign)
 
     ALLOCATE_PRIMITIVE_MAP(ODDBALL_TYPE, Oddball::kSize, boolean,
@@ -2333,6 +2340,9 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell)
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
+    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, no_closures_cell)
+    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, one_closure_cell)
+    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, many_closures_cell)
     ALLOCATE_MAP(FILLER_TYPE, kPointerSize, one_pointer_filler)
     ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
 
@@ -2436,32 +2446,6 @@ AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
   HeapObject::cast(result)->set_map_no_write_barrier(map);
   return result;
 }
-
-#define SIMD_ALLOCATE_DEFINITION(TYPE, Type, type, lane_count, lane_type) \
-  AllocationResult Heap::Allocate##Type(lane_type lanes[lane_count],      \
-                                        PretenureFlag pretenure) {        \
-    int size = Type::kSize;                                               \
-    STATIC_ASSERT(Type::kSize <= kMaxRegularHeapObjectSize);              \
-                                                                          \
-    AllocationSpace space = SelectSpace(pretenure);                       \
-                                                                          \
-    HeapObject* result = nullptr;                                         \
-    {                                                                     \
-      AllocationResult allocation =                                       \
-          AllocateRaw(size, space, kSimd128Unaligned);                    \
-      if (!allocation.To(&result)) return allocation;                     \
-    }                                                                     \
-                                                                          \
-    result->set_map_no_write_barrier(type##_map());                       \
-    Type* instance = Type::cast(result);                                  \
-    for (int i = 0; i < lane_count; i++) {                                \
-      instance->set_lane(i, lanes[i]);                                    \
-    }                                                                     \
-    return result;                                                        \
-  }
-SIMD128_TYPES(SIMD_ALLOCATE_DEFINITION)
-#undef SIMD_ALLOCATE_DEFINITION
-
 
 AllocationResult Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
@@ -2756,53 +2740,6 @@ void Heap::CreateInitialObjects() {
   set_microtask_queue(empty_fixed_array());
 
   {
-    StaticFeedbackVectorSpec spec;
-    FeedbackVectorSlot slot = spec.AddLoadICSlot();
-    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyLoadICSlot));
-
-    slot = spec.AddKeyedLoadICSlot();
-    DCHECK_EQ(slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedLoadICSlot));
-
-    slot = spec.AddStoreICSlot();
-    DCHECK_EQ(slot, FeedbackVectorSlot(TypeFeedbackVector::kDummyStoreICSlot));
-
-    slot = spec.AddKeyedStoreICSlot();
-    DCHECK_EQ(slot,
-              FeedbackVectorSlot(TypeFeedbackVector::kDummyKeyedStoreICSlot));
-
-    Handle<TypeFeedbackMetadata> dummy_metadata =
-        TypeFeedbackMetadata::New(isolate(), &spec);
-    Handle<TypeFeedbackVector> dummy_vector =
-        TypeFeedbackVector::New(isolate(), dummy_metadata);
-
-    set_dummy_vector(*dummy_vector);
-
-    // Now initialize dummy vector's entries.
-    LoadICNexus(isolate()).ConfigureMegamorphic();
-    StoreICNexus(isolate()).ConfigureMegamorphic();
-    KeyedLoadICNexus(isolate()).ConfigureMegamorphicKeyed(PROPERTY);
-    KeyedStoreICNexus(isolate()).ConfigureMegamorphicKeyed(PROPERTY);
-  }
-
-  {
-    // Create a canonical empty TypeFeedbackVector, which is shared by all
-    // functions that don't need actual type feedback slots. Note however
-    // that all these functions will share the same invocation count, but
-    // that shouldn't matter since we only use the invocation count to
-    // relativize the absolute call counts, but we can only have call counts
-    // if we have actual feedback slots.
-    Handle<FixedArray> empty_type_feedback_vector = factory->NewFixedArray(
-        TypeFeedbackVector::kReservedIndexCount, TENURED);
-    empty_type_feedback_vector->set(TypeFeedbackVector::kMetadataIndex,
-                                    empty_fixed_array());
-    empty_type_feedback_vector->set(TypeFeedbackVector::kInvocationCountIndex,
-                                    Smi::kZero);
-    empty_type_feedback_vector->set_map(type_feedback_vector_map());
-    set_empty_type_feedback_vector(*empty_type_feedback_vector);
-  }
-
-  {
     Handle<FixedArray> empty_sloppy_arguments_elements =
         factory->NewFixedArray(2, TENURED);
     empty_sloppy_arguments_elements->set_map(sloppy_arguments_elements_map());
@@ -2825,6 +2762,8 @@ void Heap::CreateInitialObjects() {
   set_weak_new_space_object_to_code_list(
       ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
   weak_new_space_object_to_code_list()->SetLength(0);
+
+  set_code_coverage_list(undefined_value());
 
   set_script_list(Smi::kZero);
 
@@ -2851,10 +2790,6 @@ void Heap::CreateInitialObjects() {
   cell = factory->NewPropertyCell();
   cell->set_value(the_hole_value());
   set_empty_property_cell(*cell);
-
-  cell = factory->NewPropertyCell();
-  cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_has_instance_protector(*cell);
 
   cell = factory->NewPropertyCell();
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
@@ -2948,6 +2883,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kWeakObjectToCodeTableRootIndex:
     case kWeakNewSpaceObjectToCodeListRootIndex:
     case kRetainedMapsRootIndex:
+    case kCodeCoverageListRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:
@@ -2967,7 +2903,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
       return false;
   }
 }
-
 
 bool Heap::RootCanBeTreatedAsConstant(RootListIndex root_index) {
   return !RootCanBeWrittenAfterInitialization(root_index) &&
@@ -4115,21 +4050,8 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
 }
 
 
-bool Heap::IsHeapIterable() {
-  // TODO(hpayer): This function is not correct. Allocation folding in old
-  // space breaks the iterability.
-  return new_space_top_after_last_gc_ == new_space()->top();
-}
-
-
 void Heap::MakeHeapIterable() {
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask,
-                      GarbageCollectionReason::kMakeHeapIterable);
-  }
   mark_compact_collector()->EnsureSweepingCompleted();
-  DCHECK(IsHeapIterable());
 }
 
 
@@ -5673,8 +5595,7 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
     IncrementalMarking::MarkGrey(this, heap_object);
   } else {
     DCHECK(mark_compact_collector()->in_use());
-    MarkBit mark_bit = ObjectMarking::MarkBitFrom(heap_object);
-    mark_compact_collector()->MarkObject(heap_object, mark_bit);
+    mark_compact_collector()->MarkObject(heap_object);
   }
 }
 
@@ -6165,16 +6086,15 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   DisallowHeapAllocation no_allocation_;
 };
 
-
 HeapIterator::HeapIterator(Heap* heap,
                            HeapIterator::HeapObjectsFiltering filtering)
-    : make_heap_iterable_helper_(heap),
-      no_heap_allocation_(),
+    : no_heap_allocation_(),
       heap_(heap),
       filtering_(filtering),
       filter_(nullptr),
       space_iterator_(nullptr),
       object_iterator_(nullptr) {
+  heap_->MakeHeapIterable();
   heap_->heap_iterator_start();
   // Start the iteration.
   space_iterator_ = new SpaceIterator(heap_);

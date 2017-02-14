@@ -85,6 +85,8 @@ class V8_EXPORT V8ContextInfo {
   StringView auxData;
   bool hasMemoryOnConsole;
 
+  static int executionContextId(v8::Local<v8::Context> context);
+
  private:
   // Disallow copying and allocating this one.
   enum NotNullTagEnum { NotNullLiteral };

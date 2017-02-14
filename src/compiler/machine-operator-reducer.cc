@@ -17,9 +17,9 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph)
-    : jsgraph_(jsgraph) {}
-
+MachineOperatorReducer::MachineOperatorReducer(JSGraph* jsgraph,
+                                               bool allow_signalling_nan)
+    : jsgraph_(jsgraph), allow_signalling_nan_(allow_signalling_nan) {}
 
 MachineOperatorReducer::~MachineOperatorReducer() {}
 
@@ -316,7 +316,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat32Sub: {
       Float32BinopMatcher m(node);
-      // TODO(ahaas): We could do x - 0.0 = x if we knew that x is not an sNaN.
+      if (allow_signalling_nan_ && m.right().Is(0) &&
+          (copysign(1.0, m.right().Value()) > 0)) {
+        return Replace(m.left().node());  // x - 0 => x
+      }
       if (m.right().IsNaN()) {  // x - NaN => NaN
         // Do some calculation to make a signalling NaN quiet.
         return ReplaceFloat32(m.right().Value() - m.right().Value());
@@ -328,7 +331,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat32(m.left().Value() - m.right().Value());
       }
-      if (m.left().IsMinusZero()) {
+      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float32RoundUp().IsSupported() &&
             m.right().IsFloat32RoundDown()) {
@@ -360,7 +363,10 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Sub: {
       Float64BinopMatcher m(node);
-      // TODO(ahaas): We could do x - 0.0 = x if we knew that x is not an sNaN.
+      if (allow_signalling_nan_ && m.right().Is(0) &&
+          (Double(m.right().Value()).Sign() > 0)) {
+        return Replace(m.left().node());  // x - 0 => x
+      }
       if (m.right().IsNaN()) {  // x - NaN => NaN
         // Do some calculation to make a signalling NaN quiet.
         return ReplaceFloat64(m.right().Value() - m.right().Value());
@@ -372,7 +378,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // L - R => (L - R)
         return ReplaceFloat64(m.left().Value() - m.right().Value());
       }
-      if (m.left().IsMinusZero()) {
+      if (allow_signalling_nan_ && m.left().IsMinusZero()) {
         // -0.0 - round_down(-0.0 - R) => round_up(R)
         if (machine()->Float64RoundUp().IsSupported() &&
             m.right().IsFloat64RoundDown()) {
@@ -393,7 +399,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Mul: {
       Float64BinopMatcher m(node);
-      // TODO(ahaas): We could do x * 1.0 = x if we knew that x is not an sNaN.
+      if (allow_signalling_nan_ && m.right().Is(1))
+        return Replace(m.left().node());  // x * 1.0 => x
       if (m.right().Is(-1)) {  // x * -1.0 => -0.0 - x
         node->ReplaceInput(0, Float64Constant(-0.0));
         node->ReplaceInput(1, m.left().node());
@@ -416,6 +423,8 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kFloat64Div: {
       Float64BinopMatcher m(node);
+      if (allow_signalling_nan_ && m.right().Is(1))
+        return Replace(m.left().node());  // x / 1.0 => x
       // TODO(ahaas): We could do x / 1.0 = x if we knew that x is not an sNaN.
       if (m.right().IsNaN()) {                               // x / NaN => NaN
         // Do some calculation to make a signalling NaN quiet.
@@ -428,7 +437,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       if (m.IsFoldable()) {  // K / K => K
         return ReplaceFloat64(m.left().Value() / m.right().Value());
       }
-      if (m.right().Is(-1)) {  // x / -1.0 => -x
+      if (allow_signalling_nan_ && m.right().Is(-1)) {  // x / -1.0 => -x
         node->RemoveInput(1);
         NodeProperties::ChangeOp(node, machine()->Float64Neg());
         return Changed(node);
@@ -597,7 +606,13 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kChangeFloat32ToFloat64: {
       Float32Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat64(m.Value());
+      if (m.HasValue()) {
+        if (!allow_signalling_nan_ && std::isnan(m.Value())) {
+          // Do some calculation to make guarantee the value is a quiet NaN.
+          return ReplaceFloat64(m.Value() + m.Value());
+        }
+        return ReplaceFloat64(m.Value());
+      }
       break;
     }
     case IrOpcode::kChangeFloat64ToInt32: {
@@ -646,8 +661,15 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
     }
     case IrOpcode::kTruncateFloat64ToFloat32: {
       Float64Matcher m(node->InputAt(0));
-      if (m.HasValue()) return ReplaceFloat32(DoubleToFloat32(m.Value()));
-      if (m.IsChangeFloat32ToFloat64()) return Replace(m.node()->InputAt(0));
+      if (m.HasValue()) {
+        if (!allow_signalling_nan_ && std::isnan(m.Value())) {
+          // Do some calculation to make guarantee the value is a quiet NaN.
+          return ReplaceFloat32(DoubleToFloat32(m.Value() + m.Value()));
+        }
+        return ReplaceFloat32(DoubleToFloat32(m.Value()));
+      }
+      if (allow_signalling_nan_ && m.IsChangeFloat32ToFloat64())
+        return Replace(m.node()->InputAt(0));
       break;
     }
     case IrOpcode::kRoundFloat64ToInt32: {

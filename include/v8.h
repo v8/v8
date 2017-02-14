@@ -2164,12 +2164,6 @@ class V8_EXPORT Value : public Data {
   bool IsFloat64Array() const;
 
   /**
-   * Returns true if this value is a SIMD Float32x4.
-   * This is an experimental feature.
-   */
-  bool IsFloat32x4() const;
-
-  /**
    * Returns true if this value is a DataView.
    */
   bool IsDataView() const;
@@ -2447,6 +2441,7 @@ class V8_EXPORT String : public Name {
 
    private:
     friend class internal::Heap;
+    friend class v8::String;
   };
 
   /**
@@ -4618,8 +4613,11 @@ class V8_EXPORT External : public Value {
   static void CheckCast(v8::Value* obj);
 };
 
-
-#define V8_INTRINSICS_LIST(F) F(ArrayProto_values, array_values_iterator)
+#define V8_INTRINSICS_LIST(F)                    \
+  F(ArrayProto_entries, array_entries_iterator)  \
+  F(ArrayProto_forEach, array_for_each_iterator) \
+  F(ArrayProto_keys, array_keys_iterator)        \
+  F(ArrayProto_values, array_values_iterator)
 
 enum Intrinsic {
 #define V8_DECL_INTRINSIC(name, iname) k##name,
@@ -6806,9 +6804,9 @@ class V8_EXPORT Isolate {
    * for partially dependent handles only.
    */
   template <typename T>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetObjectGroupId(const Persistent<T>& object,
-                                          UniqueId id));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetObjectGroupId(const Persistent<T>& object,
+                                      UniqueId id));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6818,9 +6816,9 @@ class V8_EXPORT Isolate {
    * callback function.
    */
   template <typename T>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetReferenceFromGroup(UniqueId id,
-                                               const Persistent<T>& child));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetReferenceFromGroup(UniqueId id,
+                                           const Persistent<T>& child));
 
   /**
    * Allows the host application to declare implicit references from an object
@@ -6829,9 +6827,9 @@ class V8_EXPORT Isolate {
    * is intended to be used in the before-garbage-collection callback function.
    */
   template <typename T, typename S>
-  V8_DEPRECATE_SOON("Use EmbedderHeapTracer",
-                    void SetReference(const Persistent<T>& parent,
-                                      const Persistent<S>& child));
+  V8_DEPRECATED("Use EmbedderHeapTracer",
+                void SetReference(const Persistent<T>& parent,
+                                  const Persistent<S>& child));
 
   typedef void (*GCCallback)(Isolate* isolate, GCType type,
                              GCCallbackFlags flags);
@@ -8491,11 +8489,11 @@ class Internals {
   static const int kNodeIsIndependentShift = 3;
   static const int kNodeIsActiveShift = 4;
 
-  static const int kJSApiObjectType = 0xbb;
-  static const int kJSObjectType = 0xbc;
+  static const int kJSApiObjectType = 0xba;
+  static const int kJSObjectType = 0xbb;
   static const int kFirstNonstringType = 0x80;
-  static const int kOddballType = 0x83;
-  static const int kForeignType = 0x87;
+  static const int kOddballType = 0x82;
+  static const int kForeignType = 0x86;
 
   static const int kUndefinedOddballKind = 5;
   static const int kNullOddballKind = 3;
@@ -9079,7 +9077,7 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
 }
 
 void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
-  Set(String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+  Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
       value);
 }

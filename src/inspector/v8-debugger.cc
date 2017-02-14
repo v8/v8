@@ -42,6 +42,100 @@ V8DebuggerAgentImpl* agentForScript(V8InspectorImpl* inspector,
   return inspector->enabledDebuggerAgentForGroup(contextGroupId);
 }
 
+v8::MaybeLocal<v8::Array> collectionsEntries(v8::Local<v8::Context> context,
+                                             v8::Local<v8::Value> value) {
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::Array> entries;
+  bool isKeyValue = false;
+  if (!v8::debug::EntriesPreview(isolate, value, &isKeyValue).ToLocal(&entries))
+    return v8::MaybeLocal<v8::Array>();
+
+  v8::Local<v8::Array> wrappedEntries = v8::Array::New(isolate);
+  CHECK(!isKeyValue || wrappedEntries->Length() % 2 == 0);
+  if (!wrappedEntries->SetPrototype(context, v8::Null(isolate))
+           .FromMaybe(false))
+    return v8::MaybeLocal<v8::Array>();
+  for (uint32_t i = 0; i < entries->Length(); i += isKeyValue ? 2 : 1) {
+    v8::Local<v8::Value> item;
+    if (!entries->Get(context, i).ToLocal(&item)) continue;
+    v8::Local<v8::Value> value;
+    if (isKeyValue && !entries->Get(context, i + 1).ToLocal(&value)) continue;
+    v8::Local<v8::Object> wrapper = v8::Object::New(isolate);
+    if (!wrapper->SetPrototype(context, v8::Null(isolate)).FromMaybe(false))
+      continue;
+    createDataProperty(
+        context, wrapper,
+        toV8StringInternalized(isolate, isKeyValue ? "key" : "value"), item);
+    if (isKeyValue) {
+      createDataProperty(context, wrapper,
+                         toV8StringInternalized(isolate, "value"), value);
+    }
+    createDataProperty(context, wrappedEntries, wrappedEntries->Length(),
+                       wrapper);
+  }
+  if (!markArrayEntriesAsInternal(context, wrappedEntries,
+                                  V8InternalValueType::kEntry)) {
+    return v8::MaybeLocal<v8::Array>();
+  }
+  return wrappedEntries;
+}
+
+v8::MaybeLocal<v8::Object> buildLocation(v8::Local<v8::Context> context,
+                                         int scriptId, int lineNumber,
+                                         int columnNumber) {
+  if (scriptId == v8::UnboundScript::kNoScriptId)
+    return v8::MaybeLocal<v8::Object>();
+  if (lineNumber == v8::Function::kLineOffsetNotFound ||
+      columnNumber == v8::Function::kLineOffsetNotFound) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::Local<v8::Object> location = v8::Object::New(isolate);
+  if (!location->SetPrototype(context, v8::Null(isolate)).FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!createDataProperty(context, location,
+                          toV8StringInternalized(isolate, "scriptId"),
+                          toV8String(isolate, String16::fromInteger(scriptId)))
+           .FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!createDataProperty(context, location,
+                          toV8StringInternalized(isolate, "lineNumber"),
+                          v8::Integer::New(isolate, lineNumber))
+           .FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!createDataProperty(context, location,
+                          toV8StringInternalized(isolate, "columnNumber"),
+                          v8::Integer::New(isolate, columnNumber))
+           .FromMaybe(false)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  if (!markAsInternal(context, location, V8InternalValueType::kLocation)) {
+    return v8::MaybeLocal<v8::Object>();
+  }
+  return location;
+}
+
+v8::MaybeLocal<v8::Object> generatorObjectLocation(
+    v8::Local<v8::Context> context, v8::Local<v8::Value> value) {
+  if (!value->IsGeneratorObject()) return v8::MaybeLocal<v8::Object>();
+  v8::Local<v8::debug::GeneratorObject> generatorObject =
+      v8::debug::GeneratorObject::Cast(value);
+  if (!generatorObject->IsSuspended()) {
+    v8::Local<v8::Function> func = generatorObject->Function();
+    return buildLocation(context, func->ScriptId(), func->GetScriptLineNumber(),
+                         func->GetScriptColumnNumber());
+  }
+  v8::Local<v8::debug::Script> script;
+  if (!generatorObject->Script().ToLocal(&script))
+    return v8::MaybeLocal<v8::Object>();
+  v8::debug::Location suspendedLocation = generatorObject->SuspendedLocation();
+  return buildLocation(context, script->Id(), suspendedLocation.GetLineNumber(),
+                       suspendedLocation.GetColumnNumber());
+}
+
 }  // namespace
 
 static bool inLiveEditScope = false;
@@ -152,6 +246,7 @@ String16 V8Debugger::setBreakpoint(const ScriptBreakpoint& breakpoint,
                       toV8String(m_isolate, breakpoint.condition))
                 .FromMaybe(false);
   DCHECK(success);
+  USE(success);
 
   v8::Local<v8::Function> setBreakpointFunction = v8::Local<v8::Function>::Cast(
       m_debuggerScript.Get(m_isolate)
@@ -186,6 +281,7 @@ void V8Debugger::removeBreakpoint(const String16& breakpointId) {
                 toV8String(m_isolate, breakpointId))
           .FromMaybe(false);
   DCHECK(success);
+  USE(success);
 
   v8::Local<v8::Function> removeBreakpointFunction =
       v8::Local<v8::Function>::Cast(
@@ -214,25 +310,7 @@ void V8Debugger::setBreakpointsActivated(bool activated) {
     UNREACHABLE();
     return;
   }
-  v8::HandleScope scope(m_isolate);
-  v8::Local<v8::Context> context = debuggerContext();
-  v8::Context::Scope contextScope(context);
-
-  v8::Local<v8::Object> info = v8::Object::New(m_isolate);
-  bool success = false;
-  success = info->Set(context, toV8StringInternalized(m_isolate, "enabled"),
-                      v8::Boolean::New(m_isolate, activated))
-                .FromMaybe(false);
-  DCHECK(success);
-  v8::Local<v8::Function> setBreakpointsActivated =
-      v8::Local<v8::Function>::Cast(
-          m_debuggerScript.Get(m_isolate)
-              ->Get(context, toV8StringInternalized(m_isolate,
-                                                    "setBreakpointsActivated"))
-              .ToLocalChecked());
-  v8::debug::Call(debuggerContext(), setBreakpointsActivated, info)
-      .ToLocalChecked();
-
+  v8::debug::SetBreakPointsActive(m_isolate, activated);
   m_breakpointsActivated = activated;
 }
 
@@ -250,7 +328,7 @@ void V8Debugger::setPauseOnExceptionsState(
 }
 
 void V8Debugger::setPauseOnNextStatement(bool pause) {
-  if (m_runningNestedMessageLoop) return;
+  if (isPaused()) return;
   if (pause)
     v8::debug::DebugBreak(m_isolate);
   else
@@ -263,15 +341,8 @@ bool V8Debugger::canBreakProgram() {
 }
 
 void V8Debugger::breakProgram() {
-  if (isPaused()) {
-    DCHECK(!m_runningNestedMessageLoop);
-    v8::Local<v8::Value> exception;
-    v8::Local<v8::Array> hitBreakpoints;
-    handleProgramBreak(m_pausedContext, m_executionState, exception,
-                       hitBreakpoints);
-    return;
-  }
-
+  // Don't allow nested breaks.
+  if (isPaused()) return;
   if (!canBreakProgram()) return;
 
   v8::HandleScope scope(m_isolate);
@@ -410,27 +481,14 @@ Response V8Debugger::setScriptSource(
 }
 
 JavaScriptCallFrames V8Debugger::currentCallFrames(int limit) {
-  if (!m_isolate->InContext()) return JavaScriptCallFrames();
+  if (!isPaused()) return JavaScriptCallFrames();
   v8::Local<v8::Value> currentCallFramesV8;
-  if (m_executionState.IsEmpty()) {
-    v8::Local<v8::Function> currentCallFramesFunction =
-        v8::Local<v8::Function>::Cast(
-            m_debuggerScript.Get(m_isolate)
-                ->Get(debuggerContext(),
-                      toV8StringInternalized(m_isolate, "currentCallFrames"))
-                .ToLocalChecked());
-    if (!v8::debug::Call(debuggerContext(), currentCallFramesFunction,
-                         v8::Integer::New(m_isolate, limit))
-             .ToLocal(&currentCallFramesV8))
-      return JavaScriptCallFrames();
-  } else {
-    v8::Local<v8::Value> argv[] = {m_executionState,
-                                   v8::Integer::New(m_isolate, limit)};
-    if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv, true)
-             .ToLocal(&currentCallFramesV8))
-      return JavaScriptCallFrames();
+  v8::Local<v8::Value> argv[] = {m_executionState,
+                                 v8::Integer::New(m_isolate, limit)};
+  if (!callDebuggerMethod("currentCallFrames", arraysize(argv), argv, true)
+           .ToLocal(&currentCallFramesV8)) {
+    return JavaScriptCallFrames();
   }
-  DCHECK(!currentCallFramesV8.IsEmpty());
   if (!currentCallFramesV8->IsArray()) return JavaScriptCallFrames();
   v8::Local<v8::Array> callFramesArray = currentCallFramesV8.As<v8::Array>();
   JavaScriptCallFrames callFrames;
@@ -471,11 +529,11 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
                                     v8::Local<v8::Array> hitBreakpointNumbers,
                                     bool isPromiseRejection, bool isUncaught) {
   // Don't allow nested breaks.
-  if (m_runningNestedMessageLoop) return;
+  if (isPaused()) return;
 
   V8DebuggerAgentImpl* agent = m_inspector->enabledDebuggerAgentForGroup(
       m_inspector->contextGroupId(pausedContext));
-  if (!agent) return;
+  if (!agent || (agent->skipAllPauses() && !m_scheduledOOMBreak)) return;
 
   std::vector<String16> breakpointIds;
   if (!hitBreakpointNumbers.IsEmpty()) {
@@ -491,24 +549,23 @@ void V8Debugger::handleProgramBreak(v8::Local<v8::Context> pausedContext,
 
   m_pausedContext = pausedContext;
   m_executionState = executionState;
-  bool shouldPause =
-      agent->didPause(pausedContext, exception, breakpointIds,
-                      isPromiseRejection, isUncaught, m_scheduledOOMBreak);
-  if (shouldPause) {
-    m_runningNestedMessageLoop = true;
-    int groupId = m_inspector->contextGroupId(pausedContext);
-    DCHECK(groupId);
+  m_runningNestedMessageLoop = true;
+  agent->didPause(InspectedContext::contextId(pausedContext), exception,
+                  breakpointIds, isPromiseRejection, isUncaught,
+                  m_scheduledOOMBreak);
+  int groupId = m_inspector->contextGroupId(pausedContext);
+  DCHECK(groupId);
+  {
     v8::Context::Scope scope(pausedContext);
     v8::Local<v8::Context> context = m_isolate->GetCurrentContext();
     CHECK(!context.IsEmpty() &&
           context != v8::debug::GetDebugContext(m_isolate));
     m_inspector->client()->runMessageLoopOnPause(groupId);
-    // The agent may have been removed in the nested loop.
-    agent = m_inspector->enabledDebuggerAgentForGroup(
-        m_inspector->contextGroupId(pausedContext));
-    if (agent) agent->didContinue();
     m_runningNestedMessageLoop = false;
   }
+  // The agent may have been removed in the nested loop.
+  agent = m_inspector->enabledDebuggerAgentForGroup(groupId);
+  if (agent) agent->didContinue();
   if (m_scheduledOOMBreak) m_isolate->RestoreOriginalHeapLimit();
   m_scheduledOOMBreak = false;
   m_pausedContext.Clear();
@@ -552,7 +609,9 @@ void V8Debugger::BreakProgramRequested(v8::Local<v8::Context> pausedContext,
 void V8Debugger::ExceptionThrown(v8::Local<v8::Context> pausedContext,
                                  v8::Local<v8::Object> execState,
                                  v8::Local<v8::Value> exception,
-                                 bool isPromiseRejection, bool isUncaught) {
+                                 v8::Local<v8::Value> promise,
+                                 bool isUncaught) {
+  bool isPromiseRejection = promise->IsPromise();
   handleProgramBreak(pausedContext, execState, exception,
                      v8::Local<v8::Array>(), isPromiseRejection, isUncaught);
 }
@@ -687,8 +746,11 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
     return v8::MaybeLocal<v8::Array>();
   if (value->IsFunction()) {
     v8::Local<v8::Function> function = value.As<v8::Function>();
-    v8::Local<v8::Value> location = functionLocation(context, function);
-    if (location->IsObject()) {
+    v8::Local<v8::Object> location;
+    if (buildLocation(context, function->ScriptId(),
+                      function->GetScriptLineNumber(),
+                      function->GetScriptColumnNumber())
+            .ToLocal(&location)) {
       createDataProperty(
           context, properties, properties->Length(),
           toV8StringInternalized(m_isolate, "[[FunctionLocation]]"));
@@ -701,26 +763,21 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
                          v8::True(m_isolate));
     }
   }
-  if (!enabled()) return properties;
-  if (value->IsMap() || value->IsWeakMap() || value->IsSet() ||
-      value->IsWeakSet() || value->IsSetIterator() || value->IsMapIterator()) {
-    v8::Local<v8::Value> entries =
-        collectionEntries(context, v8::Local<v8::Object>::Cast(value));
-    if (entries->IsArray()) {
-      createDataProperty(context, properties, properties->Length(),
-                         toV8StringInternalized(m_isolate, "[[Entries]]"));
-      createDataProperty(context, properties, properties->Length(), entries);
-    }
+  v8::Local<v8::Array> entries;
+  if (collectionsEntries(context, value).ToLocal(&entries)) {
+    createDataProperty(context, properties, properties->Length(),
+                       toV8StringInternalized(m_isolate, "[[Entries]]"));
+    createDataProperty(context, properties, properties->Length(), entries);
   }
   if (value->IsGeneratorObject()) {
-    v8::Local<v8::Value> location =
-        generatorObjectLocation(context, v8::Local<v8::Object>::Cast(value));
-    if (location->IsObject()) {
+    v8::Local<v8::Object> location;
+    if (generatorObjectLocation(context, value).ToLocal(&location)) {
       createDataProperty(
           context, properties, properties->Length(),
           toV8StringInternalized(m_isolate, "[[GeneratorLocation]]"));
       createDataProperty(context, properties, properties->Length(), location);
     }
+    if (!enabled()) return properties;
     v8::Local<v8::Value> scopes;
     if (generatorScopes(context, value).ToLocal(&scopes)) {
       createDataProperty(context, properties, properties->Length(),
@@ -728,6 +785,7 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
       createDataProperty(context, properties, properties->Length(), scopes);
     }
   }
+  if (!enabled()) return properties;
   if (value->IsFunction()) {
     v8::Local<v8::Function> function = value.As<v8::Function>();
     v8::Local<v8::Value> boundFunction = function->GetBoundFunction();
@@ -741,99 +799,6 @@ v8::MaybeLocal<v8::Array> V8Debugger::internalProperties(
   }
   return properties;
 }
-
-v8::Local<v8::Value> V8Debugger::collectionEntries(
-    v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
-  if (!enabled()) {
-    UNREACHABLE();
-    return v8::Undefined(m_isolate);
-  }
-  v8::Local<v8::Value> argv[] = {object};
-  v8::Local<v8::Value> entriesValue;
-  if (!callDebuggerMethod("getCollectionEntries", 1, argv, true)
-           .ToLocal(&entriesValue) ||
-      !entriesValue->IsArray())
-    return v8::Undefined(m_isolate);
-
-  v8::Local<v8::Array> entries = entriesValue.As<v8::Array>();
-  v8::Local<v8::Array> copiedArray =
-      v8::Array::New(m_isolate, entries->Length());
-  if (!copiedArray->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false))
-    return v8::Undefined(m_isolate);
-  for (uint32_t i = 0; i < entries->Length(); ++i) {
-    v8::Local<v8::Value> item;
-    if (!entries->Get(debuggerContext(), i).ToLocal(&item))
-      return v8::Undefined(m_isolate);
-    v8::Local<v8::Value> copied;
-    if (!copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
-                                      item)
-             .ToLocal(&copied))
-      return v8::Undefined(m_isolate);
-    if (!createDataProperty(context, copiedArray, i, copied).FromMaybe(false))
-      return v8::Undefined(m_isolate);
-  }
-  if (!markArrayEntriesAsInternal(context,
-                                  v8::Local<v8::Array>::Cast(copiedArray),
-                                  V8InternalValueType::kEntry))
-    return v8::Undefined(m_isolate);
-  return copiedArray;
-}
-
-v8::Local<v8::Value> V8Debugger::generatorObjectLocation(
-    v8::Local<v8::Context> context, v8::Local<v8::Object> object) {
-  if (!enabled()) {
-    UNREACHABLE();
-    return v8::Null(m_isolate);
-  }
-  v8::Local<v8::Value> argv[] = {object};
-  v8::Local<v8::Value> location;
-  v8::Local<v8::Value> copied;
-  if (!callDebuggerMethod("getGeneratorObjectLocation", 1, argv, true)
-           .ToLocal(&location) ||
-      !copyValueFromDebuggerContext(m_isolate, debuggerContext(), context,
-                                    location)
-           .ToLocal(&copied) ||
-      !copied->IsObject())
-    return v8::Null(m_isolate);
-  if (!markAsInternal(context, v8::Local<v8::Object>::Cast(copied),
-                      V8InternalValueType::kLocation))
-    return v8::Null(m_isolate);
-  return copied;
-}
-
-v8::Local<v8::Value> V8Debugger::functionLocation(
-    v8::Local<v8::Context> context, v8::Local<v8::Function> function) {
-  int scriptId = function->ScriptId();
-  if (scriptId == v8::UnboundScript::kNoScriptId) return v8::Null(m_isolate);
-  int lineNumber = function->GetScriptLineNumber();
-  int columnNumber = function->GetScriptColumnNumber();
-  if (lineNumber == v8::Function::kLineOffsetNotFound ||
-      columnNumber == v8::Function::kLineOffsetNotFound)
-    return v8::Null(m_isolate);
-  v8::Local<v8::Object> location = v8::Object::New(m_isolate);
-  if (!location->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!createDataProperty(
-           context, location, toV8StringInternalized(m_isolate, "scriptId"),
-           toV8String(m_isolate, String16::fromInteger(scriptId)))
-           .FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!createDataProperty(context, location,
-                          toV8StringInternalized(m_isolate, "lineNumber"),
-                          v8::Integer::New(m_isolate, lineNumber))
-           .FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!createDataProperty(context, location,
-                          toV8StringInternalized(m_isolate, "columnNumber"),
-                          v8::Integer::New(m_isolate, columnNumber))
-           .FromMaybe(false))
-    return v8::Null(m_isolate);
-  if (!markAsInternal(context, location, V8InternalValueType::kLocation))
-    return v8::Null(m_isolate);
-  return location;
-}
-
-bool V8Debugger::isPaused() { return !m_pausedContext.IsEmpty(); }
 
 std::unique_ptr<V8StackTraceImpl> V8Debugger::createStackTrace(
     v8::Local<v8::StackTrace> stackTrace) {

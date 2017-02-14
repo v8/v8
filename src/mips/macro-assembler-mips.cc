@@ -4746,32 +4746,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bind(&done);
 }
 
-
-void MacroAssembler::TryGetFunctionPrototype(Register function, Register result,
-                                             Register scratch, Label* miss) {
-  // Get the prototype or initial map from the function.
-  lw(result,
-     FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  LoadRoot(t8, Heap::kTheHoleValueRootIndex);
-  Branch(miss, eq, result, Operand(t8));
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  GetObjectType(result, scratch, scratch);
-  Branch(&done, ne, scratch, Operand(MAP_TYPE));
-
-  // Get the prototype from the initial map.
-  lw(result, FieldMemOperand(result, Map::kPrototypeOffset));
-
-  // All done.
-  bind(&done);
-}
-
-
 void MacroAssembler::GetObjectType(Register object,
                                    Register map,
                                    Register type_reg) {
@@ -5349,10 +5323,10 @@ void MacroAssembler::Prologue(bool code_pre_aging) {
   }
 }
 
-
-void MacroAssembler::EmitLoadTypeFeedbackVector(Register vector) {
+void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
   lw(vector, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   lw(vector, FieldMemOperand(vector, JSFunction::kFeedbackVectorOffset));
+  lw(vector, FieldMemOperand(vector, Cell::kValueOffset));
 }
 
 
@@ -5534,21 +5508,6 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   }
   addiu(sp, sp, 8);
 }
-
-
-void MacroAssembler::InitializeNewString(Register string,
-                                         Register length,
-                                         Heap::RootListIndex map_index,
-                                         Register scratch1,
-                                         Register scratch2) {
-  sll(scratch1, length, kSmiTagSize);
-  LoadRoot(scratch2, map_index);
-  sw(scratch1, FieldMemOperand(string, String::kLengthOffset));
-  li(scratch1, Operand(String::kEmptyHashField));
-  sw(scratch2, FieldMemOperand(string, HeapObject::kMapOffset));
-  sw(scratch1, FieldMemOperand(string, String::kHashFieldOffset));
-}
-
 
 int MacroAssembler::ActivationFrameAlignment() {
 #if V8_HOST_ARCH_MIPS

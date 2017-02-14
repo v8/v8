@@ -9,7 +9,6 @@
 #include "src/global-handles.h"
 #include "src/handles.h"
 #include "src/isolate.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

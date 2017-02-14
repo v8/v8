@@ -21,6 +21,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         next_id_(BailoutId::FirstUsable().ToInt()),
         yield_count_(0),
         properties_(zone),
+        language_mode_(SLOPPY),
         slot_cache_(zone),
         disable_crankshaft_reason_(kNoReason),
         dont_optimize_reason_(kNoReason),
@@ -36,10 +37,12 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   AST_NODE_LIST(DEFINE_VISIT)
 #undef DEFINE_VISIT
 
+  void VisitVariableProxy(VariableProxy* node, TypeofMode typeof_mode);
   void VisitVariableProxyReference(VariableProxy* node);
   void VisitPropertyReference(Property* node);
   void VisitReference(Expression* expr);
 
+  void VisitStatementsAndDeclarations(Block* node);
   void VisitStatements(ZoneList<Statement*>* statements);
   void VisitDeclarations(Declaration::List* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
@@ -66,8 +69,22 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   template <typename Node>
   void ReserveFeedbackSlots(Node* node) {
-    node->AssignFeedbackVectorSlots(properties_.get_spec(), &slot_cache_);
+    node->AssignFeedbackSlots(properties_.get_spec(), language_mode_,
+                              &slot_cache_);
   }
+
+  class LanguageModeScope {
+   public:
+    LanguageModeScope(AstNumberingVisitor* visitor, LanguageMode language_mode)
+        : visitor_(visitor), outer_language_mode_(visitor->language_mode_) {
+      visitor_->language_mode_ = language_mode;
+    }
+    ~LanguageModeScope() { visitor_->language_mode_ = outer_language_mode_; }
+
+   private:
+    AstNumberingVisitor* visitor_;
+    LanguageMode outer_language_mode_;
+  };
 
   BailoutReason dont_optimize_reason() const { return dont_optimize_reason_; }
 
@@ -78,8 +95,9 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   int next_id_;
   int yield_count_;
   AstProperties properties_;
-  // The slot cache allows us to reuse certain feedback vector slots.
-  FeedbackVectorSlotCache slot_cache_;
+  LanguageMode language_mode_;
+  // The slot cache allows us to reuse certain feedback slots.
+  FeedbackSlotCache slot_cache_;
   BailoutReason disable_crankshaft_reason_;
   BailoutReason dont_optimize_reason_;
   HandlerTable::CatchPrediction catch_prediction_;
@@ -170,10 +188,14 @@ void AstNumberingVisitor::VisitVariableProxyReference(VariableProxy* node) {
   node->set_base_id(ReserveIdRange(VariableProxy::num_ids()));
 }
 
+void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node,
+                                             TypeofMode typeof_mode) {
+  VisitVariableProxyReference(node);
+  node->AssignFeedbackSlots(properties_.get_spec(), typeof_mode, &slot_cache_);
+}
 
 void AstNumberingVisitor::VisitVariableProxy(VariableProxy* node) {
-  VisitVariableProxyReference(node);
-  ReserveFeedbackSlots(node);
+  VisitVariableProxy(node, NOT_INSIDE_TYPEOF);
 }
 
 
@@ -212,6 +234,9 @@ void AstNumberingVisitor::VisitExpressionStatement(ExpressionStatement* node) {
 void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
   IncrementNodeCount();
   Visit(node->expression());
+
+  DCHECK(!node->is_async_return() ||
+         properties_.flags() & AstProperties::kMustUseIgnitionTurbo);
 }
 
 
@@ -235,7 +260,12 @@ void AstNumberingVisitor::VisitThrow(Throw* node) {
 void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(UnaryOperation::num_ids()));
-  Visit(node->expression());
+  if ((node->op() == Token::TYPEOF) && node->expression()->IsVariableProxy()) {
+    VariableProxy* proxy = node->expression()->AsVariableProxy();
+    VisitVariableProxy(proxy, INSIDE_TYPEOF);
+  } else {
+    Visit(node->expression());
+  }
 }
 
 
@@ -250,10 +280,22 @@ void AstNumberingVisitor::VisitCountOperation(CountOperation* node) {
 void AstNumberingVisitor::VisitBlock(Block* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Block::num_ids()));
-  if (node->scope() != NULL) VisitDeclarations(node->scope()->declarations());
-  VisitStatements(node->statements());
+  Scope* scope = node->scope();
+  // TODO(ishell): remove scope->NeedsContext() condition once v8:5927 is fixed.
+  // Current logic mimics what BytecodeGenerator::VisitBlock() does.
+  if (scope != NULL && scope->NeedsContext()) {
+    LanguageModeScope language_mode_scope(this, scope->language_mode());
+    VisitStatementsAndDeclarations(node);
+  } else {
+    VisitStatementsAndDeclarations(node);
+  }
 }
 
+void AstNumberingVisitor::VisitStatementsAndDeclarations(Block* node) {
+  Scope* scope = node->scope();
+  if (scope) VisitDeclarations(scope->declarations());
+  VisitStatements(node->statements());
+}
 
 void AstNumberingVisitor::VisitFunctionDeclaration(FunctionDeclaration* node) {
   IncrementNodeCount();
@@ -594,15 +636,16 @@ void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(FunctionLiteral::num_ids()));
   if (node->ShouldEagerCompile()) {
+    if (eager_literals_) {
+      eager_literals_->Add(new (zone())
+                               ThreadedListZoneEntry<FunctionLiteral*>(node));
+    }
+
     // If the function literal is being eagerly compiled, recurse into the
     // declarations and body of the function literal.
     if (!AstNumbering::Renumber(stack_limit_, zone_, node, eager_literals_)) {
       SetStackOverflow();
       return;
-    }
-    if (eager_literals_) {
-      eager_literals_->Add(new (zone())
-                               ThreadedListZoneEntry<FunctionLiteral*>(node));
     }
   }
   ReserveFeedbackSlots(node);
@@ -640,6 +683,8 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   if (IsClassConstructor(node->kind())) {
     DisableFullCodegenAndCrankshaft(kClassConstructorFunction);
   }
+
+  LanguageModeScope language_mode_scope(this, node->language_mode());
 
   VisitDeclarations(scope->declarations());
   VisitStatements(node->body());

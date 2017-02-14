@@ -3,8 +3,11 @@
 // found in the LICENSE file.
 #include "src/runtime/runtime-utils.h"
 
+#include "src/arguments.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/elements.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -44,7 +47,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
     isolate->debug()->OnAsyncTaskEvent(
         debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise));
+        isolate->debug()->NextAsyncTaskId(promise), 0);
   }
   PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
   return isolate->heap()->undefined_value();

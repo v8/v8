@@ -12,48 +12,6 @@
 namespace v8 {
 namespace internal {
 
-// ----------------------------------------------------------------------------
-// Static IC stub generators.
-//
-
-#define __ ACCESS_MASM(masm)
-
-static void StoreIC_PushArgs(MacroAssembler* masm) {
-  Register receiver = StoreWithVectorDescriptor::ReceiverRegister();
-  Register name = StoreWithVectorDescriptor::NameRegister();
-
-  STATIC_ASSERT(StoreWithVectorDescriptor::kStackArgumentsCount == 3);
-  // Current stack layout:
-  // - esp[12]   -- value
-  // - esp[8]    -- slot
-  // - esp[4]    -- vector
-  // - esp[0]    -- return address
-
-  Register return_address = StoreWithVectorDescriptor::SlotRegister();
-  __ pop(return_address);
-  __ push(receiver);
-  __ push(name);
-  __ push(return_address);
-}
-
-void KeyedStoreIC::GenerateMiss(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Miss);
-}
-
-void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
-  // Return address is on the stack.
-  StoreIC_PushArgs(masm);
-
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kKeyedStoreIC_Slow);
-}
-
-#undef __
-
 
 Condition CompareIC::ComputeCondition(Token::Value op) {
   switch (op) {
