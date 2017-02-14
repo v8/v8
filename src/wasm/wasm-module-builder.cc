@@ -62,7 +62,7 @@ WasmFunctionBuilder::WasmFunctionBuilder(WasmModuleBuilder* builder)
       direct_calls_(builder->zone()),
       asm_offsets_(builder->zone(), 8) {}
 
-void WasmFunctionBuilder::EmitVarInt(uint32_t val) {
+void WasmFunctionBuilder::EmitVarUint(uint32_t val) {
   byte buffer[8];
   byte* ptr = buffer;
   LEBHelper::write_u32v(&ptr, val);
@@ -83,15 +83,15 @@ uint32_t WasmFunctionBuilder::AddLocal(ValueType type) {
 }
 
 void WasmFunctionBuilder::EmitGetLocal(uint32_t local_index) {
-  EmitWithVarInt(kExprGetLocal, local_index);
+  EmitWithVarUint(kExprGetLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitSetLocal(uint32_t local_index) {
-  EmitWithVarInt(kExprSetLocal, local_index);
+  EmitWithVarUint(kExprSetLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitTeeLocal(uint32_t local_index) {
-  EmitWithVarInt(kExprTeeLocal, local_index);
+  EmitWithVarUint(kExprTeeLocal, local_index);
 }
 
 void WasmFunctionBuilder::EmitCode(const byte* code, uint32_t code_size) {
@@ -116,10 +116,10 @@ void WasmFunctionBuilder::EmitWithU8U8(WasmOpcode opcode, const byte imm1,
   body_.push_back(imm2);
 }
 
-void WasmFunctionBuilder::EmitWithVarInt(WasmOpcode opcode,
-                                         uint32_t immediate) {
+void WasmFunctionBuilder::EmitWithVarUint(WasmOpcode opcode,
+                                          uint32_t immediate) {
   body_.push_back(static_cast<byte>(opcode));
-  EmitVarInt(immediate);
+  EmitVarUint(immediate);
 }
 
 void WasmFunctionBuilder::EmitI32Const(int32_t value) {
