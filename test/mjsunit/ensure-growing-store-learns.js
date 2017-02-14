@@ -43,7 +43,7 @@
 
   // Clearing feedback for the StoreIC in foo is important for runs with
   // flag --stress-opt.
-  %ClearFunctionTypeFeedback(foo);
+  %ClearFunctionFeedback(foo);
 })();
 
 
@@ -80,5 +80,5 @@
   assertTrue(a.length * 4 > (1024 * 1024));
   assertOptimized(foo2);
 
-  %ClearFunctionTypeFeedback(foo2);
+  %ClearFunctionFeedback(foo2);
 })();

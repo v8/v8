@@ -563,7 +563,7 @@ namespace internal {
   F(GetOptimizationCount, 1, 1)               \
   F(GetUndetectable, 0, 1)                    \
   F(GetCallable, 0, 1)                        \
-  F(ClearFunctionTypeFeedback, 1, 1)          \
+  F(ClearFunctionFeedback, 1, 1)              \
   F(CheckWasmWrapperElision, 2, 1)            \
   F(NotifyContextDisposed, 0, 1)              \
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \

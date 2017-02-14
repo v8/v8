@@ -108,7 +108,7 @@ test_base(dictionary_map_array, -2, true);
 assertUnoptimized(test_base);
 
 // Forget about the dictionary_map_array's map.
-%ClearFunctionTypeFeedback(test_base);
+%ClearFunctionFeedback(test_base);
 
 test_base(a, 5, true);
 test_base(a, 6, true);

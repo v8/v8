@@ -350,7 +350,7 @@ assertOptimized(instanceof_check);
 // to be monomorphic on first call. Only after crankshafting do we introduce
 // realmBArray. This should deopt the method.
   %DeoptimizeFunction(instanceof_check);
-  %ClearFunctionTypeFeedback(instanceof_check);
+  %ClearFunctionFeedback(instanceof_check);
 instanceof_check(Array);
 instanceof_check(Array);
   %OptimizeFunctionOnNextCall(instanceof_check);
