@@ -9077,7 +9077,7 @@ Local<Boolean> Boolean::New(Isolate* isolate, bool value) {
 }
 
 void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
-  Set(String::NewFromUtf8(isolate, name, NewStringType::kNormal)
+  Set(String::NewFromUtf8(isolate, name, NewStringType::kInternalized)
           .ToLocalChecked(),
       value);
 }
