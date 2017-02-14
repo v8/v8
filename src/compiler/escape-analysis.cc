@@ -253,10 +253,14 @@ bool VirtualObject::UpdateFrom(const VirtualObject& other) {
 class VirtualState : public ZoneObject {
  public:
   VirtualState(Node* owner, Zone* zone, size_t size)
-      : info_(size, nullptr, zone), owner_(owner) {}
+      : info_(size, nullptr, zone),
+        initialized_(static_cast<int>(size), zone),
+        owner_(owner) {}
 
   VirtualState(Node* owner, const VirtualState& state)
       : info_(state.info_.size(), nullptr, state.info_.get_allocator().zone()),
+        initialized_(state.initialized_.length(),
+                     state.info_.get_allocator().zone()),
         owner_(owner) {
     for (size_t i = 0; i < info_.size(); ++i) {
       if (state.info_[i]) {
@@ -281,6 +285,7 @@ class VirtualState : public ZoneObject {
 
  private:
   ZoneVector<VirtualObject*> info_;
+  BitVector initialized_;
   Node* owner_;
 
   DISALLOW_COPY_AND_ASSIGN(VirtualState);
@@ -376,6 +381,7 @@ VirtualObject* VirtualState::VirtualObjectFromAlias(size_t alias) {
 
 void VirtualState::SetVirtualObject(Alias alias, VirtualObject* obj) {
   info_[alias] = obj;
+  if (obj) initialized_.Add(alias);
 }
 
 bool VirtualState::UpdateFrom(VirtualState* from, Zone* zone) {
@@ -528,7 +534,8 @@ bool VirtualState::MergeFrom(MergeCache* cache, Zone* zone, Graph* graph,
         fields = std::min(obj->field_count(), fields);
       }
     }
-    if (cache->objects().size() == cache->states().size()) {
+    if (cache->objects().size() == cache->states().size() &&
+        (mergeObject || !initialized_.Contains(alias))) {
       bool initialMerge = false;
       if (!mergeObject) {
         initialMerge = true;
