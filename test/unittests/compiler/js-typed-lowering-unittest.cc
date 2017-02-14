@@ -732,14 +732,10 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
       Node* context = UndefinedConstant();
       Node* effect = graph()->start();
       Node* control = graph()->start();
-      // TODO(mstarzinger): Once the effect-control-linearizer provides a frame
-      // state we can get rid of this checkpoint again. The reducer won't care.
-      Node* checkpoint = graph()->NewNode(common()->Checkpoint(),
-                                          EmptyFrameState(), effect, control);
       VectorSlotPair feedback;
       const Operator* op = javascript()->StoreProperty(language_mode, feedback);
       Node* node = graph()->NewNode(op, base, key, value, context,
-                                    EmptyFrameState(), checkpoint, control);
+                                    EmptyFrameState(), effect, control);
       Reduction r = Reduce(node);
 
       Matcher<Node*> offset_matcher =
@@ -757,7 +753,7 @@ TEST_F(JSTypedLoweringTest, JSStorePropertyToExternalTypedArrayWithConversion) {
               BufferAccess(type),
               IsPointerConstant(bit_cast<intptr_t>(&backing_store[0])),
               offset_matcher, IsNumberConstant(array->byte_length()->Number()),
-              value_matcher, checkpoint, control));
+              value_matcher, effect, control));
     }
   }
 }
