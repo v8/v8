@@ -1927,12 +1927,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(equal, instr->TrueLabel(chunk_));
       }
 
-      if (expected & ToBooleanHint::kSimdValue) {
-        // SIMD value -> true.
-        __ CmpInstanceType(map, SIMD128_VALUE_TYPE);
-        __ j(equal, instr->TrueLabel(chunk_));
-      }
-
       if (expected & ToBooleanHint::kHeapNumber) {
         // heap number -> false iff +0, -0, or NaN.
         Label not_heap_number;
@@ -4913,18 +4907,6 @@ Condition LCodeGen::EmitTypeofIs(LTypeofIsAndBranch* instr, Register input) {
     __ test_b(FieldOperand(input, Map::kBitFieldOffset),
               Immediate((1 << Map::kIsCallable) | (1 << Map::kIsUndetectable)));
     final_branch_condition = zero;
-
-// clang-format off
-#define SIMD128_TYPE(TYPE, Type, type, lane_count, lane_type)         \
-  } else if (String::Equals(type_name, factory()->type##_string())) { \
-    __ JumpIfSmi(input, false_label, false_distance);                 \
-    __ cmp(FieldOperand(input, HeapObject::kMapOffset),               \
-           factory()->type##_map());                                  \
-    final_branch_condition = equal;
-  SIMD128_TYPES(SIMD128_TYPE)
-#undef SIMD128_TYPE
-    // clang-format on
-
   } else {
     __ jmp(false_label, false_distance);
   }

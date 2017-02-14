@@ -3929,7 +3929,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case SHORT_EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case SYMBOL_TYPE:
     case ODDBALL_TYPE:
-    case SIMD128_VALUE_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_API_OBJECT_TYPE:

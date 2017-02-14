@@ -488,21 +488,6 @@ void AllocateHeapNumberStub::GenerateAssembly(
   assembler.Return(result);
 }
 
-#define SIMD128_GEN_ASM(TYPE, Type, type, lane_count, lane_type)           \
-  void Allocate##Type##Stub::GenerateAssembly(                             \
-      compiler::CodeAssemblerState* state) const {                         \
-    CodeStubAssembler assembler(state);                                    \
-    compiler::Node* result =                                               \
-        assembler.Allocate(Simd128Value::kSize, CodeStubAssembler::kNone); \
-    compiler::Node* map = assembler.LoadMap(result);                       \
-    assembler.StoreNoWriteBarrier(                                         \
-        MachineRepresentation::kTagged, map,                               \
-        assembler.HeapConstant(isolate()->factory()->type##_map()));       \
-    assembler.Return(result);                                              \
-  }
-SIMD128_TYPES(SIMD128_GEN_ASM)
-#undef SIMD128_GEN_ASM
-
 void StringLengthStub::GenerateAssembly(
     compiler::CodeAssemblerState* state) const {
   CodeStubAssembler assembler(state);
@@ -1960,15 +1945,6 @@ void AllocateHeapNumberStub::InitializeDescriptor(
 }
 
 
-#define SIMD128_INIT_DESC(TYPE, Type, type, lane_count, lane_type) \
-  void Allocate##Type##Stub::InitializeDescriptor(                 \
-      CodeStubDescriptor* descriptor) {                            \
-    descriptor->Initialize(                                        \
-        Runtime::FunctionForId(Runtime::kCreate##Type)->entry);    \
-  }
-SIMD128_TYPES(SIMD128_INIT_DESC)
-#undef SIMD128_INIT_DESC
-
 void ToBooleanICStub::InitializeDescriptor(CodeStubDescriptor* descriptor) {
   descriptor->Initialize(FUNCTION_ADDR(Runtime_ToBooleanIC_Miss));
   descriptor->SetMissHandler(Runtime::kToBooleanIC_Miss);
@@ -2154,9 +2130,6 @@ bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
     new_hints |= ToBooleanHint::kHeapNumber;
     double value = HeapNumber::cast(*object)->value();
     to_boolean_value = value != 0 && !std::isnan(value);
-  } else if (object->IsSimd128Value()) {
-    new_hints |= ToBooleanHint::kSimdValue;
-    to_boolean_value = true;
   } else {
     // We should never see an internal object at runtime here!
     UNREACHABLE();
