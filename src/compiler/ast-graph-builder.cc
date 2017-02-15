@@ -2769,16 +2769,16 @@ Node* AstGraphBuilder::BuildBinaryOp(Node* left, Node* right, Token::Value op,
       js_op = javascript()->Add(hint);
       break;
     case Token::SUB:
-      js_op = javascript()->Subtract(hint);
+      js_op = javascript()->Subtract();
       break;
     case Token::MUL:
-      js_op = javascript()->Multiply(hint);
+      js_op = javascript()->Multiply();
       break;
     case Token::DIV:
-      js_op = javascript()->Divide(hint);
+      js_op = javascript()->Divide();
       break;
     case Token::MOD:
-      js_op = javascript()->Modulus(hint);
+      js_op = javascript()->Modulus();
       break;
     default:
       UNREACHABLE();

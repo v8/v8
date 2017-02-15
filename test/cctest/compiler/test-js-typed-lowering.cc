@@ -264,11 +264,11 @@ TEST(AddNumber1) {
 TEST(NumberBinops) {
   JSTypedLoweringTester R;
   const Operator* ops[] = {
-      R.javascript.Add(R.binop_hints),      R.simplified.NumberAdd(),
-      R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.binop_hints),   R.simplified.NumberDivide(),
-      R.javascript.Modulus(R.binop_hints),  R.simplified.NumberModulus(),
+      R.javascript.Add(R.binop_hints), R.simplified.NumberAdd(),
+      R.javascript.Subtract(),         R.simplified.NumberSubtract(),
+      R.javascript.Multiply(),         R.simplified.NumberMultiply(),
+      R.javascript.Divide(),           R.simplified.NumberDivide(),
+      R.javascript.Modulus(),          R.simplified.NumberModulus(),
   };
 
   for (size_t i = 0; i < arraysize(kNumberTypes); ++i) {
@@ -899,13 +899,13 @@ TEST(RemovePureNumberBinopEffects) {
       R.simplified.NumberEqual(),
       R.javascript.Add(R.binop_hints),
       R.simplified.NumberAdd(),
-      R.javascript.Subtract(R.binop_hints),
+      R.javascript.Subtract(),
       R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.binop_hints),
+      R.javascript.Multiply(),
       R.simplified.NumberMultiply(),
-      R.javascript.Divide(R.binop_hints),
+      R.javascript.Divide(),
       R.simplified.NumberDivide(),
-      R.javascript.Modulus(R.binop_hints),
+      R.javascript.Modulus(),
       R.simplified.NumberModulus(),
       R.javascript.LessThan(R.compare_hints),
       R.simplified.NumberLessThan(),
@@ -931,8 +931,8 @@ TEST(OrderNumberBinopEffects1) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
+      R.javascript.Subtract(), R.simplified.NumberSubtract(),
+      R.javascript.Multiply(), R.simplified.NumberMultiply(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {
@@ -956,9 +956,9 @@ TEST(OrderNumberBinopEffects2) {
   JSTypedLoweringTester R;
 
   const Operator* ops[] = {
-      R.javascript.Add(R.binop_hints),      R.simplified.NumberAdd(),
-      R.javascript.Subtract(R.binop_hints), R.simplified.NumberSubtract(),
-      R.javascript.Multiply(R.binop_hints), R.simplified.NumberMultiply(),
+      R.javascript.Add(R.binop_hints), R.simplified.NumberAdd(),
+      R.javascript.Subtract(),         R.simplified.NumberSubtract(),
+      R.javascript.Multiply(),         R.simplified.NumberMultiply(),
   };
 
   for (size_t j = 0; j < arraysize(ops); j += 2) {

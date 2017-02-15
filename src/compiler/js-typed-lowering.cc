@@ -370,6 +370,25 @@ class JSBinopReduction final {
     return nullptr;
   }
 
+  const Operator* NumberOpFromSpeculativeNumberOp() {
+    switch (node_->opcode()) {
+      case IrOpcode::kSpeculativeNumberAdd:
+        return simplified()->NumberAdd();
+      case IrOpcode::kSpeculativeNumberSubtract:
+        return simplified()->NumberSubtract();
+      case IrOpcode::kSpeculativeNumberMultiply:
+        return simplified()->NumberMultiply();
+      case IrOpcode::kSpeculativeNumberDivide:
+        return simplified()->NumberDivide();
+      case IrOpcode::kSpeculativeNumberModulus:
+        return simplified()->NumberModulus();
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return nullptr;
+  }
+
   const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
     switch (node_->opcode()) {
       case IrOpcode::kJSAdd:
@@ -632,20 +651,22 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
 
 Reduction JSTypedLowering::ReduceNumberBinop(Node* node) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    if (hint == NumberOperationHint::kNumberOrOddball &&
-        r.BothInputsAre(Type::NumberOrOddball())) {
-      r.ConvertInputsToNumber();
-      return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
-    }
-    return r.ChangeToSpeculativeOperator(r.SpeculativeNumberOp(hint),
-                                         Type::Number());
-  }
   if (r.BothInputsAre(Type::PlainPrimitive()) ||
       !(flags() & kDeoptimizationEnabled)) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceSpeculativeNumberBinop(Node* node) {
+  JSBinopReduction r(this, node);
+  NumberOperationHint hint = NumberOperationHintOf(node->op());
+  if (hint == NumberOperationHint::kNumberOrOddball &&
+      r.BothInputsAre(Type::NumberOrOddball())) {
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp(),
+                                  Type::Number());
   }
   return NoChange();
 }
@@ -2473,6 +2494,13 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreContinuation(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
+    // TODO(mstarzinger): Simplified operations hiding in JS-level reducer not
+    // fooling anyone. Consider moving this into a separate reducer.
+    case IrOpcode::kSpeculativeNumberSubtract:
+    case IrOpcode::kSpeculativeNumberMultiply:
+    case IrOpcode::kSpeculativeNumberDivide:
+    case IrOpcode::kSpeculativeNumberModulus:
+      return ReduceSpeculativeNumberBinop(node);
     default:
       break;
   }

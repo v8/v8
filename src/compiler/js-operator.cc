@@ -545,6 +545,10 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(ShiftLeft, Operator::kNoProperties, 2, 1)                   \
   V(ShiftRight, Operator::kNoProperties, 2, 1)                  \
   V(ShiftRightLogical, Operator::kNoProperties, 2, 1)           \
+  V(Subtract, Operator::kNoProperties, 2, 1)                    \
+  V(Multiply, Operator::kNoProperties, 2, 1)                    \
+  V(Divide, Operator::kNoProperties, 2, 1)                      \
+  V(Modulus, Operator::kNoProperties, 2, 1)                     \
   V(ToInteger, Operator::kNoProperties, 1, 1)                   \
   V(ToLength, Operator::kNoProperties, 1, 1)                    \
   V(ToName, Operator::kNoProperties, 1, 1)                      \
@@ -568,12 +572,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(Debugger, Operator::kNoProperties, 0, 0)                    \
   V(GetSuperConstructor, Operator::kNoWrite, 1, 1)
 
-#define BINARY_OP_LIST(V) \
-  V(Add)                  \
-  V(Subtract)             \
-  V(Multiply)             \
-  V(Divide)               \
-  V(Modulus)
+#define BINARY_OP_LIST(V) V(Add)
 
 #define COMPARE_OP_LIST(V)                    \
   V(Equal, Operator::kNoProperties)           \

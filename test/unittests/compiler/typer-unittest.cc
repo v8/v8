@@ -245,22 +245,22 @@ TEST_F(TyperTest, TypeJSAdd) {
 
 
 TEST_F(TyperTest, TypeJSSubtract) {
-  TestBinaryArithOp(javascript_.Subtract(hints_), std::minus<double>());
+  TestBinaryArithOp(javascript_.Subtract(), std::minus<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSMultiply) {
-  TestBinaryArithOp(javascript_.Multiply(hints_), std::multiplies<double>());
+  TestBinaryArithOp(javascript_.Multiply(), std::multiplies<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSDivide) {
-  TestBinaryArithOp(javascript_.Divide(hints_), std::divides<double>());
+  TestBinaryArithOp(javascript_.Divide(), std::divides<double>());
 }
 
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(hints_), modulo);
+  TestBinaryArithOp(javascript_.Modulus(), modulo);
 }
 
 
@@ -366,6 +366,10 @@ TEST_BINARY_MONOTONICITY(BitwiseAnd)
 TEST_BINARY_MONOTONICITY(ShiftLeft)
 TEST_BINARY_MONOTONICITY(ShiftRight)
 TEST_BINARY_MONOTONICITY(ShiftRightLogical)
+TEST_BINARY_MONOTONICITY(Subtract)
+TEST_BINARY_MONOTONICITY(Multiply)
+TEST_BINARY_MONOTONICITY(Divide)
+TEST_BINARY_MONOTONICITY(Modulus)
 #undef TEST_BINARY_MONOTONICITY
 
 #define TEST_BINARY_MONOTONICITY(name)                                   \
@@ -373,10 +377,6 @@ TEST_BINARY_MONOTONICITY(ShiftRightLogical)
     TestBinaryMonotonicity(javascript_.name(BinaryOperationHint::kAny)); \
   }
 TEST_BINARY_MONOTONICITY(Add)
-TEST_BINARY_MONOTONICITY(Subtract)
-TEST_BINARY_MONOTONICITY(Multiply)
-TEST_BINARY_MONOTONICITY(Divide)
-TEST_BINARY_MONOTONICITY(Modulus)
 #undef TEST_BINARY_MONOTONICITY
 
 }  // namespace compiler

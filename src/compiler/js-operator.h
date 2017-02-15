@@ -579,10 +579,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ShiftRight();
   const Operator* ShiftRightLogical();
   const Operator* Add(BinaryOperationHint hint);
-  const Operator* Subtract(BinaryOperationHint hint);
-  const Operator* Multiply(BinaryOperationHint hint);
-  const Operator* Divide(BinaryOperationHint hint);
-  const Operator* Modulus(BinaryOperationHint hint);
+  const Operator* Subtract();
+  const Operator* Multiply();
+  const Operator* Divide();
+  const Operator* Modulus();
 
   const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToInteger();

@@ -1557,23 +1557,17 @@ void BytecodeGraphBuilder::VisitAdd() {
 }
 
 void BytecodeGraphBuilder::VisitSub() {
-  BuildBinaryOp(javascript()->Subtract(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->Subtract());
 }
 
 void BytecodeGraphBuilder::VisitMul() {
-  BuildBinaryOp(javascript()->Multiply(
-      GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->Multiply());
 }
 
-void BytecodeGraphBuilder::VisitDiv() {
-  BuildBinaryOp(
-      javascript()->Divide(GetBinaryOperationHint(kBinaryOperationHintIndex)));
-}
+void BytecodeGraphBuilder::VisitDiv() { BuildBinaryOp(javascript()->Divide()); }
 
 void BytecodeGraphBuilder::VisitMod() {
-  BuildBinaryOp(
-      javascript()->Modulus(GetBinaryOperationHint(kBinaryOperationHintIndex)));
+  BuildBinaryOp(javascript()->Modulus());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOr() {
@@ -1605,10 +1599,10 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
   Node* right = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kBinaryOperationSmiHintIndex));
 
   Node* node = nullptr;
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kBinaryOperationSmiHintIndex));
   if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
     node = simplified;
   } else {
@@ -1624,8 +1618,7 @@ void BytecodeGraphBuilder::VisitAddSmi() {
 }
 
 void BytecodeGraphBuilder::VisitSubSmi() {
-  BuildBinaryOpWithImmediate(javascript()->Subtract(
-      GetBinaryOperationHint(kBinaryOperationSmiHintIndex)));
+  BuildBinaryOpWithImmediate(javascript()->Subtract());
 }
 
 void BytecodeGraphBuilder::VisitBitwiseOrSmi() {
@@ -1648,19 +1641,37 @@ void BytecodeGraphBuilder::VisitInc() {
   PrepareEagerCheckpoint();
   // Note: Use subtract -1 here instead of add 1 to ensure we always convert to
   // a number, not a string.
-  const Operator* js_op =
-      javascript()->Subtract(GetBinaryOperationHint(kCountOperationHintIndex));
-  Node* node = NewNode(js_op, environment()->LookupAccumulator(),
-                       jsgraph()->Constant(-1));
+  Node* left = environment()->LookupAccumulator();
+  Node* right = jsgraph()->Constant(-1);
+  const Operator* op = javascript()->Subtract();
+
+  Node* node = nullptr;
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kCountOperationHintIndex));
+  if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
+    node = simplified;
+  } else {
+    node = NewNode(op, left, right);
+  }
+
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitDec() {
   PrepareEagerCheckpoint();
-  const Operator* js_op =
-      javascript()->Subtract(GetBinaryOperationHint(kCountOperationHintIndex));
-  Node* node = NewNode(js_op, environment()->LookupAccumulator(),
-                       jsgraph()->OneConstant());
+  Node* left = environment()->LookupAccumulator();
+  Node* right = jsgraph()->OneConstant();
+  const Operator* op = javascript()->Subtract();
+
+  Node* node = nullptr;
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kCountOperationHintIndex));
+  if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
+    node = simplified;
+  } else {
+    node = NewNode(op, left, right);
+  }
+
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 

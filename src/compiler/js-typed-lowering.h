@@ -84,6 +84,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);
   Reduction ReduceCreateConsString(Node* node);
+  Reduction ReduceSpeculativeNumberBinop(Node* node);
 
   Factory* factory() const;
   Graph* graph() const;

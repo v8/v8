@@ -127,7 +127,11 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
     case IrOpcode::kJSBitwiseAnd:
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
-    case IrOpcode::kJSShiftRightLogical: {
+    case IrOpcode::kJSShiftRightLogical:
+    case IrOpcode::kJSSubtract:
+    case IrOpcode::kJSMultiply:
+    case IrOpcode::kJSDivide:
+    case IrOpcode::kJSModulus: {
       JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
       NumberOperationHint hint;
       if (b.GetBinaryNumberOperationHint(&hint)) {
@@ -137,10 +141,6 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
       break;
     }
     case IrOpcode::kJSAdd:
-    case IrOpcode::kJSSubtract:
-    case IrOpcode::kJSMultiply:
-    case IrOpcode::kJSDivide:
-    case IrOpcode::kJSModulus:
       // TODO(mstarzinger): Implement speculative lowering.
       break;
     default:
