@@ -1225,6 +1225,7 @@ void AccessorAssemblerImpl::LoadIC(const LoadICParameters* p) {
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1341,6 +1342,7 @@ void AccessorAssemblerImpl::KeyedLoadIC(const LoadICParameters* p) {
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1556,6 +1558,7 @@ void AccessorAssemblerImpl::StoreIC(const StoreICParameters* p) {
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
+  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1608,6 +1611,7 @@ void AccessorAssemblerImpl::KeyedStoreIC(const StoreICParameters* p,
         try_polymorphic_name(this /*, Label::kDeferred*/);
 
     Node* receiver_map = LoadReceiverMap(p->receiver);
+    GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
 
     // Check monomorphic case.
     Node* feedback =
