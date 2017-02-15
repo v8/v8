@@ -342,6 +342,7 @@ enum ContextLookupFlags {
   V(UINT32_ARRAY_FUN_INDEX, JSFunction, uint32_array_fun)                      \
   V(UINT8_ARRAY_FUN_INDEX, JSFunction, uint8_array_fun)                        \
   V(UINT8_CLAMPED_ARRAY_FUN_INDEX, JSFunction, uint8_clamped_array_fun)        \
+  V(EXPORTS_CONTAINER, Object, exports_container)                              \
   NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                                        \
   NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                            \
   NATIVE_CONTEXT_JS_ARRAY_ITERATOR_MAPS(V)

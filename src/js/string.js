@@ -106,6 +106,7 @@ function StringSlice(start, end) {
   return %_SubString(s, start_i, end_i);
 }
 
+// TODO(littledan): Rewrite these four functions as C++ builtins
 // ECMA-262, 15.5.4.16
 function StringToLowerCaseJS() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");

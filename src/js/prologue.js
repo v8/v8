@@ -203,7 +203,6 @@ function PostNatives(utils) {
 
 function PostExperimentals(utils) {
   %CheckIsBootstrapping();
-  %ExportExperimentalFromRuntime(exports_container);
   for ( ; !IS_UNDEFINED(imports); imports = imports.next) {
     imports(exports_container);
   }

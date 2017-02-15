@@ -43,19 +43,6 @@ RUNTIME_FUNCTION(Runtime_ExportFromRuntime) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ExportExperimentalFromRuntime) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, container, 0);
-  CHECK(isolate->bootstrapper()->IsActive());
-  JSObject::NormalizeProperties(container, KEEP_INOBJECT_PROPERTIES, 10,
-                                "ExportExperimentalFromRuntime");
-  Bootstrapper::ExportExperimentalFromRuntime(isolate, container);
-  JSObject::MigrateSlowToFast(container, 0, "ExportExperimentalFromRuntime");
-  return *container;
-}
-
-
 RUNTIME_FUNCTION(Runtime_InstallToContext) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

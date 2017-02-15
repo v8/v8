@@ -2053,6 +2053,7 @@ OverrideFunction(GlobalString.prototype, 'normalize', function() {
   }
 );
 
+// TODO(littledan): Rewrite these two functions as C++ builtins
 function ToLowerCaseI18N() {
   CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
   return %StringToLowerCaseI18N(TO_STRING(this));
@@ -2076,18 +2077,6 @@ function ToLocaleUpperCaseI18N(locales) {
 }
 
 %FunctionSetLength(ToLocaleUpperCaseI18N, 0);
-
-%FunctionRemovePrototype(ToLowerCaseI18N);
-%FunctionRemovePrototype(ToUpperCaseI18N);
-%FunctionRemovePrototype(ToLocaleLowerCaseI18N);
-%FunctionRemovePrototype(ToLocaleUpperCaseI18N);
-
-utils.Export(function(to) {
-  to.ToLowerCaseI18N = ToLowerCaseI18N;
-  to.ToUpperCaseI18N = ToUpperCaseI18N;
-  to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;
-  to.ToLocaleUpperCaseI18N = ToLocaleUpperCaseI18N;
-});
 
 
 /**
@@ -2169,9 +2158,23 @@ OverrideFunction(GlobalDate.prototype, 'toLocaleTimeString', function() {
 );
 
 %FunctionRemovePrototype(FormatDateToParts);
+%FunctionRemovePrototype(ToLowerCaseI18N);
+%FunctionRemovePrototype(ToUpperCaseI18N);
+%FunctionRemovePrototype(ToLocaleLowerCaseI18N);
+%FunctionRemovePrototype(ToLocaleUpperCaseI18N);
+
+utils.SetFunctionName(FormatDateToParts, "formatToParts");
+utils.SetFunctionName(ToLowerCaseI18N, "toLowerCase");
+utils.SetFunctionName(ToUpperCaseI18N, "toUpperCase");
+utils.SetFunctionName(ToLocaleLowerCaseI18N, "toLocaleLowerCase");
+utils.SetFunctionName(ToLocaleUpperCaseI18N, "toLocaleUpperCase");
 
 utils.Export(function(to) {
   to.FormatDateToParts = FormatDateToParts;
+  to.ToLowerCaseI18N = ToLowerCaseI18N;
+  to.ToUpperCaseI18N = ToUpperCaseI18N;
+  to.ToLocaleLowerCaseI18N = ToLocaleLowerCaseI18N;
+  to.ToLocaleUpperCaseI18N = ToLocaleUpperCaseI18N;
 });
 
 })
