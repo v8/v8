@@ -88,6 +88,13 @@ RUNTIME_FUNCTION(Runtime_ThrowStackOverflow) {
   return isolate->StackOverflow();
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
   HandleScope scope(isolate);
   DCHECK_LE(1, args.length());
@@ -501,6 +508,13 @@ RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
   Handle<JSObject> global_proxy(target->global_proxy(), isolate);
   return *isolate->factory()->ToBoolean(
       Builtins::AllowDynamicFunction(isolate, target, global_proxy));
+}
+
+RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
+  // TODO(caitp): split AsyncFromSyncIterator functionality out of
+  //              https://codereview.chromium.org/2622833002
+  UNREACHABLE();
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

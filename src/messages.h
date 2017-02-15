@@ -475,6 +475,8 @@ class ErrorUtils : public AllStatic {
   T(StrictCannotCreateProperty, "Cannot create property '%' on % '%'")         \
   T(SymbolIteratorInvalid,                                                     \
     "Result of the Symbol.iterator method is not an object")                   \
+  T(SymbolAsyncIteratorInvalid,                                                \
+    "Result of the Symbol.asyncIterator method is not an object")              \
   T(SymbolKeyFor, "% is not a symbol")                                         \
   T(SymbolToNumber, "Cannot convert a Symbol value to a number")               \
   T(SymbolToString, "Cannot convert a Symbol value to a string")               \

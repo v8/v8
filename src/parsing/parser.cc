@@ -554,6 +554,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
   set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
+  set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1822,10 +1823,16 @@ void Parser::CreateFunctionNameAssignment(
   }
 }
 
-// !%_IsJSReceiver(result = iterator.next()) &&
-//     %ThrowIteratorResultNotAnObject(result)
+// [if (IteratorType == kNormal)]
+//     !%_IsJSReceiver(result = iterator.next()) &&
+//         %ThrowIteratorResultNotAnObject(result)
+// [else if (IteratorType == kAsync)]
+//     !%_IsJSReceiver(result = Await(iterator.next())) &&
+//         %ThrowIteratorResultNotAnObject(result)
+// [endif]
 Expression* Parser::BuildIteratorNextResult(Expression* iterator,
-                                            Variable* result, int pos) {
+                                            Variable* result, IteratorType type,
+                                            int pos) {
   Expression* next_literal = factory()->NewStringLiteral(
       ast_value_factory()->next_string(), kNoSourcePosition);
   Expression* next_property =
@@ -1834,6 +1841,9 @@ Expression* Parser::BuildIteratorNextResult(Expression* iterator,
       new (zone()) ZoneList<Expression*>(0, zone());
   Expression* next_call =
       factory()->NewCall(next_property, next_arguments, pos);
+  if (type == IteratorType::kAsync) {
+    next_call = RewriteAwaitExpression(next_call, pos);
+  }
   Expression* result_proxy = factory()->NewVariableProxy(result);
   Expression* left =
       factory()->NewAssignment(Token::ASSIGN, result_proxy, next_call, pos);
@@ -1868,7 +1878,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
   if (for_of != NULL) {
     const bool finalize = true;
     return InitializeForOfStatement(for_of, each, subject, body, finalize,
-                                    each_keyword_pos);
+                                    IteratorType::kNormal, each_keyword_pos);
   } else {
     if (each->IsArrayLiteral() || each->IsObjectLiteral()) {
       Variable* temp = NewTemporary(ast_value_factory()->empty_string());
@@ -2021,17 +2031,14 @@ Block* Parser::CreateForEachStatementTDZ(Block* init_block,
   return init_block;
 }
 
-Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
-                                            Expression* each,
-                                            Expression* iterable,
-                                            Statement* body, bool finalize,
-                                            int next_result_pos) {
+Statement* Parser::InitializeForOfStatement(
+    ForOfStatement* for_of, Expression* each, Expression* iterable,
+    Statement* body, bool finalize, IteratorType type, int next_result_pos) {
   // Create the auxiliary expressions needed for iterating over the iterable,
   // and initialize the given ForOfStatement with them.
   // If finalize is true, also instrument the loop with code that performs the
   // proper ES6 iterator finalization.  In that case, the result is not
   // immediately a ForOfStatement.
-
   const int nopos = kNoSourcePosition;
   auto avfactory = ast_value_factory();
 
@@ -2039,22 +2046,27 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
   Variable* result = NewTemporary(avfactory->dot_result_string());
   Variable* completion = NewTemporary(avfactory->empty_string());
 
-  // iterator = GetIterator(iterable)
+  // iterator = GetIterator(iterable, type)
   Expression* assign_iterator;
   {
     assign_iterator = factory()->NewAssignment(
         Token::ASSIGN, factory()->NewVariableProxy(iterator),
-        factory()->NewGetIterator(iterable, iterable->position()),
+        factory()->NewGetIterator(iterable, type, iterable->position()),
         iterable->position());
   }
 
-  // !%_IsJSReceiver(result = iterator.next()) &&
-  //     %ThrowIteratorResultNotAnObject(result)
+  // [if (IteratorType == kNormal)]
+  //     !%_IsJSReceiver(result = iterator.next()) &&
+  //         %ThrowIteratorResultNotAnObject(result)
+  // [else if (IteratorType == kAsync)]
+  //     !%_IsJSReceiver(result = Await(iterator.next())) &&
+  //         %ThrowIteratorResultNotAnObject(result)
+  // [endif]
   Expression* next_result;
   {
     Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
     next_result =
-        BuildIteratorNextResult(iterator_proxy, result, next_result_pos);
+        BuildIteratorNextResult(iterator_proxy, result, type, next_result_pos);
   }
 
   // result.done
@@ -2142,7 +2154,8 @@ Statement* Parser::InitializeForOfStatement(ForOfStatement* for_of,
 
   for_of->Initialize(body, iterator, assign_iterator, next_result, result_done,
                      assign_each);
-  return finalize ? FinalizeForOfStatement(for_of, completion, nopos) : for_of;
+  return finalize ? FinalizeForOfStatement(for_of, completion, type, nopos)
+                  : for_of;
 }
 
 Statement* Parser::DesugarLexicalBindingsInForStatement(
@@ -2794,6 +2807,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     SET_ALLOW(harmony_class_fields);
     SET_ALLOW(harmony_object_rest_spread);
     SET_ALLOW(harmony_dynamic_import);
+    SET_ALLOW(harmony_async_iteration);
 #undef SET_ALLOW
   }
   // Aborting inner function preparsing would leave scopes in an inconsistent
@@ -4050,12 +4064,11 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
             kNoSourcePosition);
       }
       // for (each of spread) %AppendElement($R, each)
-      ForEachStatement* loop = factory()->NewForEachStatement(
-          ForEachStatement::ITERATE, nullptr, kNoSourcePosition);
+      ForOfStatement* loop =
+          factory()->NewForOfStatement(nullptr, kNoSourcePosition);
       const bool finalize = false;
-      InitializeForOfStatement(loop->AsForOfStatement(),
-                               factory()->NewVariableProxy(each), subject,
-                               append_body, finalize);
+      InitializeForOfStatement(loop, factory()->NewVariableProxy(each), subject,
+                               append_body, finalize, IteratorType::kNormal);
       do_block->statements()->Add(loop, zone());
     }
   }
@@ -4247,7 +4260,8 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
   Variable* var_iterator = NewTemporary(ast_value_factory()->empty_string());
   Statement* get_iterator;
   {
-    Expression* iterator = factory()->NewGetIterator(iterable, nopos);
+    Expression* iterator =
+        factory()->NewGetIterator(iterable, IteratorType::kNormal, nopos);
     Expression* iterator_proxy = factory()->NewVariableProxy(var_iterator);
     Expression* assignment = factory()->NewAssignment(
         Token::ASSIGN, iterator_proxy, iterator, nopos);
@@ -4329,7 +4343,8 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     Block* then = factory()->NewBlock(nullptr, 4 + 1, false, nopos);
     BuildIteratorCloseForCompletion(
         scope(), then->statements(), var_iterator,
-        factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos));
+        factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos),
+        IteratorType::kNormal);
     then->statements()->Add(throw_call, zone());
     check_throw = factory()->NewIfStatement(
         condition, then, factory()->NewEmptyStatement(nopos), nopos);
@@ -4696,7 +4711,8 @@ void Parser::BuildIteratorClose(ZoneList<Statement*>* statements,
 
 void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
                                  Expression* condition, Variable* iter,
-                                 Block* iterator_use, Block* target) {
+                                 Block* iterator_use, Block* target,
+                                 IteratorType type) {
   //
   // This function adds two statements to [target], corresponding to the
   // following code:
@@ -4752,8 +4768,8 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
   {
     Block* block = factory()->NewBlock(nullptr, 2, true, nopos);
     Expression* proxy = factory()->NewVariableProxy(completion);
-    BuildIteratorCloseForCompletion(use_scope, block->statements(), iter,
-                                    proxy);
+    BuildIteratorCloseForCompletion(use_scope, block->statements(), iter, proxy,
+                                    type);
     DCHECK(block->statements()->length() == 2);
 
     maybe_close = factory()->NewBlock(nullptr, 1, true, nopos);
@@ -4812,7 +4828,8 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
 void Parser::BuildIteratorCloseForCompletion(Scope* scope,
                                              ZoneList<Statement*>* statements,
                                              Variable* iterator,
-                                             Expression* completion) {
+                                             Expression* completion,
+                                             IteratorType type) {
   //
   // This function adds two statements to [statements], corresponding to the
   // following code:
@@ -4823,9 +4840,17 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
   //       if (!IS_CALLABLE(iteratorReturn)) {
   //         throw MakeTypeError(kReturnMethodNotCallable);
   //       }
-  //       try { %_Call(iteratorReturn, iterator) } catch (_) { }
+  //       [if (IteratorType == kAsync)]
+  //           try { Await(%_Call(iteratorReturn, iterator) } catch (_) { }
+  //       [else]
+  //           try { %_Call(iteratorReturn, iterator) } catch (_) { }
+  //       [endif]
   //     } else {
-  //       let output = %_Call(iteratorReturn, iterator);
+  //       [if (IteratorType == kAsync)]
+  //           let output = Await(%_Call(iteratorReturn, iterator));
+  //       [else]
+  //           let output = %_Call(iteratorReturn, iterator);
+  //       [endif]
   //       if (!IS_RECEIVER(output)) {
   //         %ThrowIterResultNotAnObject(output);
   //       }
@@ -4870,6 +4895,10 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
     Expression* call =
         factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
 
+    if (type == IteratorType::kAsync) {
+      call = RewriteAwaitExpression(call, nopos);
+    }
+
     Block* try_block = factory()->NewBlock(nullptr, 1, false, nopos);
     try_block->statements()->Add(factory()->NewExpressionStatement(call, nopos),
                                  zone());
@@ -4899,6 +4928,9 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
       args->Add(factory()->NewVariableProxy(iterator), zone());
       Expression* call =
           factory()->NewCallRuntime(Runtime::kInlineCall, args, nopos);
+      if (type == IteratorType::kAsync) {
+        call = RewriteAwaitExpression(call, nopos);
+      }
 
       Expression* output_proxy = factory()->NewVariableProxy(var_output);
       Expression* assignment =
@@ -4969,7 +5001,8 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
 }
 
 Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
-                                          Variable* var_completion, int pos) {
+                                          Variable* var_completion,
+                                          IteratorType type, int pos) {
   //
   // This function replaces the loop with the following wrapping:
   //
@@ -5013,7 +5046,7 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
     DCHECK_EQ(scope()->scope_type(), BLOCK_SCOPE);
 
     FinalizeIteratorUse(loop_scope, var_completion, closing_condition,
-                        loop->iterator(), try_block, final_loop);
+                        loop->iterator(), try_block, final_loop, type);
   }
 
   return final_loop;

@@ -289,6 +289,7 @@ namespace internal {
   F(AllocateSeqOneByteString, 1, 1)                 \
   F(AllocateSeqTwoByteString, 1, 1)                 \
   F(CheckIsBootstrapping, 0, 1)                     \
+  F(CreateAsyncFromSyncIterator, 1, 1)              \
   F(CreateListFromArrayLike, 1, 1)                  \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)  \
   F(ExportFromRuntime, 1, 1)                        \
@@ -324,6 +325,7 @@ namespace internal {
   F(ThrowNotGeneric, 1, 1)                          \
   F(ThrowReferenceError, 1, 1)                      \
   F(ThrowStackOverflow, 0, 1)                       \
+  F(ThrowSymbolAsyncIteratorInvalid, 0, 1)          \
   F(ThrowTypeError, -1 /* >= 1 */, 1)               \
   F(ThrowUndefinedOrNullToObject, 1, 1)             \
   F(Typeof, 1, 1)                                   \

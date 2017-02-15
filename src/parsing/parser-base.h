@@ -225,7 +225,8 @@ class ParserBase {
         allow_harmony_trailing_commas_(false),
         allow_harmony_class_fields_(false),
         allow_harmony_object_rest_spread_(false),
-        allow_harmony_dynamic_import_(false) {}
+        allow_harmony_dynamic_import_(false),
+        allow_harmony_async_iteration_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -240,6 +241,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_class_fields);
   ALLOW_ACCESSORS(harmony_object_rest_spread);
   ALLOW_ACCESSORS(harmony_dynamic_import);
+  ALLOW_ACCESSORS(harmony_async_iteration);
 
 #undef ALLOW_ACCESSORS
 
@@ -1292,6 +1294,8 @@ class ParserBase {
                                   ForInfo* for_info, BlockState* for_state,
                                   ZoneList<const AstRawString*>* labels,
                                   bool* ok);
+  StatementT ParseForAwaitStatement(ZoneList<const AstRawString*>* labels,
+                                    bool* ok);
 
   bool IsNextLetKeyword();
   bool IsTrivialExpression();
@@ -1488,6 +1492,7 @@ class ParserBase {
   bool allow_harmony_class_fields_;
   bool allow_harmony_object_rest_spread_;
   bool allow_harmony_dynamic_import_;
+  bool allow_harmony_async_iteration_;
 
   friend class DiscardableZoneScope;
 };
@@ -4795,6 +4800,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::WHILE:
       return ParseWhileStatement(labels, ok);
     case Token::FOR:
+      if (V8_UNLIKELY(allow_harmony_async_iteration() && is_async_function() &&
+                      PeekAhead() == Token::AWAIT)) {
+        return ParseForAwaitStatement(labels, ok);
+      }
       return ParseForStatement(labels, ok);
     case Token::CONTINUE:
     case Token::BREAK:
@@ -5698,6 +5707,151 @@ void ParserBase<Impl>::MarkLoopVariableAsAssigned(Scope* scope, Variable* var) {
   if (!IsLexicalVariableMode(var->mode()) && !scope->is_function_scope()) {
     var->set_maybe_assigned();
   }
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  // for await '(' ForDeclaration of AssignmentExpression ')'
+  DCHECK(is_async_function());
+  DCHECK(allow_harmony_async_iteration());
+
+  int stmt_pos = peek_position();
+
+  ForInfo for_info(this);
+  for_info.mode = ForEachStatement::ITERATE;
+
+  // Create an in-between scope for let-bound iteration variables.
+  BlockState for_state(zone(), &scope_state_);
+  Expect(Token::FOR, CHECK_OK);
+  Expect(Token::AWAIT, CHECK_OK);
+  Expect(Token::LPAREN, CHECK_OK);
+  for_state.set_start_position(scanner()->location().beg_pos);
+  for_state.set_is_hidden();
+
+  auto loop = factory()->NewForOfStatement(labels, stmt_pos);
+  typename Types::Target target(this, loop);
+
+  ExpressionT each_variable = impl()->EmptyExpression();
+
+  bool has_declarations = false;
+
+  if (peek() == Token::VAR || peek() == Token::CONST ||
+      (peek() == Token::LET && IsNextLetKeyword())) {
+    // The initializer contains declarations
+    // 'for' 'await' '(' ForDeclaration 'of' AssignmentExpression ')'
+    //     Statement
+    // 'for' 'await' '(' 'var' ForBinding 'of' AssignmentExpression ')'
+    //     Statement
+    has_declarations = true;
+    ParseVariableDeclarations(kForStatement, &for_info.parsing_result, nullptr,
+                              CHECK_OK);
+    for_info.position = scanner()->location().beg_pos;
+
+    // Only a single declaration is allowed in for-await-of loops
+    if (for_info.parsing_result.declarations.length() != 1) {
+      impl()->ReportMessageAt(for_info.parsing_result.bindings_loc,
+                              MessageTemplate::kForInOfLoopMultiBindings,
+                              "for-await-of");
+      *ok = false;
+      return impl()->NullStatement();
+    }
+
+    // for-await-of's declarations do not permit initializers.
+    if (for_info.parsing_result.first_initializer_loc.IsValid()) {
+      impl()->ReportMessageAt(for_info.parsing_result.first_initializer_loc,
+                              MessageTemplate::kForInOfLoopInitializer,
+                              "for-await-of");
+      *ok = false;
+      return impl()->NullStatement();
+    }
+  } else {
+    // The initializer does not contain declarations.
+    // 'for' 'await' '(' LeftHandSideExpression 'of' AssignmentExpression ')'
+    //     Statement
+    int lhs_beg_pos = peek_position();
+    ExpressionClassifier classifier(this);
+    ExpressionT lhs = each_variable = ParseLeftHandSideExpression(CHECK_OK);
+    int lhs_end_pos = scanner()->location().end_pos;
+
+    if (lhs->IsArrayLiteral() || lhs->IsObjectLiteral()) {
+      ValidateAssignmentPattern(CHECK_OK);
+    } else {
+      impl()->RewriteNonPattern(CHECK_OK);
+      each_variable = impl()->CheckAndRewriteReferenceExpression(
+          lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
+          kSyntaxError, CHECK_OK);
+    }
+  }
+
+  ExpectContextualKeyword(CStrVector("of"), CHECK_OK);
+  int each_keyword_pos = scanner()->location().beg_pos;
+
+  const bool kAllowIn = true;
+  ExpressionT iterable = impl()->EmptyExpression();
+
+  {
+    ExpressionClassifier classifier(this);
+    iterable = ParseAssignmentExpression(kAllowIn, CHECK_OK);
+    impl()->RewriteNonPattern(CHECK_OK);
+  }
+
+  Expect(Token::RPAREN, CHECK_OK);
+
+  StatementT final_loop = impl()->NullStatement();
+  {
+    ReturnExprScope no_tail_calls(function_state_,
+                                  ReturnExprContext::kInsideForInOfBody);
+    BlockState block_state(zone(), &scope_state_);
+    block_state.set_start_position(scanner()->location().beg_pos);
+
+    const bool kDisallowLabelledFunctionStatement = true;
+    StatementT body = ParseScopedStatement(
+        nullptr, kDisallowLabelledFunctionStatement, CHECK_OK);
+    block_state.set_end_position(scanner()->location().end_pos);
+
+    if (has_declarations) {
+      BlockT body_block = impl()->NullBlock();
+      impl()->DesugarBindingInForEachStatement(&for_info, &body_block,
+                                               &each_variable, CHECK_OK);
+      body_block->statements()->Add(body, zone());
+      body_block->set_scope(block_state.FinalizedBlockScope());
+      for_state.set_end_position(scanner()->location().end_pos);
+
+      const bool finalize = true;
+      final_loop = impl()->InitializeForOfStatement(
+          loop, each_variable, iterable, body_block, finalize,
+          IteratorType::kAsync, each_keyword_pos);
+    } else {
+      const bool finalize = true;
+      final_loop = impl()->InitializeForOfStatement(
+          loop, each_variable, iterable, body, finalize, IteratorType::kAsync,
+          each_keyword_pos);
+
+      Scope* for_scope = for_state.FinalizedBlockScope();
+      DCHECK_NULL(for_scope);
+      USE(for_scope);
+      Scope* block_scope = block_state.FinalizedBlockScope();
+      DCHECK_NULL(block_scope);
+      USE(block_scope);
+      return final_loop;
+    }
+  }
+
+  DCHECK(has_declarations);
+  BlockT init_block =
+      impl()->CreateForEachStatementTDZ(impl()->NullBlock(), for_info, ok);
+
+  for_state.set_end_position(scanner()->location().end_pos);
+  Scope* for_scope = for_state.FinalizedBlockScope();
+  // Parsed for-in loop w/ variable declarations.
+  if (!impl()->IsNullStatement(init_block)) {
+    init_block->statements()->Add(final_loop, zone());
+    init_block->set_scope(for_scope);
+    return init_block;
+  }
+  DCHECK_NULL(for_scope);
+  return final_loop;
 }
 
 template <typename Impl>

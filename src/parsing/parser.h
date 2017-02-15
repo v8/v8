@@ -462,10 +462,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     DEFINE_AST_VISITOR_MEMBERS_WITHOUT_STACKOVERFLOW()
   };
 
-  // !%_IsJSReceiver(result = iterator.next()) &&
-  //     %ThrowIteratorResultNotAnObject(result)
+  // [if (IteratorType == kAsync)]
+  //     !%_IsJSReceiver(result = Await(iterator.next()) &&
+  //         %ThrowIteratorResultNotAnObject(result)
+  // [else]
+  //     !%_IsJSReceiver(result = iterator.next()) &&
+  //         %ThrowIteratorResultNotAnObject(result)
+  // [endif]
   Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
-                                      int pos);
+                                      IteratorType type, int pos);
 
   // Initialize the components of a for-in / for-of statement.
   Statement* InitializeForEachStatement(ForEachStatement* stmt,
@@ -473,8 +478,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                         Statement* body, int each_keyword_pos);
   Statement* InitializeForOfStatement(ForOfStatement* stmt, Expression* each,
                                       Expression* iterable, Statement* body,
-                                      bool finalize,
+                                      bool finalize, IteratorType type,
                                       int next_result_pos = kNoSourcePosition);
+
   Block* RewriteForVarInLegacy(const ForInfo& for_info);
   void DesugarBindingInForEachStatement(ForInfo* for_info, Block** body_block,
                                         Expression** each_variable, bool* ok);
@@ -646,16 +652,18 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void FinalizeIteratorUse(Scope* use_scope, Variable* completion,
                            Expression* condition, Variable* iter,
-                           Block* iterator_use, Block* result);
+                           Block* iterator_use, Block* result,
+                           IteratorType type);
 
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
-                                    int pos);
+                                    IteratorType type, int pos);
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
                           Variable* input, Variable* output);
   void BuildIteratorCloseForCompletion(Scope* scope,
                                        ZoneList<Statement*>* statements,
                                        Variable* iterator,
-                                       Expression* completion);
+                                       Expression* completion,
+                                       IteratorType type);
   Statement* CheckCallable(Variable* var, Expression* error, int pos);
 
   V8_INLINE Expression* RewriteAwaitExpression(Expression* value, int pos);

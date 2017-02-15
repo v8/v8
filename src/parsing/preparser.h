@@ -765,6 +765,11 @@ class PreParserFactory {
     return PreParserStatement::Default();
   }
 
+  PreParserStatement NewForOfStatement(ZoneList<const AstRawString*>* labels,
+                                       int pos) {
+    return PreParserStatement::Default();
+  }
+
   PreParserExpression NewCallRuntime(Runtime::FunctionId id,
                                      ZoneList<PreParserExpression>* arguments,
                                      int pos) {
@@ -1313,6 +1318,14 @@ class PreParser : public ParserBase<PreParser> {
   InitializeForEachStatement(PreParserStatement stmt, PreParserExpression each,
                              PreParserExpression subject,
                              PreParserStatement body, int each_keyword_pos) {
+    MarkExpressionAsAssigned(each);
+    return stmt;
+  }
+
+  V8_INLINE PreParserStatement InitializeForOfStatement(
+      PreParserStatement stmt, PreParserExpression each,
+      PreParserExpression iterable, PreParserStatement body, bool finalize,
+      IteratorType type, int next_result_pos = kNoSourcePosition) {
     MarkExpressionAsAssigned(each);
     return stmt;
   }

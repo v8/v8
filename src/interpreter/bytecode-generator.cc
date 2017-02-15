@@ -2973,21 +2973,64 @@ void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
 
   VisitForAccumulatorValue(expr->iterable());
 
-  // Let method be GetMethod(obj, @@iterator).
-  builder()
-      ->StoreAccumulatorInRegister(obj)
-      .LoadIteratorProperty(obj, feedback_index(load_slot))
-      .StoreAccumulatorInRegister(method);
+  if (expr->hint() == IteratorType::kAsync) {
+    FeedbackSlot async_load_slot = expr->AsyncIteratorPropertyFeedbackSlot();
+    FeedbackSlot async_call_slot = expr->AsyncIteratorCallFeedbackSlot();
 
-  // Let iterator be Call(method, obj).
-  builder()->Call(method, args, feedback_index(call_slot),
-                  Call::NAMED_PROPERTY_CALL);
+    // Set method to GetMethod(obj, @@asyncIterator)
+    builder()->StoreAccumulatorInRegister(obj).LoadAsyncIteratorProperty(
+        obj, feedback_index(async_load_slot));
 
-  // If Type(iterator) is not Object, throw a TypeError exception.
-  BytecodeLabel no_type_error;
-  builder()->JumpIfJSReceiver(&no_type_error);
-  builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
-  builder()->Bind(&no_type_error);
+    BytecodeLabel async_iterator_undefined, async_iterator_null, done;
+    // TODO(ignition): Add a single opcode for JumpIfNullOrUndefined
+    builder()->JumpIfUndefined(&async_iterator_undefined);
+    builder()->JumpIfNull(&async_iterator_null);
+
+    // Let iterator be Call(method, obj)
+    builder()->StoreAccumulatorInRegister(method).Call(
+        method, args, feedback_index(async_call_slot),
+        Call::NAMED_PROPERTY_CALL);
+
+    // If Type(iterator) is not Object, throw a TypeError exception.
+    builder()->JumpIfJSReceiver(&done);
+    builder()->CallRuntime(Runtime::kThrowSymbolAsyncIteratorInvalid);
+
+    builder()->Bind(&async_iterator_undefined);
+    builder()->Bind(&async_iterator_null);
+    // If method is undefined,
+    //     Let syncMethod be GetMethod(obj, @@iterator)
+    builder()
+        ->LoadIteratorProperty(obj, feedback_index(load_slot))
+        .StoreAccumulatorInRegister(method);
+
+    //     Let syncIterator be Call(syncMethod, obj)
+    builder()->Call(method, args, feedback_index(call_slot),
+                    Call::NAMED_PROPERTY_CALL);
+
+    // Return CreateAsyncFromSyncIterator(syncIterator)
+    // alias `method` register as it's no longer used
+    Register sync_iter = method;
+    builder()->StoreAccumulatorInRegister(sync_iter).CallRuntime(
+        Runtime::kInlineCreateAsyncFromSyncIterator, sync_iter);
+
+    builder()->Bind(&done);
+  } else {
+    // Let method be GetMethod(obj, @@iterator).
+    builder()
+        ->StoreAccumulatorInRegister(obj)
+        .LoadIteratorProperty(obj, feedback_index(load_slot))
+        .StoreAccumulatorInRegister(method);
+
+    // Let iterator be Call(method, obj).
+    builder()->Call(method, args, feedback_index(call_slot),
+                    Call::NAMED_PROPERTY_CALL);
+
+    // If Type(iterator) is not Object, throw a TypeError exception.
+    BytecodeLabel no_type_error;
+    builder()->JumpIfJSReceiver(&no_type_error);
+    builder()->CallRuntime(Runtime::kThrowSymbolIteratorInvalid);
+    builder()->Bind(&no_type_error);
+  }
 }
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {

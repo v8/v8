@@ -2961,8 +2961,11 @@ class EmptyParentheses final : public Expression {
 // (defined at https://tc39.github.io/ecma262/#sec-getiterator). Ignition
 // desugars this into a LoadIC / JSLoadNamed, CallIC, and a type-check to
 // validate return value of the Symbol.iterator() call.
+enum class IteratorType { kNormal, kAsync };
 class GetIterator final : public Expression {
  public:
+  IteratorType hint() const { return hint_; }
+
   Expression* iterable() const { return iterable_; }
   void set_iterable(Expression* iterable) { iterable_ = iterable; }
 
@@ -2972,6 +2975,10 @@ class GetIterator final : public Expression {
                            FeedbackSlotCache* cache) {
     iterator_property_feedback_slot_ = spec->AddLoadICSlot();
     iterator_call_feedback_slot_ = spec->AddCallICSlot();
+    if (hint() == IteratorType::kAsync) {
+      async_iterator_property_feedback_slot_ = spec->AddLoadICSlot();
+      async_iterator_call_feedback_slot_ = spec->AddCallICSlot();
+    }
   }
 
   FeedbackSlot IteratorPropertyFeedbackSlot() const {
@@ -2982,15 +2989,26 @@ class GetIterator final : public Expression {
     return iterator_call_feedback_slot_;
   }
 
+  FeedbackSlot AsyncIteratorPropertyFeedbackSlot() const {
+    return async_iterator_property_feedback_slot_;
+  }
+
+  FeedbackSlot AsyncIteratorCallFeedbackSlot() const {
+    return async_iterator_call_feedback_slot_;
+  }
+
  private:
   friend class AstNodeFactory;
 
-  explicit GetIterator(Expression* iterable, int pos)
-      : Expression(pos, kGetIterator), iterable_(iterable) {}
+  explicit GetIterator(Expression* iterable, IteratorType hint, int pos)
+      : Expression(pos, kGetIterator), hint_(hint), iterable_(iterable) {}
 
+  IteratorType hint_;
   Expression* iterable_;
   FeedbackSlot iterator_property_feedback_slot_;
   FeedbackSlot iterator_call_feedback_slot_;
+  FeedbackSlot async_iterator_property_feedback_slot_;
+  FeedbackSlot async_iterator_call_feedback_slot_;
 };
 
 // ----------------------------------------------------------------------------
@@ -3204,6 +3222,11 @@ class AstNodeFactory final BASE_EMBEDDED {
     }
     UNREACHABLE();
     return NULL;
+  }
+
+  ForOfStatement* NewForOfStatement(ZoneList<const AstRawString*>* labels,
+                                    int pos) {
+    return new (zone_) ForOfStatement(labels, pos);
   }
 
   ExpressionStatement* NewExpressionStatement(Expression* expression, int pos) {
@@ -3572,8 +3595,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) EmptyParentheses(pos);
   }
 
-  GetIterator* NewGetIterator(Expression* iterable, int pos) {
-    return new (zone_) GetIterator(iterable, pos);
+  GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
+                              int pos) {
+    return new (zone_) GetIterator(iterable, hint, pos);
   }
 
   Zone* zone() const { return zone_; }

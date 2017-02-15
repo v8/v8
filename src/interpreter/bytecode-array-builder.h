@@ -127,6 +127,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Named load property of the @@iterator symbol.
   BytecodeArrayBuilder& LoadIteratorProperty(Register object,
                                              int feedback_slot);
+  // Named load property of the @@asyncIterator symbol.
+  BytecodeArrayBuilder& LoadAsyncIteratorProperty(Register object,
+                                                  int feedback_slot);
 
   // Store properties. Flag for NeedsSetFunctionName() should
   // be in the accumulator.

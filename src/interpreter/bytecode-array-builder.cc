@@ -620,6 +620,13 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadIteratorProperty(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadAsyncIteratorProperty(
+    Register object, int feedback_slot) {
+  size_t name_index = AsyncIteratorSymbolConstantPoolEntry();
+  OutputLdaNamedProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreDataPropertyInLiteral(
     Register object, Register name, DataPropertyInLiteralFlags flags,
     int feedback_slot) {
