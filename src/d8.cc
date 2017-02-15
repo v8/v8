@@ -1199,6 +1199,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
                       ->Int32Value(args->GetIsolate()->GetCurrentContext())
                       .FromMaybe(0);
   CleanupWorkers();
+  args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
   Exit(exit_code);
 }
@@ -1721,6 +1722,14 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
 }
 
 void Shell::OnExit(v8::Isolate* isolate) {
+  // Dump basic block profiling data.
+  if (i::BasicBlockProfiler* profiler =
+          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
+    i::OFStream os(stdout);
+    os << *profiler;
+  }
+  isolate->Dispose();
+
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
     int number_of_counters = 0;
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
@@ -2981,13 +2990,6 @@ int Shell::Main(int argc, char* argv[]) {
     CollectGarbage(isolate);
   }
   OnExit(isolate);
-  // Dump basic block profiling data.
-  if (i::BasicBlockProfiler* profiler =
-          reinterpret_cast<i::Isolate*>(isolate)->basic_block_profiler()) {
-    i::OFStream os(stdout);
-    os << *profiler;
-  }
-  isolate->Dispose();
   V8::Dispose();
   V8::ShutdownPlatform();
   delete g_platform;
