@@ -1785,7 +1785,7 @@ class V8_EXPORT ValueSerializer {
 
   /*
    * Marks an ArrayBuffer as havings its contents transferred out of band.
-   * Pass the corresponding JSArrayBuffer in the deserializing context to
+   * Pass the corresponding ArrayBuffer in the deserializing context to
    * ValueDeserializer::TransferArrayBuffer.
    */
   void TransferArrayBuffer(uint32_t transfer_id,
