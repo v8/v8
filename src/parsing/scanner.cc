@@ -1489,7 +1489,9 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     Vector<const uint8_t> chars = next_.literal_chars->one_byte_literal();
     Token::Value token =
         KeywordOrIdentifierToken(chars.start(), chars.length());
-    if (token == Token::IDENTIFIER) literal.Complete();
+    if (token == Token::IDENTIFIER ||
+        token == Token::FUTURE_STRICT_RESERVED_WORD)
+      literal.Complete();
     return token;
   }
   literal.Complete();
