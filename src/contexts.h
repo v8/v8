@@ -36,6 +36,14 @@ enum ContextLookupFlags {
 // Factory::NewContext.
 
 #define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
+  V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                      \
+    async_function_await_caught)                                        \
+  V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                    \
+    async_function_await_uncaught)                                      \
+  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                    \
+    async_function_promise_create)                                      \
+  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                   \
+    async_function_promise_release)                                     \
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)       \
   V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)   \
@@ -84,14 +92,6 @@ enum ContextLookupFlags {
   V(ARRAY_FOR_EACH_ITERATOR_INDEX, JSFunction, array_for_each_iterator)       \
   V(ARRAY_KEYS_ITERATOR_INDEX, JSFunction, array_keys_iterator)               \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)           \
-  V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                            \
-    async_function_await_caught)                                              \
-  V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                          \
-    async_function_await_uncaught)                                            \
-  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                          \
-    async_function_promise_create)                                            \
-  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                         \
-    async_function_promise_release)                                           \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                     \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                         \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                             \
