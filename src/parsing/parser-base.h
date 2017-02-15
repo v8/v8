@@ -1053,14 +1053,6 @@ class ParserBase {
     }
   }
 
-  void ExpressionUnexpectedToken() {
-    MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
-    const char* arg;
-    Scanner::Location location = scanner()->peek_location();
-    GetUnexpectedTokenMessage(peek(), &message, &location, &arg);
-    classifier()->RecordExpressionError(location, message, arg);
-  }
-
   void BindingPatternUnexpectedToken() {
     MessageTemplate::Template message = MessageTemplate::kUnexpectedToken;
     const char* arg;
