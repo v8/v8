@@ -508,7 +508,7 @@ V8_EXPORT_PRIVATE V8_INLINE void MemMove(void* dest, const void* src,
                                          size_t size) {
   memmove(dest, src, size);
 }
-const int kMinComplexMemCopy = 16 * kPointerSize;
+const int kMinComplexMemCopy = 8;
 #endif  // V8_TARGET_ARCH_IA32
 
 
