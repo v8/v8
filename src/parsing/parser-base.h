@@ -811,6 +811,7 @@ class ParserBase {
   bool is_any_identifier(Token::Value token) {
     return token == Token::IDENTIFIER || token == Token::ENUM ||
            token == Token::AWAIT || token == Token::ASYNC ||
+           token == Token::ESCAPED_STRICT_RESERVED_WORD ||
            token == Token::FUTURE_STRICT_RESERVED_WORD || token == Token::LET ||
            token == Token::STATIC || token == Token::YIELD;
   }
@@ -1673,7 +1674,8 @@ ParserBase<Impl>::ParseIdentifierOrStrictReservedWord(
                                     !IsAsyncFunction(function_kind)) ||
       next == Token::ASYNC) {
     *is_strict_reserved = false;
-  } else if (next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
+  } else if (next == Token::ESCAPED_STRICT_RESERVED_WORD ||
+             next == Token::FUTURE_STRICT_RESERVED_WORD || next == Token::LET ||
              next == Token::STATIC ||
              (next == Token::YIELD && !IsGeneratorFunction(function_kind))) {
     *is_strict_reserved = true;

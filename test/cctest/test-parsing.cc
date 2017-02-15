@@ -9449,3 +9449,20 @@ TEST(NoPessimisticContextAllocation) {
     }
   }
 }
+
+TEST(EscapedStrictReservedWord) {
+  // Test that identifiers which are both escaped and only reserved in the
+  // strict mode are accepted in non-strict mode.
+  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+
+  const char* statement_data[] = {"if (true) l\u0065t: ;",
+                                  "function l\u0065t() { }",
+                                  "(function l\u0065t() { })",
+                                  "async function l\u0065t() { }",
+                                  "(async function l\u0065t() { })",
+                                  "l\u0065t => 42",
+                                  "async l\u0065t => 42",
+                                  NULL};
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
