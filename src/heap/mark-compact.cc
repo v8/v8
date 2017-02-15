@@ -3562,8 +3562,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
 
   UpdatePointersAfterEvacuation();
 
-  if (!heap()->new_space()->Rebalance()) {
-    FatalProcessOutOfMemory("NewSpace::Rebalance");
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
+    if (!heap()->new_space()->Rebalance()) {
+      FatalProcessOutOfMemory("NewSpace::Rebalance");
+    }
   }
 
   // Give pages that are queued to be freed back to the OS. Note that filtering
