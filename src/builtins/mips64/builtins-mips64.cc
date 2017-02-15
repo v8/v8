@@ -2779,7 +2779,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Check that the ArrayPrototype hasn't been modified in a way that would
   // affect iteration.
   __ LoadRoot(scratch, Heap::kArrayIteratorProtectorRootIndex);
-  __ lw(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
+  __ ld(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
   __ Branch(&runtime_call, ne, scratch,
             Operand(Smi::FromInt(Isolate::kProtectorValid)));
 
@@ -2804,7 +2804,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   __ Branch(&no_protector_check, eq, scratch, Operand(FAST_ELEMENTS));
   // Check the ArrayProtector cell.
   __ LoadRoot(scratch, Heap::kArrayProtectorRootIndex);
-  __ lw(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
+  __ ld(scratch, FieldMemOperand(scratch, PropertyCell::kValueOffset));
   __ Branch(&runtime_call, ne, scratch,
             Operand(Smi::FromInt(Isolate::kProtectorValid)));
 
@@ -2859,11 +2859,14 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Put the evaluated spread onto the stack as additional arguments.
   {
     __ mov(scratch, zero_reg);
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ Branch(&done, eq, scratch, Operand(spread_len));
     __ Dlsa(scratch2, spread, scratch, kPointerSizeLog2);
     __ ld(scratch2, FieldMemOperand(scratch2, FixedArray::kHeaderSize));
+    __ JumpIfNotRoot(scratch2, Heap::kTheHoleValueRootIndex, &push);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ Daddu(scratch, scratch, Operand(1));
     __ Branch(&loop);

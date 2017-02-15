@@ -2852,6 +2852,9 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ j(equal, &done, Label::kNear);
     __ mov(scratch2, FieldOperand(spread, scratch, times_pointer_size,
                                   FixedArray::kHeaderSize));
+    __ JumpIfNotRoot(scratch2, Heap::kTheHoleValueRootIndex, &push);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ inc(scratch);
     __ jmp(&loop);

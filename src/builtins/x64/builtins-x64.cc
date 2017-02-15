@@ -2962,12 +2962,16 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ Pop(rcx);
 
     __ Set(rcx, 0);
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmpl(rcx, r9);
     __ j(equal, &done, Label::kNear);
     __ movp(kScratchRegister, FieldOperand(rbx, rcx, times_pointer_size,
                                            FixedArray::kHeaderSize));
+    __ CompareRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
+    __ j(not_equal, &push, Label::kNear);
+    __ LoadRoot(kScratchRegister, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(kScratchRegister);
     __ incl(rcx);
     __ jmp(&loop);

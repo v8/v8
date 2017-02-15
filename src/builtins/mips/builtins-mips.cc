@@ -2834,11 +2834,14 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
   // Put the evaluated spread onto the stack as additional arguments.
   {
     __ mov(scratch, zero_reg);
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ Branch(&done, eq, scratch, Operand(spread_len));
     __ Lsa(scratch2, spread, scratch, kPointerSizeLog2);
     __ lw(scratch2, FieldMemOperand(scratch2, FixedArray::kHeaderSize));
+    __ JumpIfNotRoot(scratch2, Heap::kTheHoleValueRootIndex, &push);
+    __ LoadRoot(scratch2, Heap::kUndefinedValueRootIndex);
+    __ bind(&push);
     __ Push(scratch2);
     __ Addu(scratch, scratch, Operand(1));
     __ Branch(&loop);
