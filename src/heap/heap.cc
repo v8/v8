@@ -298,7 +298,6 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
 
 void Heap::SetGCState(HeapState state) {
   gc_state_ = state;
-  store_buffer_->SetMode(gc_state_);
 }
 
 // TODO(1238405): Combine the infrastructure for --heap-stats and
@@ -450,7 +449,6 @@ void Heap::GarbageCollectionPrologue() {
   }
   CheckNewSpaceExpansionCriteria();
   UpdateNewSpaceAllocationCounter();
-  store_buffer()->MoveAllEntriesToRememberedSet();
 }
 
 size_t Heap::SizeOfObjects() {
@@ -518,6 +516,22 @@ void Heap::MergeAllocationSitePretenuringFeedback(
   }
 }
 
+class Heap::SkipStoreBufferScope {
+ public:
+  explicit SkipStoreBufferScope(StoreBuffer* store_buffer)
+      : store_buffer_(store_buffer) {
+    store_buffer_->MoveAllEntriesToRememberedSet();
+    store_buffer_->SetMode(StoreBuffer::IN_GC);
+  }
+
+  ~SkipStoreBufferScope() {
+    DCHECK(store_buffer_->Empty());
+    store_buffer_->SetMode(StoreBuffer::NOT_IN_GC);
+  }
+
+ private:
+  StoreBuffer* store_buffer_;
+};
 
 class Heap::PretenuringScope {
  public:
@@ -1327,6 +1341,7 @@ bool Heap::PerformGarbageCollection(
 
   {
     Heap::PretenuringScope pretenuring_scope(this);
+    Heap::SkipStoreBufferScope skip_store_buffer_scope(store_buffer_);
 
     switch (collector) {
       case MARK_COMPACTOR:

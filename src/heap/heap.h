@@ -1530,6 +1530,7 @@ class Heap {
       GarbageCollectionReason gc_reason);
 
  private:
+  class SkipStoreBufferScope;
   class PretenuringScope;
 
   // External strings table is a place where all external strings are

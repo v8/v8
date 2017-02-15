@@ -24,6 +24,8 @@ namespace internal {
 // slots are moved to the remembered set.
 class StoreBuffer {
  public:
+  enum StoreBufferMode { IN_GC, NOT_IN_GC };
+
   static const int kStoreBufferSize = 1 << (11 + kPointerSizeLog2);
   static const int kStoreBufferMask = kStoreBufferSize - 1;
   static const int kStoreBuffers = 2;
@@ -74,7 +76,7 @@ class StoreBuffer {
                                             Address start, Address end) {
     // In GC the store buffer has to be empty at any time.
     DCHECK(store_buffer->Empty());
-    DCHECK(store_buffer->heap()->gc_state() != Heap::NOT_IN_GC);
+    DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
     Page* page = Page::FromAddress(start);
     if (end) {
       RememberedSet<OLD_TO_NEW>::RemoveRange(page, start, end,
@@ -86,7 +88,7 @@ class StoreBuffer {
 
   static void DeleteDuringRuntime(StoreBuffer* store_buffer, Address start,
                                   Address end) {
-    DCHECK(store_buffer->heap()->gc_state() == Heap::NOT_IN_GC);
+    DCHECK(store_buffer->mode() == StoreBuffer::NOT_IN_GC);
     store_buffer->InsertDeletionIntoStoreBuffer(start, end);
   }
 
@@ -102,12 +104,12 @@ class StoreBuffer {
 
   static void InsertDuringGarbageCollection(StoreBuffer* store_buffer,
                                             Address slot) {
-    DCHECK(store_buffer->heap()->gc_state() != Heap::NOT_IN_GC);
+    DCHECK(store_buffer->mode() != StoreBuffer::NOT_IN_GC);
     RememberedSet<OLD_TO_NEW>::Insert(Page::FromAddress(slot), slot);
   }
 
   static void InsertDuringRuntime(StoreBuffer* store_buffer, Address slot) {
-    DCHECK(store_buffer->heap()->gc_state() == Heap::NOT_IN_GC);
+    DCHECK(store_buffer->mode() == StoreBuffer::NOT_IN_GC);
     store_buffer->InsertIntoStoreBuffer(slot);
   }
 
@@ -126,8 +128,9 @@ class StoreBuffer {
     insertion_callback(this, slot);
   }
 
-  void SetMode(Heap::HeapState state) {
-    if (state == Heap::NOT_IN_GC) {
+  void SetMode(StoreBufferMode mode) {
+    mode_ = mode;
+    if (mode == NOT_IN_GC) {
       insertion_callback = &InsertDuringRuntime;
       deletion_callback = &DeleteDuringRuntime;
     } else {
@@ -175,6 +178,8 @@ class StoreBuffer {
     DISALLOW_COPY_AND_ASSIGN(Task);
   };
 
+  StoreBufferMode mode() const { return mode_; }
+
   void FlipStoreBuffers();
 
   Heap* heap_;
@@ -197,6 +202,11 @@ class StoreBuffer {
 
   // Points to the current buffer in use.
   int current_;
+
+  // During GC, entries are directly added to the remembered set without
+  // going through the store buffer. This is signaled by a special
+  // IN_GC mode.
+  StoreBufferMode mode_;
 
   base::VirtualMemory* virtual_memory_;
 
