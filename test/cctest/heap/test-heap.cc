@@ -1869,16 +1869,12 @@ HEAP_TEST(TestSizeOfObjects) {
 TEST(TestAlignmentCalculations) {
   // Maximum fill amounts are consistent.
   int maximum_double_misalignment = kDoubleSize - kPointerSize;
-  int maximum_simd128_misalignment = kSimd128Size - kPointerSize;
   int max_word_fill = Heap::GetMaximumFillToAlign(kWordAligned);
   CHECK_EQ(0, max_word_fill);
   int max_double_fill = Heap::GetMaximumFillToAlign(kDoubleAligned);
   CHECK_EQ(maximum_double_misalignment, max_double_fill);
   int max_double_unaligned_fill = Heap::GetMaximumFillToAlign(kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, max_double_unaligned_fill);
-  int max_simd128_unaligned_fill =
-      Heap::GetMaximumFillToAlign(kSimd128Unaligned);
-  CHECK_EQ(maximum_simd128_misalignment, max_simd128_unaligned_fill);
 
   Address base = static_cast<Address>(NULL);
   int fill = 0;
@@ -1899,16 +1895,6 @@ TEST(TestAlignmentCalculations) {
   fill = Heap::GetFillToAlign(base, kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, fill);
   fill = Heap::GetFillToAlign(base + kPointerSize, kDoubleUnaligned);
-  CHECK_EQ(0, fill);
-
-  // 128 bit SIMD types have 2 or 4 possible alignments, depending on platform.
-  fill = Heap::GetFillToAlign(base, kSimd128Unaligned);
-  CHECK_EQ((3 * kPointerSize) & kSimd128AlignmentMask, fill);
-  fill = Heap::GetFillToAlign(base + kPointerSize, kSimd128Unaligned);
-  CHECK_EQ((2 * kPointerSize) & kSimd128AlignmentMask, fill);
-  fill = Heap::GetFillToAlign(base + 2 * kPointerSize, kSimd128Unaligned);
-  CHECK_EQ(kPointerSize, fill);
-  fill = Heap::GetFillToAlign(base + 3 * kPointerSize, kSimd128Unaligned);
   CHECK_EQ(0, fill);
 }
 
@@ -1977,42 +1963,6 @@ TEST(TestAlignedAllocation) {
           filler->Size() == kPointerSize);
     CHECK_EQ(kPointerSize + double_misalignment, *top_addr - start);
   }
-
-  // Now test SIMD alignment. There are 2 or 4 possible alignments, depending
-  // on platform.
-  start = AlignNewSpace(kSimd128Unaligned, 0);
-  obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is no filler.
-  CHECK_EQ(kPointerSize, *top_addr - start);
-  start = AlignNewSpace(kSimd128Unaligned, kPointerSize);
-  obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is a filler object before the object.
-  filler = HeapObject::FromAddress(start);
-  CHECK(obj != filler && filler->IsFiller() &&
-        filler->Size() == kSimd128Size - kPointerSize);
-  CHECK_EQ(kPointerSize + kSimd128Size - kPointerSize, *top_addr - start);
-
-  if (double_misalignment) {
-    // Test the 2 other alignments possible on 32 bit platforms.
-    start = AlignNewSpace(kSimd128Unaligned, 2 * kPointerSize);
-    obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There is a filler object before the object.
-    filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == 2 * kPointerSize);
-    CHECK_EQ(kPointerSize + 2 * kPointerSize, *top_addr - start);
-    start = AlignNewSpace(kSimd128Unaligned, 3 * kPointerSize);
-    obj = NewSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There is a filler object before the object.
-    filler = HeapObject::FromAddress(start);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
-    CHECK_EQ(kPointerSize + kPointerSize, *top_addr - start);
-  }
 }
 
 
@@ -2061,83 +2011,41 @@ TEST(TestAlignedOverAllocation) {
   const intptr_t double_misalignment = kDoubleSize - kPointerSize;
   Address start;
   HeapObject* obj;
-  HeapObject* filler1;
-  HeapObject* filler2;
+  HeapObject* filler;
   if (double_misalignment) {
     start = AlignOldSpace(kDoubleAligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
     // The object is aligned, and a filler object is created after.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
-    filler1 = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
+    filler = HeapObject::FromAddress(start + kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleAligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1);
-    CHECK(filler1->IsFiller());
-    CHECK(filler1->Size() == kPointerSize);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
+    filler = HeapObject::FromAddress(start);
+    CHECK(obj != filler);
+    CHECK(filler->IsFiller());
+    CHECK(filler->Size() == kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
 
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
     // The object is aligned, and a filler object is created after.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
-    filler1 = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
+    filler = HeapObject::FromAddress(start + kPointerSize);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleUnaligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
-  }
-
-  // Now test SIMD alignment. There are 2 or 4 possible alignments, depending
-  // on platform.
-  start = AlignOldSpace(kSimd128Unaligned, 0);
-  obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is a filler object after the object.
-  filler1 = HeapObject::FromAddress(start + kPointerSize);
-  CHECK(obj != filler1 && filler1->IsFiller() &&
-        filler1->Size() == kSimd128Size - kPointerSize);
-  start = AlignOldSpace(kSimd128Unaligned, kPointerSize);
-  obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-  CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-  // There is a filler object before the object.
-  filler1 = HeapObject::FromAddress(start);
-  CHECK(obj != filler1 && filler1->IsFiller() &&
-        filler1->Size() == kSimd128Size - kPointerSize);
-
-  if (double_misalignment) {
-    // Test the 2 other alignments possible on 32 bit platforms.
-    start = AlignOldSpace(kSimd128Unaligned, 2 * kPointerSize);
-    obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There are filler objects before and after the object.
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == 2 * kPointerSize);
-    filler2 = HeapObject::FromAddress(start + 3 * kPointerSize);
-    CHECK(obj != filler2 && filler2->IsFiller() &&
-          filler2->Size() == kPointerSize);
-    start = AlignOldSpace(kSimd128Unaligned, 3 * kPointerSize);
-    obj = OldSpaceAllocateAligned(kPointerSize, kSimd128Unaligned);
-    CHECK(IsAddressAligned(obj->address(), kSimd128Alignment, kPointerSize));
-    // There are filler objects before and after the object.
-    filler1 = HeapObject::FromAddress(start);
-    CHECK(obj != filler1 && filler1->IsFiller() &&
-          filler1->Size() == kPointerSize);
-    filler2 = HeapObject::FromAddress(start + 2 * kPointerSize);
-    CHECK(obj != filler2 && filler2->IsFiller() &&
-          filler2->Size() == 2 * kPointerSize);
+    filler = HeapObject::FromAddress(start);
+    CHECK(obj != filler && filler->IsFiller() &&
+          filler->Size() == kPointerSize);
   }
 }
 
