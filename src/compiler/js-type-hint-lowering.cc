@@ -128,6 +128,7 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
+    case IrOpcode::kJSAdd:
     case IrOpcode::kJSSubtract:
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
@@ -140,9 +141,6 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
       }
       break;
     }
-    case IrOpcode::kJSAdd:
-      // TODO(mstarzinger): Implement speculative lowering.
-      break;
     default:
       UNREACHABLE();
       break;

@@ -518,11 +518,7 @@ const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op) {
 }
 
 BinaryOperationHint BinaryOperationHintOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSAdd ||
-         op->opcode() == IrOpcode::kJSSubtract ||
-         op->opcode() == IrOpcode::kJSMultiply ||
-         op->opcode() == IrOpcode::kJSDivide ||
-         op->opcode() == IrOpcode::kJSModulus);
+  DCHECK_EQ(IrOpcode::kJSAdd, op->opcode());
   return OpParameter<BinaryOperationHint>(op);
 }
 

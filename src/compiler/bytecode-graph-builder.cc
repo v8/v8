@@ -1942,8 +1942,9 @@ void BytecodeGraphBuilder::VisitForInStep() {
   PrepareEagerCheckpoint();
   Node* index =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  index = NewNode(javascript()->Add(BinaryOperationHint::kSignedSmall), index,
-                  jsgraph()->OneConstant());
+  index = NewNode(
+      simplified()->SpeculativeNumberAdd(NumberOperationHint::kSignedSmall),
+      index, jsgraph()->OneConstant());
   environment()->BindAccumulator(index, Environment::kAttachFrameState);
 }
 

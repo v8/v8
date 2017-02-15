@@ -701,22 +701,6 @@ TEST_F(JSTypedLoweringTest, JSAddWithString) {
                      lhs, rhs, context, frame_state, effect, control));
 }
 
-TEST_F(JSTypedLoweringTest, JSAddSmis) {
-  BinaryOperationHint const hint = BinaryOperationHint::kSignedSmall;
-  Node* lhs = Parameter(Type::Number(), 0);
-  Node* rhs = Parameter(Type::Number(), 1);
-  Node* context = Parameter(Type::Any(), 2);
-  Node* frame_state = EmptyFrameState();
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Reduction r = Reduce(graph()->NewNode(javascript()->Add(hint), lhs, rhs,
-                                        context, frame_state, effect, control));
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsSpeculativeNumberAdd(NumberOperationHint::kSignedSmall, lhs,
-                                     rhs, effect, control));
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

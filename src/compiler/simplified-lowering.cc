@@ -1187,8 +1187,11 @@ class RepresentationSelector {
     // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we can
     // only eliminate an unused speculative number operation if we know that
     // the inputs are PlainPrimitive, which excludes everything that's might
-    // have side effects or throws during a ToNumber conversion.
-    if (BothInputsAre(node, Type::PlainPrimitive())) {
+    // have side effects or throws during a ToNumber conversion. We are only
+    // allowed to perform a number addition if neither input is a String, even
+    // if the value is never used, so we further limit to NumberOrOddball in
+    // order to explicitly exclude String inputs.
+    if (BothInputsAre(node, Type::NumberOrOddball())) {
       if (truncation.IsUnused()) return VisitUnused(node);
     }
 

@@ -30,30 +30,6 @@ class JSBinopReduction final {
   JSBinopReduction(JSTypedLowering* lowering, Node* node)
       : lowering_(lowering), node_(node) {}
 
-  bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
-    if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
-      DCHECK_NE(0, node_->op()->ControlOutputCount());
-      DCHECK_EQ(1, node_->op()->EffectOutputCount());
-      DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node_->op()));
-      switch (BinaryOperationHintOf(node_->op())) {
-        case BinaryOperationHint::kSignedSmall:
-          *hint = NumberOperationHint::kSignedSmall;
-          return true;
-        case BinaryOperationHint::kSigned32:
-          *hint = NumberOperationHint::kSigned32;
-          return true;
-        case BinaryOperationHint::kNumberOrOddball:
-          *hint = NumberOperationHint::kNumberOrOddball;
-          return true;
-        case BinaryOperationHint::kAny:
-        case BinaryOperationHint::kNone:
-        case BinaryOperationHint::kString:
-          break;
-      }
-    }
-    return false;
-  }
-
   bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
     if (lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) {
       DCHECK_EQ(1, node_->op()->EffectOutputCount());
@@ -113,6 +89,7 @@ class JSBinopReduction final {
   // minimum length.
   bool ShouldCreateConsString() {
     DCHECK_EQ(IrOpcode::kJSAdd, node_->opcode());
+    DCHECK(OneInputIs(Type::String()));
     if (BothInputsAre(Type::String()) ||
         ((lowering_->flags() & JSTypedLowering::kDeoptimizationEnabled) &&
          BinaryOperationHintOf(node_->op()) == BinaryOperationHint::kString)) {
@@ -590,20 +567,22 @@ JSTypedLowering::JSTypedLowering(Editor* editor,
   }
 }
 
+Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
+  JSBinopReduction r(this, node);
+  NumberOperationHint hint = NumberOperationHintOf(node->op());
+  if (hint == NumberOperationHint::kNumberOrOddball &&
+      r.BothInputsAre(Type::PlainPrimitive()) &&
+      r.NeitherInputCanBe(Type::StringOrReceiver())) {
+    // SpeculativeNumberAdd(x:-string, y:-string) =>
+    //     NumberAdd(ToNumber(x), ToNumber(y))
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
-  NumberOperationHint hint;
-  if (r.GetBinaryNumberOperationHint(&hint)) {
-    if (hint == NumberOperationHint::kNumberOrOddball &&
-        r.BothInputsAre(Type::PlainPrimitive()) &&
-        r.NeitherInputCanBe(Type::StringOrReceiver())) {
-      // JSAdd(x:-string, y:-string) => NumberAdd(ToNumber(x), ToNumber(y))
-      r.ConvertInputsToNumber();
-      return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
-    }
-    return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberAdd(hint), Type::Number());
-  }
   if (r.BothInputsAre(Type::Number())) {
     // JSAdd(x:number, y:number) => NumberAdd(x, y)
     r.ConvertInputsToNumber();
@@ -2496,6 +2475,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreRegister(node);
     // TODO(mstarzinger): Simplified operations hiding in JS-level reducer not
     // fooling anyone. Consider moving this into a separate reducer.
+    case IrOpcode::kSpeculativeNumberAdd:
+      return ReduceSpeculativeNumberAdd(node);
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kSpeculativeNumberMultiply:
     case IrOpcode::kSpeculativeNumberDivide:
