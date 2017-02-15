@@ -244,8 +244,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   }
 
   void SetInitialProperties(Handle<String> name, int start_position,
-                            int end_position, int param_num, int literal_count,
-                            int parent_index, int function_literal_id);
+                            int end_position, int param_num, int parent_index,
+                            int function_literal_id);
 
   void SetFunctionScopeInfo(Handle<Object> scope_info_array) {
     this->SetField(kFunctionScopeInfoOffset_, scope_info_array);
@@ -254,10 +254,6 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   void SetSharedFunctionInfo(Handle<SharedFunctionInfo> info);
 
   Handle<SharedFunctionInfo> GetSharedFunctionInfo();
-
-  int GetLiteralCount() {
-    return this->GetSmiValueField(kLiteralNumOffset_);
-  }
 
   int GetParentIndex() {
     return this->GetSmiValueField(kParentIndexOffset_);
@@ -277,9 +273,8 @@ class FunctionInfoWrapper : public JSArrayBasedStruct<FunctionInfoWrapper> {
   static const int kFunctionScopeInfoOffset_ = 4;
   static const int kParentIndexOffset_ = 5;
   static const int kSharedFunctionInfoOffset_ = 6;
-  static const int kLiteralNumOffset_ = 7;
-  static const int kFunctionLiteralIdOffset_ = 8;
-  static const int kSize_ = 9;
+  static const int kFunctionLiteralIdOffset_ = 7;
+  static const int kSize_ = 8;
 
   friend class JSArrayBasedStruct<FunctionInfoWrapper>;
 };

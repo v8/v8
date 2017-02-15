@@ -2351,15 +2351,14 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    Handle<String> name, int number_of_literals, FunctionKind kind,
-    Handle<Code> code, Handle<ScopeInfo> scope_info) {
+    Handle<String> name, FunctionKind kind, Handle<Code> code,
+    Handle<ScopeInfo> scope_info) {
   DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(
       name, code, IsConstructable(kind, scope_info->language_mode()));
   shared->set_scope_info(*scope_info);
   shared->set_outer_scope_info(*the_hole_value());
   shared->set_kind(kind);
-  shared->set_num_literals(number_of_literals);
   if (IsGeneratorFunction(kind)) {
     shared->set_instance_class_name(isolate()->heap()->Generator_string());
   }
@@ -2370,9 +2369,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
   Handle<Code> code = isolate()->builtins()->CompileLazy();
   Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
-  Handle<SharedFunctionInfo> result = NewSharedFunctionInfo(
-      literal->name(), literal->materialized_literal_count(), literal->kind(),
-      code, scope_info);
+  Handle<SharedFunctionInfo> result =
+      NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
   SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
   SharedFunctionInfo::SetScript(result, script);
   return result;
@@ -2442,7 +2440,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_length(0);
   share->set_internal_formal_parameter_count(0);
   share->set_expected_nof_properties(0);
-  share->set_num_literals(0);
   share->set_start_position_and_type(0);
   share->set_end_position(0);
   share->set_function_token_position(0);

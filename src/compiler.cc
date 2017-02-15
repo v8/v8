@@ -1849,7 +1849,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
-      name, fun->shared()->num_literals(), FunctionKind::kNormalFunction, code,
+      name, FunctionKind::kNormalFunction, code,
       Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_outer_scope_info(fun->shared()->outer_scope_info());
   shared->SetConstructStub(*construct_stub);

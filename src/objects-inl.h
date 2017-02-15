@@ -5872,7 +5872,6 @@ SMI_ACCESSORS(SharedFunctionInfo, internal_formal_parameter_count,
               kFormalParameterCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, expected_nof_properties,
               kExpectedNofPropertiesOffset)
-SMI_ACCESSORS(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
 SMI_ACCESSORS(SharedFunctionInfo, start_position_and_type,
               kStartPositionAndTypeOffset)
 SMI_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
@@ -5922,7 +5921,6 @@ PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, internal_formal_parameter_count,
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
                         expected_nof_properties,
                         kExpectedNofPropertiesOffset)
-PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, num_literals, kNumLiteralsOffset)
 
 PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, end_position, kEndPositionOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo,

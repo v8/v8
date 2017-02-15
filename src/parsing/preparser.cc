@@ -295,10 +295,10 @@ PreParser::LazyParsingResult PreParser::ParseStatementListAndLogFunction(
   DCHECK_EQ(Token::RBRACE, scanner()->peek());
   int body_end = scanner()->peek_location().end_pos;
   DCHECK_EQ(this->scope()->is_function_scope(), formals->is_simple);
-  log_.LogFunction(
-      body_end, formals->num_parameters(), formals->function_length,
-      has_duplicate_parameters, function_state_->materialized_literal_count(),
-      function_state_->expected_property_count(), GetLastFunctionLiteralId());
+  log_.LogFunction(body_end, formals->num_parameters(),
+                   formals->function_length, has_duplicate_parameters,
+                   function_state_->expected_property_count(),
+                   GetLastFunctionLiteralId());
   return kLazyParsingComplete;
 }
 

@@ -1040,7 +1040,6 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - no debug info";
   }
   os << "\n - length = " << length();
-  os << "\n - num_literals = " << num_literals();
   os << "\n - optimized_code_map = " << Brief(optimized_code_map());
   os << "\n - feedback_metadata = ";
   feedback_metadata()->FeedbackMetadataPrint(os);

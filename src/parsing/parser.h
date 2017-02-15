@@ -36,7 +36,6 @@ class FunctionEntry BASE_EMBEDDED {
     kEndPositionIndex,
     kNumParametersIndex,
     kFunctionLengthIndex,
-    kLiteralCountIndex,
     kPropertyCountIndex,
     kFlagsIndex,
     kNumInnerFunctionsIndex,
@@ -69,7 +68,6 @@ class FunctionEntry BASE_EMBEDDED {
   int end_pos() const { return backing_[kEndPositionIndex]; }
   int num_parameters() const { return backing_[kNumParametersIndex]; }
   int function_length() const { return backing_[kFunctionLengthIndex]; }
-  int literal_count() const { return backing_[kLiteralCountIndex]; }
   int property_count() const { return backing_[kPropertyCountIndex]; }
   LanguageMode language_mode() const {
     return LanguageModeField::decode(backing_[kFlagsIndex]);
@@ -547,11 +545,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // by parsing the function with PreParser. Consumes the ending }.
   // If may_abort == true, the (pre-)parser may decide to abort skipping
   // in order to force the function to be eagerly parsed, after all.
-  LazyParsingResult SkipFunction(
-      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
-      int* function_length, bool* has_duplicate_parameters,
-      int* materialized_literal_count, int* expected_property_count,
-      bool is_inner_function, bool may_abort, bool* ok);
+  LazyParsingResult SkipFunction(FunctionKind kind,
+                                 DeclarationScope* function_scope,
+                                 int* num_parameters, int* function_length,
+                                 bool* has_duplicate_parameters,
+                                 int* expected_property_count,
+                                 bool is_inner_function, bool may_abort,
+                                 bool* ok);
 
   Block* BuildParameterInitializationBlock(
       const ParserFormalParameters& parameters, bool* ok);
@@ -562,7 +562,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, int* num_parameters,
       int* function_length, bool* has_duplicate_parameters,
-      int* materialized_literal_count, int* expected_property_count, bool* ok);
+      int* expected_property_count, bool* ok);
 
   void ThrowPendingError(Isolate* isolate, Handle<Script> script);
 
@@ -1096,8 +1096,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE static bool IsTaggedTemplate(const Expression* tag) {
     return tag != NULL;
   }
-
-  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {}
 
   Expression* ExpressionListToExpression(ZoneList<Expression*>* args);
 

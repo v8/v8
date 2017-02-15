@@ -7119,10 +7119,6 @@ class SharedFunctionInfo: public HeapObject {
   // [script]: Script from which the function originates.
   DECL_ACCESSORS(script, Object)
 
-  // [num_literals]: Number of literals used by this function.
-  inline int num_literals() const;
-  inline void set_num_literals(int value);
-
   // [start_position_and_type]: Field used to store both the source code
   // position, whether or not the function is a function expression,
   // and whether or not the function is a toplevel function. The two

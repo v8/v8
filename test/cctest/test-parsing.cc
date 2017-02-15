@@ -1311,8 +1311,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   i::Factory* factory = isolate->factory();
 
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
-  int preparser_materialized_literals = -1;
-  int parser_materialized_literals = -2;
 
   // Preparse the data.
   i::PendingCompilationErrorHandler pending_error_handler;
@@ -1329,8 +1327,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
                            isolate->counters()->runtime_call_stats());
     SetParserFlags(&preparser, flags);
     scanner.Initialize(stream.get());
-    i::PreParser::PreParseResult result =
-        preparser.PreParseProgram(&preparser_materialized_literals, is_module);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram(is_module);
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
 
@@ -1344,9 +1341,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     if (is_module) info.set_module();
     i::parsing::ParseProgram(&info);
     function = info.literal();
-    if (function) {
-      parser_materialized_literals = function->materialized_literal_count();
-    }
   }
 
   // Check that preparsing fails iff parsing fails.
@@ -1414,16 +1408,6 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "Expected error on:\n"
         "\t%s\n"
         "However, parser and preparser succeeded",
-        source->ToCString().get());
-    CHECK(false);
-  } else if (test_preparser &&
-             preparser_materialized_literals != parser_materialized_literals) {
-    v8::base::OS::Print(
-        "Preparser materialized literals (%d) differ from Parser materialized "
-        "literals (%d) on:\n"
-        "\t%s\n"
-        "However, parser and preparser succeeded",
-        preparser_materialized_literals, parser_materialized_literals,
         source->ToCString().get());
     CHECK(false);
   }

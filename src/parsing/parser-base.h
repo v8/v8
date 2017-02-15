@@ -412,17 +412,6 @@ class ParserBase {
       return ScopeState::scope()->AsDeclarationScope();
     }
 
-    int NextMaterializedLiteralIndex() {
-      return next_materialized_literal_index_++;
-    }
-    int materialized_literal_count() {
-      return next_materialized_literal_index_;
-    }
-
-    void SkipMaterializedLiterals(int count) {
-      next_materialized_literal_index_ += count;
-    }
-
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
@@ -1722,8 +1711,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseRegExpLiteral(
     return impl()->EmptyExpression();
   }
 
-  function_state_->NextMaterializedLiteralIndex();
-
   IdentifierT js_pattern = impl()->GetNextSymbol();
   Maybe<RegExp::Flags> flags = scanner()->ScanRegExpFlags();
   if (flags.IsNothing()) {
@@ -2011,9 +1998,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
     }
   }
   Expect(Token::RBRACK, CHECK_OK);
-
-  // Update the scope information before the pre-parsing bailout.
-  function_state_->NextMaterializedLiteralIndex();
 
   ExpressionT result =
       factory()->NewArrayLiteral(values, first_spread_index, pos);
@@ -2362,7 +2346,6 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
   body->Add(factory()->NewReturnStatement(value, kNoSourcePosition), zone());
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), initializer_scope, body,
-      initializer_state.materialized_literal_count(),
       initializer_state.expected_property_count(), 0, 0,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
@@ -2613,9 +2596,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
   }
   Expect(Token::RBRACE, CHECK_OK);
 
-  // Computation of literal_index must happen before pre parse bailout.
-  function_state_->NextMaterializedLiteralIndex();
-
   // In pattern rewriter, we rewrite rest property to call out to a
   // runtime function passing all the other properties as arguments to
   // this runtime function. Here, we make sure that the number of
@@ -2640,9 +2620,6 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
   ExpressionListT result = impl()->NewExpressionList(4);
   Expect(Token::LPAREN, CHECK_OK_CUSTOM(NullExpressionList));
   bool done = (peek() == Token::RPAREN);
-  bool was_unspread = false;
-  int unspread_sequences_count = 0;
-  int spread_count = 0;
   while (!done) {
     int start_pos = peek_position();
     bool is_spread = Check(Token::ELLIPSIS);
@@ -2661,16 +2638,6 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
       argument = factory()->NewSpread(argument, start_pos, expr_pos);
     }
     result->Add(argument, zone_);
-
-    // unspread_sequences_count is the number of sequences of parameters which
-    // are not prefixed with a spread '...' operator.
-    if (is_spread) {
-      was_unspread = false;
-      spread_count++;
-    } else if (!was_unspread) {
-      was_unspread = true;
-      unspread_sequences_count++;
-    }
 
     if (result->length() > Code::kMaxArguments) {
       ReportMessage(MessageTemplate::kTooManyArguments);
@@ -2697,16 +2664,6 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
   if (!maybe_arrow || peek() != Token::ARROW) {
     if (maybe_arrow) {
       impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpressionList));
-    }
-    if (spread_arg.IsValid()) {
-      // Unspread parameter sequences are translated into array literals in the
-      // parser. Ensure that the number of materialized literals matches between
-      // the parser and preparser
-      if (was_unspread || spread_count > 1) {
-        // There was more than one spread, or the spread was not the final
-        // argument, so the parser will materialize literals.
-        impl()->MaterializeUnspreadArgumentsLiterals(unspread_sequences_count);
-      }
     }
   }
 
@@ -4167,7 +4124,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   }
 
   StatementListT body = impl()->NullStatementList();
-  int materialized_literal_count = -1;
   int expected_property_count = -1;
   int function_literal_id = GetNextFunctionLiteralId();
 
@@ -4185,9 +4141,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   {
     FunctionState function_state(&function_state_, &scope_state_,
                                  formal_parameters.scope);
-
-    function_state.SkipMaterializedLiterals(
-        formal_parameters.materialized_literals_count);
 
     Expect(Token::ARROW, CHECK_OK);
 
@@ -4209,15 +4162,9 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         LazyParsingResult result = impl()->SkipFunction(
             kind, formal_parameters.scope, &dummy_num_parameters,
             &dummy_function_length, &dummy_has_duplicate_parameters,
-            &materialized_literal_count, &expected_property_count, false, true,
-            CHECK_OK);
+            &expected_property_count, false, true, CHECK_OK);
         formal_parameters.scope->ResetAfterPreparsing(
             ast_value_factory_, result == kLazyParsingAborted);
-
-        if (formal_parameters.materialized_literals_count > 0) {
-          materialized_literal_count +=
-              formal_parameters.materialized_literals_count;
-        }
 
         if (result == kLazyParsingAborted) {
           bookmark.Apply();
@@ -4238,8 +4185,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                                   kNoSourcePosition, formal_parameters, kind,
                                   FunctionLiteral::kAnonymousExpression,
                                   CHECK_OK);
-        materialized_literal_count =
-            function_state.materialized_literal_count();
         expected_property_count = function_state.expected_property_count();
       }
     } else {
@@ -4269,7 +4214,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
           impl()->MarkTailPosition(expression);
         }
       }
-      materialized_literal_count = function_state.materialized_literal_count();
       expected_property_count = function_state.expected_property_count();
       impl()->MarkCollectedTailCallExpressions();
     }
@@ -4302,8 +4246,8 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
   }
   FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
       impl()->EmptyIdentifierString(), formal_parameters.scope, body,
-      materialized_literal_count, expected_property_count,
-      formal_parameters.num_parameters(), formal_parameters.function_length,
+      expected_property_count, formal_parameters.num_parameters(),
+      formal_parameters.function_length,
       FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, eager_compile_hint,
       formal_parameters.scope->start_position(), has_braces,

@@ -167,7 +167,6 @@ void Parser::SetCachedData(ParseInfo* info) {
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             bool call_super, int pos,
                                             int end_pos) {
-  int materialized_literal_count = -1;
   int expected_property_count = -1;
   const int parameter_count = 0;
   if (name == nullptr) name = ast_value_factory()->empty_string();
@@ -207,14 +206,12 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       body->Add(factory()->NewReturnStatement(call, pos), zone());
     }
 
-    materialized_literal_count = function_state.materialized_literal_count();
     expected_property_count = function_state.expected_property_count();
   }
 
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      name, function_scope, body, materialized_literal_count,
-      expected_property_count, parameter_count, parameter_count,
-      FunctionLiteral::kNoDuplicateParameters,
+      name, function_scope, body, expected_property_count, parameter_count,
+      parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
       true, GetNextFunctionLiteralId());
 
@@ -749,8 +746,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
       RewriteDestructuringAssignments();
       int parameter_count = parsing_module_ ? 1 : 0;
       result = factory()->NewScriptOrEvalFunctionLiteral(
-          scope, body, function_state.materialized_literal_count(),
-          function_state.expected_property_count(), parameter_count);
+          scope, body, function_state.expected_property_count(),
+          parameter_count);
     }
   }
 
@@ -2606,7 +2603,6 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
       use_temp_zone && FLAG_lazy_inner_functions && !is_lazy_top_level_function;
 
   ZoneList<Statement*>* body = nullptr;
-  int materialized_literal_count = -1;
   int expected_property_count = -1;
   bool should_be_used_once_hint = false;
   int num_parameters = -1;
@@ -2651,11 +2647,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     if (is_lazy_top_level_function || is_lazy_inner_function) {
       Scanner::BookmarkScope bookmark(scanner());
       bookmark.Set();
-      LazyParsingResult result =
-          SkipFunction(kind, scope, &num_parameters, &function_length,
-                       &has_duplicate_parameters, &materialized_literal_count,
-                       &expected_property_count, is_lazy_inner_function,
-                       is_lazy_top_level_function, CHECK_OK);
+      LazyParsingResult result = SkipFunction(
+          kind, scope, &num_parameters, &function_length,
+          &has_duplicate_parameters, &expected_property_count,
+          is_lazy_inner_function, is_lazy_top_level_function, CHECK_OK);
 
       if (result == kLazyParsingAborted) {
         DCHECK(is_lazy_top_level_function);
@@ -2675,10 +2670,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
 
     if (!is_lazy_top_level_function && !is_lazy_inner_function) {
-      body = ParseFunction(
-          function_name, pos, kind, function_type, scope, &num_parameters,
-          &function_length, &has_duplicate_parameters,
-          &materialized_literal_count, &expected_property_count, CHECK_OK);
+      body = ParseFunction(function_name, pos, kind, function_type, scope,
+                           &num_parameters, &function_length,
+                           &has_duplicate_parameters, &expected_property_count,
+                           CHECK_OK);
     }
 
     DCHECK(use_temp_zone || !is_lazy_top_level_function);
@@ -2734,10 +2729,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   // Note that the FunctionLiteral needs to be created in the main Zone again.
   FunctionLiteral* function_literal = factory()->NewFunctionLiteral(
-      function_name, scope, body, materialized_literal_count,
-      expected_property_count, num_parameters, function_length,
-      duplicate_parameters, function_type, eager_compile_hint, pos, true,
-      function_literal_id);
+      function_name, scope, body, expected_property_count, num_parameters,
+      function_length, duplicate_parameters, function_type, eager_compile_hint,
+      pos, true, function_literal_id);
   function_literal->set_function_token_position(function_token_pos);
   if (should_be_used_once_hint)
     function_literal->set_should_be_used_once_hint();
@@ -2752,8 +2746,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 Parser::LazyParsingResult Parser::SkipFunction(
     FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
     int* function_length, bool* has_duplicate_parameters,
-    int* materialized_literal_count, int* expected_property_count,
-    bool is_inner_function, bool may_abort, bool* ok) {
+    int* expected_property_count, bool is_inner_function, bool may_abort,
+    bool* ok) {
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
   if (produce_cached_parse_data()) CHECK(log_);
 
@@ -2779,7 +2773,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
       *num_parameters = entry.num_parameters();
       *function_length = entry.function_length();
       *has_duplicate_parameters = entry.has_duplicate_parameters();
-      *materialized_literal_count = entry.literal_count();
       *expected_property_count = entry.property_count();
       SetLanguageMode(function_scope, entry.language_mode());
       if (entry.uses_super_property())
@@ -2838,7 +2831,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
   *num_parameters = logger->num_parameters();
   *function_length = logger->function_length();
   *has_duplicate_parameters = logger->has_duplicate_parameters();
-  *materialized_literal_count = logger->literals();
   *expected_property_count = logger->properties();
   SkipFunctionLiterals(logger->num_inner_functions());
   if (!is_inner_function && produce_cached_parse_data()) {
@@ -2846,7 +2838,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     log_->LogFunction(
         function_scope->start_position(), function_scope->end_position(),
         *num_parameters, *function_length, *has_duplicate_parameters,
-        *materialized_literal_count, *expected_property_count, language_mode(),
+        *expected_property_count, language_mode(),
         function_scope->uses_super_property(), function_scope->calls_eval(),
         logger->num_inner_functions());
   }
@@ -3125,8 +3117,7 @@ ZoneList<Statement*>* Parser::ParseFunction(
     const AstRawString* function_name, int pos, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, int* num_parameters, int* function_length,
-    bool* has_duplicate_parameters, int* materialized_literal_count,
-    int* expected_property_count, bool* ok) {
+    bool* has_duplicate_parameters, int* expected_property_count, bool* ok) {
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
   FunctionState function_state(&function_state_, &scope_state_, function_scope);
@@ -3164,7 +3155,6 @@ ZoneList<Statement*>* Parser::ParseFunction(
   *has_duplicate_parameters =
       !classifier()->is_valid_formal_parameter_list_without_duplicates();
 
-  *materialized_literal_count = function_state.materialized_literal_count();
   *expected_property_count = function_state.expected_property_count();
   return body;
 }
@@ -3530,10 +3520,6 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   } else {
     uint32_t hash = ComputeTemplateLiteralHash(lit);
 
-    // cooked and raw indexes.
-    function_state_->NextMaterializedLiteralIndex();
-    function_state_->NextMaterializedLiteralIndex();
-
     // $getTemplateCallSite
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
     args->Add(factory()->NewArrayLiteral(
@@ -3638,7 +3624,6 @@ ZoneList<Expression*>* Parser::PrepareSpreadArguments(
         while (i < n && !list->at(i)->IsSpread()) {
           unspread->Add(list->at(i++), zone());
         }
-        function_state_->NextMaterializedLiteralIndex();
         args->Add(factory()->NewArrayLiteral(unspread, kNoSourcePosition),
                   zone());
 

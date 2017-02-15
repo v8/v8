@@ -676,8 +676,7 @@ class PreParserFactory {
   }
   PreParserExpression NewFunctionLiteral(
       PreParserIdentifier name, Scope* scope, PreParserStatementList body,
-      int materialized_literal_count, int expected_property_count,
-      int parameter_count, int function_length,
+      int expected_property_count, int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
@@ -899,8 +898,7 @@ class PreParser : public ParserBase<PreParser> {
   // success (even if parsing failed, the pre-parse data successfully
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
-  PreParseResult PreParseProgram(int* materialized_literals = 0,
-                                 bool is_module = false) {
+  PreParseResult PreParseProgram(bool is_module = false) {
     DCHECK_NULL(scope_state_);
     DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
@@ -924,9 +922,6 @@ class PreParser : public ParserBase<PreParser> {
     } else if (is_strict(this->scope()->language_mode())) {
       CheckStrictOctalLiteral(start_position, scanner()->location().end_pos,
                               &ok);
-    }
-    if (materialized_literals) {
-      *materialized_literals = function_state_->materialized_literal_count();
     }
     return kPreParseSuccess;
   }
@@ -961,11 +956,11 @@ class PreParser : public ParserBase<PreParser> {
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
   bool parse_lazily() const { return false; }
 
-  V8_INLINE LazyParsingResult SkipFunction(
-      FunctionKind kind, DeclarationScope* function_scope, int* num_parameters,
-      int* function_length, bool* has_duplicate_parameters,
-      int* materialized_literal_count, int* expected_property_count,
-      bool is_inner_function, bool may_abort, bool* ok) {
+  V8_INLINE LazyParsingResult
+  SkipFunction(FunctionKind kind, DeclarationScope* function_scope,
+               int* num_parameters, int* function_length,
+               bool* has_duplicate_parameters, int* expected_property_count,
+               bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
     return kLazyParsingComplete;
   }
@@ -1652,12 +1647,6 @@ class PreParser : public ParserBase<PreParser> {
     return !tag.IsNoTemplateTag();
   }
 
-  V8_INLINE void MaterializeUnspreadArgumentsLiterals(int count) {
-    for (int i = 0; i < count; ++i) {
-      function_state_->NextMaterializedLiteralIndex();
-    }
-  }
-
   V8_INLINE PreParserExpression
   ExpressionListToExpression(PreParserExpressionList args) {
     return PreParserExpression::Default(args.variables_);
@@ -1707,12 +1696,6 @@ PreParserExpression PreParser::SpreadCallNew(PreParserExpression function,
 PreParserExpression PreParser::CloseTemplateLiteral(TemplateLiteralState* state,
                                                     int start,
                                                     PreParserExpression tag) {
-  if (IsTaggedTemplate(tag)) {
-    // Emulate generation of array literals for tag callsite
-    // 1st is array of cooked strings, second is array of raw strings
-    function_state_->NextMaterializedLiteralIndex();
-    function_state_->NextMaterializedLiteralIndex();
-  }
   return EmptyExpression();
 }
 

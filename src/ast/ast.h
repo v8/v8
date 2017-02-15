@@ -2612,7 +2612,6 @@ class FunctionLiteral final : public Expression {
 
   static bool NeedsHomeObject(Expression* expr);
 
-  int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }
   int parameter_count() { return parameter_count_; }
   int function_length() { return function_length_; }
@@ -2719,14 +2718,13 @@ class FunctionLiteral final : public Expression {
 
   FunctionLiteral(Zone* zone, const AstString* name,
                   AstValueFactory* ast_value_factory, DeclarationScope* scope,
-                  ZoneList<Statement*>* body, int materialized_literal_count,
-                  int expected_property_count, int parameter_count,
-                  int function_length, FunctionType function_type,
+                  ZoneList<Statement*>* body, int expected_property_count,
+                  int parameter_count, int function_length,
+                  FunctionType function_type,
                   ParameterFlag has_duplicate_parameters,
                   EagerCompileHint eager_compile_hint, int position,
                   bool has_braces, int function_literal_id)
       : Expression(position, kFunctionLiteral),
-        materialized_literal_count_(materialized_literal_count),
         expected_property_count_(expected_property_count),
         parameter_count_(parameter_count),
         function_length_(function_length),
@@ -2758,7 +2756,6 @@ class FunctionLiteral final : public Expression {
       : public BitField<BailoutReason, ShouldNotBeUsedOnceHintField::kNext, 8> {
   };
 
-  int materialized_literal_count_;
   int expected_property_count_;
   int parameter_count_;
   int function_length_;
@@ -3515,30 +3512,30 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   FunctionLiteral* NewFunctionLiteral(
       const AstRawString* name, DeclarationScope* scope,
-      ZoneList<Statement*>* body, int materialized_literal_count,
-      int expected_property_count, int parameter_count, int function_length,
+      ZoneList<Statement*>* body, int expected_property_count,
+      int parameter_count, int function_length,
       FunctionLiteral::ParameterFlag has_duplicate_parameters,
       FunctionLiteral::FunctionType function_type,
       FunctionLiteral::EagerCompileHint eager_compile_hint, int position,
       bool has_braces, int function_literal_id) {
     return new (zone_) FunctionLiteral(
-        zone_, name, ast_value_factory_, scope, body,
-        materialized_literal_count, expected_property_count, parameter_count,
-        function_length, function_type, has_duplicate_parameters,
-        eager_compile_hint, position, has_braces, function_literal_id);
+        zone_, name, ast_value_factory_, scope, body, expected_property_count,
+        parameter_count, function_length, function_type,
+        has_duplicate_parameters, eager_compile_hint, position, has_braces,
+        function_literal_id);
   }
 
   // Creates a FunctionLiteral representing a top-level script, the
   // result of an eval (top-level or otherwise), or the result of calling
   // the Function constructor.
-  FunctionLiteral* NewScriptOrEvalFunctionLiteral(
-      DeclarationScope* scope, ZoneList<Statement*>* body,
-      int materialized_literal_count, int expected_property_count,
-      int parameter_count) {
+  FunctionLiteral* NewScriptOrEvalFunctionLiteral(DeclarationScope* scope,
+                                                  ZoneList<Statement*>* body,
+                                                  int expected_property_count,
+                                                  int parameter_count) {
     return new (zone_) FunctionLiteral(
         zone_, ast_value_factory_->empty_string(), ast_value_factory_, scope,
-        body, materialized_literal_count, expected_property_count,
-        parameter_count, parameter_count, FunctionLiteral::kAnonymousExpression,
+        body, expected_property_count, parameter_count, parameter_count,
+        FunctionLiteral::kAnonymousExpression,
         FunctionLiteral::kNoDuplicateParameters,
         FunctionLiteral::kShouldLazyCompile, 0, true,
         FunctionLiteral::kIdTypeTopLevel);
