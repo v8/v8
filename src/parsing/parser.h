@@ -158,6 +158,12 @@ struct ParserFormalParameters : FormalParametersBase {
     bool is_simple() const {
       return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
     }
+
+    bool is_nondestructuring_rest() const {
+      DCHECK_IMPLIES(is_rest, initializer == nullptr);
+      return is_rest && pattern->IsVariableProxy();
+    }
+
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
   };
@@ -1040,8 +1046,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                     int initializer_end_position,
                                     bool is_rest) {
     parameters->UpdateArityAndFunctionLength(initializer != nullptr, is_rest);
-    bool is_simple = pattern->IsVariableProxy() && initializer == nullptr;
-    const AstRawString* name = is_simple
+    bool has_simple_name = pattern->IsVariableProxy() && initializer == nullptr;
+    const AstRawString* name = has_simple_name
                                    ? pattern->AsVariableProxy()->raw_name()
                                    : ast_value_factory()->empty_string();
     auto parameter =
@@ -1054,17 +1060,16 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE void DeclareFormalParameters(
       DeclarationScope* scope,
       const ThreadedList<ParserFormalParameters::Parameter>& parameters) {
+    bool is_simple = classifier()->is_simple_parameter_list();
+    if (!is_simple) scope->SetHasNonSimpleParameters();
     for (auto parameter : parameters) {
       bool is_duplicate = false;
-      bool is_simple = classifier()->is_simple_parameter_list();
-      auto name = is_simple || parameter->is_rest
-                      ? parameter->name
-                      : ast_value_factory()->empty_string();
-      auto mode = is_simple || parameter->is_rest ? VAR : TEMPORARY;
-      if (!is_simple) scope->SetHasNonSimpleParameters();
+      bool use_name = is_simple || parameter->is_nondestructuring_rest();
       bool is_optional = parameter->initializer != nullptr;
-      scope->DeclareParameter(name, mode, is_optional, parameter->is_rest,
-                              &is_duplicate, ast_value_factory());
+      scope->DeclareParameter(
+          use_name ? parameter->name : ast_value_factory()->empty_string(),
+          use_name ? VAR : TEMPORARY, is_optional, parameter->is_rest,
+          &is_duplicate, ast_value_factory());
       if (is_duplicate &&
           classifier()->is_valid_formal_parameter_list_without_duplicates()) {
         classifier()->RecordDuplicateFormalParameterError(
