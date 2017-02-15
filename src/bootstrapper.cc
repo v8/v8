@@ -2483,6 +2483,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     values->shared()->set_builtin_function_id(kTypedArrayValues);
     JSObject::AddProperty(prototype, factory->iterator_symbol(), values,
                           DONT_ENUM);
+
+    // TODO(caitp): alphasort accessors/methods
+    SimpleInstallFunction(prototype, "copyWithin",
+                          Builtins::kTypedArrayPrototypeCopyWithin, 2, false);
   }
 
   {  // -- T y p e d A r r a y s

@@ -20,7 +20,6 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalObject = global.Object;
-var InnerArrayCopyWithin;
 var InnerArrayEvery;
 var InnerArrayFill;
 var InnerArrayFilter;
@@ -68,7 +67,6 @@ utils.Import(function(from) {
   ArrayValues = from.ArrayValues;
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  InnerArrayCopyWithin = from.InnerArrayCopyWithin;
   InnerArrayEvery = from.InnerArrayEvery;
   InnerArrayFill = from.InnerArrayFill;
   InnerArrayFilter = from.InnerArrayFilter;
@@ -435,17 +433,6 @@ function TypedArrayGetToStringTag() {
   if (IS_UNDEFINED(name)) return;
   return name;
 }
-
-
-function TypedArrayCopyWithin(target, start, end) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-
-  var length = %_TypedArrayGetLength(this);
-
-  // TODO(littledan): Replace with a memcpy for better performance
-  return InnerArrayCopyWithin(target, start, end, this, length);
-}
-%FunctionSetLength(TypedArrayCopyWithin, 2);
 
 
 // ES6 draft 05-05-15, section 22.2.3.7
@@ -857,7 +844,6 @@ utils.InstallGetter(GlobalTypedArray.prototype, toStringTagSymbol,
 utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "subarray", TypedArraySubArray,
   "set", TypedArraySet,
-  "copyWithin", TypedArrayCopyWithin,
   "every", TypedArrayEvery,
   "fill", TypedArrayFill,
   "filter", TypedArrayFilter,

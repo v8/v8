@@ -806,7 +806,9 @@ class Isolate;
   /* ES6 #sec-%typedarray%.prototype.keys */                                   \
   TFJ(TypedArrayPrototypeKeys, 0)                                              \
   /* ES6 #sec-%typedarray%.prototype.values */                                 \
-  TFJ(TypedArrayPrototypeValues, 0)
+  TFJ(TypedArrayPrototypeValues, 0)                                            \
+  /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
+  CPP(TypedArrayPrototypeCopyWithin)
 
 #define IGNORE_BUILTIN(...)
 
