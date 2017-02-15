@@ -307,7 +307,7 @@ InlineCacheState IC::StateFromCode(Code* code) {
   }
 }
 
-SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
+JSFunction* IC::GetHostFunction() const {
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function
   // corresponding to the frame.
@@ -316,16 +316,7 @@ SharedFunctionInfo* IC::GetSharedFunctionInfo() const {
   JavaScriptFrame* frame = JavaScriptFrame::cast(it.frame());
   // Find the function on the stack and both the active code for the
   // function and the original code.
-  JSFunction* function = frame->function();
-  return function->shared();
-}
-
-
-Code* IC::GetCode() const {
-  HandleScope scope(isolate());
-  Handle<SharedFunctionInfo> shared(GetSharedFunctionInfo(), isolate());
-  Code* code = shared->code();
-  return code;
+  return frame->function();
 }
 
 static void LookupForRead(LookupIterator* it) {
@@ -465,12 +456,14 @@ static void ComputeTypeInfoCountDelta(IC::State old_state, IC::State new_state,
 }
 
 // static
-void IC::OnTypeFeedbackChanged(Isolate* isolate, Code* host) {
-  if (host->kind() != Code::FUNCTION) return;
+void IC::OnFeedbackChanged(Isolate* isolate, JSFunction* host_function) {
+  Code* host = host_function->shared()->code();
 
-  TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
-  info->change_own_type_change_checksum();
-  host->set_profiler_ticks(0);
+  if (host->kind() == Code::FUNCTION) {
+    TypeFeedbackInfo* info = TypeFeedbackInfo::cast(host->type_feedback_info());
+    info->change_own_type_change_checksum();
+    host->set_profiler_ticks(0);
+  }
   isolate->runtime_profiler()->NotifyICChanged();
   // TODO(2029): When an optimized function is patched, it would
   // be nice to propagate the corresponding type information to its
@@ -526,58 +519,6 @@ void IC::Clear(Isolate* isolate, Address address, Address constant_pool) {
   }
 }
 
-
-void KeyedLoadIC::Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus) {
-  if (IsCleared(nexus)) return;
-  // Make sure to also clear the map used in inline fast cases.  If we
-  // do not clear these maps, cached code can keep objects alive
-  // through the embedded maps.
-  nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host);
-}
-
-
-void CallIC::Clear(Isolate* isolate, Code* host, CallICNexus* nexus) {
-  // Determine our state.
-  Object* feedback = nexus->vector()->Get(nexus->slot());
-  State state = nexus->StateFromFeedback();
-
-  if (state != UNINITIALIZED && !feedback->IsAllocationSite()) {
-    nexus->ConfigureUninitialized();
-    // The change in state must be processed.
-    OnTypeFeedbackChanged(isolate, host);
-  }
-}
-
-
-void LoadIC::Clear(Isolate* isolate, Code* host, LoadICNexus* nexus) {
-  if (IsCleared(nexus)) return;
-  nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host);
-}
-
-void LoadGlobalIC::Clear(Isolate* isolate, Code* host,
-                         LoadGlobalICNexus* nexus) {
-  if (IsCleared(nexus)) return;
-  nexus->ConfigureUninitialized();
-  OnTypeFeedbackChanged(isolate, host);
-}
-
-void StoreIC::Clear(Isolate* isolate, Code* host, StoreICNexus* nexus) {
-  if (IsCleared(nexus)) return;
-  nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host);
-}
-
-
-void KeyedStoreIC::Clear(Isolate* isolate, Code* host,
-                         KeyedStoreICNexus* nexus) {
-  if (IsCleared(nexus)) return;
-  nexus->ConfigurePremonomorphic();
-  OnTypeFeedbackChanged(isolate, host);
-}
-
-
 void CompareIC::Clear(Isolate* isolate, Address address, Code* target,
                       Address constant_pool) {
   DCHECK(CodeStub::GetMajorKey(target) == CodeStub::CompareIC);
@@ -617,7 +558,7 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   }
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
@@ -642,7 +583,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   }
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
@@ -664,7 +605,7 @@ void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
   }
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 void IC::ConfigureVectorState(MapHandleList* maps,
@@ -676,7 +617,7 @@ void IC::ConfigureVectorState(MapHandleList* maps,
   nexus->ConfigurePolymorphic(maps, transitioned_maps, handlers);
 
   vector_set_ = true;
-  OnTypeFeedbackChanged(isolate(), get_host());
+  OnFeedbackChanged(isolate(), GetHostFunction());
 }
 
 
@@ -1358,7 +1299,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
             return slow_stub();
           }
           // When debugging we need to go the slow path to flood the accessor.
-          if (GetSharedFunctionInfo()->HasDebugInfo()) {
+          if (GetHostFunction()->shared()->HasDebugInfo()) {
             TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
             return slow_stub();
           }
@@ -1504,7 +1445,7 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
           return ComputeHandler(lookup);
         }
         DCHECK(holder->HasFastProperties());
-        DCHECK(!GetSharedFunctionInfo()->HasDebugInfo());
+        DCHECK(!GetHostFunction()->shared()->HasDebugInfo());
         Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
                               isolate());
         CallOptimization call_optimization(getter);

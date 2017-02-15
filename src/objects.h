@@ -7998,11 +7998,8 @@ class JSFunction: public JSObject {
   inline bool has_feedback_vector() const;
   static void EnsureLiterals(Handle<JSFunction> function);
 
-  // Unconditionally clear the type feedback vector (including vector ICs).
+  // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();
-
-  // Clear the type feedback vector with a more subtle policy at GC time.
-  void ClearTypeFeedbackInfoAtGCTime();
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();

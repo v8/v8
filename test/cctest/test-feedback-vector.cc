@@ -166,9 +166,11 @@ TEST(VectorSlotClearing) {
   Factory* factory = isolate->factory();
   Zone zone(isolate->allocator(), ZONE_NAME);
 
-  // We only test clearing FeedbackSlots, not FeedbackSlots.
-  // The reason is that FeedbackSlots need a full code environment
-  // to fully test (See VectorICProfilerStatistics test below).
+  CompileRun("function f() {};");
+  Handle<JSFunction> f = GetFunction("f");
+
+  // We only test clearing of a FeedbackSlotKind::kGeneral slots because all
+  // the other slot kinds require a host function for clearing.
   FeedbackVectorSpec spec(&zone);
   for (int i = 0; i < 5; i++) {
     spec.AddGeneralSlot();
@@ -183,12 +185,7 @@ TEST(VectorSlotClearing) {
   Handle<AllocationSite> site = factory->NewAllocationSite();
   vector->Set(helper.slot(2), *site);
 
-  // GC time clearing leaves slots alone.
-  vector->ClearSlotsAtGCTime(NULL);
-  Object* obj = vector->Get(helper.slot(1));
-  CHECK(obj->IsWeakCell() && !WeakCell::cast(obj)->cleared());
-
-  vector->ClearSlots(NULL);
+  vector->ClearSlots(*f);
 
   // The feedback vector slots are cleared. AllocationSites are still granted
   // an exemption from clearing, as are smis.

@@ -267,16 +267,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget(Heap* heap,
                                                           RelocInfo* rinfo) {
   DCHECK(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  // Monomorphic ICs are preserved when possible, but need to be flushed
-  // when they might be keeping a Context alive, or when the heap is about
-  // to be serialized.
-  if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub() &&
-      (heap->isolate()->serializer_enabled() ||
-       target->ic_age() != heap->global_ic_age())) {
-    ICUtility::Clear(heap->isolate(), rinfo->pc(),
-                     rinfo->host()->constant_pool());
-    target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-  }
   Code* host = rinfo->host();
   heap->mark_compact_collector()->RecordRelocSlot(host, rinfo, target);
   StaticVisitor::MarkObject(heap, target);
@@ -461,9 +451,6 @@ void StaticMarkingVisitor<StaticVisitor>::VisitJSFunction(Map* map,
                                                           HeapObject* object) {
   Heap* heap = map->GetHeap();
   JSFunction* function = JSFunction::cast(object);
-  if (FLAG_cleanup_code_caches_at_gc) {
-    function->ClearTypeFeedbackInfoAtGCTime();
-  }
   MarkCompactCollector* collector = heap->mark_compact_collector();
   if (collector->is_code_flushing_enabled()) {
     if (IsFlushable(heap, function)) {

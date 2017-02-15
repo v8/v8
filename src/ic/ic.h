@@ -58,11 +58,6 @@ class IC {
                                              Isolate* isolate,
                                              CacheHolderFlag* flag);
 
-  static bool IsCleared(FeedbackNexus* nexus) {
-    InlineCacheState state = nexus->StateFromFeedback();
-    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
-  }
-
   static bool ICUseVector(Code::Kind kind) {
     return kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
            kind == Code::KEYED_LOAD_IC || kind == Code::STORE_IC ||
@@ -82,15 +77,16 @@ class IC {
 
   static inline bool IsHandler(Object* object);
 
+  // Nofity the IC system that a feedback has changed.
+  static void OnFeedbackChanged(Isolate* isolate, JSFunction* host_function);
+
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
   Isolate* isolate() const { return isolate_; }
 
-  // Get the shared function info of the caller.
-  SharedFunctionInfo* GetSharedFunctionInfo() const;
-  // Get the code object of the caller.
-  Code* GetCode() const;
+  // Get the caller function object.
+  JSFunction* GetHostFunction() const;
 
   inline bool AddressIsDeoptimizedCode() const;
   inline static bool AddressIsDeoptimizedCode(Isolate* isolate,
@@ -135,8 +131,6 @@ class IC {
                                          Address constant_pool);
   static inline void SetTargetAtAddress(Address address, Code* target,
                                         Address constant_pool);
-  // As a vector-based IC, type feedback must be updated differently.
-  static void OnTypeFeedbackChanged(Isolate* isolate, Code* host);
   static void PostPatching(Address address, Code* target, Code* old_target);
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
@@ -213,7 +207,6 @@ class IC {
   }
   FeedbackNexus* nexus() const { return nexus_; }
 
-  inline Code* get_host();
   inline Code* target() const;
 
  private:
@@ -265,8 +258,6 @@ class CallIC : public IC {
       : IC(EXTRA_CALL_FRAME, isolate, nexus) {
     DCHECK(nexus != NULL);
   }
-
-  static void Clear(Isolate* isolate, Code* host, CallICNexus* nexus);
 };
 
 
@@ -288,8 +279,6 @@ class LoadIC : public IC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Name> name);
-
-  static void Clear(Isolate* isolate, Code* host, LoadICNexus* nexus);
 
  protected:
   virtual Handle<Code> slow_stub() const {
@@ -330,8 +319,6 @@ class LoadGlobalIC : public LoadIC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Name> name);
 
-  static void Clear(Isolate* isolate, Code* host, LoadGlobalICNexus* nexus);
-
  protected:
   Handle<Code> slow_stub() const override {
     return isolate()->builtins()->LoadGlobalIC_Slow();
@@ -347,8 +334,6 @@ class KeyedLoadIC : public LoadIC {
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
                                            Handle<Object> key);
-
-  static void Clear(Isolate* isolate, Code* host, KeyedLoadICNexus* nexus);
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
@@ -377,8 +362,6 @@ class StoreIC : public IC {
 
   bool LookupForWrite(LookupIterator* it, Handle<Object> value,
                       JSReceiver::StoreFromKeyed store_mode);
-
-  static void Clear(Isolate* isolate, Code* host, StoreICNexus* nexus);
 
  protected:
   // Stub accessors.
@@ -422,8 +405,6 @@ class KeyedStoreIC : public StoreIC {
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                             Handle<Object> name,
                                             Handle<Object> value);
-
-  static void Clear(Isolate* isolate, Code* host, KeyedStoreICNexus* nexus);
 
  protected:
   void UpdateStoreElement(Handle<Map> receiver_map,

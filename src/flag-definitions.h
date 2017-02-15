@@ -875,8 +875,7 @@ DEFINE_BOOL(never_compact, false,
             "Never perform compaction on full GC - testing only")
 DEFINE_BOOL(compact_code_space, true, "Compact code space on full collections")
 DEFINE_BOOL(cleanup_code_caches_at_gc, true,
-            "Flush inline caches prior to mark compact collection and "
-            "flush code caches in maps during mark compact cycle.")
+            "Flush code caches in maps during mark compact cycle.")
 DEFINE_BOOL(use_marking_progress_bar, true,
             "Use a progress bar to scan large objects in increments when "
             "incremental marking is active.")

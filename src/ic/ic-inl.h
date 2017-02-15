@@ -123,14 +123,6 @@ Handle<Map> IC::GetICCacheHolder(Handle<Map> map, Isolate* isolate,
 }
 
 
-Code* IC::get_host() {
-  return isolate()
-      ->inner_pointer_to_code_cache()
-      ->GetCacheEntry(address())
-      ->code;
-}
-
-
 bool IC::AddressIsDeoptimizedCode() const {
   return AddressIsDeoptimizedCode(isolate(), address());
 }

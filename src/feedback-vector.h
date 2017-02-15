@@ -332,11 +332,7 @@ class FeedbackVector : public FixedArray {
   DECLARE_PRINTER(FeedbackVector)
 
   // Clears the vector slots.
-  void ClearSlots(SharedFunctionInfo* shared) { ClearSlotsImpl(shared, true); }
-
-  void ClearSlotsAtGCTime(SharedFunctionInfo* shared) {
-    ClearSlotsImpl(shared, false);
-  }
+  void ClearSlots(JSFunction* host_function);
 
   // The object that indicates an uninitialized cache.
   static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);
@@ -352,7 +348,6 @@ class FeedbackVector : public FixedArray {
   static inline Symbol* RawUninitializedSentinel(Isolate* isolate);
 
  private:
-  void ClearSlotsImpl(SharedFunctionInfo* shared, bool force_clear);
   static void AddToCodeCoverageList(Isolate* isolate,
                                     Handle<FeedbackVector> vector);
 
@@ -453,6 +448,12 @@ class FeedbackNexus {
                             int length = -1) const;
   virtual Name* FindFirstName() const { return NULL; }
 
+  bool IsCleared() {
+    InlineCacheState state = StateFromFeedback();
+    return !FLAG_use_ic || state == UNINITIALIZED || state == PREMONOMORPHIC;
+  }
+
+  virtual void Clear() { ConfigureUninitialized(); }
   virtual void ConfigureUninitialized();
   virtual void ConfigurePremonomorphic();
   virtual void ConfigureMegamorphic();
@@ -494,8 +495,6 @@ class CallICNexus final : public FeedbackNexus {
     DCHECK(vector->IsCallIC(slot));
   }
 
-  void Clear(Code* host);
-
   void ConfigureUninitialized() override;
   void ConfigureMonomorphicArray();
   void ConfigureMonomorphic(Handle<JSFunction> function);
@@ -534,7 +533,7 @@ class LoadICNexus : public FeedbackNexus {
     DCHECK(vector->IsLoadIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
 
@@ -568,7 +567,6 @@ class LoadGlobalICNexus : public FeedbackNexus {
   }
 
   void ConfigureMegamorphic() override { UNREACHABLE(); }
-  void Clear(Code* host);
 
   void ConfigureUninitialized() override;
   void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
@@ -588,7 +586,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
     DCHECK(vector->IsKeyedLoadIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
@@ -615,7 +613,7 @@ class StoreICNexus : public FeedbackNexus {
     DCHECK(vector->IsStoreIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   void ConfigureMonomorphic(Handle<Map> receiver_map, Handle<Object> handler);
 
@@ -636,7 +634,7 @@ class KeyedStoreICNexus : public FeedbackNexus {
     DCHECK(vector->IsKeyedStoreIC(slot));
   }
 
-  void Clear(Code* host);
+  void Clear() override { ConfigurePremonomorphic(); }
 
   // name can be a null handle for element loads.
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map,
@@ -667,8 +665,6 @@ class BinaryOpICNexus final : public FeedbackNexus {
     DCHECK_EQ(FeedbackSlotKind::kBinaryOp, vector->GetKind(slot));
   }
 
-  void Clear(Code* host);
-
   InlineCacheState StateFromFeedback() const final;
   BinaryOperationHint GetBinaryOperationFeedback() const;
 
@@ -695,8 +691,6 @@ class CompareICNexus final : public FeedbackNexus {
       : FeedbackNexus(vector, slot) {
     DCHECK_EQ(FeedbackSlotKind::kCompareOp, vector->GetKind(slot));
   }
-
-  void Clear(Code* host);
 
   InlineCacheState StateFromFeedback() const final;
   CompareOperationHint GetCompareOperationFeedback() const;
@@ -727,8 +721,6 @@ class StoreDataPropertyInLiteralICNexus : public FeedbackNexus {
     DCHECK_EQ(FeedbackSlotKind::kStoreDataPropertyInLiteral,
               vector->GetKind(slot));
   }
-
-  void Clear(Code* host) { ConfigureUninitialized(); }
 
   void ConfigureMonomorphic(Handle<Name> name, Handle<Map> receiver_map);
 

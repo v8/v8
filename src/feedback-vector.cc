@@ -257,21 +257,14 @@ void FeedbackVector::AddToCodeCoverageList(Isolate* isolate,
   isolate->SetCodeCoverageList(*list);
 }
 
-// This logic is copied from
-// StaticMarkingVisitor<StaticVisitor>::VisitCodeTarget.
-static bool ClearLogic(Isolate* isolate) {
-  return FLAG_cleanup_code_caches_at_gc && isolate->serializer_enabled();
-}
-
-void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
-                                    bool force_clear) {
+void FeedbackVector::ClearSlots(JSFunction* host_function) {
   Isolate* isolate = GetIsolate();
-  if (!force_clear && !ClearLogic(isolate)) return;
 
   Object* uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
   Oddball* undefined_value = isolate->heap()->undefined_value();
 
+  bool feedback_updated = false;
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
@@ -282,35 +275,53 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
       switch (kind) {
         case FeedbackSlotKind::kCall: {
           CallICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kLoadProperty: {
           LoadICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kLoadGlobalInsideTypeof:
         case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
           LoadGlobalICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kLoadKeyed: {
           KeyedLoadICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kStorePropertySloppy:
         case FeedbackSlotKind::kStorePropertyStrict: {
           StoreICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kStoreKeyedSloppy:
         case FeedbackSlotKind::kStoreKeyedStrict: {
           KeyedStoreICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kBinaryOp:
@@ -332,17 +343,22 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
             // regularly.
             if (instance_type != ALLOCATION_SITE_TYPE) {
               Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
+              feedback_updated = true;
             }
           }
           break;
         }
         case FeedbackSlotKind::kLiteral: {
           Set(slot, undefined_value, SKIP_WRITE_BARRIER);
+          feedback_updated = true;
           break;
         }
         case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
           StoreDataPropertyInLiteralICNexus nexus(this, slot);
-          nexus.Clear(shared->code());
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
           break;
         }
         case FeedbackSlotKind::kToBoolean:
@@ -352,6 +368,9 @@ void FeedbackVector::ClearSlotsImpl(SharedFunctionInfo* shared,
           break;
       }
     }
+  }
+  if (feedback_updated) {
+    IC::OnFeedbackChanged(isolate, host_function);
   }
 }
 
@@ -570,8 +589,6 @@ float CallICNexus::ComputeCallFrequency() {
   double const call_count = ExtractCallCount();
   return static_cast<float>(call_count / invocation_count);
 }
-
-void CallICNexus::Clear(Code* host) { CallIC::Clear(GetIsolate(), host, this); }
 
 void CallICNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
@@ -877,16 +894,6 @@ bool FeedbackNexus::FindHandlers(List<Handle<Object>>* code_list,
   return count == length;
 }
 
-void LoadICNexus::Clear(Code* host) { LoadIC::Clear(GetIsolate(), host, this); }
-
-void LoadGlobalICNexus::Clear(Code* host) {
-  LoadGlobalIC::Clear(GetIsolate(), host, this);
-}
-
-void KeyedLoadICNexus::Clear(Code* host) {
-  KeyedLoadIC::Clear(GetIsolate(), host, this);
-}
-
 Name* KeyedLoadICNexus::FindFirstName() const {
   Object* feedback = GetFeedback();
   if (IsPropertyNameFeedback(feedback)) {
@@ -901,14 +908,6 @@ Name* KeyedStoreICNexus::FindFirstName() const {
     return Name::cast(feedback);
   }
   return NULL;
-}
-
-void StoreICNexus::Clear(Code* host) {
-  StoreIC::Clear(GetIsolate(), host, this);
-}
-
-void KeyedStoreICNexus::Clear(Code* host) {
-  KeyedStoreIC::Clear(GetIsolate(), host, this);
 }
 
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {

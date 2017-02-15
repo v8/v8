@@ -13833,7 +13833,8 @@ void Code::ClearInlineCaches() {
     RelocInfo* info = it.rinfo();
     Code* target(Code::GetCodeFromTargetAddress(info->target_address()));
     if (target->is_inline_cache_stub()) {
-      IC::Clear(this->GetIsolate(), info->pc(), info->host()->constant_pool());
+      ICUtility::Clear(this->GetIsolate(), info->pc(),
+                       info->host()->constant_pool());
     }
   }
 }
@@ -13870,14 +13871,7 @@ int AbstractCode::SourceStatementPosition(int offset) {
 void JSFunction::ClearTypeFeedbackInfo() {
   if (feedback_vector_cell()->value()->IsFeedbackVector()) {
     FeedbackVector* vector = feedback_vector();
-    vector->ClearSlots(shared());
-  }
-}
-
-void JSFunction::ClearTypeFeedbackInfoAtGCTime() {
-  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
-    FeedbackVector* vector = feedback_vector();
-    vector->ClearSlotsAtGCTime(shared());
+    vector->ClearSlots(this);
   }
 }
 
