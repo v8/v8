@@ -30,6 +30,7 @@
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
 #include "src/basic-block-profiler.h"
+#include "src/debug/debug-coverage.h"
 #include "src/interpreter/interpreter.h"
 #include "src/list-inl.h"
 #include "src/msan.h"
@@ -1654,6 +1655,70 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
       JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
+namespace {
+void ReadRange(std::ofstream* s, std::vector<uint32_t>* lines,
+               i::Handle<i::Script> script, const i::Coverage::Range* range) {
+  // Compute line and column numbers from source position.
+  i::Script::PositionInfo start;
+  i::Script::PositionInfo end;
+  i::Script::GetPositionInfo(script, range->start, &start,
+                             i::Script::NO_OFFSET);
+  i::Script::GetPositionInfo(script, range->end, &end, i::Script::NO_OFFSET);
+  // Boundary lines could be shared between two functions with different
+  // invocation counts. Take the maximum.
+  lines->at(start.line) = std::max(lines->at(start.line), range->count);
+  lines->at(end.line) = std::max(lines->at(end.line), range->count);
+  // Invocation counts for non-boundary lines are overwritten.
+  for (int i = start.line + 1; i < end.line; i++) lines->at(i) = range->count;
+  // Note that we use 0-based line numbers. But LCOV uses 1-based line numbers.
+  if (!range->name.empty()) {
+    // Truncate UC16 characters down to Latin1.
+    std::unique_ptr<char[]> name(new char[range->name.size() + 1]);
+    for (size_t i = 0; i < range->name.size(); i++) {
+      name[i] = static_cast<char>(range->name.data()[i]);
+    }
+    name[range->name.size()] = 0;
+    *s << "FN:" << (start.line + 1) << "," << name.get() << std::endl;
+    *s << "FNDA:" << range->count << "," << name.get() << std::endl;
+  } else {
+    // Anonymous function. Use line and column as name.
+    *s << "FN:" << (start.line + 1) << ",";
+    *s << "<" << (start.line + 1) << "-" << start.column << ">" << std::endl;
+    *s << "FNDA:" << range->count << ",";
+    *s << "<" << (start.line + 1) << "-" << start.column << ">" << std::endl;
+  }
+  // Recurse over inner ranges.
+  for (const auto& inner : range->inner) ReadRange(s, lines, script, &inner);
+}
+}  // anonymous namespace
+
+// Write coverage data in LCOV format. See man page for geninfo(1).
+void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
+  if (!file) return;
+  HandleScope handle_scope(isolate);
+  std::vector<i::Coverage::ScriptData> data =
+      i::Coverage::Collect(reinterpret_cast<i::Isolate*>(isolate));
+  std::ofstream sink(file, std::ofstream::app);
+  for (const auto& script_data : data) {
+    i::Handle<i::Script> script = script_data.script;
+    // Skip unnamed scripts.
+    if (!script->name()->IsString()) continue;
+    std::string file_name = ToSTLString(v8::Utils::ToLocal(
+        i::Handle<i::String>(i::String::cast(script->name()))));
+    // Skip scripts not backed by a file.
+    if (!std::ifstream(file_name).good()) continue;
+    sink << "SF:";
+    sink << NormalizePath(file_name, GetWorkingDirectory()) << std::endl;
+    std::vector<uint32_t> lines;
+    lines.resize(i::FixedArray::cast(script->line_ends())->length(), 0);
+    ReadRange(&sink, &lines, script, &script_data.toplevel);
+    // Write per-line coverage. LCOV uses 1-based line numbers.
+    for (size_t i = 0; i < lines.size(); i++) {
+      sink << "DA:" << (i + 1) << "," << lines[i] << std::endl;
+    }
+    sink << "end_of_record" << std::endl;
+  }
+}
 
 void Shell::OnExit(v8::Isolate* isolate) {
   if (i::FLAG_dump_counters || i::FLAG_dump_counters_nvp) {
@@ -1712,7 +1777,6 @@ void Shell::OnExit(v8::Isolate* isolate) {
   delete counters_file_;
   delete counter_map_;
 }
-
 
 
 static FILE* FOpen(const char* path, const char* mode) {
@@ -2396,6 +2460,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--enable-inspector") == 0) {
       options.enable_inspector = true;
       argv[i] = NULL;
+    } else if (strncmp(argv[i], "--lcov=", 7) == 0) {
+      options.lcov_file = argv[i] + 7;
+      argv[i] = NULL;
     }
   }
 
@@ -2437,6 +2504,9 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
+    if (options.lcov_file) {
+      i::Coverage::EnablePrecise(reinterpret_cast<i::Isolate*>(isolate));
+    }
     HandleScope scope(isolate);
     Local<Context> context = CreateEvaluationContext(isolate);
     if (last_run && options.use_interactive_shell()) {
@@ -2450,6 +2520,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       options.isolate_sources[0].Execute(isolate);
     }
     DisposeModuleEmbedderData(context);
+    WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {

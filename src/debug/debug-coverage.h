@@ -36,12 +36,12 @@ class Coverage : public AllStatic {
     Range toplevel;
   };
 
-  static std::vector<ScriptData> Collect(Isolate* isolate);
+  V8_EXPORT_PRIVATE static std::vector<ScriptData> Collect(Isolate* isolate);
 
   // Enable precise code coverage. This disables optimization and makes sure
   // invocation count is not affected by GC.
-  static void EnablePrecise(Isolate* isolate);
-  static void DisablePrecise(Isolate* isolate);
+  V8_EXPORT_PRIVATE static void EnablePrecise(Isolate* isolate);
+  V8_EXPORT_PRIVATE static void DisablePrecise(Isolate* isolate);
 };
 
 }  // namespace internal

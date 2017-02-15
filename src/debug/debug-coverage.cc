@@ -43,9 +43,25 @@ class SharedToCounterMap
   DisallowHeapAllocation no_gc;
 };
 
+namespace {
+int StartPosition(SharedFunctionInfo* info) {
+  int start = info->function_token_position();
+  if (start == kNoSourcePosition) start = info->start_position();
+  return start;
+}
+
+bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
+  int a_start = StartPosition(a);
+  int b_start = StartPosition(b);
+  if (a_start == b_start) return a->end_position() > b->end_position();
+  return a_start < b_start;
+}
+}  // anonymous namespace
+
 std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
   SharedToCounterMap counter_map;
 
+  // Feed invocation count into the counter map.
   if (isolate->IsCodeCoverageEnabled()) {
     // Feedback vectors are already listed to prevent losing them to GC.
     Handle<ArrayList> list =
@@ -61,9 +77,6 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
     // Iterate the heap to find all feedback vectors and accumulate the
     // invocation counts into the map for each shared function info.
     HeapIterator heap_iterator(isolate->heap());
-    // Initializing the heap iterator might have triggered a GC, which
-    // invalidates entries in the counter_map.
-    DCHECK_EQ(0, counter_map.occupancy());
     while (HeapObject* current_obj = heap_iterator.next()) {
       if (!current_obj->IsFeedbackVector()) continue;
       FeedbackVector* vector = FeedbackVector::cast(current_obj);
@@ -74,11 +87,6 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
     }
   }
 
-  // Make sure entries in the counter map is not invalidated by GC.
-  DisallowHeapAllocation no_gc;
-
-  std::vector<Range*> stack;
-
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
   std::vector<Coverage::ScriptData> result;
@@ -86,17 +94,29 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
   while (Script* script = scripts.Next()) {
     // Dismiss non-user scripts.
     if (script->type() != Script::TYPE_NORMAL) continue;
-    DCHECK(stack.empty());
+
+    // Create and add new script data.
     int source_length = String::cast(script->source())->length();
     result.emplace_back(Handle<Script>(script, isolate), source_length);
+
+    std::vector<SharedFunctionInfo*> sorted;
+
+    {
+      // Collect a list of shared function infos sorted by start position.
+      // Shared function infos are usually already sorted. Except for classes.
+      // If the start position is the same, sort from outer to inner function.
+      HandleScope scope(isolate);
+      SharedFunctionInfo::ScriptIterator infos(Handle<Script>(script, isolate));
+      while (SharedFunctionInfo* info = infos.Next()) sorted.push_back(info);
+      std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
+    }
+
+    std::vector<Range*> stack;
     stack.push_back(&result.back().toplevel);
-    // Iterate through the list of shared function infos, reconstruct the
-    // nesting, and compute the ranges covering different invocation counts.
-    HandleScope scope(isolate);
-    SharedFunctionInfo::ScriptIterator infos(Handle<Script>(script, isolate));
-    while (SharedFunctionInfo* info = infos.Next()) {
-      int start = info->function_token_position();
-      if (start == kNoSourcePosition) start = info->start_position();
+
+    // Use sorted list to reconstruct function nesting.
+    for (SharedFunctionInfo* info : sorted) {
+      int start = StartPosition(info);
       int end = info->end_position();
       uint32_t count = counter_map.Get(info);
       if (info->is_toplevel()) {
@@ -109,7 +129,7 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
         // The shared function infos are sorted by start.
         DCHECK_LE(stack.back()->start, start);
         // Drop the stack to the outer function.
-        while (start > stack.back()->end) stack.pop_back();
+        while (start >= stack.back()->end) stack.pop_back();
         Range* outer = stack.back();
         // New nested function.
         DCHECK_LE(end, outer->end);
@@ -121,7 +141,6 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
         stack.push_back(&nested);
       }
     }
-    stack.clear();
   }
   return result;
 }

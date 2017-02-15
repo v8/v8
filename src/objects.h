@@ -6694,8 +6694,10 @@ class Script: public Struct {
   // initializes the line ends array, avoiding expensive recomputations.
   // The non-static version is not allocating and safe for unhandlified
   // callsites.
-  static bool GetPositionInfo(Handle<Script> script, int position,
-                              PositionInfo* info, OffsetFlag offset_flag);
+  V8_EXPORT_PRIVATE static bool GetPositionInfo(Handle<Script> script,
+                                                int position,
+                                                PositionInfo* info,
+                                                OffsetFlag offset_flag);
   bool GetPositionInfo(int position, PositionInfo* info,
                        OffsetFlag offset_flag) const;
 
