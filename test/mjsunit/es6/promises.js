@@ -34,6 +34,9 @@ var defineProperty = Object.defineProperty;
 var numberPrototype = Number.prototype;
 var symbolIterator = Symbol.iterator;
 
+function assertUnreachable() {
+  %AbortJS("Failure: unreachable");
+}
 
 (function() {
   // Test before clearing global (fails otherwise)
