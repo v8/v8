@@ -153,6 +153,13 @@ var DEFAULT_ICU_LOCALE = UNDEFINED;
 function GetDefaultICULocaleJS() {
   if (IS_UNDEFINED(DEFAULT_ICU_LOCALE)) {
     DEFAULT_ICU_LOCALE = %GetDefaultICULocale();
+    // Check that this is a valid default, otherwise fall back to "und"
+    for (let service in AVAILABLE_LOCALES) {
+      if (IS_UNDEFINED(getAvailableLocalesOf(service)[DEFAULT_ICU_LOCALE])) {
+        DEFAULT_ICU_LOCALE = "und";
+        break;
+      }
+    }
   }
   return DEFAULT_ICU_LOCALE;
 }
@@ -298,19 +305,16 @@ function supportedLocalesOf(service, locales, options) {
 
   var requestedLocales = initializeLocaleList(locales);
 
-  // Cache these, they don't ever change per service.
-  if (IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
-    AVAILABLE_LOCALES[service] = getAvailableLocalesOf(service);
-  }
+  var availableLocales = getAvailableLocalesOf(service);
 
   // Use either best fit or lookup algorithm to match locales.
   if (matcher === 'best fit') {
     return initializeLocaleList(bestFitSupportedLocalesOf(
-        requestedLocales, AVAILABLE_LOCALES[service]));
+        requestedLocales, availableLocales));
   }
 
   return initializeLocaleList(lookupSupportedLocalesOf(
-      requestedLocales, AVAILABLE_LOCALES[service]));
+      requestedLocales, availableLocales));
 }
 
 
@@ -437,17 +441,14 @@ function lookupMatcher(service, requestedLocales) {
     throw %make_error(kWrongServiceType, service);
   }
 
-  // Cache these, they don't ever change per service.
-  if (IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
-    AVAILABLE_LOCALES[service] = getAvailableLocalesOf(service);
-  }
+  var availableLocales = getAvailableLocalesOf(service);
 
   for (var i = 0; i < requestedLocales.length; ++i) {
     // Remove all extensions.
     var locale = %RegExpInternalReplace(
         GetAnyExtensionRE(), requestedLocales[i], '');
     do {
-      if (!IS_UNDEFINED(AVAILABLE_LOCALES[service][locale])) {
+      if (!IS_UNDEFINED(availableLocales[locale])) {
         // Return the resolved locale and extension.
         var extensionMatch = %regexp_internal_match(
             GetUnicodeExtensionRE(), requestedLocales[i]);
@@ -658,6 +659,11 @@ function getOptimalLanguageTag(original, resolved) {
  * that is supported. This is required by the spec.
  */
 function getAvailableLocalesOf(service) {
+  // Cache these, they don't ever change per service.
+  if (!IS_UNDEFINED(AVAILABLE_LOCALES[service])) {
+    return AVAILABLE_LOCALES[service];
+  }
+
   var available = %AvailableLocalesOf(service);
 
   for (var i in available) {
@@ -671,6 +677,8 @@ function getAvailableLocalesOf(service) {
       }
     }
   }
+
+  AVAILABLE_LOCALES[service] = available;
 
   return available;
 }
