@@ -1602,6 +1602,9 @@ bool SemiSpace::EnsureCurrentCapacity() {
         // Make sure we don't overtake the actual top pointer.
         CHECK_NE(to_remove, current_page_);
         to_remove->Unlink();
+        // Clear new space flags to avoid this page being treated as a new
+        // space page that is potentially being swept.
+        to_remove->SetFlags(0, Page::kIsInNewSpaceMask);
         heap()->memory_allocator()->Free<MemoryAllocator::kPooledAndQueue>(
             to_remove);
       }

@@ -1108,7 +1108,10 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     explicit Unmapper(MemoryAllocator* allocator)
         : allocator_(allocator),
           pending_unmapping_tasks_semaphore_(0),
-          concurrent_unmapping_tasks_active_(0) {}
+          concurrent_unmapping_tasks_active_(0) {
+      chunks_[kRegular].reserve(kReservedQueueingSlots);
+      chunks_[kPooled].reserve(kReservedQueueingSlots);
+    }
 
     void AddMemoryChunkSafe(MemoryChunk* chunk) {
       if ((chunk->size() == Page::kPageSize) &&
@@ -1141,6 +1144,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     void TearDown();
 
    private:
+    static const int kReservedQueueingSlots = 64;
+
     enum ChunkQueueType {
       kRegular,     // Pages of kPageSize that do not live in a CodeRange and
                     // can thus be used for stealing.
@@ -1169,8 +1174,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     MemoryChunk* GetMemoryChunkSafe() {
       base::LockGuard<base::Mutex> guard(&mutex_);
       if (chunks_[type].empty()) return nullptr;
-      MemoryChunk* chunk = chunks_[type].front();
-      chunks_[type].pop_front();
+      MemoryChunk* chunk = chunks_[type].back();
+      chunks_[type].pop_back();
       return chunk;
     }
 
@@ -1180,7 +1185,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
     base::Mutex mutex_;
     MemoryAllocator* allocator_;
-    std::list<MemoryChunk*> chunks_[kNumberOfChunkQueues];
+    std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
     // Delayed chunks cannot be processed in the current unmapping cycle because
     // of dependencies such as an active sweeper.
     // See MemoryAllocator::CanFreeMemoryChunk.
