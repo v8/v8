@@ -3797,10 +3797,9 @@ void WasmCompilationUnit::ExecuteCompilation() {
     descriptor =
         module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
   }
-  job_.reset(Pipeline::NewWasmCompilationJob(
-      &info_, jsgraph_, descriptor, source_positions, &protected_instructions_,
-      module_env_->module_env.module->origin != wasm::kWasmOrigin));
-
+  job_.reset(Pipeline::NewWasmCompilationJob(&info_, jsgraph_, descriptor,
+                                             source_positions,
+                                             &protected_instructions_));
   ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(ahaas): The counters are not thread-safe at the moment.
