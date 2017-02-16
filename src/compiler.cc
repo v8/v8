@@ -1476,17 +1476,35 @@ Compiler::CompilationTier Compiler::NextCompilationTier(JSFunction* function) {
 MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     Handle<String> source, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> context, LanguageMode language_mode,
-    ParseRestriction restriction, int eval_scope_position, int eval_position,
-    int line_offset, int column_offset, Handle<Object> script_name,
+    ParseRestriction restriction, int parameters_end_pos,
+    int eval_scope_position, int eval_position, int line_offset,
+    int column_offset, Handle<Object> script_name,
     ScriptOriginOptions options) {
   Isolate* isolate = source->GetIsolate();
   int source_length = source->length();
   isolate->counters()->total_eval_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
+  // The cache lookup key needs to be aware of the separation between the
+  // parameters and the body to prevent this valid invocation:
+  //   Function("", "function anonymous(\n/**/) {\n}");
+  // from adding an entry that falsely approves this invalid invocation:
+  //   Function("\n/**/) {\nfunction anonymous(", "}");
+  // The actual eval_scope_position for indirect eval and CreateDynamicFunction
+  // is unused (just 0), which means it's an available field to use to indicate
+  // this separation. But to make sure we're not causing other false hits, we
+  // negate the scope position.
+  int position = eval_scope_position;
+  if (FLAG_harmony_function_tostring &&
+      restriction == ONLY_SINGLE_FUNCTION_LITERAL &&
+      parameters_end_pos != kNoSourcePosition) {
+    // use the parameters_end_pos as the eval_scope_position in the eval cache.
+    DCHECK_EQ(eval_scope_position, 0);
+    position = -parameters_end_pos;
+  }
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoVectorPair eval_result = compilation_cache->LookupEval(
-      source, outer_info, context, language_mode, eval_scope_position);
+      source, outer_info, context, language_mode, position);
   Handle<SharedFunctionInfo> shared_info;
   if (eval_result.has_shared()) {
     shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
@@ -1518,6 +1536,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     parse_info.set_eval();
     parse_info.set_language_mode(language_mode);
     parse_info.set_parse_restriction(restriction);
+    parse_info.set_parameters_end_pos(parameters_end_pos);
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
@@ -1595,7 +1614,7 @@ bool ContainsAsmModule(Handle<Script> script) {
 
 MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
     Handle<Context> context, Handle<String> source,
-    ParseRestriction restriction) {
+    ParseRestriction restriction, int parameters_end_pos) {
   Isolate* const isolate = context->GetIsolate();
   Handle<Context> native_context(context->native_context(), isolate);
 
@@ -1615,8 +1634,8 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   int eval_position = kNoSourcePosition;
   Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
   return Compiler::GetFunctionFromEval(source, outer_info, native_context,
-                                       SLOPPY, restriction, eval_scope_position,
-                                       eval_position);
+                                       SLOPPY, restriction, parameters_end_pos,
+                                       eval_scope_position, eval_position);
 }
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(

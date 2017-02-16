@@ -138,7 +138,8 @@ Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
   Handle<String> source = isolate->factory()->NewStringFromStaticChars("true");
   Handle<Context> context(isolate->context(), isolate);
   Handle<JSFunction> triggered_fun =
-      Compiler::GetFunctionFromString(context, source, NO_PARSE_RESTRICTION)
+      Compiler::GetFunctionFromString(context, source, NO_PARSE_RESTRICTION,
+                                      kNoSourcePosition)
           .ToHandleChecked();
   PropertyDescriptor desc;
   desc.set_value(triggered_fun);

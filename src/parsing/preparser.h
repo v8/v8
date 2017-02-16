@@ -1690,6 +1690,8 @@ class PreParser : public ParserBase<PreParser> {
     if (use_counts_ != nullptr) ++use_counts_[feature];
   }
 
+  V8_INLINE bool ParsingDynamicFunctionDeclaration() const { return false; }
+
   // Preparser's private field members.
 
   int* use_counts_;

@@ -12820,6 +12820,10 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
     return NativeCodeFunctionSourceString(shared_info);
   }
 
+  if (FLAG_harmony_function_tostring) {
+    return Handle<String>::cast(shared_info->GetSourceCodeHarmony());
+  }
+
   IncrementalStringBuilder builder(isolate);
   FunctionKind kind = shared_info->kind();
   if (!IsArrowFunction(kind)) {
@@ -13290,6 +13294,15 @@ Handle<Object> SharedFunctionInfo::GetSourceCode() {
       source, start_position(), end_position());
 }
 
+Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony() {
+  Isolate* isolate = GetIsolate();
+  if (!HasSourceCode()) return isolate->factory()->undefined_value();
+  Handle<String> script_source(String::cast(Script::cast(script())->source()));
+  int start_pos = function_token_position();
+  if (start_pos == kNoSourcePosition) start_pos = start_position();
+  return isolate->factory()->NewSubString(script_source, start_pos,
+                                          end_position());
+}
 
 bool SharedFunctionInfo::IsInlineable() {
   // Check that the function has a script associated with it.
@@ -15767,12 +15780,22 @@ void Symbol::SymbolShortPrint(std::ostream& os) {
 // StringSharedKeys are used as keys in the eval cache.
 class StringSharedKey : public HashTableKey {
  public:
+  // This tuple unambiguously identifies calls to eval() or
+  // CreateDynamicFunction() (such as through the Function() constructor).
+  // * source is the string passed into eval(). For dynamic functions, this is
+  //   the effective source for the function, some of which is implicitly
+  //   generated.
+  // * shared is the shared function info for the function containing the call
+  //   to eval(). for dynamic functions, shared is the native context closure.
+  // * When positive, position is the position in the source where eval is
+  //   called. When negative, position is the negation of the position in the
+  //   dynamic function's effective source where the ')' ends the parameters.
   StringSharedKey(Handle<String> source, Handle<SharedFunctionInfo> shared,
-                  LanguageMode language_mode, int scope_position)
+                  LanguageMode language_mode, int position)
       : source_(source),
         shared_(shared),
         language_mode_(language_mode),
-        scope_position_(scope_position) {}
+        position_(position) {}
 
   bool IsMatch(Object* other) override {
     DisallowHeapAllocation no_allocation;
@@ -15788,8 +15811,8 @@ class StringSharedKey : public HashTableKey {
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
     if (language_mode != language_mode_) return false;
-    int scope_position = Smi::cast(other_array->get(3))->value();
-    if (scope_position != scope_position_) return false;
+    int position = Smi::cast(other_array->get(3))->value();
+    if (position != position_) return false;
     String* source = String::cast(other_array->get(1));
     return source->Equals(*source_);
   }
@@ -15797,7 +15820,7 @@ class StringSharedKey : public HashTableKey {
   static uint32_t StringSharedHashHelper(String* source,
                                          SharedFunctionInfo* shared,
                                          LanguageMode language_mode,
-                                         int scope_position) {
+                                         int position) {
     uint32_t hash = source->Hash();
     if (shared->HasSourceCode()) {
       // Instead of using the SharedFunctionInfo pointer in the hash
@@ -15809,14 +15832,14 @@ class StringSharedKey : public HashTableKey {
       hash ^= String::cast(script->source())->Hash();
       STATIC_ASSERT(LANGUAGE_END == 2);
       if (is_strict(language_mode)) hash ^= 0x8000;
-      hash += scope_position;
+      hash += position;
     }
     return hash;
   }
 
   uint32_t Hash() override {
     return StringSharedHashHelper(*source_, *shared_, language_mode_,
-                                  scope_position_);
+                                  position_);
   }
 
   uint32_t HashForObject(Object* obj) override {
@@ -15830,9 +15853,8 @@ class StringSharedKey : public HashTableKey {
     int language_unchecked = Smi::cast(other_array->get(2))->value();
     DCHECK(is_valid_language_mode(language_unchecked));
     LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    int scope_position = Smi::cast(other_array->get(3))->value();
-    return StringSharedHashHelper(source, shared, language_mode,
-                                  scope_position);
+    int position = Smi::cast(other_array->get(3))->value();
+    return StringSharedHashHelper(source, shared, language_mode, position);
   }
 
 
@@ -15841,7 +15863,7 @@ class StringSharedKey : public HashTableKey {
     array->set(0, *shared_);
     array->set(1, *source_);
     array->set(2, Smi::FromInt(language_mode_));
-    array->set(3, Smi::FromInt(scope_position_));
+    array->set(3, Smi::FromInt(position_));
     return array;
   }
 
@@ -15849,7 +15871,7 @@ class StringSharedKey : public HashTableKey {
   Handle<String> source_;
   Handle<SharedFunctionInfo> shared_;
   LanguageMode language_mode_;
-  int scope_position_;
+  int position_;
 };
 
 // static
@@ -17451,12 +17473,9 @@ InfoVectorPair CompilationCacheTable::LookupScript(Handle<String> src,
 
 InfoVectorPair CompilationCacheTable::LookupEval(
     Handle<String> src, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> native_context, LanguageMode language_mode,
-    int scope_position) {
+    Handle<Context> native_context, LanguageMode language_mode, int position) {
   InfoVectorPair empty_result;
-  // Cache key is the tuple (source, outer shared function info, scope position)
-  // to unambiguously identify the context chain the cached eval code assumes.
-  StringSharedKey key(src, outer_info, language_mode, scope_position);
+  StringSharedKey key(src, outer_info, language_mode, position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return empty_result;
   int index = EntryToIndex(entry);
@@ -17517,9 +17536,9 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
 Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-    Handle<Context> native_context, Handle<Cell> literals, int scope_position) {
+    Handle<Context> native_context, Handle<Cell> literals, int position) {
   Isolate* isolate = cache->GetIsolate();
-  StringSharedKey key(src, outer_info, value->language_mode(), scope_position);
+  StringSharedKey key(src, outer_info, value->language_mode(), position);
   {
     Handle<Object> k = key.AsHandle(isolate);
     int entry = cache->FindEntry(&key);

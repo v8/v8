@@ -2191,10 +2191,12 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
   Token::Value name_token = peek();
 
+  int function_token_position = scanner()->peek_location().beg_pos;
   IdentifierT name = impl()->EmptyIdentifier();
   ExpressionT name_expression;
   if (name_token == Token::STATIC) {
     Consume(Token::STATIC);
+    function_token_position = scanner()->peek_location().beg_pos;
     if (peek() == Token::LPAREN) {
       kind = PropertyKind::kMethodProperty;
       name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
@@ -2271,8 +2273,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
-          language_mode(), CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
+          FLAG_harmony_function_tostring ? function_token_position
+                                         : kNoSourcePosition,
+          FunctionLiteral::kAccessorOrMethod, language_mode(),
+          CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
 
       *property_kind = ClassLiteralProperty::METHOD;
       return factory()->NewClassLiteralProperty(name_expression, value,
@@ -2299,8 +2303,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
-          language_mode(), CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
+          FLAG_harmony_function_tostring ? function_token_position
+                                         : kNoSourcePosition,
+          FunctionLiteral::kAccessorOrMethod, language_mode(),
+          CHECK_OK_CUSTOM(EmptyClassLiteralProperty));
 
       if (!*is_computed_name) {
         impl()->AddAccessorPrefixToFunctionName(is_get, value, name);
@@ -2494,8 +2500,9 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
       ExpressionT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
-          language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+          FLAG_harmony_function_tostring ? next_beg_pos : kNoSourcePosition,
+          FunctionLiteral::kAccessorOrMethod, language_mode(),
+          CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
       return factory()->NewObjectLiteralProperty(
           name_expression, value, ObjectLiteralProperty::COMPUTED,
@@ -2523,8 +2530,9 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
           name, scanner()->location(), kSkipFunctionNameCheck, kind,
-          kNoSourcePosition, FunctionLiteral::kAccessorOrMethod,
-          language_mode(), CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
+          FLAG_harmony_function_tostring ? next_beg_pos : kNoSourcePosition,
+          FunctionLiteral::kAccessorOrMethod, language_mode(),
+          CHECK_OK_CUSTOM(EmptyObjectLiteralProperty));
 
       if (!*is_computed_name) {
         impl()->AddAccessorPrefixToFunctionName(is_get, value, name);
@@ -3363,7 +3371,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
     Scanner::Location function_name_location = Scanner::Location::invalid();
     FunctionLiteral::FunctionType function_type =
         FunctionLiteral::kAnonymousExpression;
-    if (peek_any_identifier()) {
+    if (impl()->ParsingDynamicFunctionDeclaration()) {
+      // We don't want dynamic functions to actually declare their name
+      // "anonymous". We just want that name in the toString().
+      Consume(Token::IDENTIFIER);
+      DCHECK(scanner()->UnescapedLiteralMatches("anonymous", 9));
+    } else if (peek_any_identifier()) {
       name = ParseIdentifierOrStrictReservedWord(
           function_kind, &is_strict_reserved_name, CHECK_OK);
       function_name_location = scanner()->location();
@@ -4376,7 +4389,12 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   IdentifierT name = impl()->EmptyIdentifier();
   FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
 
-  if (peek_any_identifier()) {
+  if (impl()->ParsingDynamicFunctionDeclaration()) {
+    // We don't want dynamic functions to actually declare their name
+    // "anonymous". We just want that name in the toString().
+    Consume(Token::IDENTIFIER);
+    DCHECK(scanner()->UnescapedLiteralMatches("anonymous", 9));
+  } else if (peek_any_identifier()) {
     type = FunctionLiteral::kNamedExpression;
     name = ParseIdentifierOrStrictReservedWord(FunctionKind::kAsyncFunction,
                                                &is_strict_reserved, CHECK_OK);

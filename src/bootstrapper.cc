@@ -3522,6 +3522,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_tailcalls)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrictive_generators)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_trailing_commas)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_rest_spread)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
@@ -4147,6 +4148,7 @@ bool Genesis::InstallExperimentalNatives() {
 #endif
   static const char* harmony_restrictive_generators_natives[] = {nullptr};
   static const char* harmony_trailing_commas_natives[] = {nullptr};
+  static const char* harmony_function_tostring_natives[] = {nullptr};
   static const char* harmony_class_fields_natives[] = {nullptr};
   static const char* harmony_object_rest_spread_natives[] = {nullptr};
   static const char* harmony_async_iteration_natives[] = {nullptr};

@@ -1121,6 +1121,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     ++use_counts_[feature];
   }
 
+  // Returns true iff we're parsing the first function literal during
+  // CreateDynamicFunction().
+  V8_INLINE bool ParsingDynamicFunctionDeclaration() const {
+    return parameters_end_pos_ != kNoSourcePosition;
+  }
+
   // Parser's private field members.
   friend class DiscardableZoneScope;  // Uses reusable_preparser_.
   // FIXME(marja): Make reusable_preparser_ always use its own temp Zone (call
@@ -1149,6 +1155,12 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ParserLogger* log_;
 
   PreParsedScopeData* preparsed_scope_data_;
+
+  // If not kNoSourcePosition, indicates that the first function literal
+  // encountered is a dynamic function, see CreateDynamicFunction(). This field
+  // indicates the correct position of the ')' that closes the parameter list.
+  // After that ')' is encountered, this field is reset to kNoSourcePosition.
+  int parameters_end_pos_;
 };
 
 // ----------------------------------------------------------------------------

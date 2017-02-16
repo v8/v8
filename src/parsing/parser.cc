@@ -516,7 +516,8 @@ Parser::Parser(ParseInfo* info)
       total_preparse_skipped_(0),
       temp_zoned_(false),
       log_(nullptr),
-      preparsed_scope_data_(info->preparsed_scope_data()) {
+      preparsed_scope_data_(info->preparsed_scope_data()),
+      parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
@@ -2749,6 +2750,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     int* expected_property_count, bool is_inner_function, bool may_abort,
     bool* ok) {
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
+  DCHECK_EQ(kNoSourcePosition, parameters_end_pos_);
   if (produce_cached_parse_data()) CHECK(log_);
 
   DCHECK_IMPLIES(IsArrowFunction(kind),
@@ -3127,8 +3129,34 @@ ZoneList<Statement*>* Parser::ParseFunction(
 
   if (IsResumableFunction(kind)) PrepareGeneratorVariables();
 
+  int expected_parameters_end_pos = parameters_end_pos_;
+  if (expected_parameters_end_pos != kNoSourcePosition) {
+    // This is the first function encountered in a CreateDynamicFunction eval.
+    parameters_end_pos_ = kNoSourcePosition;
+    // The function name should have been ignored, giving us the empty string
+    // here.
+    DCHECK_EQ(function_name, ast_value_factory()->empty_string());
+  }
+
   ParserFormalParameters formals(function_scope);
   ParseFormalParameterList(&formals, CHECK_OK);
+  if (expected_parameters_end_pos != kNoSourcePosition) {
+    // Check for '(' or ')' shenanigans in the parameter string for dynamic
+    // functions.
+    int position = peek_position();
+    if (position < expected_parameters_end_pos) {
+      ReportMessageAt(Scanner::Location(position, position + 1),
+                      MessageTemplate::kArgStringTerminatesParametersEarly);
+      *ok = false;
+      return nullptr;
+    } else if (position > expected_parameters_end_pos) {
+      ReportMessageAt(Scanner::Location(expected_parameters_end_pos - 2,
+                                        expected_parameters_end_pos),
+                      MessageTemplate::kUnexpectedEndOfArgString);
+      *ok = false;
+      return nullptr;
+    }
+  }
   Expect(Token::RPAREN, CHECK_OK);
   int formals_end_position = scanner()->location().end_pos;
   *num_parameters = formals.num_parameters();

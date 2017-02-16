@@ -446,9 +446,10 @@ static Object* CompileGlobalEval(Isolate* isolate, Handle<String> source,
   static const ParseRestriction restriction = NO_PARSE_RESTRICTION;
   Handle<JSFunction> compiled;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, compiled, Compiler::GetFunctionFromEval(
-                             source, outer_info, context, language_mode,
-                             restriction, eval_scope_position, eval_position),
+      isolate, compiled,
+      Compiler::GetFunctionFromEval(source, outer_info, context, language_mode,
+                                    restriction, kNoSourcePosition,
+                                    eval_scope_position, eval_position),
       isolate->heap()->exception());
   return *compiled;
 }

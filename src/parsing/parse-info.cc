@@ -31,6 +31,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       compiler_hints_(0),
       start_position_(0),
       end_position_(0),
+      parameters_end_pos_(kNoSourcePosition),
       function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       max_function_literal_id_(FunctionLiteral::kIdTypeInvalid),
       isolate_(nullptr),

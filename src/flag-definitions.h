@@ -202,6 +202,7 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_do_expressions, "harmony do-expressions")                   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony unicode regexp property classes") \
+  V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_class_fields, "harmony public fields in class literals")    \
   V(harmony_async_iteration, "harmony async iteration")                 \
   V(harmony_dynamic_import, "harmony dynamic import")

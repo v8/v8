@@ -7291,6 +7291,7 @@ class SharedFunctionInfo: public HeapObject {
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
   Handle<Object> GetSourceCode();
+  Handle<Object> GetSourceCodeHarmony();
 
   // Number of times the function was optimized.
   inline int opt_count();
@@ -8677,7 +8678,7 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
   InfoVectorPair LookupEval(Handle<String> src,
                             Handle<SharedFunctionInfo> shared,
                             Handle<Context> native_context,
-                            LanguageMode language_mode, int scope_position);
+                            LanguageMode language_mode, int position);
   Handle<Object> LookupRegExp(Handle<String> source, JSRegExp::Flags flags);
   static Handle<CompilationCacheTable> Put(
       Handle<CompilationCacheTable> cache, Handle<String> src,
@@ -8690,8 +8691,7 @@ class CompilationCacheTable: public HashTable<CompilationCacheTable,
   static Handle<CompilationCacheTable> PutEval(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-      Handle<Context> native_context, Handle<Cell> literals,
-      int scope_position);
+      Handle<Context> native_context, Handle<Cell> literals, int position);
   static Handle<CompilationCacheTable> PutRegExp(
       Handle<CompilationCacheTable> cache, Handle<String> src,
       JSRegExp::Flags flags, Handle<FixedArray> value);

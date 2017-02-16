@@ -93,7 +93,7 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
       isolate, eval_fun,
       Compiler::GetFunctionFromEval(source, outer_info, context, SLOPPY,
                                     NO_PARSE_RESTRICTION, kNoSourcePosition,
-                                    kNoSourcePosition),
+                                    kNoSourcePosition, kNoSourcePosition),
       Object);
 
   Handle<Object> result;

@@ -169,6 +169,11 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int end_position() const { return end_position_; }
   void set_end_position(int end_position) { end_position_ = end_position; }
 
+  int parameters_end_pos() const { return parameters_end_pos_; }
+  void set_parameters_end_pos(int parameters_end_pos) {
+    parameters_end_pos_ = parameters_end_pos;
+  }
+
   int function_literal_id() const { return function_literal_id_; }
   void set_function_literal_id(int function_literal_id) {
     function_literal_id_ = function_literal_id;
@@ -262,6 +267,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   int compiler_hints_;
   int start_position_;
   int end_position_;
+  int parameters_end_pos_;
   int function_literal_id_;
   int max_function_literal_id_;
 

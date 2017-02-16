@@ -98,15 +98,15 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromEval(
       Handle<String> source, Handle<SharedFunctionInfo> outer_info,
       Handle<Context> context, LanguageMode language_mode,
-      ParseRestriction restriction, int eval_scope_position, int eval_position,
-      int line_offset = 0, int column_offset = 0,
-      Handle<Object> script_name = Handle<Object>(),
+      ParseRestriction restriction, int parameters_end_pos,
+      int eval_scope_position, int eval_position, int line_offset = 0,
+      int column_offset = 0, Handle<Object> script_name = Handle<Object>(),
       ScriptOriginOptions options = ScriptOriginOptions());
 
   // Create a (bound) function for a String source within a context for eval.
   MUST_USE_RESULT static MaybeHandle<JSFunction> GetFunctionFromString(
       Handle<Context> context, Handle<String> source,
-      ParseRestriction restriction);
+      ParseRestriction restriction, int parameters_end_pos);
 
   // Create a shared function info object for a String source within a context.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
