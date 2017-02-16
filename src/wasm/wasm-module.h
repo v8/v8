@@ -171,7 +171,7 @@ struct WasmExport {
   uint32_t index;         // index into the respective space.
 };
 
-enum ModuleOrigin { kWasmOrigin, kAsmJsOrigin };
+enum ModuleOrigin : uint8_t { kWasmOrigin, kAsmJsOrigin };
 struct ModuleWireBytes;
 
 // Static representation of a module.

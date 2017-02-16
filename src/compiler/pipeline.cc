@@ -641,13 +641,15 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(
       CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions,
-      ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts)
+      ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
+      bool allow_signalling_nan)
       : CompilationJob(info->isolate(), info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
         data_(&zone_stats_, info, jsgraph, source_positions, protected_insts),
         pipeline_(&data_),
-        linkage_(descriptor) {}
+        linkage_(descriptor),
+        allow_signalling_nan_(allow_signalling_nan) {}
 
  protected:
   Status PrepareJobImpl() final;
@@ -659,6 +661,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage linkage_;
+  bool allow_signalling_nan_;
 };
 
 PipelineWasmCompilationJob::Status
@@ -683,7 +686,8 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    MachineOperatorReducer machine_reducer(data->jsgraph());
+    MachineOperatorReducer machine_reducer(data->jsgraph(),
+                                           allow_signalling_nan_);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -1754,10 +1758,11 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
 CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions,
-    ZoneVector<trap_handler::ProtectedInstructionData>*
-        protected_instructions) {
+    ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions,
+    bool allow_signalling_nan) {
   return new PipelineWasmCompilationJob(
-      info, jsgraph, descriptor, source_positions, protected_instructions);
+      info, jsgraph, descriptor, source_positions, protected_instructions,
+      allow_signalling_nan);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
