@@ -366,37 +366,6 @@ class JSBinopReduction final {
     return nullptr;
   }
 
-  const Operator* SpeculativeNumberOp(NumberOperationHint hint) {
-    switch (node_->opcode()) {
-      case IrOpcode::kJSAdd:
-        return simplified()->SpeculativeNumberAdd(hint);
-      case IrOpcode::kJSSubtract:
-        return simplified()->SpeculativeNumberSubtract(hint);
-      case IrOpcode::kJSMultiply:
-        return simplified()->SpeculativeNumberMultiply(hint);
-      case IrOpcode::kJSDivide:
-        return simplified()->SpeculativeNumberDivide(hint);
-      case IrOpcode::kJSModulus:
-        return simplified()->SpeculativeNumberModulus(hint);
-      case IrOpcode::kJSBitwiseAnd:
-        return simplified()->SpeculativeNumberBitwiseAnd(hint);
-      case IrOpcode::kJSBitwiseOr:
-        return simplified()->SpeculativeNumberBitwiseOr(hint);
-      case IrOpcode::kJSBitwiseXor:
-        return simplified()->SpeculativeNumberBitwiseXor(hint);
-      case IrOpcode::kJSShiftLeft:
-        return simplified()->SpeculativeNumberShiftLeft(hint);
-      case IrOpcode::kJSShiftRight:
-        return simplified()->SpeculativeNumberShiftRight(hint);
-      case IrOpcode::kJSShiftRightLogical:
-        return simplified()->SpeculativeNumberShiftRightLogical(hint);
-      default:
-        break;
-    }
-    UNREACHABLE();
-    return nullptr;
-  }
-
   bool LeftInputIs(Type* t) { return left_type()->Is(t); }
 
   bool RightInputIs(Type* t) { return right_type()->Is(t); }
