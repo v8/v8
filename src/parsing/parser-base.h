@@ -1223,6 +1223,9 @@ class ParserBase {
   LazyParsingResult ParseStatementList(StatementListT body, int end_token,
                                        bool may_abort, bool* ok);
   StatementT ParseStatementListItem(bool* ok);
+  StatementT ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok) {
+    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
+  }
   StatementT ParseStatement(ZoneList<const AstRawString*>* labels,
                             AllowLabelledFunctionStatement allow_function,
                             bool* ok);
@@ -1233,11 +1236,8 @@ class ParserBase {
   // Parse a SubStatement in strict mode, or with an extra block scope in
   // sloppy mode to handle
   // ES#sec-functiondeclarations-in-ifstatement-statement-clauses
-  // The legacy parameter indicates whether function declarations are
-  // banned by the ES2015 specification in this location, and they are being
-  // permitted here to match previous V8 behavior.
   StatementT ParseScopedStatement(ZoneList<const AstRawString*>* labels,
-                                  bool legacy, bool* ok);
+                                  bool* ok);
 
   StatementT ParseVariableStatement(VariableDeclarationContext var_context,
                                     ZoneList<const AstRawString*>* names,
@@ -4852,13 +4852,10 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
 
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
-    ZoneList<const AstRawString*>* labels, bool legacy, bool* ok) {
-  if (is_strict(language_mode()) || peek() != Token::FUNCTION || legacy) {
-    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
+    ZoneList<const AstRawString*>* labels, bool* ok) {
+  if (is_strict(language_mode()) || peek() != Token::FUNCTION) {
+    return ParseStatement(labels, ok);
   } else {
-    if (legacy) {
-      impl()->CountUsage(v8::Isolate::kLegacyFunctionDeclaration);
-    }
     // Make a block around the statement for a lexical binding
     // is introduced by a FunctionDeclaration.
     BlockState block_state(zone(), &scope_state_);
@@ -4955,14 +4952,11 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
                                   CHECK_OK);
     Consume(Token::COLON);
     // ES#sec-labelled-function-declarations Labelled Function Declarations
-    if (peek() == Token::FUNCTION && is_sloppy(language_mode())) {
-      if (allow_function == kAllowLabelledFunctionStatement) {
-        return ParseFunctionDeclaration(ok);
-      } else {
-        return ParseScopedStatement(labels, true, ok);
-      }
+    if (peek() == Token::FUNCTION && is_sloppy(language_mode()) &&
+        allow_function == kAllowLabelledFunctionStatement) {
+      return ParseFunctionDeclaration(ok);
     }
-    return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
+    return ParseStatement(labels, ok);
   }
 
   // If we have an extension, we allow a native function declaration.
@@ -4990,10 +4984,10 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT condition = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  StatementT then_statement = ParseScopedStatement(labels, false, CHECK_OK);
+  StatementT then_statement = ParseScopedStatement(labels, CHECK_OK);
   StatementT else_statement = impl()->NullStatement();
   if (Check(Token::ELSE)) {
-    else_statement = ParseScopedStatement(labels, false, CHECK_OK);
+    else_statement = ParseScopedStatement(labels, CHECK_OK);
   } else {
     else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
   }
@@ -5148,7 +5142,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWithStatement(
   {
     BlockState block_state(&scope_state_, with_scope);
     with_scope->set_start_position(scanner()->peek_location().beg_pos);
-    body = ParseScopedStatement(labels, true, CHECK_OK);
+    body = ParseStatement(labels, CHECK_OK);
     with_scope->set_end_position(scanner()->location().end_pos);
   }
   return factory()->NewWithStatement(with_scope, expr, body, pos);
@@ -5164,7 +5158,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseDoWhileStatement(
   typename Types::Target target(this, loop);
 
   Expect(Token::DO, CHECK_OK);
-  StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+  StatementT body = ParseStatement(nullptr, CHECK_OK);
   Expect(Token::WHILE, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
 
@@ -5194,7 +5188,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseWhileStatement(
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT cond = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
-  StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+  StatementT body = ParseStatement(nullptr, CHECK_OK);
 
   loop->Initialize(cond, body);
   return loop;
@@ -5491,7 +5485,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     BlockState block_state(zone(), &scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
 
-    StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+    StatementT body = ParseStatement(nullptr, CHECK_OK);
 
     BlockT body_block = impl()->NullBlock();
     ExpressionT each_variable = impl()->EmptyExpression();
@@ -5555,9 +5549,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     BlockState block_state(zone(), &scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
 
-    // For legacy compat reasons, give for loops similar treatment to
-    // if statements in allowing a function declaration for a body
-    StatementT body = ParseScopedStatement(nullptr, true, CHECK_OK);
+    StatementT body = ParseStatement(nullptr, CHECK_OK);
     block_state.set_end_position(scanner()->location().end_pos);
     StatementT final_loop = impl()->InitializeForEachStatement(
         loop, expression, enumerable, body, each_keyword_pos);
@@ -5608,7 +5600,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStandardForLoop(
     }
     Expect(Token::RPAREN, CHECK_OK);
 
-    body = ParseScopedStatement(nullptr, true, CHECK_OK);
+    body = ParseStatement(nullptr, CHECK_OK);
   }
 
   if (bound_names_are_lexical && for_info->bound_names.length() > 0) {
@@ -5757,9 +5749,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     BlockState block_state(zone(), &scope_state_);
     block_state.set_start_position(scanner()->location().beg_pos);
 
-    const bool kDisallowLabelledFunctionStatement = true;
-    StatementT body = ParseScopedStatement(
-        nullptr, kDisallowLabelledFunctionStatement, CHECK_OK);
+    StatementT body = ParseStatement(nullptr, CHECK_OK);
     block_state.set_end_position(scanner()->location().end_pos);
 
     if (has_declarations) {
