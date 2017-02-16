@@ -295,12 +295,12 @@ class PerfTest(unittest.TestCase):
       {"name": "DeltaBlue", "results": ["5.0", "6.0"], "stddev": "0.8"},
     ])
     self._VerifyErrors(
-        ["Test Richards should only run once since a stddev is provided "
+        ["Test test/Richards should only run once since a stddev is provided "
          "by the test.",
-         "Test DeltaBlue should only run once since a stddev is provided "
+         "Test test/DeltaBlue should only run once since a stddev is provided "
          "by the test.",
          "Regexp \"^DeltaBlue\-stddev: (.+)$\" didn't match for test "
-         "DeltaBlue."])
+         "test/DeltaBlue."])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
 
   def testBuildbot(self):
@@ -340,7 +340,7 @@ class PerfTest(unittest.TestCase):
     ])
     self._VerifyErrors(
         ["Regexp \"^Richards: (.+)$\" "
-         "returned a non-numeric for test Richards.",
+         "returned a non-numeric for test test/Richards.",
          "Not all traces have the same number of results."])
     self._VerifyMock(path.join("out", "Release", "d7"), "--flag", "run.js")
 
@@ -353,7 +353,7 @@ class PerfTest(unittest.TestCase):
       {"name": "DeltaBlue", "results": ["10657567.0"], "stddev": ""},
     ])
     self._VerifyErrors(
-        ["Regexp \"^Richards: (.+)$\" didn't match for test Richards."])
+        ["Regexp \"^Richards: (.+)$\" didn't match for test test/Richards."])
     self._VerifyMock(path.join("out", "x64.release", "d7"), "--flag", "run.js")
 
   def testOneRunGeneric(self):
@@ -397,8 +397,8 @@ class PerfTest(unittest.TestCase):
       {"name": "DeltaBlue", "results": [], "stddev": ""},
     ])
     self._VerifyErrors([
-      "Regexp \"^Richards: (.+)$\" didn't match for test Richards.",
-      "Regexp \"^DeltaBlue: (.+)$\" didn't match for test DeltaBlue.",
+      "Regexp \"^Richards: (.+)$\" didn't match for test test/Richards.",
+      "Regexp \"^DeltaBlue: (.+)$\" didn't match for test test/DeltaBlue.",
     ])
     self._VerifyMock(
         path.join("out", "x64.release", "d7"), "--flag", "run.js", timeout=70)

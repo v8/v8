@@ -408,10 +408,10 @@ config("toolchain") {
       "-Winconsistent-missing-override",
     ]
 
-    if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
-        v8_current_cpu == "mips64el") {
-      cflags += [ "-Wshorten-64-to-32" ]
-    }
+    #if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
+    #    v8_current_cpu == "mips64el") {
+    #  cflags += [ "-Wshorten-64-to-32" ]
+    #}
   }
 }
 
