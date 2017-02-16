@@ -348,7 +348,7 @@ class Environment {
   }
 
   bool Equal(const Environment& env) {
-    if (unreachable_) return env.unreachable_;
+    if (unreachable_ && env.unreachable_) return true;
     size_t size = std::max(live_.size(), env.live_.size());
     for (size_t i = 0; i < size; ++i) {
       if (is_live(i) != env.is_live(i)) return false;
@@ -405,7 +405,8 @@ class Environment {
   }
 
   void set_live(size_t pos) {
-    if (live_.size() <= pos) live_.resize(std::max(pos + 1, 2 * live_.size()));
+    if (unreachable_) return;
+    if (pos >= live_.size()) live_.resize(pos + 1);
     live_[pos] = true;
   }
 
@@ -414,19 +415,27 @@ class Environment {
   }
 
   Environment& operator|=(const Environment& o) {
-    unreachable_ |= o.unreachable_;
-    for (size_t i = 0, e = o.live_.size(); i < e; ++i) {
-      if (o.live_[i]) set_live(i);
+    if (o.unreachable_) {
+      unreachable_ = true;
+      live_.clear();
+    } else if (!unreachable_) {
+      for (size_t i = 0, e = o.live_.size(); i < e; ++i) {
+        if (o.live_[i]) set_live(i);
+      }
     }
     return *this;
   }
 
   Environment& operator&=(const Environment& o) {
-    unreachable_ &= o.unreachable_;
-    size_t size = std::min(live_.size(), o.live_.size());
-    if (live_.size() > size) live_.resize(size);
+    if (o.unreachable_) return *this;
+    if (unreachable_) return *this = o;
+
+    // Carry over false bits from the tail of o.live_, and reset all bits that
+    // are not set in o.live_.
+    size_t size = std::max(live_.size(), o.live_.size());
+    if (size > live_.size()) live_.resize(size);
     for (size_t i = 0; i < size; ++i) {
-      if (live_[i] && (i > o.live_.size() || !o.live_[i])) live_[i] = false;
+      if (live_[i] && (i >= o.live_.size() || !o.live_[i])) live_[i] = false;
     }
     return *this;
   }
@@ -435,6 +444,8 @@ class Environment {
   static std::vector<Environment*> envs_;
 
   std::vector<bool> live_;
+  // unreachable_ == true implies live_.empty(), but still is_live(i) returns
+  // true for all i.
   bool unreachable_ = false;
 
   friend class ExprEffect;
