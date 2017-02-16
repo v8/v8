@@ -2846,7 +2846,7 @@ static void CheckSpreadAndPushToStack(MacroAssembler* masm) {
     __ lea(esp, Operand(esp, 1 * kFloatSize));
 
     __ mov(scratch, Immediate(0));
-    Label done, loop;
+    Label done, push, loop;
     __ bind(&loop);
     __ cmp(scratch, spread_len);
     __ j(equal, &done, Label::kNear);
