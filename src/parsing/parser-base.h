@@ -4045,6 +4045,8 @@ void ParserBase<Impl>::ParseFunctionBody(
     if (inner_scope->FinalizeBlockScope() != nullptr) {
       impl()->CheckConflictingVarDeclarations(inner_scope, CHECK_OK_VOID);
       impl()->InsertShadowingVarBindingInitializers(inner_block);
+    } else {
+      inner_block->set_scope(nullptr);
     }
     inner_scope = nullptr;
 
