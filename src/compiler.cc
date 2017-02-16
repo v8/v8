@@ -348,8 +348,10 @@ bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
          passes_turbo_filter;
 }
 
-bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
-                       bool marked_as_debug) {
+bool ShouldUseIgnition(CompilationInfo* info) {
+  DCHECK(info->has_shared_info());
+  Handle<SharedFunctionInfo> shared = info->shared_info();
+
   // Code which can't be supported by the old pipeline should use Ignition.
   if (shared->must_use_ignition_turbo()) return true;
 
@@ -368,7 +370,7 @@ bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
 
   // When requesting debug code as a replacement for existing code, we provide
   // the same kind as the existing code (to prevent implicit tier-change).
-  if (marked_as_debug && shared->is_compiled()) {
+  if (info->is_debug() && shared->is_compiled()) {
     return !shared->HasBaselineCode();
   }
 
@@ -377,11 +379,6 @@ bool ShouldUseIgnition(Handle<SharedFunctionInfo> shared,
 
   // Only use Ignition for any other function if FLAG_ignition is true.
   return FLAG_ignition;
-}
-
-bool ShouldUseIgnition(CompilationInfo* info) {
-  DCHECK(info->has_shared_info());
-  return ShouldUseIgnition(info->shared_info(), info->is_debug());
 }
 
 bool UseAsmWasm(DeclarationScope* scope, Handle<SharedFunctionInfo> shared_info,
@@ -848,12 +845,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   DCHECK(!isolate->has_pending_exception());
   PostponeInterruptsScope postpone(isolate);
   bool use_turbofan = UseTurboFan(shared) || ignition_osr;
-  bool has_script = shared->script()->IsScript();
-  // BUG(5946): This DCHECK is necessary to make certain that we won't tolerate
-  // the lack of a script without bytecode.
-  DCHECK_IMPLIES(!has_script, ShouldUseIgnition(shared, false));
   std::unique_ptr<CompilationJob> job(
-      use_turbofan ? compiler::Pipeline::NewCompilationJob(function, has_script)
+      use_turbofan ? compiler::Pipeline::NewCompilationJob(function)
                    : new HCompilationJob(function));
   CompilationInfo* info = job->info();
   ParseInfo* parse_info = info->parse_info();
@@ -1076,10 +1069,17 @@ MaybeHandle<Code> GetLazyCode(Handle<JSFunction> function) {
 
     switch (Compiler::NextCompilationTier(*function)) {
       case Compiler::BASELINE: {
-        // We don't try to handle baseline here because GetBaselineCode()
-        // doesn't handle top-level code. We aren't supporting
-        // the hybrid pipeline going forward (where Ignition is a first
-        // tier followed by full-code).
+        if (FLAG_trace_opt) {
+          PrintF("[recompiling function ");
+          function->ShortPrint();
+          PrintF(
+              " to baseline eagerly (shared function marked for tier up)]\n");
+        }
+
+        Handle<Code> code;
+        if (GetBaselineCode(function).ToHandle(&code)) {
+          return code;
+        }
         break;
       }
       case Compiler::OPTIMIZED: {

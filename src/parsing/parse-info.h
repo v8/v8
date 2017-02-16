@@ -42,8 +42,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
 
   ~ParseInfo();
 
-  static ParseInfo* AllocateWithoutScript(Handle<SharedFunctionInfo> shared);
-
   Zone* zone() const { return zone_.get(); }
 
   std::shared_ptr<Zone> zone_shared() const { return zone_; }
