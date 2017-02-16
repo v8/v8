@@ -40,7 +40,10 @@ let iadd = kExprI32Add;
 let unr = kExprUnreachable;
 let ret = kExprReturn;
 let br0 = [kExprBr, 0];
-let brt = [kExprBrTable, 0, 0];
+let br1 = [kExprBr, 1];
+let brt0 = [kExprBrTable, 0, 0];
+let brt1 = [kExprBrTable, 0, 1];
+let brt01 = [kExprBrTable, 1, 0, 1];
 let f32 = [kExprF32Const, 0, 0, 0, 0];
 let zero = [kExprI32Const, 0];
 let if_else_empty = [kExprIf, kWasmStmt, kExprElse, kExprEnd];
@@ -49,6 +52,10 @@ let if_else_unr = [kExprIf, kWasmStmt, kExprUnreachable, kExprElse, kExprUnreach
 let block_unr = [kExprBlock, kWasmStmt, kExprUnreachable, kExprEnd];
 let loop_unr = [kExprLoop, kWasmStmt, kExprUnreachable, kExprEnd];
 let block_block_unr = [kExprBlock, kWasmStmt, kExprBlock, kWasmStmt, kExprUnreachable, kExprEnd, kExprEnd];
+let block = [kExprBlock, kWasmStmt]
+let iblock = [kExprBlock, kWasmI32]
+let fblock = [kExprBlock, kWasmF32]
+let end = kExprEnd;
 let drop = kExprDrop;
 
 run(V, "U", [unr]);
@@ -68,16 +75,16 @@ run(V, "(if 0 U U)", [...zero, ...if_else_unr]);
 run(V, 'U nop', [unr, nop]);
 run(V, 'U iadd drop', [unr, iadd, drop]);
 run(V, 'br0 iadd drop', [...br0, iadd, drop]);
-run(V, '0 brt iadd drop', [...zero, ...brt, iadd, drop]);
+run(V, '0 brt0 iadd drop', [...zero, ...brt0, iadd, drop]);
 run(V, 'ret iadd drop', [ret, iadd, drop]);
 
 run(V, 'U 0 0 iadd drop', [unr, ...zero, ...zero, iadd, drop]);
 run(V, 'br0 0 0 iadd drop', [...br0, ...zero, ...zero, iadd, drop]);
-run(V, '0 brt 0 0 iadd drop', [...zero, ...brt, ...zero, ...zero, iadd, drop]);
+run(V, '0 brt0 0 0 iadd drop', [...zero, ...brt0, ...zero, ...zero, iadd, drop]);
 run(V, 'ret 0 0 iadd drop', [ret, ...zero, ...zero, iadd, drop]);
 
 run(I, 'br0 iadd', [...br0, iadd]);
-run(I, '0 brt iadd', [...zero, ...brt, iadd]);
+run(I, '0 brt0 iadd', [...zero, ...brt0, iadd]);
 run(I, 'ret iadd', [ret, iadd]);
 run(I, '0 0 br0 iadd', [...zero, ...zero, ...br0, iadd]);
 run(I, '0 0 ret iadd', [...zero, ...zero, ret, iadd]);
@@ -111,3 +118,13 @@ run(V, '0f U 0 iadd drop', [...f32, unr, ...zero, iadd, drop]);
 run(I, "0 U 0f iadd drop", [...zero, unr, ...zero, ...f32, iadd, drop]);
 run(I, "0f (block U) 0 iadd drop", [...f32, ...block_unr, ...zero, iadd, drop]);
 run(I, "0 (block U) 0f iadd drop", [...zero, ...block_unr, ...f32, iadd, drop]);
+
+run(I, "(iblock 0 (block br1)) drop", [...iblock, ...zero, ...block, ...br1, end, end, drop]);
+run(I, "(iblock 0 (block 0 brt1)) drop", [...iblock, ...zero, ...block, ...zero, ...brt1, end, end, drop]);
+run(I, "(block (iblock 0 0 brt01) drop)", [...block, ...iblock, ...zero, ...zero, ...brt01, end, drop, end]);
+run(I, "U (iblock 0 (block br1)) drop", [unr, ...iblock, ...zero, ...block, ...br1, end, end, drop]);
+run(I, "U (iblock 0 (block 0 brt1)) drop", [unr, ...iblock, ...zero, ...block, ...zero, ...brt1, end, end, drop]);
+run(I, "U (block (iblock 0 0 brt01) drop)", [unr, ...block, ...iblock, ...zero, ...zero, ...brt01, end, drop, end]);
+run(V, "(iblock (iblock U 0 brt01)) drop", [...iblock, ...iblock, unr, ...zero, ...brt01, end, end, drop]);
+run(I, "(block (fblock U 0 brt01) drop)", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, end]);
+run(I, "(iblock (fblock U 0 brt01) drop 0) drop", [...iblock, ...fblock, unr, ...zero, ...brt01, end, drop, ...zero, end, drop]);
