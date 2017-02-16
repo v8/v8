@@ -1589,10 +1589,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeLocaleCompare, 1, true);
     SimpleInstallFunction(prototype, "normalize",
                           Builtins::kStringPrototypeNormalize, 0, false);
-    SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
-                          2, true);
     SimpleInstallFunction(prototype, "replace",
                           Builtins::kStringPrototypeReplace, 2, true);
+    SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
+                          2, true);
     SimpleInstallFunction(prototype, "substr", Builtins::kStringPrototypeSubstr,
                           2, true);
     SimpleInstallFunction(prototype, "substring",
@@ -1607,6 +1607,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeTrimLeft, 0, false);
     SimpleInstallFunction(prototype, "trimRight",
                           Builtins::kStringPrototypeTrimRight, 0, false);
+    SimpleInstallFunction(prototype, "toLocaleLowerCase",
+                          Builtins::kStringPrototypeToLocaleLowerCase, 0,
+                          false);
+    SimpleInstallFunction(prototype, "toLocaleUpperCase",
+                          Builtins::kStringPrototypeToLocaleUpperCase, 0,
+                          false);
+    SimpleInstallFunction(prototype, "toLowerCase",
+                          Builtins::kStringPrototypeToLowerCase, 0, false);
+    SimpleInstallFunction(prototype, "toUpperCase",
+                          Builtins::kStringPrototypeToUpperCase, 0, false);
     SimpleInstallFunction(prototype, "valueOf",
                           Builtins::kStringPrototypeValueOf, 0, true);
 

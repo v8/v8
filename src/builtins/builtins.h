@@ -768,6 +768,14 @@ class Isolate;
   CPP(StringPrototypeStartsWith)                                               \
   /* ES6 section 21.1.3.25 String.prototype.toString () */                     \
   TFJ(StringPrototypeToString, 0)                                              \
+  /* ES #sec-string.prototype.tolocalelowercase */                             \
+  CPP(StringPrototypeToLocaleLowerCase)                                        \
+  /* ES #sec-string.prototype.tolocaleuppercase */                             \
+  CPP(StringPrototypeToLocaleUpperCase)                                        \
+  /* ES #sec-string.prototype.tolowercase */                                   \
+  CPP(StringPrototypeToLowerCase)                                              \
+  /* ES #sec-string.prototype.touppercase */                                   \
+  CPP(StringPrototypeToUpperCase)                                              \
   CPP(StringPrototypeTrim)                                                     \
   CPP(StringPrototypeTrimLeft)                                                 \
   CPP(StringPrototypeTrimRight)                                                \

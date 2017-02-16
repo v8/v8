@@ -106,38 +106,6 @@ function StringSlice(start, end) {
   return %_SubString(s, start_i, end_i);
 }
 
-// TODO(littledan): Rewrite these four functions as C++ builtins
-// ECMA-262, 15.5.4.16
-function StringToLowerCaseJS() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLowerCase");
-
-  return %StringToLowerCase(TO_STRING(this));
-}
-
-
-// ECMA-262, 15.5.4.17
-function StringToLocaleLowerCase() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
-
-  return %StringToLowerCase(TO_STRING(this));
-}
-
-
-// ECMA-262, 15.5.4.18
-function StringToUpperCaseJS() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toUpperCase");
-
-  return %StringToUpperCase(TO_STRING(this));
-}
-
-
-// ECMA-262, 15.5.4.19
-function StringToLocaleUpperCase() {
-  CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
-
-  return %StringToUpperCase(TO_STRING(this));
-}
-
 
 // ES6 draft, revision 26 (2014-07-18), section B.2.3.2.1
 function HtmlEscape(str) {
@@ -325,10 +293,6 @@ utils.InstallFunctions(GlobalString.prototype, DONT_ENUM, [
   "repeat", StringRepeat,
   "search", StringSearch,
   "slice", StringSlice,
-  "toLowerCase", StringToLowerCaseJS,
-  "toLocaleLowerCase", StringToLocaleLowerCase,
-  "toUpperCase", StringToUpperCaseJS,
-  "toLocaleUpperCase", StringToLocaleUpperCase,
 
   "link", StringLink,
   "anchor", StringAnchor,

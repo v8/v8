@@ -723,8 +723,8 @@ function addWECPropertyIfDefined(object, property, value) {
  * Returns titlecased word, aMeRricA -> America.
  */
 function toTitleCaseWord(word) {
-  return %StringToUpperCase(%_Call(StringSubstr, word, 0, 1)) +
-         %StringToLowerCase(%_Call(StringSubstr, word, 1));
+  return %StringToUpperCaseI18N(%_Call(StringSubstr, word, 0, 1)) +
+         %StringToLowerCaseI18N(%_Call(StringSubstr, word, 1));
 }
 
 /**
@@ -745,7 +745,7 @@ function toTitleCaseTimezoneLocation(location) {
     var parts = %StringSplit(match[2], separator, kMaxUint32);
     for (var i = 1; i < parts.length; i++) {
       var part = parts[i]
-      var lowercasedPart = %StringToLowerCase(part);
+      var lowercasedPart = %StringToLowerCaseI18N(part);
       result = result + separator +
           ((lowercasedPart !== 'es' &&
             lowercasedPart !== 'of' && lowercasedPart !== 'au') ?
@@ -851,7 +851,7 @@ function isStructuallyValidLanguageTag(locale) {
     return false;
   }
 
-  locale = %StringToLowerCase(locale);
+  locale = %StringToLowerCaseI18N(locale);
 
   // Just return if it's a x- form. It's all private.
   if (%StringIndexOf(locale, 'x-', 0) === 0) {
@@ -1179,7 +1179,7 @@ function CreateNumberFormat(locales, options) {
   var currencyDisplay = getOption(
       'currencyDisplay', 'string', ['code', 'symbol', 'name'], 'symbol');
   if (internalOptions.style === 'currency') {
-    defineWEProperty(internalOptions, 'currency', %StringToUpperCase(currency));
+    defineWEProperty(internalOptions, 'currency', %StringToUpperCaseI18N(currency));
     defineWEProperty(internalOptions, 'currencyDisplay', currencyDisplay);
   }
 
@@ -1768,7 +1768,7 @@ function canonicalizeTimeZoneID(tzID) {
   tzID = TO_STRING(tzID);
 
   // Special case handling (UTC, GMT).
-  var upperID = %StringToUpperCase(tzID);
+  var upperID = %StringToUpperCaseI18N(tzID);
   if (upperID === 'UTC' || upperID === 'GMT' ||
       upperID === 'ETC/UTC' || upperID === 'ETC/GMT') {
     return 'UTC';

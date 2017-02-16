@@ -297,8 +297,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
     case Runtime::kStringReplaceOneCharWithString:
     case Runtime::kSubString:
     case Runtime::kInlineSubString:
-    case Runtime::kStringToLowerCase:
-    case Runtime::kStringToUpperCase:
     case Runtime::kRegExpInternalReplace:
     // Literals.
     case Runtime::kCreateArrayLiteral:
@@ -463,6 +461,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeSubstr:
     case Builtins::kStringPrototypeSubstring:
     case Builtins::kStringPrototypeToString:
+    case Builtins::kStringPrototypeToLowerCase:
+    case Builtins::kStringPrototypeToUpperCase:
     case Builtins::kStringPrototypeTrim:
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:
