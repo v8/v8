@@ -640,6 +640,8 @@ class ErrorUtils : public AllStatic {
   T(UnexpectedTokenNumber, "Unexpected number")                                \
   T(UnexpectedTokenString, "Unexpected string")                                \
   T(UnexpectedTokenRegExp, "Unexpected regular expression")                    \
+  T(UnexpectedLexicalDeclaration,                                              \
+    "Lexical declaration cannot appear in a single-statement context")         \
   T(UnknownLabel, "Undefined label '%'")                                       \
   T(UnresolvableExport,                                                        \
     "The requested module does not provide an export named '%'")               \

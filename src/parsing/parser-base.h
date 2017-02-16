@@ -4935,6 +4935,12 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
       ReportUnexpectedToken(Next());
       *ok = false;
       return impl()->NullStatement();
+    case Token::LET:
+      if (PeekAhead() != Token::LBRACK) break;
+      impl()->ReportMessageAt(scanner()->peek_location(),
+                              MessageTemplate::kUnexpectedLexicalDeclaration);
+      *ok = false;
+      return impl()->NullStatement();
     default:
       break;
   }
