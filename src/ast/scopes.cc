@@ -708,7 +708,8 @@ Variable* DeclarationScope::DeclareGeneratorObjectVar(
   DCHECK(is_function_scope() || is_module_scope());
   DCHECK_NULL(generator_object_var());
 
-  Variable* result = EnsureRareData()->generator_object = NewTemporary(name);
+  Variable* result = EnsureRareData()->generator_object =
+      NewTemporary(name, kNotAssigned);
   result->set_is_used();
   return result;
 }
@@ -1205,10 +1206,16 @@ bool Scope::RemoveUnresolved(VariableProxy* var) {
 }
 
 Variable* Scope::NewTemporary(const AstRawString* name) {
+  return NewTemporary(name, kMaybeAssigned);
+}
+
+Variable* Scope::NewTemporary(const AstRawString* name,
+                              MaybeAssignedFlag maybe_assigned) {
   DeclarationScope* scope = GetClosureScope();
   Variable* var = new (zone())
       Variable(scope, name, TEMPORARY, NORMAL_VARIABLE, kCreatedInitialized);
   scope->AddLocal(var);
+  if (maybe_assigned == kMaybeAssigned) var->set_maybe_assigned();
   return var;
 }
 

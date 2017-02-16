@@ -483,6 +483,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // should also be invoked after resolution.
   bool NeedsScopeInfo() const;
 
+  Variable* NewTemporary(const AstRawString* name,
+                         MaybeAssignedFlag maybe_assigned);
   Zone* zone_;
 
   // Scope tree.

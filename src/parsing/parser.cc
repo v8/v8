@@ -3005,7 +3005,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
         Context::ASYNC_FUNCTION_PROMISE_CREATE_INDEX,
         new (zone()) ZoneList<Expression*>(0, zone()), kNoSourcePosition);
     Assignment* assign_promise = factory()->NewAssignment(
-        Token::INIT, factory()->NewVariableProxy(PromiseVariable()),
+        Token::ASSIGN, factory()->NewVariableProxy(PromiseVariable()),
         create_promise, kNoSourcePosition);
     set_promise =
         factory()->NewExpressionStatement(assign_promise, kNoSourcePosition);
