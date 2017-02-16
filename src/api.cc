@@ -35,6 +35,7 @@
 #include "src/contexts.h"
 #include "src/conversions-inl.h"
 #include "src/counters.h"
+#include "src/debug/debug-coverage.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
@@ -9499,6 +9500,52 @@ Local<String> CpuProfileNode::GetFunctionName() const {
         name).ToHandleChecked();
     return ToApiHandle<String>(cons);
   }
+}
+
+debug::Coverage::Range::Range(i::CoverageRange* range,
+                              Local<debug::Script> script)
+    : range_(range), script_(script) {
+  i::Handle<i::Script> i_script = v8::Utils::OpenHandle(*script);
+  i::Script::PositionInfo start;
+  i::Script::PositionInfo end;
+  i::Script::GetPositionInfo(i_script, range->start, &start,
+                             i::Script::WITH_OFFSET);
+  i::Script::GetPositionInfo(i_script, range->end, &end,
+                             i::Script::WITH_OFFSET);
+  start_ = Location(start.line, start.column);
+  end_ = Location(end.line, end.column);
+}
+
+uint32_t debug::Coverage::Range::Count() { return range_->count; }
+
+size_t debug::Coverage::Range::NestedCount() { return range_->inner.size(); }
+
+debug::Coverage::Range debug::Coverage::Range::GetNested(size_t i) {
+  return Range(&range_->inner[i], script_);
+}
+
+MaybeLocal<String> debug::Coverage::Range::Name() {
+  return ToApiHandle<String>(range_->name);
+}
+
+debug::Coverage::~Coverage() { delete coverage_; }
+
+size_t debug::Coverage::ScriptCount() { return coverage_->size(); }
+
+Local<debug::Script> debug::Coverage::GetScript(size_t i) {
+  return ToApiHandle<debug::Script>(coverage_->at(i).script);
+}
+
+debug::Coverage::Range debug::Coverage::GetRange(size_t i) {
+  return Range(&coverage_->at(i).toplevel, GetScript(i));
+}
+
+debug::Coverage debug::Coverage::Collect(Isolate* isolate) {
+  return Coverage(i::Coverage::Collect(reinterpret_cast<i::Isolate*>(isolate)));
+}
+
+void debug::Coverage::TogglePrecise(Isolate* isolate, bool enable) {
+  i::Coverage::TogglePrecise(reinterpret_cast<i::Isolate*>(isolate), enable);
 }
 
 const char* CpuProfileNode::GetFunctionNameStr() const {

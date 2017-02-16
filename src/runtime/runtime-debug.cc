@@ -1895,8 +1895,7 @@ RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
 }
 
 namespace {
-Handle<JSObject> CreateRangeObject(Isolate* isolate,
-                                   const Coverage::Range* range,
+Handle<JSObject> CreateRangeObject(Isolate* isolate, const CoverageRange* range,
                                    Handle<String> inner_string,
                                    Handle<String> start_string,
                                    Handle<String> end_string,
@@ -1910,13 +1909,7 @@ Handle<JSObject> CreateRangeObject(Isolate* isolate,
                         factory->NewNumberFromInt(range->end), NONE);
   JSObject::AddProperty(range_obj, count_string,
                         factory->NewNumberFromUint(range->count), NONE);
-  Handle<String> name = factory->anonymous_string();
-  if (!range->name.empty()) {
-    Vector<const uc16> name_vector(range->name.data(),
-                                   static_cast<int>(range->name.size()));
-    name = factory->NewStringFromTwoByte(name_vector).ToHandleChecked();
-  }
-  JSObject::AddProperty(range_obj, factory->name_string(), name, NONE);
+  JSObject::AddProperty(range_obj, factory->name_string(), range->name, NONE);
   if (!range->inner.empty()) {
     int size = static_cast<int>(range->inner.size());
     Handle<FixedArray> inner_array = factory->NewFixedArray(size);
@@ -1937,11 +1930,11 @@ Handle<JSObject> CreateRangeObject(Isolate* isolate,
 RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   HandleScope scope(isolate);
   // Collect coverage data.
-  std::vector<Coverage::ScriptData> script_data = Coverage::Collect(isolate);
+  std::unique_ptr<Coverage> coverage(Coverage::Collect(isolate));
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.
   // Create an array of scripts.
-  int num_scripts = static_cast<int>(script_data.size());
+  int num_scripts = static_cast<int>(coverage->size());
   // Prepare property keys.
   Handle<FixedArray> scripts_array = factory->NewFixedArray(num_scripts);
   Handle<String> script_string = factory->NewStringFromStaticChars("script");
@@ -1952,7 +1945,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   Handle<String> end_string = factory->NewStringFromStaticChars("end");
   Handle<String> count_string = factory->NewStringFromStaticChars("count");
   for (int i = 0; i < num_scripts; i++) {
-    const auto& data = script_data[i];
+    const auto& data = coverage->at(i);
     HandleScope inner_scope(isolate);
     Handle<JSObject> script_obj = factory->NewJSObjectWithNullProto();
     Handle<JSObject> wrapper = Script::GetWrapper(data.script);
@@ -1969,11 +1962,7 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
 RUNTIME_FUNCTION(Runtime_DebugTogglePreciseCoverage) {
   SealHandleScope shs(isolate);
   CONVERT_BOOLEAN_ARG_CHECKED(enable, 0);
-  if (enable) {
-    Coverage::EnablePrecise(isolate);
-  } else {
-    Coverage::DisablePrecise(isolate);
-  }
+  Coverage::TogglePrecise(isolate, enable);
   return isolate->heap()->undefined_value();
 }
 

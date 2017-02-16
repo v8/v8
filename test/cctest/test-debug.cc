@@ -6624,3 +6624,40 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
   }
   isolate->Dispose();
 }
+
+TEST(DebugCoverage) {
+  i::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::Coverage::TogglePrecise(isolate, true);
+  v8::Local<v8::String> source = v8_str(
+      "function f() {\n"
+      "}\n"
+      "f();\n"
+      "f();");
+  CompileRun(source);
+  v8::debug::Coverage coverage = v8::debug::Coverage::Collect(isolate);
+  CHECK_EQ(1u, coverage.ScriptCount());
+  v8::Local<v8::debug::Script> script = coverage.GetScript(0);
+  CHECK(script->Source()
+            .ToLocalChecked()
+            ->Equals(env.local(), source)
+            .FromMaybe(false));
+
+  v8::debug::Coverage::Range range = coverage.GetRange(0);
+  CHECK_EQ(0, range.Start().GetLineNumber());
+  CHECK_EQ(0, range.Start().GetColumnNumber());
+  CHECK_EQ(3, range.End().GetLineNumber());
+  CHECK_EQ(4, range.End().GetColumnNumber());
+  CHECK_EQ(1, range.Count());
+  CHECK_EQ(1u, range.NestedCount());
+
+  range = range.GetNested(0);
+  CHECK_EQ(0, range.Start().GetLineNumber());
+  CHECK_EQ(0, range.Start().GetColumnNumber());
+  CHECK_EQ(1, range.End().GetLineNumber());
+  CHECK_EQ(1, range.End().GetColumnNumber());
+  CHECK_EQ(2, range.Count());
+  CHECK_EQ(0, range.NestedCount());
+}

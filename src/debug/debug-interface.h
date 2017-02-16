@@ -12,8 +12,16 @@
 #include "include/v8.h"
 
 #include "src/debug/interface-types.h"
+#include "src/globals.h"
 
 namespace v8 {
+
+namespace internal {
+struct CoverageRange;
+class Coverage;
+class Script;
+}
+
 namespace debug {
 
 /**
@@ -109,7 +117,7 @@ void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
 /**
  * Native wrapper around v8::internal::Script object.
  */
-class Script {
+class V8_EXPORT_PRIVATE Script {
  public:
   v8::Isolate* GetIsolate() const;
 
@@ -198,6 +206,45 @@ class GeneratorObject {
   static v8::Local<debug::GeneratorObject> Cast(v8::Local<v8::Value> value);
 };
 
+/*
+ * Provide API layer between inspector and code coverage.
+ */
+class V8_EXPORT_PRIVATE Coverage {
+ public:
+  class V8_EXPORT_PRIVATE Range {
+   public:
+    // 0-based line and colum numbers.
+    Location Start() { return start_; }
+    Location End() { return end_; }
+    uint32_t Count();
+    size_t NestedCount();
+    Range GetNested(size_t i);
+    MaybeLocal<String> Name();
+
+   private:
+    Range(i::CoverageRange* range, Local<debug::Script> script);
+    i::CoverageRange* range_;
+    Location start_;
+    Location end_;
+    Local<debug::Script> script_;
+
+    friend class debug::Coverage;
+  };
+
+  static Coverage Collect(Isolate* isolate);
+
+  static void TogglePrecise(Isolate* isolate, bool enable);
+
+  size_t ScriptCount();
+  Local<debug::Script> GetScript(size_t i);
+  Range GetRange(size_t i);
+
+  ~Coverage();
+
+ private:
+  explicit Coverage(i::Coverage* coverage) : coverage_(coverage) {}
+  i::Coverage* coverage_;
+};
 }  // namespace debug
 }  // namespace v8
 

@@ -70,7 +70,7 @@ TestCoverage(
 (function f() {})();
 `,
 `
-[([function f() {}](f:1))();](anonymous:1)
+[([function f() {}](f:1))();](:1)
 `
 );
 
@@ -86,7 +86,7 @@ for (var i = 0; i < 10; i++) {
 [for (var i = 0; i < 10; i++) {
   let f = [() => 1](f:5);
   i += f();
-}](anonymous:1)
+}](:1)
 `
 );
 

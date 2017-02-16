@@ -45,7 +45,7 @@ f();
 `
 [[function f() {}](f:2)
 f();
-f();](anonymous:1)
+f();](:1)
 `
 );
 
@@ -59,7 +59,7 @@ f();
 `
 [var f = [() => 1](f:2);
 f();
-f();](anonymous:1)
+f();](:1)
 `
 );
 
@@ -81,7 +81,7 @@ f();
   g();
 }](f:2)
 f();
-f();](anonymous:1)
+f();](:1)
 
 `
 );
@@ -100,6 +100,6 @@ fib(5);
   if (x < 2) return 1;
   return fib(x-1) + fib(x-2);
 }](fib:15)
-fib(5);](anonymous:1)
+fib(5);](:1)
 `
 );

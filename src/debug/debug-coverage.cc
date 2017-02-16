@@ -58,7 +58,12 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
 }
 }  // anonymous namespace
 
-std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
+CoverageScript::CoverageScript(Isolate* isolate, Handle<Script> s,
+                               int source_length)
+    : script(s),
+      toplevel(0, source_length, 1, isolate->factory()->empty_string()) {}
+
+Coverage* Coverage::Collect(Isolate* isolate) {
   SharedToCounterMap counter_map;
 
   // Feed invocation count into the counter map.
@@ -89,15 +94,16 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
 
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
-  std::vector<Coverage::ScriptData> result;
+  Coverage* result = new Coverage();
   Script::Iterator scripts(isolate);
   while (Script* script = scripts.Next()) {
     // Dismiss non-user scripts.
     if (script->type() != Script::TYPE_NORMAL) continue;
 
     // Create and add new script data.
-    int source_length = String::cast(script->source())->length();
-    result.emplace_back(Handle<Script>(script, isolate), source_length);
+    int source_end = String::cast(script->source())->length();
+    Handle<Script> script_handle(script, isolate);
+    result->emplace_back(isolate, script_handle, source_end);
 
     std::vector<SharedFunctionInfo*> sorted;
 
@@ -105,14 +111,13 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
       // Collect a list of shared function infos sorted by start position.
       // Shared function infos are usually already sorted. Except for classes.
       // If the start position is the same, sort from outer to inner function.
-      HandleScope scope(isolate);
-      SharedFunctionInfo::ScriptIterator infos(Handle<Script>(script, isolate));
+      SharedFunctionInfo::ScriptIterator infos(script_handle);
       while (SharedFunctionInfo* info = infos.Next()) sorted.push_back(info);
       std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
     }
 
-    std::vector<Range*> stack;
-    stack.push_back(&result.back().toplevel);
+    std::vector<CoverageRange*> stack;
+    stack.push_back(&result->back().toplevel);
 
     // Use sorted list to reconstruct function nesting.
     for (SharedFunctionInfo* info : sorted) {
@@ -122,56 +127,53 @@ std::vector<Coverage::ScriptData> Coverage::Collect(Isolate* isolate) {
       if (info->is_toplevel()) {
         // Top-level function is available.
         DCHECK_EQ(1, stack.size());
-        result.back().toplevel.start = start;
-        result.back().toplevel.end = end;
-        result.back().toplevel.count = count;
+        result->back().toplevel.start = start;
+        result->back().toplevel.end = end;
+        result->back().toplevel.count = count;
       } else {
         // The shared function infos are sorted by start.
         DCHECK_LE(stack.back()->start, start);
         // Drop the stack to the outer function.
         while (start >= stack.back()->end) stack.pop_back();
-        Range* outer = stack.back();
+        CoverageRange* outer = stack.back();
         // New nested function.
         DCHECK_LE(end, outer->end);
-        outer->inner.emplace_back(start, end, count);
-        Range& nested = outer->inner.back();
-        String* name = info->DebugName();
-        nested.name.resize(name->length());
-        String::WriteToFlat(name, nested.name.data(), 0, name->length());
-        stack.push_back(&nested);
+        Handle<String> name(info->DebugName(), isolate);
+        outer->inner.emplace_back(start, end, count, name);
+        stack.push_back(&outer->inner.back());
       }
     }
   }
   return result;
 }
 
-void Coverage::EnablePrecise(Isolate* isolate) {
-  HandleScope scope(isolate);
-  // Remove all optimized function. Optimized and inlined functions do not
-  // increment invocation count.
-  Deoptimizer::DeoptimizeAll(isolate);
-  // Collect existing feedback vectors.
-  std::vector<Handle<FeedbackVector>> vectors;
-  {
-    HeapIterator heap_iterator(isolate->heap());
-    while (HeapObject* current_obj = heap_iterator.next()) {
-      if (!current_obj->IsFeedbackVector()) continue;
-      FeedbackVector* vector = FeedbackVector::cast(current_obj);
-      SharedFunctionInfo* shared = vector->shared_function_info();
-      if (!shared->IsSubjectToDebugging()) continue;
-      vector->clear_invocation_count();
-      vectors.emplace_back(vector, isolate);
+void Coverage::TogglePrecise(Isolate* isolate, bool enable) {
+  if (enable) {
+    HandleScope scope(isolate);
+    // Remove all optimized function. Optimized and inlined functions do not
+    // increment invocation count.
+    Deoptimizer::DeoptimizeAll(isolate);
+    // Collect existing feedback vectors.
+    std::vector<Handle<FeedbackVector>> vectors;
+    {
+      HeapIterator heap_iterator(isolate->heap());
+      while (HeapObject* current_obj = heap_iterator.next()) {
+        if (!current_obj->IsFeedbackVector()) continue;
+        FeedbackVector* vector = FeedbackVector::cast(current_obj);
+        SharedFunctionInfo* shared = vector->shared_function_info();
+        if (!shared->IsSubjectToDebugging()) continue;
+        vector->clear_invocation_count();
+        vectors.emplace_back(vector, isolate);
+      }
     }
+    // Add collected feedback vectors to the root list lest we lose them to GC.
+    Handle<ArrayList> list =
+        ArrayList::New(isolate, static_cast<int>(vectors.size()));
+    for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
+    isolate->SetCodeCoverageList(*list);
+  } else {
+    isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
   }
-  // Add collected feedback vectors to the root list lest we lose them to GC.
-  Handle<ArrayList> list =
-      ArrayList::New(isolate, static_cast<int>(vectors.size()));
-  for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
-  isolate->SetCodeCoverageList(*list);
-}
-
-void Coverage::DisablePrecise(Isolate* isolate) {
-  isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
 }
 
 }  // namespace internal
