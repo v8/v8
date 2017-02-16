@@ -87,10 +87,6 @@
   'language/asi/S7.9_A5.7_T1': [PASS, FAIL_OK],
 
   ###### BEGIN REGEXP SUBCLASSING SECTION ######
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5361
-  'built-ins/RegExp/prototype/Symbol.replace/y-init-lastindex': [FAIL],
-  'built-ins/RegExp/prototype/Symbol.replace/y-set-lastindex': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=5949
   'built-ins/RegExp/prototype/exec/failure-lastindex-no-access': [FAIL],
   'built-ins/RegExp/prototype/exec/success-lastindex-no-access': [FAIL],

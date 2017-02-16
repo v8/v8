@@ -238,9 +238,6 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   Variable var_result(this, MachineRepresentation::kTagged);
   Label out(this);
 
-  Node* const native_context = LoadNativeContext(context);
-  Node* const string_length = LoadStringLength(string);
-
   // Load lastIndex.
   Variable var_lastindex(this, MachineRepresentation::kTagged);
   {
@@ -282,6 +279,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
       Label if_isoob(this, Label::kDeferred);
       GotoUnless(TaggedIsSmi(lastindex), &if_isoob);
+      Node* const string_length = LoadStringLength(string);
       GotoUnless(SmiLessThanOrEqual(lastindex, string_length), &if_isoob);
       Goto(&run_exec);
 
@@ -305,6 +303,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
   Bind(&run_exec);
   {
     // Get last match info from the context.
+    Node* const native_context = LoadNativeContext(context);
     Node* const last_match_info = LoadContextElement(
         native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
 
@@ -2337,9 +2336,6 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
   // string replacement.
 
-  Isolate* const isolate = this->isolate();
-
-  Node* const null = NullConstant();
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(Smi::kZero);
 
@@ -2372,21 +2368,11 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   Bind(&if_isnonglobal);
   {
     // Run exec, then manually construct the resulting string.
-    Callable exec_callable = CodeFactory::RegExpExec(isolate);
-    Node* const match_indices = CallStub(exec_callable, context, regexp, string,
-                                         smi_zero, last_match_info);
+    Label if_didnotmatch(this);
+    Node* const match_indices = RegExpPrototypeExecBodyWithoutResult(
+        context, regexp, string, &if_didnotmatch, true);
 
-    Label if_matched(this), if_didnotmatch(this);
-    Branch(WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
-
-    Bind(&if_didnotmatch);
-    {
-      FastStoreLastIndex(regexp, smi_zero);
-      var_result.Bind(string);
-      Goto(&out);
-    }
-
-    Bind(&if_matched);
+    // Successful match.
     {
       Node* const subject_start = smi_zero;
       Node* const match_start = LoadFixedArrayElement(
@@ -2429,6 +2415,12 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
         var_result.Bind(result);
         Goto(&out);
       }
+    }
+
+    Bind(&if_didnotmatch);
+    {
+      var_result.Bind(string);
+      Goto(&out);
     }
   }
 
@@ -2505,6 +2497,24 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const maybe_string = Parameter(1);
   Node* const replace_value = Parameter(2);
   Node* const context = Parameter(5);
+
+  // RegExpPrototypeReplace is a bit of a beast - a summary of dispatch logic:
+  //
+  // if (!IsFastRegExp(receiver)) CallRuntime(RegExpReplace)
+  // if (IsCallable(replace)) {
+  //   if (IsGlobal(receiver)) {
+  //     // Called 'fast-path' but contains several runtime calls.
+  //     ReplaceGlobalCallableFastPath()
+  //   } else {
+  //     CallRuntime(StringReplaceNonGlobalRegExpWithFunction)
+  //   }
+  // } else {
+  //   if (replace.contains("$")) {
+  //     CallRuntime(RegExpReplace)
+  //   } else {
+  //     ReplaceSimpleStringFastPath()  // Bails to runtime for global regexps.
+  //   }
+  // }
 
   // Ensure {maybe_receiver} is a JSReceiver.
   Node* const map = ThrowIfNotJSReceiver(
