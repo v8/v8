@@ -22,7 +22,7 @@ class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
 
-class IncrementalMarking {
+class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
   enum State { STOPPED, SWEEPING, MARKING, COMPLETE };
 
@@ -151,8 +151,7 @@ class IncrementalMarking {
   INLINE(void RecordWriteOfCodeEntry(JSFunction* host, Object** slot,
                                      Code* value));
 
-  V8_EXPORT_PRIVATE void RecordWriteSlow(HeapObject* obj, Object** slot,
-                                         Object* value);
+  void RecordWriteSlow(HeapObject* obj, Object** slot, Object* value);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* value);
   void RecordWriteOfCodeEntrySlow(JSFunction* host, Object** slot, Code* value);
   void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
