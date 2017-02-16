@@ -327,6 +327,16 @@ TEST(PreParserScopeAnalysis) {
       {"var1", "function f1() { var1; }"},
       {"var1", "function f1() { var1 = 9; }"},
 
+      {"var1, var2", ""},
+      {"var1, var2", "var2;"},
+      {"var1, var2", "var2 = 9;"},
+      {"var1, var2", "function f1() { var2; }"},
+      {"var1, var2", "function f1() { var2 = 9; }"},
+      {"var1, var2", "var1;"},
+      {"var1, var2", "var1 = 9;"},
+      {"var1, var2", "function f1() { var1; }"},
+      {"var1, var2", "function f1() { var1 = 9; }"},
+
       // Duplicate parameters.
       {"var1, var1", ""},
       {"var1, var1", "var1;"},
@@ -341,11 +351,18 @@ TEST(PreParserScopeAnalysis) {
       {"...var2", "function f1() { var2; }"},
       {"...var2", "function f1() { var2 = 9; }"},
 
+      {"var1, ...var2", ""},
+      {"var1, ...var2", "var2;"},
+      {"var1, ...var2", "var2 = 9;"},
+      {"var1, ...var2", "function f1() { var2; }"},
+      {"var1, ...var2", "function f1() { var2 = 9; }"},
+
       // FIXME(marja): destructuring parameters, default parameters, shadowing
       // parameters, default parameters referring to other parameters, arguments
       // parameter, eval in default parameter, params and locals, multiple
-      // params, many params and rest, destructuring rest, rest with default
-      // value, locals shadowing params.
+      // params, destructuring rest, locals shadowing params, locals shadowing
+      // rest, locals shadowing destructuring params, shadowing by a hoisted
+      // sloppy block function.
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {

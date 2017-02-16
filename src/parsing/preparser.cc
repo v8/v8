@@ -148,14 +148,20 @@ PreParser::PreParseResult PreParser::PreParseFunction(
         &formals, has_duplicate_parameters, may_abort, ok);
   }
 
-  if (is_sloppy(inner_scope->language_mode())) {
-    inner_scope->HoistSloppyBlockFunctions(nullptr);
-  }
-
   if (!formals.is_simple) {
+    BuildParameterInitializationBlock(formals, ok);
+
+    if (is_sloppy(inner_scope->language_mode())) {
+      inner_scope->HoistSloppyBlockFunctions(nullptr);
+    }
+
     SetLanguageMode(function_scope, inner_scope->language_mode());
     inner_scope->set_end_position(scanner()->peek_location().end_pos);
     inner_scope->FinalizeBlockScope();
+  } else {
+    if (is_sloppy(function_scope->language_mode())) {
+      function_scope->HoistSloppyBlockFunctions(nullptr);
+    }
   }
 
   if (!IsArrowFunction(kind) && track_unresolved_variables_) {
