@@ -545,13 +545,13 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
 
 class PipelineCompilationJob final : public CompilationJob {
  public:
-  PipelineCompilationJob(Isolate* isolate, Handle<JSFunction> function)
+  PipelineCompilationJob(ParseInfo* parse_info, Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(isolate, &info_, "TurboFan"),
-        parse_info_(handle(function->shared())),
-        zone_stats_(isolate->allocator()),
-        info_(parse_info_.zone(), &parse_info_, function),
+      : CompilationJob(parse_info->isolate(), &info_, "TurboFan"),
+        parse_info_(parse_info),
+        zone_stats_(parse_info->isolate()->allocator()),
+        info_(parse_info_.get()->zone(), parse_info_.get(), function),
         pipeline_statistics_(CreatePipelineStatistics(info(), &zone_stats_)),
         data_(&zone_stats_, info(), pipeline_statistics_.get()),
         pipeline_(&data_),
@@ -563,7 +563,7 @@ class PipelineCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
-  ParseInfo parse_info_;
+  std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
   CompilationInfo info_;
   std::unique_ptr<PipelineStatistics> pipeline_statistics_;
@@ -1750,8 +1750,16 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
 }
 
 // static
-CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function) {
-  return new PipelineCompilationJob(function->GetIsolate(), function);
+CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
+                                            bool has_script) {
+  Handle<SharedFunctionInfo> shared = handle(function->shared());
+  ParseInfo* parse_info;
+  if (!has_script) {
+    parse_info = ParseInfo::AllocateWithoutScript(shared);
+  } else {
+    parse_info = new ParseInfo(shared);
+  }
+  return new PipelineCompilationJob(parse_info, function);
 }
 
 // static

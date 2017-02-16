@@ -544,7 +544,6 @@
 
   # Forced optimisation path tests.
   'shared-function-tier-up-default': [SKIP],
-  'shared-function-tier-up-ignition': [SKIP],
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times or

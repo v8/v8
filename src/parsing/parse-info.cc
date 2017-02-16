@@ -100,6 +100,46 @@ ParseInfo::~ParseInfo() {
   ast_value_factory_ = nullptr;
 }
 
+// static
+ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
+  Isolate* isolate = shared->GetIsolate();
+  ParseInfo* p = new ParseInfo(isolate->allocator());
+  p->isolate_ = isolate;
+
+  p->set_toplevel(shared->is_toplevel());
+  p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
+  p->set_hash_seed(isolate->heap()->HashSeed());
+  p->set_is_named_expression(shared->is_named_expression());
+  p->set_calls_eval(shared->scope_info()->CallsEval());
+  p->set_compiler_hints(shared->compiler_hints());
+  p->set_start_position(shared->start_position());
+  p->set_end_position(shared->end_position());
+  p->function_literal_id_ = shared->function_literal_id();
+  p->set_stack_limit(isolate->stack_guard()->real_climit());
+  p->set_unicode_cache(isolate->unicode_cache());
+  p->set_language_mode(shared->language_mode());
+  p->set_shared_info(shared);
+  p->set_module(shared->kind() == FunctionKind::kModule);
+
+  // BUG(5946): This function exists as a workaround until we can
+  // get rid of %SetCode in our native functions. The ParseInfo
+  // is explicitly set up for the case that:
+  // a) you have a native built-in,
+  // b) it's being run for the 2nd-Nth time in an isolate,
+  // c) we've already compiled bytecode and therefore don't need
+  //    to parse.
+  // We tolerate a ParseInfo without a Script in this case.
+  p->set_native(true);
+  p->set_eval(false);
+
+  Handle<HeapObject> scope_info(shared->outer_scope_info());
+  if (!scope_info->IsTheHole(isolate) &&
+      Handle<ScopeInfo>::cast(scope_info)->length() > 0) {
+    p->set_outer_scope_info(Handle<ScopeInfo>::cast(scope_info));
+  }
+  return p;
+}
+
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 bool ParseInfo::is_declaration() const {
