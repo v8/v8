@@ -271,6 +271,8 @@ typedef uint64_t SixByteInstr;
   V(sdtra, SDTRA, 0xB3D3)   /* type = RRF_A SUBTRACT (long DFP)  */         \
   V(mxtr, MXTR, 0xB3D8)     /* type = RRF_A MULTIPLY (extended DFP)  */     \
   V(mxtra, MXTRA, 0xB3D8)   /* type = RRF_A MULTIPLY (extended DFP)  */     \
+  V(msrkc, MSRKC, 0xB9FD)   /* type = RRF_A MULTIPLY (32)*/                 \
+  V(msgrkc, MSGRKC, 0xB9ED) /* type = RRF_A MULTIPLY (64)*/                 \
   V(dxtr, DXTR, 0xB3D9)     /* type = RRF_A DIVIDE (extended DFP)  */       \
   V(dxtra, DXTRA, 0xB3D9)   /* type = RRF_A DIVIDE (extended DFP)  */       \
   V(axtr, AXTR, 0xB3DA)     /* type = RRF_A ADD (extended DFP)  */          \

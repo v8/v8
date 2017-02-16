@@ -1192,6 +1192,8 @@ class Assembler : public AssemblerBase {
   void mh(Register r1, const MemOperand& opnd);
   void mhy(Register r1, const MemOperand& opnd);
   void mhi(Register r1, const Operand& opnd);
+  void msrkc(Register r1, Register r2, Register r3);
+  void msgrkc(Register r1, Register r2, Register r3);
 
   // 64-bit Multiply Instructions
   void mlg(Register r1, const MemOperand& opnd);
