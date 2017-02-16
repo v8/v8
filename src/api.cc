@@ -4490,16 +4490,51 @@ bool v8::Object::SetPrototype(Local<Value> value) {
   return SetPrototype(context, value).FromMaybe(false);
 }
 
+static bool HasInstanceInGlobalProxy(i::JSGlobalProxy* global_proxy,
+                                     i::FunctionTemplateInfo* target_template) {
+  auto* constructor_object = global_proxy->map()->GetConstructor();
+  if (!constructor_object->IsJSFunction()) return false;
+
+  auto* constructor = i::JSFunction::cast(constructor_object);
+  if (!constructor->shared()->function_data()->IsFunctionTemplateInfo())
+    return false;
+
+  auto* proxy_constructor_template =
+      i::FunctionTemplateInfo::cast(constructor->shared()->function_data());
+  if (!proxy_constructor_template->prototype_template()->IsObjectTemplateInfo())
+    return false;
+
+  auto* global_template = i::ObjectTemplateInfo::cast(
+      proxy_constructor_template->prototype_template());
+  // Iterate through the chain of inheriting function templates to
+  // see if the required one occurs.
+  for (i::Object* type = global_template->constructor();
+       type->IsFunctionTemplateInfo();
+       type = i::FunctionTemplateInfo::cast(type)->parent_template()) {
+    if (type == target_template) return true;
+  }
+  // Didn't find the required type in the inheritance chain.
+  return false;
+}
 
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Local<FunctionTemplate> tmpl) {
-  auto isolate = Utils::OpenHandle(this)->GetIsolate();
-  i::PrototypeIterator iter(isolate, *Utils::OpenHandle(this),
-                            i::kStartAtReceiver);
+  auto self = Utils::OpenHandle(this);
+  auto isolate = self->GetIsolate();
+  i::PrototypeIterator iter(isolate, *self, i::kStartAtReceiver);
   auto tmpl_info = *Utils::OpenHandle(*tmpl);
   while (!tmpl_info->IsTemplateFor(iter.GetCurrent<i::JSObject>())) {
     iter.Advance();
-    if (iter.IsAtEnd()) return Local<Object>();
+    if (iter.IsAtEnd()) {
+      // Normally, a standard prototype walk is sufficient; however, global
+      // proxies aren't directly constructed with the supplied template.
+      // Normally, this is not a problem, because the prototype chain includes
+      // the global object; however, a remote context has no global object.
+      if (self->IsJSGlobalProxy() &&
+          HasInstanceInGlobalProxy(i::JSGlobalProxy::cast(*self), tmpl_info))
+        return Utils::ToLocal(self);
+      return Local<Object>();
+    }
     if (!iter.GetCurrent()->IsJSObject()) return Local<Object>();
   }
   // IsTemplateFor() ensures that iter.GetCurrent() can't be a Proxy here.
@@ -6567,10 +6602,12 @@ bool FunctionTemplate::HasInstance(v8::Local<v8::Value> value) {
     return true;
   }
   if (obj->IsJSGlobalProxy()) {
-    // If it's a global proxy object, then test with the global object.
-    i::PrototypeIterator iter(i::JSObject::cast(*obj)->map());
-    if (iter.IsAtEnd()) return false;
-    return self->IsTemplateFor(iter.GetCurrent<i::JSGlobalObject>());
+    auto* global_proxy = i::JSGlobalProxy::cast(*obj);
+    // For global proxies, check the constructor's prototype instead. Remote
+    // global proxies have no global object to perform instance checks on, but
+    // the constructor's prototype's constructor corresponds to the original
+    // template used to create the context.
+    return HasInstanceInGlobalProxy(global_proxy, *self);
   }
   return false;
 }
