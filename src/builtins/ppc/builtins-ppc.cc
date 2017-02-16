@@ -640,10 +640,12 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     // r3: number of arguments
     // r4: constructor function
     // r6: new target
-
-    ParameterCount actual(r3);
-    __ InvokeFunction(r4, r6, actual, CALL_FUNCTION,
-                      CheckDebugStepCallWrapper());
+    {
+      ConstantPoolUnavailableScope constant_pool_unavailable(masm);
+      ParameterCount actual(r3);
+      __ InvokeFunction(r4, r6, actual, CALL_FUNCTION,
+                        CheckDebugStepCallWrapper());
+    }
 
     // Store offset of return address for deoptimizer.
     if (create_implicit_receiver && !is_api_function) {

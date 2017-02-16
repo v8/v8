@@ -736,7 +736,7 @@ void Generate_JSConstructStubHelper(MacroAssembler* masm, bool is_api_function,
     // frame description in place of the receiver by the optimizing compiler.
     __ la(r5, MemOperand(fp, StandardFrameConstants::kCallerSPOffset));
     __ ShiftLeftP(ip, r2, Operand(kPointerSizeLog2));
-    __ LoadP(r5, MemOperand(r2, ip));
+    __ LoadP(r5, MemOperand(r5, ip));
 
     // Continue with constructor function invocation.
     __ b(&post_instantiation_deopt_entry);
