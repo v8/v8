@@ -619,7 +619,12 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns true if the bytecode is a call or a constructor call.
   static constexpr bool IsCallOrConstruct(Bytecode bytecode) {
     return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
-           bytecode == Bytecode::kTailCall || bytecode == Bytecode::kConstruct;
+           bytecode == Bytecode::kTailCall ||
+           bytecode == Bytecode::kConstruct ||
+           bytecode == Bytecode::kCallWithSpread ||
+           bytecode == Bytecode::kConstructWithSpread ||
+           bytecode == Bytecode::kInvokeIntrinsic ||
+           bytecode == Bytecode::kCallJSRuntime;
   }
 
   // Returns true if the bytecode is a call to the runtime.
@@ -723,6 +728,10 @@ class V8_EXPORT_PRIVATE Bytecodes final {
 
   // Returns the equivalent jump bytecode without the accumulator coercion.
   static Bytecode GetJumpWithoutToBoolean(Bytecode bytecode);
+
+  // Returns true if there is a call in the most-frequently executed path
+  // through the bytecode's handler.
+  static bool MakesCallAlongCriticalPath(Bytecode bytecode);
 
   // Returns true if the bytecode is a debug break.
   static bool IsDebugBreak(Bytecode bytecode);

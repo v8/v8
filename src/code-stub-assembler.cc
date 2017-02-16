@@ -969,6 +969,24 @@ Node* CodeStubAssembler::LoadAndUntagToWord32Root(
   }
 }
 
+Node* CodeStubAssembler::StoreAndTagSmi(Node* base, int offset, Node* value) {
+  if (Is64()) {
+    int zero_offset = offset + kPointerSize / 2;
+    int payload_offset = offset;
+#if V8_TARGET_LITTLE_ENDIAN
+    std::swap(zero_offset, payload_offset);
+#endif
+    StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
+                        IntPtrConstant(zero_offset), Int32Constant(0));
+    return StoreNoWriteBarrier(MachineRepresentation::kWord32, base,
+                               IntPtrConstant(payload_offset),
+                               TruncateInt64ToInt32(value));
+  } else {
+    return StoreNoWriteBarrier(MachineRepresentation::kTaggedSigned, base,
+                               IntPtrConstant(offset), SmiTag(value));
+  }
+}
+
 Node* CodeStubAssembler::LoadHeapNumberValue(Node* object) {
   return LoadObjectField(object, HeapNumber::kValueOffset,
                          MachineType::Float64());

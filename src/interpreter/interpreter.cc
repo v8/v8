@@ -139,6 +139,9 @@ void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
       isolate_, zone, descriptor, Code::ComputeFlags(Code::BYTECODE_HANDLER),
       Bytecodes::ToString(bytecode), Bytecodes::ReturnCount(bytecode));
   InterpreterAssembler assembler(&state, bytecode, operand_scale);
+  if (Bytecodes::MakesCallAlongCriticalPath(bytecode)) {
+    assembler.SaveBytecodeOffset();
+  }
   (this->*generator)(&assembler);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
   size_t index = GetDispatchTableIndex(bytecode, operand_scale);

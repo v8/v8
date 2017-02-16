@@ -338,6 +338,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load a SMI root, untag it, and convert to Word32.
   Node* LoadAndUntagToWord32Root(Heap::RootListIndex root_index);
 
+  // Tag a smi and store it.
+  Node* StoreAndTagSmi(Node* base, int offset, Node* value);
+
   // Load the floating point value of a HeapNumber.
   Node* LoadHeapNumberValue(Node* object);
   // Load the Map of an HeapObject.

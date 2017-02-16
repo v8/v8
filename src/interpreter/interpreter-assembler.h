@@ -88,9 +88,11 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Loads from and stores to the interpreter register file.
   compiler::Node* LoadRegister(Register reg);
   compiler::Node* LoadRegister(compiler::Node* reg_index);
+  compiler::Node* LoadAndUntagRegister(Register reg);
   compiler::Node* StoreRegister(compiler::Node* value, Register reg);
   compiler::Node* StoreRegister(compiler::Node* value,
                                 compiler::Node* reg_index);
+  compiler::Node* StoreAndTagRegister(compiler::Node* value, Register reg);
 
   // Returns the next consecutive register.
   compiler::Node* NextRegister(compiler::Node* reg_index);
@@ -221,6 +223,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the offset from the BytecodeArrayPointer of the current bytecode.
   compiler::Node* BytecodeOffset();
 
+  // Save the bytecode offset to the interpreter frame.
+  void SaveBytecodeOffset();
+
  protected:
   Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
@@ -335,9 +340,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   OperandScale operand_scale_;
   CodeStubAssembler::Variable bytecode_offset_;
   CodeStubAssembler::Variable interpreted_frame_pointer_;
+  CodeStubAssembler::Variable bytecode_array_;
+  CodeStubAssembler::Variable dispatch_table_;
   CodeStubAssembler::Variable accumulator_;
   AccumulatorUse accumulator_use_;
   bool made_call_;
+  bool reloaded_frame_ptr_;
+  bool saved_bytecode_offset_;
 
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;
