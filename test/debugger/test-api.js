@@ -32,6 +32,7 @@ class DebugWrapper {
                         Exception: 2,
                         AfterCompile: 3,
                         CompileError: 4,
+                        OOM: 5,
                       };
 
     // The different types of steps.
@@ -818,10 +819,21 @@ class DebugWrapper {
       case "promiseRejection":
         debugEvent = this.DebugEvent.Exception;
         break;
-      default:
-        // TODO(jgruber): More granularity.
+      case "OOM":
+        debugEvent = this.DebugEvent.OOM;
+        break;
+      case "other":
         debugEvent = this.DebugEvent.Break;
         break;
+      case "ambiguous":
+      case "XHR":
+      case "DOM":
+      case "EventListener":
+      case "assert":
+      case "debugCommand":
+        assertUnreachable();
+      default:
+        assertUnreachable();
     }
 
     if (!params.callFrames[0]) return;

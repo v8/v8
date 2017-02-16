@@ -732,9 +732,12 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   }
 
   // Add the receiver (same as in function frame).
-  Handle<Object> receiver(it.frame()->receiver(), isolate);
+  Handle<Object> receiver = frame_inspector.summary().receiver();
   DCHECK(function->shared()->IsUserJavaScript());
-  DCHECK_IMPLIES(is_sloppy(shared->language_mode()), receiver->IsJSReceiver());
+  // Optimized frames only restore the receiver as best-effort (see
+  // OptimizedFrame::Summarize).
+  DCHECK_IMPLIES(!is_optimized && is_sloppy(shared->language_mode()),
+                 receiver->IsJSReceiver());
   details->set(kFrameDetailsReceiverIndex, *receiver);
 
   DCHECK_EQ(details_size, details_index);
