@@ -37,6 +37,7 @@ static const char* NameForNativeContextIntrinsicIndex(uint32_t idx) {
     return #name;
 
     NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELDS_IDX)
+#undef NATIVE_CONTEXT_FIELDS_IDX
 
     default:
       break;
@@ -1103,7 +1104,8 @@ bool Literal::Match(void* literal1, void* literal2) {
 
 const char* CallRuntime::debug_name() {
 #ifdef DEBUG
-  return NameForNativeContextIntrinsicIndex(context_index_);
+  return is_jsruntime() ? NameForNativeContextIntrinsicIndex(context_index_)
+                        : function_->name;
 #else
   return is_jsruntime() ? "(context function)" : function_->name;
 #endif  // DEBUG
