@@ -682,6 +682,14 @@ TEST_F(ValueSerializerTest, DecodeDictionaryObject) {
       });
 }
 
+TEST_F(ValueSerializerTest, InvalidDecodeObjectWithInvalidKeyType) {
+  // Objects which would need conversion to string shouldn't be present as
+  // object keys. The serializer would have obtained them from the own property
+  // keys list, which should only contain names and indices.
+  InvalidDecodeTest(
+      {0xff, 0x09, 0x6f, 0x61, 0x00, 0x40, 0x00, 0x00, 0x7b, 0x01});
+}
+
 TEST_F(ValueSerializerTest, RoundTripOnlyOwnEnumerableStringKeys) {
   // Only "own" properties should be serialized, not ones on the prototype.
   RoundTripTest("(() => { var x = {}; x.__proto__ = {a: 4}; return x; })()",

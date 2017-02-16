@@ -1657,6 +1657,10 @@ static void CommitProperties(Handle<JSObject> object, Handle<Map> map,
   }
 }
 
+static bool IsValidObjectKey(Handle<Object> value) {
+  return value->IsName() || value->IsNumber();
+}
+
 Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     Handle<JSObject> object, SerializationTag end_tag,
     bool can_use_transitions) {
@@ -1692,7 +1696,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
         key = expected_key;
         target = TransitionArray::ExpectedTransitionTarget(map);
       } else {
-        if (!ReadObject().ToHandle(&key)) return Nothing<uint32_t>();
+        if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(key)) {
+          return Nothing<uint32_t>();
+        }
         if (key->IsString()) {
           key =
               isolate_->factory()->InternalizeString(Handle<String>::cast(key));
@@ -1772,7 +1778,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     }
 
     Handle<Object> key;
-    if (!ReadObject().ToHandle(&key)) return Nothing<uint32_t>();
+    if (!ReadObject().ToHandle(&key) || !IsValidObjectKey(key)) {
+      return Nothing<uint32_t>();
+    }
     Handle<Object> value;
     if (!ReadObject().ToHandle(&value)) return Nothing<uint32_t>();
 
@@ -1821,6 +1829,7 @@ static Maybe<bool> SetPropertiesFromKeyValuePairs(Isolate* isolate,
                                                   uint32_t num_properties) {
   for (unsigned i = 0; i < 2 * num_properties; i += 2) {
     Handle<Object> key = data[i];
+    if (!IsValidObjectKey(key)) return Nothing<bool>();
     Handle<Object> value = data[i + 1];
     bool success;
     LookupIterator it = LookupIterator::PropertyOrElement(
