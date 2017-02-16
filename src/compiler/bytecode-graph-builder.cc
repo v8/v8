@@ -487,6 +487,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       current_exception_handler_(0),
       input_buffer_size_(0),
       input_buffer_(nullptr),
+      needs_eager_checkpoint_(true),
       exit_controls_(local_zone),
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
@@ -572,9 +573,10 @@ bool BytecodeGraphBuilder::CreateGraph(bool stack_check) {
 }
 
 void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
-  if (environment()->GetEffectDependency()->opcode() != IrOpcode::kCheckpoint) {
+  if (needs_eager_checkpoint()) {
     // Create an explicit checkpoint node for before the operation. This only
     // needs to happen if we aren't effect-dominated by a {Checkpoint} already.
+    mark_as_needing_eager_checkpoint(false);
     Node* node = NewNode(common()->Checkpoint());
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     DCHECK_EQ(IrOpcode::kDead,
@@ -588,7 +590,21 @@ void BytecodeGraphBuilder::PrepareEagerCheckpoint() {
     Node* frame_state_before = environment()->Checkpoint(
         bailout_id, OutputFrameStateCombine::Ignore(), false, liveness_before);
     NodeProperties::ReplaceFrameStateInput(node, frame_state_before);
+#ifdef DEBUG
+  } else {
+    // In case we skipped checkpoint creation above, we must be able to find an
+    // existing checkpoint that effect-dominates the nodes about to be created.
+    // Starting a search from the current effect-dependency has to succeed.
+    Node* effect = environment()->GetEffectDependency();
+    while (effect->opcode() != IrOpcode::kCheckpoint) {
+      DCHECK(effect->op()->HasProperty(Operator::kNoWrite));
+      DCHECK_EQ(1, effect->op()->EffectInputCount());
+      effect = NodeProperties::GetEffectInput(effect);
+    }
   }
+#else
+  }
+#endif  // DEBUG
 }
 
 void BytecodeGraphBuilder::PrepareFrameState(Node* node,
@@ -940,6 +956,7 @@ void BytecodeGraphBuilder::BuildLdaLookupContextSlot(TypeofMode typeof_mode) {
 
     fast_environment->Merge(environment());
     set_environment(fast_environment);
+    mark_as_needing_eager_checkpoint(true);
   }
 }
 
@@ -989,6 +1006,7 @@ void BytecodeGraphBuilder::BuildLdaLookupGlobalSlot(TypeofMode typeof_mode) {
 
     fast_environment->Merge(environment());
     set_environment(fast_environment);
+    mark_as_needing_eager_checkpoint(true);
   }
 }
 
@@ -1462,17 +1480,11 @@ void BytecodeGraphBuilder::VisitConstruct() {
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildThrow() {
-  PrepareEagerCheckpoint();
+void BytecodeGraphBuilder::VisitThrow() {
+  BuildLoopExitsForFunctionExit();
   Node* value = environment()->LookupAccumulator();
   Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
   environment()->BindAccumulator(call, Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitThrow() {
-  BuildLoopExitsForFunctionExit();
-  BuildThrow();
-  Node* call = environment()->LookupAccumulator();
   Node* control = NewNode(common()->Throw(), call);
   MergeControlToLeaveFunction(control);
 }
@@ -2013,6 +2025,7 @@ void BytecodeGraphBuilder::VisitNop() {}
 void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
   auto it = merge_environments_.find(current_offset);
   if (it != merge_environments_.end()) {
+    mark_as_needing_eager_checkpoint(true);
     if (environment() != nullptr) {
       it->second->Merge(environment());
     }
@@ -2022,6 +2035,7 @@ void BytecodeGraphBuilder::SwitchToMergeEnvironment(int current_offset) {
 
 void BytecodeGraphBuilder::BuildLoopHeaderEnvironment(int current_offset) {
   if (bytecode_analysis()->IsLoopHeader(current_offset)) {
+    mark_as_needing_eager_checkpoint(true);
     const LoopInfo& loop_info =
         bytecode_analysis()->GetLoopInfoFor(current_offset);
 
@@ -2289,6 +2303,10 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       const Operator* if_success = common()->IfSuccess();
       Node* on_success = graph()->NewNode(if_success, result);
       environment()->UpdateControlDependency(on_success);
+    }
+    // Ensure checkpoints are created after operations with side-effects.
+    if (has_effect && !result->op()->HasProperty(Operator::kNoWrite)) {
+      mark_as_needing_eager_checkpoint(true);
     }
   }
 

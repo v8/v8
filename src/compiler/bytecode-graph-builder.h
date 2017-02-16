@@ -145,7 +145,6 @@ class BytecodeGraphBuilder {
   void BuildStaLookupSlot(LanguageMode language_mode);
   void BuildCall(TailCallMode tail_call_mode,
                  ConvertReceiverMode receiver_hint);
-  void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);
@@ -269,6 +268,11 @@ class BytecodeGraphBuilder {
     bytecode_analysis_ = bytecode_analysis;
   }
 
+  bool needs_eager_checkpoint() const { return needs_eager_checkpoint_; }
+  void mark_as_needing_eager_checkpoint(bool value) {
+    needs_eager_checkpoint_ = value;
+  }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -298,6 +302,11 @@ class BytecodeGraphBuilder {
   // Temporary storage for building node input lists.
   int input_buffer_size_;
   Node** input_buffer_;
+
+  // Optimization to only create checkpoints when the current position in the
+  // control-flow is not effect-dominated by another checkpoint already. All
+  // operations that do not have observable side-effects can be re-evaluated.
+  bool needs_eager_checkpoint_;
 
   // Nodes representing values in the activation record.
   SetOncePointer<Node> function_context_;
