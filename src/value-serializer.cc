@@ -170,6 +170,10 @@ void ValueSerializer::WriteHeader() {
   WriteVarint(kLatestVersion);
 }
 
+void ValueSerializer::SetTreatArrayBufferViewsAsHostObjects(bool mode) {
+  treat_array_buffer_views_as_host_objects_ = mode;
+}
+
 void ValueSerializer::WriteTag(SerializationTag tag) {
   uint8_t raw_tag = static_cast<uint8_t>(tag);
   WriteRawBytes(&raw_tag, sizeof(raw_tag));
@@ -318,7 +322,7 @@ Maybe<bool> ValueSerializer::WriteObject(Handle<Object> object) {
       // TODO(jbroman): It may be possible to avoid materializing a typed
       // array's buffer here.
       Handle<JSArrayBufferView> view = Handle<JSArrayBufferView>::cast(object);
-      if (!id_map_.Find(view)) {
+      if (!id_map_.Find(view) && !treat_array_buffer_views_as_host_objects_) {
         Handle<JSArrayBuffer> buffer(
             view->IsJSTypedArray()
                 ? Handle<JSTypedArray>::cast(view)->GetBuffer()
@@ -768,6 +772,9 @@ Maybe<bool> ValueSerializer::WriteJSArrayBuffer(
 }
 
 Maybe<bool> ValueSerializer::WriteJSArrayBufferView(JSArrayBufferView* view) {
+  if (treat_array_buffer_views_as_host_objects_) {
+    return WriteHostObject(handle(view, isolate_));
+  }
   WriteTag(SerializationTag::kArrayBufferView);
   ArrayBufferViewTag tag = ArrayBufferViewTag::kInt8Array;
   if (view->IsJSTypedArray()) {

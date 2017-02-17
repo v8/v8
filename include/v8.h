@@ -1800,6 +1800,15 @@ class V8_EXPORT ValueSerializer {
                         Local<SharedArrayBuffer> shared_array_buffer));
 
   /*
+   * Indicate whether to treat ArrayBufferView objects as host objects,
+   * i.e. pass them to Delegate::WriteHostObject. This should not be
+   * called when no Delegate was passed.
+   *
+   * The default is not to treat ArrayBufferViews as host objects.
+   */
+  void SetTreatArrayBufferViewsAsHostObjects(bool mode);
+
+  /*
    * Write raw data in various common formats to the buffer.
    * Note that integer types are written in base-128 varint format, not with a
    * binary copy. For use during an override of Delegate::WriteHostObject.

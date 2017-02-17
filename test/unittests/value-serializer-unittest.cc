@@ -263,6 +263,13 @@ class ValueSerializerTest : public TestWithIsolate {
         .ToLocalChecked();
   }
 
+  Local<Object> NewDummyUint8Array() {
+    static uint8_t data[] = {4, 5, 6};
+    Local<ArrayBuffer> ab =
+        ArrayBuffer::New(isolate(), static_cast<void*>(data), sizeof(data));
+    return Uint8Array::New(ab, 0, sizeof(data));
+  }
+
  private:
   Local<Context> serialization_context_;
   Local<Context> deserialization_context_;
@@ -2533,6 +2540,38 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripSameObject) {
       [this](Local<Value> value) {
         EXPECT_TRUE(EvaluateScriptForResultBool(
             "result.a instanceof ExampleHostObject"));
+        EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+class ValueSerializerTestWithHostArrayBufferView
+    : public ValueSerializerTestWithHostObject {
+ protected:
+  void BeforeEncode(ValueSerializer* serializer) override {
+    ValueSerializerTestWithHostObject::BeforeEncode(serializer);
+    serializer_->SetTreatArrayBufferViewsAsHostObjects(true);
+  }
+};
+
+TEST_F(ValueSerializerTestWithHostArrayBufferView, RoundTripUint8ArrayInput) {
+  EXPECT_CALL(serializer_delegate_, WriteHostObject(isolate(), _))
+      .WillOnce(Invoke([this](Isolate*, Local<Object> object) {
+        EXPECT_TRUE(object->IsUint8Array());
+        WriteExampleHostObjectTag();
+        return Just(true);
+      }));
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillOnce(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewDummyUint8Array();
+      }));
+  RoundTripTest(
+      "({ a: new Uint8Array([1, 2, 3]), get b() { return this.a; }})",
+      [this](Local<Value> value) {
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a instanceof Uint8Array"));
+        EXPECT_TRUE(
+            EvaluateScriptForResultBool("result.a.toString() === '4,5,6'"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
       });
 }
