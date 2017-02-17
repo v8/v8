@@ -816,7 +816,10 @@ class Isolate;
   /* ES6 #sec-%typedarray%.prototype.values */                                 \
   TFJ(TypedArrayPrototypeValues, 0)                                            \
   /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
-  CPP(TypedArrayPrototypeCopyWithin)
+  CPP(TypedArrayPrototypeCopyWithin)                                           \
+                                                                               \
+  /* Wasm */                                                                   \
+  TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmStackGuard, 1)
 
 #define IGNORE_BUILTIN(...)
 

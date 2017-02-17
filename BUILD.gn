@@ -407,7 +407,6 @@ config("toolchain") {
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
-
     #if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
     #    v8_current_cpu == "mips64el") {
     #  cflags += [ "-Wshorten-64-to-32" ]
@@ -1010,6 +1009,7 @@ v8_source_set("v8_base") {
     "src/builtins/builtins-symbol.cc",
     "src/builtins/builtins-typedarray.cc",
     "src/builtins/builtins-utils.h",
+    "src/builtins/builtins-wasm.cc",
     "src/builtins/builtins.cc",
     "src/builtins/builtins.h",
     "src/cached-powers.cc",

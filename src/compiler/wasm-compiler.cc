@@ -474,40 +474,44 @@ Node* WasmGraphBuilder::Int64Constant(int64_t value) {
 void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
                                   Node** effect, Node** control) {
   if (FLAG_wasm_no_stack_checks) return;
-  if (effect == nullptr) {
-    effect = effect_;
-  }
-  if (control == nullptr) {
-    control = control_;
-  }
   // We do not generate stack checks for cctests.
-  if (module_ && !module_->instance->context.is_null()) {
-    Node* limit = graph()->NewNode(
-        jsgraph()->machine()->Load(MachineType::Pointer()),
-        jsgraph()->ExternalConstant(
-            ExternalReference::address_of_stack_limit(jsgraph()->isolate())),
-        jsgraph()->IntPtrConstant(0), *effect, *control);
-    Node* pointer = graph()->NewNode(jsgraph()->machine()->LoadStackPointer());
+  if (!module_ || module_->instance->context.is_null()) return;
+  if (effect == nullptr) effect = effect_;
+  if (control == nullptr) control = control_;
 
-    Node* check =
-        graph()->NewNode(jsgraph()->machine()->UintLessThan(), limit, pointer);
+  Node* limit = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::Pointer()),
+      jsgraph()->ExternalConstant(
+          ExternalReference::address_of_stack_limit(jsgraph()->isolate())),
+      jsgraph()->IntPtrConstant(0), *effect, *control);
+  Node* pointer = graph()->NewNode(jsgraph()->machine()->LoadStackPointer());
 
-    Diamond stack_check(graph(), jsgraph()->common(), check, BranchHint::kTrue);
-    stack_check.Chain(*control);
-    Node* effect_true = *effect;
+  Node* check =
+      graph()->NewNode(jsgraph()->machine()->UintLessThan(), limit, pointer);
 
-    // Generate a call to the runtime if there is a stack check failure.
-    Node* call = BuildCallToRuntime(Runtime::kStackGuard, jsgraph(),
-                                    module_->instance->context, nullptr, 0,
-                                    effect, stack_check.if_false);
-    SetSourcePosition(call, position);
+  Diamond stack_check(graph(), jsgraph()->common(), check, BranchHint::kTrue);
+  stack_check.Chain(*control);
+  Node* effect_true = *effect;
 
-    Node* ephi = graph()->NewNode(jsgraph()->common()->EffectPhi(2),
-                                  effect_true, call, stack_check.merge);
+  Handle<Code> code = jsgraph()->isolate()->builtins()->WasmStackGuard();
+  CallInterfaceDescriptor idesc =
+      WasmStackGuardDescriptor(jsgraph()->isolate());
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      jsgraph()->isolate(), jsgraph()->zone(), idesc, 0,
+      CallDescriptor::kNoFlags, Operator::kNoProperties);
+  Node* stub_code = jsgraph()->HeapConstant(code);
 
-    *control = stack_check.merge;
-    *effect = ephi;
-  }
+  Node* context = jsgraph()->SmiConstant(0);
+  Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
+                                context, *effect, stack_check.if_false);
+
+  SetSourcePosition(call, position);
+
+  Node* ephi = graph()->NewNode(jsgraph()->common()->EffectPhi(2), effect_true,
+                                call, stack_check.merge);
+
+  *control = stack_check.merge;
+  *effect = ephi;
 }
 
 Node* WasmGraphBuilder::Binop(wasm::WasmOpcode opcode, Node* left, Node* right,
@@ -3004,7 +3008,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
       arg_buffer,                              // argument buffer
   };
   BuildCallToRuntime(Runtime::kWasmRunInterpreter, jsgraph(),
-                     jsgraph()->isolate()->native_context(), parameters,
+                     instance->compiled_module()->native_context(), parameters,
                      arraysize(parameters), effect_, *control_);
 
   // Read back the return value.

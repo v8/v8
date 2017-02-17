@@ -95,7 +95,8 @@ class PlatformInterfaceDescriptor;
   V(InterpreterCEntry)                    \
   V(ResumeGenerator)                      \
   V(FrameDropperTrampoline)               \
-  V(PromiseHandleReject)
+  V(PromiseHandleReject)                  \
+  V(WasmStackGuard)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
  public:
@@ -950,6 +951,12 @@ class PromiseHandleRejectDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kPromise, kOnReject, kException)
   DECLARE_DEFAULT_DESCRIPTOR(PromiseHandleRejectDescriptor,
                              CallInterfaceDescriptor, kParameterCount)
+};
+
+class WasmStackGuardDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DECLARE_DEFAULT_DESCRIPTOR(WasmStackGuardDescriptor, CallInterfaceDescriptor,
+                             0)
 };
 
 #undef DECLARE_DESCRIPTOR_WITH_BASE
