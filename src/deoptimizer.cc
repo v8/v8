@@ -3981,7 +3981,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case ALLOCATION_MEMENTO_TYPE:
     case TYPE_FEEDBACK_INFO_TYPE:
     case ALIASED_ARGUMENTS_ENTRY_TYPE:
-    case BOX_TYPE:
     case PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE:
     case PROMISE_REACTION_JOB_INFO_TYPE:
     case DEBUG_INFO_TYPE:

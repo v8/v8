@@ -1031,8 +1031,6 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractAccessorPairReferences(entry, AccessorPair::cast(obj));
   } else if (obj->IsCode()) {
     ExtractCodeReferences(entry, Code::cast(obj));
-  } else if (obj->IsBox()) {
-    ExtractBoxReferences(entry, Box::cast(obj));
   } else if (obj->IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
   } else if (obj->IsWeakCell()) {
@@ -1450,10 +1448,6 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   }
   SetInternalReference(code, entry, "gc_metadata", code->gc_metadata(),
                        Code::kGCMetadataOffset);
-}
-
-void V8HeapExplorer::ExtractBoxReferences(int entry, Box* box) {
-  SetInternalReference(box, entry, "value", box->value(), Box::kValueOffset);
 }
 
 void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {

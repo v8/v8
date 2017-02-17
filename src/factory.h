@@ -77,9 +77,6 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<OrderedHashSet> NewOrderedHashSet();
   Handle<OrderedHashMap> NewOrderedHashMap();
 
-  // Create a new boxed value.
-  Handle<Box> NewBox(Handle<Object> value);
-
   // Create a new PrototypeInfo struct.
   Handle<PrototypeInfo> NewPrototypeInfo();
 

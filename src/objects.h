@@ -131,7 +131,6 @@
 //     - Foreign
 //     - SharedFunctionInfo
 //     - Struct
-//       - Box
 //       - AccessorInfo
 //       - PromiseResolveThenableJobInfo
 //       - PromiseReactionJobInfo
@@ -354,7 +353,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SCRIPT_TYPE)                                                \
   V(TYPE_FEEDBACK_INFO_TYPE)                                    \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
-  V(BOX_TYPE)                                                   \
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
   V(DEBUG_INFO_TYPE)                                            \
@@ -521,7 +519,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SCRIPT, Script, script)                                                  \
   V(TYPE_FEEDBACK_INFO, TypeFeedbackInfo, type_feedback_info)                \
   V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry) \
-  V(BOX, Box, box)                                                           \
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
     promise_resolve_thenable_job_info)                                       \
   V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
@@ -694,7 +691,6 @@ enum InstanceType {
   SCRIPT_TYPE,
   TYPE_FEEDBACK_INFO_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
-  BOX_TYPE,
   PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
   PROMISE_REACTION_JOB_INFO_TYPE,
   DEBUG_INFO_TYPE,
@@ -6421,26 +6417,6 @@ class PromiseReactionJobInfo : public Struct {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobInfo);
 };
-
-// A simple one-element struct, useful where smis need to be boxed.
-class Box : public Struct {
- public:
-  // [value]: the boxed contents.
-  DECL_ACCESSORS(value, Object)
-
-  DECLARE_CAST(Box)
-
-  // Dispatched behavior.
-  DECLARE_PRINTER(Box)
-  DECLARE_VERIFIER(Box)
-
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Box);
-};
-
 
 // Container for metadata stored on each prototype map.
 class PrototypeInfo : public Struct {

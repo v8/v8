@@ -89,12 +89,6 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
 }
 
 
-Handle<Box> Factory::NewBox(Handle<Object> value) {
-  Handle<Box> result = Handle<Box>::cast(NewStruct(BOX_TYPE));
-  result->set_value(*value);
-  return result;
-}
-
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));

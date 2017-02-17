@@ -1166,12 +1166,6 @@ void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void Box::BoxPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, "Box");
-  os << "\n - value: " << Brief(value());
-  os << "\n";
-}
-
 void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoPrint(
     std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PromiseResolveThenableJobInfo");

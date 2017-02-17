@@ -1027,11 +1027,6 @@ void Foreign::ForeignVerify() {
 }
 
 
-void Box::BoxVerify() {
-  CHECK(IsBox());
-  value()->ObjectVerify();
-}
-
 void PromiseResolveThenableJobInfo::PromiseResolveThenableJobInfoVerify() {
   CHECK(IsPromiseResolveThenableJobInfo());
   CHECK(thenable()->IsJSReceiver());
