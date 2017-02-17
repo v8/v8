@@ -24,7 +24,8 @@ class JSGraph;
 class V8_EXPORT_PRIVATE MachineOperatorReducer final
     : public NON_EXPORTED_BASE(Reducer) {
  public:
-  explicit MachineOperatorReducer(JSGraph* jsgraph);
+  explicit MachineOperatorReducer(JSGraph* jsgraph,
+                                  bool allow_signalling_nan = true);
   ~MachineOperatorReducer();
 
   Reduction Reduce(Node* node) override;
@@ -104,6 +105,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   MachineOperatorBuilder* machine() const;
 
   JSGraph* jsgraph_;
+  bool allow_signalling_nan_;
 };
 
 }  // namespace compiler
