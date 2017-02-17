@@ -66,6 +66,7 @@ namespace {
 
 const int MB = 1024 * 1024;
 const int kMaxWorkers = 50;
+const int kMaxSerializerMemoryUsage = 1 * MB;  // Arbitrary maximum for testing.
 
 #define USE_VM 1
 #define VM_THRESHOLD 65536
@@ -2567,7 +2568,9 @@ void Shell::EmptyMessageQueues(Isolate* isolate) {
 class Serializer : public ValueSerializer::Delegate {
  public:
   explicit Serializer(Isolate* isolate)
-      : isolate_(isolate), serializer_(isolate, this) {}
+      : isolate_(isolate),
+        serializer_(isolate, this),
+        current_memory_usage_(0) {}
 
   Maybe<bool> WriteValue(Local<Context> context, Local<Value> value,
                          Local<Value> transfer) {
@@ -2618,6 +2621,11 @@ class Serializer : public ValueSerializer::Delegate {
 
   void* ReallocateBufferMemory(void* old_buffer, size_t size,
                                size_t* actual_size) override {
+    // Not accurate, because we don't take into account reallocated buffers,
+    // but this is fine for testing.
+    current_memory_usage_ += size;
+    if (current_memory_usage_ > kMaxSerializerMemoryUsage) return nullptr;
+
     void* result = realloc(old_buffer, size);
     *actual_size = result ? size : 0;
     return result;
@@ -2695,6 +2703,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
