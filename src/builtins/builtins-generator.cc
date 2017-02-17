@@ -34,9 +34,9 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Label if_receiverisincompatible(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(receiver), &if_receiverisincompatible);
   Node* receiver_instance_type = LoadInstanceType(receiver);
-  GotoUnless(Word32Equal(receiver_instance_type,
-                         Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
-             &if_receiverisincompatible);
+  GotoIfNot(Word32Equal(receiver_instance_type,
+                        Int32Constant(JS_GENERATOR_OBJECT_TYPE)),
+            &if_receiverisincompatible);
 
   // Check if the {receiver} is running or already closed.
   Node* receiver_continuation =

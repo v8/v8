@@ -281,7 +281,7 @@ Node* IntrinsicsHelper::Call(Node* args_reg, Node* arg_count, Node* context) {
   if (FLAG_debug_code) {
     InterpreterAssembler::Label arg_count_positive(assembler_);
     Node* comparison = __ Int32LessThan(target_args_count, __ Int32Constant(0));
-    __ GotoUnless(comparison, &arg_count_positive);
+    __ GotoIfNot(comparison, &arg_count_positive);
     __ Abort(kWrongArgumentCountForInvokeIntrinsic);
     __ Goto(&arg_count_positive);
     __ Bind(&arg_count_positive);

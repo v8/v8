@@ -247,7 +247,7 @@ void Builtins::Generate_NewUnmappedArgumentsElements(
       assembler.Load(MachineType::AnyTagged(), parent_frame,
                      assembler.IntPtrConstant(
                          CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoUnless(
+  assembler.GotoIfNot(
       assembler.WordEqual(
           parent_frame_type,
           assembler.SmiConstant(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR))),
@@ -289,7 +289,7 @@ void Builtins::Generate_NewRestParameterElements(
       assembler.Load(MachineType::AnyTagged(), frame,
                      assembler.IntPtrConstant(
                          CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoUnless(
+  assembler.GotoIfNot(
       assembler.WordEqual(frame_type, assembler.SmiConstant(Smi::FromInt(
                                           StackFrame::ARGUMENTS_ADAPTOR))),
       &if_empty);

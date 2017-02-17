@@ -575,7 +575,7 @@ TF_BUILTIN(ArrayForEach, ForEachCodeStubAssembler) {
   // 5. If IsCallable(callbackfn) is false, throw a TypeError exception.
   Label type_exception(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(callbackfn), &type_exception);
-  GotoUnless(IsCallableMap(LoadMap(callbackfn)), &type_exception);
+  GotoIfNot(IsCallableMap(LoadMap(callbackfn)), &type_exception);
 
   // 6. If thisArg was supplied, let T be thisArg; else let T be undefined.
   // [Already done by the arguments adapter]
@@ -1714,7 +1714,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler.LoadObjectField(array, JSArray::kLengthOffset);
-    assembler.GotoUnless(assembler.TaggedIsSmi(len), &call_runtime);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler.SmiToWord(len));
     assembler.Branch(assembler.WordEqual(len_var.value(), intptr_zero),
@@ -1812,7 +1812,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
         string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
         not_smi(&assembler), not_heap_num(&assembler);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -1820,7 +1820,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &undef_loop);
     Node* map = assembler.LoadMap(search_element);
-    assembler.GotoUnless(assembler.IsHeapNumberMap(map), &not_heap_num);
+    assembler.GotoIfNot(assembler.IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -1831,7 +1831,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
 
     assembler.Bind(&ident_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k =
@@ -1845,7 +1845,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
 
     assembler.Bind(&undef_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k =
@@ -1867,19 +1867,19 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.Bind(&not_nan_loop);
       {
         Label continue_loop(&assembler), not_smi(&assembler);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_false);
         Node* element_k =
             assembler.LoadFixedArrayElement(elements, index_var.value());
-        assembler.GotoUnless(assembler.TaggedIsSmi(element_k), &not_smi);
+        assembler.GotoIfNot(assembler.TaggedIsSmi(element_k), &not_smi);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
                                    assembler.SmiToFloat64(element_k)),
             &return_true, &continue_loop);
 
         assembler.Bind(&not_smi);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
             &continue_loop);
         assembler.Branch(
@@ -1895,13 +1895,13 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
       assembler.Bind(&nan_loop);
       {
         Label continue_loop(&assembler);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_false);
         Node* element_k =
             assembler.LoadFixedArrayElement(elements, index_var.value());
         assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
             &continue_loop);
         assembler.BranchIfFloat64IsNaN(assembler.LoadHeapNumberValue(element_k),
@@ -1916,13 +1916,13 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&string_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k =
           assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.IsStringInstanceType(assembler.LoadInstanceType(element_k)),
           &continue_loop);
 
@@ -1947,12 +1947,12 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
         search_notnan(&assembler);
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &search_notnan);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoUnless(
+    assembler.GotoIfNot(
         assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
         &return_false);
 
@@ -1965,7 +1965,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
@@ -1981,7 +1981,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
@@ -2000,14 +2000,14 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
         search_notnan(&assembler);
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &search_notnan);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &hole_loop);
-    assembler.GotoUnless(
+    assembler.GotoIfNot(
         assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
         &return_false);
 
@@ -2020,7 +2020,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
@@ -2040,7 +2040,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     assembler.Bind(&nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
@@ -2058,7 +2058,7 @@ void Builtins::Generate_ArrayIncludes(compiler::CodeAssemblerState* state) {
     // Search for the Hole
     assembler.Bind(&hole_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_false);
 
@@ -2121,7 +2121,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
   {
     // Handle case where JSArray length is not an Smi in the runtime
     Node* len = assembler.LoadObjectField(array, JSArray::kLengthOffset);
-    assembler.GotoUnless(assembler.TaggedIsSmi(len), &call_runtime);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(len), &call_runtime);
 
     len_var.Bind(assembler.SmiToWord(len));
     assembler.Branch(assembler.WordEqual(len_var.value(), intptr_zero),
@@ -2219,7 +2219,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
         string_loop(&assembler, &index_var), undef_loop(&assembler, &index_var),
         not_smi(&assembler), not_heap_num(&assembler);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &not_smi);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -2227,7 +2227,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.GotoIf(assembler.WordEqual(search_element, undefined),
                      &undef_loop);
     Node* map = assembler.LoadMap(search_element);
-    assembler.GotoUnless(assembler.IsHeapNumberMap(map), &not_heap_num);
+    assembler.GotoIfNot(assembler.IsHeapNumberMap(map), &not_heap_num);
     search_num.Bind(assembler.LoadHeapNumberValue(search_element));
     assembler.Goto(&heap_num_loop);
 
@@ -2238,7 +2238,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
 
     assembler.Bind(&ident_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k =
@@ -2252,7 +2252,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
 
     assembler.Bind(&undef_loop);
     {
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k =
@@ -2273,19 +2273,19 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
       assembler.Bind(&not_nan_loop);
       {
         Label continue_loop(&assembler), not_smi(&assembler);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.UintPtrLessThan(index_var.value(), len_var.value()),
             &return_not_found);
         Node* element_k =
             assembler.LoadFixedArrayElement(elements, index_var.value());
-        assembler.GotoUnless(assembler.TaggedIsSmi(element_k), &not_smi);
+        assembler.GotoIfNot(assembler.TaggedIsSmi(element_k), &not_smi);
         assembler.Branch(
             assembler.Float64Equal(search_num.value(),
                                    assembler.SmiToFloat64(element_k)),
             &return_found, &continue_loop);
 
         assembler.Bind(&not_smi);
-        assembler.GotoUnless(
+        assembler.GotoIfNot(
             assembler.IsHeapNumberMap(assembler.LoadMap(element_k)),
             &continue_loop);
         assembler.Branch(
@@ -2302,13 +2302,13 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&string_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k =
           assembler.LoadFixedArrayElement(elements, index_var.value());
       assembler.GotoIf(assembler.TaggedIsSmi(element_k), &continue_loop);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.IsStringInstanceType(assembler.LoadInstanceType(element_k)),
           &continue_loop);
 
@@ -2331,12 +2331,12 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Label not_nan_loop(&assembler, &index_var), search_notnan(&assembler);
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &search_notnan);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoUnless(
+    assembler.GotoIfNot(
         assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
         &return_not_found);
 
@@ -2349,7 +2349,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
       Node* element_k = assembler.LoadFixedDoubleArrayElement(
@@ -2367,12 +2367,12 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     Label not_nan_loop(&assembler, &index_var), search_notnan(&assembler);
     Variable search_num(&assembler, MachineRepresentation::kFloat64);
 
-    assembler.GotoUnless(assembler.TaggedIsSmi(search_element), &search_notnan);
+    assembler.GotoIfNot(assembler.TaggedIsSmi(search_element), &search_notnan);
     search_num.Bind(assembler.SmiToFloat64(search_element));
     assembler.Goto(&not_nan_loop);
 
     assembler.Bind(&search_notnan);
-    assembler.GotoUnless(
+    assembler.GotoIfNot(
         assembler.IsHeapNumberMap(assembler.LoadMap(search_element)),
         &return_not_found);
 
@@ -2385,7 +2385,7 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
     assembler.Bind(&not_nan_loop);
     {
       Label continue_loop(&assembler);
-      assembler.GotoUnless(
+      assembler.GotoIfNot(
           assembler.UintPtrLessThan(index_var.value(), len_var.value()),
           &return_not_found);
 
@@ -2541,7 +2541,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
     CSA_ASSERT(&assembler, assembler.TaggedIsSmi(length));
     CSA_ASSERT(&assembler, assembler.TaggedIsSmi(index));
 
-    assembler.GotoUnless(assembler.SmiBelow(index, length), &set_done);
+    assembler.GotoIfNot(assembler.SmiBelow(index, length), &set_done);
 
     Node* one = assembler.SmiConstant(Smi::FromInt(1));
     assembler.StoreObjectFieldNoWriteBarrier(iterator,
@@ -2746,7 +2746,7 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
       CSA_ASSERT(&assembler, assembler.TaggedIsSmi(length));
       CSA_ASSERT(&assembler, assembler.TaggedIsSmi(index));
 
-      assembler.GotoUnless(assembler.SmiBelow(index, length), &set_done);
+      assembler.GotoIfNot(assembler.SmiBelow(index, length), &set_done);
 
       Node* one = assembler.SmiConstant(1);
       assembler.StoreObjectFieldNoWriteBarrier(

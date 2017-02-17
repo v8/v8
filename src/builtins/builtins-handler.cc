@@ -142,7 +142,7 @@ TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
 
   Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
   Label done(this, &var_result);
-  GotoUnless(IsMap(proto_or_map), &done);
+  GotoIfNot(IsMap(proto_or_map), &done);
 
   var_result.Bind(LoadMapPrototype(proto_or_map));
   Goto(&done);

@@ -239,7 +239,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void Bind(Label* label);
   void Goto(Label* label);
   void GotoIf(Node* condition, Label* true_label);
-  void GotoUnless(Node* condition, Label* false_label);
+  void GotoIfNot(Node* condition, Label* false_label);
   void Branch(Node* condition, Label* true_label, Label* false_label);
 
   void Switch(Node* index, Label* default_label, const int32_t* case_values,

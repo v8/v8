@@ -1099,7 +1099,7 @@ void Builtins::Generate_DatePrototypeToPrimitive(
   // Check if the {receiver} is actually a JSReceiver.
   Label receiver_is_invalid(&assembler, Label::kDeferred);
   assembler.GotoIf(assembler.TaggedIsSmi(receiver), &receiver_is_invalid);
-  assembler.GotoUnless(assembler.IsJSReceiver(receiver), &receiver_is_invalid);
+  assembler.GotoIfNot(assembler.IsJSReceiver(receiver), &receiver_is_invalid);
 
   // Dispatch to the appropriate OrdinaryToPrimitive builtin.
   Label hint_is_number(&assembler), hint_is_string(&assembler),
@@ -1116,7 +1116,7 @@ void Builtins::Generate_DatePrototypeToPrimitive(
   // Slow-case with actual string comparisons.
   Callable string_equal = CodeFactory::StringEqual(assembler.isolate());
   assembler.GotoIf(assembler.TaggedIsSmi(hint), &hint_is_invalid);
-  assembler.GotoUnless(assembler.IsString(hint), &hint_is_invalid);
+  assembler.GotoIfNot(assembler.IsString(hint), &hint_is_invalid);
   assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
                                                           hint, number_string),
                                        assembler.TrueConstant()),

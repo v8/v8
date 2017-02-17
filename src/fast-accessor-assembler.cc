@@ -213,7 +213,7 @@ void FastAccessorAssembler::CheckIsJSObjectOrJump(ValueId value_id,
       &is_jsobject);
 
   // JSApiObject?.
-  assembler_->GotoUnless(
+  assembler_->GotoIfNot(
       assembler_->Word32Equal(instance_type, assembler_->Int32Constant(
                                                  Internals::kJSApiObjectType)),
       FromId(label_id));

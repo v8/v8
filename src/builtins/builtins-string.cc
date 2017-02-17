@@ -696,7 +696,7 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
     Label return_emptystring(this, Label::kDeferred);
     position =
         ToInteger(context, position, CodeStubAssembler::kTruncateMinusZero);
-    GotoUnless(TaggedIsSmi(position), &return_emptystring);
+    GotoIfNot(TaggedIsSmi(position), &return_emptystring);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
@@ -735,7 +735,7 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
     Label return_nan(this, Label::kDeferred);
     position =
         ToInteger(context, position, CodeStubAssembler::kTruncateMinusZero);
-    GotoUnless(TaggedIsSmi(position), &return_nan);
+    GotoIfNot(TaggedIsSmi(position), &return_nan);
 
     // Determine the actual length of the {receiver} String.
     Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
@@ -873,9 +873,9 @@ void StringBuiltinsAssembler::StringIndexOf(
 
   GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
   // Check that the needle fits in the start position.
-  GotoUnless(IntPtrLessThanOrEqual(needle_length,
-                                   IntPtrSub(string_length, start_position)),
-             &return_minus_1);
+  GotoIfNot(IntPtrLessThanOrEqual(needle_length,
+                                  IntPtrSub(string_length, start_position)),
+            &return_minus_1);
   // Only support one-byte strings on the fast path.
   BranchIfSimpleOneByteStringInstanceType(instance_type, &check_search_string,
                                           &call_runtime_unchecked);
@@ -976,7 +976,7 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     Comment("2 Argument case");
     search_string.Bind(arguments.AtIndex(0));
     position.Bind(arguments.AtIndex(1));
-    GotoUnless(TaggedIsSmi(position.value()), &call_runtime);
+    GotoIfNot(TaggedIsSmi(position.value()), &call_runtime);
     Goto(&fast_path);
   }
 
@@ -988,10 +988,10 @@ TF_BUILTIN(StringPrototypeIndexOf, StringBuiltinsAssembler) {
     GotoIf(TaggedIsSmi(needle), &call_runtime);
 
     Node* instance_type = LoadInstanceType(receiver);
-    GotoUnless(IsStringInstanceType(instance_type), &call_runtime);
+    GotoIfNot(IsStringInstanceType(instance_type), &call_runtime);
 
     Node* needle_instance_type = LoadInstanceType(needle);
-    GotoUnless(IsStringInstanceType(needle_instance_type), &call_runtime);
+    GotoIfNot(IsStringInstanceType(needle_instance_type), &call_runtime);
 
     StringIndexOf(
         receiver, instance_type, needle, needle_instance_type, position.value(),
@@ -1133,7 +1133,7 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   {
     Label next(this);
 
-    GotoUnless(IsStringInstanceType(LoadMapInstanceType(object_map)), &next);
+    GotoIfNot(IsStringInstanceType(LoadMapInstanceType(object_map)), &next);
 
     Node* const native_context = LoadNativeContext(context);
     Node* const initial_proto_initial_map = LoadContextElement(
@@ -1229,16 +1229,16 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   {
     Label next(this);
 
-    GotoUnless(SmiEqual(search_length, SmiConstant(1)), &next);
-    GotoUnless(SmiGreaterThan(subject_length, SmiConstant(0xFF)), &next);
+    GotoIfNot(SmiEqual(search_length, SmiConstant(1)), &next);
+    GotoIfNot(SmiGreaterThan(subject_length, SmiConstant(0xFF)), &next);
     GotoIf(TaggedIsSmi(replace), &next);
-    GotoUnless(IsString(replace), &next);
+    GotoIfNot(IsString(replace), &next);
 
     Node* const dollar_string = HeapConstant(
         isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
     Node* const dollar_ix =
         CallStub(indexof_callable, context, replace, dollar_string, smi_zero);
-    GotoUnless(SmiIsNegative(dollar_ix), &next);
+    GotoIfNot(SmiIsNegative(dollar_ix), &next);
 
     // Searching by traversing a cons string tree and replace with cons of
     // slices works only when the replaced string is a single character, being
@@ -1263,7 +1263,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   {
     Label next(this), return_subject(this);
 
-    GotoUnless(SmiIsNegative(match_start_index), &next);
+    GotoIfNot(SmiIsNegative(match_start_index), &next);
 
     // The spec requires to perform ToString(replace) if the {replace} is not
     // callable even if we are going to exit here.
@@ -1398,7 +1398,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // Shortcut for {limit} == 0.
   {
     Label next(this);
-    GotoUnless(SmiEqual(limit_number, smi_zero), &next);
+    GotoIfNot(SmiEqual(limit_number, smi_zero), &next);
 
     const ElementsKind kind = FAST_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
@@ -1417,7 +1417,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // be an array of size 1 containing the entire string.
   {
     Label next(this);
-    GotoUnless(IsUndefined(separator), &next);
+    GotoIfNot(IsUndefined(separator), &next);
 
     const ElementsKind kind = FAST_ELEMENTS;
     Node* const native_context = LoadNativeContext(context);
@@ -1438,7 +1438,7 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // If the separator string is empty then return the elements in the subject.
   {
     Label next(this);
-    GotoUnless(SmiEqual(LoadStringLength(separator_string), smi_zero), &next);
+    GotoIfNot(SmiEqual(LoadStringLength(separator_string), smi_zero), &next);
 
     Node* const result = CallRuntime(Runtime::kStringToArray, context,
                                      subject_string, limit_number);
@@ -1535,7 +1535,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Node* const minimal_length = SmiSub(string_length, var_start.value());
       var_length.Bind(SmiMin(positive_length, minimal_length));
 
-      GotoUnless(SmiLessThanOrEqual(var_length.value(), zero), &out);
+      GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
       Return(EmptyStringConstant());
     }
 
@@ -1559,7 +1559,7 @@ TF_BUILTIN(StringPrototypeSubstr, CodeStubAssembler) {
       Bind(&if_ispositive);
       {
         var_length.Bind(SmiSub(string_length, var_start.value()));
-        GotoUnless(SmiLessThanOrEqual(var_length.value(), zero), &out);
+        GotoIfNot(SmiLessThanOrEqual(var_length.value(), zero), &out);
         Return(EmptyStringConstant());
       }
     }
@@ -1799,7 +1799,7 @@ compiler::Node* StringBuiltinsAssembler::LoadSurrogatePairAt(
          &return_result);
   Node* next_index = SmiAdd(index, SmiConstant(Smi::FromInt(1)));
 
-  GotoUnless(SmiLessThan(next_index, length), &return_result);
+  GotoIfNot(SmiLessThan(next_index, length), &return_result);
   var_trail.Bind(StringCharCodeAt(string, next_index));
   Branch(Word32Equal(Word32And(var_trail.value(), Int32Constant(0xFC00)),
                      Int32Constant(0xDC00)),
@@ -1861,9 +1861,9 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Node* context = Parameter(3);
 
   GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
-  GotoUnless(Word32Equal(LoadInstanceType(iterator),
-                         Int32Constant(JS_STRING_ITERATOR_TYPE)),
-             &throw_bad_receiver);
+  GotoIfNot(Word32Equal(LoadInstanceType(iterator),
+                        Int32Constant(JS_STRING_ITERATOR_TYPE)),
+            &throw_bad_receiver);
 
   Node* string = LoadObjectField(iterator, JSStringIterator::kStringOffset);
   Node* position =

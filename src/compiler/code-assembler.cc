@@ -651,7 +651,7 @@ void CodeAssembler::GotoIf(Node* condition, Label* true_label) {
   Bind(&false_label);
 }
 
-void CodeAssembler::GotoUnless(Node* condition, Label* false_label) {
+void CodeAssembler::GotoIfNot(Node* condition, Label* false_label) {
   Label true_label(this);
   Branch(condition, &true_label, false_label);
   Bind(&true_label);

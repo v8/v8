@@ -1145,7 +1145,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         lhs_is_not_string(assembler), gather_rhs_type(assembler),
         update_feedback(assembler);
 
-    __ GotoUnless(__ TaggedIsSmi(lhs), &lhs_is_not_smi);
+    __ GotoIfNot(__ TaggedIsSmi(lhs), &lhs_is_not_smi);
 
     var_type_feedback.Bind(
         __ SmiConstant(CompareOperationFeedback::kSignedSmall));
@@ -1154,7 +1154,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
     __ Bind(&lhs_is_not_smi);
     {
       Node* lhs_map = __ LoadMap(lhs);
-      __ GotoUnless(__ IsHeapNumberMap(lhs_map), &lhs_is_not_number);
+      __ GotoIfNot(__ IsHeapNumberMap(lhs_map), &lhs_is_not_number);
 
       var_type_feedback.Bind(__ SmiConstant(CompareOperationFeedback::kNumber));
       __ Goto(&gather_rhs_type);
@@ -1164,7 +1164,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         Node* lhs_instance_type = __ LoadInstanceType(lhs);
         if (Token::IsOrderedRelationalCompareOp(compare_op)) {
           Label lhs_is_not_oddball(assembler);
-          __ GotoUnless(
+          __ GotoIfNot(
               __ Word32Equal(lhs_instance_type, __ Int32Constant(ODDBALL_TYPE)),
               &lhs_is_not_oddball);
 
@@ -1176,8 +1176,8 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
         }
 
         Label lhs_is_not_string(assembler);
-        __ GotoUnless(__ IsStringInstanceType(lhs_instance_type),
-                      &lhs_is_not_string);
+        __ GotoIfNot(__ IsStringInstanceType(lhs_instance_type),
+                     &lhs_is_not_string);
 
         if (Token::IsOrderedRelationalCompareOp(compare_op)) {
           var_type_feedback.Bind(
@@ -1211,7 +1211,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
     {
       Label rhs_is_not_smi(assembler), rhs_is_not_number(assembler);
 
-      __ GotoUnless(__ TaggedIsSmi(rhs), &rhs_is_not_smi);
+      __ GotoIfNot(__ TaggedIsSmi(rhs), &rhs_is_not_smi);
 
       var_type_feedback.Bind(
           __ SmiOr(var_type_feedback.value(),
@@ -1221,7 +1221,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
       __ Bind(&rhs_is_not_smi);
       {
         Node* rhs_map = __ LoadMap(rhs);
-        __ GotoUnless(__ IsHeapNumberMap(rhs_map), &rhs_is_not_number);
+        __ GotoIfNot(__ IsHeapNumberMap(rhs_map), &rhs_is_not_number);
 
         var_type_feedback.Bind(
             __ SmiOr(var_type_feedback.value(),
@@ -1233,9 +1233,9 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           Node* rhs_instance_type = __ LoadInstanceType(rhs);
           if (Token::IsOrderedRelationalCompareOp(compare_op)) {
             Label rhs_is_not_oddball(assembler);
-            __ GotoUnless(__ Word32Equal(rhs_instance_type,
-                                         __ Int32Constant(ODDBALL_TYPE)),
-                          &rhs_is_not_oddball);
+            __ GotoIfNot(__ Word32Equal(rhs_instance_type,
+                                        __ Int32Constant(ODDBALL_TYPE)),
+                         &rhs_is_not_oddball);
 
             var_type_feedback.Bind(__ SmiOr(
                 var_type_feedback.value(),
@@ -1246,8 +1246,8 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           }
 
           Label rhs_is_not_string(assembler);
-          __ GotoUnless(__ IsStringInstanceType(rhs_instance_type),
-                        &rhs_is_not_string);
+          __ GotoIfNot(__ IsStringInstanceType(rhs_instance_type),
+                       &rhs_is_not_string);
 
           if (Token::IsOrderedRelationalCompareOp(compare_op)) {
             var_type_feedback.Bind(
@@ -2888,8 +2888,8 @@ void Interpreter::DoCreateClosure(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
 
   Label call_runtime(assembler, Label::kDeferred);
-  __ GotoUnless(__ IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags),
-                &call_runtime);
+  __ GotoIfNot(__ IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags),
+               &call_runtime);
   ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
   Node* vector_index = __ BytecodeOperandIdx(1);
   vector_index = __ SmiTag(vector_index);

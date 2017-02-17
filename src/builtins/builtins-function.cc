@@ -325,7 +325,7 @@ void Builtins::Generate_FastFunctionPrototypeBind(
       descriptors, DescriptorArray::ToValueIndex(length_index));
   assembler.GotoIf(assembler.TaggedIsSmi(maybe_length_accessor), &slow);
   Node* length_value_map = assembler.LoadMap(maybe_length_accessor);
-  assembler.GotoUnless(assembler.IsAccessorInfoMap(length_value_map), &slow);
+  assembler.GotoIfNot(assembler.IsAccessorInfoMap(length_value_map), &slow);
 
   const int name_index = JSFunction::kNameDescriptorIndex;
   Node* maybe_name = assembler.LoadFixedArrayElement(
@@ -339,7 +339,7 @@ void Builtins::Generate_FastFunctionPrototypeBind(
       descriptors, DescriptorArray::ToValueIndex(name_index));
   assembler.GotoIf(assembler.TaggedIsSmi(maybe_name_accessor), &slow);
   Node* name_value_map = assembler.LoadMap(maybe_name_accessor);
-  assembler.GotoUnless(assembler.IsAccessorInfoMap(name_value_map), &slow);
+  assembler.GotoIfNot(assembler.IsAccessorInfoMap(name_value_map), &slow);
 
   // Choose the right bound function map based on whether the target is
   // constructable.

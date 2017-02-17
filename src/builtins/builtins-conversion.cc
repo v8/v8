@@ -180,16 +180,15 @@ void Builtins::Generate_ToString(compiler::CodeAssemblerState* state) {
   Node* input_instance_type = assembler.LoadMapInstanceType(input_map);
 
   Label not_string(&assembler);
-  assembler.GotoUnless(assembler.IsStringInstanceType(input_instance_type),
-                       &not_string);
+  assembler.GotoIfNot(assembler.IsStringInstanceType(input_instance_type),
+                      &not_string);
   assembler.Return(input);
 
   Label not_heap_number(&assembler);
 
   assembler.Bind(&not_string);
   {
-    assembler.GotoUnless(assembler.IsHeapNumberMap(input_map),
-                         &not_heap_number);
+    assembler.GotoIfNot(assembler.IsHeapNumberMap(input_map), &not_heap_number);
     assembler.Goto(&is_number);
   }
 
@@ -367,9 +366,9 @@ void Builtins::Generate_ToLength(compiler::CodeAssemblerState* state) {
       Node* len_value = assembler.LoadHeapNumberValue(len);
 
       // Check if {len} is not greater than zero.
-      assembler.GotoUnless(assembler.Float64GreaterThan(
-                               len_value, assembler.Float64Constant(0.0)),
-                           &return_zero);
+      assembler.GotoIfNot(assembler.Float64GreaterThan(
+                              len_value, assembler.Float64Constant(0.0)),
+                          &return_zero);
 
       // Check if {len} is greater than or equal to 2^53-1.
       assembler.GotoIf(

@@ -273,7 +273,7 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // can always be stored.
     {
       Label non_smi_value(this);
-      GotoUnless(TaggedIsSmi(value), &non_smi_value);
+      GotoIfNot(TaggedIsSmi(value), &non_smi_value);
       // If we're about to introduce holes, ensure holey elements.
       if (update_length == kBumpLengthWithGap) {
         TryChangeToHoleyMapMulti(receiver, receiver_map, elements_kind, context,
@@ -848,7 +848,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     Node* setter_map = LoadMap(setter);
     // FunctionTemplateInfo setters are not supported yet.
     GotoIf(IsFunctionTemplateInfoMap(setter_map), slow);
-    GotoUnless(IsCallableMap(setter_map), &not_callable);
+    GotoIfNot(IsCallableMap(setter_map), &not_callable);
 
     Callable callable = CodeFactory::Call(isolate());
     CallJS(callable, p->context, setter, receiver, p->value);

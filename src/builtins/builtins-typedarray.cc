@@ -35,7 +35,7 @@ void Generate_TypedArrayPrototypeGetter(compiler::CodeAssemblerState* state,
   Label if_receiverisincompatible(&assembler, Label::kDeferred);
   assembler.GotoIf(assembler.TaggedIsSmi(receiver), &if_receiverisincompatible);
   Node* receiver_instance_type = assembler.LoadInstanceType(receiver);
-  assembler.GotoUnless(
+  assembler.GotoIfNot(
       assembler.Word32Equal(receiver_instance_type,
                             assembler.Int32Constant(JS_TYPED_ARRAY_TYPE)),
       &if_receiverisincompatible);

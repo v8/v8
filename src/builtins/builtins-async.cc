@@ -52,11 +52,11 @@ Node* AsyncBuiltinsAssembler::Await(
   PromiseSetHasHandler(throwaway_promise);
 
   Label do_perform_promise_then(this);
-  GotoUnless(IsDebugActive(), &do_perform_promise_then);
+  GotoIfNot(IsDebugActive(), &do_perform_promise_then);
   {
     Label common(this);
     GotoIf(TaggedIsSmi(value), &common);
-    GotoUnless(HasInstanceType(value, JS_PROMISE_TYPE), &common);
+    GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &common);
     {
       // Mark the reject handler callback to be a forwarding edge, rather
       // than a meaningful catch handler

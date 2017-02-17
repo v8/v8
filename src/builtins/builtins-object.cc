@@ -329,9 +329,9 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     Node* properties_map = LoadMap(properties);
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
-    GotoUnless(WordEqual(LoadElements(properties),
-                         LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
-               &call_runtime);
+    GotoIfNot(WordEqual(LoadElements(properties),
+                        LoadRoot(Heap::kEmptyFixedArrayRootIndex)),
+              &call_runtime);
     // Handle dictionary objects or fast objects with properties in runtime.
     Node* bit_field3 = LoadMapBitField3(properties_map);
     GotoIf(IsSetWord32<Map::DictionaryMap>(bit_field3), &call_runtime);
@@ -934,7 +934,7 @@ TF_BUILTIN(ForInNext, ObjectBuiltinsAssembler) {
 
   Node* key = LoadFixedArrayElement(cache_array, SmiUntag(index));
   Node* map = LoadMap(object);
-  GotoUnless(WordEqual(map, cache_type), &filter);
+  GotoIfNot(WordEqual(map, cache_type), &filter);
   Return(key);
   Bind(&filter);
   Return(ForInFilter(key, object, context));

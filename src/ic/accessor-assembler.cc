@@ -187,7 +187,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
   if (support_elements == kSupportElements) {
     Label property(this);
-    GotoUnless(
+    GotoIfNot(
         WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForElements)),
         &property);
 
@@ -216,10 +216,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     Bind(&if_hole);
     {
       Comment("convert hole");
-      GotoUnless(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
+      GotoIfNot(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
       Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
       DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-      GotoUnless(
+      GotoIfNot(
           WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
                     SmiConstant(Smi::FromInt(Isolate::kProtectorValid))),
           miss);
@@ -332,7 +332,7 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   Node* handler_flags = SmiUntag(smi_handler);
 
   Label check_prototypes(this);
-  GotoUnless(
+  GotoIfNot(
       IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(handler_flags),
       &check_prototypes);
   {
@@ -389,8 +389,8 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(
   start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
 
   Label can_access(this);
-  GotoUnless(IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
-             &can_access);
+  GotoIfNot(IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
+            &can_access);
   {
     // Skip this entry of a handler.
     start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex + 1));
@@ -404,7 +404,7 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(
     Node* native_context = LoadNativeContext(p->context);
     GotoIf(WordEqual(expected_native_context, native_context), &can_access);
     // If the receiver is not a JSGlobalProxy then we miss.
-    GotoUnless(IsJSGlobalProxy(p->receiver), miss);
+    GotoIfNot(IsJSGlobalProxy(p->receiver), miss);
     // For JSGlobalProxy receiver try to compare security tokens of current
     // and expected native contexts.
     Node* expected_token = LoadContextElement(expected_native_context,
@@ -722,8 +722,8 @@ void AccessorAssembler::HandleStoreFieldAndReturn(Node* handler_word,
   {
     if (transition_to_field) {
       Label storage_extended(this);
-      GotoUnless(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
-                 &storage_extended);
+      GotoIfNot(IsSetWord<StoreHandler::ExtendStorageBits>(handler_word),
+                &storage_extended);
       Comment("[ Extend storage");
       ExtendPropertiesBackingStore(holder);
       Comment("] Extend storage");
@@ -775,7 +775,7 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
     Bind(&done);
 
   } else if (representation.IsSmi()) {
-    GotoUnless(TaggedIsSmi(value), bailout);
+    GotoIfNot(TaggedIsSmi(value), bailout);
 
   } else {
     DCHECK(representation.IsTagged());
@@ -850,17 +850,17 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
   // Do constant value check if necessary.
   if (FLAG_track_constant_fields && !transition_to_field) {
     Label done(this);
-    GotoUnless(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                         IntPtrConstant(StoreHandler::kStoreConstField)),
-               &done);
+    GotoIfNot(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
+                        IntPtrConstant(StoreHandler::kStoreConstField)),
+              &done);
     {
       if (store_value_as_double) {
         Node* current_value =
             LoadObjectField(property_storage, offset, MachineType::Float64());
-        GotoUnless(Float64Equal(current_value, value), bailout);
+        GotoIfNot(Float64Equal(current_value, value), bailout);
       } else {
         Node* current_value = LoadObjectField(property_storage, offset);
-        GotoUnless(WordEqual(current_value, value), bailout);
+        GotoIfNot(WordEqual(current_value, value), bailout);
       }
       Goto(&done);
     }
@@ -897,7 +897,7 @@ void AccessorAssembler::EmitFastElementsBoundsCheck(Node* object,
     Goto(&length_loaded);
   }
   Bind(&length_loaded);
-  GotoUnless(UintPtrLessThan(intptr_index, var_length.value()), miss);
+  GotoIfNot(UintPtrLessThan(intptr_index, var_length.value()), miss);
 }
 
 void AccessorAssembler::EmitElementLoad(
@@ -992,7 +992,7 @@ void AccessorAssembler::EmitElementLoad(
         LoadDetailsByKeyIndex<SeededNumberDictionary>(elements, index);
     Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
     // TODO(jkummerow): Support accessors without missing?
-    GotoUnless(Word32Equal(kind, Int32Constant(kData)), miss);
+    GotoIfNot(Word32Equal(kind, Int32Constant(kData)), miss);
     // Finally, load the value.
     exit_point->Return(
         LoadValueByKeyIndex<SeededNumberDictionary>(elements, index));
@@ -1008,7 +1008,7 @@ void AccessorAssembler::EmitElementLoad(
     // Bounds check.
     Node* length =
         SmiUntag(LoadObjectField(object, JSTypedArray::kLengthOffset));
-    GotoUnless(UintPtrLessThan(intptr_index, length), out_of_bounds);
+    GotoIfNot(UintPtrLessThan(intptr_index, length), out_of_bounds);
 
     // Backing store = external_pointer + base_pointer.
     Node* external_pointer =
@@ -1466,8 +1466,8 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   {
     // Check polymorphic case.
     Comment("LoadIC_try_polymorphic");
-    GotoUnless(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
-               &try_megamorphic);
+    GotoIfNot(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
+              &try_megamorphic);
     HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
@@ -1475,9 +1475,8 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   Bind(&try_megamorphic);
   {
     // Check megamorphic case.
-    GotoUnless(
-        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-        &miss);
+    GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+              &miss);
 
     TryProbeStubCache(isolate()->load_stub_cache(), p->receiver, p->name,
                       &if_handler, &var_handler, &miss);
@@ -1609,8 +1608,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   {
     // Check polymorphic case.
     Comment("KeyedLoadIC_try_polymorphic");
-    GotoUnless(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
-               &try_megamorphic);
+    GotoIfNot(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
+              &try_megamorphic);
     HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
@@ -1619,9 +1618,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   {
     // Check megamorphic case.
     Comment("KeyedLoadIC_try_megamorphic");
-    GotoUnless(
-        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-        &try_polymorphic_name);
+    GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+              &try_polymorphic_name);
     // TODO(jkummerow): Inline this? Or some of it?
     TailCallStub(CodeFactory::KeyedLoadIC_Megamorphic(isolate()), p->context,
                  p->receiver, p->name, p->slot, p->vector);
@@ -1630,7 +1628,7 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   {
     // We might have a name in feedback, and a fixed array in the next slot.
     Comment("KeyedLoadIC_try_polymorphic_name");
-    GotoUnless(WordEqual(feedback, p->name), &miss);
+    GotoIfNot(WordEqual(feedback, p->name), &miss);
     // If the name comparison succeeded, we know we have a fixed array with
     // at least one map/handler pair.
     Node* offset = ElementOffsetFromIndex(
@@ -1708,7 +1706,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   {
     // Check polymorphic case.
     Comment("StoreIC_try_polymorphic");
-    GotoUnless(
+    GotoIfNot(
         WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
         &try_megamorphic);
     HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
@@ -1718,9 +1716,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   Bind(&try_megamorphic);
   {
     // Check megamorphic case.
-    GotoUnless(
-        WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-        &miss);
+    GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+              &miss);
 
     TryProbeStubCache(isolate()->store_stub_cache(), p->receiver, p->name,
                       &if_handler, &var_handler, &miss);
@@ -1761,7 +1758,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
     {
       // CheckPolymorphic case.
       Comment("KeyedStoreIC_try_polymorphic");
-      GotoUnless(
+      GotoIfNot(
           WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
           &try_megamorphic);
       Label if_transition_handler(this);
@@ -1777,7 +1774,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
         Label call_handler(this);
         Variable var_code_handler(this, MachineRepresentation::kTagged);
         var_code_handler.Bind(handler);
-        GotoUnless(IsTuple2Map(LoadMap(handler)), &call_handler);
+        GotoIfNot(IsTuple2Map(LoadMap(handler)), &call_handler);
         {
           CSA_ASSERT(this, IsTuple2Map(LoadMap(handler)));
 
@@ -1811,7 +1808,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
     {
       // Check megamorphic case.
       Comment("KeyedStoreIC_try_megamorphic");
-      GotoUnless(
+      GotoIfNot(
           WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
           &try_polymorphic_name);
       TailCallStub(
@@ -1823,7 +1820,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
     {
       // We might have a name in feedback, and a fixed array in the next slot.
       Comment("KeyedStoreIC_try_polymorphic_name");
-      GotoUnless(WordEqual(feedback, p->name), &miss);
+      GotoIfNot(WordEqual(feedback, p->name), &miss);
       // If the name comparison succeeded, we know we have a FixedArray with
       // at least one map/handler pair.
       Node* offset = ElementOffsetFromIndex(

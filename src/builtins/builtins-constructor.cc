@@ -47,7 +47,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   Node* is_not_normal =
       Word32And(compiler_hints,
                 Int32Constant(SharedFunctionInfo::kAllFunctionKindBitsMask));
-  GotoUnless(is_not_normal, &if_normal);
+  GotoIfNot(is_not_normal, &if_normal);
 
   Node* is_generator = Word32And(
       compiler_hints, Int32Constant(FunctionKind::kGeneratorFunction
@@ -681,7 +681,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Node* boilerplate_map = LoadMap(boilerplate);
   Node* instance_size = LoadMapInstanceSize(boilerplate_map);
   Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
-  GotoUnless(WordEqual(instance_size, size_in_words), call_runtime);
+  GotoIfNot(WordEqual(instance_size, size_in_words), call_runtime);
 
   Node* copy = Allocate(allocation_size);
 
@@ -705,8 +705,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Bind(&loop_check);
   {
     offset.Bind(IntPtrAdd(offset.value(), IntPtrConstant(kPointerSize)));
-    GotoUnless(IntPtrGreaterThanOrEqual(offset.value(), end_offset),
-               &loop_body);
+    GotoIfNot(IntPtrGreaterThanOrEqual(offset.value(), end_offset), &loop_body);
   }
 
   if (FLAG_allocation_site_pretenuring) {

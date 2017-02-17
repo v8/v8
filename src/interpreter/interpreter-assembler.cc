@@ -581,7 +581,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
   Node* feedback_element = LoadFixedArrayElement(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
   Node* is_monomorphic = WordEqual(function, feedback_value);
-  GotoUnless(is_monomorphic, &extra_checks);
+  GotoIfNot(is_monomorphic, &extra_checks);
 
   // The compare above could have been a SMI/SMI comparison. Guard against
   // this convincing us that we have a monomorphic JSFunction.
@@ -616,14 +616,14 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
     GotoIf(is_megamorphic, &call);
 
     Comment("check if it is an allocation site");
-    GotoUnless(IsAllocationSiteMap(LoadMap(feedback_element)),
-               &check_initialized);
+    GotoIfNot(IsAllocationSiteMap(LoadMap(feedback_element)),
+              &check_initialized);
 
     // If it is not the Array() function, mark megamorphic.
     Node* context_slot = LoadContextElement(LoadNativeContext(context),
                                             Context::ARRAY_FUNCTION_INDEX);
     Node* is_array_function = WordEqual(context_slot, function);
-    GotoUnless(is_array_function, &mark_megamorphic);
+    GotoIfNot(is_array_function, &mark_megamorphic);
 
     // It is a monomorphic Array function. Increment the call count.
     IncrementCallCount(feedback_vector, slot_id);
@@ -645,7 +645,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       Node* is_uninitialized = WordEqual(
           feedback_element,
           HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
-      GotoUnless(is_uninitialized, &mark_megamorphic);
+      GotoIfNot(is_uninitialized, &mark_megamorphic);
 
       Comment("handle_unitinitialized");
       // If it is not a JSFunction mark it as megamorphic.
@@ -656,7 +656,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
       Node* instance_type = LoadInstanceType(function);
       Node* is_js_function =
           Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE));
-      GotoUnless(is_js_function, &mark_megamorphic);
+      GotoIfNot(is_js_function, &mark_megamorphic);
 
       // Check if it is the Array() function.
       Node* context_slot = LoadContextElement(LoadNativeContext(context),
@@ -669,7 +669,7 @@ Node* InterpreterAssembler::CallJSWithFeedback(Node* function, Node* context,
           LoadObjectField(function, JSFunction::kContextOffset));
       Node* is_same_native_context =
           WordEqual(native_context, LoadNativeContext(context));
-      GotoUnless(is_same_native_context, &mark_megamorphic);
+      GotoIfNot(is_same_native_context, &mark_megamorphic);
 
       CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
                                      function);
@@ -770,7 +770,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
   Node* instance_type = LoadInstanceType(constructor);
   Node* is_js_function =
       Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE));
-  GotoUnless(is_js_function, &call_construct);
+  GotoIfNot(is_js_function, &call_construct);
 
   // Check if it is a monomorphic constructor.
   Node* feedback_element = LoadFixedArrayElement(feedback_vector, slot_id);
@@ -807,7 +807,7 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
     Comment("check if weak cell");
     Node* is_weak_cell = WordEqual(LoadMap(feedback_element),
                                    LoadRoot(Heap::kWeakCellMapRootIndex));
-    GotoUnless(is_weak_cell, &check_allocation_site);
+    GotoIfNot(is_weak_cell, &check_allocation_site);
 
     // If the weak cell is cleared, we have a new chance to become
     // monomorphic.
@@ -821,13 +821,13 @@ Node* InterpreterAssembler::Construct(Node* constructor, Node* context,
       Node* is_allocation_site =
           WordEqual(LoadObjectField(feedback_element, 0),
                     LoadRoot(Heap::kAllocationSiteMapRootIndex));
-      GotoUnless(is_allocation_site, &check_initialized);
+      GotoIfNot(is_allocation_site, &check_initialized);
 
       // Make sure the function is the Array() function.
       Node* context_slot = LoadContextElement(LoadNativeContext(context),
                                               Context::ARRAY_FUNCTION_INDEX);
       Node* is_array_function = WordEqual(context_slot, constructor);
-      GotoUnless(is_array_function, &mark_megamorphic);
+      GotoIfNot(is_array_function, &mark_megamorphic);
 
       allocation_feedback.Bind(feedback_element);
       Goto(&call_construct_function);
@@ -1372,7 +1372,7 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array) {
   Bind(&loop);
   {
     Node* index = var_index.value();
-    GotoUnless(UintPtrLessThan(index, register_count), &done_loop);
+    GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
     Node* reg_index = IntPtrSub(IntPtrConstant(Register(0).ToOperand()), index);
     Node* value = LoadRegister(reg_index);
@@ -1405,7 +1405,7 @@ Node* InterpreterAssembler::ImportRegisterFile(Node* array) {
   Bind(&loop);
   {
     Node* index = var_index.value();
-    GotoUnless(UintPtrLessThan(index, register_count), &done_loop);
+    GotoIfNot(UintPtrLessThan(index, register_count), &done_loop);
 
     Node* value = LoadFixedArrayElement(array, index);
 

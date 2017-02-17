@@ -278,9 +278,9 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
       Node* const lastindex = var_lastindex.value();
 
       Label if_isoob(this, Label::kDeferred);
-      GotoUnless(TaggedIsSmi(lastindex), &if_isoob);
+      GotoIfNot(TaggedIsSmi(lastindex), &if_isoob);
       Node* const string_length = LoadStringLength(string);
-      GotoUnless(SmiLessThanOrEqual(lastindex, string_length), &if_isoob);
+      GotoIfNot(SmiLessThanOrEqual(lastindex, string_length), &if_isoob);
       Goto(&run_exec);
 
       Bind(&if_isoob);
@@ -315,9 +315,9 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
     // {match_indices} is either null or the RegExpMatchInfo array.
     // Return early if exec failed, possibly updating last index.
-    GotoUnless(WordEqual(match_indices, null), &successful_match);
+    GotoIfNot(WordEqual(match_indices, null), &successful_match);
 
-    GotoUnless(should_update_last_index, if_didnotmatch);
+    GotoIfNot(should_update_last_index, if_didnotmatch);
 
     StoreLastIndex(context, regexp, smi_zero, is_fastpath);
     Goto(if_didnotmatch);
@@ -325,7 +325,7 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
   Bind(&successful_match);
   {
-    GotoUnless(should_update_last_index, &out);
+    GotoIfNot(should_update_last_index, &out);
 
     // Update the new last index from {match_indices}.
     Node* const new_lastindex = LoadFixedArrayElement(
@@ -432,7 +432,7 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
       LoadObjectField(regexp_fun, JSFunction::kPrototypeOrInitialMapOffset);
   Node* const has_initialmap = WordEqual(map, initial_map);
 
-  GotoUnless(has_initialmap, if_ismodified);
+  GotoIfNot(has_initialmap, if_ismodified);
 
   Node* const initial_proto_initial_map =
       LoadContextElement(native_context, Context::REGEXP_PROTOTYPE_MAP_INDEX);
@@ -532,7 +532,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 #define CASE_FOR_FLAG(FLAG)                                  \
   do {                                                       \
     Label next(this);                                        \
-    GotoUnless(IsSetWord(flags_intptr, FLAG), &next);        \
+    GotoIfNot(IsSetWord(flags_intptr, FLAG), &next);         \
     var_length.Bind(IntPtrAdd(var_length.value(), int_one)); \
     Goto(&next);                                             \
     Bind(&next);                                             \
@@ -589,7 +589,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 #define CASE_FOR_FLAG(FLAG, CHAR)                              \
   do {                                                         \
     Label next(this);                                          \
-    GotoUnless(IsSetWord(flags_intptr, FLAG), &next);          \
+    GotoIfNot(IsSetWord(flags_intptr, FLAG), &next);           \
     Node* const value = Int32Constant(CHAR);                   \
     StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
                         var_offset.value(), value);            \
@@ -617,7 +617,7 @@ Node* RegExpBuiltinsAssembler::IsRegExp(Node* const context,
   Variable var_result(this, MachineRepresentation::kWord32, Int32Constant(0));
 
   GotoIf(TaggedIsSmi(maybe_receiver), &out);
-  GotoUnless(IsJSReceiver(maybe_receiver), &out);
+  GotoIfNot(IsJSReceiver(maybe_receiver), &out);
 
   Node* const receiver = maybe_receiver;
 
@@ -711,17 +711,17 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
   {
     Label next(this);
 
-    GotoUnless(IsUndefined(new_target), &next);
+    GotoIfNot(IsUndefined(new_target), &next);
     var_new_target.Bind(regexp_function);
 
-    GotoUnless(pattern_is_regexp, &next);
-    GotoUnless(IsUndefined(flags), &next);
+    GotoIfNot(pattern_is_regexp, &next);
+    GotoIfNot(IsUndefined(flags), &next);
 
     Callable getproperty_callable = CodeFactory::GetProperty(isolate);
     Node* const name = HeapConstant(isolate->factory()->constructor_string());
     Node* const value = CallStub(getproperty_callable, context, pattern, name);
 
-    GotoUnless(WordEqual(value, regexp_function), &next);
+    GotoIfNot(WordEqual(value, regexp_function), &next);
     Return(pattern);
 
     Bind(&next);
@@ -743,7 +743,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
       {
         Label inner_next(this);
-        GotoUnless(IsUndefined(flags), &inner_next);
+        GotoIfNot(IsUndefined(flags), &inner_next);
 
         Node* const value = FlagsGetter(context, pattern, true);
         var_flags.Bind(value);
@@ -768,7 +768,7 @@ TF_BUILTIN(RegExpConstructor, RegExpBuiltinsAssembler) {
 
       {
         Label inner_next(this);
-        GotoUnless(IsUndefined(flags), &inner_next);
+        GotoIfNot(IsUndefined(flags), &inner_next);
 
         Node* const name = HeapConstant(isolate->factory()->flags_string());
         Node* const value =
@@ -840,7 +840,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
     Label next(this);
 
     GotoIf(TaggedIsSmi(maybe_pattern), &next);
-    GotoUnless(HasInstanceType(maybe_pattern, JS_REGEXP_TYPE), &next);
+    GotoIfNot(HasInstanceType(maybe_pattern, JS_REGEXP_TYPE), &next);
 
     Node* const pattern = maybe_pattern;
 
@@ -1331,17 +1331,17 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
   Bind(&if_isunicode);
   {
     Node* const string_length = LoadStringLength(string);
-    GotoUnless(SmiLessThan(index_plus_one, string_length), &out);
+    GotoIfNot(SmiLessThan(index_plus_one, string_length), &out);
 
     Node* const lead = StringCharCodeAt(string, index);
-    GotoUnless(Word32Equal(Word32And(lead, Int32Constant(0xFC00)),
-                           Int32Constant(0xD800)),
-               &out);
+    GotoIfNot(Word32Equal(Word32And(lead, Int32Constant(0xFC00)),
+                          Int32Constant(0xD800)),
+              &out);
 
     Node* const trail = StringCharCodeAt(string, index_plus_one);
-    GotoUnless(Word32Equal(Word32And(trail, Int32Constant(0xFC00)),
-                           Int32Constant(0xDC00)),
-               &out);
+    GotoIfNot(Word32Equal(Word32And(trail, Int32Constant(0xFC00)),
+                          Int32Constant(0xDC00)),
+              &out);
 
     // At a surrogate pair, return index + 2.
     Node* const index_plus_two = SmiAdd(index, SmiConstant(2));
@@ -1610,7 +1610,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
       Bind(&if_didnotmatch);
       {
         // Return null if there were no matches, otherwise just exit the loop.
-        GotoUnless(IntPtrEqual(array.length(), int_zero), &out);
+        GotoIfNot(IntPtrEqual(array.length(), int_zero), &out);
         Return(null);
       }
 
@@ -1625,7 +1625,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         // Advance last index if the match is the empty string.
 
         Node* const match_length = LoadStringLength(match);
-        GotoUnless(SmiEqual(match_length, smi_zero), &loop);
+        GotoIfNot(SmiEqual(match_length, smi_zero), &loop);
 
         Node* last_index = LoadLastIndex(context, regexp, is_fastpath);
 
@@ -1747,7 +1747,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
   // Return -1 if no match was found.
   {
     Label next(this);
-    GotoUnless(WordEqual(exec_result, NullConstant()), &next);
+    GotoIfNot(WordEqual(exec_result, NullConstant()), &next);
     Return(SmiConstant(-1));
     Bind(&next);
   }
@@ -1932,8 +1932,8 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     {
       Label next(this);
 
-      GotoUnless(SmiEqual(match_to, next_search_from), &next);
-      GotoUnless(SmiEqual(match_to, last_matched_until), &next);
+      GotoIfNot(SmiEqual(match_to, next_search_from), &next);
+      GotoIfNot(SmiEqual(match_to, last_matched_until), &next);
 
       Node* const is_unicode = FastFlagGetter(regexp, JSRegExp::kUnicode);
       Node* const new_next_search_from =
@@ -2072,7 +2072,7 @@ TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
 
   {
     Node* const limit = ToUint32(context, maybe_limit);
-    GotoUnless(TaggedIsSmi(limit), &if_limitissmimax);
+    GotoIfNot(TaggedIsSmi(limit), &if_limitissmimax);
 
     var_limit.Bind(limit);
     Goto(&limit_done);
@@ -2208,7 +2208,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     Bind(&loop);
     {
       Node* const i = var_i.value();
-      GotoUnless(IntPtrLessThan(i, end), &create_result);
+      GotoIfNot(IntPtrLessThan(i, end), &create_result);
 
       Node* const elem = LoadFixedArrayElement(res_elems, i);
 
@@ -2460,7 +2460,7 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
         isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
     Node* const dollar_ix = CallStub(indexof_callable, context, replace_string,
                                      dollar_string, SmiConstant(0));
-    GotoUnless(SmiEqual(dollar_ix, SmiConstant(-1)), &runtime);
+    GotoIfNot(SmiEqual(dollar_ix, SmiConstant(-1)), &runtime);
 
     Return(
         ReplaceSimpleStringFastPath(context, regexp, string, replace_string));
