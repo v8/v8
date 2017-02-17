@@ -26,7 +26,7 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common, Zone* zone);
   ~EscapeAnalysis();
 
-  bool Run();
+  void Run();
 
   Node* GetReplacement(Node* node);
   bool IsVirtual(Node* node);
@@ -44,7 +44,6 @@ class V8_EXPORT_PRIVATE EscapeAnalysis {
   void ProcessStoreField(Node* node);
   void ProcessLoadElement(Node* node);
   void ProcessStoreElement(Node* node);
-  void ProcessCheckMaps(Node* node);
   void ProcessAllocationUsers(Node* node);
   void ProcessAllocation(Node* node);
   void ProcessFinishRegion(Node* node);

@@ -44,8 +44,6 @@ Reduction EscapeAnalysisReducer::ReduceNode(Node* node) {
     case IrOpcode::kStoreField:
     case IrOpcode::kStoreElement:
       return ReduceStore(node);
-    case IrOpcode::kCheckMaps:
-      return ReduceCheckMaps(node);
     case IrOpcode::kAllocate:
       return ReduceAllocate(node);
     case IrOpcode::kFinishRegion:
@@ -168,21 +166,6 @@ Reduction EscapeAnalysisReducer::ReduceStore(Node* node) {
   return NoChange();
 }
 
-Reduction EscapeAnalysisReducer::ReduceCheckMaps(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kCheckMaps);
-  if (node->id() < static_cast<NodeId>(fully_reduced_.length())) {
-    fully_reduced_.Add(node->id());
-  }
-  if (escape_analysis()->IsVirtual(
-          SkipTypeGuards(NodeProperties::GetValueInput(node, 0))) &&
-      !escape_analysis()->IsEscaped(node)) {
-    TRACE("Removed #%d (%s) from effect chain\n", node->id(),
-          node->op()->mnemonic());
-    RelaxEffectsAndControls(node);
-    return Changed(node);
-  }
-  return NoChange();
-}
 
 Reduction EscapeAnalysisReducer::ReduceAllocate(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kAllocate);

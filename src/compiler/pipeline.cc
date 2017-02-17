@@ -949,7 +949,7 @@ struct EscapeAnalysisPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     EscapeAnalysis escape_analysis(data->graph(), data->jsgraph()->common(),
                                    temp_zone);
-    if (!escape_analysis.Run()) return;
+    escape_analysis.Run();
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
                                          &escape_analysis, temp_zone);
