@@ -829,6 +829,8 @@ DEFINE_BOOL(move_object_start, true, "enable moving of object starts")
 DEFINE_BOOL(memory_reducer, true, "use memory reducer")
 DEFINE_INT(heap_growing_percent, 0,
            "specifies heap growing factor as (1 + heap_growing_percent/100)")
+DEFINE_BOOL(fast_promotion_new_space, false,
+            "fast promote new space on high survival rates")
 
 // spaces.cc
 DEFINE_INT(v8_os_page_size, 0, "override OS page size (in KBytes)")

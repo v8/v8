@@ -445,6 +445,7 @@ void GCTracer::PrintNVP() const {
           "gc=%s "
           "reduce_memory=%d "
           "scavenge=%.2f "
+          "evacuate=%.2f "
           "old_new=%.2f "
           "weak=%.2f "
           "roots=%.2f "
@@ -481,6 +482,7 @@ void GCTracer::PrintNVP() const {
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::SCAVENGER_SCAVENGE],
+          current_.scopes[Scope::SCAVENGER_EVACUATE],
           current_.scopes[Scope::SCAVENGER_OLD_TO_NEW_POINTERS],
           current_.scopes[Scope::SCAVENGER_WEAK],
           current_.scopes[Scope::SCAVENGER_ROOTS],

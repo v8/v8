@@ -87,6 +87,7 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   F(MINOR_MC_MARK_ROOTS)                      \
   F(MINOR_MC_MARK_WEAK)                       \
   F(SCAVENGER_CODE_FLUSH_CANDIDATES)          \
+  F(SCAVENGER_EVACUATE)                       \
   F(SCAVENGER_OLD_TO_NEW_POINTERS)            \
   F(SCAVENGER_ROOTS)                          \
   F(SCAVENGER_SCAVENGE)                       \

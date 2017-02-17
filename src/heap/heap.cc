@@ -157,6 +157,7 @@ Heap::Heap()
       strong_roots_list_(NULL),
       heap_iterator_depth_(0),
       local_embedder_heap_tracer_(nullptr),
+      fast_promotion_mode_(false),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false) {
 // Allow build-time customization of the max semispace size. Building
@@ -1357,7 +1358,10 @@ bool Heap::PerformGarbageCollection(
         MinorMarkCompact();
         break;
       case SCAVENGER:
-        Scavenge();
+        if (fast_promotion_mode_ && CanExpandOldGeneration(new_space()->Size()))
+          EvacuateYoungGeneration();
+        else
+          Scavenge();
         break;
     }
 
@@ -1366,6 +1370,10 @@ bool Heap::PerformGarbageCollection(
 
   UpdateSurvivalStatistics(start_new_space_size);
   ConfigureInitialOldGenerationSize();
+
+  if (!fast_promotion_mode_ || collector == MARK_COMPACTOR) {
+    ComputeFastPromotionMode(promotion_ratio_ + semi_space_copied_rate_);
+  }
 
   isolate_->counters()->objs_since_last_young()->Set(0);
 
@@ -1604,6 +1612,44 @@ class ScavengeWeakObjectRetainer : public WeakObjectRetainer {
   Heap* heap_;
 };
 
+void Heap::EvacuateYoungGeneration() {
+  TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_EVACUATE);
+  DCHECK(fast_promotion_mode_);
+  DCHECK(CanExpandOldGeneration(new_space()->Size()));
+
+  mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
+
+  SetGCState(SCAVENGE);
+  LOG(isolate_, ResourceEvent("scavenge", "begin"));
+
+  // Move pages from new->old generation.
+  PageRange range(new_space()->bottom(), new_space()->top());
+  for (auto it = range.begin(); it != range.end();) {
+    Page* p = (*++it)->prev_page();
+    p->Unlink();
+    Page::ConvertNewToOld(p);
+    if (incremental_marking()->IsMarking())
+      mark_compact_collector()->RecordLiveSlotsOnPage(p);
+  }
+
+  // Reset new space.
+  if (!new_space()->Rebalance()) {
+    FatalProcessOutOfMemory("NewSpace::Rebalance");
+  }
+  new_space()->ResetAllocationInfo();
+  new_space()->set_age_mark(new_space()->top());
+
+  // Fix up special trackers.
+  external_string_table_.PromoteAllNewSpaceStrings();
+  // GlobalHandles are updated in PostGarbageCollectonProcessing
+
+  IncrementYoungSurvivorsCounter(new_space()->Size());
+  IncrementPromotedObjectsSize(new_space()->Size());
+  IncrementSemiSpaceCopiedObjectSize(0);
+
+  LOG(isolate_, ResourceEvent("scavenge", "end"));
+  SetGCState(NOT_IN_GC);
+}
 
 void Heap::Scavenge() {
   TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE);
@@ -1745,6 +1791,17 @@ void Heap::Scavenge() {
   SetGCState(NOT_IN_GC);
 }
 
+void Heap::ComputeFastPromotionMode(double survival_rate) {
+  if (new_space_->IsAtMaximumCapacity() && !FLAG_optimize_for_size) {
+    fast_promotion_mode_ =
+        FLAG_fast_promotion_new_space &&
+        survival_rate >= kMinPromotedPercentForFastPromotionMode;
+    if (FLAG_trace_gc_verbose) {
+      PrintIsolate(isolate(), "Fast promotion mode: %s survival rate: %f%%\n",
+                   fast_promotion_mode_ ? "true" : "false", survival_rate);
+    }
+  }
+}
 
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
                                                                 Object** p) {
@@ -5170,7 +5227,7 @@ const double Heap::kMaxHeapGrowingFactorMemoryConstrained = 2.0;
 const double Heap::kMaxHeapGrowingFactorIdle = 1.5;
 const double Heap::kConservativeHeapGrowingFactor = 1.3;
 const double Heap::kTargetMutatorUtilization = 0.97;
-
+const double Heap::kMinPromotedPercentForFastPromotionMode = 90;
 
 // Given GC speed in bytes per ms, the allocation throughput in bytes per ms
 // (mutator speed), this function returns the heap growing factor that will

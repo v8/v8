@@ -637,6 +637,8 @@ class Heap {
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInWords = 2;
 
+  static const double kMinPromotedPercentForFastPromotionMode;
+
   STATIC_ASSERT(kUndefinedValueRootIndex ==
                 Internals::kUndefinedValueRootIndex);
   STATIC_ASSERT(kTheHoleValueRootIndex == Internals::kTheHoleValueRootIndex);
@@ -1516,6 +1518,7 @@ class Heap {
 
     inline void IterateAll(ObjectVisitor* v);
     inline void IterateNewSpaceStrings(ObjectVisitor* v);
+    inline void PromoteAllNewSpaceStrings();
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
@@ -1750,6 +1753,8 @@ class Heap {
 
   void InvokeOutOfMemoryCallback();
 
+  void ComputeFastPromotionMode(double survival_rate);
+
   // Attempt to over-approximate the weak closure by marking object groups and
   // implicit references from global handles, but don't atomically complete
   // marking. If we continue to mark incrementally, we might have marked
@@ -1793,6 +1798,7 @@ class Heap {
 
   // Performs a minor collection in new generation.
   void Scavenge();
+  void EvacuateYoungGeneration();
 
   Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
 
@@ -1873,7 +1879,7 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
-  bool CanExpandOldGeneration(int size) {
+  bool CanExpandOldGeneration(size_t size) {
     if (force_oom_) return false;
     return (OldGenerationCapacity() + size) < MaxOldGenerationSize();
   }
@@ -2335,6 +2341,8 @@ class Heap {
   int heap_iterator_depth_;
 
   LocalEmbedderHeapTracer* local_embedder_heap_tracer_;
+
+  bool fast_promotion_mode_;
 
   // Used for testing purposes.
   bool force_oom_;

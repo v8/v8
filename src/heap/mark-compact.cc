@@ -3494,6 +3494,11 @@ static void VerifyAllBlackObjects(MemoryChunk* page) {
 }
 #endif  // VERIFY_HEAP
 
+void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
+  EvacuateRecordOnlyVisitor visitor(heap());
+  VisitLiveObjects(page, &visitor, kKeepMarking);
+}
+
 template <class Visitor>
 bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
                                             IterationMode mode) {
