@@ -14,14 +14,14 @@ snippet: "
 "
 frame size: 2
 parameter count: 1
-bytecode array length: 15
+bytecode array length: 14
 bytecodes: [
   /*   27 E> */ B(StackCheck),
   /*   32 S> */ B(LdaUndefined),
                 B(Star), R(1),
                 B(LdaGlobal), U8(0), U8(4),
                 B(Star), R(0),
-  /*   39 E> */ B(Call), R(0), R(1), U8(1), U8(2),
+  /*   39 E> */ B(Call0), R(0), R(1), U8(2),
   /*   44 S> */ B(Return),
 ]
 constant pool: [

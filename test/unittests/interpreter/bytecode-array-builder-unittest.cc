@@ -38,7 +38,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register other(reg.index() + 1);
   Register wide(128);
   RegisterList reg_list;
-  RegisterList pair(0, 2), triple(0, 3);
+  RegisterList single(0, 1), pair(0, 2), triple(0, 3);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)
@@ -144,8 +144,14 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Call operations.
   builder.Call(reg, reg_list, 1, Call::GLOBAL_CALL)
+      .Call(reg, single, 1, Call::GLOBAL_CALL)
+      .Call(reg, pair, 1, Call::GLOBAL_CALL)
+      .Call(reg, triple, 1, Call::GLOBAL_CALL)
       .Call(reg, reg_list, 1, Call::NAMED_PROPERTY_CALL,
             TailCallMode::kDisallow)
+      .Call(reg, single, 1, Call::NAMED_PROPERTY_CALL)
+      .Call(reg, pair, 1, Call::NAMED_PROPERTY_CALL)
+      .Call(reg, triple, 1, Call::NAMED_PROPERTY_CALL)
       .Call(reg, reg_list, 1, Call::GLOBAL_CALL, TailCallMode::kAllow)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)

@@ -78,6 +78,10 @@ class Interpreter {
 
   typedef void (Interpreter::*BytecodeGeneratorFunc)(InterpreterAssembler*);
 
+  // In the case of bytecodes that share handler implementations, copy the code
+  // into the bytecode's dispatcher table entry and return true.
+  bool ReuseExistingHandler(Bytecode bytecode, OperandScale operand_scale);
+
   // Generates handler for given |bytecode| and |operand_scale| using
   // |generator| and installs it into the dispatch table.
   void InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
@@ -123,6 +127,10 @@ class Interpreter {
 
   // Generates code to perform a JS call that collects type feedback.
   void DoJSCall(InterpreterAssembler* assembler, TailCallMode tail_call_mode);
+
+  // Generates code to perform a JS call with a known number of arguments that
+  // collects type feedback.
+  void DoJSCallN(InterpreterAssembler* assembler, int n);
 
   // Generates code to perform delete via function_id.
   void DoDelete(Runtime::FunctionId function_id,

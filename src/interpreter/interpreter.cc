@@ -4,6 +4,7 @@
 
 #include "src/interpreter/interpreter.h"
 
+#include <array>
 #include <fstream>
 #include <memory>
 
@@ -129,11 +130,42 @@ void Interpreter::Initialize() {
   DCHECK(IsDispatchTableInitialized());
 }
 
+bool Interpreter::ReuseExistingHandler(Bytecode bytecode,
+                                       OperandScale operand_scale) {
+  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
+  switch (bytecode) {
+    case Bytecode::kCallProperty:
+    case Bytecode::kCallProperty0:
+    case Bytecode::kCallProperty1:
+    case Bytecode::kCallProperty2: {
+      const int offset = static_cast<int>(Bytecode::kCallProperty) -
+                         static_cast<int>(Bytecode::kCall);
+      STATIC_ASSERT(offset ==
+                    static_cast<int>(Bytecode::kCallProperty0) -
+                        static_cast<int>(Bytecode::kCall0));
+      STATIC_ASSERT(offset ==
+                    static_cast<int>(Bytecode::kCallProperty1) -
+                        static_cast<int>(Bytecode::kCall1));
+      STATIC_ASSERT(offset ==
+                    static_cast<int>(Bytecode::kCallProperty2) -
+                        static_cast<int>(Bytecode::kCall2));
+      CHECK_LT(offset, index);
+      dispatch_table_[index] = dispatch_table_[index - offset];
+      return true;
+      break;
+    }
+    default:
+      return false;
+  }
+}
+
 void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
                                          OperandScale operand_scale,
                                          BytecodeGeneratorFunc generator) {
   if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
+  if (ReuseExistingHandler(bytecode, operand_scale)) return;
 
+  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   InterpreterDispatchDescriptor descriptor(isolate_);
   compiler::CodeAssemblerState state(
       isolate_, zone, descriptor, Code::ComputeFlags(Code::BYTECODE_HANDLER),
@@ -144,7 +176,6 @@ void Interpreter::InstallBytecodeHandler(Zone* zone, Bytecode bytecode,
   }
   (this->*generator)(&assembler);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
-  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
   dispatch_table_[index] = code->entry();
   TraceCodegen(code);
   PROFILE(isolate_, CodeCreateEvent(
@@ -2161,6 +2192,35 @@ void Interpreter::DoJSCall(InterpreterAssembler* assembler,
   __ Dispatch();
 }
 
+void Interpreter::DoJSCallN(InterpreterAssembler* assembler, int arg_count) {
+  const int kReceiverOperandIndex = 1;
+  const int kReceiverOperandCount = 1;
+  const int kSlotOperandIndex =
+      kReceiverOperandIndex + kReceiverOperandCount + arg_count;
+  const int kBoilerplatParameterCount = 7;
+  const int kReceiverParameterIndex = 5;
+
+  Node* function_reg = __ BytecodeOperandReg(0);
+  Node* function = __ LoadRegister(function_reg);
+  std::array<Node*, Bytecodes::kMaxOperands + kBoilerplatParameterCount> temp;
+  Callable call_ic = CodeFactory::CallIC(isolate_);
+  temp[0] = __ HeapConstant(call_ic.code());
+  temp[1] = function;
+  temp[2] = __ Int32Constant(arg_count);
+  temp[3] = __ BytecodeOperandIdxInt32(kSlotOperandIndex);
+  temp[4] = __ LoadFeedbackVector();
+  for (int i = 0; i < (arg_count + kReceiverOperandCount); ++i) {
+    Node* reg = __ BytecodeOperandReg(i + kReceiverOperandIndex);
+    temp[kReceiverParameterIndex + i] = __ LoadRegister(reg);
+  }
+  temp[kReceiverParameterIndex + arg_count + kReceiverOperandCount] =
+      __ GetContext();
+  Node* result = __ CallStubN(call_ic.descriptor(), 1,
+                              arg_count + kBoilerplatParameterCount, &temp[0]);
+  __ SetAccumulator(result);
+  __ Dispatch();
+}
+
 // Call <callable> <receiver> <arg_count> <feedback_slot_id>
 //
 // Call a JSfunction or Callable in |callable| with the |receiver| and
@@ -2170,15 +2230,36 @@ void Interpreter::DoCall(InterpreterAssembler* assembler) {
   DoJSCall(assembler, TailCallMode::kDisallow);
 }
 
-// CallProperty <callable> <receiver> <arg_count> <feedback_slot_id>
-//
-// Call a JSfunction or Callable in |callable| with the |receiver| and
-// |arg_count| arguments in subsequent registers. Collect type feedback into
-// |feedback_slot_id|. The callable is known to be a property of the receiver.
+void Interpreter::DoCall0(InterpreterAssembler* assembler) {
+  DoJSCallN(assembler, 0);
+}
+
+void Interpreter::DoCall1(InterpreterAssembler* assembler) {
+  DoJSCallN(assembler, 1);
+}
+
+void Interpreter::DoCall2(InterpreterAssembler* assembler) {
+  DoJSCallN(assembler, 2);
+}
+
 void Interpreter::DoCallProperty(InterpreterAssembler* assembler) {
-  // TODO(leszeks): Look into making the interpreter use the fact that the
-  // receiver is non-null.
-  DoJSCall(assembler, TailCallMode::kDisallow);
+  // Same as Call
+  UNREACHABLE();
+}
+
+void Interpreter::DoCallProperty0(InterpreterAssembler* assembler) {
+  // Same as Call0
+  UNREACHABLE();
+}
+
+void Interpreter::DoCallProperty1(InterpreterAssembler* assembler) {
+  // Same as Call1
+  UNREACHABLE();
+}
+
+void Interpreter::DoCallProperty2(InterpreterAssembler* assembler) {
+  // Same as Call2
+  UNREACHABLE();
 }
 
 // TailCall <callable> <receiver> <arg_count> <feedback_slot_id>
@@ -2238,7 +2319,6 @@ void Interpreter::DoCallRuntimeForPair(InterpreterAssembler* assembler) {
   Node* context = __ GetContext();
   Node* result_pair =
       __ CallRuntimeN(function_id, context, first_arg, args_count, 2);
-
   // Store the results in <first_return> and <first_return + 1>
   Node* first_return_reg = __ BytecodeOperandReg(3);
   Node* second_return_reg = __ NextRegister(first_return_reg);

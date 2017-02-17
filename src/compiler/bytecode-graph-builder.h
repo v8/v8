@@ -104,11 +104,16 @@ class BytecodeGraphBuilder {
 
   // The main node creation chokepoint. Adds context, frame state, effect,
   // and control dependencies depending on the operator.
-  Node* MakeNode(const Operator* op, int value_input_count, Node** value_inputs,
-                 bool incomplete);
+  Node* MakeNode(const Operator* op, int value_input_count,
+                 Node* const* value_inputs, bool incomplete);
 
   Node** EnsureInputBufferSize(int size);
 
+  Node* const* GetCallArgumentsFromRegister(Node* callee,
+                                            interpreter::Register first_arg,
+                                            size_t arity);
+  Node* ProcessCallArguments(const Operator* call_op, Node* const* args,
+                             size_t arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
                              interpreter::Register receiver, size_t arity);
   Node* ProcessConstructArguments(const Operator* call_new_op, Node* callee,
@@ -150,8 +155,16 @@ class BytecodeGraphBuilder {
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);
   void BuildStaLookupSlot(LanguageMode language_mode);
-  void BuildCall(TailCallMode tail_call_mode,
-                 ConvertReceiverMode receiver_hint);
+  void BuildCallVarArgs(TailCallMode tail_call_mode,
+                        ConvertReceiverMode receiver_hint);
+  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_hint,
+                 Node* const* args, size_t arg_count, int slot_id);
+  void BuildCall(TailCallMode tail_call_mode, ConvertReceiverMode receiver_hint,
+                 std::initializer_list<Node*> args, int slot_id) {
+    BuildCall(tail_call_mode, receiver_hint, args.begin(), args.size(),
+              slot_id);
+  }
+  void BuildThrow();
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);

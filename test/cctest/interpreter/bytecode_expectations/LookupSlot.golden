@@ -40,7 +40,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   14 E> */ B(Call), R(1), R(2), U8(2), U8(2),
+  /*   14 E> */ B(Call1), R(1), R(2), R(3), U8(2),
   /*   35 S> */ B(LdaLookupGlobalSlot), U8(2), U8(6), U8(1),
   /*   45 S> */ B(Return),
 ]
@@ -86,7 +86,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   14 E> */ B(Call), R(1), R(2), U8(2), U8(2),
+  /*   14 E> */ B(Call1), R(1), R(2), R(3), U8(2),
   /*   35 S> */ B(LdaLookupGlobalSlotInsideTypeof), U8(2), U8(6), U8(1),
                 B(TypeOf),
   /*   52 S> */ B(Return),
@@ -135,7 +135,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   29 E> */ B(Call), R(1), R(2), U8(2), U8(2),
+  /*   29 E> */ B(Call1), R(1), R(2), R(3), U8(2),
   /*   39 S> */ B(Return),
 ]
 constant pool: [
@@ -185,7 +185,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   44 E> */ B(Call), R(1), R(2), U8(2), U8(2),
+  /*   44 E> */ B(Call1), R(1), R(2), R(3), U8(2),
   /*   66 S> */ B(LdaLookupContextSlot), U8(2), U8(6), U8(1),
   /*   76 S> */ B(Return),
 ]
@@ -236,7 +236,7 @@ bytecodes: [
                 B(Mov), R(closure), R(6),
                 B(CallRuntime), U16(Runtime::kResolvePossiblyDirectEval), R(4), U8(6),
                 B(Star), R(1),
-  /*   40 E> */ B(Call), R(1), R(2), U8(2), U8(2),
+  /*   40 E> */ B(Call1), R(1), R(2), R(3), U8(2),
   /*   62 S> */ B(LdaLookupGlobalSlot), U8(2), U8(6), U8(1),
   /*   72 S> */ B(Return),
 ]
