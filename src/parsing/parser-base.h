@@ -4950,12 +4950,19 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
       ReportUnexpectedToken(Next());
       *ok = false;
       return impl()->NullStatement();
-    case Token::LET:
-      if (PeekAhead() != Token::LBRACK) break;
+    case Token::LET: {
+      Token::Value next_next = PeekAhead();
+      // "let" followed by either "[", "{" or an identifier means a lexical
+      // declaration, which should not appear here.
+      if (next_next != Token::LBRACK && next_next != Token::LBRACE &&
+          next_next != Token::IDENTIFIER) {
+        break;
+      }
       impl()->ReportMessageAt(scanner()->peek_location(),
                               MessageTemplate::kUnexpectedLexicalDeclaration);
       *ok = false;
       return impl()->NullStatement();
+    }
     default:
       break;
   }
