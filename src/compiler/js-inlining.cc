@@ -290,6 +290,26 @@ namespace {
 // function, which either returns the map set from the CheckMaps or
 // a singleton set from a StoreField.
 bool NeedsConvertReceiver(Node* receiver, Node* effect) {
+  // Check if the {receiver} is already a JSReceiver.
+  switch (receiver->opcode()) {
+    case IrOpcode::kJSConstruct:
+    case IrOpcode::kJSConstructWithSpread:
+    case IrOpcode::kJSCreate:
+    case IrOpcode::kJSCreateArguments:
+    case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateClosure:
+    case IrOpcode::kJSCreateIterResultObject:
+    case IrOpcode::kJSCreateKeyValueArray:
+    case IrOpcode::kJSCreateLiteralArray:
+    case IrOpcode::kJSCreateLiteralObject:
+    case IrOpcode::kJSCreateLiteralRegExp:
+    case IrOpcode::kJSConvertReceiver:
+    case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSToObject:
+      return false;
+    default:
+      break;
+  }
   for (Node* dominator = effect;;) {
     if (dominator->opcode() == IrOpcode::kCheckMaps &&
         NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
