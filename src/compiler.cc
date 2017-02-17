@@ -874,6 +874,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     return MaybeHandle<Code>();
   }
 
+  HistogramTimerScope timer(
+      isolate->counters()->compile_optimized_main_thread());
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
@@ -928,6 +930,8 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
   CompilationInfo* info = job->info();
   Isolate* isolate = info->isolate();
 
+  HistogramTimerScope histogram_timer(
+      isolate->counters()->compile_optimized_main_thread());
   TimerEventScope<TimerEventRecompileSynchronous> timer(info->isolate());
   RuntimeCallTimerScope runtimeTimer(isolate,
                                      &RuntimeCallStats::RecompileSynchronous);

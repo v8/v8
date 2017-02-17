@@ -969,6 +969,11 @@ class RuntimeCallTimerScope {
   HT(compile_serialize, V8.CompileSerializeMicroSeconds, 100000, MICROSECOND)  \
   HT(compile_deserialize, V8.CompileDeserializeMicroSeconds, 1000000,          \
      MICROSECOND)                                                              \
+  /* Optimized compile times. */                                               \
+  HT(compile_optimized_main_thread, V8.CompileOptimizedMainThreadMicroSeconds, \
+     1000000, MICROSECOND)                                                     \
+  HT(compile_optimized_background_thread,                                      \
+     V8.CompileOptimizeBackgroundThreadMicroSeconds, 1000000, MICROSECOND)     \
   /* Total compilation time incl. caching/parsing */                           \
   HT(compile_script, V8.CompileScriptMicroSeconds, 1000000, MICROSECOND)       \
   /* Total JavaScript execution time (including callbacks and runtime calls */ \
