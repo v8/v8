@@ -33,6 +33,12 @@ class JSSpeculativeBinopBuilder final {
     return nexus.GetBinaryOperationFeedback();
   }
 
+  CompareOperationHint GetCompareOperationHint() {
+    DCHECK_EQ(FeedbackSlotKind::kCompareOp, feedback_vector()->GetKind(slot_));
+    CompareICNexus nexus(feedback_vector(), slot_);
+    return nexus.GetCompareOperationFeedback();
+  }
+
   bool GetBinaryNumberOperationHint(NumberOperationHint* hint) {
     switch (GetBinaryOperationHint()) {
       case BinaryOperationHint::kSignedSmall:
@@ -47,6 +53,27 @@ class JSSpeculativeBinopBuilder final {
       case BinaryOperationHint::kAny:
       case BinaryOperationHint::kNone:
       case BinaryOperationHint::kString:
+        break;
+    }
+    return false;
+  }
+
+  bool GetCompareNumberOperationHint(NumberOperationHint* hint) {
+    switch (GetCompareOperationHint()) {
+      case CompareOperationHint::kSignedSmall:
+        *hint = NumberOperationHint::kSignedSmall;
+        return true;
+      case CompareOperationHint::kNumber:
+        *hint = NumberOperationHint::kNumber;
+        return true;
+      case CompareOperationHint::kNumberOrOddball:
+        *hint = NumberOperationHint::kNumberOrOddball;
+        return true;
+      case CompareOperationHint::kAny:
+      case CompareOperationHint::kNone:
+      case CompareOperationHint::kString:
+      case CompareOperationHint::kReceiver:
+      case CompareOperationHint::kInternalizedString:
         break;
     }
     return false;
@@ -83,7 +110,26 @@ class JSSpeculativeBinopBuilder final {
     return nullptr;
   }
 
-  Node* BuildSpeculativeOperator(const Operator* op) {
+  const Operator* SpeculativeCompareOp(NumberOperationHint hint) {
+    switch (op_->opcode()) {
+      case IrOpcode::kJSLessThan:
+        return simplified()->SpeculativeNumberLessThan(hint);
+      case IrOpcode::kJSGreaterThan:
+        std::swap(left_, right_);  // a > b => b < a
+        return simplified()->SpeculativeNumberLessThan(hint);
+      case IrOpcode::kJSLessThanOrEqual:
+        return simplified()->SpeculativeNumberLessThanOrEqual(hint);
+      case IrOpcode::kJSGreaterThanOrEqual:
+        std::swap(left_, right_);  // a >= b => b <= a
+        return simplified()->SpeculativeNumberLessThanOrEqual(hint);
+      default:
+        break;
+    }
+    UNREACHABLE();
+    return nullptr;
+  }
+
+  Node* BuildSpeculativeOperation(const Operator* op) {
     DCHECK_EQ(2, op->ValueInputCount());
     DCHECK_EQ(1, op->EffectInputCount());
     DCHECK_EQ(1, op->ControlInputCount());
@@ -91,9 +137,46 @@ class JSSpeculativeBinopBuilder final {
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(1, op->EffectOutputCount());
     DCHECK_EQ(0, op->ControlOutputCount());
-    return graph()->NewNode(op, left_, right_, effect_, control_);
+    Node* node = graph()->NewNode(op, left_, right_, effect_, control_);
+    effect_ = node;  // Update the effect dependency.
+    return node;
   }
 
+  Node* BuildInvert(Node* input) {
+    return graph()->NewNode(simplified()->BooleanNot(), input);
+  }
+
+  Node* TryBuildNumberBinop() {
+    NumberOperationHint hint;
+    if (GetBinaryNumberOperationHint(&hint)) {
+      const Operator* op = SpeculativeNumberOp(hint);
+      Node* node = BuildSpeculativeOperation(op);
+      return node;
+    }
+    return nullptr;
+  }
+
+  Node* TryBuildNumberEqual(bool invert) {
+    NumberOperationHint hint;
+    if (GetCompareNumberOperationHint(&hint)) {
+      const Operator* op = simplified()->SpeculativeNumberEqual(hint);
+      Node* compare = BuildSpeculativeOperation(op);
+      return invert ? BuildInvert(compare) : compare;
+    }
+    return nullptr;
+  }
+
+  Node* TryBuildNumberCompare() {
+    NumberOperationHint hint;
+    if (GetCompareNumberOperationHint(&hint)) {
+      const Operator* op = SpeculativeCompareOp(hint);
+      Node* node = BuildSpeculativeOperation(op);
+      return node;
+    }
+    return nullptr;
+  }
+
+  Node* effect() const { return effect_; }
   JSGraph* jsgraph() const { return lowering_->jsgraph(); }
   Graph* graph() const { return jsgraph()->graph(); }
   JSOperatorBuilder* javascript() { return jsgraph()->javascript(); }
@@ -117,11 +200,36 @@ JSTypeHintLowering::JSTypeHintLowering(JSGraph* jsgraph,
                                        Handle<FeedbackVector> feedback_vector)
     : jsgraph_(jsgraph), feedback_vector_(feedback_vector) {}
 
-Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
-                                                    Node* left, Node* right,
-                                                    Node* effect, Node* control,
-                                                    FeedbackSlot slot) {
+EarlyReduction JSTypeHintLowering::ReduceBinaryOperation(
+    const Operator* op, Node* left, Node* right, Node* effect, Node* control,
+    FeedbackSlot slot) {
   switch (op->opcode()) {
+    case IrOpcode::kJSEqual:
+    case IrOpcode::kJSStrictEqual: {
+      JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
+      if (Node* node = b.TryBuildNumberEqual(false)) {
+        return EarlyReduction(node, b.effect());
+      }
+      break;
+    }
+    case IrOpcode::kJSNotEqual:
+    case IrOpcode::kJSStrictNotEqual: {
+      JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
+      if (Node* node = b.TryBuildNumberEqual(true)) {
+        return EarlyReduction(node, b.effect());
+      }
+      break;
+    }
+    case IrOpcode::kJSLessThan:
+    case IrOpcode::kJSGreaterThan:
+    case IrOpcode::kJSLessThanOrEqual:
+    case IrOpcode::kJSGreaterThanOrEqual: {
+      JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
+      if (Node* node = b.TryBuildNumberCompare()) {
+        return EarlyReduction(node, b.effect());
+      }
+      break;
+    }
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
     case IrOpcode::kJSBitwiseAnd:
@@ -134,10 +242,8 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus: {
       JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
-      NumberOperationHint hint;
-      if (b.GetBinaryNumberOperationHint(&hint)) {
-        Node* node = b.BuildSpeculativeOperator(b.SpeculativeNumberOp(hint));
-        return Reduction(node);
+      if (Node* node = b.TryBuildNumberBinop()) {
+        return EarlyReduction(node, b.effect());
       }
       break;
     }
@@ -145,7 +251,7 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
       UNREACHABLE();
       break;
   }
-  return Reduction();
+  return EarlyReduction();
 }
 
 }  // namespace compiler
