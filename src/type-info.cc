@@ -452,11 +452,12 @@ void TypeFeedbackOracle::CollectReceiverTypes(StubCache* stub_cache,
 
 void TypeFeedbackOracle::CollectReceiverTypes(FeedbackSlot slot,
                                               SmallMapList* types) {
-  if (feedback_vector_->IsStoreIC(slot)) {
+  FeedbackSlotKind kind = feedback_vector_->GetKind(slot);
+  if (IsStoreICKind(kind) || IsStoreOwnICKind(kind)) {
     StoreICNexus nexus(feedback_vector_, slot);
     CollectReceiverTypes(&nexus, types);
   } else {
-    DCHECK(feedback_vector_->IsKeyedStoreIC(slot));
+    DCHECK(IsKeyedStoreICKind(kind));
     KeyedStoreICNexus nexus(feedback_vector_, slot);
     CollectReceiverTypes(&nexus, types);
   }

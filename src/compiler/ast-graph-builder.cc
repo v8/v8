@@ -1320,7 +1320,7 @@ void AstGraphBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Name> name = key->AsPropertyName();
             VectorSlotPair feedback =
                 CreateVectorSlotPair(property->GetSlot(0));
-            Node* store = BuildNamedStore(literal, name, value, feedback);
+            Node* store = BuildNamedStoreOwn(literal, name, value, feedback);
             PrepareFrameState(store, key->id(),
                               OutputFrameStateCombine::Ignore());
             BuildSetHomeObject(value, literal, property, 1);
@@ -2626,6 +2626,15 @@ Node* AstGraphBuilder::BuildNamedStore(Node* object, Handle<Name> name,
   return node;
 }
 
+Node* AstGraphBuilder::BuildNamedStoreOwn(Node* object, Handle<Name> name,
+                                          Node* value,
+                                          const VectorSlotPair& feedback) {
+  DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+            feedback.vector()->GetKind(feedback.slot()));
+  const Operator* op = javascript()->StoreNamedOwn(name, feedback);
+  Node* node = NewNode(op, object, value);
+  return node;
+}
 
 Node* AstGraphBuilder::BuildGlobalLoad(Handle<Name> name,
                                        const VectorSlotPair& feedback,

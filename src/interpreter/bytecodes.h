@@ -97,6 +97,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaNamedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kIdx, OperandType::kIdx)                                      \
+  V(StaNamedOwnProperty, AccumulatorUse::kRead, OperandType::kReg,             \
+    OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaKeyedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,          \
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \

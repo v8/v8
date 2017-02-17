@@ -287,6 +287,8 @@ class AstGraphBuilder : public AstVisitor<AstGraphBuilder> {
                         const VectorSlotPair& feedback);
   Node* BuildNamedStore(Node* receiver, Handle<Name> name, Node* value,
                         const VectorSlotPair& feedback);
+  Node* BuildNamedStoreOwn(Node* receiver, Handle<Name> name, Node* value,
+                           const VectorSlotPair& feedback);
 
   // Builders for global variable loads and stores.
   Node* BuildGlobalLoad(Handle<Name> name, const VectorSlotPair& feedback,

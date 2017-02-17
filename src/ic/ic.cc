@@ -543,7 +543,7 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   if (new_state == PREMONOMORPHIC) {
     nexus()->ConfigurePremonomorphic();
   } else if (new_state == MEGAMORPHIC) {
-    if (IsLoadIC() || IsStoreIC()) {
+    if (IsLoadIC() || IsStoreIC() || IsStoreOwnIC()) {
       nexus()->ConfigureMegamorphic();
     } else if (IsKeyedLoadIC()) {
       KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
@@ -564,22 +564,48 @@ void IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                               Handle<Object> handler) {
   DCHECK(UseVector());
-  if (IsLoadIC()) {
-    LoadICNexus* nexus = casted_nexus<LoadICNexus>();
-    nexus->ConfigureMonomorphic(map, handler);
-  } else if (IsLoadGlobalIC()) {
-    LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
-    nexus->ConfigureHandlerMode(handler);
-  } else if (IsKeyedLoadIC()) {
-    KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    nexus->ConfigureMonomorphic(name, map, handler);
-  } else if (IsStoreIC()) {
-    StoreICNexus* nexus = casted_nexus<StoreICNexus>();
-    nexus->ConfigureMonomorphic(map, handler);
-  } else {
-    DCHECK(IsKeyedStoreIC());
-    KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-    nexus->ConfigureMonomorphic(name, map, handler);
+  switch (kind_) {
+    case FeedbackSlotKind::kLoadProperty: {
+      LoadICNexus* nexus = casted_nexus<LoadICNexus>();
+      nexus->ConfigureMonomorphic(map, handler);
+      break;
+    }
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof: {
+      LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
+      nexus->ConfigureHandlerMode(handler);
+      break;
+    }
+    case FeedbackSlotKind::kLoadKeyed: {
+      KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
+      nexus->ConfigureMonomorphic(name, map, handler);
+      break;
+    }
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreOwnNamed: {
+      StoreICNexus* nexus = casted_nexus<StoreICNexus>();
+      nexus->ConfigureMonomorphic(map, handler);
+      break;
+    }
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict: {
+      KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
+      nexus->ConfigureMonomorphic(name, map, handler);
+      break;
+    }
+    case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kCompareOp:
+    case FeedbackSlotKind::kToBoolean:
+    case FeedbackSlotKind::kCreateClosure:
+    case FeedbackSlotKind::kLiteral:
+    case FeedbackSlotKind::kGeneral:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kInvalid:
+    case FeedbackSlotKind::kKindsNumber:
+      UNREACHABLE();
+      break;
   }
 
   vector_set_ = true;
@@ -589,19 +615,44 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
 void IC::ConfigureVectorState(Handle<Name> name, MapHandleList* maps,
                               List<Handle<Object>>* handlers) {
   DCHECK(UseVector());
-  if (IsLoadIC()) {
-    LoadICNexus* nexus = casted_nexus<LoadICNexus>();
-    nexus->ConfigurePolymorphic(maps, handlers);
-  } else if (IsKeyedLoadIC()) {
-    KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
-    nexus->ConfigurePolymorphic(name, maps, handlers);
-  } else if (IsStoreIC()) {
-    StoreICNexus* nexus = casted_nexus<StoreICNexus>();
-    nexus->ConfigurePolymorphic(maps, handlers);
-  } else {
-    DCHECK(IsKeyedStoreIC());
-    KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
-    nexus->ConfigurePolymorphic(name, maps, handlers);
+  switch (kind_) {
+    case FeedbackSlotKind::kLoadProperty: {
+      LoadICNexus* nexus = casted_nexus<LoadICNexus>();
+      nexus->ConfigurePolymorphic(maps, handlers);
+      break;
+    }
+    case FeedbackSlotKind::kLoadKeyed: {
+      KeyedLoadICNexus* nexus = casted_nexus<KeyedLoadICNexus>();
+      nexus->ConfigurePolymorphic(name, maps, handlers);
+      break;
+    }
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreOwnNamed: {
+      StoreICNexus* nexus = casted_nexus<StoreICNexus>();
+      nexus->ConfigurePolymorphic(maps, handlers);
+      break;
+    }
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict: {
+      KeyedStoreICNexus* nexus = casted_nexus<KeyedStoreICNexus>();
+      nexus->ConfigurePolymorphic(name, maps, handlers);
+      break;
+    }
+    case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kCompareOp:
+    case FeedbackSlotKind::kToBoolean:
+    case FeedbackSlotKind::kCreateClosure:
+    case FeedbackSlotKind::kLiteral:
+    case FeedbackSlotKind::kGeneral:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
+    case FeedbackSlotKind::kInvalid:
+    case FeedbackSlotKind::kKindsNumber:
+      UNREACHABLE();
+      break;
   }
 
   vector_set_ = true;
@@ -2561,13 +2612,14 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   Handle<Object> receiver = args.at(3);
   Handle<Name> key = args.at<Name>(4);
   FeedbackSlot vector_slot = vector->ToSlot(slot->value());
-  if (vector->IsStoreIC(vector_slot)) {
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
+  if (IsStoreICKind(kind) || IsStoreOwnICKind(kind)) {
     StoreICNexus nexus(vector, vector_slot);
     StoreIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else {
-    DCHECK(vector->IsKeyedStoreIC(vector_slot));
+    DCHECK(IsKeyedStoreICKind(kind));
     KeyedStoreICNexus nexus(vector, vector_slot);
     KeyedStoreIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);

@@ -137,7 +137,14 @@ class BytecodeGraphBuilder {
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
   void BuildStoreGlobal(LanguageMode language_mode);
-  void BuildNamedStore(LanguageMode language_mode);
+
+  enum class StoreMode {
+    // Check the prototype chain before storing.
+    kNormal,
+    // Store value to the receiver without checking the prototype chain.
+    kOwn,
+  };
+  void BuildNamedStore(LanguageMode language_mode, StoreMode store_mode);
   void BuildKeyedStore(LanguageMode language_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);

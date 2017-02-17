@@ -1693,14 +1693,14 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
               RegisterAllocationScope register_scope(this);
               Register value = register_allocator()->NewRegister();
               builder()->StoreAccumulatorInRegister(value);
-              builder()->StoreNamedProperty(
+              builder()->StoreNamedOwnProperty(
                   literal, key->AsRawPropertyName(),
-                  feedback_index(property->GetSlot(0)), language_mode());
+                  feedback_index(property->GetSlot(0)));
               VisitSetHomeObject(value, literal, property, 1);
             } else {
-              builder()->StoreNamedProperty(
+              builder()->StoreNamedOwnProperty(
                   literal, key->AsRawPropertyName(),
-                  feedback_index(property->GetSlot(0)), language_mode());
+                  feedback_index(property->GetSlot(0)));
             }
           } else {
             VisitForEffect(property->value());

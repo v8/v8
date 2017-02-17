@@ -274,6 +274,30 @@ CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
   return OpParameter<CreateFunctionContextParameters>(op);
 }
 
+bool operator==(StoreNamedOwnParameters const& lhs,
+                StoreNamedOwnParameters const& rhs) {
+  return lhs.name().location() == rhs.name().location() &&
+         lhs.feedback() == rhs.feedback();
+}
+
+bool operator!=(StoreNamedOwnParameters const& lhs,
+                StoreNamedOwnParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(StoreNamedOwnParameters const& p) {
+  return base::hash_combine(p.name().location(), p.feedback());
+}
+
+std::ostream& operator<<(std::ostream& os, StoreNamedOwnParameters const& p) {
+  return os << Brief(*p.name());
+}
+
+StoreNamedOwnParameters const& StoreNamedOwnParametersOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSStoreNamedOwn, op->opcode());
+  return OpParameter<StoreNamedOwnParameters>(op);
+}
+
 bool operator==(DataPropertyParameters const& lhs,
                 DataPropertyParameters const& rhs) {
   return lhs.feedback() == rhs.feedback();
@@ -859,6 +883,15 @@ const Operator* JSOperatorBuilder::StoreProperty(
       access);                                              // parameter
 }
 
+const Operator* JSOperatorBuilder::StoreNamedOwn(
+    Handle<Name> name, VectorSlotPair const& feedback) {
+  StoreNamedOwnParameters parameters(name, feedback);
+  return new (zone()) Operator1<StoreNamedOwnParameters>(   // --
+      IrOpcode::kJSStoreNamedOwn, Operator::kNoProperties,  // opcode
+      "JSStoreNamedOwn",                                    // name
+      2, 1, 1, 0, 1, 2,                                     // counts
+      parameters);                                          // parameter
+}
 
 const Operator* JSOperatorBuilder::DeleteProperty(LanguageMode language_mode) {
   return new (zone()) Operator1<LanguageMode>(               // --

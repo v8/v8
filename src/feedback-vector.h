@@ -27,8 +27,9 @@ enum class FeedbackSlotKind {
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
-  kStorePropertySloppy,
-  kStorePropertyStrict,
+  kStoreNamedSloppy,
+  kStoreNamedStrict,
+  kStoreOwnNamed,
   kStoreKeyedSloppy,
   kStoreKeyedStrict,
   kBinaryOp,
@@ -61,8 +62,12 @@ inline bool IsKeyedLoadICKind(FeedbackSlotKind kind) {
 }
 
 inline bool IsStoreICKind(FeedbackSlotKind kind) {
-  return kind == FeedbackSlotKind::kStorePropertySloppy ||
-         kind == FeedbackSlotKind::kStorePropertyStrict;
+  return kind == FeedbackSlotKind::kStoreNamedSloppy ||
+         kind == FeedbackSlotKind::kStoreNamedStrict;
+}
+
+inline bool IsStoreOwnICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kStoreOwnNamed;
 }
 
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
@@ -78,8 +83,9 @@ inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
 }
 
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
-  DCHECK(IsStoreICKind(kind) || IsKeyedStoreICKind(kind));
-  return (kind == FeedbackSlotKind::kStorePropertySloppy ||
+  DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind) ||
+         IsKeyedStoreICKind(kind));
+  return (kind == FeedbackSlotKind::kStoreNamedSloppy ||
           kind == FeedbackSlotKind::kStoreKeyedSloppy)
              ? SLOPPY
              : STRICT;
@@ -113,8 +119,12 @@ class FeedbackVectorSpecBase {
   FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
     STATIC_ASSERT(LANGUAGE_END == 2);
     return AddSlot(is_strict(language_mode)
-                       ? FeedbackSlotKind::kStorePropertyStrict
-                       : FeedbackSlotKind::kStorePropertySloppy);
+                       ? FeedbackSlotKind::kStoreNamedStrict
+                       : FeedbackSlotKind::kStoreNamedSloppy);
+  }
+
+  FeedbackSlot AddStoreOwnICSlot() {
+    return AddSlot(FeedbackSlotKind::kStoreOwnNamed);
   }
 
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
@@ -311,6 +321,7 @@ class FeedbackVector : public FixedArray {
   DEFINE_SLOT_KIND_PREDICATE(IsLoadGlobalIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedLoadIC)
   DEFINE_SLOT_KIND_PREDICATE(IsStoreIC)
+  DEFINE_SLOT_KIND_PREDICATE(IsStoreOwnIC)
   DEFINE_SLOT_KIND_PREDICATE(IsKeyedStoreIC)
 #undef DEFINE_SLOT_KIND_PREDICATE
 
@@ -606,11 +617,11 @@ class StoreICNexus : public FeedbackNexus {
  public:
   StoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
   }
   StoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
   }
 
   void Clear() override { ConfigurePremonomorphic(); }
@@ -622,6 +633,10 @@ class StoreICNexus : public FeedbackNexus {
 
   InlineCacheState StateFromFeedback() const override;
 };
+
+// TODO(ishell): Currently we use StoreOwnIC only for storing properties that
+// already exist in the boilerplate therefore we can use StoreIC.
+typedef StoreICNexus StoreOwnICNexus;
 
 class KeyedStoreICNexus : public FeedbackNexus {
  public:

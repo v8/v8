@@ -661,6 +661,21 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
   return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
+    Register object, const AstRawString* name, int feedback_slot) {
+  size_t name_index = GetConstantPoolEntry(name);
+  // Ensure that the store operation is in sync with the IC slot kind if
+  // the function literal is available (not a unit test case).
+  // TODO(ishell): check only in debug mode.
+  if (literal_) {
+    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
+    CHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
+             feedback_vector_spec()->GetKind(slot));
+  }
+  OutputStaNamedOwnProperty(object, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {

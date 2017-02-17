@@ -457,7 +457,7 @@ void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
         // contains computed properties with an uninitialized value.
         if (key->IsStringLiteral()) {
           if (property->emit_store()) {
-            property->SetSlot(spec->AddStoreICSlot(language_mode));
+            property->SetSlot(spec->AddStoreOwnICSlot());
             if (FunctionLiteral::NeedsHomeObject(value)) {
               property->SetSlot(spec->AddStoreICSlot(language_mode), 1);
             }

@@ -127,10 +127,12 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "LOAD_GLOBAL_NOT_INSIDE_TYPEOF_IC";
     case FeedbackSlotKind::kLoadKeyed:
       return "KEYED_LOAD_IC";
-    case FeedbackSlotKind::kStorePropertySloppy:
+    case FeedbackSlotKind::kStoreNamedSloppy:
       return "STORE_SLOPPY_IC";
-    case FeedbackSlotKind::kStorePropertyStrict:
+    case FeedbackSlotKind::kStoreNamedStrict:
       return "STORE_STRICT_IC";
+    case FeedbackSlotKind::kStoreOwnNamed:
+      return "STORE_OWN_IC";
     case FeedbackSlotKind::kStoreKeyedSloppy:
       return "KEYED_STORE_SLOPPY_IC";
     case FeedbackSlotKind::kStoreKeyedStrict:
@@ -210,8 +212,9 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         break;
       case FeedbackSlotKind::kLoadProperty:
       case FeedbackSlotKind::kLoadKeyed:
-      case FeedbackSlotKind::kStorePropertySloppy:
-      case FeedbackSlotKind::kStorePropertyStrict:
+      case FeedbackSlotKind::kStoreNamedSloppy:
+      case FeedbackSlotKind::kStoreNamedStrict:
+      case FeedbackSlotKind::kStoreOwnNamed:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
@@ -306,8 +309,9 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
           }
           break;
         }
-        case FeedbackSlotKind::kStorePropertySloppy:
-        case FeedbackSlotKind::kStorePropertyStrict: {
+        case FeedbackSlotKind::kStoreNamedSloppy:
+        case FeedbackSlotKind::kStoreNamedStrict:
+        case FeedbackSlotKind::kStoreOwnNamed: {
           StoreICNexus nexus(this, slot);
           if (!nexus.IsCleared()) {
             nexus.Clear();

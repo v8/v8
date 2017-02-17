@@ -143,6 +143,7 @@
   V(JSLoadGlobal)                 \
   V(JSStoreProperty)              \
   V(JSStoreNamed)                 \
+  V(JSStoreNamedOwn)              \
   V(JSStoreGlobal)                \
   V(JSStoreDataPropertyInLiteral) \
   V(JSDeleteProperty)             \

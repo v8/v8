@@ -6858,13 +6858,13 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
     return result;
 
   } else {
-    DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
     HValue* values[] = {object, key, value, slot_value, vector_value};
     if (vector->IsKeyedStoreIC(slot)) {
       // It's possible that a keyed store of a constant string was converted
       // to a named store. Here, at the last minute, we need to make sure to
       // use a generic Keyed Store if we are using the type vector, because
       // it has to share information with full code.
+      DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
       Callable callable = CodeFactory::KeyedStoreICInOptimizedCode(
           isolate(), function_language_mode());
       HValue* stub = Add<HConstant>(callable.code());
@@ -6873,12 +6873,21 @@ HInstruction* HOptimizedGraphBuilder::BuildNamedGeneric(
                                    callable.descriptor(), ArrayVector(values));
       return result;
     }
-    DCHECK(vector->IsStoreIC(slot));
-    Callable callable = CodeFactory::StoreICInOptimizedCode(
-        isolate(), function_language_mode());
-    HValue* stub = Add<HConstant>(callable.code());
-    HCallWithDescriptor* result = New<HCallWithDescriptor>(
-        Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    HCallWithDescriptor* result;
+    if (vector->IsStoreOwnIC(slot)) {
+      Callable callable = CodeFactory::StoreOwnICInOptimizedCode(isolate());
+      HValue* stub = Add<HConstant>(callable.code());
+      result = New<HCallWithDescriptor>(
+          Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    } else {
+      DCHECK(vector->IsStoreIC(slot));
+      DCHECK_EQ(vector->GetLanguageMode(slot), function_language_mode());
+      Callable callable = CodeFactory::StoreICInOptimizedCode(
+          isolate(), function_language_mode());
+      HValue* stub = Add<HConstant>(callable.code());
+      result = New<HCallWithDescriptor>(
+          Code::STORE_IC, stub, 0, callable.descriptor(), ArrayVector(values));
+    }
     return result;
   }
 }

@@ -97,6 +97,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSLoadProperty(node);
     case IrOpcode::kJSStoreProperty:
       return ReduceJSStoreProperty(node);
+    case IrOpcode::kJSStoreNamedOwn:
+      return ReduceJSStoreNamedOwn(node);
     case IrOpcode::kJSStoreDataPropertyInLiteral:
       return ReduceJSStoreDataPropertyInLiteral(node);
     default:
@@ -518,7 +520,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty);
+         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSStoreNamedOwn);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* context = NodeProperties::GetContextInput(node);
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
@@ -746,7 +749,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     Node* node, Node* value, FeedbackNexus const& nexus, Handle<Name> name,
     AccessMode access_mode, LanguageMode language_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
-         node->opcode() == IrOpcode::kJSStoreNamed);
+         node->opcode() == IrOpcode::kJSStoreNamed ||
+         node->opcode() == IrOpcode::kJSStoreNamedOwn);
   Node* const receiver = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
 
@@ -850,6 +854,19 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
                                     AccessMode::kStore, p.language_mode());
 }
 
+Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreNamedOwn, node->opcode());
+  StoreNamedOwnParameters const& p = StoreNamedOwnParametersOf(node->op());
+  Node* const value = NodeProperties::GetValueInput(node, 1);
+
+  // Extract receiver maps from the IC using the StoreOwnICNexus.
+  if (!p.feedback().IsValid()) return NoChange();
+  StoreOwnICNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  // Try to lower the creation of a named property based on the {receiver_maps}.
+  return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
+                                    AccessMode::kStoreInLiteral, STRICT);
+}
 
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value, MapHandleList const& receiver_maps,

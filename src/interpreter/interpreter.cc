@@ -913,6 +913,16 @@ void Interpreter::DoStaNamedPropertyStrict(InterpreterAssembler* assembler) {
   DoStoreIC(ic, assembler);
 }
 
+// StaNamedOwnProperty <object> <name_index> <slot>
+//
+// Calls the StoreOwnIC at FeedBackVector slot <slot> for <object> and
+// the name in constant pool entry <name_index> with the value in the
+// accumulator.
+void Interpreter::DoStaNamedOwnProperty(InterpreterAssembler* assembler) {
+  Callable ic = CodeFactory::StoreOwnICInOptimizedCode(isolate_);
+  DoStoreIC(ic, assembler);
+}
+
 void Interpreter::DoKeyedStoreIC(Callable ic, InterpreterAssembler* assembler) {
   Node* code_target = __ HeapConstant(ic.code());
   Node* object_reg_index = __ BytecodeOperandReg(0);

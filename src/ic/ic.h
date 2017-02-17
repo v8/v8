@@ -48,7 +48,9 @@ class IC {
   bool IsAnyLoad() const {
     return IsLoadIC() || IsLoadGlobalIC() || IsKeyedLoadIC();
   }
-  bool IsAnyStore() const { return IsStoreIC() || IsKeyedStoreIC(); }
+  bool IsAnyStore() const {
+    return IsStoreIC() || IsStoreOwnIC() || IsKeyedStoreIC();
+  }
 
   static inline Handle<Map> GetHandlerCacheHolder(Handle<Map> receiver_map,
                                                   bool receiver_is_holder,
@@ -66,7 +68,7 @@ class IC {
   static bool ICUseVector(FeedbackSlotKind kind) {
     return IsLoadICKind(kind) || IsLoadGlobalICKind(kind) ||
            IsKeyedLoadICKind(kind) || IsStoreICKind(kind) ||
-           IsKeyedStoreICKind(kind);
+           IsStoreOwnICKind(kind) || IsKeyedStoreICKind(kind);
   }
 
   // The ICs that don't pass slot and vector through the stack have to
@@ -163,6 +165,7 @@ class IC {
   bool IsLoadGlobalIC() const { return IsLoadGlobalICKind(kind_); }
   bool IsKeyedLoadIC() const { return IsKeyedLoadICKind(kind_); }
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
+  bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool is_keyed() const { return IsKeyedLoadIC() || IsKeyedStoreIC(); }
   Code::Kind handler_kind() const {

@@ -330,6 +330,29 @@ std::ostream& operator<<(std::ostream& os,
 CreateFunctionContextParameters const& CreateFunctionContextParametersOf(
     Operator const*);
 
+// Defines parameters for JSStoreNamedOwn operator.
+class StoreNamedOwnParameters final {
+ public:
+  StoreNamedOwnParameters(Handle<Name> name, VectorSlotPair const& feedback)
+      : name_(name), feedback_(feedback) {}
+
+  Handle<Name> name() const { return name_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  Handle<Name> const name_;
+  VectorSlotPair const feedback_;
+};
+
+bool operator==(StoreNamedOwnParameters const&, StoreNamedOwnParameters const&);
+bool operator!=(StoreNamedOwnParameters const&, StoreNamedOwnParameters const&);
+
+size_t hash_value(StoreNamedOwnParameters const&);
+
+std::ostream& operator<<(std::ostream&, StoreNamedOwnParameters const&);
+
+const StoreNamedOwnParameters& StoreNamedOwnParametersOf(const Operator* op);
+
 // Defines the feedback, i.e., vector and index, for storing a data property in
 // an object literal. This is
 // used as a parameter by the JSStoreDataPropertyInLiteral operator.
@@ -634,6 +657,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreNamed(LanguageMode language_mode, Handle<Name> name,
                              VectorSlotPair const& feedback);
 
+  const Operator* StoreNamedOwn(Handle<Name> name,
+                                VectorSlotPair const& feedback);
   const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
 
   const Operator* DeleteProperty(LanguageMode language_mode);
