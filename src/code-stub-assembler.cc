@@ -3292,16 +3292,12 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   Variable var_result(this, MachineRepresentation::kTagged);          // String.
 
   // Make sure first argument is a string.
-
-  // Bailout if receiver is a Smi.
-  GotoIf(TaggedIsSmi(string), &runtime);
+  CSA_ASSERT(this, TaggedIsNotSmi(string));
+  CSA_ASSERT(this, IsString(string));
 
   // Load the instance type of the {string}.
   Node* const instance_type = LoadInstanceType(string);
   var_instance_type.Bind(instance_type);
-
-  // Check if {string} is a String.
-  GotoUnless(IsStringInstanceType(instance_type), &runtime);
 
   // Make sure that both from and to are non-negative smis.
 
