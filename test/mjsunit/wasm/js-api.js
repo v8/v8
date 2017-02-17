@@ -619,12 +619,7 @@ assertEq(compile.length, 1);
 assertEq(compile.name, "compile");
 function assertCompileError(args, err, msg) {
   var error = null;
-  try {
-    compile(...args).catch(e => error = e);
-  } catch (e) {
-    // TODO: error shouldn't be thrown, but should be globbed onto the promise.
-    error = e;
-  }
+  compile(...args).catch(e => error = e);
   drainJobQueue();
   assertTrue(error instanceof err);
   assertTrue(Boolean(error.stack.match("js-api.js")));
