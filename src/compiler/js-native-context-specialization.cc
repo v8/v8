@@ -2178,7 +2178,34 @@ MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverMap(Node* receiver,
       }
     }
   }
-  // TODO(turbofan): Go hunting for CheckMaps(receiver) in the effect chain?
+  // Go hunting for a matching CheckMaps(receiver) or StoreField[Map](receiver)
+  // in the {effect} chain.
+  // TODO(turbofan): Propagate the information along the control/effect chains
+  // instead at some point to avoid this potentially inefficient hunting.
+  while (true) {
+    if (effect->opcode() == IrOpcode::kCheckMaps) {
+      ZoneHandleSet<Map> maps = CheckMapsParametersOf(effect->op()).maps();
+      if (maps.size() == 1u) {
+        Node* object = NodeProperties::GetValueInput(effect, 0);
+        if (NodeProperties::IsSame(receiver, object)) return maps[0];
+      }
+    } else if (effect->opcode() == IrOpcode::kStoreField) {
+      FieldAccess const access = FieldAccessOf(effect->op());
+      if (access.offset == HeapObject::kMapOffset) {
+        Node* object = NodeProperties::GetValueInput(effect, 0);
+        Node* value = NodeProperties::GetValueInput(effect, 1);
+        if (object == receiver) {
+          HeapObjectMatcher m(value);
+          if (m.HasValue()) return Handle<Map>::cast(m.Value());
+        }
+        break;
+      }
+    } else if (!effect->op()->HasProperty(Operator::kNoWrite) ||
+               effect->op()->EffectInputCount() != 1) {
+      break;
+    }
+    effect = NodeProperties::GetEffectInput(effect);
+  }
   return MaybeHandle<Map>();
 }
 
