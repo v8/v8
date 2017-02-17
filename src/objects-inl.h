@@ -5239,20 +5239,15 @@ bool Code::IsWeakObject(Object* object) {
 
 bool Code::IsWeakObjectInOptimizedCode(Object* object) {
   if (object->IsMap()) {
-    return Map::cast(object)->CanTransition() &&
-           FLAG_weak_embedded_maps_in_optimized_code;
+    return Map::cast(object)->CanTransition();
   }
   if (object->IsCell()) {
     object = Cell::cast(object)->value();
   } else if (object->IsPropertyCell()) {
     object = PropertyCell::cast(object)->value();
   }
-  if (object->IsJSReceiver()) {
-    return FLAG_weak_embedded_objects_in_optimized_code;
-  }
-  if (object->IsContext()) {
-    // Contexts of inlined functions are embedded in optimized code.
-    return FLAG_weak_embedded_objects_in_optimized_code;
+  if (object->IsJSReceiver() || object->IsContext()) {
+    return true;
   }
   return false;
 }
