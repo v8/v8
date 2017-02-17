@@ -425,7 +425,7 @@
       'gyp', 'release_bot', 'x64', 'asan', 'bb', 'coverage', 'lsan',
       'minimal_symbols', 'swarming'],
     'gyp_release_x64_cfi_symbolized': [
-      'gyp', 'release_bot', 'x64', 'cfi', 'swarming_exp', 'symbolized'],
+      'gyp', 'release_bot', 'x64', 'cfi', 'swarming', 'symbolized'],
     'gyp_release_x64_gcc_coverage': [
       'gyp', 'release_bot', 'x64', 'coverage', 'gcc'],
 
@@ -633,11 +633,6 @@
     'swarming': {
       'gn_args': 'v8_test_isolation_mode="prepare"',
       'gyp_defines': 'test_isolation_mode=prepare',
-    },
-
-    'swarming_exp': {
-      'gn_args': 'v8_test_isolation_mode="check"',
-      'gyp_defines': 'test_isolation_mode=check',
     },
 
     # TODO(machenbach): Remove the symbolized config after the bots are gone.
