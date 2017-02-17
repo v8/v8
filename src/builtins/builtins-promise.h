@@ -36,6 +36,18 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
     kCapabilitiesContextLength,
   };
 
+  // This is used by the PromiseThenFinally and PromiseCatchFinally
+  // builtins to store the onFinally in the onFinallySlot.
+  //
+  // This is also used by the PromiseValueThunkFinally to store the
+  // value in the onFinallySlot and PromiseThrowerFinally to store the
+  // reason in the onFinallySlot.
+  enum PromiseFinallyContextSlot {
+    kOnFinallySlot = Context::MIN_CONTEXT_SLOTS,
+
+    kOnFinallyContextLength,
+  };
+
   explicit PromiseBuiltinsAssembler(CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
   // These allocate and initialize a promise with pending state and
@@ -115,6 +127,15 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                              bool debug_event);
   void InternalPromiseReject(Node* context, Node* promise, Node* value,
                              Node* debug_event);
+  std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
+                                                        Node* native_context);
+  Node* CreatePromiseFinallyContext(Node* on_finally, Node* native_context);
+
+  Node* CreateValueThunkFunction(Node* value, Node* native_context);
+  Node* CreateValueThunkFunctionContext(Node* value, Node* native_context);
+
+  Node* CreateThrowerFunctionContext(Node* reason, Node* native_context);
+  Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
  private:
   Node* AllocateJSPromise(Node* context);

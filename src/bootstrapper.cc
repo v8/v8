@@ -3619,6 +3619,67 @@ void Genesis::InitializeGlobal_harmony_async_iteration() {
                   factory()->async_iterator_symbol());
 }
 
+void Genesis::InitializeGlobal_harmony_promise_finally() {
+  if (!FLAG_harmony_promise_finally) return;
+
+  Handle<JSFunction> constructor(native_context()->promise_function());
+  Handle<JSObject> prototype(JSObject::cast(constructor->instance_prototype()));
+  SimpleInstallFunction(prototype, "finally", Builtins::kPromiseFinally, 1,
+                        true, DONT_ENUM);
+
+  // The promise prototype map has changed because we added a property
+  // to prototype, so we update the saved map.
+  Handle<Map> prototype_map(prototype->map());
+  Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
+  native_context()->set_promise_prototype_map(*prototype_map);
+
+  {
+    Handle<Code> code =
+        handle(isolate()->builtins()->builtin(Builtins::kPromiseThenFinally),
+               isolate());
+    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
+        factory()->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(1);
+    info->set_length(1);
+    info->set_native(true);
+    native_context()->set_promise_then_finally_shared_fun(*info);
+  }
+
+  {
+    Handle<Code> code =
+        handle(isolate()->builtins()->builtin(Builtins::kPromiseCatchFinally),
+               isolate());
+    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
+        factory()->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(1);
+    info->set_length(1);
+    info->set_native(true);
+    native_context()->set_promise_catch_finally_shared_fun(*info);
+  }
+
+  {
+    Handle<Code> code = handle(
+        isolate()->builtins()->builtin(Builtins::kPromiseValueThunkFinally),
+        isolate());
+    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
+        factory()->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(0);
+    info->set_length(0);
+    native_context()->set_promise_value_thunk_finally_shared_fun(*info);
+  }
+
+  {
+    Handle<Code> code =
+        handle(isolate()->builtins()->builtin(Builtins::kPromiseThrowerFinally),
+               isolate());
+    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
+        factory()->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(0);
+    info->set_length(0);
+    native_context()->set_promise_thrower_finally_shared_fun(*info);
+  }
+}
+
 #ifdef V8_I18N_SUPPORT
 void Genesis::InitializeGlobal_datetime_format_to_parts() {
   if (!FLAG_datetime_format_to_parts) return;
@@ -4153,6 +4214,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_object_rest_spread_natives[] = {nullptr};
   static const char* harmony_async_iteration_natives[] = {nullptr};
   static const char* harmony_dynamic_import_natives[] = {nullptr};
+  static const char* harmony_promise_finally_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {

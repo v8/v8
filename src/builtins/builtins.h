@@ -666,6 +666,11 @@ class Isolate;
   TFJ(PromiseResolve, 1)                                                       \
   TFJ(PromiseReject, 1)                                                        \
   TFJ(InternalPromiseReject, 3)                                                \
+  TFJ(PromiseFinally, 1)                                                       \
+  TFJ(PromiseThenFinally, 1)                                                   \
+  TFJ(PromiseCatchFinally, 1)                                                  \
+  TFJ(PromiseValueThunkFinally, 0)                                             \
+  TFJ(PromiseThrowerFinally, 0)                                                \
                                                                                \
   /* Proxy */                                                                  \
   CPP(ProxyConstructor)                                                        \

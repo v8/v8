@@ -438,7 +438,6 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
 
   Bind(&if_onresolvenotcallable);
   {
-    Isolate* isolate = this->isolate();
     Node* const default_resolve_handler_symbol = HeapConstant(
         isolate->factory()->promise_default_resolve_handler_symbol());
     var_on_resolve.Bind(default_resolve_handler_symbol);
@@ -1561,6 +1560,222 @@ TF_BUILTIN(InternalPromiseReject, PromiseBuiltinsAssembler) {
 
   InternalPromiseReject(context, promise, reason, debug_event);
   Return(UndefinedConstant());
+}
+
+Node* PromiseBuiltinsAssembler::CreatePromiseFinallyContext(
+    Node* on_finally, Node* native_context) {
+  Node* const context =
+      CreatePromiseContext(native_context, kOnFinallyContextLength);
+  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, on_finally);
+  return context;
+}
+
+std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
+    Node* on_finally, Node* native_context) {
+  Node* const promise_context =
+      CreatePromiseFinallyContext(on_finally, native_context);
+  Node* const map = LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  Node* const then_finally_info = LoadContextElement(
+      native_context, Context::PROMISE_THEN_FINALLY_SHARED_FUN);
+  Node* const then_finally = AllocateFunctionWithMapAndContext(
+      map, then_finally_info, promise_context);
+  Node* const catch_finally_info = LoadContextElement(
+      native_context, Context::PROMISE_CATCH_FINALLY_SHARED_FUN);
+  Node* const catch_finally = AllocateFunctionWithMapAndContext(
+      map, catch_finally_info, promise_context);
+  return std::make_pair(then_finally, catch_finally);
+}
+
+TF_BUILTIN(PromiseValueThunkFinally, PromiseBuiltinsAssembler) {
+  Node* const context = Parameter(3);
+
+  Node* const value = LoadContextElement(context, kOnFinallySlot);
+  Return(value);
+}
+
+Node* PromiseBuiltinsAssembler::CreateValueThunkFunctionContext(
+    Node* value, Node* native_context) {
+  Node* const context =
+      CreatePromiseContext(native_context, kOnFinallyContextLength);
+  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, value);
+  return context;
+}
+
+Node* PromiseBuiltinsAssembler::CreateValueThunkFunction(Node* value,
+                                                         Node* native_context) {
+  Node* const value_thunk_context =
+      CreateValueThunkFunctionContext(value, native_context);
+  Node* const map = LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  Node* const value_thunk_info = LoadContextElement(
+      native_context, Context::PROMISE_VALUE_THUNK_FINALLY_SHARED_FUN);
+  Node* const value_thunk = AllocateFunctionWithMapAndContext(
+      map, value_thunk_info, value_thunk_context);
+  return value_thunk;
+}
+
+TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
+  CSA_ASSERT_JS_ARGC_EQ(this, 1);
+
+  Node* const value = Parameter(1);
+  Node* const context = Parameter(4);
+
+  Node* const on_finally = LoadContextElement(context, kOnFinallySlot);
+
+  // 2.a Let result be ?  Call(onFinally, undefined).
+  Callable call_callable = CodeFactory::Call(isolate());
+  Node* result =
+      CallJS(call_callable, context, on_finally, UndefinedConstant());
+
+  // 2.b Let promise be !  PromiseResolve( %Promise%, result).
+  Node* const promise = AllocateAndInitJSPromise(context);
+  InternalResolvePromise(context, promise, result);
+
+  // 2.c Let valueThunk be equivalent to a function that returns value.
+  Node* native_context = LoadNativeContext(context);
+  Node* const value_thunk = CreateValueThunkFunction(value, native_context);
+
+  // 2.d Let promiseCapability be !  NewPromiseCapability( %Promise%).
+  Node* const promise_capability = AllocateAndInitJSPromise(context, promise);
+
+  // 2.e Return PerformPromiseThen(promise, valueThunk, undefined,
+  // promiseCapability).
+  InternalPerformPromiseThen(context, promise, value_thunk, UndefinedConstant(),
+                             promise_capability, UndefinedConstant(),
+                             UndefinedConstant());
+  Return(promise_capability);
+}
+
+TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
+  Node* const context = Parameter(3);
+
+  Node* const reason = LoadContextElement(context, kOnFinallySlot);
+  CallRuntime(Runtime::kThrow, context, reason);
+  Return(UndefinedConstant());
+}
+
+Node* PromiseBuiltinsAssembler::CreateThrowerFunctionContext(
+    Node* reason, Node* native_context) {
+  Node* const context =
+      CreatePromiseContext(native_context, kOnFinallyContextLength);
+  StoreContextElementNoWriteBarrier(context, kOnFinallySlot, reason);
+  return context;
+}
+
+Node* PromiseBuiltinsAssembler::CreateThrowerFunction(Node* reason,
+                                                      Node* native_context) {
+  Node* const thrower_context =
+      CreateThrowerFunctionContext(reason, native_context);
+  Node* const map = LoadContextElement(
+      native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  Node* const thrower_info = LoadContextElement(
+      native_context, Context::PROMISE_THROWER_FINALLY_SHARED_FUN);
+  Node* const thrower =
+      AllocateFunctionWithMapAndContext(map, thrower_info, thrower_context);
+  return thrower;
+}
+
+TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
+  CSA_ASSERT_JS_ARGC_EQ(this, 1);
+
+  Node* const reason = Parameter(1);
+  Node* const context = Parameter(4);
+
+  Node* const on_finally = LoadContextElement(context, kOnFinallySlot);
+
+  // 2.a Let result be ?  Call(onFinally, undefined).
+  Callable call_callable = CodeFactory::Call(isolate());
+  Node* result =
+      CallJS(call_callable, context, on_finally, UndefinedConstant());
+
+  // 2.b Let promise be !  PromiseResolve( %Promise%, result).
+  Node* const promise = AllocateAndInitJSPromise(context);
+  InternalResolvePromise(context, promise, result);
+
+  // 2.c Let thrower be equivalent to a function that throws reason.
+  Node* native_context = LoadNativeContext(context);
+  Node* const thrower = CreateThrowerFunction(reason, native_context);
+
+  // 2.d Let promiseCapability be !  NewPromiseCapability( %Promise%).
+  Node* const promise_capability = AllocateAndInitJSPromise(context, promise);
+
+  // 2.e Return PerformPromiseThen(promise, thrower, undefined,
+  // promiseCapability).
+  InternalPerformPromiseThen(context, promise, thrower, UndefinedConstant(),
+                             promise_capability, UndefinedConstant(),
+                             UndefinedConstant());
+  Return(promise_capability);
+}
+
+TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
+  CSA_ASSERT_JS_ARGC_EQ(this, 1);
+
+  // 1.  Let promise be the this value.
+  Node* const promise = Parameter(0);
+  Node* const on_finally = Parameter(1);
+  Node* const context = Parameter(4);
+
+  // 2. If IsPromise(promise) is false, throw a TypeError exception.
+  ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
+                         "Promise.prototype.finally");
+
+  Variable var_then_finally(this, MachineRepresentation::kTagged),
+      var_catch_finally(this, MachineRepresentation::kTagged);
+
+  Label if_notcallable(this, Label::kDeferred), perform_finally(this);
+
+  // 3. Let thenFinally be !  CreateThenFinally(onFinally).
+  // 4. Let catchFinally be !  CreateCatchFinally(onFinally).
+  GotoIf(TaggedIsSmi(on_finally), &if_notcallable);
+  Node* const on_finally_map = LoadMap(on_finally);
+  GotoIfNot(IsCallableMap(on_finally_map), &if_notcallable);
+
+  Node* const native_context = LoadNativeContext(context);
+  Node* then_finally = nullptr;
+  Node* catch_finally = nullptr;
+  std::tie(then_finally, catch_finally) =
+      CreatePromiseFinallyFunctions(on_finally, native_context);
+  var_then_finally.Bind(then_finally);
+  var_catch_finally.Bind(catch_finally);
+  Goto(&perform_finally);
+
+  Bind(&if_notcallable);
+  {
+    var_then_finally.Bind(on_finally);
+    var_catch_finally.Bind(on_finally);
+    Goto(&perform_finally);
+  }
+
+  // 5. Return PerformPromiseThen(promise, valueThunk, undefined,
+  // promiseCapability).
+  Bind(&perform_finally);
+  Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
+  BranchIfFastPath(context, promise, &if_nativepromise, &if_custompromise);
+
+  Bind(&if_nativepromise);
+  {
+    Node* deferred_promise = AllocateAndInitJSPromise(context, promise);
+    InternalPerformPromiseThen(context, promise, var_then_finally.value(),
+                               var_catch_finally.value(), deferred_promise,
+                               UndefinedConstant(), UndefinedConstant());
+    Return(deferred_promise);
+  }
+
+  Bind(&if_custompromise);
+  {
+    Isolate* isolate = this->isolate();
+    Node* const then_str = HeapConstant(isolate->factory()->then_string());
+    Callable getproperty_callable = CodeFactory::GetProperty(isolate);
+    Node* const then =
+        CallStub(getproperty_callable, context, promise, then_str);
+    Callable call_callable = CodeFactory::Call(isolate);
+    // 5. Return ?  Invoke(promise, "then", « thenFinally, catchFinally »).
+    Node* const result =
+        CallJS(call_callable, context, then, promise, var_then_finally.value(),
+               var_catch_finally.value());
+    Return(result);
+  }
 }
 
 }  // namespace internal
