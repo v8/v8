@@ -1850,6 +1850,11 @@ double Simulator::ReadDouble(intptr_t addr) {
   return *ptr;
 }
 
+float Simulator::ReadFloat(intptr_t addr) {
+  float* ptr = reinterpret_cast<float*>(addr);
+  return *ptr;
+}
+
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   // The simulator uses a separate JS stack. If we have exhausted the C stack,
@@ -12542,9 +12547,16 @@ EVALUATE(KEB) {
 }
 
 EVALUATE(CEB) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(CEB);
+
+  DECODE_RXE_INSTRUCTION(r1, b2, x2, d2);
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
+  intptr_t d2_val = d2;
+  float r1_val = get_float32_from_d_register(r1);
+  float fval = ReadFloat(b2_val + x2_val + d2_val);
+  SetS390ConditionCode<float>(r1_val, fval);
+  return length;
 }
 
 EVALUATE(AEB) {

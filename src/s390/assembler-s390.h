@@ -1006,8 +1006,6 @@ class Assembler : public AssemblerBase {
   }
 
   // S390 instruction sets
-  RXE_FORM(cdb);
-  RXE_FORM(ceb);
   RXE_FORM(ddb);
   SS1_FORM(ed);
   RRF2_FORM(fidbr);
@@ -1200,6 +1198,7 @@ class Assembler : public AssemblerBase {
 
   // Floating Point Compare Instructions
   void cdb(DoubleRegister r1, const MemOperand& opnd);
+  void ceb(DoubleRegister r1, const MemOperand& opnd);
 
   // Floating Point Arithmetic Instructions
   void adb(DoubleRegister r1, const MemOperand& opnd);

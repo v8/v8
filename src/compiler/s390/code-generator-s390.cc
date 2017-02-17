@@ -131,8 +131,16 @@ class S390OperandConverter final : public InstructionOperandConverter {
   }
 };
 
+static inline bool HasRegisterOutput(Instruction* instr, int index = 0) {
+  return instr->OutputCount() > 0 && instr->OutputAt(index)->IsRegister();
+}
+
 static inline bool HasRegisterInput(Instruction* instr, int index) {
   return instr->InputAt(index)->IsRegister();
+}
+
+static inline bool HasFPRegisterInput(Instruction* instr, int index) {
+  return instr->InputAt(index)->IsFPRegister();
 }
 
 static inline bool HasImmediateInput(Instruction* instr, size_t index) {
@@ -141,6 +149,10 @@ static inline bool HasImmediateInput(Instruction* instr, size_t index) {
 
 static inline bool HasStackSlotInput(Instruction* instr, size_t index) {
   return instr->InputAt(index)->IsStackSlot();
+}
+
+static inline bool HasFPStackSlotInput(Instruction* instr, size_t index) {
+  return instr->InputAt(index)->IsFPStackSlot();
 }
 
 namespace {
@@ -260,17 +272,33 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       return eq;
     case kNotEqual:
       return ne;
-    case kSignedLessThan:
     case kUnsignedLessThan:
+      // unsigned number never less than 0
+      if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
+        return CC_NOP;
+    // fall through
+    case kSignedLessThan:
       return lt;
-    case kSignedGreaterThanOrEqual:
     case kUnsignedGreaterThanOrEqual:
+      // unsigned number always greater than or equal 0
+      if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
+        return CC_ALWAYS;
+    // fall through
+    case kSignedGreaterThanOrEqual:
       return ge;
-    case kSignedLessThanOrEqual:
     case kUnsignedLessThanOrEqual:
+      // unsigned number never less than 0
+      if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
+        return CC_EQ;
+    // fall through
+    case kSignedLessThanOrEqual:
       return le;
-    case kSignedGreaterThan:
     case kUnsignedGreaterThan:
+      // unsigned number always greater than or equal 0
+      if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
+        return ne;
+    // fall through
+    case kSignedGreaterThan:
       return gt;
     case kOverflow:
       // Overflow checked for AddP/SubP only.
@@ -496,26 +524,91 @@ void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
     }                                                      \
   } while (0)
 
-#define ASSEMBLE_COMPARE(cmp_instr, cmpl_instr)                 \
-  do {                                                          \
-    if (HasRegisterInput(instr, 1)) {                           \
-      if (i.CompareLogical()) {                                 \
-        __ cmpl_instr(i.InputRegister(0), i.InputRegister(1));  \
-      } else {                                                  \
-        __ cmp_instr(i.InputRegister(0), i.InputRegister(1));   \
-      }                                                         \
-    } else {                                                    \
-      if (i.CompareLogical()) {                                 \
-        __ cmpl_instr(i.InputRegister(0), i.InputImmediate(1)); \
-      } else {                                                  \
-        __ cmp_instr(i.InputRegister(0), i.InputImmediate(1));  \
-      }                                                         \
-    }                                                           \
+#define ASSEMBLE_COMPARE(cmp_instr, cmpl_instr)                         \
+  do {                                                                  \
+    AddressingMode mode = AddressingModeField::decode(instr->opcode()); \
+    if (mode != kMode_None) {                                           \
+      size_t first_index = 1;                                           \
+      MemOperand operand = i.MemoryOperand(&mode, &first_index);        \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), operand);                     \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), operand);                      \
+      }                                                                 \
+    } else if (HasRegisterInput(instr, 1)) {                            \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), i.InputRegister(1));          \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), i.InputRegister(1));           \
+      }                                                                 \
+    } else if (HasImmediateInput(instr, 1)) {                           \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), i.InputImmediate(1));         \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), i.InputImmediate(1));          \
+      }                                                                 \
+    } else {                                                            \
+      DCHECK(HasStackSlotInput(instr, 1));                              \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), i.InputStackSlot(1));         \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), i.InputStackSlot(1));          \
+      }                                                                 \
+    }                                                                   \
   } while (0)
 
-#define ASSEMBLE_FLOAT_COMPARE(cmp_instr)                             \
-  do {                                                                \
-    __ cmp_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
+#define ASSEMBLE_COMPARE32(cmp_instr, cmpl_instr)                       \
+  do {                                                                  \
+    AddressingMode mode = AddressingModeField::decode(instr->opcode()); \
+    if (mode != kMode_None) {                                           \
+      size_t first_index = 1;                                           \
+      MemOperand operand = i.MemoryOperand(&mode, &first_index);        \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), operand);                     \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), operand);                      \
+      }                                                                 \
+    } else if (HasRegisterInput(instr, 1)) {                            \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), i.InputRegister(1));          \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), i.InputRegister(1));           \
+      }                                                                 \
+    } else if (HasImmediateInput(instr, 1)) {                           \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), i.InputImmediate(1));         \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), i.InputImmediate(1));          \
+      }                                                                 \
+    } else {                                                            \
+      DCHECK(HasStackSlotInput(instr, 1));                              \
+      if (i.CompareLogical()) {                                         \
+        __ cmpl_instr(i.InputRegister(0), i.InputStackSlot32(1));       \
+      } else {                                                          \
+        __ cmp_instr(i.InputRegister(0), i.InputStackSlot32(1));        \
+      }                                                                 \
+    }                                                                   \
+  } while (0)
+
+#define ASSEMBLE_FLOAT_COMPARE(cmp_rr_instr, cmp_rm_instr, load_instr)     \
+  do {                                                                     \
+    AddressingMode mode = AddressingModeField::decode(instr->opcode());    \
+    if (mode != kMode_None) {                                              \
+      size_t first_index = 1;                                              \
+      MemOperand operand = i.MemoryOperand(&mode, &first_index);           \
+      __ cmp_rm_instr(i.InputDoubleRegister(0), operand);                  \
+    } else if (HasFPRegisterInput(instr, 1)) {                             \
+      __ cmp_rr_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
+    } else {                                                               \
+      DCHECK(HasFPStackSlotInput(instr, 1));                               \
+      MemOperand operand = i.InputStackSlot(1);                            \
+      if (operand.offset() >= 0) {                                         \
+        __ cmp_rm_instr(i.InputDoubleRegister(0), operand);                \
+      } else {                                                             \
+        __ load_instr(kScratchDoubleReg, operand);                         \
+        __ cmp_rr_instr(i.InputDoubleRegister(0), kScratchDoubleReg);      \
+      }                                                                    \
+    }                                                                      \
   } while (0)
 
 // Divide instruction dr will implicity use register pair
@@ -747,6 +840,7 @@ void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
     }                                                                  \
     __ bind(&done);                                                    \
   } while (0)
+//
 // Only MRI mode for these instructions available
 #define ASSEMBLE_LOAD_FLOAT(asm_instr)                \
   do {                                                \
@@ -763,6 +857,38 @@ void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
     MemOperand operand = i.MemoryOperand(&mode); \
     __ asm_instr(result, operand);               \
   } while (0)
+
+#define ASSEMBLE_LOADANDTEST64(asm_instr_rr, asm_instr_rm)              \
+  {                                                                     \
+    AddressingMode mode = AddressingModeField::decode(instr->opcode()); \
+    Register dst = HasRegisterOutput(instr) ? i.OutputRegister() : r0;  \
+    if (mode != kMode_None) {                                           \
+      size_t first_index = 0;                                           \
+      MemOperand operand = i.MemoryOperand(&mode, &first_index);        \
+      __ asm_instr_rm(dst, operand);                                    \
+    } else if (HasRegisterInput(instr, 0)) {                            \
+      __ asm_instr_rr(dst, i.InputRegister(0));                         \
+    } else {                                                            \
+      DCHECK(HasStackSlotInput(instr, 0));                              \
+      __ asm_instr_rm(dst, i.InputStackSlot(0));                        \
+    }                                                                   \
+  }
+
+#define ASSEMBLE_LOADANDTEST32(asm_instr_rr, asm_instr_rm)              \
+  {                                                                     \
+    AddressingMode mode = AddressingModeField::decode(instr->opcode()); \
+    Register dst = HasRegisterOutput(instr) ? i.OutputRegister() : r0;  \
+    if (mode != kMode_None) {                                           \
+      size_t first_index = 0;                                           \
+      MemOperand operand = i.MemoryOperand(&mode, &first_index);        \
+      __ asm_instr_rm(dst, operand);                                    \
+    } else if (HasRegisterInput(instr, 0)) {                            \
+      __ asm_instr_rr(dst, i.InputRegister(0));                         \
+    } else {                                                            \
+      DCHECK(HasStackSlotInput(instr, 0));                              \
+      __ asm_instr_rm(dst, i.InputStackSlot32(0));                      \
+    }                                                                   \
+  }
 
 #define ASSEMBLE_STORE_FLOAT32()                         \
   do {                                                   \
@@ -1776,7 +1902,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_Cmp32:
-      ASSEMBLE_COMPARE(Cmp32, CmpLogical32);
+      ASSEMBLE_COMPARE32(Cmp32, CmpLogical32);
       break;
 #if V8_TARGET_ARCH_S390X
     case kS390_Cmp64:
@@ -1784,15 +1910,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
 #endif
     case kS390_CmpFloat:
-      __ cebr(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      ASSEMBLE_FLOAT_COMPARE(cebr, ceb, ley);
+      // __ cebr(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       break;
     case kS390_CmpDouble:
-      __ cdbr(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
+      ASSEMBLE_FLOAT_COMPARE(cdbr, cdb, ldy);
+      // __ cdbr(i.InputDoubleRegister(0), i.InputDoubleRegister(1));
       break;
     case kS390_Tst32:
       if (HasRegisterInput(instr, 1)) {
-        __ lr(r0, i.InputRegister(0));
-        __ nr(r0, i.InputRegister(1));
+        __ And(r0, i.InputRegister(0), i.InputRegister(1));
       } else {
         Operand opnd = i.InputImmediate(1);
         if (is_uint16(opnd.immediate())) {
@@ -2107,6 +2234,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_LOAD_INTEGER(lg);
       break;
 #endif
+    case kS390_LoadAndTestWord32: {
+      ASSEMBLE_LOADANDTEST32(ltr, lt_z);
+      break;
+    }
+    case kS390_LoadAndTestWord64: {
+      ASSEMBLE_LOADANDTEST64(ltgr, ltg);
+      break;
+    }
     case kS390_LoadFloat32:
       ASSEMBLE_LOAD_FLOAT(LoadFloat32);
       break;

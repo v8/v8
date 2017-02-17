@@ -3307,7 +3307,10 @@ void MacroAssembler::MulHighU32(Register dst, Register src1,
 
 void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                                   const MemOperand& src2) {
+  Register result = dst;
+  if (src2.rx().is(dst) || src2.rb().is(dst)) dst = r0;
   Generate_Mul32WithOverflowIfCCUnequal(msgf);
+  if (!result.is(dst)) llgfr(result, dst);
 }
 
 void MacroAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
