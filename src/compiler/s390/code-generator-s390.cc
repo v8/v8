@@ -600,6 +600,7 @@ void AssembleBinOp(S390OperandConverter& i, MacroAssembler* masm,
     } else if (HasFPRegisterInput(instr, 1)) {                             \
       __ cmp_rr_instr(i.InputDoubleRegister(0), i.InputDoubleRegister(1)); \
     } else {                                                               \
+      USE(HasFPStackSlotInput);                                            \
       DCHECK(HasFPStackSlotInput(instr, 1));                               \
       MemOperand operand = i.InputStackSlot(1);                            \
       if (operand.offset() >= 0) {                                         \
