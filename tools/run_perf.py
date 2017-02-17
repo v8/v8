@@ -790,6 +790,8 @@ class AndroidPlatform(Platform):  # pragma: no cover
     )
 
   def PreTests(self, node, path):
+    if isinstance(node, RunnableConfig):
+      node.ChangeCWD(path)
     suite_dir = os.path.abspath(os.path.dirname(path))
     if node.path:
       bench_rel = os.path.normpath(os.path.join(*node.path))
