@@ -80,11 +80,12 @@ PropertyAccessInfo PropertyAccessInfo::DataConstant(
 
 // static
 PropertyAccessInfo PropertyAccessInfo::DataField(
-    MapList const& receiver_maps, FieldIndex field_index,
-    MachineRepresentation field_representation, Type* field_type,
-    MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
+    PropertyConstness constness, MapList const& receiver_maps,
+    FieldIndex field_index, MachineRepresentation field_representation,
+    Type* field_type, MaybeHandle<Map> field_map, MaybeHandle<JSObject> holder,
     MaybeHandle<Map> transition_map) {
-  return PropertyAccessInfo(holder, transition_map, field_index,
+  Kind kind = constness == kConst ? kDataConstantField : kDataField;
+  return PropertyAccessInfo(kind, holder, transition_map, field_index,
                             field_representation, field_type, field_map,
                             receiver_maps);
 }
@@ -126,10 +127,10 @@ PropertyAccessInfo::PropertyAccessInfo(Kind kind, MaybeHandle<JSObject> holder,
       field_type_(Type::Any()) {}
 
 PropertyAccessInfo::PropertyAccessInfo(
-    MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
+    Kind kind, MaybeHandle<JSObject> holder, MaybeHandle<Map> transition_map,
     FieldIndex field_index, MachineRepresentation field_representation,
     Type* field_type, MaybeHandle<Map> field_map, MapList const& receiver_maps)
-    : kind_(kDataField),
+    : kind_(kind),
       receiver_maps_(receiver_maps),
       transition_map_(transition_map),
       holder_(holder),
@@ -146,9 +147,11 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that) {
     case kInvalid:
       break;
 
-    case kDataField: {
+    case kDataField:
+    case kDataConstantField: {
       // Check if we actually access the same field.
-      if (this->transition_map_.address() == that->transition_map_.address() &&
+      if (this->kind_ == that->kind_ &&
+          this->transition_map_.address() == that->transition_map_.address() &&
           this->field_index_ == that->field_index_ &&
           this->field_map_.address() == that->field_map_.address() &&
           this->field_type_->Is(that->field_type_) &&
@@ -338,8 +341,8 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             }
           }
           *access_info = PropertyAccessInfo::DataField(
-              MapList{receiver_map}, field_index, field_representation,
-              field_type, field_map, holder);
+              details.constness(), MapList{receiver_map}, field_index,
+              field_representation, field_type, field_map, holder);
           return true;
         } else {
           DCHECK_EQ(kAccessor, details.kind());
@@ -502,8 +505,9 @@ bool AccessInfoFactory::LookupSpecialFieldAccessor(
         field_type = type_cache_.kJSArrayLengthType;
       }
     }
+    // Special fields are always mutable.
     *access_info = PropertyAccessInfo::DataField(
-        MapList{map}, field_index, field_representation, field_type);
+        kMutable, MapList{map}, field_index, field_representation, field_type);
     return true;
   }
   return false;
@@ -563,9 +567,10 @@ bool AccessInfoFactory::LookupTransition(Handle<Map> map, Handle<Name> name,
       }
     }
     dependencies()->AssumeMapNotDeprecated(transition_map);
+    // Transitioning stores are never stores to constant fields.
     *access_info = PropertyAccessInfo::DataField(
-        MapList{map}, field_index, field_representation, field_type, field_map,
-        holder, transition_map);
+        kMutable, MapList{map}, field_index, field_representation, field_type,
+        field_map, holder, transition_map);
     return true;
   }
   return false;

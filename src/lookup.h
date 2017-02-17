@@ -236,7 +236,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   Representation representation() const {
     return property_details().representation();
   }
+  PropertyLocation location() const { return property_details().location(); }
   PropertyConstness constness() const { return property_details().constness(); }
+  Handle<Map> GetFieldOwnerMap() const;
   FieldIndex GetFieldIndex() const;
   Handle<FieldType> GetFieldType() const;
   int GetFieldDescriptorIndex() const;

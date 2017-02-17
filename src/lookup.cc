@@ -675,6 +675,14 @@ int LookupIterator::GetConstantIndex() const {
   return descriptor_number();
 }
 
+Handle<Map> LookupIterator::GetFieldOwnerMap() const {
+  DCHECK(has_property_);
+  DCHECK(holder_->HasFastProperties());
+  DCHECK_EQ(kField, property_details_.location());
+  DCHECK(!IsElement());
+  Map* holder_map = holder_->map();
+  return handle(holder_map->FindFieldOwner(descriptor_number()), isolate_);
+}
 
 FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(has_property_);

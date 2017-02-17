@@ -1386,7 +1386,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         break;
       }
     }
-  } else if (access_info.IsDataField()) {
+  } else if (access_info.IsDataField() || access_info.IsDataConstantField()) {
     FieldIndex const field_index = access_info.field_index();
     Type* const field_type = access_info.field_type();
     MachineRepresentation const field_representation =
@@ -1411,10 +1411,23 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         // but for now let's just do what Crankshaft does.
         LookupIterator it(m.Value(), name,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
-        if (it.state() == LookupIterator::DATA && it.IsReadOnly() &&
-            !it.IsConfigurable()) {
-          Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
-          return ValueEffectControl(value, effect, control);
+        if (it.state() == LookupIterator::DATA) {
+          bool is_reaonly_non_configurable =
+              it.IsReadOnly() && !it.IsConfigurable();
+          if (is_reaonly_non_configurable ||
+              (FLAG_track_constant_fields &&
+               access_info.IsDataConstantField())) {
+            Node* value = jsgraph()->Constant(JSReceiver::GetDataProperty(&it));
+            if (!is_reaonly_non_configurable) {
+              // It's necessary to add dependency on the map that introduced
+              // the field.
+              DCHECK(access_info.IsDataConstantField());
+              DCHECK(!it.is_dictionary_holder());
+              Handle<Map> field_owner_map = it.GetFieldOwnerMap();
+              dependencies()->AssumeFieldOwner(field_owner_map);
+            }
+            return ValueEffectControl(value, effect, control);
+          }
         }
       }
     }
@@ -1464,6 +1477,10 @@ JSNativeContextSpecialization::BuildPropertyAccess(
       value = effect = graph()->NewNode(simplified()->LoadField(field_access),
                                         storage, effect, control);
     } else {
+      bool store_to_constant_field = FLAG_track_constant_fields &&
+                                     (access_mode == AccessMode::kStore) &&
+                                     access_info.IsDataConstantField();
+
       DCHECK(access_mode == AccessMode::kStore ||
              access_mode == AccessMode::kStoreInLiteral);
       switch (field_representation) {
@@ -1510,29 +1527,62 @@ JSNativeContextSpecialization::BuildPropertyAccess(
               field_access.machine_type = MachineType::Float64();
             }
           }
-          break;
-        }
-        case MachineRepresentation::kTaggedSigned: {
-          value = effect = graph()->NewNode(simplified()->CheckSmi(), value,
-                                            effect, control);
-          field_access.write_barrier_kind = kNoWriteBarrier;
-          break;
-        }
-        case MachineRepresentation::kTaggedPointer: {
-          // Ensure that {value} is a HeapObject.
-          value = BuildCheckHeapObject(value, &effect, control);
-          Handle<Map> field_map;
-          if (access_info.field_map().ToHandle(&field_map)) {
-            // Emit a map check for the value.
-            effect = graph()->NewNode(
-                simplified()->CheckMaps(CheckMapsFlag::kNone,
-                                        ZoneHandleSet<Map>(field_map)),
-                value, effect, control);
+          if (store_to_constant_field) {
+            DCHECK(!access_info.HasTransitionMap());
+            // If the field is constant check that the value we are going
+            // to store matches current value.
+            Node* current_value = effect =
+                graph()->NewNode(simplified()->LoadField(field_access), storage,
+                                 effect, control);
+
+            Node* check = graph()->NewNode(simplified()->NumberEqual(),
+                                           current_value, value);
+            effect = graph()->NewNode(simplified()->CheckIf(), check, effect,
+                                      control);
+            return ValueEffectControl(value, effect, control);
           }
-          field_access.write_barrier_kind = kPointerWriteBarrier;
           break;
         }
+        case MachineRepresentation::kTaggedSigned:
+        case MachineRepresentation::kTaggedPointer:
         case MachineRepresentation::kTagged:
+          if (store_to_constant_field) {
+            DCHECK(!access_info.HasTransitionMap());
+            // If the field is constant check that the value we are going
+            // to store matches current value.
+            Node* current_value = effect =
+                graph()->NewNode(simplified()->LoadField(field_access), storage,
+                                 effect, control);
+
+            Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                           current_value, value);
+            effect = graph()->NewNode(simplified()->CheckIf(), check, effect,
+                                      control);
+            return ValueEffectControl(value, effect, control);
+          }
+
+          if (field_representation == MachineRepresentation::kTaggedSigned) {
+            value = effect = graph()->NewNode(simplified()->CheckSmi(), value,
+                                              effect, control);
+            field_access.write_barrier_kind = kNoWriteBarrier;
+
+          } else if (field_representation ==
+                     MachineRepresentation::kTaggedPointer) {
+            // Ensure that {value} is a HeapObject.
+            value = BuildCheckHeapObject(value, &effect, control);
+            Handle<Map> field_map;
+            if (access_info.field_map().ToHandle(&field_map)) {
+              // Emit a map check for the value.
+              effect = graph()->NewNode(
+                  simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                          ZoneHandleSet<Map>(field_map)),
+                  value, effect, control);
+            }
+            field_access.write_barrier_kind = kPointerWriteBarrier;
+
+          } else {
+            DCHECK_EQ(MachineRepresentation::kTagged, field_representation);
+          }
           break;
         case MachineRepresentation::kNone:
         case MachineRepresentation::kBit:
