@@ -1489,10 +1489,6 @@ class Heap {
 #ifdef DEBUG
   void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
 
-  void TracePathToObjectFrom(Object* target, Object* root);
-  void TracePathToObject(Object* target);
-  void TracePathToGlobal();
-
   void Print();
   void PrintHandles();
 

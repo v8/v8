@@ -5497,18 +5497,6 @@ TEST(RegressArrayListGC) {
 }
 
 
-#ifdef DEBUG
-TEST(PathTracer) {
-  CcTest::InitializeVM();
-  v8::HandleScope scope(CcTest::isolate());
-
-  v8::Local<v8::Value> result = CompileRun("'abc'");
-  Handle<Object> o = v8::Utils::OpenHandle(*result);
-  CcTest::i_isolate()->heap()->TracePathToObject(*o);
-}
-#endif  // DEBUG
-
-
 TEST(WritableVsImmortalRoots) {
   for (int i = 0; i < Heap::kStrongRootListLength; ++i) {
     Heap::RootListIndex root_index = static_cast<Heap::RootListIndex>(i);

@@ -13701,9 +13701,6 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   CcTest::CollectAllGarbage(i::Heap::kFinalizeIncrementalMarkingMask);
   CcTest::CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
   int count = GetGlobalObjectsCount();
-#ifdef DEBUG
-  if (count != expected) CcTest::heap()->TracePathToGlobal();
-#endif
   CHECK_EQ(expected, count);
 }
 
