@@ -357,12 +357,73 @@ TEST(PreParserScopeAnalysis) {
       {"var1, ...var2", "function f1() { var2; }"},
       {"var1, ...var2", "function f1() { var2 = 9; }"},
 
-      // FIXME(marja): destructuring parameters, default parameters, shadowing
-      // parameters, default parameters referring to other parameters, arguments
-      // parameter, eval in default parameter, params and locals, multiple
-      // params, destructuring rest, locals shadowing params, locals shadowing
-      // rest, locals shadowing destructuring params, shadowing by a hoisted
-      // sloppy block function.
+      // Default parameters.
+      {"var1 = 3", ""},
+      {"var1, var2 = var1", ""},
+      {"var1, var2 = 4, ...var3", ""},
+
+      // Destructuring parameters. Because of the search space explosion, we
+      // cannot test all interesting cases. Let's try to test a relevant subset.
+      {"[]", ""},
+      {"{}", ""},
+
+      {"[var1]", ""},
+      {"{name1: var1}", ""},
+      {"{var1}", ""},
+
+      {"[var1]", "var1;"},
+      {"{name1: var1}", "var1;"},
+      {"{name1: var1}", "name1;"},
+      {"{var1}", "var1;"},
+
+      {"[var1]", "var1 = 16;"},
+      {"{name1: var1}", "var1 = 16;"},
+      {"{name1: var1}", "name1 = 16;"},
+      {"{var1}", "var1 = 16;"},
+
+      {"[var1]", "() => { var1; }"},
+      {"{name1: var1}", "() => { var1; }"},
+      {"{name1: var1}", "() => { name1; }"},
+      {"{var1}", "() => { var1; }"},
+
+      {"[var1, var2, var3]", ""},
+      {"{name1: var1, name2: var2, name3: var3}", ""},
+      {"{var1, var2, var3}", ""},
+
+      {"[var1, var2, var3]", "() => { var2 = 16;}"},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;}"},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;}"},
+      {"{var1, var2, var3}", "() => { var2 = 16;}"},
+
+      // Nesting destructuring.
+      {"[var1, [var2, var3], {var4, name5: [var5, var6]}]", ""},
+
+      // Complicated params.
+      {"var1, [var2], var3, [var4, var5], var6, {var7}, var8, {name9: var9, "
+       "name10: var10}, ...var11",
+       ""},
+
+      // Destructuring rest. Because we can.
+      {"var1, ...[var2]", "() => { }"},
+      {"var1, ...[var2]", "() => { var2; }"},
+
+      // Default parameters for destruring parameters.
+      {"[var1 = 4, var2 = var1]", "", false},
+      {"{var1 = 4, var2 = var1}", "", false},
+
+      // Locals shadowing parameters.
+      {"var1, var2", "var var1 = 16; () => { var1 = 17; }"},
+
+      // Locals shadowing destructuring parameters and the rest parameter.
+      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; }"},
+      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; }"},
+      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }"},
+      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }"},
+
+      // Hoisted sloppy block function shadowing a parameter.
+      {"var1, var2", "for (;;) { function var1() { } }"},
+
+      // FIXME(marja): Eval in default parameter.
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
