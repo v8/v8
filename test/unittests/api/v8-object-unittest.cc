@@ -15,8 +15,6 @@ void accessor_name_getter_callback(Local<Name>,
                                    const PropertyCallbackInfo<Value>&) {}
 
 TEST_F(ObjectTest, SetAccessorWhenUnconfigurablePropAlreadyDefined) {
-  Context::Scope context_scope(context());
-
   TryCatch try_catch(isolate());
 
   Local<Object> global = context()->Global();
