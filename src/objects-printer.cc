@@ -1003,12 +1003,42 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this);
 }
 
+namespace {
+
+std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
+  os << "[";
+  if (kind == FunctionKind::kNormalFunction) {
+    os << " NormalFunction";
+  } else {
+#define PRINT_FLAG(name)                                                  \
+  if (static_cast<int>(kind) & static_cast<int>(FunctionKind::k##name)) { \
+    os << " " << #name;                                                   \
+  }
+
+    PRINT_FLAG(ArrowFunction)
+    PRINT_FLAG(GeneratorFunction)
+    PRINT_FLAG(ConciseMethod)
+    PRINT_FLAG(DefaultConstructor)
+    PRINT_FLAG(DerivedConstructor)
+    PRINT_FLAG(BaseConstructor)
+    PRINT_FLAG(GetterFunction)
+    PRINT_FLAG(SetterFunction)
+    PRINT_FLAG(AsyncFunction)
+    PRINT_FLAG(Module)
+#undef PRINT_FLAG
+  }
+  return os << " ]";
+}
+
+}  // namespace
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
   os << "\n - name = " << Brief(name());
+  os << "\n - kind = " << kind();
   os << "\n - formal_parameter_count = " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties = " << expected_nof_properties();
+  os << "\n - language_mode = " << language_mode();
   os << "\n - ast_node_count = " << ast_node_count();
   os << "\n - instance class name = ";
   instance_class_name()->Print(os);
