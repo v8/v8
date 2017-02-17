@@ -57,31 +57,52 @@ TEST(PreParserScopeAnalysis) {
     const char* suffix;
     const char* lazy_inner;
     const char* eager_inner;
+    bool strict;
   } outers[] = {
       // The scope start positions must match; note the extra space in
       // lazy_inner.
       {"(function outer() { ", "})();", " function test(%s) { %s }",
-       "(function test(%s) { %s })()"},
+       "(function test(%s) { %s })()", false},
       {"(function outer() { ", "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()"},
+       "(function inner() { function test(%s) { %s } })()", false},
       // FIXME(marja): enable test for arrow functions once it passes.
       // {"(function outer() { ", "})();",
       // " function inner() { (%s) => { %s } }",
-      // "(function inner() { (%s) => { %s } })()"},
+      // "(function inner() { (%s) => { %s } })()", false},
+      {"(function outer() { 'use strict'; ", "})();",
+       " function test(%s) { %s }", "(function test(%s) { %s })()", true},
+      {"(function outer() { 'use strict'; ", "})();",
+       " function inner() { function test(%s) { %s } }",
+       "(function inner() { function test(%s) { %s } })()", true},
+      {"(function outer() { ", "})();",
+       " function test(%s) { 'use strict'; %s }",
+       "(function test(%s) { 'use strict'; %s })()", true},
+      {"(function outer() { ", "})();",
+       " function inner() { function test(%s) { 'use strict'; %s } }",
+       "(function inner() { function test(%s) { 'use strict'; %s } })()", true},
   };
 
   struct Inner {
     Inner(const char* s) : source(s) {}  // NOLINT
-    Inner(const char* s, bool precise)
-        : source(s), precise_maybe_assigned(precise) {}
+    Inner(const char* s, bool skip) : source(s), skip_in_strict_mode(skip) {}
+    Inner(const char* s, bool skip, bool precise)
+        : source(s),
+          skip_in_strict_mode(skip),
+          precise_maybe_assigned(precise) {}
 
     Inner(const char* p, const char* s) : params(p), source(s) {}
-    Inner(const char* p, const char* s, bool precise)
-        : params(p), source(s), precise_maybe_assigned(precise) {}
+    Inner(const char* p, const char* s, bool skip)
+        : params(p), source(s), skip_in_strict_mode(skip) {}
+    Inner(const char* p, const char* s, bool skip, bool precise)
+        : params(p),
+          source(s),
+          skip_in_strict_mode(skip),
+          precise_maybe_assigned(precise) {}
 
     const char* params = "";
     const char* source;
+    bool skip_in_strict_mode = false;
     bool precise_maybe_assigned = true;
   } inners[] = {
       // Simple cases
@@ -93,7 +114,7 @@ TEST(PreParserScopeAnalysis) {
       // Var declarations and assignments.
       {"var var1;"},
       {"var var1; var1 = 5;"},
-      {"if (true) { var var1; }", false},
+      {"if (true) { var var1; }", false, false},
       {"if (true) { var var1; var1 = 5; }"},
       {"var var1; function f() { var1; }"},
       {"var var1; var1 = 5; function f() { var1; }"},
@@ -133,33 +154,33 @@ TEST(PreParserScopeAnalysis) {
 
       // Arguments and this.
       {"arguments;"},
-      {"arguments = 5;"},
+      {"arguments = 5;", true},
       {"if (true) { arguments; }"},
-      {"if (true) { arguments = 5; }"},
+      {"if (true) { arguments = 5; }", true},
 
       {"this;"},
       {"if (true) { this; }"},
 
       // Variable called "arguments"
-      {"var arguments;"},
-      {"var arguments; arguments = 5;"},
-      {"if (true) { var arguments; }", false},
-      {"if (true) { var arguments; arguments = 5; }"},
-      {"var arguments; function f() { arguments; }"},
-      {"var arguments; arguments = 5; function f() { arguments; }"},
-      {"var arguments; function f() { arguments = 5; }"},
+      {"var arguments;", true},
+      {"var arguments; arguments = 5;", true},
+      {"if (true) { var arguments; }", true, false},
+      {"if (true) { var arguments; arguments = 5; }", true},
+      {"var arguments; function f() { arguments; }", true},
+      {"var arguments; arguments = 5; function f() { arguments; }", true},
+      {"var arguments; function f() { arguments = 5; }", true},
 
-      {"let arguments;"},
-      {"let arguments; arguments = 5;"},
-      {"if (true) { let arguments; }"},
-      {"if (true) { let arguments; arguments = 5; }"},
-      {"let arguments; function f() { arguments; }"},
-      {"let arguments; arguments = 5; function f() { arguments; }"},
-      {"let arguments; function f() { arguments = 5; }"},
+      {"let arguments;", true},
+      {"let arguments; arguments = 5;", true},
+      {"if (true) { let arguments; }", true},
+      {"if (true) { let arguments; arguments = 5; }", true},
+      {"let arguments; function f() { arguments; }", true},
+      {"let arguments; arguments = 5; function f() { arguments; }", true},
+      {"let arguments; function f() { arguments = 5; }", true},
 
-      {"const arguments = 5;"},
-      {"if (true) { const arguments = 5; }"},
-      {"const arguments = 5; function f() { arguments; }"},
+      {"const arguments = 5;", true},
+      {"if (true) { const arguments = 5; }", true},
+      {"const arguments = 5; function f() { arguments; }", true},
 
       // Destructuring declarations.
       {"var [var1, var2] = [1, 2];"},
@@ -193,16 +214,16 @@ TEST(PreParserScopeAnalysis) {
       {"test;"},
       {"function f1() { f1; }"},
       {"function f1() { function f2() { f1; } }"},
-      {"function arguments() {}"},
-      {"function f1() {} function f1() {}"},
+      {"function arguments() {}", true},
+      {"function f1() {} function f1() {}", true},
       {"var f1; function f1() {}"},
 
       // Assigning to the function variable.
       {"test = 3;"},
       {"function f1() { f1 = 3; }"},
       {"function f1() { f1; } f1 = 3;"},
-      {"function arguments() {} arguments = 8"},
-      {"function f1() {} f1 = 3; function f1() {}"},
+      {"function arguments() {} arguments = 8;", true},
+      {"function f1() {} f1 = 3; function f1() {}", true},
 
       // Evals.
       {"var var1; eval('');"},
@@ -220,12 +241,6 @@ TEST(PreParserScopeAnalysis) {
       {"for (var var1 = 0; var1 < 10; ++var1) { function foo() { var1; } }"},
       {"for (let var1 = 0; var1 < 10; ++var1) { function foo() { var1; } }"},
       {"for (const var1 = 0; var1 < 10; ++var1) { function foo() { var1; } }"},
-      {"'use strict'; for (var var1 = 0; var1 < 10; ++var1) { function foo() { "
-       "var1; } }"},
-      {"'use strict'; for (let var1 = 0; var1 < 10; ++var1) { function foo() { "
-       "var1; } }"},
-      {"'use strict'; for (const var1 = 0; var1 < 10; ++var1) { function foo() "
-       "{ var1; } }"},
 
       // For of loops
       {"for (var1 of [1, 2]) { }"},
@@ -298,22 +313,25 @@ TEST(PreParserScopeAnalysis) {
       {"var var1 = 0; for (var1; var1 > 2; ) { function foo() { var1; } }"},
       {"var var1 = 0; for (var1; var1 > 2; ) { function foo() { var1 = 6; } }"},
 
-      // Sloppy block functions.
+      // Block functions (potentially sloppy).
       {"if (true) { function f1() {} }"},
-      {"if (true) { function f1() {} function f1() {} }"},
+      {"if (true) { function f1() {} function f1() {} }", true},
       {"if (true) { if (true) { function f1() {} } }"},
-      {"if (true) { if (true) { function f1() {} function f1() {} } }"},
+      {"if (true) { if (true) { function f1() {} function f1() {} } }", true},
       {"if (true) { function f1() {} f1 = 3; }"},
 
       {"if (true) { function f1() {} function foo() { f1; } }"},
       {"if (true) { function f1() {} } function foo() { f1; }"},
       {"if (true) { function f1() {} function f1() {} function foo() { f1; } "
-       "}"},
+       "}",
+       true},
       {"if (true) { function f1() {} function f1() {} } function foo() { f1; "
-       "}"},
+       "}",
+       true},
       {"if (true) { if (true) { function f1() {} } function foo() { f1; } }"},
       {"if (true) { if (true) { function f1() {} function f1() {} } function "
-       "foo() { f1; } }"},
+       "foo() { f1; } }",
+       true},
       {"if (true) { function f1() {} f1 = 3; function foo() { f1; } }"},
       {"if (true) { function f1() {} f1 = 3; } function foo() { f1; }"},
 
@@ -338,96 +356,98 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var2", "function f1() { var1 = 9; }"},
 
       // Duplicate parameters.
-      {"var1, var1", ""},
-      {"var1, var1", "var1;"},
-      {"var1, var1", "var1 = 9;"},
-      {"var1, var1", "function f1() { var1; }"},
-      {"var1, var1", "function f1() { var1 = 9; }"},
+      {"var1, var1", "", true},
+      {"var1, var1", "var1;", true},
+      {"var1, var1", "var1 = 9;", true},
+      {"var1, var1", "function f1() { var1; }", true},
+      {"var1, var1", "function f1() { var1 = 9; }", true},
 
       // Rest parameter.
-      {"...var2", ""},
-      {"...var2", "var2;"},
-      {"...var2", "var2 = 9;"},
-      {"...var2", "function f1() { var2; }"},
-      {"...var2", "function f1() { var2 = 9; }"},
+      {"...var2", "", true},
+      {"...var2", "var2;", true},
+      {"...var2", "var2 = 9;", true},
+      {"...var2", "function f1() { var2; }", true},
+      {"...var2", "function f1() { var2 = 9; }", true},
 
-      {"var1, ...var2", ""},
-      {"var1, ...var2", "var2;"},
-      {"var1, ...var2", "var2 = 9;"},
-      {"var1, ...var2", "function f1() { var2; }"},
-      {"var1, ...var2", "function f1() { var2 = 9; }"},
+      {"var1, ...var2", "", true},
+      {"var1, ...var2", "var2;", true},
+      {"var1, ...var2", "var2 = 9;", true},
+      {"var1, ...var2", "function f1() { var2; }", true},
+      {"var1, ...var2", "function f1() { var2 = 9; }", true},
 
       // Default parameters.
-      {"var1 = 3", ""},
-      {"var1, var2 = var1", ""},
-      {"var1, var2 = 4, ...var3", ""},
+      {"var1 = 3", "", true},
+      {"var1, var2 = var1", "", true},
+      {"var1, var2 = 4, ...var3", "", true},
 
       // Destructuring parameters. Because of the search space explosion, we
       // cannot test all interesting cases. Let's try to test a relevant subset.
-      {"[]", ""},
-      {"{}", ""},
+      {"[]", "", true},
+      {"{}", "", true},
 
-      {"[var1]", ""},
-      {"{name1: var1}", ""},
-      {"{var1}", ""},
+      {"[var1]", "", true},
+      {"{name1: var1}", "", true},
+      {"{var1}", "", true},
 
-      {"[var1]", "var1;"},
-      {"{name1: var1}", "var1;"},
-      {"{name1: var1}", "name1;"},
-      {"{var1}", "var1;"},
+      {"[var1]", "var1;", true},
+      {"{name1: var1}", "var1;", true},
+      {"{name1: var1}", "name1;", true},
+      {"{var1}", "var1;", true},
 
-      {"[var1]", "var1 = 16;"},
-      {"{name1: var1}", "var1 = 16;"},
-      {"{name1: var1}", "name1 = 16;"},
-      {"{var1}", "var1 = 16;"},
+      {"[var1]", "var1 = 16;", true},
+      {"{name1: var1}", "var1 = 16;", true},
+      {"{name1: var1}", "name1 = 16;", true},
+      {"{var1}", "var1 = 16;", true},
 
-      {"[var1]", "() => { var1; }"},
-      {"{name1: var1}", "() => { var1; }"},
-      {"{name1: var1}", "() => { name1; }"},
-      {"{var1}", "() => { var1; }"},
+      {"[var1]", "() => { var1; }", true},
+      {"{name1: var1}", "() => { var1; }", true},
+      {"{name1: var1}", "() => { name1; }", true},
+      {"{var1}", "() => { var1; }", true},
 
-      {"[var1, var2, var3]", ""},
-      {"{name1: var1, name2: var2, name3: var3}", ""},
-      {"{var1, var2, var3}", ""},
+      {"[var1, var2, var3]", "", true},
+      {"{name1: var1, name2: var2, name3: var3}", "", true},
+      {"{var1, var2, var3}", "", true},
 
-      {"[var1, var2, var3]", "() => { var2 = 16;}"},
-      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;}"},
-      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;}"},
-      {"{var1, var2, var3}", "() => { var2 = 16;}"},
+      {"[var1, var2, var3]", "() => { var2 = 16;}", true},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;}", true},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;}", true},
+      {"{var1, var2, var3}", "() => { var2 = 16;}", true},
 
       // Nesting destructuring.
-      {"[var1, [var2, var3], {var4, name5: [var5, var6]}]", ""},
+      {"[var1, [var2, var3], {var4, name5: [var5, var6]}]", "", true},
 
       // Complicated params.
       {"var1, [var2], var3, [var4, var5], var6, {var7}, var8, {name9: var9, "
        "name10: var10}, ...var11",
-       ""},
+       "", true},
 
       // Destructuring rest. Because we can.
-      {"var1, ...[var2]", "() => { }"},
-      {"var1, ...[var2]", "() => { var2; }"},
+      {"var1, ...[var2]", "() => { }", true},
+      {"var1, ...[var2]", "() => { var2; }", true},
 
       // Default parameters for destruring parameters.
-      {"[var1 = 4, var2 = var1]", "", false},
-      {"{var1 = 4, var2 = var1}", "", false},
+      {"[var1 = 4, var2 = var1]", "", true, false},
+      {"{var1 = 4, var2 = var1}", "", true, false},
 
       // Locals shadowing parameters.
       {"var1, var2", "var var1 = 16; () => { var1 = 17; }"},
 
       // Locals shadowing destructuring parameters and the rest parameter.
-      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; }"},
-      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; }"},
-      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }"},
-      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }"},
+      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; }", true},
+      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; }", true},
+      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }", true},
+      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }", true},
 
       // Hoisted sloppy block function shadowing a parameter.
       {"var1, var2", "for (;;) { function var1() { } }"},
-
-      // FIXME(marja): Eval in default parameter.
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
     for (unsigned inner_ix = 0; inner_ix < arraysize(inners); ++inner_ix) {
+      if (outers[outer_ix].strict && inners[inner_ix].skip_in_strict_mode) {
+        continue;
+      }
+
       const char* prefix = outers[outer_ix].prefix;
       const char* suffix = outers[outer_ix].suffix;
       int prefix_len = Utf8LengthHelper(prefix);
