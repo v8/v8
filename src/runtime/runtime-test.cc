@@ -19,6 +19,27 @@
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 
+namespace {
+struct WasmCompileControls {
+  uint32_t MaxWasmBufferSize = std::numeric_limits<uint32_t>::max();
+  bool AllowAnySizeForAsync = true;
+} g_WasmCompileControls;
+
+bool IsWasmCompileAllowed(v8::Local<v8::Value> value, bool is_async) {
+  return (is_async && g_WasmCompileControls.AllowAnySizeForAsync) ||
+         (v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
+          g_WasmCompileControls.MaxWasmBufferSize);
+}
+
+// Use the compile controls for instantiation, too
+bool IsWasmInstantiateAllowed(v8::Local<v8::WasmCompiledModule> module,
+                              v8::Local<v8::Value> ffi, bool is_async) {
+  return (is_async && g_WasmCompileControls.AllowAnySizeForAsync) ||
+         (static_cast<uint32_t>(module->GetWasmWireBytes()->Length()) <=
+          g_WasmCompileControls.MaxWasmBufferSize);
+}
+}  // namespace
+
 namespace v8 {
 namespace internal {
 
@@ -427,6 +448,25 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   }
   CHECK_LE(count, 1);
   return isolate->heap()->ToBoolean(count == 1);
+}
+
+RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
+  HandleScope scope(isolate);
+  CHECK(args.length() == 2);
+  CONVERT_ARG_HANDLE_CHECKED(Smi, block_size, 0);
+  CONVERT_BOOLEAN_ARG_CHECKED(allow_async, 1);
+  g_WasmCompileControls.AllowAnySizeForAsync = allow_async;
+  g_WasmCompileControls.MaxWasmBufferSize =
+      static_cast<uint32_t>(block_size->value());
+  isolate->set_allow_wasm_compile_callback(IsWasmCompileAllowed);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
+  HandleScope scope(isolate);
+  CHECK(args.length() == 0);
+  isolate->set_allow_wasm_instantiate_callback(IsWasmInstantiateAllowed);
+  return isolate->heap()->undefined_value();
 }
 
 RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {

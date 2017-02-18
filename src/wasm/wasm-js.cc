@@ -79,9 +79,18 @@ RawBuffer GetRawBufferSource(
 
 static i::MaybeHandle<i::WasmModuleObject> CreateModuleObject(
     v8::Isolate* isolate, const v8::Local<v8::Value> source,
-    ErrorThrower* thrower) {
+    ErrorThrower* thrower, bool async) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::MaybeHandle<i::JSObject> nothing;
+  i::MaybeHandle<i::WasmModuleObject> nothing;
+
+  AllowWasmCompileCallback callback =
+      reinterpret_cast<i::Isolate*>(isolate)->allow_wasm_compile_callback();
+  if (callback != nullptr && !callback(source, async)) {
+    thrower->RangeError(
+        "Wasm compilation exceeds internal limits in this context for provided "
+        "arguments");
+    return nothing;
+  }
 
   RawBuffer buffer = GetRawBufferSource(source, thrower);
   if (buffer.start == nullptr) return i::MaybeHandle<i::WasmModuleObject>();
@@ -139,7 +148,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   i::MaybeHandle<i::JSObject> module_obj =
-      CreateModuleObject(isolate, args[0], &thrower);
+      CreateModuleObject(isolate, args[0], &thrower, true);
 
   if (thrower.error()) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
@@ -180,7 +189,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 
   i::MaybeHandle<i::JSObject> module_obj =
-      CreateModuleObject(isolate, args[0], &thrower);
+      CreateModuleObject(isolate, args[0], &thrower, false);
   if (module_obj.is_null()) return;
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
@@ -189,7 +198,8 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 MaybeLocal<Value> InstantiateModuleImpl(
     i::Isolate* i_isolate, i::Handle<i::WasmModuleObject> i_module_obj,
-    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower,
+    bool as_promise) {
   // It so happens that in both the WebAssembly.instantiate, as well as
   // WebAssembly.Instance ctor, the positions of the ffi object and memory
   // are the same. If that changes later, we refactor the consts into
@@ -209,6 +219,17 @@ MaybeLocal<Value> InstantiateModuleImpl(
     }
     Local<Object> obj = Local<Object>::Cast(args[kFfiOffset]);
     ffi = i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
+  }
+  AllowWasmInstantiateCallback allow_instantiate =
+      i_isolate->allow_wasm_instantiate_callback();
+  if (allow_instantiate != nullptr &&
+      !allow_instantiate(Local<WasmCompiledModule>::Cast(Utils::ToLocal(
+                             i::Handle<i::JSObject>::cast(i_module_obj))),
+                         Utils::ToLocal(ffi), as_promise)) {
+    thrower->RangeError(
+        "Wasm instantiation exceeds internal limits in this context for "
+        "provided arguments");
+    return nothing;
   }
 
   i::MaybeHandle<i::JSObject> instance =
@@ -316,7 +337,7 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (!maybe_module.is_null()) {
     MaybeLocal<Value> instance = InstantiateModuleImpl(
-        i_isolate, maybe_module.ToHandleChecked(), args, &thrower);
+        i_isolate, maybe_module.ToHandleChecked(), args, &thrower, false);
 
     if (instance.IsEmpty()) {
       DCHECK(thrower.error());
@@ -361,7 +382,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Handle<i::WasmModuleObject> module_obj;
   if (want_pair) {
     i::MaybeHandle<i::WasmModuleObject> maybe_module_obj =
-        CreateModuleObject(isolate, args[0], &thrower);
+        CreateModuleObject(isolate, args[0], &thrower, true);
     if (!maybe_module_obj.ToHandle(&module_obj)) {
       DCHECK(thrower.error());
       resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
@@ -372,7 +393,7 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   DCHECK(!module_obj.is_null());
   MaybeLocal<Value> instance =
-      InstantiateModuleImpl(i_isolate, module_obj, args, &thrower);
+      InstantiateModuleImpl(i_isolate, module_obj, args, &thrower, true);
   if (instance.IsEmpty()) {
     DCHECK(thrower.error());
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
