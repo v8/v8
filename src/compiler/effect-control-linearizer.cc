@@ -717,8 +717,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       result = LowerCheckedTruncateTaggedToWord32(node, frame_state);
       break;
-    case IrOpcode::kObjectIsCallable:
-      result = LowerObjectIsCallable(node);
+    case IrOpcode::kObjectIsDetectableCallable:
+      result = LowerObjectIsDetectableCallable(node);
       break;
     case IrOpcode::kObjectIsNonCallable:
       result = LowerObjectIsNonCallable(node);
@@ -1688,7 +1688,7 @@ Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
+Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeDeferredLabel<1>();

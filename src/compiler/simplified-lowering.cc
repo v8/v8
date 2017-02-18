@@ -2521,8 +2521,8 @@ class RepresentationSelector {
         }
         return;
       }
-      case IrOpcode::kObjectIsCallable: {
-        VisitObjectIs(node, Type::Callable(), lowering);
+      case IrOpcode::kObjectIsDetectableCallable: {
+        VisitObjectIs(node, Type::DetectableCallable(), lowering);
         return;
       }
       case IrOpcode::kObjectIsNonCallable: {

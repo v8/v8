@@ -897,7 +897,7 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
                          graph()->NewNode(simplified()->ReferenceEqual(), input,
                                           jsgraph()->FalseConstant()));
   } else if (String::Equals(type, factory()->function_string())) {
-    value = graph()->NewNode(simplified()->ObjectIsCallable(), input);
+    value = graph()->NewNode(simplified()->ObjectIsDetectableCallable(), input);
   } else if (String::Equals(type, factory()->number_string())) {
     value = graph()->NewNode(simplified()->ObjectIsNumber(), input);
   } else if (String::Equals(type, factory()->object_string())) {

@@ -80,7 +80,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerTruncateTaggedToFloat64(Node* node);
   Node* LowerTruncateTaggedToWord32(Node* node);
   Node* LowerCheckedTruncateTaggedToWord32(Node* node, Node* frame_state);
-  Node* LowerObjectIsCallable(Node* node);
+  Node* LowerObjectIsDetectableCallable(Node* node);
   Node* LowerObjectIsNonCallable(Node* node);
   Node* LowerObjectIsNumber(Node* node);
   Node* LowerObjectIsReceiver(Node* node);

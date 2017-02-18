@@ -952,7 +952,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Boolean());
       break;
 
-    case IrOpcode::kObjectIsCallable:
+    case IrOpcode::kObjectIsDetectableCallable:
     case IrOpcode::kObjectIsNonCallable:
     case IrOpcode::kObjectIsNumber:
     case IrOpcode::kObjectIsReceiver:

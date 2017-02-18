@@ -480,7 +480,7 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   V(TruncateTaggedToBit, Operator::kNoProperties, 1, 0)          \
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
-  V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
+  V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
   V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsReceiver, Operator::kNoProperties, 1, 0)             \

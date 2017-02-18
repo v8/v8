@@ -332,7 +332,7 @@
   V(StoreBuffer)                    \
   V(StoreElement)                   \
   V(StoreTypedElement)              \
-  V(ObjectIsCallable)               \
+  V(ObjectIsDetectableCallable)     \
   V(ObjectIsNonCallable)            \
   V(ObjectIsNumber)                 \
   V(ObjectIsReceiver)               \
