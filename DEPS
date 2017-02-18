@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "1ecc6e71abb0d6ca5fba8c749a93ff053e1969ce",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "35fe3e2a5f88c12cbad661f875f76b25aa8daee9",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -24,7 +24,7 @@ deps = {
   "v8/third_party/markupsafe":
     Var("chromium_url") + "/chromium/src/third_party/markupsafe.git" + "@" + "8f45f5cfa0009d2a70589bcda0349b8cb2b72783",
   "v8/tools/swarming_client":
-    Var('chromium_url') + '/external/swarming.client.git' + '@' + "ebc8dab6f8b8d79ec221c94de39a921145abd404",
+    Var('chromium_url') + '/external/swarming.client.git' + '@' + "11e31afa5d330756ff87aa12064bb5d032896cb5",
   "v8/testing/gtest":
     Var("chromium_url") + "/external/github.com/google/googletest.git" + "@" + "6f8a66431cb592dad629028a50b3dd418a408c87",
   "v8/testing/gmock":
@@ -40,7 +40,7 @@ deps = {
   "v8/tools/clang":
     Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "799a6a3cb04593d2c02bddaf094a23fbfaa3e0bf",
   "v8/test/wasm-js":
-    Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "b96d0961c97b9636b28dbb707e1bf79cdc409466",
+    Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "193fcb4f16eb41da42b07b45d6b70d589bfe39fd",
 }
 
 deps_os = {
