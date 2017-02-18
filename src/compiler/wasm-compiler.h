@@ -68,11 +68,14 @@ class WasmCompilationUnit final {
 
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
+  char* GetTaggedFunctionName(const wasm::WasmFunction* function);
 
   wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
   wasm::ModuleBytesEnv* module_env_;
   const wasm::WasmFunction* function_;
+  // Function name is tagged with uint32 func_index - wasm#<func_index>
+  char function_name_[16];
   // The graph zone is deallocated at the end of ExecuteCompilation.
   std::unique_ptr<Zone> graph_zone_;
   JSGraph* jsgraph_;
