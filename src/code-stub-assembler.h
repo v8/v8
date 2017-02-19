@@ -696,6 +696,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsCallableMap(Node* map);
   Node* IsCallable(Node* object);
   Node* IsBoolean(Node* object);
+  Node* IsHeapNumber(Node* object);
   Node* IsName(Node* object);
   Node* IsSymbol(Node* object);
   Node* IsPrivateSymbol(Node* object);
