@@ -281,10 +281,7 @@ void AstNumberingVisitor::VisitBlock(Block* node) {
   IncrementNodeCount();
   node->set_base_id(ReserveIdRange(Block::num_ids()));
   Scope* scope = node->scope();
-  DCHECK(scope == nullptr || !scope->HasBeenRemoved());
-  // TODO(ishell): remove scope->NeedsContext() condition once v8:5927 is fixed.
-  // Current logic mimics what BytecodeGenerator::VisitBlock() does.
-  if (scope != nullptr && scope->NeedsContext()) {
+  if (scope != nullptr) {
     LanguageModeScope language_mode_scope(this, scope->language_mode());
     VisitStatementsAndDeclarations(node);
   } else {

@@ -35,6 +35,7 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
         register_(Register::current_context()),
         depth_(0),
         should_pop_context_(should_pop_context) {
+    DCHECK(scope->NeedsContext() || outer_ == nullptr);
     if (outer_) {
       depth_ = outer_->depth_ + 1;
 
@@ -75,7 +76,6 @@ class BytecodeGenerator::ContextScope BASE_EMBEDDED {
     return previous;
   }
 
-  Scope* scope() const { return scope_; }
   Register reg() const { return register_; }
   bool ShouldPopContext() { return should_pop_context_; }
 
@@ -594,6 +594,25 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   bool has_constant_pool_entry_;
 };
 
+class BytecodeGenerator::CurrentScope final {
+ public:
+  CurrentScope(BytecodeGenerator* generator, Scope* scope)
+      : generator_(generator), outer_scope_(generator->current_scope()) {
+    if (scope != nullptr) {
+      generator_->set_current_scope(scope);
+    }
+  }
+  ~CurrentScope() {
+    if (outer_scope_ != generator_->current_scope()) {
+      generator_->set_current_scope(outer_scope_);
+    }
+  }
+
+ private:
+  BytecodeGenerator* generator_;
+  Scope* outer_scope_;
+};
+
 BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
     : zone_(info->zone()),
       builder_(new (zone()) BytecodeArrayBuilder(
@@ -602,7 +621,8 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
           info->scope()->num_stack_slots(), info->literal(),
           info->SourcePositionRecordingMode())),
       info_(info),
-      scope_(info->scope()),
+      closure_scope_(info->scope()),
+      current_scope_(info->scope()),
       globals_builder_(new (zone()) GlobalDeclarationsBuilder(info->zone())),
       global_declarations_(0, info->zone()),
       function_literals_(0, info->zone()),
@@ -618,7 +638,9 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       prototype_string_(
           info->isolate()->ast_string_constants()->prototype_string()),
       undefined_string_(
-          info->isolate()->ast_string_constants()->undefined_string()) {}
+          info->isolate()->ast_string_constants()->undefined_string()) {
+  DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
+}
 
 Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
   AllocateDeferredConstants(isolate);
@@ -687,7 +709,7 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
   InitializeAstVisitor(stack_limit);
 
   // Initialize the incoming context.
-  ContextScope incoming_context(this, scope(), false);
+  ContextScope incoming_context(this, closure_scope(), false);
 
   // Initialize control scope.
   ControlScopeForTopLevel control(this);
@@ -699,10 +721,10 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
     VisitGeneratorPrologue();
   }
 
-  if (scope()->NeedsContext()) {
+  if (closure_scope()->NeedsContext()) {
     // Push a new inner context scope for the function.
     BuildNewLocalActivationContext();
-    ContextScope local_function_context(this, scope(), false);
+    ContextScope local_function_context(this, closure_scope(), false);
     BuildLocalActivationContextInitialization();
     GenerateBytecodeBody();
   } else {
@@ -728,23 +750,23 @@ void BytecodeGenerator::GenerateBytecode(uintptr_t stack_limit) {
 
 void BytecodeGenerator::GenerateBytecodeBody() {
   // Build the arguments object if it is used.
-  VisitArgumentsObject(scope()->arguments());
+  VisitArgumentsObject(closure_scope()->arguments());
 
   // Build rest arguments array if it is used.
-  Variable* rest_parameter = scope()->rest_parameter();
+  Variable* rest_parameter = closure_scope()->rest_parameter();
   VisitRestArgumentsArray(rest_parameter);
 
   // Build assignment to {.this_function} variable if it is used.
-  VisitThisFunctionVariable(scope()->this_function_var());
+  VisitThisFunctionVariable(closure_scope()->this_function_var());
 
   // Build assignment to {new.target} variable if it is used.
-  VisitNewTargetVariable(scope()->new_target_var());
+  VisitNewTargetVariable(closure_scope()->new_target_var());
 
   // Emit tracing call if requested to do so.
   if (FLAG_trace) builder()->CallRuntime(Runtime::kTraceEnter);
 
   // Visit declarations within the function scope.
-  VisitDeclarations(scope()->declarations());
+  VisitDeclarations(closure_scope()->declarations());
 
   // Emit initializing assignments for module namespace imports (if any).
   VisitModuleNamespaceImports();
@@ -839,6 +861,7 @@ void BytecodeGenerator::VisitGeneratorPrologue() {
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {
   // Visit declarations and statements.
+  CurrentScope current_scope(this, stmt->scope());
   if (stmt->scope() != nullptr && stmt->scope()->NeedsContext()) {
     BuildNewLocalBlockContext(stmt->scope());
     ContextScope scope(this, stmt->scope());
@@ -957,18 +980,18 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
 }
 
 void BytecodeGenerator::VisitModuleNamespaceImports() {
-  if (!scope()->is_module_scope()) return;
+  if (!closure_scope()->is_module_scope()) return;
 
   RegisterAllocationScope register_scope(this);
   Register module_request = register_allocator()->NewRegister();
 
-  ModuleDescriptor* descriptor = scope()->AsModuleScope()->module();
+  ModuleDescriptor* descriptor = closure_scope()->AsModuleScope()->module();
   for (auto entry : descriptor->namespace_imports()) {
     builder()
         ->LoadLiteral(Smi::FromInt(entry->module_request))
         .StoreAccumulatorInRegister(module_request)
         .CallRuntime(Runtime::kGetModuleNamespace, module_request);
-    Variable* var = scope()->LookupLocal(entry->local_name);
+    Variable* var = closure_scope()->LookupLocal(entry->local_name);
     DCHECK_NOT_NULL(var);
     BuildVariableAssignment(var, Token::INIT, FeedbackSlot::Invalid(),
                             HoleCheckMode::kElided);
@@ -1453,8 +1476,8 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  uint8_t flags = CreateClosureFlags::Encode(expr->pretenure(),
-                                             scope()->is_function_scope());
+  uint8_t flags = CreateClosureFlags::Encode(
+      expr->pretenure(), closure_scope()->is_function_scope());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   int slot_index = feedback_index(expr->LiteralFeedbackSlot());
   builder()->CreateClosure(entry, slot_index, flags);
@@ -1967,7 +1990,8 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable, FeedbackSlot slot,
           break;
         }
         case DYNAMIC_GLOBAL: {
-          int depth = scope()->ContextChainLengthUntilOutermostSloppyEval();
+          int depth =
+              closure_scope()->ContextChainLengthUntilOutermostSloppyEval();
           builder()->LoadLookupGlobalSlot(variable->raw_name(), typeof_mode,
                                           feedback_index(slot), depth);
           break;
@@ -2015,7 +2039,7 @@ void BytecodeGenerator::BuildAsyncReturn() {
   Register return_value = args[2];
   builder()->StoreAccumulatorInRegister(return_value);
 
-  Variable* var_promise = scope()->promise_var();
+  Variable* var_promise = closure_scope()->promise_var();
   DCHECK_NOT_NULL(var_promise);
   BuildVariableLoad(var_promise, FeedbackSlot::Invalid(),
                     HoleCheckMode::kElided);
@@ -2586,8 +2610,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         .MoveRegister(Register::function_closure(), runtime_call_args[2])
         .LoadLiteral(Smi::FromInt(language_mode()))
         .StoreAccumulatorInRegister(runtime_call_args[3])
-        .LoadLiteral(
-            Smi::FromInt(execution_context()->scope()->start_position()))
+        .LoadLiteral(Smi::FromInt(current_scope()->start_position()))
         .StoreAccumulatorInRegister(runtime_call_args[4])
         .LoadLiteral(Smi::FromInt(expr->position()))
         .StoreAccumulatorInRegister(runtime_call_args[5]);
@@ -3128,7 +3151,7 @@ void BytecodeGenerator::VisitRewritableExpression(RewritableExpression* expr) {
 
 void BytecodeGenerator::BuildNewLocalActivationContext() {
   ValueResultScope value_execution_result(this);
-  Scope* scope = this->scope();
+  Scope* scope = closure_scope();
 
   // Create the appropriate context.
   if (scope->is_script_scope()) {
@@ -3180,7 +3203,7 @@ void BytecodeGenerator::BuildNewLocalActivationContext() {
 }
 
 void BytecodeGenerator::BuildLocalActivationContextInitialization() {
-  DeclarationScope* scope = this->scope();
+  DeclarationScope* scope = closure_scope();
 
   if (scope->has_this_declaration() && scope->receiver()->IsContextSlot()) {
     Variable* variable = scope->receiver();
@@ -3312,9 +3335,7 @@ void BytecodeGenerator::VisitNewTargetVariable(Variable* variable) {
 
 void BytecodeGenerator::VisitFunctionClosureForContext() {
   ValueResultScope value_execution_result(this);
-  DeclarationScope* closure_scope =
-      execution_context()->scope()->GetClosureScope();
-  if (closure_scope->is_script_scope()) {
+  if (closure_scope()->is_script_scope()) {
     // Contexts nested in the native context have a canonical empty function as
     // their closure, not the anonymous closure containing the global code.
     Register native_context = register_allocator()->NewRegister();
@@ -3325,7 +3346,7 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
         .StoreAccumulatorInRegister(native_context)
         .LoadContextSlot(native_context, Context::CLOSURE_INDEX, 0,
                          BytecodeArrayBuilder::kMutableSlot);
-  } else if (closure_scope->is_eval_scope()) {
+  } else if (closure_scope()->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval
     // code. Fetch it from the context.
@@ -3333,8 +3354,8 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
                                Context::CLOSURE_INDEX, 0,
                                BytecodeArrayBuilder::kMutableSlot);
   } else {
-    DCHECK(closure_scope->is_function_scope() ||
-           closure_scope->is_module_scope());
+    DCHECK(closure_scope()->is_function_scope() ||
+           closure_scope()->is_module_scope());
     builder()->LoadAccumulatorWithRegister(Register::function_closure());
   }
 }
@@ -3430,13 +3451,14 @@ void BytecodeGenerator::VisitForTest(Expression* expr,
 }
 
 void BytecodeGenerator::VisitInScope(Statement* stmt, Scope* scope) {
-  ContextScope context_scope(this, scope);
   DCHECK(scope->declarations()->is_empty());
+  CurrentScope current_scope(this, scope);
+  ContextScope context_scope(this, scope);
   Visit(stmt);
 }
 
 LanguageMode BytecodeGenerator::language_mode() const {
-  return execution_context()->scope()->language_mode();
+  return current_scope()->language_mode();
 }
 
 int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
