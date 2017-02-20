@@ -100,12 +100,12 @@ void StubCache::Clear() {
   Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = isolate()->heap()->empty_string();
-    primary_[i].map = NULL;
+    primary_[i].map = nullptr;
     primary_[i].value = empty;
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = isolate()->heap()->empty_string();
-    secondary_[j].map = NULL;
+    secondary_[j].map = nullptr;
     secondary_[j].value = empty;
   }
 }
@@ -117,9 +117,9 @@ void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
   for (int i = 0; i < kPrimaryTableSize; i++) {
     if (primary_[i].key == *name) {
       Map* map = primary_[i].map;
-      // Map can be NULL, if the stub is constant function call
+      // Map can be nullptr, if the stub is constant function call
       // with a primitive receiver.
-      if (map == NULL) continue;
+      if (map == nullptr) continue;
 
       int offset = PrimaryOffset(*name, map);
       if (entry(primary_, offset) == &primary_[i] &&
@@ -132,9 +132,9 @@ void StubCache::CollectMatchingMaps(SmallMapList* types, Handle<Name> name,
   for (int i = 0; i < kSecondaryTableSize; i++) {
     if (secondary_[i].key == *name) {
       Map* map = secondary_[i].map;
-      // Map can be NULL, if the stub is constant function call
+      // Map can be nullptr, if the stub is constant function call
       // with a primitive receiver.
-      if (map == NULL) continue;
+      if (map == nullptr) continue;
 
       // Lookup in primary table and skip duplicates.
       int primary_offset = PrimaryOffset(*name, map);
