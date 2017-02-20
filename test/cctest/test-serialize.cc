@@ -1986,6 +1986,7 @@ intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    reinterpret_cast<intptr_t>(&serialized_static_field),  // duplicate entry
     0};
 
 intptr_t replaced_external_references[] = {
@@ -1994,6 +1995,7 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&NamedPropertyGetterForSerialization),
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
+    reinterpret_cast<intptr_t>(&serialized_static_field),
     0};
 
 TEST(SnapshotCreatorExternalReferences) {

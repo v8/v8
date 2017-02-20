@@ -21,6 +21,8 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate);
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
+    // Ignore duplicate API references.
+    if (table->is_api_reference(i) && !map_->Get(addr).IsNothing()) continue;
     DCHECK(map_->Get(addr).IsNothing());
     map_->Set(addr, i);
     DCHECK(map_->Get(addr).IsJust());

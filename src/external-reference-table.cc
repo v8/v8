@@ -443,6 +443,7 @@ void ExternalReferenceTable::AddDeoptEntries(Isolate* isolate) {
 void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
   // Add external references provided by the embedder (a null-terminated
   // array).
+  api_refs_start_ = size();
   intptr_t* api_external_references = isolate->api_external_references();
   if (api_external_references != nullptr) {
     while (*api_external_references != 0) {
