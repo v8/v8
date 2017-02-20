@@ -1799,14 +1799,13 @@ void Heap::Scavenge() {
 }
 
 void Heap::ComputeFastPromotionMode(double survival_rate) {
-  if (new_space_->IsAtMaximumCapacity() && !FLAG_optimize_for_size) {
-    fast_promotion_mode_ =
-        FLAG_fast_promotion_new_space &&
-        survival_rate >= kMinPromotedPercentForFastPromotionMode;
-    if (FLAG_trace_gc_verbose) {
-      PrintIsolate(isolate(), "Fast promotion mode: %s survival rate: %f%%\n",
-                   fast_promotion_mode_ ? "true" : "false", survival_rate);
-    }
+  fast_promotion_mode_ =
+      !FLAG_optimize_for_size && FLAG_fast_promotion_new_space &&
+      new_space_->IsAtMaximumCapacity() &&
+      survival_rate >= kMinPromotedPercentForFastPromotionMode;
+  if (FLAG_trace_gc_verbose) {
+    PrintIsolate(isolate(), "Fast promotion mode: %s survival rate: %f%%\n",
+                 fast_promotion_mode_ ? "true" : "false", survival_rate);
   }
 }
 
