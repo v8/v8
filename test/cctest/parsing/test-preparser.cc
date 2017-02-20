@@ -440,6 +440,12 @@ TEST(PreParserScopeAnalysis) {
 
       // Hoisted sloppy block function shadowing a parameter.
       {"var1, var2", "for (;;) { function var1() { } }"},
+
+      // Eval in default parameter.
+      {"var1, var2 = eval(''), var3", "let var4 = 0;", true},
+      {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;", true},
+
+      // FIXME(marja): arguments parameter
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {

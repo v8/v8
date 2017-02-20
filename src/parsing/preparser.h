@@ -791,18 +791,37 @@ class PreParserFactory {
 
 struct PreParserFormalParameters : FormalParametersBase {
   struct Parameter : public ZoneObject {
-    Parameter(PreParserExpression pattern, bool is_destructuring, bool is_rest)
+    Parameter(PreParserExpression pattern, bool is_destructuring,
+              bool has_initializer, int initializer_start_position,
+              int initializer_end_position, bool is_rest)
         : pattern(pattern),
+          initializer_start_position(initializer_start_position),
+          initializer_end_position(initializer_end_position),
           is_destructuring(is_destructuring),
-          is_rest(is_rest) {}
+          has_initializer(has_initializer),
+          is_rest(is_rest) {
+      DCHECK_IMPLIES(is_rest, !has_initializer);
+      DCHECK_IMPLIES(has_initializer,
+                     initializer_start_position != kNoSourcePosition);
+      DCHECK_IMPLIES(has_initializer,
+                     initializer_end_position != kNoSourcePosition);
+    }
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
+
+    bool is_simple() const {
+      return !is_destructuring && !has_initializer && !is_rest;
+    }
+
     bool is_nondestructuring_rest() const {
       return is_rest && !is_destructuring;
     }
     PreParserExpression pattern;
+    int initializer_start_position;
+    int initializer_end_position;
     Parameter* next_parameter = nullptr;
     bool is_destructuring : 1;
+    bool has_initializer : 1;
     bool is_rest : 1;
   };
   explicit PreParserFormalParameters(DeclarationScope* scope)
@@ -1387,6 +1406,13 @@ class PreParser : public ParserBase<PreParser> {
     if (track_unresolved_variables_) {
       for (auto parameter : parameters.params) {
         if (parameter->is_nondestructuring_rest()) break;
+        if (!parameter->is_simple() && scope()->calls_sloppy_eval()) {
+          Scope* param_scope = NewVarblockScope();
+          param_scope->set_start_position(
+              parameter->initializer_start_position);
+          param_scope->set_end_position(parameter->initializer_end_position);
+          param_scope->RecordEvalCall();
+        }
         if (parameter->pattern.variables_ != nullptr) {
           for (auto variable : *parameter->pattern.variables_) {
             scope()->DeclareVariableName(variable->raw_name(), LET);
@@ -1610,12 +1636,14 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE void AddFormalParameter(PreParserFormalParameters* parameters,
                                     PreParserExpression pattern,
                                     PreParserExpression initializer,
+                                    int initializer_start_position,
                                     int initializer_end_position,
                                     bool is_rest) {
     if (track_unresolved_variables_) {
       DCHECK(FLAG_lazy_inner_functions);
       parameters->params.Add(new (zone()) PreParserFormalParameters::Parameter(
-          pattern, !IsIdentifier(pattern), is_rest));
+          pattern, !IsIdentifier(pattern), !IsEmptyExpression(initializer),
+          initializer_start_position, initializer_end_position, is_rest));
     }
     parameters->UpdateArityAndFunctionLength(!initializer.IsEmpty(), is_rest);
   }

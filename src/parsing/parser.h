@@ -1051,6 +1051,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE void AddFormalParameter(ParserFormalParameters* parameters,
                                     Expression* pattern,
                                     Expression* initializer,
+                                    int initializer_start_position,
                                     int initializer_end_position,
                                     bool is_rest) {
     parameters->UpdateArityAndFunctionLength(initializer != nullptr, is_rest);

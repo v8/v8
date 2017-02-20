@@ -2443,7 +2443,9 @@ void Parser::AddArrowFunctionFormalParameters(
     expr = assignment->target();
   }
 
-  AddFormalParameter(parameters, expr, initializer, end_pos, is_rest);
+  AddFormalParameter(parameters, expr, initializer,
+                     initializer ? initializer->position() : kNoSourcePosition,
+                     end_pos, is_rest);
 }
 
 void Parser::DeclareArrowFunctionFormalParameters(
