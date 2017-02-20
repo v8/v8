@@ -941,6 +941,7 @@ class RuntimeCallTimerScope {
   HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
   HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
   HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
   /* Asm/Wasm. */                                                             \
   HR(wasm_functions_per_module, V8.WasmFunctionsPerModule, 1, 10000, 51)
 

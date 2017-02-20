@@ -140,6 +140,13 @@ void GCTracer::ResetForTesting() {
   start_counter_ = 0;
 }
 
+void GCTracer::NotifyYoungGenerationHandling(
+    YoungGenerationHandling young_generation_handling) {
+  DCHECK(current_.type == Event::SCAVENGER || start_counter_ > 1);
+  heap_->isolate()->counters()->young_generation_handling()->AddSample(
+      static_cast<int>(young_generation_handling));
+}
+
 void GCTracer::Start(GarbageCollector collector,
                      GarbageCollectionReason gc_reason,
                      const char* collector_reason) {
