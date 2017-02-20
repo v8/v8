@@ -3161,8 +3161,7 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
              : result;
 }
 
-
-Context* JSReceiver::GetCreationContext() {
+Handle<Context> JSReceiver::GetCreationContext() {
   JSReceiver* receiver = this;
   while (receiver->IsJSBoundFunction()) {
     receiver = JSBoundFunction::cast(receiver)->bound_target_function();
@@ -3178,7 +3177,9 @@ Context* JSReceiver::GetCreationContext() {
     function = JSFunction::cast(receiver);
   }
 
-  return function->context()->native_context();
+  return function->has_context()
+             ? Handle<Context>(function->context()->native_context())
+             : Handle<Context>::null();
 }
 
 Handle<Object> Map::WrapFieldType(Handle<FieldType> type) {
@@ -5206,7 +5207,7 @@ Handle<Context> JSFunction::GetFunctionRealm(Handle<JSFunction> function) {
 MaybeHandle<Context> JSObject::GetFunctionRealm(Handle<JSObject> object) {
   DCHECK(object->map()->is_constructor());
   DCHECK(!object->IsJSFunction());
-  return handle(object->GetCreationContext());
+  return object->GetCreationContext();
 }
 
 

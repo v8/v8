@@ -2006,7 +2006,7 @@ class JSReceiver: public HeapObject {
   // function that was used to instantiate the object).
   static Handle<String> GetConstructorName(Handle<JSReceiver> receiver);
 
-  Context* GetCreationContext();
+  Handle<Context> GetCreationContext();
 
   MUST_USE_RESULT static inline Maybe<PropertyAttributes> GetPropertyAttributes(
       Handle<JSReceiver> object, Handle<Name> name);
@@ -7900,6 +7900,7 @@ class JSFunction: public JSObject {
 
   // [context]: The context for this function.
   inline Context* context();
+  inline bool has_context() const;
   inline void set_context(Object* context);
   inline JSObject* global_proxy();
   inline Context* native_context();

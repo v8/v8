@@ -27,6 +27,29 @@ void Constructor(const FunctionCallbackInfo<Value>& info) {
 
 }  // namespace
 
+TEST_F(RemoteObjectTest, CreationContextOfRemoteContext) {
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate());
+  global_template->SetAccessCheckCallbackAndHandler(
+      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
+      IndexedPropertyHandlerConfiguration());
+
+  Local<Object> remote_context =
+      Context::NewRemoteContext(isolate(), global_template).ToLocalChecked();
+  EXPECT_TRUE(remote_context->CreationContext().IsEmpty());
+}
+
+TEST_F(RemoteObjectTest, CreationContextOfRemoteObject) {
+  Local<FunctionTemplate> constructor_template =
+      FunctionTemplate::New(isolate(), Constructor);
+  constructor_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
+      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
+      IndexedPropertyHandlerConfiguration());
+
+  Local<Object> remote_object =
+      constructor_template->NewRemoteInstance().ToLocalChecked();
+  EXPECT_TRUE(remote_object->CreationContext().IsEmpty());
+}
+
 TEST_F(RemoteObjectTest, RemoteContextInstanceChecks) {
   Local<FunctionTemplate> parent_template =
       FunctionTemplate::New(isolate(), Constructor);

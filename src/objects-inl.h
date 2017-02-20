@@ -6463,6 +6463,9 @@ Context* JSFunction::context() {
   return Context::cast(READ_FIELD(this, kContextOffset));
 }
 
+bool JSFunction::has_context() const {
+  return READ_FIELD(this, kContextOffset)->IsContext();
+}
 
 JSObject* JSFunction::global_proxy() {
   return context()->global_proxy();

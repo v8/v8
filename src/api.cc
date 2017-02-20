@@ -5023,8 +5023,7 @@ Local<v8::Object> v8::Object::Clone() {
 
 Local<v8::Context> v8::Object::CreationContext() {
   auto self = Utils::OpenHandle(this);
-  auto context = handle(self->GetCreationContext());
-  return Utils::ToLocal(context);
+  return Utils::ToLocal(self->GetCreationContext());
 }
 
 
