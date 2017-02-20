@@ -694,6 +694,15 @@ void EscapeStatusAnalysis::Process(Node* node) {
           RevisitInputs(rep);
           RevisitUses(rep);
         }
+      } else {
+        Node* from = NodeProperties::GetValueInput(node, 0);
+        from = object_analysis_->ResolveReplacement(from);
+        if (SetEscaped(from)) {
+          TRACE("Setting #%d (%s) to escaped because of unresolved load #%i\n",
+                from->id(), from->op()->mnemonic(), node->id());
+          RevisitInputs(from);
+          RevisitUses(from);
+        }
       }
       RevisitUses(node);
       break;
@@ -898,7 +907,7 @@ EscapeAnalysis::EscapeAnalysis(Graph* graph, CommonOperatorBuilder* common,
 
 EscapeAnalysis::~EscapeAnalysis() {}
 
-void EscapeAnalysis::Run() {
+bool EscapeAnalysis::Run() {
   replacements_.resize(graph()->NodeCount());
   status_analysis_->AssignAliases();
   if (status_analysis_->AliasCount() > 0) {
@@ -907,6 +916,9 @@ void EscapeAnalysis::Run() {
     status_analysis_->ResizeStatusVector();
     RunObjectAnalysis();
     status_analysis_->RunStatusAnalysis();
+    return true;
+  } else {
+    return false;
   }
 }
 
