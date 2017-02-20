@@ -59,7 +59,7 @@ class DataRange {
     } else {
       const size_t num_bytes = std::min(sizeof(T), size());
       T result;
-      memcpy(&result, data_, sizeof(num_bytes));
+      memcpy(&result, data_, num_bytes);
       data_ += num_bytes;
       size_ -= num_bytes;
       return result;
