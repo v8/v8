@@ -669,39 +669,6 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
                           enable_guard_regions);
 }
 
-const char* wasm::SectionName(WasmSectionCode code) {
-  switch (code) {
-    case kUnknownSectionCode:
-      return "Unknown";
-    case kTypeSectionCode:
-      return "Type";
-    case kImportSectionCode:
-      return "Import";
-    case kFunctionSectionCode:
-      return "Function";
-    case kTableSectionCode:
-      return "Table";
-    case kMemorySectionCode:
-      return "Memory";
-    case kGlobalSectionCode:
-      return "Global";
-    case kExportSectionCode:
-      return "Export";
-    case kStartSectionCode:
-      return "Start";
-    case kCodeSectionCode:
-      return "Code";
-    case kElementSectionCode:
-      return "Element";
-    case kDataSectionCode:
-      return "Data";
-    case kNameSectionCode:
-      return "Name";
-    default:
-      return "<unknown>";
-  }
-}
-
 std::ostream& wasm::operator<<(std::ostream& os, const WasmModule& module) {
   os << "WASM module with ";
   os << (module.min_mem_pages * module.kPageSize) << " min mem";
