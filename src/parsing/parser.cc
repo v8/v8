@@ -181,8 +181,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   ZoneList<Statement*>* body = NULL;
 
   {
-    FunctionState function_state(&function_state_, &scope_state_,
-                                 function_scope);
+    FunctionState function_state(&function_state_, &scope_, function_scope);
 
     body = new (zone()) ZoneList<Statement*>(call_super ? 2 : 1, zone());
     if (call_super) {
@@ -657,7 +656,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   // Note that this function can be called from the main thread or from a
   // background thread. We should not access anything Isolate / heap dependent
   // via ParseInfo, and also not pass it forward.
-  DCHECK_NULL(scope_state_);
+  DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
 
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
@@ -681,7 +680,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
 
     scope->set_start_position(0);
 
-    FunctionState function_state(&function_state_, &scope_state_, scope);
+    FunctionState function_state(&function_state_, &scope_, scope);
 
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16, zone());
     bool ok = true;
@@ -823,7 +822,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
                                          const AstRawString* raw_name,
                                          Utf16CharacterStream* source) {
   scanner_.Initialize(source);
-  DCHECK_NULL(scope_state_);
+  DCHECK_NULL(scope_);
   DCHECK_NULL(target_stack_);
 
   DCHECK(ast_value_factory());
@@ -844,9 +843,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
     Scope* outer = original_scope_;
     DeclarationScope* outer_function = outer->GetClosureScope();
     DCHECK(outer);
-    FunctionState function_state(&function_state_, &scope_state_,
-                                 outer_function);
-    BlockState block_state(&scope_state_, outer);
+    FunctionState function_state(&function_state_, &scope_, outer_function);
+    BlockState block_state(&scope_, outer);
     DCHECK(is_sloppy(outer->language_mode()) ||
            is_strict(info->language_mode()));
     FunctionLiteral::FunctionType function_type = ComputeFunctionType(info);
@@ -886,7 +884,7 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Entrer arrow function
         // scope for formal parameter parsing.
-        BlockState block_state(&scope_state_, scope);
+        BlockState block_state(&scope_, scope);
         if (Check(Token::LPAREN)) {
           // '(' StrictFormalParameters ')'
           ParseFormalParameterList(&formals, &ok);
@@ -2252,7 +2250,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
   Block* inner_block = factory()->NewBlock(NULL, 3, false, kNoSourcePosition);
   {
-    BlockState block_state(&scope_state_, inner_scope);
+    BlockState block_state(&scope_, inner_scope);
 
     Block* ignore_completion_block = factory()->NewBlock(
         nullptr, for_info.bound_names.length() + 3, true, kNoSourcePosition);
@@ -2962,14 +2960,14 @@ Block* Parser::BuildParameterInitializationBlock(
                                        param_scope);
     }
 
-    BlockState block_state(&scope_state_, param_scope);
+    BlockState block_state(&scope_, param_scope);
     DeclarationParsingResult::Declaration decl(
         parameter->pattern, parameter->initializer_end_position, initial_value);
     PatternRewriter::DeclareAndInitializeVariables(
         this, param_block, &descriptor, &decl, nullptr, CHECK_OK);
 
     if (param_block != init_block) {
-      param_scope = block_state.FinalizedBlockScope();
+      param_scope = param_scope->FinalizeBlockScope();
       if (param_scope != nullptr) {
         CheckConflictingVarDeclarations(param_scope, CHECK_OK);
       }
@@ -3122,7 +3120,7 @@ ZoneList<Statement*>* Parser::ParseFunction(
     bool* has_duplicate_parameters, int* expected_property_count, bool* ok) {
   ParsingModeScope mode(this, allow_lazy_ ? PARSE_LAZILY : PARSE_EAGERLY);
 
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
 
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
@@ -3307,7 +3305,7 @@ void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   DCHECK(inner_scope->is_declaration_scope());
   Scope* function_scope = inner_scope->outer_scope();
   DCHECK(function_scope->is_function_scope());
-  BlockState block_state(&scope_state_, inner_scope);
+  BlockState block_state(&scope_, inner_scope);
   for (Declaration* decl : *inner_scope->declarations()) {
     if (decl->proxy()->var()->mode() != VAR || !decl->IsVariableDeclaration()) {
       continue;

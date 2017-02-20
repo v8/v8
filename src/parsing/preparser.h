@@ -905,7 +905,7 @@ class PreParser : public ParserBase<PreParser> {
   // captured the syntax error), and false if a stack-overflow happened
   // during parsing.
   PreParseResult PreParseProgram(bool is_module = false) {
-    DCHECK_NULL(scope_state_);
+    DCHECK_NULL(scope_);
     DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
     scope->set_is_being_lazily_parsed(true);
@@ -916,7 +916,7 @@ class PreParser : public ParserBase<PreParser> {
     // the global scope.
     if (is_module) scope = NewModuleScope(scope);
 
-    FunctionState top_scope(&function_state_, &scope_state_, scope);
+    FunctionState top_scope(&function_state_, &scope_, scope);
     bool ok = true;
     int start_position = scanner()->peek_location().beg_pos;
     parsing_module_ = is_module;

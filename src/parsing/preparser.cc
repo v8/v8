@@ -103,10 +103,11 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   ResetFunctionLiteralId();
 
   // The caller passes the function_scope which is not yet inserted into the
-  // scope_state_. All scopes above the function_scope are ignored by the
+  // scope stack. All scopes above the function_scope are ignored by the
   // PreParser.
-  DCHECK_NULL(scope_state_);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  DCHECK_NULL(function_state_);
+  DCHECK_NULL(scope_);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   // This indirection is needed so that we can use the CHECK_OK macros.
   bool ok_holder = true;
   bool* ok = &ok_holder;
@@ -143,7 +144,7 @@ PreParser::PreParseResult PreParser::PreParseFunction(
   }
 
   {
-    BlockState block_state(&scope_state_, inner_scope);
+    BlockState block_state(&scope_, inner_scope);
     result = ParseStatementListAndLogFunction(
         &formals, has_duplicate_parameters, may_abort, ok);
   }
@@ -234,7 +235,7 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
 
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
-  FunctionState function_state(&function_state_, &scope_state_, function_scope);
+  FunctionState function_state(&function_state_, &scope_, function_scope);
   DuplicateFinder duplicate_finder;
   ExpressionClassifier formals_classifier(this, &duplicate_finder);
   GetNextFunctionLiteralId();
