@@ -152,8 +152,9 @@ ValueSerializer::ValueSerializer(Isolate* isolate,
     : isolate_(isolate),
       delegate_(delegate),
       zone_(isolate->allocator(), ZONE_NAME),
-      id_map_(isolate->heap(), &zone_),
-      array_buffer_transfer_map_(isolate->heap(), &zone_) {}
+      id_map_(isolate->heap(), ZoneAllocationPolicy(&zone_)),
+      array_buffer_transfer_map_(isolate->heap(),
+                                 ZoneAllocationPolicy(&zone_)) {}
 
 ValueSerializer::~ValueSerializer() {
   if (buffer_) {

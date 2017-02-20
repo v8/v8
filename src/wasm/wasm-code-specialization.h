@@ -60,7 +60,7 @@ class CodeSpecialization {
   Handle<WasmInstanceObject> relocate_direct_calls_instance;
 
   bool has_objects_to_relocate = false;
-  IdentityMap<Handle<Object>> objects_to_relocate;
+  IdentityMap<Handle<Object>, ZoneAllocationPolicy> objects_to_relocate;
 };
 
 }  // namespace wasm

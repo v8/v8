@@ -59,7 +59,7 @@ class PatchDirectCallsHelper {
 }  // namespace
 
 CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone)
-    : objects_to_relocate(isolate->heap(), zone) {}
+    : objects_to_relocate(isolate->heap(), ZoneAllocationPolicy(zone)) {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
