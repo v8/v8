@@ -236,9 +236,6 @@ class V8_EXPORT_PRIVATE GCTracer {
   // Stop collecting data and print results.
   void Stop(GarbageCollector collector);
 
-  void NotifyYoungGenerationHandling(
-      YoungGenerationHandling young_generation_handling);
-
   // Sample and accumulate bytes allocated since the last GC.
   void SampleAllocation(double current_ms, size_t new_space_counter_bytes,
                         size_t old_generation_counter_bytes);

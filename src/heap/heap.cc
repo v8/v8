@@ -1358,17 +1358,10 @@ bool Heap::PerformGarbageCollection(
         MinorMarkCompact();
         break;
       case SCAVENGER:
-        if (fast_promotion_mode_ &&
-            CanExpandOldGeneration(new_space()->Size())) {
-          tracer()->NotifyYoungGenerationHandling(
-              YoungGenerationHandling::kFastPromotionDuringScavenge);
+        if (fast_promotion_mode_ && CanExpandOldGeneration(new_space()->Size()))
           EvacuateYoungGeneration();
-        } else {
-          tracer()->NotifyYoungGenerationHandling(
-              YoungGenerationHandling::kRegularScavenge);
-
+        else
           Scavenge();
-        }
         break;
     }
 
