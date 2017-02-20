@@ -19,6 +19,7 @@
 #include "src/asmjs/asm-wasm-builder.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -45,16 +46,6 @@ static const int kInvalidSigIndex = -1;
 
 byte* raw_buffer_ptr(MaybeHandle<JSArrayBuffer> buffer, int offset) {
   return static_cast<byte*>(buffer.ToHandleChecked()->backing_store()) + offset;
-}
-
-void ReplaceReferenceInCode(Handle<Code> code, Handle<Object> old_ref,
-                            Handle<Object> new_ref) {
-  for (RelocIterator it(*code, 1 << RelocInfo::EMBEDDED_OBJECT); !it.done();
-       it.next()) {
-    if (it.rinfo()->target_object() == *old_ref) {
-      it.rinfo()->set_target_object(*new_ref);
-    }
-  }
 }
 
 static void MemoryFinalizer(const v8::WeakCallbackInfo<void>& data) {
@@ -119,50 +110,6 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
   } else {
     void* memory = isolate->array_buffer_allocator()->Allocate(size);
     return memory;
-  }
-}
-
-void RelocateMemoryReferencesInCode(Handle<FixedArray> code_table,
-                                    uint32_t num_imported_functions,
-                                    Address old_start, Address start,
-                                    uint32_t prev_size, uint32_t new_size) {
-  for (int i = static_cast<int>(num_imported_functions);
-       i < code_table->length(); ++i) {
-    DCHECK(code_table->get(i)->IsCode());
-    Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
-    AllowDeferredHandleDereference embedding_raw_address;
-    int mask = (1 << RelocInfo::WASM_MEMORY_REFERENCE) |
-               (1 << RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
-    for (RelocIterator it(*code, mask); !it.done(); it.next()) {
-      it.rinfo()->update_wasm_memory_reference(old_start, start, prev_size,
-                                               new_size);
-    }
-  }
-}
-
-void RelocateGlobals(Handle<FixedArray> code_table, Address old_start,
-                     Address globals_start) {
-  for (int i = 0; i < code_table->length(); ++i) {
-    DCHECK(code_table->get(i)->IsCode());
-    Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
-    AllowDeferredHandleDereference embedding_raw_address;
-    int mask = 1 << RelocInfo::WASM_GLOBAL_REFERENCE;
-    for (RelocIterator it(*code, mask); !it.done(); it.next()) {
-      it.rinfo()->update_wasm_global_reference(old_start, globals_start);
-    }
-  }
-}
-
-void RelocateTableSizeReferences(Handle<FixedArray> code_table,
-                                 uint32_t old_size, uint32_t new_size) {
-  for (int i = 0; i < code_table->length(); ++i) {
-    DCHECK(code_table->get(i)->IsCode());
-    Handle<Code> code = Handle<Code>(Code::cast(code_table->get(i)));
-    AllowDeferredHandleDereference embedding_raw_address;
-    int mask = 1 << RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE;
-    for (RelocIterator it(*code, mask); !it.done(); it.next()) {
-      it.rinfo()->update_wasm_function_table_size_reference(old_size, new_size);
-    }
   }
 }
 
@@ -244,17 +191,6 @@ static void RecordStats(Isolate* isolate, Handle<FixedArray> functions) {
   for (int i = 0; i < functions->length(); ++i) {
     RecordStats(isolate, Code::cast(functions->get(i)));
   }
-}
-
-Address GetGlobalStartAddressFromCodeTemplate(Object* undefined,
-                                              JSObject* object) {
-  auto instance = WasmInstanceObject::cast(object);
-  Address old_address = nullptr;
-  if (instance->has_globals_buffer()) {
-    old_address =
-        static_cast<Address>(instance->globals_buffer()->backing_store());
-  }
-  return old_address;
 }
 
 void InitializeParallelCompilation(
@@ -415,185 +351,66 @@ void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
   }
 }
 
-int ExtractDirectCallIndex(wasm::Decoder& decoder, const byte* pc) {
-  DCHECK_EQ(static_cast<int>(kExprCallFunction), static_cast<int>(*pc));
-  decoder.Reset(pc + 1, pc + 6);
-  uint32_t call_idx = decoder.consume_u32v("call index");
-  DCHECK(decoder.ok());
-  DCHECK_GE(kMaxInt, call_idx);
-  return static_cast<int>(call_idx);
-}
-
-int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
-                                       size_t offset_l) {
-  DCHECK_GE(kMaxInt, offset_l);
-  int offset = static_cast<int>(offset_l);
-  DCHECK(!iterator.done());
-  int byte_pos;
-  do {
-    byte_pos = iterator.source_position().ScriptOffset();
-    iterator.Advance();
-  } while (!iterator.done() && iterator.code_offset() <= offset);
-  return byte_pos;
-}
-
-void PatchContext(RelocIterator& it, Context* context) {
-  Object* old = it.rinfo()->target_object();
-  // The only context we use is the native context.
-  DCHECK_IMPLIES(old->IsContext(), old->IsNativeContext());
-  if (!old->IsNativeContext()) return;
-  it.rinfo()->set_target_object(context, UPDATE_WRITE_BARRIER,
-                                SKIP_ICACHE_FLUSH);
-}
-
-void PatchDirectCallsAndContext(Handle<FixedArray> new_functions,
-                                Handle<WasmCompiledModule> compiled_module,
-                                WasmModule* module, int start) {
-  DisallowHeapAllocation no_gc;
-  AllowDeferredHandleDereference embedding_raw_address;
-  SeqOneByteString* module_bytes = compiled_module->module_bytes();
-  std::vector<WasmFunction>* wasm_functions =
-      &compiled_module->module()->functions;
-  DCHECK_EQ(wasm_functions->size() +
-                compiled_module->module()->num_exported_functions,
-            new_functions->length());
-  DCHECK_EQ(start, compiled_module->module()->num_imported_functions);
-  Context* context = compiled_module->ptr_to_native_context();
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-
-  // Allocate decoder outside of the loop and reuse it to decode all function
-  // indexes.
-  wasm::Decoder decoder(nullptr, nullptr);
-  int num_wasm_functions = static_cast<int>(wasm_functions->size());
-  int func_index = start;
-  // We patch WASM_FUNCTION and WASM_TO_JS_FUNCTION during re-instantiation,
-  // and illegal builtins initially and after deserialization.
-  auto is_at_wasm_call = [](RelocIterator& it) {
-    Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-    return code->kind() == Code::WASM_FUNCTION ||
-           code->kind() == Code::WASM_TO_JS_FUNCTION ||
-           code->builtin_index() == Builtins::kIllegal;
-  };
-
-  // Patch all wasm functions.
-  for (; func_index < num_wasm_functions; ++func_index) {
-    Code* wasm_function = Code::cast(new_functions->get(func_index));
-    DCHECK(wasm_function->kind() == Code::WASM_FUNCTION);
-    // Iterate simultaneously over the relocation information and the source
-    // position table. For each call in the reloc info, move the source position
-    // iterator forward to that position to find the byte offset of the
-    // respective call. Then extract the call index from the module wire bytes
-    // to find the new compiled function.
-    SourcePositionTableIterator source_pos_iterator(
-        wasm_function->source_position_table());
-    const byte* func_bytes =
-        module_bytes->GetChars() +
-        compiled_module->module()->functions[func_index].code_start_offset;
-    for (RelocIterator it(wasm_function, mode_mask); !it.done(); it.next()) {
-      if (RelocInfo::IsEmbeddedObject(it.rinfo()->rmode())) {
-        PatchContext(it, context);
-        continue;
-      }
-      DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
-      if (!is_at_wasm_call(it)) continue;
-      size_t offset = it.rinfo()->pc() - wasm_function->instruction_start();
-      int byte_pos =
-          AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
-      int called_func_index =
-          ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
-      Code* new_code = Code::cast(new_functions->get(called_func_index));
-      it.rinfo()->set_target_address(new_code->instruction_start(),
-                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-    }
-  }
-  // Patch all exported functions.
-  for (auto exp : module->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    Code* export_wrapper = Code::cast(new_functions->get(func_index));
-    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
-    // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
-    int num_wasm_calls = 0;
-    for (RelocIterator it(export_wrapper, mode_mask); !it.done(); it.next()) {
-      if (RelocInfo::IsEmbeddedObject(it.rinfo()->rmode())) {
-        PatchContext(it, context);
-        continue;
-      }
-      DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
-      if (!is_at_wasm_call(it)) continue;
-      ++num_wasm_calls;
-      Code* new_code = Code::cast(new_functions->get(exp.index));
-      DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
-             new_code->kind() == Code::WASM_TO_JS_FUNCTION);
-      it.rinfo()->set_target_address(new_code->instruction_start(),
-                                     UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-    }
-    DCHECK_EQ(1, num_wasm_calls);
-    func_index++;
-  }
-  DCHECK_EQ(new_functions->length(), func_index);
-}
-
 static void ResetCompiledModule(Isolate* isolate, WasmInstanceObject* owner,
                                 WasmCompiledModule* compiled_module) {
   TRACE("Resetting %d\n", compiled_module->instance_id());
   Object* undefined = *isolate->factory()->undefined_value();
-  uint32_t old_mem_size = compiled_module->mem_size();
-  uint32_t default_mem_size = compiled_module->default_mem_size();
-  Object* mem_start = compiled_module->maybe_ptr_to_memory();
-  Address old_mem_address = nullptr;
-  Address globals_start =
-      GetGlobalStartAddressFromCodeTemplate(undefined, owner);
-
-  // Reset function tables.
-  FixedArray* function_tables = nullptr;
-  FixedArray* empty_function_tables = nullptr;
-  if (compiled_module->has_function_tables()) {
-    function_tables = compiled_module->ptr_to_function_tables();
-    empty_function_tables = compiled_module->ptr_to_empty_function_tables();
-    compiled_module->set_ptr_to_function_tables(empty_function_tables);
-  }
-
-  if (old_mem_size > 0) {
-    CHECK_NE(mem_start, undefined);
-    old_mem_address =
-        static_cast<Address>(JSArrayBuffer::cast(mem_start)->backing_store());
-  }
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::WASM_MEMORY_SIZE_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_REFERENCE) |
-                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-
-  // Patch code to update memory references, global references, and function
-  // table references.
   Object* fct_obj = compiled_module->ptr_to_code_table();
-  if (fct_obj != nullptr && fct_obj != undefined &&
-      (old_mem_size > 0 || globals_start != nullptr || function_tables)) {
-    FixedArray* functions = FixedArray::cast(fct_obj);
-    for (int i = compiled_module->num_imported_functions();
-         i < functions->length(); ++i) {
-      Code* code = Code::cast(functions->get(i));
-      bool changed = false;
-      for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-        RelocInfo::Mode mode = it.rinfo()->rmode();
-        if (RelocInfo::IsWasmMemoryReference(mode) ||
-            RelocInfo::IsWasmMemorySizeReference(mode)) {
-          it.rinfo()->update_wasm_memory_reference(
-              old_mem_address, nullptr, old_mem_size, default_mem_size);
-          changed = true;
-        } else if (RelocInfo::IsWasmGlobalReference(mode)) {
-          it.rinfo()->update_wasm_global_reference(globals_start, nullptr);
-          changed = true;
-        } else if (RelocInfo::IsEmbeddedObject(mode) && function_tables) {
-          Object* old = it.rinfo()->target_object();
-          for (int j = 0; j < function_tables->length(); ++j) {
-            if (function_tables->get(j) == old) {
-              it.rinfo()->set_target_object(empty_function_tables->get(j));
-              changed = true;
-            }
-          }
-        }
+  if (fct_obj != nullptr && fct_obj != undefined) {
+    uint32_t old_mem_size = compiled_module->mem_size();
+    uint32_t default_mem_size = compiled_module->default_mem_size();
+    Object* mem_start = compiled_module->maybe_ptr_to_memory();
+
+    // Patch code to update memory references, global references, and function
+    // table references.
+    Zone specialization_zone(isolate->allocator(), ZONE_NAME);
+    CodeSpecialization code_specialization(isolate, &specialization_zone);
+
+    if (old_mem_size > 0) {
+      CHECK_NE(mem_start, undefined);
+      Address old_mem_address =
+          static_cast<Address>(JSArrayBuffer::cast(mem_start)->backing_store());
+      code_specialization.RelocateMemoryReferences(
+          old_mem_address, old_mem_size, nullptr, default_mem_size);
+    }
+
+    if (owner->has_globals_buffer()) {
+      Address globals_start =
+          static_cast<Address>(owner->globals_buffer()->backing_store());
+      code_specialization.RelocateGlobals(globals_start, nullptr);
+    }
+
+    // Reset function tables.
+    if (compiled_module->has_function_tables()) {
+      FixedArray* function_tables = compiled_module->ptr_to_function_tables();
+      FixedArray* empty_function_tables =
+          compiled_module->ptr_to_empty_function_tables();
+      DCHECK_EQ(function_tables->length(), empty_function_tables->length());
+      for (int i = 0, e = function_tables->length(); i < e; ++i) {
+        code_specialization.RelocateObject(
+            handle(function_tables->get(i), isolate),
+            handle(empty_function_tables->get(i), isolate));
       }
+      compiled_module->set_ptr_to_function_tables(empty_function_tables);
+    }
+
+    FixedArray* functions = FixedArray::cast(fct_obj);
+    for (int i = compiled_module->num_imported_functions(),
+             end = functions->length();
+         i < end; ++i) {
+      Code* code = Code::cast(functions->get(i));
+      if (code->kind() != Code::WASM_FUNCTION) {
+        // From here on, there should only be wrappers for exported functions.
+        for (; i < end; ++i) {
+          DCHECK_EQ(Code::JS_TO_WASM_FUNCTION,
+                    Code::cast(functions->get(i))->kind());
+        }
+        break;
+      }
+      bool changed =
+          code_specialization.ApplyToWasmCode(code, SKIP_ICACHE_FLUSH);
+      // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED
+      // above.
       if (changed) {
         Assembler::FlushICache(isolate, code->instruction_start(),
                                code->instruction_size());
@@ -1285,6 +1102,8 @@ class InstantiationHelper {
     //--------------------------------------------------------------------------
     // Allocate the instance object.
     //--------------------------------------------------------------------------
+    Zone instantiation_zone(isolate_->allocator(), ZONE_NAME);
+    CodeSpecialization code_specialization(isolate_, &instantiation_zone);
     Handle<WasmInstanceObject> instance =
         WasmInstanceObject::New(isolate_, compiled_module_);
 
@@ -1302,12 +1121,15 @@ class InstantiationHelper {
         thrower_->RangeError("Out of memory: wasm globals");
         return nothing;
       }
-      Address old_address =
-          owner.is_null() ? nullptr : GetGlobalStartAddressFromCodeTemplate(
-                                          isolate_->heap()->undefined_value(),
-                                          *owner.ToHandleChecked());
-      RelocateGlobals(code_table, old_address,
-                      static_cast<Address>(global_buffer->backing_store()));
+      Address old_globals_start = nullptr;
+      if (!owner.is_null()) {
+        DCHECK(owner.ToHandleChecked()->has_globals_buffer());
+        old_globals_start = static_cast<Address>(
+            owner.ToHandleChecked()->globals_buffer()->backing_store());
+      }
+      Address new_globals_start =
+          static_cast<Address>(global_buffer->backing_store());
+      code_specialization.RelocateGlobals(old_globals_start, new_globals_start);
       instance->set_globals_buffer(*global_buffer);
     }
 
@@ -1337,7 +1159,8 @@ class InstantiationHelper {
     //--------------------------------------------------------------------------
     // Set up the indirect function tables for the new instance.
     //--------------------------------------------------------------------------
-    if (function_table_count > 0) InitializeTables(code_table, instance);
+    if (function_table_count > 0)
+      InitializeTables(code_table, instance, &code_specialization);
 
     //--------------------------------------------------------------------------
     // Set up the memory for the new instance.
@@ -1402,9 +1225,8 @@ class InstantiationHelper {
               ? static_cast<Address>(
                     compiled_module_->memory()->backing_store())
               : nullptr;
-      RelocateMemoryReferencesInCode(
-          code_table, module_->num_imported_functions, old_mem_start, mem_start,
-          old_mem_size, mem_size);
+      code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
+                                                   mem_start, mem_size);
       compiled_module_->set_memory(memory_);
     }
 
@@ -1443,9 +1265,11 @@ class InstantiationHelper {
     //--------------------------------------------------------------------------
     if (function_table_count > 0) LoadTableSegments(code_table, instance);
 
-    // Patch new call sites and the context.
-    PatchDirectCallsAndContext(code_table, compiled_module_, module_,
-                               num_imported_functions);
+    // Patch all code with the relocations registered in code_specialization.
+    {
+      code_specialization.RelocateDirectCalls(instance);
+      code_specialization.ApplyToWholeInstance(*instance, SKIP_ICACHE_FLUSH);
+    }
 
     FlushICache(isolate_, code_table);
 
@@ -2142,7 +1966,8 @@ class InstantiationHelper {
   }
 
   void InitializeTables(Handle<FixedArray> code_table,
-                        Handle<WasmInstanceObject> instance) {
+                        Handle<WasmInstanceObject> instance,
+                        CodeSpecialization* code_specialization) {
     int function_table_count =
         static_cast<int>(module_->function_tables.size());
     Handle<FixedArray> new_function_tables =
@@ -2170,8 +1995,8 @@ class InstantiationHelper {
         // Table is imported, patch table bounds check
         DCHECK(table_size <= table_instance.function_table->length());
         if (table_size < table_instance.function_table->length()) {
-          RelocateTableSizeReferences(code_table, table_size,
-                                      table_instance.function_table->length());
+          code_specialization->PatchTableSize(
+              table_size, table_instance.function_table->length());
         }
       }
 
@@ -2181,23 +2006,23 @@ class InstantiationHelper {
                                 *table_instance.signature_table);
     }
 
-    // Patch all code that has references to the old indirect tables.
-    Handle<FixedArray> old_function_tables =
-        compiled_module_->function_tables();
-    Handle<FixedArray> old_signature_tables =
-        compiled_module_->signature_tables();
-    for (int i = 0; i < code_table->length(); ++i) {
-      if (!code_table->get(i)->IsCode()) continue;
-      Handle<Code> code(Code::cast(code_table->get(i)), isolate_);
-      for (int j = 0; j < function_table_count; ++j) {
-        ReplaceReferenceInCode(
-            code, Handle<Object>(old_function_tables->get(j), isolate_),
-            Handle<Object>(new_function_tables->get(j), isolate_));
-        ReplaceReferenceInCode(
-            code, Handle<Object>(old_signature_tables->get(j), isolate_),
-            Handle<Object>(new_signature_tables->get(j), isolate_));
-      }
+    FixedArray* old_function_tables =
+        compiled_module_->ptr_to_function_tables();
+    DCHECK_EQ(old_function_tables->length(), new_function_tables->length());
+    for (int i = 0, e = new_function_tables->length(); i < e; ++i) {
+      code_specialization->RelocateObject(
+          handle(old_function_tables->get(i), isolate_),
+          handle(new_function_tables->get(i), isolate_));
     }
+    FixedArray* old_signature_tables =
+        compiled_module_->ptr_to_signature_tables();
+    DCHECK_EQ(old_signature_tables->length(), new_signature_tables->length());
+    for (int i = 0, e = new_signature_tables->length(); i < e; ++i) {
+      code_specialization->RelocateObject(
+          handle(old_signature_tables->get(i), isolate_),
+          handle(new_signature_tables->get(i), isolate_));
+    }
+
     compiled_module_->set_function_tables(new_function_tables);
     compiled_module_->set_signature_tables(new_signature_tables);
   }
@@ -2388,15 +2213,15 @@ void UncheckedUpdateInstanceMemory(Isolate* isolate,
                                    Handle<WasmInstanceObject> instance,
                                    Address old_mem_start, uint32_t old_size) {
   DCHECK(instance->has_memory_buffer());
-  Handle<JSArrayBuffer> new_buffer(instance->memory_buffer());
-  uint32_t new_size = new_buffer->byte_length()->Number();
-  DCHECK(new_size <= std::numeric_limits<uint32_t>::max());
-  Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
+  Handle<JSArrayBuffer> mem_buffer(instance->memory_buffer());
+  uint32_t new_size = mem_buffer->byte_length()->Number();
+  Address new_mem_start = static_cast<Address>(mem_buffer->backing_store());
   DCHECK_NOT_NULL(new_mem_start);
-  Handle<FixedArray> code_table = instance->compiled_module()->code_table();
-  RelocateMemoryReferencesInCode(
-      code_table, instance->compiled_module()->module()->num_imported_functions,
-      old_mem_start, new_mem_start, old_size, new_size);
+  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
+  CodeSpecialization code_specialization(isolate, &specialization_zone);
+  code_specialization.RelocateMemoryReferences(old_mem_start, old_size,
+                                               new_mem_start, new_size);
+  code_specialization.ApplyToWholeInstance(*instance);
 }
 
 void DetachArrayBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer) {
@@ -2534,6 +2359,8 @@ void wasm::GrowDispatchTables(Isolate* isolate,
                               Handle<FixedArray> dispatch_tables,
                               uint32_t old_size, uint32_t count) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
+
+  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
     Handle<FixedArray> old_function_table(
         FixedArray::cast(dispatch_tables->get(i + 2)));
@@ -2544,25 +2371,18 @@ void wasm::GrowDispatchTables(Isolate* isolate,
     Handle<FixedArray> new_signature_table =
         isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count);
 
-    // Get code table for the instance
-    Handle<WasmInstanceObject> instance(
-        WasmInstanceObject::cast(dispatch_tables->get(i)));
-    Handle<FixedArray> code_table(instance->compiled_module()->code_table());
-
-    // Relocate size references
-    RelocateTableSizeReferences(code_table, old_size, old_size + count);
-
-    // Replace references of old tables with new tables.
-    for (int j = 0; j < code_table->length(); ++j) {
-      if (!code_table->get(j)->IsCode()) continue;
-      Handle<Code> code = Handle<Code>(Code::cast(code_table->get(j)));
-      ReplaceReferenceInCode(code, old_function_table, new_function_table);
-      ReplaceReferenceInCode(code, old_signature_table, new_signature_table);
-    }
-
     // Update dispatch tables with new function/signature tables
     dispatch_tables->set(i + 2, *new_function_table);
     dispatch_tables->set(i + 3, *new_signature_table);
+
+    // Patch the code of the respective instance.
+    CodeSpecialization code_specialization(isolate, &specialization_zone);
+    code_specialization.PatchTableSize(old_size, old_size + count);
+    code_specialization.RelocateObject(old_function_table, new_function_table);
+    code_specialization.RelocateObject(old_signature_table,
+                                       new_signature_table);
+    code_specialization.ApplyToWholeInstance(
+        WasmInstanceObject::cast(dispatch_tables->get(i)));
   }
 }
 

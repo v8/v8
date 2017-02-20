@@ -1315,6 +1315,8 @@
         'wasm/module-decoder.h',
         'wasm/signature-map.cc',
         'wasm/signature-map.h',
+        'wasm/wasm-code-specialization.h',
+        'wasm/wasm-code-specialization.cc',
         'wasm/wasm-debug.cc',
         'wasm/wasm-external-refs.cc',
         'wasm/wasm-external-refs.h',
