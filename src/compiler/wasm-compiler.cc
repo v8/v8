@@ -4011,13 +4011,6 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   return source_position_table;
 }
 
-char* WasmCompilationUnit::GetTaggedFunctionName(
-    const wasm::WasmFunction* function) {
-  snprintf(function_name_, sizeof(function_name_), "wasm#%d",
-           function->func_index);
-  return function_name_;
-}
-
 WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
                                          Isolate* isolate,
                                          wasm::ModuleBytesEnv* module_env,
@@ -4038,7 +4031,7 @@ WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
       compilation_zone_(isolate->allocator(), ZONE_NAME),
       info_(function->name_length != 0
                 ? module_env->wire_bytes.GetNameOrNull(function)
-                : CStrVector(GetTaggedFunctionName(function)),
+                : ArrayVector("wasm"),
             isolate, &compilation_zone_,
             Code::ComputeFlags(Code::WASM_FUNCTION)),
       job_(),
