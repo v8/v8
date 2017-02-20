@@ -451,16 +451,13 @@ Node* InterpreterAssembler::BytecodeOperandImmSmi(int operand_index) {
   return SmiFromWord32(BytecodeOperandImm(operand_index));
 }
 
-Node* InterpreterAssembler::BytecodeOperandIdxInt32(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
   DCHECK(OperandType::kIdx ==
          Bytecodes::GetOperandType(bytecode_, operand_index));
   OperandSize operand_size =
       Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
-  return BytecodeUnsignedOperand(operand_index, operand_size);
-}
-
-Node* InterpreterAssembler::BytecodeOperandIdx(int operand_index) {
-  return ChangeUint32ToWord(BytecodeOperandIdxInt32(operand_index));
+  return ChangeUint32ToWord(
+      BytecodeUnsignedOperand(operand_index, operand_size));
 }
 
 Node* InterpreterAssembler::BytecodeOperandIdxSmi(int operand_index) {

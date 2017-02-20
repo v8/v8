@@ -226,7 +226,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaSmi), I8(42),
                 B(Star), R(6),
-  /*   32 E> */ B(Call1), R(4), R(5), R(6), U8(2),
+  /*   32 E> */ B(Call), R(4), R(5), U8(2), U8(2),
                 B(Ldar), R(closure),
                 B(CreateBlockContext), U8(2),
                 B(PushContext), R(1),
@@ -244,7 +244,7 @@ bytecodes: [
                 B(Star), R(4),
                 B(LdaSmi), I8(42),
                 B(Star), R(6),
-  /*   52 E> */ B(Call1), R(4), R(5), R(6), U8(4),
+  /*   52 E> */ B(Call), R(4), R(5), U8(2), U8(4),
                 B(PopContext), R(1),
                 B(LdaUndefined),
   /*   64 S> */ B(Return),
@@ -853,7 +853,7 @@ snippet: "
 "
 frame size: 9
 parameter count: 2
-bytecode array length: 171
+bytecode array length: 170
 bytecodes: [
                 B(Ldar), R(new_target),
                 B(JumpIfUndefined), U8(28),
@@ -924,7 +924,7 @@ bytecodes: [
                 B(Star), R(6),
   /*   41 E> */ B(LdaNamedProperty), R(6), U8(2), U8(6),
                 B(Star), R(6),
-  /*   31 E> */ B(CallProperty2), R(3), R(4), R(5), R(6), U8(2),
+  /*   31 E> */ B(CallProperty), R(3), R(4), U8(3), U8(2),
                 B(LdaUndefined),
   /*   45 S> */ B(Return),
 ]
