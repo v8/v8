@@ -3584,11 +3584,36 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   Handle<JSObject> atomics_object = factory->NewJSObject(cons, TENURED);
   DCHECK(atomics_object->IsJSObject());
   JSObject::AddProperty(global, name, atomics_object, DONT_ENUM);
+  JSObject::AddProperty(atomics_object, factory->to_string_tag_symbol(), name,
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("load"),
                         Builtins::kAtomicsLoad, 2, true);
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("store"),
                         Builtins::kAtomicsStore, 3, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("add"),
+                        Builtins::kAtomicsAdd, 3, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("sub"),
+                        Builtins::kAtomicsSub, 3, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("and"),
+                        Builtins::kAtomicsAnd, 3, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("or"),
+                        Builtins::kAtomicsOr, 3, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("xor"),
+                        Builtins::kAtomicsXor, 3, true);
+  SimpleInstallFunction(atomics_object,
+                        factory->InternalizeUtf8String("exchange"),
+                        Builtins::kAtomicsExchange, 3, true);
+  SimpleInstallFunction(atomics_object,
+                        factory->InternalizeUtf8String("compareExchange"),
+                        Builtins::kAtomicsCompareExchange, 4, true);
+  SimpleInstallFunction(atomics_object,
+                        factory->InternalizeUtf8String("isLockFree"),
+                        Builtins::kAtomicsIsLockFree, 1, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("wait"),
+                        Builtins::kAtomicsWait, 4, true);
+  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("wake"),
+                        Builtins::kAtomicsWake, 3, true);
 }
 
 void Genesis::InitializeGlobal_harmony_array_prototype_values() {
@@ -4195,8 +4220,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
 bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_tailcalls_natives[] = {nullptr};
-  static const char* harmony_sharedarraybuffer_natives[] = {
-      "native harmony-atomics.js", NULL};
+  static const char* harmony_sharedarraybuffer_natives[] = {nullptr};
   static const char* harmony_do_expressions_natives[] = {nullptr};
   static const char* harmony_regexp_lookbehind_natives[] = {nullptr};
   static const char* harmony_regexp_named_captures_natives[] = {nullptr};
