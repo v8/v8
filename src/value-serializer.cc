@@ -1624,10 +1624,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   MaybeHandle<JSObject> result;
   {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    result = wasm::CreateModuleObjectFromBytes(
-        isolate_, wire_bytes.begin(), wire_bytes.end(), &thrower,
-        wasm::ModuleOrigin::kWasmOrigin, Handle<Script>::null(),
-        Vector<const byte>::empty());
+    result = wasm::SyncCompile(isolate_, &thrower,
+                               wasm::ModuleWireBytes(wire_bytes));
   }
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
   return result;

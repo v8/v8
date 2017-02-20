@@ -7599,11 +7599,8 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
                                                            size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Deserialize()");
-  i::MaybeHandle<i::JSObject> maybe_compiled =
-      i::wasm::CreateModuleObjectFromBytes(
-          i_isolate, start, start + length, &thrower,
-          i::wasm::ModuleOrigin::kWasmOrigin, i::Handle<i::Script>::null(),
-          i::Vector<const uint8_t>::empty());
+  i::MaybeHandle<i::JSObject> maybe_compiled = i::wasm::SyncCompile(
+      i_isolate, &thrower, i::wasm::ModuleWireBytes(start, start + length));
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));

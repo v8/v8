@@ -188,9 +188,10 @@ MaybeHandle<FixedArray> AsmJs::CompileAsmViaWasm(CompilationInfo* info) {
 
   base::ElapsedTimer compile_timer;
   compile_timer.Start();
-  MaybeHandle<JSObject> compiled = wasm::CreateModuleObjectFromBytes(
-      info->isolate(), module->begin(), module->end(), &thrower,
-      internal::wasm::kAsmJsOrigin, info->script(), asm_offsets_vec);
+  MaybeHandle<JSObject> compiled = SyncCompileTranslatedAsmJs(
+      info->isolate(), &thrower,
+      wasm::ModuleWireBytes(module->begin(), module->end()), info->script(),
+      asm_offsets_vec);
   DCHECK(!compiled.is_null());
   double compile_time = compile_timer.Elapsed().InMillisecondsF();
   DCHECK_GE(module->end(), module->begin());
@@ -276,8 +277,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(i::Isolate* isolate,
   }
 
   i::MaybeHandle<i::Object> maybe_module_object =
-      i::wasm::WasmModule::Instantiate(isolate, &thrower, module, ffi_object,
-                                       memory);
+      i::wasm::SyncInstantiate(isolate, &thrower, module, ffi_object, memory);
   if (maybe_module_object.is_null()) {
     return MaybeHandle<Object>();
   }

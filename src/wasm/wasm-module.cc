@@ -898,23 +898,23 @@ int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
 WasmModule::WasmModule(Zone* owned)
     : owned_zone(owned), pending_tasks(new base::Semaphore(0)) {}
 
-MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
-    Isolate* isolate, Handle<WasmModuleWrapper> module_wrapper,
-    ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
-    Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) const {
+MaybeHandle<WasmModuleObject> CompileToModuleObject(
+    Isolate* isolate, WasmModule* m, ErrorThrower* thrower,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+    Vector<const byte> asm_js_offset_table_bytes) {
   Factory* factory = isolate->factory();
-
-  MaybeHandle<WasmCompiledModule> nothing;
-
-  WasmInstance temp_instance(this);
+  MaybeHandle<WasmModuleObject> nothing;
+  // The {module_wrapper} will take ownership of the {WasmModule} object,
+  // and it will be destroyed when the GC reclaims the wrapper object.
+  Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(isolate, m);
+  WasmInstance temp_instance(m);
   temp_instance.context = isolate->native_context();
-  temp_instance.mem_size = WasmModule::kPageSize * min_mem_pages;
+  temp_instance.mem_size = WasmModule::kPageSize * m->min_mem_pages;
   temp_instance.mem_start = nullptr;
   temp_instance.globals_start = nullptr;
 
   // Initialize the indirect tables with placeholders.
-  int function_table_count = static_cast<int>(function_tables.size());
+  int function_table_count = static_cast<int>(m->function_tables.size());
   Handle<FixedArray> function_tables =
       factory->NewFixedArray(function_table_count, TENURED);
   Handle<FixedArray> signature_tables =
@@ -929,25 +929,25 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   HistogramTimerScope wasm_compile_module_time_scope(
       isolate->counters()->wasm_compile_module_time());
 
-  ModuleBytesEnv module_env(this, &temp_instance, wire_bytes);
+  ModuleBytesEnv module_env(m, &temp_instance, wire_bytes);
 
   // The {code_table} array contains import wrappers and functions (which
   // are both included in {functions.size()}, and export wrappers.
   int code_table_size =
-      static_cast<int>(functions.size() + num_exported_functions);
+      static_cast<int>(m->functions.size() + m->num_exported_functions);
   Handle<FixedArray> code_table =
       factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
 
   // Initialize the code table with the illegal builtin. All call sites will be
   // patched at instantiation.
   Handle<Code> illegal_builtin = isolate->builtins()->Illegal();
-  for (uint32_t i = 0; i < functions.size(); ++i) {
+  for (uint32_t i = 0; i < m->functions.size(); ++i) {
     code_table->set(static_cast<int>(i), *illegal_builtin);
     temp_instance.function_code[i] = illegal_builtin;
   }
 
   isolate->counters()->wasm_functions_per_module()->AddSample(
-      static_cast<int>(functions.size()));
+      static_cast<int>(m->functions.size()));
   if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0) {
     // Avoid a race condition by collecting results into a second vector.
     std::vector<Handle<Code>> results(temp_instance.function_code);
@@ -1002,39 +1002,40 @@ MaybeHandle<WasmCompiledModule> WasmModule::CompileFunctions(
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
-  Handle<WasmCompiledModule> ret = WasmCompiledModule::New(isolate, shared);
-  ret->set_num_imported_functions(num_imported_functions);
-  ret->set_code_table(code_table);
-  ret->set_min_mem_pages(min_mem_pages);
-  ret->set_max_mem_pages(max_mem_pages);
+  Handle<WasmCompiledModule> compiled_module =
+      WasmCompiledModule::New(isolate, shared);
+  compiled_module->set_num_imported_functions(m->num_imported_functions);
+  compiled_module->set_code_table(code_table);
+  compiled_module->set_min_mem_pages(m->min_mem_pages);
+  compiled_module->set_max_mem_pages(m->max_mem_pages);
   if (function_table_count > 0) {
-    ret->set_function_tables(function_tables);
-    ret->set_signature_tables(signature_tables);
-    ret->set_empty_function_tables(function_tables);
+    compiled_module->set_function_tables(function_tables);
+    compiled_module->set_signature_tables(signature_tables);
+    compiled_module->set_empty_function_tables(function_tables);
   }
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
   if (asm_js_script.is_null()) {
-    script->set_wasm_compiled_module(*ret);
+    script->set_wasm_compiled_module(*compiled_module);
     isolate->debug()->OnAfterCompile(script);
   }
 
   // Compile JS->WASM wrappers for exported functions.
   int func_index = 0;
-  for (auto exp : export_table) {
+  for (auto exp : m->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Handle<Code> wasm_code =
         code_table->GetValueChecked<Code>(isolate, exp.index);
     Handle<Code> wrapper_code =
-        compiler::CompileJSToWasmWrapper(isolate, this, wasm_code, exp.index);
-    int export_index = static_cast<int>(functions.size() + func_index);
+        compiler::CompileJSToWasmWrapper(isolate, m, wasm_code, exp.index);
+    int export_index = static_cast<int>(m->functions.size() + func_index);
     code_table->set(export_index, *wrapper_code);
     RecordStats(isolate, *wrapper_code);
     func_index++;
   }
 
-  return ret;
+  return WasmModuleObject::New(isolate, compiled_module);
 }
 
 static WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
@@ -1139,17 +1140,20 @@ void wasm::UpdateDispatchTables(Isolate* isolate,
 // A helper class to simplify instantiating a module from a compiled module.
 // It closes over the {Isolate}, the {ErrorThrower}, the {WasmCompiledModule},
 // etc.
-class WasmInstanceBuilder {
+class InstantiationHelper {
  public:
-  WasmInstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
+  InstantiationHelper(Isolate* isolate, ErrorThrower* thrower,
                       Handle<WasmModuleObject> module_object,
-                      Handle<JSReceiver> ffi, Handle<JSArrayBuffer> memory)
+                      MaybeHandle<JSReceiver> ffi,
+                      MaybeHandle<JSArrayBuffer> memory)
       : isolate_(isolate),
         module_(module_object->compiled_module()->module()),
         thrower_(thrower),
         module_object_(module_object),
-        ffi_(ffi),
-        memory_(memory) {}
+        ffi_(ffi.is_null() ? Handle<JSReceiver>::null()
+                           : ffi.ToHandleChecked()),
+        memory_(memory.is_null() ? Handle<JSArrayBuffer>::null()
+                                 : memory.ToHandleChecked()) {}
 
   // Build an instance, in all of its glory.
   MaybeHandle<WasmInstanceObject> Build() {
@@ -1526,8 +1530,8 @@ class WasmInstanceBuilder {
   WasmModule* const module_;
   ErrorThrower* thrower_;
   Handle<WasmModuleObject> module_object_;
-  Handle<JSReceiver> ffi_;
-  Handle<JSArrayBuffer> memory_;
+  Handle<JSReceiver> ffi_;        // TODO(titzer): Use MaybeHandle
+  Handle<JSArrayBuffer> memory_;  // TODO(titzer): Use MaybeHandle
   Handle<JSArrayBuffer> globals_;
   Handle<WasmCompiledModule> compiled_module_;
   std::vector<TableInstance> table_instances_;
@@ -2243,16 +2247,6 @@ class WasmInstanceBuilder {
   }
 };
 
-// Instantiates a WASM module, creating a WebAssembly.Instance from a
-// WebAssembly.Module.
-MaybeHandle<WasmInstanceObject> WasmModule::Instantiate(
-    Isolate* isolate, ErrorThrower* thrower,
-    Handle<WasmModuleObject> wasm_module, Handle<JSReceiver> ffi,
-    Handle<JSArrayBuffer> memory) {
-  WasmInstanceBuilder builder(isolate, thrower, wasm_module, ffi, memory);
-  return builder.Build();
-}
-
 bool wasm::IsWasmInstance(Object* object) {
   return WasmInstanceObject::IsWasmInstanceObject(object);
 }
@@ -2266,57 +2260,6 @@ Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
 bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   return isolate->allow_code_gen_callback() == nullptr ||
          isolate->allow_code_gen_callback()(v8::Utils::ToLocal(context));
-}
-
-// TODO(clemensh): origin can be inferred from asm_js_script; remove it.
-MaybeHandle<WasmModuleObject> wasm::CreateModuleObjectFromBytes(
-    Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
-    ModuleOrigin origin, Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) {
-  MaybeHandle<WasmModuleObject> nothing;
-
-  if (origin != kAsmJsOrigin &&
-      !IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    thrower->CompileError("Wasm code generation disallowed in this context");
-    return nothing;
-  }
-
-  ModuleResult result = DecodeWasmModule(isolate, start, end, false, origin);
-  if (result.failed()) {
-    if (result.val) delete result.val;
-    thrower->CompileFailed("Wasm decoding failed", result);
-    return nothing;
-  }
-
-  // The {module_wrapper} will take ownership of the {WasmModule} object,
-  // and it will be destroyed when the GC reclaims the wrapper object.
-  Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::New(isolate, const_cast<WasmModule*>(result.val));
-
-  // Compile the functions of the module, producing a compiled module.
-  MaybeHandle<WasmCompiledModule> maybe_compiled_module =
-      result.val->CompileFunctions(isolate, module_wrapper, thrower,
-                                   ModuleWireBytes(start, end), asm_js_script,
-                                   asm_js_offset_table_bytes);
-
-  if (maybe_compiled_module.is_null()) return nothing;
-
-  Handle<WasmCompiledModule> compiled_module =
-      maybe_compiled_module.ToHandleChecked();
-
-  return WasmModuleObject::New(isolate, compiled_module);
-}
-
-bool wasm::ValidateModuleBytes(Isolate* isolate, const byte* start,
-                               const byte* end, ErrorThrower* thrower,
-                               ModuleOrigin origin) {
-  ModuleResult result = DecodeWasmModule(isolate, start, end, true, origin);
-  if (result.val) {
-    delete result.val;
-  } else {
-    DCHECK(!result.ok());
-  }
-  return result.ok();
 }
 
 MaybeHandle<JSArrayBuffer> wasm::GetInstanceMemory(
@@ -2824,4 +2767,144 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
   }
 
   return array_object;
+}
+
+bool wasm::SyncValidate(Isolate* isolate, ErrorThrower* thrower,
+                        const ModuleWireBytes& bytes) {
+  if (bytes.start() == nullptr || bytes.length() == 0) return false;
+  ModuleResult result =
+      DecodeWasmModule(isolate, bytes.start(), bytes.end(), true, kWasmOrigin);
+  if (result.val) delete result.val;
+  return result.ok();
+}
+
+MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
+    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
+    Handle<Script> asm_js_script,
+    Vector<const byte> asm_js_offset_table_bytes) {
+  MaybeHandle<WasmModuleObject> nothing;
+
+  ModuleResult result = DecodeWasmModule(isolate, bytes.start(), bytes.end(),
+                                         false, kAsmJsOrigin);
+  if (result.failed()) {
+    // TODO(titzer): use Result<std::unique_ptr<const WasmModule*>>?
+    if (result.val) delete result.val;
+    thrower->CompileFailed("Wasm decoding failed", result);
+    return nothing;
+  }
+
+  return CompileToModuleObject(isolate, const_cast<WasmModule*>(result.val),
+                               thrower, bytes, asm_js_script,
+                               asm_js_offset_table_bytes);
+}
+
+MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
+                                                ErrorThrower* thrower,
+                                                const ModuleWireBytes& bytes) {
+  MaybeHandle<WasmModuleObject> nothing;
+
+  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
+    thrower->CompileError("Wasm code generation disallowed in this context");
+    return nothing;
+  }
+
+  ModuleResult result =
+      DecodeWasmModule(isolate, bytes.start(), bytes.end(), false, kWasmOrigin);
+  if (result.failed()) {
+    if (result.val) delete result.val;
+    thrower->CompileFailed("Wasm decoding failed", result);
+    return nothing;
+  }
+
+  return CompileToModuleObject(isolate, const_cast<WasmModule*>(result.val),
+                               thrower, bytes, Handle<Script>(),
+                               Vector<const byte>());
+}
+
+MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
+    Isolate* isolate, ErrorThrower* thrower,
+    Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
+    MaybeHandle<JSArrayBuffer> memory) {
+  InstantiationHelper helper(isolate, thrower, module_object, imports, memory);
+  return helper.Build();
+}
+
+void RejectPromise(Isolate* isolate, ErrorThrower* thrower,
+                   Handle<JSPromise> promise) {
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
+  Handle<Context> context(isolate->context(), isolate);
+  resolver->Reject(v8::Utils::ToLocal(context),
+                   v8::Utils::ToLocal(thrower->Reify()));
+}
+
+void ResolvePromise(Isolate* isolate, Handle<JSPromise> promise,
+                    Handle<Object> result) {
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
+  Handle<Context> context(isolate->context(), isolate);
+  resolver->Resolve(v8::Utils::ToLocal(context), v8::Utils::ToLocal(result));
+}
+
+void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
+                        const ModuleWireBytes& bytes) {
+  ErrorThrower thrower(isolate, nullptr);
+  MaybeHandle<WasmModuleObject> module_object =
+      SyncCompile(isolate, &thrower, bytes);
+  if (thrower.error()) {
+    RejectPromise(isolate, &thrower, promise);
+    return;
+  }
+  ResolvePromise(isolate, promise, module_object.ToHandleChecked());
+}
+
+void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
+                            Handle<WasmModuleObject> module_object,
+                            MaybeHandle<JSReceiver> imports) {
+  ErrorThrower thrower(isolate, nullptr);
+  MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
+      isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
+  if (thrower.error()) {
+    RejectPromise(isolate, &thrower, promise);
+    return;
+  }
+  ResolvePromise(isolate, promise, instance_object.ToHandleChecked());
+}
+
+void wasm::AsyncCompileAndInstantiate(Isolate* isolate,
+                                      Handle<JSPromise> promise,
+                                      const ModuleWireBytes& bytes,
+                                      MaybeHandle<JSReceiver> imports) {
+  ErrorThrower thrower(isolate, nullptr);
+
+  // Compile the module.
+  MaybeHandle<WasmModuleObject> module_object =
+      SyncCompile(isolate, &thrower, bytes);
+  if (thrower.error()) {
+    RejectPromise(isolate, &thrower, promise);
+    return;
+  }
+  Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+
+  // Instantiate the module.
+  MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
+      isolate, &thrower, module, imports, Handle<JSArrayBuffer>::null());
+  if (thrower.error()) {
+    RejectPromise(isolate, &thrower, promise);
+    return;
+  }
+
+  Handle<JSFunction> object_function =
+      Handle<JSFunction>(isolate->native_context()->object_function(), isolate);
+  Handle<JSObject> ret =
+      isolate->factory()->NewJSObject(object_function, TENURED);
+  Handle<String> module_property_name =
+      isolate->factory()->InternalizeUtf8String("module");
+  Handle<String> instance_property_name =
+      isolate->factory()->InternalizeUtf8String("instance");
+  JSObject::AddProperty(ret, module_property_name, module, NONE);
+  JSObject::AddProperty(ret, instance_property_name,
+                        instance_object.ToHandleChecked(), NONE);
+
+  ResolvePromise(isolate, promise, ret);
 }
