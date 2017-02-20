@@ -264,30 +264,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeHasInstance(Node* node) {
 
 namespace {
 
-// TODO(turbofan): Share with similar functionality in JSInliningHeuristic
-// and JSNativeContextSpecialization, i.e. move to NodeProperties helper?!
-MaybeHandle<Map> InferReceiverMap(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  // Check if the {node} is dominated by a CheckMaps with a single map
-  // for the {receiver}, and if so use that map for the lowering below.
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      if (dominator->op()->ValueInputCount() == 2) {
-        HeapObjectMatcher m(dominator->InputAt(1));
-        if (m.HasValue()) return Handle<Map>::cast(m.Value());
-      }
-      return MaybeHandle<Map>();
-    }
-    if (dominator->op()->EffectInputCount() != 1) {
-      // Didn't find any appropriate CheckMaps node.
-      return MaybeHandle<Map>();
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
-  }
-}
-
 bool CanInlineApiCall(Isolate* isolate, Node* node,
                       Handle<FunctionTemplateInfo> function_template_info) {
   DCHECK(node->opcode() == IrOpcode::kJSCall);
@@ -344,19 +320,27 @@ JSCallReducer::HolderLookup JSCallReducer::LookupHolder(
 // ES6 section B.2.2.1.1 get Object.prototype.__proto__
 Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
 
   // Try to determine the {receiver} map.
-  Handle<Map> receiver_map;
-  if (InferReceiverMap(node).ToHandle(&receiver_map)) {
-    // Check if we can constant-fold the {receiver} map.
-    if (!receiver_map->IsJSProxyMap() &&
-        !receiver_map->has_hidden_prototype() &&
-        !receiver_map->is_access_check_needed()) {
-      Handle<Object> receiver_prototype(receiver_map->prototype(), isolate());
-      Node* value = jsgraph()->Constant(receiver_prototype);
-      ReplaceWithValue(node, value);
-      return Replace(value);
+  ZoneHandleSet<Map> receiver_maps;
+  if (NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps)) {
+    Handle<Object> receiver_prototype(receiver_maps[0]->prototype(), isolate());
+
+    // Check if we can constant-fold the {receiver_prototype}.
+    for (size_t i = 0; i < receiver_maps.size(); ++i) {
+      Handle<Map> const receiver_map = receiver_maps[i];
+      if (receiver_map->IsJSProxyMap() ||
+          receiver_map->has_hidden_prototype() ||
+          receiver_map->is_access_check_needed() ||
+          receiver_map->prototype() != *receiver_prototype) {
+        return NoChange();
+      }
     }
+    Node* value = jsgraph()->Constant(receiver_prototype);
+    ReplaceWithValue(node, value);
+    return Replace(value);
   }
 
   return NoChange();

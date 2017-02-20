@@ -110,26 +110,13 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 namespace {
 
 MaybeHandle<Map> GetMapWitness(Node* node) {
+  ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
-  // Check if the {node} is dominated by a CheckMaps with a single map
-  // for the {receiver}, and if so use that map for the lowering below.
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      ZoneHandleSet<Map> const& maps =
-          CheckMapsParametersOf(dominator->op()).maps();
-      return (maps.size() == 1) ? MaybeHandle<Map>(maps[0])
-                                : MaybeHandle<Map>();
-    }
-    DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-    if (dominator->op()->EffectInputCount() != 1 ||
-        !dominator->op()->HasProperty(Operator::kNoWrite)) {
-      // Didn't find any appropriate CheckMaps node.
-      return MaybeHandle<Map>();
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
+  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+    if (maps.size() == 1) return MaybeHandle<Map>(maps[0]);
   }
+  return MaybeHandle<Map>();
 }
 
 // TODO(turbofan): This was copied from Crankshaft, might be too restrictive.

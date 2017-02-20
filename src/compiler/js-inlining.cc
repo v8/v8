@@ -305,45 +305,20 @@ bool NeedsConvertReceiver(Node* receiver, Node* effect) {
     case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSGetSuperConstructor:
-    case IrOpcode::kJSToObject:
-      return false;
-    default:
-      break;
-  }
-  for (Node* dominator = effect;;) {
-    if (dominator->opcode() == IrOpcode::kCheckMaps &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      // Check if all maps have the given {instance_type}.
-      ZoneHandleSet<Map> const& maps =
-          CheckMapsParametersOf(dominator->op()).maps();
-      for (size_t i = 0; i < maps.size(); ++i) {
-        if (!maps[i]->IsJSReceiverMap()) return true;
-      }
+    case IrOpcode::kJSToObject: {
       return false;
     }
-    switch (dominator->opcode()) {
-      case IrOpcode::kStoreField: {
-        FieldAccess const& access = FieldAccessOf(dominator->op());
-        if (access.base_is_tagged == kTaggedBase &&
-            access.offset == HeapObject::kMapOffset) {
-          return true;
+    default: {
+      ZoneHandleSet<Map> maps;
+      if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+        // Check if all {maps} are actually JSReceiver maps.
+        for (size_t i = 0; i < maps.size(); ++i) {
+          if (!maps[i]->IsJSReceiverMap()) return true;
         }
-        break;
+        return false;
       }
-      case IrOpcode::kStoreElement:
-      case IrOpcode::kStoreTypedElement:
-        break;
-      default: {
-        DCHECK_EQ(1, dominator->op()->EffectOutputCount());
-        if (dominator->op()->EffectInputCount() != 1 ||
-            !dominator->op()->HasProperty(Operator::kNoWrite)) {
-          // Didn't find any appropriate CheckMaps node.
-          return true;
-        }
-        break;
-      }
+      return true;
     }
-    dominator = NodeProperties::GetEffectInput(dominator);
   }
 }
 

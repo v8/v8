@@ -147,10 +147,12 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                            FeedbackNexus const& nexus,
                            MapHandleList* receiver_maps);
 
-  // Try to infer a map for the given {receiver} at the current {effect}.
-  // If a map is returned then you can be sure that the {receiver} definitely
-  // has the returned map at this point in the program (identified by {effect}).
-  MaybeHandle<Map> InferReceiverMap(Node* receiver, Node* effect);
+  // Try to infer maps for the given {receiver} at the current {effect}.
+  // If maps are returned then you can be sure that the {receiver} definitely
+  // has one of the returned maps at this point in the program (identified
+  // by {effect}).
+  bool InferReceiverMaps(Node* receiver, Node* effect,
+                         MapHandleList* receiver_maps);
   // Try to infer a root map for the {receiver} independent of the current
   // program location.
   MaybeHandle<Map> InferReceiverRootMap(Node* receiver);

@@ -2194,15 +2194,14 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     MapHandleList* receiver_maps) {
   DCHECK_EQ(0, receiver_maps->length());
   // See if we can infer a concrete type for the {receiver}.
-  Handle<Map> receiver_map;
-  if (InferReceiverMap(receiver, effect).ToHandle(&receiver_map)) {
-    // We can assume that the {receiver} still has the infered {receiver_map}.
-    receiver_maps->Add(receiver_map);
+  if (InferReceiverMaps(receiver, effect, receiver_maps)) {
+    // We can assume that the {receiver} still has the infered {receiver_maps}.
     return true;
   }
   // Try to extract some maps from the {nexus}.
   if (nexus.ExtractMaps(receiver_maps) != 0) {
     // Try to filter impossible candidates based on infered root map.
+    Handle<Map> receiver_map;
     if (InferReceiverRootMap(receiver).ToHandle(&receiver_map)) {
       for (int i = receiver_maps->length(); --i >= 0;) {
         if (receiver_maps->at(i)->FindRootMap() != *receiver_map) {
@@ -2215,65 +2214,16 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
   return false;
 }
 
-MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverMap(Node* receiver,
-                                                                 Node* effect) {
-  HeapObjectMatcher m(receiver);
-  if (m.HasValue()) {
-    Handle<Map> receiver_map(m.Value()->map(), isolate());
-    if (receiver_map->is_stable()) return receiver_map;
-  } else if (m.IsJSCreate()) {
-    HeapObjectMatcher mtarget(m.InputAt(0));
-    HeapObjectMatcher mnewtarget(m.InputAt(1));
-    if (mtarget.HasValue() && mnewtarget.HasValue()) {
-      Handle<JSFunction> original_constructor =
-          Handle<JSFunction>::cast(mnewtarget.Value());
-      if (original_constructor->has_initial_map()) {
-        Handle<Map> initial_map(original_constructor->initial_map(), isolate());
-        if (initial_map->constructor_or_backpointer() == *mtarget.Value()) {
-          // Walk up the {effect} chain to see if the {receiver} is the
-          // dominating effect and there's no other observable write in
-          // between.
-          while (true) {
-            if (receiver == effect) return initial_map;
-            if (!effect->op()->HasProperty(Operator::kNoWrite) ||
-                effect->op()->EffectInputCount() != 1) {
-              break;
-            }
-            effect = NodeProperties::GetEffectInput(effect);
-          }
-        }
-      }
+bool JSNativeContextSpecialization::InferReceiverMaps(
+    Node* receiver, Node* effect, MapHandleList* receiver_maps) {
+  ZoneHandleSet<Map> maps;
+  if (NodeProperties::InferReceiverMaps(receiver, effect, &maps)) {
+    for (size_t i = 0; i < maps.size(); ++i) {
+      receiver_maps->Add(maps[i]);
     }
+    return true;
   }
-  // Go hunting for a matching CheckMaps(receiver) or StoreField[Map](receiver)
-  // in the {effect} chain.
-  // TODO(turbofan): Propagate the information along the control/effect chains
-  // instead at some point to avoid this potentially inefficient hunting.
-  while (true) {
-    if (effect->opcode() == IrOpcode::kCheckMaps) {
-      ZoneHandleSet<Map> maps = CheckMapsParametersOf(effect->op()).maps();
-      if (maps.size() == 1u) {
-        Node* object = NodeProperties::GetValueInput(effect, 0);
-        if (NodeProperties::IsSame(receiver, object)) return maps[0];
-      }
-    } else if (effect->opcode() == IrOpcode::kStoreField) {
-      FieldAccess const access = FieldAccessOf(effect->op());
-      if (access.offset == HeapObject::kMapOffset) {
-        Node* object = NodeProperties::GetValueInput(effect, 0);
-        Node* value = NodeProperties::GetValueInput(effect, 1);
-        if (object == receiver) {
-          HeapObjectMatcher m(value);
-          if (m.HasValue()) return Handle<Map>::cast(m.Value());
-        }
-        break;
-      }
-    } else if (!effect->op()->HasProperty(Operator::kNoWrite) ||
-               effect->op()->EffectInputCount() != 1) {
-      break;
-    }
-    effect = NodeProperties::GetEffectInput(effect);
-  }
-  return MaybeHandle<Map>();
+  return false;
 }
 
 MaybeHandle<Map> JSNativeContextSpecialization::InferReceiverRootMap(

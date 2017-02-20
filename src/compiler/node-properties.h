@@ -8,6 +8,7 @@
 #include "src/compiler/node.h"
 #include "src/compiler/types.h"
 #include "src/globals.h"
+#include "src/zone/zone-handle-set.h"
 
 namespace v8 {
 namespace internal {
@@ -125,6 +126,12 @@ class V8_EXPORT_PRIVATE NodeProperties final {
 
   // Checks if two nodes are the same, looking past {CheckHeapObject}.
   static bool IsSame(Node* a, Node* b);
+
+  // Walks up the {effect} chain to find a witness that provides map
+  // information about the {receiver}. Doesn't look through potentially
+  // side effecting nodes.
+  static bool InferReceiverMaps(Node* receiver, Node* effect,
+                                ZoneHandleSet<Map>* maps_return);
 
   // ---------------------------------------------------------------------------
   // Context.
