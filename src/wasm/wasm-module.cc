@@ -758,6 +758,47 @@ Handle<Script> CreateWasmScript(Isolate* isolate,
 
   return script;
 }
+
+class JSToWasmWrapperCache {
+ public:
+  Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
+                                             const wasm::WasmModule* module,
+                                             Handle<Code> wasm_code,
+                                             uint32_t index) {
+    const wasm::WasmFunction* func = &module->functions[index];
+    int cached_idx = sig_map_.Find(func->sig);
+    if (cached_idx >= 0) {
+      Handle<Code> code = isolate->factory()->CopyCode(code_cache_[cached_idx]);
+      // Now patch the call to wasm code.
+      for (RelocIterator it(*code, RelocInfo::kCodeTargetMask);; it.next()) {
+        DCHECK(!it.done());
+        Code* target =
+            Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+        if (target->kind() == Code::WASM_FUNCTION ||
+            target->kind() == Code::WASM_TO_JS_FUNCTION ||
+            target->builtin_index() == Builtins::kIllegal) {
+          it.rinfo()->set_target_address(wasm_code->instruction_start());
+          break;
+        }
+      }
+      return code;
+    }
+
+    Handle<Code> code =
+        compiler::CompileJSToWasmWrapper(isolate, module, wasm_code, index);
+    uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
+    DCHECK_EQ(code_cache_.size(), new_cache_idx);
+    USE(new_cache_idx);
+    code_cache_.push_back(code);
+    return code;
+  }
+
+ private:
+  // sig_map_ maps signatures to an index in code_cache_.
+  wasm::SignatureMap sig_map_;
+  std::vector<Handle<Code>> code_cache_;
+};
+
 }  // namespace
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
@@ -1022,13 +1063,13 @@ MaybeHandle<WasmModuleObject> CompileToModuleObject(
   }
 
   // Compile JS->WASM wrappers for exported functions.
+  JSToWasmWrapperCache js_to_wasm_cache;
   int func_index = 0;
   for (auto exp : m->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    Handle<Code> wasm_code =
-        code_table->GetValueChecked<Code>(isolate, exp.index);
-    Handle<Code> wrapper_code =
-        compiler::CompileJSToWasmWrapper(isolate, m, wasm_code, exp.index);
+    Handle<Code> wasm_code(Code::cast(code_table->get(exp.index)), isolate);
+    Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
+        isolate, m, wasm_code, exp.index);
     int export_index = static_cast<int>(m->functions.size() + func_index);
     code_table->set(export_index, *wrapper_code);
     RecordStats(isolate, *wrapper_code);
@@ -1489,8 +1530,9 @@ class InstantiationHelper {
       Handle<Code> startup_code =
           code_table->GetValueChecked<Code>(isolate_, start_index);
       FunctionSig* sig = module_->functions[start_index].sig;
-      Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
-          isolate_, module_, startup_code, start_index);
+      Handle<Code> wrapper_code =
+          js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
+              isolate_, module_, startup_code, start_index);
       Handle<WasmExportedFunction> startup_fct = WasmExportedFunction::New(
           isolate_, instance, MaybeHandle<String>(), start_index,
           static_cast<int>(sig->parameter_count()), wrapper_code);
@@ -1536,6 +1578,7 @@ class InstantiationHelper {
   Handle<WasmCompiledModule> compiled_module_;
   std::vector<TableInstance> table_instances_;
   std::vector<Handle<JSFunction>> js_wrappers_;
+  JSToWasmWrapperCache js_to_wasm_cache_;
 
   // Helper routines to print out errors with imports.
   void ReportLinkError(const char* error, uint32_t index,
@@ -2207,8 +2250,9 @@ class InstantiationHelper {
               temp_instance.mem_start = nullptr;
               temp_instance.globals_start = nullptr;
 
-              Handle<Code> wrapper_code = compiler::CompileJSToWasmWrapper(
-                  isolate_, module_, wasm_code, func_index);
+              Handle<Code> wrapper_code =
+                  js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
+                      isolate_, module_, wasm_code, func_index);
               MaybeHandle<String> func_name;
               if (module_->origin == kAsmJsOrigin) {
                 // For modules arising from asm.js, honor the names section.
