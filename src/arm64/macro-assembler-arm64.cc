@@ -4619,9 +4619,8 @@ void InlineSmiCheckInfo::Emit(MacroAssembler* masm, const Register& reg,
   }
 }
 
-
 InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
-    : reg_(NoReg), smi_check_(NULL) {
+    : reg_(NoReg), smi_check_delta_(0), smi_check_(NULL) {
   InstructionSequence* inline_data = InstructionSequence::At(info);
   DCHECK(inline_data->IsInlineData());
   if (inline_data->IsInlineData()) {
@@ -4633,9 +4632,9 @@ InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
       uint32_t payload32 = static_cast<uint32_t>(payload);
       int reg_code = RegisterBits::decode(payload32);
       reg_ = Register::XRegFromCode(reg_code);
-      int smi_check_delta = DeltaBits::decode(payload32);
-      DCHECK(smi_check_delta != 0);
-      smi_check_ = inline_data->preceding(smi_check_delta);
+      smi_check_delta_ = DeltaBits::decode(payload32);
+      DCHECK_NE(0, smi_check_delta_);
+      smi_check_ = inline_data->preceding(smi_check_delta_);
     }
   }
 }

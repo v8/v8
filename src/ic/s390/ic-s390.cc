@@ -71,9 +71,7 @@ void PatchInlinedSmiCode(Isolate* isolate, Address address,
   }
 
   if (FLAG_trace_ic) {
-    PrintF("[  patching ic at %p, cmp=%p, delta=%d\n",
-           static_cast<void*>(address),
-           static_cast<void*>(cmp_instruction_address), delta);
+    LOG(isolate, PatchIC(address, cmp_instruction_address, delta));
   }
 
   // Expected sequence to enable by changing the following

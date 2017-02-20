@@ -1290,6 +1290,93 @@ void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
+void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
+                     int column, Map* map, Object* key, char old_state,
+                     char new_state, const char* modifier,
+                     const char* slow_stub_reason) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  if (keyed) msg.Append("Keyed");
+  msg.Append("%s,", type);
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.Append(old_state);
+  msg.Append(",");
+  msg.Append(new_state);
+  msg.Append(",");
+  msg.AppendAddress(reinterpret_cast<Address>(map));
+  msg.Append(",");
+  if (key->IsSmi()) {
+    msg.Append("%d", Smi::cast(key)->value());
+  } else if (key->IsNumber()) {
+    msg.Append("%lf", key->Number());
+  } else if (key->IsString()) {
+    msg.AppendDetailed(String::cast(key), false);
+  } else if (key->IsSymbol()) {
+    msg.AppendSymbolName(Symbol::cast(key));
+  }
+  msg.Append(",%s,", modifier);
+  if (slow_stub_reason != nullptr) {
+    msg.AppendDoubleQuotedString(slow_stub_reason);
+  }
+  msg.WriteToLogFile();
+}
+
+void Logger::CompareIC(const Address pc, int line, int column, Code* stub,
+                       const char* op, const char* old_left,
+                       const char* old_right, const char* old_state,
+                       const char* new_left, const char* new_right,
+                       const char* new_state) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("CompareIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.AppendAddress(reinterpret_cast<Address>(stub));
+  msg.Append(",%s,%s,%s,%s,%s,%s,%s", op, old_left, old_right, old_state,
+             new_left, new_right, new_state);
+  msg.WriteToLogFile();
+}
+
+void Logger::BinaryOpIC(const Address pc, int line, int column, Code* stub,
+                        const char* old_state, const char* new_state,
+                        AllocationSite* allocation_site) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("BinaryOpIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.AppendAddress(reinterpret_cast<Address>(stub));
+  msg.Append(",%s,%s,", old_state, new_state);
+  if (allocation_site != nullptr) {
+    msg.AppendAddress(reinterpret_cast<Address>(allocation_site));
+  }
+  msg.WriteToLogFile();
+}
+
+void Logger::ToBooleanIC(const Address pc, int line, int column, Code* stub,
+                         const char* old_state, const char* new_state) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("ToBooleanIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",%d,%d,", line, column);
+  msg.AppendAddress(reinterpret_cast<Address>(stub));
+  msg.Append(",%s,%s,", old_state, new_state);
+  msg.WriteToLogFile();
+}
+
+void Logger::PatchIC(const Address pc, const Address test, int delta) {
+  if (!log_->IsEnabled() || !FLAG_trace_ic) return;
+  Log::MessageBuilder msg(log_);
+  msg.Append("PatchIC,");
+  msg.AppendAddress(pc);
+  msg.Append(",");
+  msg.AppendAddress(test);
+  msg.Append(",");
+  msg.Append("%d,", delta);
+  msg.WriteToLogFile();
+}
 
 void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;

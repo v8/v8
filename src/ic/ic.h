@@ -85,6 +85,10 @@ class IC {
  protected:
   Address fp() const { return fp_; }
   Address pc() const { return *pc_address_; }
+
+  void set_slow_stub_reason(const char* reason) { slow_stub_reason_ = reason; }
+
+  Address GetAbstractPC(int* line, int* column) const;
   Isolate* isolate() const { return isolate_; }
 
   // Get the caller function object.
@@ -248,6 +252,8 @@ class IC {
   ExtraICState extra_ic_state_;
   MapHandleList target_maps_;
   bool target_maps_set_;
+
+  const char* slow_stub_reason_;
 
   FeedbackNexus* nexus_;
 

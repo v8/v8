@@ -1703,30 +1703,6 @@ void LoadIndexedInterceptorStub::GenerateAssembly(
                             slot, vector);
 }
 
-template<class StateType>
-void HydrogenCodeStub::TraceTransition(StateType from, StateType to) {
-  // Note: Although a no-op transition is semantically OK, it is hinting at a
-  // bug somewhere in our state transition machinery.
-  DCHECK(from != to);
-  if (V8_LIKELY(!FLAG_ic_stats)) return;
-  if (FLAG_ic_stats &
-      v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {
-    auto ic_stats = ICStats::instance();
-    ic_stats->Begin();
-    ICInfo& ic_info = ic_stats->Current();
-    ic_info.type = MajorName(MajorKey());
-    ic_info.state = ToString(from);
-    ic_info.state += "=>";
-    ic_info.state += ToString(to);
-    ic_stats->End();
-    return;
-  }
-  OFStream os(stdout);
-  os << "[";
-  PrintBaseName(os);
-  os << ": " << from << "=>" << to << "]" << std::endl;
-}
-
 void CallICStub::PrintState(std::ostream& os) const {  // NOLINT
   os << convert_mode() << ", " << tail_call_mode();
 }
@@ -2134,7 +2110,7 @@ bool ToBooleanICStub::UpdateStatus(Handle<Object> object) {
     UNREACHABLE();
     to_boolean_value = true;
   }
-  TraceTransition(old_hints, new_hints);
+
   set_sub_minor_key(HintsBits::update(sub_minor_key(), new_hints));
   return to_boolean_value;
 }
