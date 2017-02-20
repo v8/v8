@@ -377,14 +377,6 @@ enum class GarbageCollectionReason {
   // Also update src/tools/metrics/histograms/histograms.xml in chromium.
 };
 
-enum class YoungGenerationHandling {
-  kRegularScavenge = 0,
-  kFastPromotionDuringScavenge = 1,
-  // If you add new items here, then update the young_generation_handling in
-  // counters.h.
-  // Also update src/tools/metrics/histograms/histograms.xml in chromium.
-};
-
 // A queue of objects promoted during scavenge. Each object is accompanied by
 // its size to avoid dereferencing a map pointer for scanning. The last page in
 // to-space is used for the promotion queue. On conflict during scavenge, the
