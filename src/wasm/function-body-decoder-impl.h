@@ -144,6 +144,15 @@ struct BlockTypeOperand {
       case kLocalS128:
         *result = kWasmS128;
         return true;
+      case kLocalS1x4:
+        *result = kWasmS1x4;
+        return true;
+      case kLocalS1x8:
+        *result = kWasmS1x8;
+        return true;
+      case kLocalS1x16:
+        *result = kWasmS1x16;
+        return true;
       default:
         *result = kWasmStmt;
         return false;

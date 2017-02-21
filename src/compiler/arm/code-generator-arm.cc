@@ -1927,26 +1927,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmSimd32x4Select: {
-      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
-      __ vtst(Neon32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
-      break;
-    }
-    case kArmSimd16x8Select: {
-      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
-      __ vtst(Neon16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
-      __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
-              i.InputSimd128Register(2));
-      break;
-    }
+    case kArmSimd32x4Select:
+    case kArmSimd16x8Select:
     case kArmSimd8x16Select: {
-      // Canonicalize input 0 lanes to all 0's or all 1's and move to dest.
-      __ vtst(Neon8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(0));
+      // vbsl clobbers the mask input so make sure it was DefineSameAsFirst.
+      DCHECK(i.OutputSimd128Register().is(i.InputSimd128Register(0)));
       __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(2));
       break;

@@ -1475,9 +1475,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kFloat32x4Sub:
       return MarkAsSimd128(node), VisitFloat32x4Sub(node);
     case IrOpcode::kFloat32x4Equal:
-      return MarkAsSimd128(node), VisitFloat32x4Equal(node);
+      return MarkAsSimd1x4(node), VisitFloat32x4Equal(node);
     case IrOpcode::kFloat32x4NotEqual:
-      return MarkAsSimd128(node), VisitFloat32x4NotEqual(node);
+      return MarkAsSimd1x4(node), VisitFloat32x4NotEqual(node);
     case IrOpcode::kCreateInt32x4:
       return MarkAsSimd128(node), VisitCreateInt32x4(node);
     case IrOpcode::kInt32x4ExtractLane:
@@ -1505,13 +1505,13 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kInt32x4Max:
       return MarkAsSimd128(node), VisitInt32x4Max(node);
     case IrOpcode::kInt32x4Equal:
-      return MarkAsSimd128(node), VisitInt32x4Equal(node);
+      return MarkAsSimd1x4(node), VisitInt32x4Equal(node);
     case IrOpcode::kInt32x4NotEqual:
-      return MarkAsSimd128(node), VisitInt32x4NotEqual(node);
+      return MarkAsSimd1x4(node), VisitInt32x4NotEqual(node);
     case IrOpcode::kInt32x4GreaterThan:
-      return MarkAsSimd128(node), VisitInt32x4GreaterThan(node);
+      return MarkAsSimd1x4(node), VisitInt32x4GreaterThan(node);
     case IrOpcode::kInt32x4GreaterThanOrEqual:
-      return MarkAsSimd128(node), VisitInt32x4GreaterThanOrEqual(node);
+      return MarkAsSimd1x4(node), VisitInt32x4GreaterThanOrEqual(node);
     case IrOpcode::kUint32x4ShiftRightByScalar:
       return MarkAsSimd128(node), VisitUint32x4ShiftRightByScalar(node);
     case IrOpcode::kUint32x4Min:
@@ -1519,9 +1519,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUint32x4Max:
       return MarkAsSimd128(node), VisitUint32x4Max(node);
     case IrOpcode::kUint32x4GreaterThan:
-      return MarkAsSimd128(node), VisitUint32x4GreaterThan(node);
+      return MarkAsSimd1x4(node), VisitUint32x4GreaterThan(node);
     case IrOpcode::kUint32x4GreaterThanOrEqual:
-      return MarkAsSimd128(node), VisitUint32x4GreaterThanOrEqual(node);
+      return MarkAsSimd1x4(node), VisitUint32x4GreaterThanOrEqual(node);
     case IrOpcode::kCreateInt16x8:
       return MarkAsSimd128(node), VisitCreateInt16x8(node);
     case IrOpcode::kInt16x8ExtractLane:
@@ -1549,13 +1549,13 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kInt16x8Max:
       return MarkAsSimd128(node), VisitInt16x8Max(node);
     case IrOpcode::kInt16x8Equal:
-      return MarkAsSimd128(node), VisitInt16x8Equal(node);
+      return MarkAsSimd1x8(node), VisitInt16x8Equal(node);
     case IrOpcode::kInt16x8NotEqual:
-      return MarkAsSimd128(node), VisitInt16x8NotEqual(node);
+      return MarkAsSimd1x8(node), VisitInt16x8NotEqual(node);
     case IrOpcode::kInt16x8GreaterThan:
-      return MarkAsSimd128(node), VisitInt16x8GreaterThan(node);
+      return MarkAsSimd1x8(node), VisitInt16x8GreaterThan(node);
     case IrOpcode::kInt16x8GreaterThanOrEqual:
-      return MarkAsSimd128(node), VisitInt16x8GreaterThanOrEqual(node);
+      return MarkAsSimd1x8(node), VisitInt16x8GreaterThanOrEqual(node);
     case IrOpcode::kUint16x8ShiftRightByScalar:
       return MarkAsSimd128(node), VisitUint16x8ShiftRightByScalar(node);
     case IrOpcode::kUint16x8AddSaturate:
@@ -1567,9 +1567,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUint16x8Max:
       return MarkAsSimd128(node), VisitUint16x8Max(node);
     case IrOpcode::kUint16x8GreaterThan:
-      return MarkAsSimd128(node), VisitUint16x8GreaterThan(node);
+      return MarkAsSimd1x8(node), VisitUint16x8GreaterThan(node);
     case IrOpcode::kUint16x8GreaterThanOrEqual:
-      return MarkAsSimd128(node), VisitUint16x8GreaterThanOrEqual(node);
+      return MarkAsSimd1x8(node), VisitUint16x8GreaterThanOrEqual(node);
     case IrOpcode::kCreateInt8x16:
       return MarkAsSimd128(node), VisitCreateInt8x16(node);
     case IrOpcode::kInt8x16ExtractLane:
@@ -1597,13 +1597,13 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kInt8x16Max:
       return MarkAsSimd128(node), VisitInt8x16Max(node);
     case IrOpcode::kInt8x16Equal:
-      return MarkAsSimd128(node), VisitInt8x16Equal(node);
+      return MarkAsSimd1x16(node), VisitInt8x16Equal(node);
     case IrOpcode::kInt8x16NotEqual:
-      return MarkAsSimd128(node), VisitInt8x16NotEqual(node);
+      return MarkAsSimd1x16(node), VisitInt8x16NotEqual(node);
     case IrOpcode::kInt8x16GreaterThan:
-      return MarkAsSimd128(node), VisitInt8x16GreaterThan(node);
+      return MarkAsSimd1x16(node), VisitInt8x16GreaterThan(node);
     case IrOpcode::kInt8x16GreaterThanOrEqual:
-      return MarkAsSimd128(node), VisitInt8x16GreaterThanOrEqual(node);
+      return MarkAsSimd1x16(node), VisitInt8x16GreaterThanOrEqual(node);
     case IrOpcode::kUint8x16ShiftRightByScalar:
       return MarkAsSimd128(node), VisitUint8x16ShiftRightByScalar(node);
     case IrOpcode::kUint8x16AddSaturate:
@@ -1615,9 +1615,9 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUint8x16Max:
       return MarkAsSimd128(node), VisitUint8x16Max(node);
     case IrOpcode::kUint8x16GreaterThan:
-      return MarkAsSimd128(node), VisitUint8x16GreaterThan(node);
+      return MarkAsSimd1x16(node), VisitUint8x16GreaterThan(node);
     case IrOpcode::kUint8x16GreaterThanOrEqual:
-      return MarkAsSimd128(node), VisitUint16x8GreaterThanOrEqual(node);
+      return MarkAsSimd1x16(node), VisitUint16x8GreaterThanOrEqual(node);
     case IrOpcode::kSimd128And:
       return MarkAsSimd128(node), VisitSimd128And(node);
     case IrOpcode::kSimd128Or:
@@ -2225,12 +2225,6 @@ void InstructionSelector::VisitUint8x16GreaterThanOrEqual(Node* node) {
   UNIMPLEMENTED();
 }
 
-void InstructionSelector::VisitSimd32x4Select(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitSimd16x8Select(Node* node) { UNIMPLEMENTED(); }
-
-void InstructionSelector::VisitSimd8x16Select(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitSimd128And(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitSimd128Or(Node* node) { UNIMPLEMENTED(); }
@@ -2238,6 +2232,12 @@ void InstructionSelector::VisitSimd128Or(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitSimd128Xor(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitSimd128Not(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd32x4Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd16x8Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd8x16Select(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

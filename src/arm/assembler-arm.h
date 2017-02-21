@@ -150,6 +150,7 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 const Register no_reg = {Register::kCode_no_reg};
 
 static const bool kSimpleFPAliasing = false;
+static const bool kSimdMaskRegisters = false;
 
 // Single word VFP register.
 struct SwVfpRegister {

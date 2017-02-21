@@ -123,7 +123,7 @@ class Arm64OperandGenerator final : public OperandGenerator {
 
   bool CanBeLoadStoreShiftImmediate(Node* node, MachineRepresentation rep) {
     // TODO(arm64): Load and Store on 128 bit Q registers is not supported yet.
-    DCHECK_NE(MachineRepresentation::kSimd128, rep);
+    DCHECK_GT(MachineRepresentation::kSimd128, rep);
     return IsIntegerConstant(node) &&
            (GetIntegerConstantValue(node) == ElementSizeLog2Of(rep));
   }
@@ -593,6 +593,9 @@ void InstructionSelector::VisitLoad(Node* node) {
       immediate_mode = kLoadStoreImm64;
       break;
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -689,6 +692,9 @@ void InstructionSelector::VisitStore(Node* node) {
         immediate_mode = kLoadStoreImm64;
         break;
       case MachineRepresentation::kSimd128:  // Fall through.
+      case MachineRepresentation::kSimd1x4:  // Fall through.
+      case MachineRepresentation::kSimd1x8:  // Fall through.
+      case MachineRepresentation::kSimd1x16:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -757,6 +763,9 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -809,6 +818,9 @@ void InstructionSelector::VisitCheckedStore(Node* node) {
     case MachineRepresentation::kTaggedPointer:  // Fall through.
     case MachineRepresentation::kTagged:   // Fall through.
     case MachineRepresentation::kSimd128:  // Fall through.
+    case MachineRepresentation::kSimd1x4:  // Fall through.
+    case MachineRepresentation::kSimd1x8:  // Fall through.
+    case MachineRepresentation::kSimd1x16:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;

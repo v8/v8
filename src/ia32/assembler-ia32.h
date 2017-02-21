@@ -148,6 +148,7 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 const Register no_reg = {Register::kCode_no_reg};
 
 static const bool kSimpleFPAliasing = true;
+static const bool kSimdMaskRegisters = false;
 
 struct XMMRegister {
   enum Code {

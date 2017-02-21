@@ -187,6 +187,7 @@ const Register kRootRegister = r10;   // Roots array pointer.
 const Register cp = r13;              // JavaScript context pointer.
 
 static const bool kSimpleFPAliasing = true;
+static const bool kSimdMaskRegisters = false;
 
 // Double word FP register.
 struct DoubleRegister {

@@ -1600,6 +1600,9 @@ JSNativeContextSpecialization::BuildPropertyAccess(
         case MachineRepresentation::kWord64:
         case MachineRepresentation::kFloat32:
         case MachineRepresentation::kSimd128:
+        case MachineRepresentation::kSimd1x4:
+        case MachineRepresentation::kSimd1x8:
+        case MachineRepresentation::kSimd1x16:
           UNREACHABLE();
           break;
       }

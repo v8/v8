@@ -155,6 +155,7 @@ int ToNumber(Register reg);
 Register ToRegister(int num);
 
 static const bool kSimpleFPAliasing = true;
+static const bool kSimdMaskRegisters = false;
 
 // Coprocessor register.
 struct FPURegister {

@@ -478,19 +478,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint32x4GreaterThanOrEqual();
   const Operator* Uint32x4FromFloat32x4();
 
-  const Operator* CreateBool32x4();
-  const Operator* Bool32x4ExtractLane(int32_t);
-  const Operator* Bool32x4ReplaceLane(int32_t);
   const Operator* Bool32x4And();
   const Operator* Bool32x4Or();
   const Operator* Bool32x4Xor();
   const Operator* Bool32x4Not();
   const Operator* Bool32x4AnyTrue();
   const Operator* Bool32x4AllTrue();
-  const Operator* Bool32x4Swizzle();
-  const Operator* Bool32x4Shuffle();
-  const Operator* Bool32x4Equal();
-  const Operator* Bool32x4NotEqual();
 
   const Operator* CreateInt16x8();
   const Operator* Int16x8ExtractLane(int32_t);
@@ -522,19 +515,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint16x8GreaterThan();
   const Operator* Uint16x8GreaterThanOrEqual();
 
-  const Operator* CreateBool16x8();
-  const Operator* Bool16x8ExtractLane(int32_t);
-  const Operator* Bool16x8ReplaceLane(int32_t);
   const Operator* Bool16x8And();
   const Operator* Bool16x8Or();
   const Operator* Bool16x8Xor();
   const Operator* Bool16x8Not();
   const Operator* Bool16x8AnyTrue();
   const Operator* Bool16x8AllTrue();
-  const Operator* Bool16x8Swizzle();
-  const Operator* Bool16x8Shuffle();
-  const Operator* Bool16x8Equal();
-  const Operator* Bool16x8NotEqual();
 
   const Operator* CreateInt8x16();
   const Operator* Int8x16ExtractLane(int32_t);
@@ -566,19 +552,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint8x16GreaterThan();
   const Operator* Uint8x16GreaterThanOrEqual();
 
-  const Operator* CreateBool8x16();
-  const Operator* Bool8x16ExtractLane(int32_t);
-  const Operator* Bool8x16ReplaceLane(int32_t);
   const Operator* Bool8x16And();
   const Operator* Bool8x16Or();
   const Operator* Bool8x16Xor();
   const Operator* Bool8x16Not();
   const Operator* Bool8x16AnyTrue();
   const Operator* Bool8x16AllTrue();
-  const Operator* Bool8x16Swizzle();
-  const Operator* Bool8x16Shuffle();
-  const Operator* Bool8x16Equal();
-  const Operator* Bool8x16NotEqual();
 
   const Operator* Simd128Load();
   const Operator* Simd128Load1();

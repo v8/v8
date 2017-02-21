@@ -1063,14 +1063,21 @@ class ModuleDecoder : public Decoder {
         return kWasmF32;
       case kLocalF64:
         return kWasmF64;
-      case kLocalS128:
-        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
-          return kWasmS128;
-        } else {
-          error(pc_ - 1, "invalid local type");
-          return kWasmStmt;
-        }
       default:
+        if (origin_ != kAsmJsOrigin && FLAG_wasm_simd_prototype) {
+          switch (t) {
+            case kLocalS128:
+              return kWasmS128;
+            case kLocalS1x4:
+              return kWasmS1x4;
+            case kLocalS1x8:
+              return kWasmS1x8;
+            case kLocalS1x16:
+              return kWasmS1x16;
+            default:
+              break;
+          }
+        }
         error(pc_ - 1, "invalid local type");
         return kWasmStmt;
     }

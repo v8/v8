@@ -215,6 +215,15 @@ class WasmDecoder : public Decoder {
         case kLocalS128:
           type = kWasmS128;
           break;
+        case kLocalS1x4:
+          type = kWasmS1x4;
+          break;
+        case kLocalS1x8:
+          type = kWasmS1x8;
+          break;
+        case kLocalS1x16:
+          type = kWasmS1x16;
+          break;
         default:
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;

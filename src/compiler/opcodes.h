@@ -601,16 +601,10 @@
   V(Uint32x4GreaterThan)                    \
   V(Uint32x4GreaterThanOrEqual)             \
   V(Uint32x4FromFloat32x4)                  \
-  V(CreateBool32x4)                         \
-  V(Bool32x4ReplaceLane)                    \
   V(Bool32x4And)                            \
   V(Bool32x4Or)                             \
   V(Bool32x4Xor)                            \
   V(Bool32x4Not)                            \
-  V(Bool32x4Swizzle)                        \
-  V(Bool32x4Shuffle)                        \
-  V(Bool32x4Equal)                          \
-  V(Bool32x4NotEqual)                       \
   V(CreateInt16x8)                          \
   V(Int16x8ReplaceLane)                     \
   V(Int16x8Neg)                             \
@@ -639,16 +633,10 @@
   V(Uint16x8LessThanOrEqual)                \
   V(Uint16x8GreaterThan)                    \
   V(Uint16x8GreaterThanOrEqual)             \
-  V(CreateBool16x8)                         \
-  V(Bool16x8ReplaceLane)                    \
   V(Bool16x8And)                            \
   V(Bool16x8Or)                             \
   V(Bool16x8Xor)                            \
   V(Bool16x8Not)                            \
-  V(Bool16x8Swizzle)                        \
-  V(Bool16x8Shuffle)                        \
-  V(Bool16x8Equal)                          \
-  V(Bool16x8NotEqual)                       \
   V(CreateInt8x16)                          \
   V(Int8x16ReplaceLane)                     \
   V(Int8x16Neg)                             \
@@ -677,16 +665,10 @@
   V(Uint8x16LessThanOrEqual)                \
   V(Uint8x16GreaterThan)                    \
   V(Uint8x16GreaterThanOrEqual)             \
-  V(CreateBool8x16)                         \
-  V(Bool8x16ReplaceLane)                    \
   V(Bool8x16And)                            \
   V(Bool8x16Or)                             \
   V(Bool8x16Xor)                            \
   V(Bool8x16Not)                            \
-  V(Bool8x16Swizzle)                        \
-  V(Bool8x16Shuffle)                        \
-  V(Bool8x16Equal)                          \
-  V(Bool8x16NotEqual)                       \
   V(Simd128And)                             \
   V(Simd128Or)                              \
   V(Simd128Xor)                             \
@@ -708,13 +690,10 @@
   V(Int8x16ExtractLane)
 
 #define MACHINE_SIMD_RETURN_BOOL_OP_LIST(V) \
-  V(Bool32x4ExtractLane)                    \
   V(Bool32x4AnyTrue)                        \
   V(Bool32x4AllTrue)                        \
-  V(Bool16x8ExtractLane)                    \
   V(Bool16x8AnyTrue)                        \
   V(Bool16x8AllTrue)                        \
-  V(Bool8x16ExtractLane)                    \
   V(Bool8x16AnyTrue)                        \
   V(Bool8x16AllTrue)
 
