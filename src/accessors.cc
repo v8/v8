@@ -1202,7 +1202,8 @@ void Accessors::ErrorStackGetter(
   // If stack is still an accessor (this could have changed in the meantime
   // since FormatStackTrace can execute arbitrary JS), replace it with a data
   // property.
-  Handle<Object> receiver = Utils::OpenHandle(*info.This());
+  Handle<Object> receiver =
+      Utils::OpenHandle(*v8::Local<v8::Value>(info.This()));
   Handle<Name> name = Utils::OpenHandle(*key);
   if (IsAccessor(receiver, name, holder)) {
     result = ReplaceAccessorWithDataProperty(isolate, receiver, holder, name,
@@ -1228,8 +1229,8 @@ void Accessors::ErrorStackSetter(
     const v8::PropertyCallbackInfo<v8::Boolean>& info) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   HandleScope scope(isolate);
-  Handle<JSObject> obj =
-      Handle<JSObject>::cast(Utils::OpenHandle(*info.This()));
+  Handle<JSObject> obj = Handle<JSObject>::cast(
+      Utils::OpenHandle(*v8::Local<v8::Value>(info.This())));
 
   // Clear internal properties to avoid memory leaks.
   Handle<Symbol> stack_trace_symbol = isolate->factory()->stack_trace_symbol();
