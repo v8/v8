@@ -2804,7 +2804,6 @@ void Interpreter::DoCreateArrayLiteral(InterpreterAssembler* assembler) {
 
   __ Bind(&fast_shallow_clone);
   {
-    DCHECK(FLAG_allocation_site_pretenuring);
     ConstructorBuiltinsAssembler constructor_assembler(assembler->state());
     Node* result = constructor_assembler.EmitFastCloneShallowArray(
         closure, literal_index, context, &call_runtime, TRACK_ALLOCATION_SITE);
