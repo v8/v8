@@ -5947,6 +5947,21 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
  */
 typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context);
 
+// --- WASM compilation callbacks ---
+
+/**
+ * Callback to check if a buffer source may be compiled to WASM, given
+ * the compilation is attempted as a promise or not.
+ */
+
+typedef bool (*AllowWasmCompileCallback)(Isolate* isolate, Local<Value> source,
+                                         bool as_promise);
+
+typedef bool (*AllowWasmInstantiateCallback)(Isolate* isolate,
+                                             Local<Value> module_or_bytes,
+                                             MaybeLocal<Value> ffi,
+                                             bool as_promise);
+
 // --- Garbage Collection Callbacks ---
 
 /**
@@ -7199,6 +7214,16 @@ class V8_EXPORT Isolate {
    */
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
+
+  /**
+   * Set the callback to invoke to check if wasm compilation from
+   * the specified object is allowed. By default, wasm compilation
+   * is allowed.
+   *
+   * Similar for instantiate.
+   */
+  void SetAllowWasmCompileCallback(AllowWasmCompileCallback callback);
+  void SetAllowWasmInstantiateCallback(AllowWasmInstantiateCallback callback);
 
   /**
   * Check if V8 is dead and therefore unusable.  This is the case after

@@ -31,6 +31,11 @@ using v8::internal::wasm::ErrorThrower;
 namespace v8 {
 
 namespace {
+
+#define RANGE_ERROR_MSG                                                        \
+  "Wasm compilation exceeds internal limits in this context for the provided " \
+  "arguments"
+
 // TODO(wasm): move brand check to the respective types, and don't throw
 // in it, rather, use a provided ErrorThrower, or let caller handle it.
 static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> sym) {
@@ -71,6 +76,44 @@ i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
   Local<Object> module_obj = Local<Object>::Cast(args[0]);
   return i::Handle<i::WasmModuleObject>::cast(
       v8::Utils::OpenHandle(*module_obj));
+}
+
+bool IsCompilationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
+                          v8::Local<v8::Value> source, bool is_async) {
+  // Allow caller to do one final check on thrower state, rather than
+  // one at each step. No information is lost - failure reason is captured
+  // in the thrower state.
+  if (thrower->error()) return false;
+
+  AllowWasmCompileCallback callback = isolate->allow_wasm_compile_callback();
+  if (callback != nullptr &&
+      !callback(reinterpret_cast<v8::Isolate*>(isolate), source, is_async)) {
+    thrower->RangeError(RANGE_ERROR_MSG);
+    return false;
+  }
+  return true;
+}
+
+bool IsInstantiationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
+                            v8::Local<v8::Value> module_or_bytes,
+                            i::MaybeHandle<i::JSReceiver> ffi, bool is_async) {
+  // Allow caller to do one final check on thrower state, rather than
+  // one at each step. No information is lost - failure reason is captured
+  // in the thrower state.
+  if (thrower->error()) return false;
+  v8::MaybeLocal<v8::Value> v8_ffi;
+  if (!ffi.is_null()) {
+    v8_ffi = v8::Local<v8::Value>::Cast(Utils::ToLocal(ffi.ToHandleChecked()));
+  }
+  AllowWasmInstantiateCallback callback =
+      isolate->allow_wasm_instantiate_callback();
+  if (callback != nullptr &&
+      !callback(reinterpret_cast<v8::Isolate*>(isolate), module_or_bytes,
+                v8_ffi, is_async)) {
+    thrower->RangeError(RANGE_ERROR_MSG);
+    return false;
+  }
+  return true;
 }
 
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
@@ -139,10 +182,11 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   return_value.Set(resolver->GetPromise());
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
-  if (thrower.error()) {
+  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], true)) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
+  DCHECK(!thrower.error());
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
   i::wasm::AsyncCompile(i_isolate, promise, bytes);
 }
@@ -175,8 +219,9 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
-  if (thrower.error()) return;
+  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], false)) return;
 
+  DCHECK(!thrower.error());
   i::MaybeHandle<i::Object> module_obj =
       i::wasm::SyncCompile(i_isolate, &thrower, bytes);
   if (module_obj.is_null()) return;
@@ -251,7 +296,11 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (thrower.error()) return;
 
   auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
-  if (thrower.error()) return;
+  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
+                              false)) {
+    return;
+  }
+  DCHECK(!thrower.error());
 
   i::MaybeHandle<i::Object> instance_object = i::wasm::SyncInstantiate(
       i_isolate, &thrower, maybe_module.ToHandleChecked(), maybe_imports,
@@ -299,8 +348,12 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
+  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
+                              true)) {
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    return;
+  }
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
-
   if (HasBrand(first_arg, i::Handle<i::Symbol>(i_context->wasm_module_sym()))) {
     // WebAssembly.instantiate(module, imports) -> WebAssembly.Instance
     auto module_object = GetFirstArgumentAsModule(args, &thrower);
