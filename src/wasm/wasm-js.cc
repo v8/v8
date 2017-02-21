@@ -124,7 +124,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   }
 
   const byte* start = nullptr;
-  const byte* end = nullptr;
+  size_t length = 0;
   v8::Local<v8::Value> source = args[0];
   if (source->IsArrayBuffer()) {
     // A raw array buffer was passed.
@@ -132,8 +132,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     ArrayBuffer::Contents contents = buffer->GetContents();
 
     start = reinterpret_cast<const byte*>(contents.Data());
-    end = start + contents.ByteLength();
-
+    length = contents.ByteLength();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
@@ -143,16 +142,21 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
 
     start =
         reinterpret_cast<const byte*>(contents.Data()) + array->ByteOffset();
-    end = start + array->ByteLength();
-
+    length = array->ByteLength();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
   }
-  if (start == nullptr || end == start) {
+  DCHECK_IMPLIES(length, start != nullptr);
+  if (length == 0) {
     thrower->CompileError("BufferSource argument is empty");
   }
+  if (length > i::wasm::kV8MaxWasmModuleSize) {
+    thrower->RangeError("buffer source exceeds maximum size of %zu (is %zu)",
+                        i::wasm::kV8MaxWasmModuleSize, length);
+  }
+  if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
   // TODO(titzer): use the handle as well?
-  return i::wasm::ModuleWireBytes(start, end);
+  return i::wasm::ModuleWireBytes(start, start + length);
 }
 
 i::MaybeHandle<i::JSReceiver> GetSecondArgumentAsImports(
