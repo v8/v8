@@ -290,7 +290,7 @@ FieldAccess ForPropertyCellValue(MachineRepresentation representation,
 
 Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
     Node* node, Node* receiver, Node* value, Handle<Name> name,
-    AccessMode access_mode) {
+    AccessMode access_mode, Node* index) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
@@ -321,6 +321,13 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         return NoChange();
       }
     }
+  }
+
+  // Ensure that {index} matches the specified {name} (if {index} is given).
+  if (index != nullptr) {
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
+                                   jsgraph()->HeapConstant(name));
+    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
   }
 
   // Check if we have a {receiver} to validate. If so, we need to check that
@@ -540,7 +547,8 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       Context* receiver_context =
           JSFunction::cast(receiver_map->GetConstructor())->native_context();
       if (receiver_context == *native_context()) {
-        return ReduceGlobalAccess(node, receiver, value, name, access_mode);
+        return ReduceGlobalAccess(node, receiver, value, name, access_mode,
+                                  index);
       }
     }
   }

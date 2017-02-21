@@ -88,7 +88,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                               Handle<FeedbackVector> vector, FeedbackSlot slot,
                               Node* index = nullptr);
   Reduction ReduceGlobalAccess(Node* node, Node* receiver, Node* value,
-                               Handle<Name> name, AccessMode access_mode);
+                               Handle<Name> name, AccessMode access_mode,
+                               Node* index = nullptr);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
