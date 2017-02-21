@@ -393,6 +393,9 @@ class Debug {
   StackFrame::Id break_frame_id() { return thread_local_.break_frame_id_; }
   int break_id() { return thread_local_.break_id_; }
 
+  Handle<Object> return_value_handle() {
+    return handle(thread_local_.return_value_, isolate_);
+  }
   Object* return_value() { return thread_local_.return_value_; }
   void set_return_value(Object* value) { thread_local_.return_value_ = value; }
 
@@ -692,12 +695,24 @@ class DebugScope BASE_EMBEDDED {
   DebugScope* prev_;               // Previous scope if entered recursively.
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;                   // Previous break id.
-  Handle<Object> return_value_;    // Previous result.
   bool failed_;                    // Did the debug context fail to load?
   SaveContext save_;               // Saves previous context.
   PostponeInterruptsScope no_termination_exceptons_;
 };
 
+// This scope is used to handle return values in nested debug break points.
+// When there are nested debug breaks, we use this to restore the return
+// value to the previous state. This is not merged with DebugScope because
+// return_value_ will not be cleared when we use DebugScope.
+class ReturnValueScope {
+ public:
+  explicit ReturnValueScope(Debug* debug);
+  ~ReturnValueScope();
+
+ private:
+  Debug* debug_;
+  Handle<Object> return_value_;  // Previous result.
+};
 
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {

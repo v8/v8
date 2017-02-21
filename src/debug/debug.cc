@@ -481,8 +481,6 @@ void Debug::Unload() {
 }
 
 void Debug::Break(JavaScriptFrame* frame) {
-  HandleScope scope(isolate_);
-
   // Initialize LiveEdit.
   LiveEdit::InitializeThreadLocal(this);
 
@@ -2206,7 +2204,6 @@ DebugScope::DebugScope(Debug* debug)
   // Store the previous break id, frame id and return value.
   break_id_ = debug_->break_id();
   break_frame_id_ = debug_->break_frame_id();
-  return_value_ = handle(debug_->return_value(), isolate());
 
   // Create the new break info. If there is no proper frames there is no break
   // frame id.
@@ -2232,9 +2229,16 @@ DebugScope::~DebugScope() {
   // Restore to the previous break state.
   debug_->thread_local_.break_frame_id_ = break_frame_id_;
   debug_->thread_local_.break_id_ = break_id_;
-  debug_->thread_local_.return_value_ = *return_value_;
 
   debug_->UpdateState();
+}
+
+ReturnValueScope::ReturnValueScope(Debug* debug) : debug_(debug) {
+  return_value_ = debug_->return_value_handle();
+}
+
+ReturnValueScope::~ReturnValueScope() {
+  debug_->set_return_value(*return_value_);
 }
 
 bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {

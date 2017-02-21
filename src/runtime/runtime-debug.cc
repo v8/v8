@@ -28,6 +28,8 @@ RUNTIME_FUNCTION(Runtime_DebugBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  HandleScope scope(isolate);
+  ReturnValueScope result_scope(isolate->debug());
   isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
@@ -40,6 +42,8 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
+  HandleScope scope(isolate);
+  ReturnValueScope result_scope(isolate->debug());
   isolate->debug()->set_return_value(*value);
 
   // Get the top-most JavaScript frame.
