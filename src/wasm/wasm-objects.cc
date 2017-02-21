@@ -531,7 +531,13 @@ WasmSharedModuleData* WasmSharedModuleData::cast(Object* object) {
 }
 
 wasm::WasmModule* WasmSharedModuleData::module() {
-  return reinterpret_cast<WasmModuleWrapper*>(get(kModuleWrapper))->get();
+  // We populate the kModuleWrapper field with a Foreign holding the
+  // address to the address of a WasmModule. This is because we can
+  // handle both cases when the WasmModule's lifetime is managed through
+  // a Managed<WasmModule> object, as well as cases when it's managed
+  // by the embedder. CcTests fall into the latter case.
+  return *(reinterpret_cast<wasm::WasmModule**>(
+      Foreign::cast(get(kModuleWrapper))->foreign_address()));
 }
 
 DEFINE_OPTIONAL_ARR_ACCESSORS(WasmSharedModuleData, module_bytes, kModuleBytes,

@@ -9,7 +9,6 @@
 #include "src/debug/interface-types.h"
 #include "src/objects.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/wasm/managed.h"
 #include "src/wasm/wasm-limits.h"
 
 namespace v8 {

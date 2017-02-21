@@ -331,8 +331,10 @@ class TestingModule : public ModuleEnv {
   Handle<WasmInstanceObject> InitInstanceObject() {
     Handle<SeqOneByteString> empty_string = Handle<SeqOneByteString>::cast(
         isolate_->factory()->NewStringFromOneByte({}).ToHandleChecked());
-    Handle<Managed<wasm::WasmModule>> module_wrapper =
-        Managed<wasm::WasmModule>::New(isolate_, &module_, false);
+    // The lifetime of the wasm module is tied to this object's, and we cannot
+    // rely on the mechanics of Managed<T>.
+    Handle<Foreign> module_wrapper =
+        isolate_->factory()->NewForeign(reinterpret_cast<Address>(&module));
     Handle<Script> script =
         isolate_->factory()->NewScript(isolate_->factory()->empty_string());
     script->set_type(Script::TYPE_WASM);
