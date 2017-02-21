@@ -1745,12 +1745,25 @@ void BytecodeGraphBuilder::VisitGetSuperConstructor() {
                               Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildCompareOp(const Operator* js_op) {
+void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
   PrepareEagerCheckpoint();
   Node* left =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
-  Node* node = NewNode(js_op, left, right);
+
+  Node* node = nullptr;
+  int slot_index = bytecode_iterator().GetIndexOperand(1);
+  if (slot_index != 0) {
+    FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
+    if (Node* simplified = TryBuildSimplifiedBinaryOp(op, left, right, slot)) {
+      node = simplified;
+    } else {
+      node = NewNode(op, left, right);
+    }
+  } else {
+    node = NewNode(op, left, right);
+  }
+
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -1782,12 +1795,21 @@ void BytecodeGraphBuilder::VisitTestGreaterThanOrEqual() {
   BuildCompareOp(javascript()->GreaterThanOrEqual(GetCompareOperationHint()));
 }
 
+void BytecodeGraphBuilder::BuildTestingOp(const Operator* op) {
+  PrepareEagerCheckpoint();
+  Node* left =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* right = environment()->LookupAccumulator();
+  Node* node = NewNode(op, left, right);
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitTestIn() {
-  BuildCompareOp(javascript()->HasProperty());
+  BuildTestingOp(javascript()->HasProperty());
 }
 
 void BytecodeGraphBuilder::VisitTestInstanceOf() {
-  BuildCompareOp(javascript()->InstanceOf());
+  BuildTestingOp(javascript()->InstanceOf());
 }
 
 void BytecodeGraphBuilder::VisitTestUndetectable() {

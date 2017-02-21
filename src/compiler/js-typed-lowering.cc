@@ -349,6 +349,10 @@ class JSBinopReduction final {
 
   const Operator* NumberOpFromSpeculativeNumberOp() {
     switch (node_->opcode()) {
+      case IrOpcode::kSpeculativeNumberLessThan:
+        return simplified()->NumberLessThan();
+      case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+        return simplified()->NumberLessThanOrEqual();
       case IrOpcode::kSpeculativeNumberAdd:
         return simplified()->NumberAdd();
       case IrOpcode::kSpeculativeNumberSubtract:
@@ -770,6 +774,15 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   return Changed(node);
 }
 
+Reduction JSTypedLowering::ReduceSpeculativeNumberComparison(Node* node) {
+  JSBinopReduction r(this, node);
+  if (r.BothInputsAre(Type::Signed32()) ||
+      r.BothInputsAre(Type::Unsigned32())) {
+    return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp());
+  }
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::String())) {
@@ -797,16 +810,12 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     return Changed(node);
   }
 
-  NumberOperationHint hint;
   const Operator* less_than;
   const Operator* less_than_or_equal;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
     less_than = simplified()->NumberLessThan();
     less_than_or_equal = simplified()->NumberLessThanOrEqual();
-  } else if (r.GetCompareNumberOperationHint(&hint)) {
-    less_than = simplified()->SpeculativeNumberLessThan(hint);
-    less_than_or_equal = simplified()->SpeculativeNumberLessThanOrEqual(hint);
   } else if (r.OneInputCannotBe(Type::StringOrReceiver()) &&
              (r.BothInputsAre(Type::PlainPrimitive()) ||
               !(flags() & kDeoptimizationEnabled))) {
@@ -839,11 +848,7 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
     default:
       return NoChange();
   }
-  if (comparison->EffectInputCount() > 0) {
-    return r.ChangeToSpeculativeOperator(comparison, Type::Boolean());
-  } else {
-    return r.ChangeToPureOperator(comparison);
-  }
+  return r.ChangeToPureOperator(comparison);
 }
 
 Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
@@ -2451,6 +2456,9 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kSpeculativeNumberDivide:
     case IrOpcode::kSpeculativeNumberModulus:
       return ReduceSpeculativeNumberBinop(node);
+    case IrOpcode::kSpeculativeNumberLessThan:
+    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
+      return ReduceSpeculativeNumberComparison(node);
     default:
       break;
   }
