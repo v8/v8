@@ -275,7 +275,8 @@ bool LCodeGen::GenerateDeferredCode() {
         DCHECK(!frame_is_built_);
         DCHECK(info()->IsStub());
         frame_is_built_ = true;
-        __ LoadSmiLiteral(scratch0(), Smi::FromInt(StackFrame::STUB));
+        __ Load(scratch0(),
+                Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
         __ PushCommonFrame(scratch0());
         Comment(";;; Deferred code");
       }
@@ -344,7 +345,7 @@ bool LCodeGen::GenerateJumpTable() {
       // have a function pointer to install in the stack frame that we're
       // building, install a special marker there instead.
       DCHECK(info()->IsStub());
-      __ LoadSmiLiteral(ip, Smi::FromInt(StackFrame::STUB));
+      __ Load(ip, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
       __ push(ip);
       DCHECK(info()->IsStub());
     }
@@ -3095,8 +3096,8 @@ void LCodeGen::DoArgumentsElements(LArgumentsElements* instr) {
     __ LoadP(
         result,
         MemOperand(scratch, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ LoadSmiLiteral(r0, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
-    __ CmpP(result, r0);
+    __ CmpP(result,
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
     // Result is the frame pointer for the frame if not adapted and for the real
     // frame below the adaptor frame if adapted.
@@ -3673,7 +3674,8 @@ void LCodeGen::PrepareForTailCall(const ParameterCount& actual,
   __ LoadP(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ LoadP(scratch3,
            MemOperand(scratch2, StandardFrameConstants::kContextOffset));
-  __ CmpSmiLiteral(scratch3, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR), r0);
+  __ CmpP(scratch3,
+          Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ bne(&no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.

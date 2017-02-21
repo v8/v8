@@ -969,7 +969,7 @@ void MacroAssembler::StubPrologue(StackFrame::Type type, Register base,
                                   int prologue_offset) {
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(this);
-    LoadSmiLiteral(r11, Smi::FromInt(type));
+    mov(r11, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r11);
   }
   if (FLAG_enable_embedded_constant_pool) {
@@ -1034,10 +1034,10 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
     // This path cannot rely on ip containing code entry.
     PushCommonFrame();
     LoadConstantPoolPointerRegister();
-    LoadSmiLiteral(ip, Smi::FromInt(type));
+    mov(ip, Operand(StackFrame::TypeToMarker(type)));
     push(ip);
   } else {
-    LoadSmiLiteral(ip, Smi::FromInt(type));
+    mov(ip, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(ip);
   }
   if (type == StackFrame::INTERNAL) {
@@ -1143,7 +1143,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // all of the pushes that have happened inside of V8
   // since we were called from C code
 
-  LoadSmiLiteral(ip, Smi::FromInt(frame_type));
+  mov(ip, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(ip);
   // Reserve room for saved entry sp and code object.
   subi(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));

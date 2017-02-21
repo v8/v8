@@ -933,7 +933,7 @@ void MacroAssembler::StubPrologue(StackFrame::Type type, Register base,
                                   int prologue_offset) {
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(this);
-    LoadSmiLiteral(r1, Smi::FromInt(type));
+    Load(r1, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r1);
   }
 }
@@ -984,7 +984,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
   //    type
   //    CodeObject  <-- new sp
 
-  LoadSmiLiteral(ip, Smi::FromInt(type));
+  Load(ip, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(ip);
 
   if (type == StackFrame::INTERNAL) {
@@ -1057,7 +1057,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // all of the pushes that have happened inside of V8
   // since we were called from C code
   CleanseP(r14);
-  LoadSmiLiteral(r1, Smi::FromInt(frame_type));
+  Load(r1, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(r1);
   // Reserve room for saved entry sp and code object.
   lay(sp, MemOperand(fp, -ExitFrameConstants::kFixedFrameSizeFromFp));
