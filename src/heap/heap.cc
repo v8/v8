@@ -1800,13 +1800,16 @@ void Heap::Scavenge() {
 }
 
 void Heap::ComputeFastPromotionMode(double survival_rate) {
+  const size_t survived_in_new_space =
+      survived_last_scavenge_ * 100 / new_space_->Capacity();
   fast_promotion_mode_ =
       !FLAG_optimize_for_size && FLAG_fast_promotion_new_space &&
-      new_space_->IsAtMaximumCapacity() &&
-      survival_rate >= kMinPromotedPercentForFastPromotionMode;
+      !ShouldReduceMemory() && new_space_->IsAtMaximumCapacity() &&
+      survived_in_new_space >= kMinPromotedPercentForFastPromotionMode;
   if (FLAG_trace_gc_verbose) {
-    PrintIsolate(isolate(), "Fast promotion mode: %s survival rate: %f%%\n",
-                 fast_promotion_mode_ ? "true" : "false", survival_rate);
+    PrintIsolate(
+        isolate(), "Fast promotion mode: %s survival rate: %" PRIuS "%%\n",
+        fast_promotion_mode_ ? "true" : "false", survived_in_new_space);
   }
 }
 
@@ -5255,7 +5258,6 @@ const double Heap::kMaxHeapGrowingFactorMemoryConstrained = 2.0;
 const double Heap::kMaxHeapGrowingFactorIdle = 1.5;
 const double Heap::kConservativeHeapGrowingFactor = 1.3;
 const double Heap::kTargetMutatorUtilization = 0.97;
-const double Heap::kMinPromotedPercentForFastPromotionMode = 90;
 
 // Given GC speed in bytes per ms, the allocation throughput in bytes per ms
 // (mutator speed), this function returns the heap growing factor that will

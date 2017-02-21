@@ -648,7 +648,7 @@ class Heap {
   // The minimum size of a HeapObject on the heap.
   static const int kMinObjectSizeInWords = 2;
 
-  static const double kMinPromotedPercentForFastPromotionMode;
+  static const int kMinPromotedPercentForFastPromotionMode = 90;
 
   STATIC_ASSERT(kUndefinedValueRootIndex ==
                 Internals::kUndefinedValueRootIndex);
