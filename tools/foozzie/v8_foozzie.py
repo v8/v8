@@ -112,9 +112,9 @@ def parse_args():
     '--random-seed', type=int, required=True,
     help='random seed passed to both runs')
   parser.add_argument(
-      '--first-config', help='first configuration', default='fullcode')
+      '--first-config', help='first configuration', default='ignition')
   parser.add_argument(
-      '--second-config', help='second configuration', default='fullcode')
+      '--second-config', help='second configuration', default='ignition_turbo')
   parser.add_argument(
       '--first-d8', default='d8',
       help='optional path to first d8 executable, '
