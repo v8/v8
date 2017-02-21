@@ -26,8 +26,10 @@ class zone_allocator {
     typedef zone_allocator<O> other;
   };
 
-  // TODO(bbudge) Remove when V8 updates to MSVS 2015. See crbug.com/603131.
+#ifdef V8_CC_MSVC
+  // MSVS unfortunately requires the default constructor to be defined.
   zone_allocator() : zone_(nullptr) { UNREACHABLE(); }
+#endif
   explicit zone_allocator(Zone* zone) throw() : zone_(zone) {}
   explicit zone_allocator(const zone_allocator& other) throw()
       : zone_(other.zone_) {}
