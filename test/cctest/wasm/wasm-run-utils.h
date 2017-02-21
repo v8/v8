@@ -564,8 +564,16 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     Handle<WasmCompiledModule> compiled_module(
         testing_module_->instance_object()->compiled_module(), isolate());
     Handle<FixedArray> code_table = compiled_module->code_table();
-    code_table = FixedArray::SetAndGrow(code_table, function_index(), code);
-    compiled_module->set_code_table(code_table);
+    if (static_cast<int>(function_index()) >= code_table->length()) {
+      Handle<FixedArray> new_arr = isolate()->factory()->NewFixedArray(
+          static_cast<int>(function_index()) + 1);
+      code_table->CopyTo(0, *new_arr, 0, code_table->length());
+      code_table = new_arr;
+      compiled_module->set_code_table(code_table);
+    }
+    DCHECK(code_table->get(static_cast<int>(function_index()))
+               ->IsUndefined(isolate()));
+    code_table->set(static_cast<int>(function_index()), *code);
   }
 
   byte AllocateLocal(ValueType type) {
