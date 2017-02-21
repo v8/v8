@@ -2179,7 +2179,10 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
     Isolate* v8_isolate, Source* source, CompileOptions options) {
-  DCHECK(!source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(
+      !source->GetResourceOptions().IsModule(),
+      "v8::ScriptCompiler::CompileUnboundScript",
+      "v8::ScriptCompiler::CompileModule must be used to compile modules");
   return CompileUnboundInternal(v8_isolate, source, options);
 }
 
@@ -2187,7 +2190,10 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
 Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
                                                     Source* source,
                                                     CompileOptions options) {
-  DCHECK(!source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(
+      !source->GetResourceOptions().IsModule(),
+      "v8::ScriptCompiler::CompileUnbound",
+      "v8::ScriptCompiler::CompileModule must be used to compile modules");
   RETURN_TO_LOCAL_UNCHECKED(CompileUnboundInternal(v8_isolate, source, options),
                             UnboundScript);
 }
@@ -2196,7 +2202,9 @@ Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
 MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            Source* source,
                                            CompileOptions options) {
-  DCHECK(!source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(
+      !source->GetResourceOptions().IsModule(), "v8::ScriptCompiler::Compile",
+      "v8::ScriptCompiler::CompileModule must be used to compile modules");
   auto isolate = context->GetIsolate();
   auto maybe = CompileUnboundInternal(isolate, source, options);
   Local<UnboundScript> result;
@@ -2218,7 +2226,9 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
                                                  Source* source) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  DCHECK(source->GetResourceOptions().IsModule());
+  Utils::ApiCheck(source->GetResourceOptions().IsModule(),
+                  "v8::ScriptCompiler::CompileModule",
+                  "Invalid ScriptOrigin: is_module must be true");
   auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions);
   Local<UnboundScript> unbound;
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
