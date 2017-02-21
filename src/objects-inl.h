@@ -1468,10 +1468,13 @@ Map* HeapObject::map() const {
 
 void HeapObject::set_map(Map* value) {
   set_map_word(MapWord::FromMap(value));
-  if (value != NULL) {
+  if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
-    value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
+    value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
   }
 }
 
@@ -1483,10 +1486,13 @@ Map* HeapObject::synchronized_map() {
 
 void HeapObject::synchronized_set_map(Map* value) {
   synchronized_set_map_word(MapWord::FromMap(value));
-  if (value != NULL) {
+  if (value != nullptr) {
     // TODO(1600) We are passing NULL as a slot because maps can never be on
     // evacuation candidate.
-    value->GetHeap()->incremental_marking()->RecordWrite(this, NULL, value);
+    value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
+#ifdef VERIFY_HEAP
+    value->GetHeap()->VerifyObjectLayoutChange(this, value);
+#endif
   }
 }
 

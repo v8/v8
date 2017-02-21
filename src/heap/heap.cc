@@ -159,7 +159,8 @@ Heap::Heap()
       local_embedder_heap_tracer_(nullptr),
       fast_promotion_mode_(false),
       force_oom_(false),
-      delay_sweeper_tasks_for_testing_(false) {
+      delay_sweeper_tasks_for_testing_(false),
+      pending_layout_change_object_(nullptr) {
 // Allow build-time customization of the max semispace size. Building
 // V8 with snapshots and a non-default max semispace size is much
 // easier if you can define it as part of the build environment.
@@ -4297,6 +4298,27 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
     }
   }
 }
+
+void Heap::NotifyObjectLayoutChange(HeapObject* object,
+                                    const DisallowHeapAllocation&) {
+// TODO(ulan): Add synchronization with the concurrent marker.
+#ifdef VERIFY_HEAP
+  DCHECK(pending_layout_change_object_ == nullptr);
+  pending_layout_change_object_ = object;
+#endif
+}
+
+#ifdef VERIFY_HEAP
+void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
+  if (pending_layout_change_object_ == nullptr) {
+    DCHECK(!object->IsJSObject() ||
+           !object->map()->TransitionRequiresSynchronizationWithGC(new_map));
+  } else {
+    DCHECK_EQ(pending_layout_change_object_, object);
+    pending_layout_change_object_ = nullptr;
+  }
+}
+#endif
 
 GCIdleTimeHeapState Heap::ComputeHeapState() {
   GCIdleTimeHeapState heap_state;

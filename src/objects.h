@@ -5838,6 +5838,16 @@ class Map: public HeapObject {
 
   int NumberOfFields();
 
+  // Returns true if transition to the given map requires special
+  // synchronization with the concurrent marker.
+  bool TransitionRequiresSynchronizationWithGC(Map* target);
+  // Returns true if transition to the given map removes a tagged in-object
+  // field.
+  bool TransitionRemovesTaggedField(Map* target);
+  // Returns true if transition to the given map replaces a tagged in-object
+  // field with an untagged in-object field.
+  bool TransitionChangesTaggedFieldToUntaggedField(Map* target);
+
   // TODO(ishell): candidate with JSObject::MigrateToMap().
   bool InstancesNeedRewriting(Map* target);
   bool InstancesNeedRewriting(Map* target, int target_number_of_fields,

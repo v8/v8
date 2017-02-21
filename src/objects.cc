@@ -3275,6 +3275,34 @@ const char* Representation::Mnemonic() const {
   }
 }
 
+bool Map::TransitionRemovesTaggedField(Map* target) {
+  int inobject = GetInObjectProperties();
+  int target_inobject = target->GetInObjectProperties();
+  for (int i = target_inobject; i < inobject; i++) {
+    FieldIndex index = FieldIndex::ForPropertyIndex(this, i);
+    if (!IsUnboxedDoubleField(index)) return true;
+  }
+  return false;
+}
+
+bool Map::TransitionChangesTaggedFieldToUntaggedField(Map* target) {
+  int inobject = GetInObjectProperties();
+  int target_inobject = target->GetInObjectProperties();
+  int limit = Min(inobject, target_inobject);
+  for (int i = 0; i < limit; i++) {
+    FieldIndex index = FieldIndex::ForPropertyIndex(target, i);
+    if (!IsUnboxedDoubleField(index) && target->IsUnboxedDoubleField(index)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Map::TransitionRequiresSynchronizationWithGC(Map* target) {
+  return TransitionRemovesTaggedField(target) ||
+         TransitionChangesTaggedFieldToUntaggedField(target);
+}
+
 bool Map::InstancesNeedRewriting(Map* target) {
   int target_number_of_fields = target->NumberOfFields();
   int target_inobject = target->GetInObjectProperties();
@@ -3525,6 +3553,8 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
   Heap* heap = isolate->heap();
 
+  heap->NotifyObjectLayoutChange(*object, no_allocation);
+
   // Copy (real) inobject properties. If necessary, stop at number_of_fields to
   // avoid overwriting |one_pointer_filler_map|.
   int limit = Min(inobject, number_of_fields);
@@ -3639,13 +3669,15 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   // From here on we cannot fail and we shouldn't GC anymore.
   DisallowHeapAllocation no_allocation;
 
+  Heap* heap = isolate->heap();
+  heap->NotifyObjectLayoutChange(*object, no_allocation);
+
   // Resize the object in the heap if necessary.
   int new_instance_size = new_map->instance_size();
   int instance_size_delta = map->instance_size() - new_instance_size;
   DCHECK(instance_size_delta >= 0);
 
   if (instance_size_delta > 0) {
-    Heap* heap = isolate->heap();
     heap->CreateFillerObjectAt(object->address() + new_instance_size,
                                instance_size_delta, ClearRecordedSlots::kYes);
     heap->AdjustLiveBytes(*object, -instance_size_delta);

@@ -1238,6 +1238,20 @@ class Heap {
 
   IncrementalMarking* incremental_marking() { return incremental_marking_; }
 
+  // The runtime uses this function to notify potentially unsafe object layout
+  // changes that require special synchronization with the concurrent marker.
+  // A layout change is unsafe if
+  // - it removes a tagged in-object field.
+  // - it replaces a tagged in-objects field with an untagged in-object field.
+  void NotifyObjectLayoutChange(HeapObject* object,
+                                const DisallowHeapAllocation&);
+#ifdef VERIFY_HEAP
+  // This function checks that either
+  // - the map transition is safe,
+  // - or it was communicated to GC using NotifyObjectLayoutChange.
+  void VerifyObjectLayoutChange(HeapObject* object, Map* new_map);
+#endif
+
   // ===========================================================================
   // Embedder heap tracer support. =============================================
   // ===========================================================================
@@ -2354,6 +2368,8 @@ class Heap {
   // Used for testing purposes.
   bool force_oom_;
   bool delay_sweeper_tasks_for_testing_;
+
+  HeapObject* pending_layout_change_object_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
