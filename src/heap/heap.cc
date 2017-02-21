@@ -4304,7 +4304,9 @@ void Heap::RegisterReservationsForBlackAllocation(Reservation* reservations) {
 
 void Heap::NotifyObjectLayoutChange(HeapObject* object,
                                     const DisallowHeapAllocation&) {
-// TODO(ulan): Add synchronization with the concurrent marker.
+  if (FLAG_incremental_marking && incremental_marking()->IsMarking()) {
+    incremental_marking()->MarkGrey(this, object);
+  }
 #ifdef VERIFY_HEAP
   DCHECK(pending_layout_change_object_ == nullptr);
   pending_layout_change_object_ = object;
