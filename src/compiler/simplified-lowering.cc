@@ -170,6 +170,7 @@ void ReplaceEffectControlUses(Node* node, Node* effect, Node* control) {
 }
 
 void ChangeToPureOp(Node* node, const Operator* new_op) {
+  DCHECK(new_op->HasProperty(Operator::kPure));
   if (node->op()->EffectInputCount() > 0) {
     DCHECK_LT(0, node->op()->ControlInputCount());
     // Disconnect the node from effect and control chains.
@@ -3382,12 +3383,11 @@ void SimplifiedLowering::DoMin(Node* node, Operator const* op,
 
 void SimplifiedLowering::DoShift(Node* node, Operator const* op,
                                  Type* rhs_type) {
-  Node* const rhs = NodeProperties::GetValueInput(node, 1);
   if (!rhs_type->Is(type_cache_.kZeroToThirtyOne)) {
+    Node* const rhs = NodeProperties::GetValueInput(node, 1);
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
                                            jsgraph()->Int32Constant(0x1f)));
   }
-  DCHECK(op->HasProperty(Operator::kPure));
   ChangeToPureOp(node, op);
 }
 
