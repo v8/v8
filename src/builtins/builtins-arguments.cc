@@ -42,9 +42,9 @@ ArgumentsBuiltinsAssembler::GetArgumentsFrameAndCount(Node* function,
   argument_count.Bind(formal_parameter_count);
   Node* marker_or_function = LoadBufferObject(
       frame_ptr_above, CommonFrameConstants::kContextOrFrameTypeOffset);
-  GotoIf(SmiNotEqual(marker_or_function,
-                     SmiConstant(StackFrame::ARGUMENTS_ADAPTOR)),
-         &done_argument_count);
+  GotoIf(
+      MarkerIsNotFrameType(marker_or_function, StackFrame::ARGUMENTS_ADAPTOR),
+      &done_argument_count);
   Node* adapted_parameter_count = LoadBufferObject(
       frame_ptr_above, ArgumentsAdaptorFrameConstants::kLengthOffset);
   frame_ptr.Bind(frame_ptr_above);

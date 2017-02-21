@@ -2161,7 +2161,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(x10, x0);
-  __ Mov(x11, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Mov(x11, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ Push(lr, fp);
   __ Push(x11, x1, x10);
   __ Add(fp, jssp,
@@ -2373,7 +2373,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   Label arguments_adaptor, arguments_done;
   __ Ldr(x3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(x4, MemOperand(x3, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ Cmp(x4, Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Cmp(x4, StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR));
   __ B(eq, &arguments_adaptor);
   {
     __ Ldr(x0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2475,7 +2475,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
     Label no_interpreter_frame;
     __ Ldr(scratch3,
            MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::STUB)));
+    __ Cmp(scratch3, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ B(ne, &no_interpreter_frame);
     __ Ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2487,7 +2487,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ Ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ Ldr(scratch3,
          MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ Cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Cmp(scratch3,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ B(ne, &no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.

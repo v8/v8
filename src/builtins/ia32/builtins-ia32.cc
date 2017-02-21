@@ -2134,7 +2134,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ mov(ebp, esp);
 
   // Store the arguments adaptor context sentinel.
-  __ push(Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ push(Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Push the function on the stack.
   __ push(edi);
@@ -2332,7 +2332,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   Label arguments_adaptor, arguments_done;
   __ mov(ebx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ cmp(Operand(ebx, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+         Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
     __ mov(eax, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2448,7 +2448,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   {
     Label no_interpreter_frame;
     __ cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-           Immediate(Smi::FromInt(StackFrame::STUB)));
+           Immediate(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ j(not_equal, &no_interpreter_frame, Label::kNear);
     __ mov(ebp, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2459,7 +2459,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ mov(scratch2, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ cmp(Operand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+         Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &no_arguments_adaptor, Label::kNear);
 
   // Drop current frame and load arguments count from arguments adaptor frame.

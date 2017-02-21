@@ -1546,8 +1546,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ mov(ebp, esp);
 
   // Push marker in two places.
-  int marker = type();
-  __ push(Immediate(Smi::FromInt(marker)));  // marker
+  StackFrame::Type marker = type();
+  __ push(Immediate(StackFrame::TypeToMarker(marker)));  // marker
   ExternalReference context_address(Isolate::kContextAddress, isolate());
   __ push(Operand::StaticVariable(context_address));  // context
   // Save callee-saved registers (C calling conventions).
@@ -1564,10 +1564,10 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ j(not_equal, &not_outermost_js, Label::kNear);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
-  __ push(Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ jmp(&invoke, Label::kNear);
   __ bind(&not_outermost_js);
-  __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ push(Immediate(StackFrame::INNER_JSENTRY_FRAME));
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -1611,7 +1611,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.
   __ pop(ebx);
-  __ cmp(ebx, Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ cmp(ebx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
   __ mov(Operand::StaticVariable(js_entry_sp), Immediate(0));
   __ bind(&not_outermost_js_2);

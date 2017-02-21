@@ -570,7 +570,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
   // Check if current frame is an arguments adaptor frame.
   __ Ldr(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ Cmp(scratch1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ Cmp(scratch1,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ B(ne, &done);
 
   // Load arguments count from current arguments adaptor frame (note, it
@@ -1903,7 +1904,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (is_stub_frame) {
       UseScratchRegisterScope temps(masm());
       Register temp = temps.AcquireX();
-      __ Mov(temp, Smi::FromInt(info()->GetOutputStackFrameType()));
+      __ Mov(temp, StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
       __ Str(temp, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
     }
   }

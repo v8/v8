@@ -2138,7 +2138,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // __ sll(a0, a0, kSmiTagSize);
   __ dsll32(a0, a0, 0);
-  __ li(a4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ li(a4, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ MultiPush(a0.bit() | a1.bit() | a4.bit() | fp.bit() | ra.bit());
   __ Daddu(fp, sp, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
                            kPointerSize));
@@ -2341,7 +2341,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   __ ld(a3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ld(a0, MemOperand(a3, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Branch(&arguments_adaptor, eq, a0,
-            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   {
     __ ld(a0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
     __ ld(a0, FieldMemOperand(a0, JSFunction::kSharedFunctionInfoOffset));
@@ -2442,7 +2442,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
     __ ld(scratch3,
           MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
     __ Branch(&no_interpreter_frame, ne, scratch3,
-              Operand(Smi::FromInt(StackFrame::STUB)));
+              Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ ld(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
   }
@@ -2454,7 +2454,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ ld(scratch3,
         MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
   __ Branch(&no_arguments_adaptor, ne, scratch3,
-            Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+            Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Drop current frame and load arguments count from arguments adaptor frame.
   __ mov(fp, scratch2);

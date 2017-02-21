@@ -1453,8 +1453,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ movp(rbp, rsp);
 
     // Push the stack frame type.
-    int marker = type();
-    __ Push(Smi::FromInt(marker));  // context slot
+    __ Push(Immediate(StackFrame::TypeToMarker(type())));  // context slot
     ExternalReference context_address(Isolate::kContextAddress, isolate());
     __ Load(kScratchRegister, context_address);
     __ Push(kScratchRegister);  // context
@@ -1501,13 +1500,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Load(rax, js_entry_sp);
   __ testp(rax, rax);
   __ j(not_zero, &not_outermost_js);
-  __ Push(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ Push(Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ movp(rax, rbp);
   __ Store(js_entry_sp, rax);
   Label cont;
   __ jmp(&cont);
   __ bind(&not_outermost_js);
-  __ Push(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME));
+  __ Push(Immediate(StackFrame::INNER_JSENTRY_FRAME));
   __ bind(&cont);
 
   // Jump to a faked try block that does the invoke, with a faked catch
@@ -1552,7 +1551,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&exit);
   // Check if the current stack frame is marked as the outermost JS frame.
   __ Pop(rbx);
-  __ Cmp(rbx, Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME));
+  __ cmpp(rbx, Immediate(StackFrame::OUTERMOST_JSENTRY_FRAME));
   __ j(not_equal, &not_outermost_js_2);
   __ Move(kScratchRegister, js_entry_sp);
   __ movp(Operand(kScratchRegister, 0), Immediate(0));

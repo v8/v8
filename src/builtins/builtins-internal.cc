@@ -247,11 +247,9 @@ void Builtins::Generate_NewUnmappedArgumentsElements(
       assembler.Load(MachineType::AnyTagged(), parent_frame,
                      assembler.IntPtrConstant(
                          CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoIfNot(
-      assembler.WordEqual(
-          parent_frame_type,
-          assembler.SmiConstant(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR))),
-      &done);
+  assembler.GotoIfNot(assembler.MarkerIsFrameType(
+                          parent_frame_type, StackFrame::ARGUMENTS_ADAPTOR),
+                      &done);
   {
     // Determine the length from the ArgumentsAdaptorFrame.
     Node* length = assembler.LoadAndUntagSmi(
@@ -290,8 +288,7 @@ void Builtins::Generate_NewRestParameterElements(
                      assembler.IntPtrConstant(
                          CommonFrameConstants::kContextOrFrameTypeOffset));
   assembler.GotoIfNot(
-      assembler.WordEqual(frame_type, assembler.SmiConstant(Smi::FromInt(
-                                          StackFrame::ARGUMENTS_ADAPTOR))),
+      assembler.MarkerIsFrameType(frame_type, StackFrame::ARGUMENTS_ADAPTOR),
       &if_empty);
 
   // Determine the length from the ArgumentsAdaptorFrame.

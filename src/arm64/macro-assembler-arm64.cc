@@ -2601,7 +2601,7 @@ void MacroAssembler::StubPrologue(StackFrame::Type type, int frame_slots) {
   UseScratchRegisterScope temps(this);
   frame_slots -= TypedFrameConstants::kFixedSlotCountAboveFp;
   Register temp = temps.AcquireX();
-  Mov(temp, Smi::FromInt(type));
+  Mov(temp, StackFrame::TypeToMarker(type));
   Push(lr, fp);
   Mov(fp, StackPointer());
   Claim(frame_slots);
@@ -2638,7 +2638,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 
   if (type == StackFrame::INTERNAL) {
     DCHECK(jssp.Is(StackPointer()));
-    Mov(type_reg, Smi::FromInt(type));
+    Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Push(type_reg);
     Mov(code_reg, Operand(CodeObject()));
@@ -2650,7 +2650,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     // jssp[0] : [code object]
   } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
-    Mov(type_reg, Smi::FromInt(type));
+    Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Mov(fp, csp);
     Push(type_reg, xzr);
@@ -2660,7 +2660,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
     // csp[0] : for alignment
   } else {
     DCHECK(jssp.Is(StackPointer()));
-    Mov(type_reg, Smi::FromInt(type));
+    Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Push(type_reg);
     Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp);
@@ -2731,7 +2731,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   // Set up the new stack frame.
   Push(lr, fp);
   Mov(fp, StackPointer());
-  Mov(scratch, Smi::FromInt(frame_type));
+  Mov(scratch, StackFrame::TypeToMarker(frame_type));
   Push(scratch);
   Push(xzr);
   Mov(scratch, Operand(CodeObject()));

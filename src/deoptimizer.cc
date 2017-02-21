@@ -1396,8 +1396,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   // A marker value is used in place of the context.
   output_offset -= kPointerSize;
-  intptr_t context = reinterpret_cast<intptr_t>(
-      Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  intptr_t context = StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR);
   output_frame->SetFrameSlot(output_offset, context);
   DebugPrintOutputSlot(context, frame_index, output_offset,
                        "context (adaptor sentinel)\n");
@@ -1453,8 +1452,8 @@ void Deoptimizer::DoComputeTailCallerFrame(TranslatedFrame* translated_frame,
   Address adaptor_fp_address =
       Memory::Address_at(fp_address + CommonFrameConstants::kCallerFPOffset);
 
-  if (Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR) !=
-      Memory::Object_at(adaptor_fp_address +
+  if (StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR) !=
+      Memory::intptr_at(adaptor_fp_address +
                         CommonFrameConstants::kContextOrFrameTypeOffset)) {
     return;
   }
@@ -1593,7 +1592,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // A marker value is used to mark the frame.
   output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::CONSTRUCT));
+  value = StackFrame::TypeToMarker(StackFrame::CONSTRUCT);
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset,
                        "typed frame marker\n");
@@ -1780,7 +1779,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
 
   // Set the frame type.
   output_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(Smi::FromInt(StackFrame::INTERNAL));
+  value = StackFrame::TypeToMarker(StackFrame::INTERNAL);
   output_frame->SetFrameSlot(output_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_offset, "frame type ");
   if (trace_scope_ != nullptr) {
@@ -1977,8 +1976,7 @@ void Deoptimizer::DoComputeCompiledStubFrame(TranslatedFrame* translated_frame,
 
   // The marker for the typed stack frame
   output_frame_offset -= kPointerSize;
-  value = reinterpret_cast<intptr_t>(
-      Smi::FromInt(StackFrame::STUB_FAILURE_TRAMPOLINE));
+  value = StackFrame::TypeToMarker(StackFrame::STUB_FAILURE_TRAMPOLINE);
   output_frame->SetFrameSlot(output_frame_offset, value);
   DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                        "function (stub failure sentinel)\n");

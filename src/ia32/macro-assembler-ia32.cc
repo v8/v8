@@ -1007,7 +1007,7 @@ void MacroAssembler::AssertNotSmi(Register object) {
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
   push(ebp);  // Caller's frame pointer.
   mov(ebp, esp);
-  push(Immediate(Smi::FromInt(type)));
+  push(Immediate(StackFrame::TypeToMarker(type)));
 }
 
 void MacroAssembler::Prologue(bool code_pre_aging) {
@@ -1043,7 +1043,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type,
 void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, esp);
-  push(Immediate(Smi::FromInt(type)));
+  push(Immediate(StackFrame::TypeToMarker(type)));
   if (type == StackFrame::INTERNAL) {
     push(Immediate(CodeObject()));
   }
@@ -1057,7 +1057,7 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
 void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (emit_debug_code()) {
     cmp(Operand(ebp, CommonFrameConstants::kContextOrFrameTypeOffset),
-        Immediate(Smi::FromInt(type)));
+        Immediate(StackFrame::TypeToMarker(type)));
     Check(equal, kStackFrameTypesMustMatch);
   }
   leave();
@@ -1092,7 +1092,7 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
   mov(ebp, esp);
 
   // Reserve room for entry stack pointer and push the code object.
-  push(Immediate(Smi::FromInt(frame_type)));
+  push(Immediate(StackFrame::TypeToMarker(frame_type)));
   DCHECK_EQ(-2 * kPointerSize, ExitFrameConstants::kSPOffset);
   push(Immediate(0));  // Saved entry sp, patched before call.
   DCHECK_EQ(-3 * kPointerSize, ExitFrameConstants::kCodeOffset);

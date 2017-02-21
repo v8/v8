@@ -1397,7 +1397,7 @@ void MacroAssembler::LoadConstantPoolPointerRegister() {
 }
 
 void MacroAssembler::StubPrologue(StackFrame::Type type) {
-  mov(ip, Operand(Smi::FromInt(type)));
+  mov(ip, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(ip);
   if (FLAG_enable_embedded_constant_pool) {
     LoadConstantPoolPointerRegister();
@@ -1437,7 +1437,7 @@ void MacroAssembler::EmitLoadFeedbackVector(Register vector) {
 void MacroAssembler::EnterFrame(StackFrame::Type type,
                                 bool load_constant_pool_pointer_reg) {
   // r0-r3: preserved
-  mov(ip, Operand(Smi::FromInt(type)));
+  mov(ip, Operand(StackFrame::TypeToMarker(type)));
   PushCommonFrame(ip);
   if (FLAG_enable_embedded_constant_pool && load_constant_pool_pointer_reg) {
     LoadConstantPoolPointerRegister();
@@ -1492,7 +1492,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
   DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
-  mov(ip, Operand(Smi::FromInt(frame_type)));
+  mov(ip, Operand(StackFrame::TypeToMarker(frame_type)));
   PushCommonFrame(ip);
   // Reserve room for saved entry sp and code object.
   sub(sp, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp));

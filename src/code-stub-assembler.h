@@ -1237,6 +1237,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        Node* deferred_on_resolve,
                                        Node* deferred_on_reject, Node* context);
 
+  // Helpers for StackFrame markers.
+  Node* MarkerIsFrameType(Node* marker_or_function,
+                          StackFrame::Type frame_type);
+  Node* MarkerIsNotFrameType(Node* marker_or_function,
+                             StackFrame::Type frame_type);
+
   // Support for printf-style debugging
   void Print(const char* s);
   void Print(const char* prefix, Node* tagged_value);

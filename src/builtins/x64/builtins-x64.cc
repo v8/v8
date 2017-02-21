@@ -2081,7 +2081,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ movp(rbp, rsp);
 
   // Store the arguments adaptor context sentinel.
-  __ Push(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ Push(Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
 
   // Push the function on the stack.
   __ Push(rdi);
@@ -2414,8 +2414,8 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   // Check if we have an arguments adaptor frame below the function frame.
   Label arguments_adaptor, arguments_done;
   __ movp(rbx, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(rbx, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ cmpp(Operand(rbx, CommonFrameConstants::kContextOrFrameTypeOffset),
+          Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(equal, &arguments_adaptor, Label::kNear);
   {
     __ movp(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2515,8 +2515,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   // Drop possible interpreter handler/stub frame.
   {
     Label no_interpreter_frame;
-    __ Cmp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
-           Smi::FromInt(StackFrame::STUB));
+    __ cmpp(Operand(rbp, CommonFrameConstants::kContextOrFrameTypeOffset),
+            Immediate(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ j(not_equal, &no_interpreter_frame, Label::kNear);
     __ movp(rbp, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2526,8 +2526,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   Register caller_args_count_reg = scratch1;
   Label no_arguments_adaptor, formal_parameter_count_loaded;
   __ movp(scratch2, Operand(rbp, StandardFrameConstants::kCallerFPOffset));
-  __ Cmp(Operand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset),
-         Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  __ cmpp(Operand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset),
+          Immediate(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ j(not_equal, &no_arguments_adaptor, Label::kNear);
 
   // Drop current frame and load arguments count from arguments adaptor frame.

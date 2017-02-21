@@ -474,7 +474,8 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
   // Check if current frame is an arguments adaptor frame.
   __ ldr(scratch1, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ cmp(scratch1, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmp(scratch1,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &done);
 
   // Load arguments count from current arguments adaptor frame (note, it

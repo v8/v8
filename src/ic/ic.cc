@@ -217,9 +217,9 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   // function's frame. Check if the there is an additional frame, and if there
   // is skip this frame. However, the pc should not be updated. The call to
   // ICs happen from bytecode handlers.
-  Object* frame_type =
-      Memory::Object_at(fp + TypedFrameConstants::kFrameTypeOffset);
-  if (frame_type == Smi::FromInt(StackFrame::STUB)) {
+  intptr_t frame_marker =
+      Memory::intptr_at(fp + TypedFrameConstants::kFrameTypeOffset);
+  if (frame_marker == StackFrame::TypeToMarker(StackFrame::STUB)) {
     fp = Memory::Address_at(fp + TypedFrameConstants::kCallerFPOffset);
   }
   fp_ = fp;

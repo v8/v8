@@ -2106,7 +2106,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
 
 static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ SmiTag(r0);
-  __ mov(r4, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ mov(r4, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ stm(db_w, sp, r0.bit() | r1.bit() | r4.bit() |
                        (FLAG_enable_embedded_constant_pool ? pp.bit() : 0) |
                        fp.bit() | lr.bit());
@@ -2288,7 +2288,7 @@ void Builtins::Generate_CallForwardVarargs(MacroAssembler* masm,
   Label arguments_adaptor, arguments_done;
   __ ldr(r3, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(ip, MemOperand(r3, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ cmp(ip, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmp(ip, Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(eq, &arguments_adaptor);
   {
     __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
@@ -2390,7 +2390,7 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
     Label no_interpreter_frame;
     __ ldr(scratch3,
            MemOperand(fp, CommonFrameConstants::kContextOrFrameTypeOffset));
-    __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::STUB)));
+    __ cmp(scratch3, Operand(StackFrame::TypeToMarker(StackFrame::STUB)));
     __ b(ne, &no_interpreter_frame);
     __ ldr(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
     __ bind(&no_interpreter_frame);
@@ -2402,7 +2402,8 @@ void PrepareForTailCall(MacroAssembler* masm, Register args_reg,
   __ ldr(scratch2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(scratch3,
          MemOperand(scratch2, CommonFrameConstants::kContextOrFrameTypeOffset));
-  __ cmp(scratch3, Operand(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
+  __ cmp(scratch3,
+         Operand(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
   __ b(ne, &no_arguments_adaptor);
 
   // Drop current frame and load arguments count from arguments adaptor frame.
