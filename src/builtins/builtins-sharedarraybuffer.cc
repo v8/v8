@@ -289,15 +289,15 @@ BUILTIN(AtomicsIsLockFree) {
 MUST_USE_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, bool only_int32 = false) {
   if (object->IsJSTypedArray()) {
-    Handle<JSTypedArray> typedArray = Handle<JSTypedArray>::cast(object);
-    if (typedArray->GetBuffer()->is_shared()) {
+    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
+    if (typed_array->GetBuffer()->is_shared()) {
       if (only_int32) {
-        if (typedArray->type() == kExternalInt32Array) return typedArray;
+        if (typed_array->type() == kExternalInt32Array) return typed_array;
       } else {
-        if (typedArray->type() != kExternalFloat32Array &&
-            typedArray->type() != kExternalFloat64Array &&
-            typedArray->type() != kExternalUint8ClampedArray)
-          return typedArray;
+        if (typed_array->type() != kExternalFloat32Array &&
+            typed_array->type() != kExternalFloat64Array &&
+            typed_array->type() != kExternalUint8ClampedArray)
+          return typed_array;
       }
     }
   }
@@ -311,29 +311,32 @@ MUST_USE_RESULT MaybeHandle<JSTypedArray> ValidateSharedIntegerTypedArray(
 }
 
 // ES #sec-validateatomicaccess
+// ValidateAtomicAccess( typedArray, requestIndex )
 MUST_USE_RESULT Maybe<size_t> ValidateAtomicAccess(
-    Isolate* isolate, Handle<JSTypedArray> typedArray,
-    Handle<Object> requestIndex) {
+    Isolate* isolate, Handle<JSTypedArray> typed_array,
+    Handle<Object> request_index) {
   // TOOD(v8:5961): Use ToIndex for indexes
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, requestIndex, Object::ToNumber(requestIndex), Nothing<size_t>());
+  ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, request_index,
+                                   Object::ToNumber(request_index),
+                                   Nothing<size_t>());
   Handle<Object> offset;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, offset,
-                                   Object::ToInteger(isolate, requestIndex),
+                                   Object::ToInteger(isolate, request_index),
                                    Nothing<size_t>());
-  if (!requestIndex->SameValue(*offset)) {
+  if (!request_index->SameValue(*offset)) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
     return Nothing<size_t>();
   }
-  size_t accessIndex;
-  uint32_t length = typedArray->length_value();
-  if (!TryNumberToSize(*requestIndex, &accessIndex) || accessIndex >= length) {
+  size_t access_index;
+  uint32_t length = typed_array->length_value();
+  if (!TryNumberToSize(*request_index, &access_index) ||
+      access_index >= length) {
     isolate->Throw(*isolate->factory()->NewRangeError(
         MessageTemplate::kInvalidAtomicAccessIndex));
     return Nothing<size_t>();
   }
-  return Just<size_t>(accessIndex);
+  return Just<size_t>(access_index);
 }
 
 // ES #sec-atomics.wake
@@ -348,9 +351,9 @@ BUILTIN(AtomicsWake) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   uint32_t c;
   if (count->IsUndefined(isolate)) {
@@ -358,12 +361,12 @@ BUILTIN(AtomicsWake) {
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
                                        Object::ToInteger(isolate, count));
-    double countDouble = count->Number();
-    if (countDouble < 0)
-      countDouble = 0;
-    else if (countDouble > kMaxUInt32)
-      countDouble = kMaxUInt32;
-    c = static_cast<uint32_t>(countDouble);
+    double count_double = count->Number();
+    if (count_double < 0)
+      count_double = 0;
+    else if (count_double > kMaxUInt32)
+      count_double = kMaxUInt32;
+    c = static_cast<uint32_t>(count_double);
   }
 
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
@@ -385,25 +388,25 @@ BUILTIN(AtomicsWait) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array, true));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInt32(isolate, value));
-  int32_t valueInt32 = NumberToInt32(*value);
+  int32_t value_int32 = NumberToInt32(*value);
 
-  double timeoutNumber;
+  double timeout_number;
   if (timeout->IsUndefined(isolate)) {
-    timeoutNumber = isolate->heap()->infinity_value()->Number();
+    timeout_number = isolate->heap()->infinity_value()->Number();
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(timeout));
-    timeoutNumber = timeout->Number();
-    if (std::isnan(timeoutNumber))
-      timeoutNumber = isolate->heap()->infinity_value()->Number();
-    else if (timeoutNumber < 0)
-      timeoutNumber = 0;
+    timeout_number = timeout->Number();
+    if (std::isnan(timeout_number))
+      timeout_number = isolate->heap()->infinity_value()->Number();
+    else if (timeout_number < 0)
+      timeout_number = 0;
   }
 
   if (!isolate->allow_atomics_wait()) {
@@ -414,8 +417,8 @@ BUILTIN(AtomicsWait) {
   Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
   size_t addr = (i << 2) + NumberToSize(sta->byte_offset());
 
-  return FutexEmulation::Wait(isolate, array_buffer, addr, valueInt32,
-                              timeoutNumber);
+  return FutexEmulation::Wait(isolate, array_buffer, addr, value_int32,
+                              timeout_number);
 }
 
 namespace {
@@ -638,61 +641,6 @@ inline Object* DoExchange(Isolate* isolate, void* buffer, size_t index,
   return ToObject(isolate, result);
 }
 
-// Uint8Clamped functions
-
-uint8_t ClampToUint8(int32_t value) {
-  if (value < 0) return 0;
-  if (value > 255) return 255;
-  return value;
-}
-
-inline Object* DoCompareExchangeUint8Clamped(Isolate* isolate, void* buffer,
-                                             size_t index,
-                                             Handle<Object> oldobj,
-                                             Handle<Object> newobj) {
-  typedef int32_t convert_type;
-  uint8_t oldval = ClampToUint8(FromObject<convert_type>(oldobj));
-  uint8_t newval = ClampToUint8(FromObject<convert_type>(newobj));
-  uint8_t result = CompareExchangeSeqCst(static_cast<uint8_t*>(buffer) + index,
-                                         oldval, newval);
-  return ToObject(isolate, result);
-}
-
-#define DO_UINT8_CLAMPED_OP(name, op)                                        \
-  inline Object* Do##name##Uint8Clamped(Isolate* isolate, void* buffer,      \
-                                        size_t index, Handle<Object> obj) {  \
-    typedef int32_t convert_type;                                            \
-    uint8_t* p = static_cast<uint8_t*>(buffer) + index;                      \
-    convert_type operand = FromObject<convert_type>(obj);                    \
-    uint8_t expected;                                                        \
-    uint8_t result;                                                          \
-    do {                                                                     \
-      expected = *p;                                                         \
-      result = ClampToUint8(static_cast<convert_type>(expected) op operand); \
-    } while (CompareExchangeSeqCst(p, expected, result) != expected);        \
-    return ToObject(isolate, expected);                                      \
-  }
-
-DO_UINT8_CLAMPED_OP(Add, +)
-DO_UINT8_CLAMPED_OP(Sub, -)
-DO_UINT8_CLAMPED_OP(And, &)
-DO_UINT8_CLAMPED_OP(Or, |)
-DO_UINT8_CLAMPED_OP(Xor, ^)
-
-#undef DO_UINT8_CLAMPED_OP
-
-inline Object* DoExchangeUint8Clamped(Isolate* isolate, void* buffer,
-                                      size_t index, Handle<Object> obj) {
-  typedef int32_t convert_type;
-  uint8_t* p = static_cast<uint8_t*>(buffer) + index;
-  uint8_t result = ClampToUint8(FromObject<convert_type>(obj));
-  uint8_t expected;
-  do {
-    expected = *p;
-  } while (CompareExchangeSeqCst(p, expected, result) != expected);
-  return ToObject(isolate, expected);
-}
-
 }  // anonymous namespace
 
 // Duplicated from objects.h
@@ -711,38 +659,35 @@ BUILTIN(AtomicsCompareExchange) {
   HandleScope scope(isolate);
   Handle<Object> array = args.atOrUndefined(isolate, 1);
   Handle<Object> index = args.atOrUndefined(isolate, 2);
-  Handle<Object> expectedValue = args.atOrUndefined(isolate, 3);
-  Handle<Object> replacementValue = args.atOrUndefined(isolate, 4);
+  Handle<Object> expected_value = args.atOrUndefined(isolate, 3);
+  Handle<Object> replacement_value = args.atOrUndefined(isolate, 4);
 
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
-
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, expectedValue,
-                                     Object::ToInteger(isolate, expectedValue));
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, replacementValue, Object::ToInteger(isolate, replacementValue));
+      isolate, expected_value, Object::ToInteger(isolate, expected_value));
+
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, replacement_value,
+      Object::ToInteger(isolate, replacement_value));
 
   uint8_t* source = static_cast<uint8_t*>(sta->GetBuffer()->backing_store()) +
                     NumberToSize(sta->byte_offset());
 
   switch (sta->type()) {
-#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size)            \
-  case kExternal##Type##Array:                                         \
-    return DoCompareExchange<ctype>(isolate, source, i, expectedValue, \
-                                    replacementValue);
+#define TYPED_ARRAY_CASE(Type, typeName, TYPE, ctype, size)             \
+  case kExternal##Type##Array:                                          \
+    return DoCompareExchange<ctype>(isolate, source, i, expected_value, \
+                                    replacement_value);
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoCompareExchangeUint8Clamped(isolate, source, i, expectedValue,
-                                           replacementValue);
 
     default:
       break;
@@ -764,9 +709,9 @@ BUILTIN(AtomicsAdd) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value));
@@ -781,9 +726,6 @@ BUILTIN(AtomicsAdd) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoAddUint8Clamped(isolate, source, i, value);
 
     default:
       break;
@@ -805,9 +747,9 @@ BUILTIN(AtomicsSub) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value));
@@ -822,9 +764,6 @@ BUILTIN(AtomicsSub) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoSubUint8Clamped(isolate, source, i, value);
 
     default:
       break;
@@ -846,9 +785,9 @@ BUILTIN(AtomicsAnd) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value));
@@ -863,9 +802,6 @@ BUILTIN(AtomicsAnd) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoAndUint8Clamped(isolate, source, i, value);
 
     default:
       break;
@@ -887,9 +823,9 @@ BUILTIN(AtomicsOr) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value));
@@ -904,9 +840,6 @@ BUILTIN(AtomicsOr) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoOrUint8Clamped(isolate, source, i, value);
 
     default:
       break;
@@ -928,9 +861,9 @@ BUILTIN(AtomicsXor) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value));
@@ -945,9 +878,6 @@ BUILTIN(AtomicsXor) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoXorUint8Clamped(isolate, source, i, value);
 
     default:
       break;
@@ -969,9 +899,9 @@ BUILTIN(AtomicsExchange) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, sta, ValidateSharedIntegerTypedArray(isolate, array));
 
-  Maybe<size_t> maybeIndex = ValidateAtomicAccess(isolate, sta, index);
-  if (maybeIndex.IsNothing()) return isolate->heap()->exception();
-  size_t i = maybeIndex.FromJust();
+  Maybe<size_t> maybe_index = ValidateAtomicAccess(isolate, sta, index);
+  if (maybe_index.IsNothing()) return isolate->heap()->exception();
+  size_t i = maybe_index.FromJust();
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToInteger(isolate, value));
@@ -986,9 +916,6 @@ BUILTIN(AtomicsExchange) {
 
     INTEGER_TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
-
-    case kExternalUint8ClampedArray:
-      return DoExchangeUint8Clamped(isolate, source, i, value);
 
     default:
       break;
