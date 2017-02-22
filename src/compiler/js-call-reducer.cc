@@ -326,19 +326,22 @@ Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   // Try to determine the {receiver} map.
   ZoneHandleSet<Map> receiver_maps;
   if (NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps)) {
-    Handle<Object> receiver_prototype(receiver_maps[0]->prototype(), isolate());
+    Handle<Map> candidate_map(
+        receiver_maps[0]->GetPrototypeChainRootMap(isolate()));
+    Handle<Object> candidate_prototype(candidate_map->prototype(), isolate());
 
-    // Check if we can constant-fold the {receiver_prototype}.
+    // Check if we can constant-fold the {candidate_prototype}.
     for (size_t i = 0; i < receiver_maps.size(); ++i) {
-      Handle<Map> const receiver_map = receiver_maps[i];
+      Handle<Map> const receiver_map(
+          receiver_maps[i]->GetPrototypeChainRootMap(isolate()));
       if (receiver_map->IsJSProxyMap() ||
           receiver_map->has_hidden_prototype() ||
           receiver_map->is_access_check_needed() ||
-          receiver_map->prototype() != *receiver_prototype) {
+          receiver_map->prototype() != *candidate_prototype) {
         return NoChange();
       }
     }
-    Node* value = jsgraph()->Constant(receiver_prototype);
+    Node* value = jsgraph()->Constant(candidate_prototype);
     ReplaceWithValue(node, value);
     return Replace(value);
   }
