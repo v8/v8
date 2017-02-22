@@ -36,8 +36,7 @@ const ValueType kWasmI64 = MachineRepresentation::kWord64;
 const ValueType kWasmF32 = MachineRepresentation::kFloat32;
 const ValueType kWasmF64 = MachineRepresentation::kFloat64;
 const ValueType kWasmS128 = MachineRepresentation::kSimd128;
-// We use kTagged here because kNone is already used by kWasmStmt.
-const ValueType kWasmEnd = MachineRepresentation::kTagged;
+const ValueType kWasmVar = MachineRepresentation::kTagged;
 
 typedef Signature<ValueType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
@@ -650,10 +649,9 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return 's';
       case kWasmStmt:
         return 'v';
-      case kWasmEnd:
-        return 'x';
+      case kWasmVar:
+        return '*';
       default:
-        UNREACHABLE();
         return '?';
     }
   }
@@ -672,8 +670,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return "s128";
       case kWasmStmt:
         return "<stmt>";
-      case kWasmEnd:
-        return "<end>";
+      case kWasmVar:
+        return "<var>";
       default:
         return "<unknown>";
     }

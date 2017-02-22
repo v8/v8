@@ -727,7 +727,7 @@ WASM_EXEC_TEST(Return12) {
 WASM_EXEC_TEST(Return17) {
   WasmRunner<int32_t> r(execution_mode);
 
-  BUILD(r, WASM_BLOCK(RET_I8(17)));
+  BUILD(r, WASM_BLOCK(RET_I8(17)), WASM_ZERO);
   CHECK_EQ(17, r.Call());
 }
 
@@ -836,11 +836,10 @@ WASM_EXEC_TEST(BrIf_strict) {
 
 WASM_EXEC_TEST(Br_height) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
-  BUILD(r, WASM_BLOCK_I(WASM_BLOCK_I(WASM_BRV_IFD(0, WASM_GET_LOCAL(0),
-                                                  WASM_GET_LOCAL(0)),
-                                     WASM_RETURN1(WASM_I32V_1(9)),
-                                     WASM_I32V_1(7), WASM_I32V_1(7)),
-                        WASM_BRV(0, WASM_I32V_1(8))));
+  BUILD(r, WASM_BLOCK_I(
+               WASM_BLOCK(WASM_BRV_IFD(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)),
+                          WASM_RETURN1(WASM_I32V_1(9))),
+               WASM_BRV(0, WASM_I32V_1(8))));
 
   for (int32_t i = 0; i < 5; i++) {
     int32_t expected = i != 0 ? 8 : 9;
@@ -1277,7 +1276,8 @@ WASM_EXEC_TEST(Block_IfElse_P_return) {
   BUILD(r,                               // --
         WASM_IF_ELSE(WASM_GET_LOCAL(0),  // --
                      RET_I8(81),         // --
-                     RET_I8(82)));       // --
+                     RET_I8(82)),        // --
+        WASM_ZERO);                      // --
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i ? 81 : 82;
     CHECK_EQ(expected, r.Call(*i));
@@ -1298,7 +1298,7 @@ WASM_EXEC_TEST(Block_If_P_assign) {
 WASM_EXEC_TEST(DanglingAssign) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
   // { return 0; p0 = 0; }
-  BUILD(r, B2(RET_I8(99), WASM_SET_LOCAL(0, WASM_ZERO)));
+  BUILD(r, WASM_BLOCK_I(RET_I8(99), WASM_TEE_LOCAL(0, WASM_ZERO)));
   CHECK_EQ(99, r.Call(1));
 }
 
@@ -1764,7 +1764,7 @@ WASM_EXEC_TEST(MemF64_Mul) {
 WASM_EXEC_TEST(Build_Wasm_Infinite_Loop) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
   // Only build the graph and compile, don't run.
-  BUILD(r, WASM_INFINITE_LOOP);
+  BUILD(r, WASM_INFINITE_LOOP, WASM_ZERO);
 }
 
 WASM_EXEC_TEST(Build_Wasm_Infinite_Loop_effect) {
@@ -1807,22 +1807,31 @@ TEST(Build_Wasm_Unreachable3) {
 
 TEST(Build_Wasm_UnreachableIf1) {
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
-  BUILD(r, WASM_UNREACHABLE, WASM_IF(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_UNREACHABLE,
+        WASM_IF(WASM_GET_LOCAL(0), WASM_SEQ(WASM_GET_LOCAL(0), WASM_DROP)),
+        WASM_ZERO);
 }
 
 TEST(Build_Wasm_UnreachableIf2) {
   WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
   BUILD(r, WASM_UNREACHABLE,
-        WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_UNREACHABLE));
+        WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_UNREACHABLE));
 }
 
 WASM_EXEC_TEST(Unreachable_Load) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
-  r.module().AddMemory(0L);
+  r.module().AddMemory(8);
   BUILD(r, WASM_BLOCK_I(WASM_BRV(0, WASM_GET_LOCAL(0)),
                         WASM_LOAD_MEM(MachineType::Int8(), WASM_GET_LOCAL(0))));
   CHECK_EQ(11, r.Call(11));
   CHECK_EQ(21, r.Call(21));
+}
+
+WASM_EXEC_TEST(BrV_Fallthrough) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r, WASM_BLOCK_I(WASM_BLOCK(WASM_BRV(1, WASM_I32V_1(42))),
+                        WASM_I32V_1(22)));
+  CHECK_EQ(42, r.Call());
 }
 
 WASM_EXEC_TEST(Infinite_Loop_not_taken1) {
@@ -1834,9 +1843,10 @@ WASM_EXEC_TEST(Infinite_Loop_not_taken1) {
 
 WASM_EXEC_TEST(Infinite_Loop_not_taken2) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
-  BUILD(r, WASM_BLOCK_I(WASM_IF_ELSE(WASM_GET_LOCAL(0),
-                                     WASM_BRV(1, WASM_I32V_1(45)),
-                                     WASM_INFINITE_LOOP)));
+  BUILD(r, WASM_BLOCK_I(
+               WASM_IF_ELSE(WASM_GET_LOCAL(0), WASM_BRV(1, WASM_I32V_1(45)),
+                            WASM_INFINITE_LOOP),
+               WASM_ZERO));
   // Run the code, but don't go into the infinite loop.
   CHECK_EQ(45, r.Call(1));
 }
