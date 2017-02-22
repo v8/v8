@@ -6637,27 +6637,28 @@ TEST(DebugCoverage) {
       "f();\n"
       "f();");
   CompileRun(source);
-  v8::debug::Coverage coverage = v8::debug::Coverage::Collect(isolate);
+  v8::debug::Coverage coverage = v8::debug::Coverage::Collect(isolate, false);
   CHECK_EQ(1u, coverage.ScriptCount());
-  v8::Local<v8::debug::Script> script = coverage.GetScript(0);
+  v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
+  v8::Local<v8::debug::Script> script = script_data.GetScript();
   CHECK(script->Source()
             .ToLocalChecked()
             ->Equals(env.local(), source)
             .FromMaybe(false));
 
-  v8::debug::Coverage::Range range = coverage.GetRange(0);
-  CHECK_EQ(0, range.Start().GetLineNumber());
-  CHECK_EQ(0, range.Start().GetColumnNumber());
-  CHECK_EQ(3, range.End().GetLineNumber());
-  CHECK_EQ(4, range.End().GetColumnNumber());
-  CHECK_EQ(1, range.Count());
-  CHECK_EQ(1u, range.NestedCount());
+  CHECK_EQ(2u, script_data.FunctionCount());
+  v8::debug::Coverage::FunctionData function_data =
+      script_data.GetFunctionData(0);
+  CHECK_EQ(0, function_data.Start().GetLineNumber());
+  CHECK_EQ(0, function_data.Start().GetColumnNumber());
+  CHECK_EQ(3, function_data.End().GetLineNumber());
+  CHECK_EQ(4, function_data.End().GetColumnNumber());
+  CHECK_EQ(1, function_data.Count());
 
-  range = range.GetNested(0);
-  CHECK_EQ(0, range.Start().GetLineNumber());
-  CHECK_EQ(0, range.Start().GetColumnNumber());
-  CHECK_EQ(1, range.End().GetLineNumber());
-  CHECK_EQ(1, range.End().GetColumnNumber());
-  CHECK_EQ(2, range.Count());
-  CHECK_EQ(0, range.NestedCount());
+  function_data = script_data.GetFunctionData(1);
+  CHECK_EQ(0, function_data.Start().GetLineNumber());
+  CHECK_EQ(0, function_data.Start().GetColumnNumber());
+  CHECK_EQ(1, function_data.End().GetLineNumber());
+  CHECK_EQ(1, function_data.End().GetColumnNumber());
+  CHECK_EQ(2, function_data.Count());
 }

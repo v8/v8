@@ -58,12 +58,7 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
 }
 }  // anonymous namespace
 
-CoverageScript::CoverageScript(Isolate* isolate, Handle<Script> s,
-                               int source_length)
-    : script(s),
-      toplevel(0, source_length, 1, isolate->factory()->empty_string()) {}
-
-Coverage* Coverage::Collect(Isolate* isolate) {
+Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
   SharedToCounterMap counter_map;
 
   // Feed invocation count into the counter map.
@@ -76,6 +71,7 @@ Coverage* Coverage::Collect(Isolate* isolate) {
       SharedFunctionInfo* shared = vector->shared_function_info();
       DCHECK(shared->IsSubjectToDebugging());
       uint32_t count = static_cast<uint32_t>(vector->invocation_count());
+      if (reset_count) vector->clear_invocation_count();
       counter_map.Add(shared, count);
     }
   } else {
@@ -88,6 +84,7 @@ Coverage* Coverage::Collect(Isolate* isolate) {
       SharedFunctionInfo* shared = vector->shared_function_info();
       if (!shared->IsSubjectToDebugging()) continue;
       uint32_t count = static_cast<uint32_t>(vector->invocation_count());
+      if (reset_count) vector->clear_invocation_count();
       counter_map.Add(shared, count);
     }
   }
@@ -101,47 +98,39 @@ Coverage* Coverage::Collect(Isolate* isolate) {
     if (script->type() != Script::TYPE_NORMAL) continue;
 
     // Create and add new script data.
-    int source_end = String::cast(script->source())->length();
     Handle<Script> script_handle(script, isolate);
-    result->emplace_back(isolate, script_handle, source_end);
+    result->emplace_back(isolate, script_handle);
+    std::vector<CoverageFunction>* functions = &result->back().functions;
 
     std::vector<SharedFunctionInfo*> sorted;
+    bool has_toplevel = false;
 
     {
-      // Collect a list of shared function infos sorted by start position.
-      // Shared function infos are usually already sorted. Except for classes.
-      // If the start position is the same, sort from outer to inner function.
+      // Sort functions by start position, from outer to inner functions.
       SharedFunctionInfo::ScriptIterator infos(script_handle);
-      while (SharedFunctionInfo* info = infos.Next()) sorted.push_back(info);
+      while (SharedFunctionInfo* info = infos.Next()) {
+        has_toplevel |= info->is_toplevel();
+        sorted.push_back(info);
+      }
       std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
     }
 
-    std::vector<CoverageRange*> stack;
-    stack.push_back(&result->back().toplevel);
+    functions->reserve(sorted.size() + (has_toplevel ? 0 : 1));
+
+    if (!has_toplevel) {
+      // Add a replacement toplevel function if it does not exist.
+      int source_end = String::cast(script->source())->length();
+      functions->emplace_back(0, source_end, 1u,
+                              isolate->factory()->empty_string());
+    }
 
     // Use sorted list to reconstruct function nesting.
     for (SharedFunctionInfo* info : sorted) {
       int start = StartPosition(info);
       int end = info->end_position();
       uint32_t count = counter_map.Get(info);
-      if (info->is_toplevel()) {
-        // Top-level function is available.
-        DCHECK_EQ(1, stack.size());
-        result->back().toplevel.start = start;
-        result->back().toplevel.end = end;
-        result->back().toplevel.count = count;
-      } else {
-        // The shared function infos are sorted by start.
-        DCHECK_LE(stack.back()->start, start);
-        // Drop the stack to the outer function.
-        while (start >= stack.back()->end) stack.pop_back();
-        CoverageRange* outer = stack.back();
-        // New nested function.
-        DCHECK_LE(end, outer->end);
-        Handle<String> name(info->DebugName(), isolate);
-        outer->inner.emplace_back(start, end, count, name);
-        stack.push_back(&outer->inner.back());
-      }
+      Handle<String> name(info->DebugName(), isolate);
+      functions->emplace_back(start, end, count, name);
     }
   }
   return result;

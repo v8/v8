@@ -1657,51 +1657,15 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
       JSON::Stringify(context, dispatch_counters).ToLocalChecked());
 }
 
-namespace {
-void ReadRange(std::ofstream* s, std::vector<uint32_t>* lines,
-               debug::Coverage::Range range) {
-  // Ensure space in the array.
-  lines->resize(std::max(static_cast<size_t>(range.End().GetLineNumber() + 1),
-                         lines->size()),
-                0);
-  // Boundary lines could be shared between two functions with different
-  // invocation counts. Take the maximum.
-  lines->at(range.Start().GetLineNumber()) =
-      std::max(lines->at(range.Start().GetLineNumber()), range.Count());
-  lines->at(range.End().GetLineNumber()) =
-      std::max(lines->at(range.End().GetLineNumber()), range.Count());
-  // Invocation counts for non-boundary lines are overwritten.
-  int line_plus_one = range.Start().GetLineNumber() + 1;
-  for (int i = line_plus_one; i < range.End().GetLineNumber(); i++) {
-    lines->at(i) = range.Count();
-  }
-  // Note that we use 0-based line numbers. But LCOV uses 1-based line numbers.
-  // Recurse over inner ranges.
-  for (size_t i = 0; i < range.NestedCount(); i++) {
-    ReadRange(s, lines, range.GetNested(i));
-  }
-  // Write function stats.
-  Local<String> name;
-  std::stringstream name_stream;
-  if (range.Name().ToLocal(&name)) {
-    name_stream << ToSTLString(name);
-  } else {
-    name_stream << "<" << line_plus_one << "-";
-    name_stream << range.Start().GetColumnNumber() << ">";
-  }
-  *s << "FN:" << line_plus_one << "," << name_stream.str() << std::endl;
-  *s << "FNDA:" << range.Count() << "," << name_stream.str() << std::endl;
-}
-}  // anonymous namespace
-
 // Write coverage data in LCOV format. See man page for geninfo(1).
 void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
   if (!file) return;
   HandleScope handle_scope(isolate);
-  debug::Coverage coverage = debug::Coverage::Collect(isolate);
+  debug::Coverage coverage = debug::Coverage::Collect(isolate, false);
   std::ofstream sink(file, std::ofstream::app);
   for (size_t i = 0; i < coverage.ScriptCount(); i++) {
-    Local<debug::Script> script = coverage.GetScript(i);
+    debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);
+    Local<debug::Script> script = script_data.GetScript();
     // Skip unnamed scripts.
     Local<String> name;
     if (!script->Name().ToLocal(&name)) continue;
@@ -1711,7 +1675,33 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
     sink << "SF:";
     sink << NormalizePath(file_name, GetWorkingDirectory()) << std::endl;
     std::vector<uint32_t> lines;
-    ReadRange(&sink, &lines, coverage.GetRange(i));
+    for (size_t j = 0; j < script_data.FunctionCount(); j++) {
+      debug::Coverage::FunctionData function_data =
+          script_data.GetFunctionData(j);
+      int start_line = function_data.Start().GetLineNumber();
+      int end_line = function_data.End().GetLineNumber();
+      uint32_t count = function_data.Count();
+      // Ensure space in the array.
+      lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()),
+                   0);
+      // Boundary lines could be shared between two functions with different
+      // invocation counts. Take the maximum.
+      lines[start_line] = std::max(lines[start_line], count);
+      lines[end_line] = std::max(lines[end_line], count);
+      // Invocation counts for non-boundary lines are overwritten.
+      for (int k = start_line + 1; k < end_line; k++) lines[k] = count;
+      // Write function stats.
+      Local<String> name;
+      std::stringstream name_stream;
+      if (function_data.Name().ToLocal(&name)) {
+        name_stream << ToSTLString(name);
+      } else {
+        name_stream << "<" << start_line + 1 << "-";
+        name_stream << function_data.Start().GetColumnNumber() << ">";
+      }
+      sink << "FN:" << start_line + 1 << "," << name_stream.str() << std::endl;
+      sink << "FNDA:" << count << "," << name_stream.str() << std::endl;
+    }
     // Write per-line coverage. LCOV uses 1-based line numbers.
     for (size_t i = 0; i < lines.size(); i++) {
       sink << "DA:" << (i + 1) << "," << lines[i] << std::endl;

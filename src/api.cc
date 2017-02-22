@@ -9541,46 +9541,50 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   }
 }
 
-debug::Coverage::Range::Range(i::CoverageRange* range,
-                              Local<debug::Script> script)
-    : range_(range), script_(script) {
+debug::Coverage::FunctionData::FunctionData(i::CoverageFunction* function,
+                                            Local<debug::Script> script)
+    : function_(function) {
   i::Handle<i::Script> i_script = v8::Utils::OpenHandle(*script);
   i::Script::PositionInfo start;
   i::Script::PositionInfo end;
-  i::Script::GetPositionInfo(i_script, range->start, &start,
+  i::Script::GetPositionInfo(i_script, function->start, &start,
                              i::Script::WITH_OFFSET);
-  i::Script::GetPositionInfo(i_script, range->end, &end,
+  i::Script::GetPositionInfo(i_script, function->end, &end,
                              i::Script::WITH_OFFSET);
   start_ = Location(start.line, start.column);
   end_ = Location(end.line, end.column);
 }
 
-uint32_t debug::Coverage::Range::Count() { return range_->count; }
+uint32_t debug::Coverage::FunctionData::Count() { return function_->count; }
 
-size_t debug::Coverage::Range::NestedCount() { return range_->inner.size(); }
-
-debug::Coverage::Range debug::Coverage::Range::GetNested(size_t i) {
-  return Range(&range_->inner[i], script_);
+MaybeLocal<String> debug::Coverage::FunctionData::Name() {
+  return ToApiHandle<String>(function_->name);
 }
 
-MaybeLocal<String> debug::Coverage::Range::Name() {
-  return ToApiHandle<String>(range_->name);
+Local<debug::Script> debug::Coverage::ScriptData::GetScript() {
+  return ToApiHandle<debug::Script>(script_->script);
+}
+
+size_t debug::Coverage::ScriptData::FunctionCount() {
+  return script_->functions.size();
+}
+
+debug::Coverage::FunctionData debug::Coverage::ScriptData::GetFunctionData(
+    size_t i) {
+  return FunctionData(&script_->functions.at(i), GetScript());
 }
 
 debug::Coverage::~Coverage() { delete coverage_; }
 
 size_t debug::Coverage::ScriptCount() { return coverage_->size(); }
 
-Local<debug::Script> debug::Coverage::GetScript(size_t i) {
-  return ToApiHandle<debug::Script>(coverage_->at(i).script);
+debug::Coverage::ScriptData debug::Coverage::GetScriptData(size_t i) {
+  return ScriptData(&coverage_->at(i));
 }
 
-debug::Coverage::Range debug::Coverage::GetRange(size_t i) {
-  return Range(&coverage_->at(i).toplevel, GetScript(i));
-}
-
-debug::Coverage debug::Coverage::Collect(Isolate* isolate) {
-  return Coverage(i::Coverage::Collect(reinterpret_cast<i::Isolate*>(isolate)));
+debug::Coverage debug::Coverage::Collect(Isolate* isolate, bool reset_count) {
+  return Coverage(i::Coverage::Collect(reinterpret_cast<i::Isolate*>(isolate),
+                                       reset_count));
 }
 
 void debug::Coverage::TogglePrecise(Isolate* isolate, bool enable) {

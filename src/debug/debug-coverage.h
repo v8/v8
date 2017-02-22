@@ -16,28 +16,28 @@ namespace internal {
 // Forward declaration.
 class Isolate;
 
-struct CoverageRange {
-  CoverageRange(int s, int e, uint32_t c, Handle<String> n)
+struct CoverageFunction {
+  CoverageFunction(int s, int e, uint32_t c, Handle<String> n)
       : start(s), end(e), count(c), name(n) {}
   int start;
   int end;
   uint32_t count;
   Handle<String> name;
-  std::vector<CoverageRange> inner;
 };
 
 struct CoverageScript {
   // Initialize top-level function in case it has been garbage-collected.
-  CoverageScript(Isolate* isolate, Handle<Script> s, int source_length);
+  CoverageScript(Isolate* isolate, Handle<Script> s) : script(s) {}
   Handle<Script> script;
-  CoverageRange toplevel;
+  // Functions are sorted by start position, from outer to inner function.
+  std::vector<CoverageFunction> functions;
 };
 
 class Coverage : public std::vector<CoverageScript> {
  public:
   // Allocate a new Coverage object and populate with result.
   // The ownership is transferred to the caller.
-  static Coverage* Collect(Isolate* isolate);
+  static Coverage* Collect(Isolate* isolate, bool reset_count);
 
   // Enable precise code coverage. This disables optimization and makes sure
   // invocation count is not affected by GC.

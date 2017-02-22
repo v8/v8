@@ -97,6 +97,14 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                  Maybe<bool> includeCommandLineAPI, Maybe<bool> returnByValue,
                  Maybe<bool> generatePreview, Maybe<bool> awaitPromise,
                  std::unique_ptr<RunScriptCallback>) override;
+  Response startPreciseCoverage() override;
+  Response stopPreciseCoverage() override;
+  Response takePreciseCoverage(
+      std::unique_ptr<protocol::Array<protocol::Runtime::ScriptCoverage>>*
+          out_result) override;
+  Response getBestEffortCoverage(
+      std::unique_ptr<protocol::Array<protocol::Runtime::ScriptCoverage>>*
+          out_result) override;
 
   void reset();
   void reportExecutionContextCreated(InspectedContext*);
