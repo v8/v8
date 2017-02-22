@@ -652,14 +652,14 @@ TF_BUILTIN(ArrayForEach, ForEachCodeStubAssembler) {
                 SmiConstant(MessageTemplate::kCalledOnNullOrUndefined),
                 HeapConstant(isolate()->factory()->NewStringFromAsciiChecked(
                     "Array.prototype.forEach")));
-    Return(UndefinedConstant());
+    Unreachable();
   }
 
   Bind(&type_exception);
   {
     CallRuntime(Runtime::kThrowTypeError, context,
                 SmiConstant(MessageTemplate::kCalledNonCallable), callbackfn);
-    Return(UndefinedConstant());
+    Unreachable();
   }
 }
 
@@ -2836,19 +2836,17 @@ void Builtins::Generate_ArrayIteratorPrototypeNext(
   assembler.Bind(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSArrayIterator.
-    Node* result = assembler.CallRuntime(
-        Runtime::kThrowIncompatibleMethodReceiver, context,
-        assembler.HeapConstant(operation), iterator);
-    assembler.Return(result);
+    assembler.CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                          assembler.HeapConstant(operation), iterator);
+    assembler.Unreachable();
   }
 
   assembler.Bind(&if_isdetached);
   {
     Node* message = assembler.SmiConstant(MessageTemplate::kDetachedOperation);
-    Node* result =
-        assembler.CallRuntime(Runtime::kThrowTypeError, context, message,
-                              assembler.HeapConstant(operation));
-    assembler.Return(result);
+    assembler.CallRuntime(Runtime::kThrowTypeError, context, message,
+                          assembler.HeapConstant(operation));
+    assembler.Unreachable();
   }
 }
 

@@ -398,8 +398,7 @@ Node* RegExpBuiltinsAssembler::ThrowIfNotJSReceiver(
 
     CallRuntime(Runtime::kThrowTypeError, context, message_id, method_name_str,
                 value_str);
-    var_value_map.Bind(UndefinedConstant());
-    Goto(&out);  // Never reached.
+    Unreachable();
   }
 
   Bind(&out);
@@ -1090,7 +1089,7 @@ void RegExpBuiltinsAssembler::FlagGetter(JSRegExp::Flag flag,
           isolate->factory()->NewStringFromAsciiChecked(method_name));
       CallRuntime(Runtime::kThrowTypeError, context, message_id,
                   method_name_str);
-      Return(UndefinedConstant());  // Never reached.
+      Unreachable();
     }
   }
 }

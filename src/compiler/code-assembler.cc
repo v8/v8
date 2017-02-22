@@ -274,6 +274,11 @@ void CodeAssembler::PopAndReturn(Node* pop, Node* value) {
 
 void CodeAssembler::DebugBreak() { raw_assembler()->DebugBreak(); }
 
+void CodeAssembler::Unreachable() {
+  DebugBreak();
+  raw_assembler()->Unreachable();
+}
+
 void CodeAssembler::Comment(const char* format, ...) {
   if (!FLAG_code_comments) return;
   char buffer[4 * KB];

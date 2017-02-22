@@ -234,6 +234,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void PopAndReturn(Node* pop, Node* value);
 
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* format, ...);
 
   void Bind(Label* label);

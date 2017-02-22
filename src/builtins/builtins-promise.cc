@@ -178,8 +178,7 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     StoreObjectField(capability, JSPromiseCapability::kRejectOffset,
                      UndefinedConstant());
     CallRuntime(Runtime::kThrowTypeError, context, message);
-    var_result.Bind(UndefinedConstant());
-    Goto(&out);
+    Unreachable();
   }
 
   Bind(&out);
@@ -251,8 +250,7 @@ Node* PromiseBuiltinsAssembler::ThrowIfNotJSReceiver(
                   isolate()->factory()->NewStringFromAsciiChecked(method_name));
     Node* const message_id = SmiConstant(msg_template);
     CallRuntime(Runtime::kThrowTypeError, context, message_id, method);
-    var_value_map.Bind(UndefinedConstant());
-    Goto(&out);  // Never reached.
+    Unreachable();
   }
 
   Bind(&out);
@@ -325,7 +323,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
     Node* const message_id =
         SmiConstant(MessageTemplate::kSpeciesNotConstructor);
     CallRuntime(Runtime::kThrowTypeError, context, message_id);
-    Goto(&out);
+    Unreachable();
   }
 
   Bind(&out);
@@ -1115,7 +1113,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   {
     Node* const message_id = SmiConstant(MessageTemplate::kNotAPromise);
     CallRuntime(Runtime::kThrowTypeError, context, message_id, new_target);
-    Return(UndefinedConstant());  // Never reached.
+    Unreachable();
   }
 
   // 2. If IsCallable(executor) is false, throw a TypeError exception.
@@ -1124,7 +1122,7 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
     Node* const message_id =
         SmiConstant(MessageTemplate::kResolverNotAFunction);
     CallRuntime(Runtime::kThrowTypeError, context, message_id, executor);
-    Return(UndefinedConstant());  // Never reached.
+    Unreachable();
   }
 
   // Silently fail if the stack looks fishy.
@@ -1495,7 +1493,8 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
 
   Bind(&if_alreadyinvoked);
   Node* message = SmiConstant(MessageTemplate::kPromiseExecutorAlreadyInvoked);
-  Return(CallRuntime(Runtime::kThrowTypeError, context, message));
+  CallRuntime(Runtime::kThrowTypeError, context, message);
+  Unreachable();
 }
 
 TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
@@ -1652,7 +1651,7 @@ TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
 
   Node* const reason = LoadContextElement(context, kOnFinallySlot);
   CallRuntime(Runtime::kThrow, context, reason);
-  Return(UndefinedConstant());
+  Unreachable();
 }
 
 Node* PromiseBuiltinsAssembler::CreateThrowerFunctionContext(

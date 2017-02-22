@@ -2694,7 +2694,7 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
         CallRuntime(Runtime::kThrowCalledOnNullOrUndefined, context,
                     HeapConstant(factory()->NewStringFromAsciiChecked(
                         method_name, TENURED)));
-        Goto(&if_valueisstring);  // Never reached.
+        Unreachable();
       }
     }
   }
@@ -2793,7 +2793,7 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
     CallRuntime(Runtime::kThrowNotGeneric, context,
                 HeapConstant(factory()->NewStringFromAsciiChecked(method_name,
                                                                   TENURED)));
-    Goto(&done_loop);  // Never reached.
+    Unreachable();
   }
 
   Bind(&done_loop);
@@ -2821,8 +2821,7 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
       Runtime::kThrowIncompatibleMethodReceiver, context,
       HeapConstant(factory()->NewStringFromAsciiChecked(method_name, TENURED)),
       value);
-  var_value_map.Bind(UndefinedConstant());
-  Goto(&out);  // Never reached.
+  Unreachable();
 
   Bind(&out);
   return var_value_map.value();
@@ -7809,9 +7808,9 @@ Node* CodeStubAssembler::GetSuperConstructor(Node* active_function,
 
   Bind(&is_not_constructor);
   {
-    result.Bind(CallRuntime(Runtime::kThrowNotSuperConstructor, context,
-                            prototype, active_function));
-    Goto(&out);
+    CallRuntime(Runtime::kThrowNotSuperConstructor, context, prototype,
+                active_function);
+    Unreachable();
   }
 
   Bind(&out);
@@ -7880,18 +7879,14 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
 
   Bind(&if_notcallable);
   {
-    Node* result =
-        CallRuntime(Runtime::kThrowNonCallableInInstanceOfCheck, context);
-    var_result.Bind(result);
-    Goto(&return_result);
+    CallRuntime(Runtime::kThrowNonCallableInInstanceOfCheck, context);
+    Unreachable();
   }
 
   Bind(&if_notreceiver);
   {
-    Node* result =
-        CallRuntime(Runtime::kThrowNonObjectInInstanceOfCheck, context);
-    var_result.Bind(result);
-    Goto(&return_result);
+    CallRuntime(Runtime::kThrowNonObjectInInstanceOfCheck, context);
+    Unreachable();
   }
 
   Bind(&return_true);

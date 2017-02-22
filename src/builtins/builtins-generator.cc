@@ -56,12 +56,11 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
   Bind(&if_receiverisincompatible);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    Node* result =
-        CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                    HeapConstant(factory()->NewStringFromAsciiChecked(
-                        method_name, TENURED)),
-                    receiver);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(
+                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
+                receiver);
+    Unreachable();
   }
 
   Bind(&if_receiverisclosed);
@@ -89,8 +88,8 @@ void GeneratorBuiltinsAssembler::GeneratorPrototypeResume(
 
   Bind(&if_receiverisrunning);
   {
-    Node* result = CallRuntime(Runtime::kThrowGeneratorRunning, context);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowGeneratorRunning, context);
+    Unreachable();
   }
 }
 

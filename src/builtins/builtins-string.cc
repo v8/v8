@@ -1906,12 +1906,11 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Bind(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    Node* result =
-        CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                    HeapConstant(factory()->NewStringFromAsciiChecked(
-                        "String Iterator.prototype.next", TENURED)),
-                    iterator);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(factory()->NewStringFromAsciiChecked(
+                    "String Iterator.prototype.next", TENURED)),
+                iterator);
+    Unreachable();
   }
 }
 

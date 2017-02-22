@@ -945,8 +945,8 @@ void Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
   // Raise a TypeError if the receiver is not a date.
   assembler->Bind(&receiver_not_date);
   {
-    Node* result = assembler->CallRuntime(Runtime::kThrowNotDateError, context);
-    assembler->Return(result);
+    assembler->CallRuntime(Runtime::kThrowNotDateError, context);
+    assembler->Unreachable();
   }
 }
 
@@ -1152,20 +1152,19 @@ void Builtins::Generate_DatePrototypeToPrimitive(
   // Raise a TypeError if the {hint} is invalid.
   assembler.Bind(&hint_is_invalid);
   {
-    Node* result =
-        assembler.CallRuntime(Runtime::kThrowInvalidHint, context, hint);
-    assembler.Return(result);
+    assembler.CallRuntime(Runtime::kThrowInvalidHint, context, hint);
+    assembler.Unreachable();
   }
 
   // Raise a TypeError if the {receiver} is not a JSReceiver instance.
   assembler.Bind(&receiver_is_invalid);
   {
-    Node* result = assembler.CallRuntime(
+    assembler.CallRuntime(
         Runtime::kThrowIncompatibleMethodReceiver, context,
         assembler.HeapConstant(assembler.factory()->NewStringFromAsciiChecked(
             "Date.prototype [ @@toPrimitive ]", TENURED)),
         receiver);
-    assembler.Return(result);
+    assembler.Unreachable();
   }
 }
 

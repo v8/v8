@@ -58,12 +58,11 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   Bind(&receiver_is_incompatible);
   {
     // The {receiver} is not a valid JSTypedArray.
-    Node* result =
-        CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                    HeapConstant(factory()->NewStringFromAsciiChecked(
-                        method_name, TENURED)),
-                    receiver);
-    Return(result);  // Never reached.
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(
+                    factory()->NewStringFromAsciiChecked(method_name, TENURED)),
+                receiver);
+    Unreachable();
   }
 }
 

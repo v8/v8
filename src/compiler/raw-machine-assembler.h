@@ -769,6 +769,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   void Bind(RawMachineLabel* label);
   void Deoptimize(Node* state);
   void DebugBreak();
+  void Unreachable();
   void Comment(const char* msg);
 
   // Add success / exception successor blocks and ends the current block ending
