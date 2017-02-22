@@ -30,6 +30,11 @@ using v8::internal::wasm::ErrorThrower;
 namespace v8 {
 
 namespace {
+
+#define RANGE_ERROR_MSG                                                        \
+  "Wasm compilation exceeds internal limits in this context for the provided " \
+  "arguments"
+
 i::Handle<i::String> v8_str(i::Isolate* isolate, const char* str) {
   return isolate->factory()->NewStringFromAsciiChecked(str);
 }
@@ -42,6 +47,100 @@ struct RawBuffer {
   const byte* end;
   size_t size() { return static_cast<size_t>(end - start); }
 };
+
+bool IsCompilationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
+                          v8::Local<v8::Value> source, bool is_async) {
+  // Allow caller to do one final check on thrower state, rather than
+  // one at each step. No information is lost - failure reason is captured
+  // in the thrower state.
+  if (thrower->error()) return false;
+
+  AllowWasmCompileCallback callback = isolate->allow_wasm_compile_callback();
+  if (callback != nullptr &&
+      !callback(reinterpret_cast<v8::Isolate*>(isolate), source, is_async)) {
+    thrower->RangeError(RANGE_ERROR_MSG);
+    return false;
+  }
+  return true;
+}
+
+bool IsInstantiationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
+                            v8::Local<v8::Value> module_or_bytes,
+                            i::MaybeHandle<i::JSReceiver> ffi, bool is_async) {
+  // Allow caller to do one final check on thrower state, rather than
+  // one at each step. No information is lost - failure reason is captured
+  // in the thrower state.
+  if (thrower->error()) return false;
+  v8::MaybeLocal<v8::Value> v8_ffi;
+  if (!ffi.is_null()) {
+    v8_ffi = v8::Local<v8::Value>::Cast(Utils::ToLocal(ffi.ToHandleChecked()));
+  }
+  AllowWasmInstantiateCallback callback =
+      isolate->allow_wasm_instantiate_callback();
+  if (callback != nullptr &&
+      !callback(reinterpret_cast<v8::Isolate*>(isolate), module_or_bytes,
+                v8_ffi, is_async)) {
+    thrower->RangeError(RANGE_ERROR_MSG);
+    return false;
+  }
+  return true;
+}
+
+i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
+  if (args.Length() < 1) {
+    thrower->TypeError("Argument 0 must be a buffer source");
+    return i::wasm::ModuleWireBytes(nullptr, nullptr);
+  }
+
+  const byte* start = nullptr;
+  size_t length = 0;
+  v8::Local<v8::Value> source = args[0];
+  if (source->IsArrayBuffer()) {
+    // A raw array buffer was passed.
+    Local<ArrayBuffer> buffer = Local<ArrayBuffer>::Cast(source);
+    ArrayBuffer::Contents contents = buffer->GetContents();
+
+    start = reinterpret_cast<const byte*>(contents.Data());
+    length = contents.ByteLength();
+  } else if (source->IsTypedArray()) {
+    // A TypedArray was passed.
+    Local<TypedArray> array = Local<TypedArray>::Cast(source);
+    Local<ArrayBuffer> buffer = array->Buffer();
+
+    ArrayBuffer::Contents contents = buffer->GetContents();
+
+    start =
+        reinterpret_cast<const byte*>(contents.Data()) + array->ByteOffset();
+    length = array->ByteLength();
+  } else {
+    thrower->TypeError("Argument 0 must be a buffer source");
+  }
+  DCHECK_IMPLIES(length, start != nullptr);
+  if (length == 0) {
+    thrower->CompileError("BufferSource argument is empty");
+  }
+  if (length > i::wasm::kV8MaxWasmModuleSize) {
+    thrower->RangeError("buffer source exceeds maximum size of %zu (is %zu)",
+                        i::wasm::kV8MaxWasmModuleSize, length);
+  }
+  if (thrower->error()) return i::wasm::ModuleWireBytes(nullptr, nullptr);
+  // TODO(titzer): use the handle as well?
+  return i::wasm::ModuleWireBytes(start, start + length);
+}
+
+i::MaybeHandle<i::JSReceiver> GetSecondArgumentAsImports(
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
+  if (args.Length() < 2) return {};
+  if (args[1]->IsUndefined()) return {};
+
+  if (!args[1]->IsObject()) {
+    thrower->TypeError("Argument 1 must be an object");
+    return {};
+  }
+  Local<Object> obj = Local<Object>::Cast(args[1]);
+  return i::Handle<i::JSReceiver>::cast(v8::Utils::OpenHandle(*obj));
+}
 
 RawBuffer GetRawBufferSource(
     v8::Local<v8::Value> source, ErrorThrower* thrower) {
@@ -132,6 +231,7 @@ static bool BrandCheck(Isolate* isolate, i::Handle<i::Object> value,
 
 void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
                        "WebAssembly.compile()");
@@ -144,6 +244,11 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (args.Length() < 1) {
     thrower.TypeError("Argument 0 must be a buffer source");
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    return;
+  }
+  auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], true)) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
@@ -179,6 +284,7 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
 void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   ErrorThrower thrower(reinterpret_cast<i::Isolate*>(isolate),
                        "WebAssembly.Module()");
@@ -187,6 +293,8 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     thrower.TypeError("Argument 0 must be a buffer source");
     return;
   }
+  auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  if (!IsCompilationAllowed(i_isolate, &thrower, args[0], false)) return;
 
   i::MaybeHandle<i::JSObject> module_obj =
       CreateModuleObject(isolate, args[0], &thrower);
@@ -325,6 +433,13 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   ErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
 
   auto maybe_module = GetFirstArgumentAsModule(args, thrower);
+  if (thrower.error()) return;
+  auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
+  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
+                              false)) {
+    return;
+  }
+  DCHECK(!thrower.error());
 
   if (!maybe_module.is_null()) {
     MaybeLocal<Value> instance = InstantiateModuleImpl(
@@ -367,8 +482,19 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
   }
+
   bool want_pair = !BrandCheck(
       isolate, first_arg, i::Handle<i::Symbol>(i_context->wasm_module_sym()));
+  auto maybe_imports = GetSecondArgumentAsImports(args, &thrower);
+  if (thrower.error()) {
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    return;
+  }
+  if (!IsInstantiationAllowed(i_isolate, &thrower, args[0], maybe_imports,
+                              true)) {
+    resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    return;
+  }
   i::Handle<i::WasmModuleObject> module_obj;
   if (want_pair) {
     i::MaybeHandle<i::WasmModuleObject> maybe_module_obj =
