@@ -86,7 +86,6 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceCreateConsString(Node* node);
   Reduction ReduceSpeculativeNumberAdd(Node* node);
   Reduction ReduceSpeculativeNumberBinop(Node* node);
-  Reduction ReduceSpeculativeNumberComparison(Node* node);
 
   Factory* factory() const;
   Graph* graph() const;

@@ -10,16 +10,10 @@
 
 namespace v8 {
 namespace internal {
-
-// Forward declarations.
-class FeedbackSlot;
-
 namespace compiler {
 
 // Forward declarations.
 class JSGraph;
-class Node;
-class Operator;
 
 // The type-hint lowering consumes feedback about data operations (i.e. unary
 // and binary operations) to emit nodes using speculative simplified operators
@@ -34,8 +28,7 @@ class JSTypeHintLowering {
  public:
   JSTypeHintLowering(JSGraph* jsgraph, Handle<FeedbackVector> feedback_vector);
 
-  // Potential reduction of binary (arithmetic, logical, shift and relational
-  // comparison) operations.
+  // Potential reduction of binary (arithmetic, logical and shift) operations.
   Reduction ReduceBinaryOperation(const Operator* op, Node* left, Node* right,
                                   Node* effect, Node* control,
                                   FeedbackSlot slot);

@@ -234,14 +234,12 @@ void LoopVariableOptimizer::VisitIf(Node* node, bool polarity) {
   // Normalize to less than comparison.
   switch (cond->opcode()) {
     case IrOpcode::kJSLessThan:
-    case IrOpcode::kSpeculativeNumberLessThan:
       AddCmpToLimits(limits, cond, InductionVariable::kStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThan:
       AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, !polarity);
       break;
     case IrOpcode::kJSLessThanOrEqual:
-    case IrOpcode::kSpeculativeNumberLessThanOrEqual:
       AddCmpToLimits(limits, cond, InductionVariable::kNonStrict, polarity);
       break;
     case IrOpcode::kJSGreaterThanOrEqual:
