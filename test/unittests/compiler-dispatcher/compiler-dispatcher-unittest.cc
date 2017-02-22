@@ -341,8 +341,8 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   ASSERT_TRUE(platform.IdleTaskPending());
 
   // The job should be scheduled for the main thread.
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kInitial);
 
   // Only grant a little idle time and have time advance beyond it in one step.
@@ -354,8 +354,8 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
 
   // The job should be still scheduled for the main thread, but ready for
   // parsing.
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToParse);
 
   // Now grant a lot of idle time and freeze time.
@@ -406,15 +406,15 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kInitial);
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
@@ -426,7 +426,7 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
 
   ASSERT_TRUE(platform.IdleTaskPending());
   ASSERT_FALSE(platform.BackgroundTasksPending());
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kCompiled);
 
   // Now grant a lot of idle time and freeze time.
@@ -451,15 +451,15 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kInitial);
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
@@ -550,15 +550,15 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kInitial);
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
@@ -600,15 +600,15 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   ASSERT_TRUE(dispatcher.Enqueue(shared1));
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared1))->status() ==
               CompileJobStatus::kInitial);
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared1))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
@@ -678,15 +678,15 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   ASSERT_TRUE(platform.IdleTaskPending());
 
-  ASSERT_EQ(dispatcher.jobs_.size(), 1u);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_EQ(dispatcher.jobs_.size(), 1);
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kInitial);
 
   // Make compiling super expensive, and advance job as much as possible on the
   // foreground thread.
   dispatcher.tracer_->RecordCompile(50000.0, 1);
   platform.RunIdleTask(10.0, 0.0);
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
@@ -830,7 +830,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToParse);
 
   ASSERT_TRUE(platform.IdleTaskPending());
@@ -859,7 +859,7 @@ TEST_F(CompilerDispatcherTest, EnqueueParsed) {
                                  parse_info.zone_shared(), handles, handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kAnalyzed);
 
   ASSERT_TRUE(platform.IdleTaskPending());
@@ -888,7 +888,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepParsed) {
                                         handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(platform.IdleTaskPending());
@@ -1081,7 +1081,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
                                         handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
 
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   // EnqueueAndStep of the same function again (either already parsed or for
@@ -1090,10 +1090,10 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
                                         parse_info.zone_shared(), handles,
                                         handles));
   ASSERT_TRUE(dispatcher.IsEnqueued(shared));
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
   ASSERT_TRUE(dispatcher.EnqueueAndStep(shared));
-  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+  ASSERT_TRUE((*dispatcher.jobs_.Find(shared))->status() ==
               CompileJobStatus::kReadyToCompile);
 
   ASSERT_TRUE(platform.IdleTaskPending());

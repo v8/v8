@@ -16,6 +16,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
 #include "src/globals.h"
+#include "src/identity-map.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace v8 {
@@ -128,9 +129,6 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   FRIEND_TEST(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask);
   FRIEND_TEST(CompilerDispatcherTest, FinishNowDuringAbortAll);
 
-  typedef std::multimap<std::pair<int, int>,
-                        std::unique_ptr<CompilerDispatcherJob>>
-      JobMap;
   class AbortTask;
   class BackgroundTask;
   class IdleTask;
@@ -138,11 +136,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
   void WaitForJobIfRunningOnBackground(CompilerDispatcherJob* job);
   void AbortInactiveJobs();
   bool CanEnqueue(Handle<SharedFunctionInfo> function);
-  JobMap::const_iterator GetJobFor(Handle<SharedFunctionInfo> shared) const;
   void ConsiderJobForBackgroundProcessing(CompilerDispatcherJob* job);
   void ScheduleMoreBackgroundTasksIfNeeded();
-  void ScheduleIdleTaskFromAnyThread();
   void ScheduleIdleTaskIfNeeded();
+  void ScheduleIdleTaskFromAnyThread();
   void ScheduleAbortTask();
   void DoBackgroundWork();
   void DoIdleWork(double deadline_in_seconds);
@@ -158,9 +155,10 @@ class V8_EXPORT_PRIVATE CompilerDispatcher {
 
   std::unique_ptr<CancelableTaskManager> task_manager_;
 
-  // Mapping from (script id, function literal id) to job. We use a multimap,
-  // as script id is not necessarily unique.
-  JobMap jobs_;
+  // Mapping from SharedFunctionInfo to job.
+  typedef IdentityMap<CompilerDispatcherJob*, FreeStoreAllocationPolicy>
+      JobsMap;
+  JobsMap jobs_;
 
   base::AtomicValue<v8::MemoryPressureLevel> memory_pressure_level_;
 
