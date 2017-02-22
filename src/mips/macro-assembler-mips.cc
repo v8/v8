@@ -3885,16 +3885,6 @@ void MacroAssembler::Push(Handle<Object> handle) {
   push(at);
 }
 
-
-void MacroAssembler::DebugBreak() {
-  PrepareCEntryArgs(0);
-  PrepareCEntryFunction(
-      ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =

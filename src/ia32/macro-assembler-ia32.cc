@@ -673,14 +673,6 @@ void MacroAssembler::RecordWriteCodeEntryField(Register js_function,
   bind(&done);
 }
 
-void MacroAssembler::DebugBreak() {
-  Move(eax, Immediate(0));
-  mov(ebx, Immediate(ExternalReference(Runtime::kHandleDebuggerStatement,
-                                       isolate())));
-  CEntryStub ces(isolate(), 1);
-  call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =

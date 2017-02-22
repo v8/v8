@@ -2878,15 +2878,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
   }
 }
 
-
-void MacroAssembler::DebugBreak() {
-  Mov(x0, 0);
-  Mov(x1, ExternalReference(Runtime::kHandleDebuggerStatement, isolate()));
-  CEntryStub ces(isolate(), 1);
-  DCHECK(AllowThisStubCall(&ces));
-  Call(ces.GetCode(), RelocInfo::DEBUGGER_STATEMENT);
-}
-
 void MacroAssembler::MaybeDropFrames() {
   // Check whether we need to drop frames to restart a function on the stack.
   ExternalReference restart_fp =

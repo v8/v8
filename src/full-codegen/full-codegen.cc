@@ -1223,13 +1223,8 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
 
 void FullCodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  Comment cmnt(masm_, "[ DebuggerStatement");
-  SetStatementPosition(stmt);
-
-  __ DebugBreak();
-  __ MaybeDropFrames();
-
-  PrepareForBailoutForId(stmt->DebugBreakId(), BailoutState::NO_REGISTERS);
+  // Debugger statement is not supported.
+  UNREACHABLE();
 }
 
 

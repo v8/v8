@@ -725,8 +725,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "no reloc 64";
     case EMBEDDED_OBJECT:
       return "embedded object";
-    case DEBUGGER_STATEMENT:
-      return "debugger statement";
     case CODE_TARGET:
       return "code target";
     case CODE_TARGET_WITH_ID:
@@ -834,7 +832,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CELL:
       Object::VerifyPointer(target_cell());
       break;
-    case DEBUGGER_STATEMENT:
     case CODE_TARGET_WITH_ID:
     case CODE_TARGET: {
       // convert inline target address to code object
