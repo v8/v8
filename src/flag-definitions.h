@@ -209,11 +209,13 @@ DEFINE_IMPLICATION(es_staging, move_object_start)
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                   \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind") \
-  V(harmony_restrictive_generators,                         \
-    "harmony restrictions on generator declarations")       \
-  V(harmony_object_rest_spread, "harmony object rest spread properties")
+#define HARMONY_STAGED(V)                                                \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
+  V(harmony_restrictive_generators,                                      \
+    "harmony restrictions on generator declarations")                    \
+  V(harmony_object_rest_spread, "harmony object rest spread properties") \
+  V(harmony_template_escapes,                                            \
+    "harmony invalid escapes in tagged template literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V) \

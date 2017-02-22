@@ -552,6 +552,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
+  set_allow_harmony_template_escapes(FLAG_harmony_template_escapes);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -3496,15 +3497,20 @@ Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
   return new (zone()) TemplateLiteral(zone(), pos);
 }
 
-
-void Parser::AddTemplateSpan(TemplateLiteralState* state, bool tail) {
+void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
+                             bool tail) {
+  DCHECK(should_cook || allow_harmony_template_escapes());
   int pos = scanner()->location().beg_pos;
   int end = scanner()->location().end_pos - (tail ? 1 : 2);
-  const AstRawString* tv = scanner()->CurrentSymbol(ast_value_factory());
   const AstRawString* trv = scanner()->CurrentRawSymbol(ast_value_factory());
-  Literal* cooked = factory()->NewStringLiteral(tv, pos);
   Literal* raw = factory()->NewStringLiteral(trv, pos);
-  (*state)->AddTemplateSpan(cooked, raw, end, zone());
+  if (should_cook) {
+    const AstRawString* tv = scanner()->CurrentSymbol(ast_value_factory());
+    Literal* cooked = factory()->NewStringLiteral(tv, pos);
+    (*state)->AddTemplateSpan(cooked, raw, end, zone());
+  } else {
+    (*state)->AddTemplateSpan(GetLiteralUndefined(pos), raw, end, zone());
+  }
 }
 
 

@@ -226,7 +226,8 @@ class ParserBase {
         allow_harmony_class_fields_(false),
         allow_harmony_object_rest_spread_(false),
         allow_harmony_dynamic_import_(false),
-        allow_harmony_async_iteration_(false) {}
+        allow_harmony_async_iteration_(false),
+        allow_harmony_template_escapes_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -242,6 +243,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_object_rest_spread);
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_async_iteration);
+  ALLOW_ACCESSORS(harmony_template_escapes);
 
 #undef ALLOW_ACCESSORS
 
@@ -816,14 +818,12 @@ class ParserBase {
   }
 
   // Checks whether an octal literal was last seen between beg_pos and end_pos.
-  // If so, reports an error. Only called for strict mode and template strings.
-  void CheckOctalLiteral(int beg_pos, int end_pos, bool is_template, bool* ok) {
+  // Only called for strict mode strings.
+  void CheckStrictOctalLiteral(int beg_pos, int end_pos, bool* ok) {
     Scanner::Location octal = scanner()->octal_position();
     if (octal.IsValid() && beg_pos <= octal.beg_pos &&
         octal.end_pos <= end_pos) {
-      MessageTemplate::Template message =
-          is_template ? MessageTemplate::kTemplateOctalLiteral
-                      : scanner()->octal_message();
+      MessageTemplate::Template message = scanner()->octal_message();
       DCHECK_NE(message, MessageTemplate::kNone);
       impl()->ReportMessageAt(octal, message);
       scanner()->clear_octal_position();
@@ -834,12 +834,23 @@ class ParserBase {
     }
   }
 
-  inline void CheckStrictOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-    CheckOctalLiteral(beg_pos, end_pos, false, ok);
-  }
+  // Checks if an octal literal or an invalid hex or unicode escape sequence
+  // appears in a template literal. In the presence of such, either
+  // returns false or reports an error, depending on should_throw. Otherwise
+  // returns true.
+  inline bool CheckTemplateEscapes(bool should_throw, bool* ok) {
+    if (!scanner()->has_invalid_template_escape()) {
+      return true;
+    }
 
-  inline void CheckTemplateOctalLiteral(int beg_pos, int end_pos, bool* ok) {
-    CheckOctalLiteral(beg_pos, end_pos, true, ok);
+    // Handle error case(s)
+    if (should_throw) {
+      impl()->ReportMessageAt(scanner()->invalid_template_escape_location(),
+                              scanner()->invalid_template_escape_message());
+      *ok = false;
+    }
+    scanner()->clear_invalid_template_escape();
+    return false;
   }
 
   void CheckDestructuringElement(ExpressionT element, int beg_pos, int end_pos);
@@ -1138,7 +1149,8 @@ class ParserBase {
                                 Scanner::Location class_name_location,
                                 bool name_is_strict_reserved,
                                 int class_token_pos, bool* ok);
-  ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool* ok);
+  ExpressionT ParseTemplateLiteral(ExpressionT tag, int start, bool tagged,
+                                   bool* ok);
   ExpressionT ParseSuperExpression(bool is_new, bool* ok);
   ExpressionT ParseDynamicImportExpression(bool* ok);
   ExpressionT ParseNewTargetExpression(bool* ok);
@@ -1449,6 +1461,7 @@ class ParserBase {
   bool allow_harmony_object_rest_spread_;
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_async_iteration_;
+  bool allow_harmony_template_escapes_;
 
   friend class DiscardableZoneScope;
 };
@@ -1817,7 +1830,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::TEMPLATE_SPAN:
     case Token::TEMPLATE_TAIL:
       BindingPatternUnexpectedToken();
-      return ParseTemplateLiteral(impl()->NoTemplateTag(), beg_pos, ok);
+      return ParseTemplateLiteral(impl()->NoTemplateTag(), beg_pos, false, ok);
 
     case Token::MOD:
       if (allow_natives() || extension_ != NULL) {
@@ -3215,7 +3228,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         impl()->RewriteNonPattern(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
-        result = ParseTemplateLiteral(result, position(), CHECK_OK);
+        result = ParseTemplateLiteral(result, position(), true, CHECK_OK);
         break;
       }
 
@@ -3495,7 +3508,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
             expression->AsFunctionLiteral()->SetShouldEagerCompile();
           }
         }
-        expression = ParseTemplateLiteral(expression, pos, CHECK_OK);
+        expression = ParseTemplateLiteral(expression, pos, true, CHECK_OK);
         break;
       }
       case Token::ILLEGAL: {
@@ -4376,7 +4389,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
-    ExpressionT tag, int start, bool* ok) {
+    ExpressionT tag, int start, bool tagged, bool* ok) {
   // A TemplateLiteral is made up of 0 or more TEMPLATE_SPAN tokens (literal
   // text followed by a substitution expression), finalized by a single
   // TEMPLATE_TAIL.
@@ -4389,22 +4402,25 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   // TEMPLATE_SPAN, or a TEMPLATE_TAIL.
   CHECK(peek() == Token::TEMPLATE_SPAN || peek() == Token::TEMPLATE_TAIL);
 
+  bool forbid_illegal_escapes = !allow_harmony_template_escapes() || !tagged;
+
   // If we reach a TEMPLATE_TAIL first, we are parsing a NoSubstitutionTemplate.
   // In this case we may simply consume the token and build a template with a
   // single TEMPLATE_SPAN and no expressions.
   if (peek() == Token::TEMPLATE_TAIL) {
     Consume(Token::TEMPLATE_TAIL);
     int pos = position();
-    CheckTemplateOctalLiteral(pos, peek_position(), CHECK_OK);
     typename Impl::TemplateLiteralState ts = impl()->OpenTemplateLiteral(pos);
-    impl()->AddTemplateSpan(&ts, true);
+    bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes, CHECK_OK);
+    impl()->AddTemplateSpan(&ts, is_valid, true);
     return impl()->CloseTemplateLiteral(&ts, start, tag);
   }
 
   Consume(Token::TEMPLATE_SPAN);
   int pos = position();
   typename Impl::TemplateLiteralState ts = impl()->OpenTemplateLiteral(pos);
-  impl()->AddTemplateSpan(&ts, false);
+  bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes, CHECK_OK);
+  impl()->AddTemplateSpan(&ts, is_valid, false);
   Token::Value next;
 
   // If we open with a TEMPLATE_SPAN, we must scan the subsequent expression,
@@ -4412,7 +4428,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   // case, representing a TemplateMiddle).
 
   do {
-    CheckTemplateOctalLiteral(pos, peek_position(), CHECK_OK);
     next = peek();
     if (next == Token::EOS) {
       impl()->ReportMessageAt(Scanner::Location(start, peek_position()),
@@ -4458,11 +4473,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
       return impl()->EmptyExpression();
     }
 
-    impl()->AddTemplateSpan(&ts, next == Token::TEMPLATE_TAIL);
+    bool is_valid = CheckTemplateEscapes(forbid_illegal_escapes, CHECK_OK);
+    impl()->AddTemplateSpan(&ts, is_valid, next == Token::TEMPLATE_TAIL);
   } while (next == Token::TEMPLATE_SPAN);
 
   DCHECK_EQ(next, Token::TEMPLATE_TAIL);
-  CheckTemplateOctalLiteral(pos, peek_position(), CHECK_OK);
   // Once we've reached a TEMPLATE_TAIL, we can close the TemplateLiteral.
   return impl()->CloseTemplateLiteral(&ts, start, tag);
 }

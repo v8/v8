@@ -1005,7 +1005,8 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void AddTemplateExpression(TemplateLiteralState* state,
                                        PreParserExpression expression) {}
-  V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool tail) {}
+  V8_INLINE void AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
+                                 bool tail) {}
   V8_INLINE PreParserExpression CloseTemplateLiteral(
       TemplateLiteralState* state, int start, PreParserExpression tag);
   V8_INLINE void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}

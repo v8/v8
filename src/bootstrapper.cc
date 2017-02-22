@@ -3526,6 +3526,7 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_tostring)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_class_fields)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_object_rest_spread)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
+EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_template_escapes)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -4242,6 +4243,7 @@ bool Genesis::InstallExperimentalNatives() {
   static const char* harmony_async_iteration_natives[] = {nullptr};
   static const char* harmony_dynamic_import_natives[] = {nullptr};
   static const char* harmony_promise_finally_natives[] = {nullptr};
+  static const char* harmony_template_escapes_natives[] = {nullptr};
 
   for (int i = ExperimentalNatives::GetDebuggerCount();
        i < ExperimentalNatives::GetBuiltinsCount(); i++) {
