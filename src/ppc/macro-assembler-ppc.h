@@ -635,13 +635,10 @@ class MacroAssembler : public Assembler {
 
   void IsObjectNameType(Register object, Register scratch, Label* fail);
 
-  // ---------------------------------------------------------------------------
-  // Debugger Support
-
   void DebugBreak();
+  // Frame restart support
   void MaybeDropFrames();
 
-  // ---------------------------------------------------------------------------
   // Exception handling
 
   // Push a new stack handler and link into stack handler chain.
