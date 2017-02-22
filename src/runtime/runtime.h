@@ -620,22 +620,15 @@ namespace internal {
   F(IsSharedIntegerTypedArray, 1, 1)         \
   F(IsSharedInteger32TypedArray, 1, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F)           \
-  F(WasmGrowMemory, 1, 1)                    \
-  F(WasmMemorySize, 0, 1)                    \
-  F(ThrowWasmError, 2, 1)                    \
-  F(WasmThrowTypeError, 0, 1)                \
-  F(WasmThrow, 2, 1)                         \
-  F(WasmGetCaughtExceptionValue, 1, 1)       \
-  F(ThrowWasmTrapUnreachable, 0, 1)          \
-  F(ThrowWasmTrapMemOutOfBounds, 0, 1)       \
-  F(ThrowWasmTrapDivByZero, 0, 1)            \
-  F(ThrowWasmTrapDivUnrepresentable, 0, 1)   \
-  F(ThrowWasmTrapRemByZero, 0, 1)            \
-  F(ThrowWasmTrapFloatUnrepresentable, 0, 1) \
-  F(ThrowWasmTrapFuncInvalid, 0, 1)          \
-  F(ThrowWasmTrapFuncSigMismatch, 0, 1)      \
-  F(WasmRunInterpreter, 3, 1)                \
+#define FOR_EACH_INTRINSIC_WASM(F)     \
+  F(WasmGrowMemory, 1, 1)              \
+  F(WasmMemorySize, 0, 1)              \
+  F(ThrowWasmError, 2, 1)              \
+  F(ThrowWasmErrorFromTrapIf, 1, 1)    \
+  F(WasmThrowTypeError, 0, 1)          \
+  F(WasmThrow, 2, 1)                   \
+  F(WasmGetCaughtExceptionValue, 1, 1) \
+  F(WasmRunInterpreter, 3, 1)          \
   F(WasmStackGuard, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \

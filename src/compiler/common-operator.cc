@@ -662,8 +662,8 @@ struct CommonOperatorGlobalCache final {
               1, 1, 1, 0, 0, 1,                          // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_IF(Trap)                                      \
-  TrapIfOperator<static_cast<int32_t>(Runtime::kThrowWasm##Trap)> \
+#define CACHED_TRAP_IF(Trap)                                       \
+  TrapIfOperator<static_cast<int32_t>(Builtins::kThrowWasm##Trap)> \
       kTrapIf##Trap##Operator;
   CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
@@ -678,8 +678,8 @@ struct CommonOperatorGlobalCache final {
               1, 1, 1, 0, 0, 1,                          // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_UNLESS(Trap)                                      \
-  TrapUnlessOperator<static_cast<int32_t>(Runtime::kThrowWasm##Trap)> \
+#define CACHED_TRAP_UNLESS(Trap)                                       \
+  TrapUnlessOperator<static_cast<int32_t>(Builtins::kThrowWasm##Trap)> \
       kTrapUnless##Trap##Operator;
   CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
@@ -884,8 +884,8 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
 
 const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
   switch (trap_id) {
-#define CACHED_TRAP_IF(Trap)      \
-  case Runtime::kThrowWasm##Trap: \
+#define CACHED_TRAP_IF(Trap)       \
+  case Builtins::kThrowWasm##Trap: \
     return &cache_.kTrapIf##Trap##Operator;
     CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
@@ -903,8 +903,8 @@ const Operator* CommonOperatorBuilder::TrapIf(int32_t trap_id) {
 
 const Operator* CommonOperatorBuilder::TrapUnless(int32_t trap_id) {
   switch (trap_id) {
-#define CACHED_TRAP_UNLESS(Trap)  \
-  case Runtime::kThrowWasm##Trap: \
+#define CACHED_TRAP_UNLESS(Trap)   \
+  case Builtins::kThrowWasm##Trap: \
     return &cache_.kTrapUnless##Trap##Operator;
     CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS

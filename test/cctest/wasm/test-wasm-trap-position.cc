@@ -43,6 +43,7 @@ void CheckExceptionInfos(Handle<Object> exc,
   // Check that it's indeed an Error object.
   CHECK(exc->IsJSError());
 
+  exc->Print();
   // Extract stack frame from the exception.
   Local<v8::Value> localExc = Utils::ToLocal(exc);
   v8::Local<v8::StackTrace> stack = v8::Exception::GetStackTrace(localExc);

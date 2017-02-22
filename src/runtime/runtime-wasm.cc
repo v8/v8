@@ -117,20 +117,18 @@ Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
   return isolate->Throw(*error_obj);
 }
 
+RUNTIME_FUNCTION(Runtime_ThrowWasmErrorFromTrapIf) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  return ThrowRuntimeError(isolate, message_id, 0, false);
+}
+
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
   return ThrowRuntimeError(isolate, message_id, byte_offset, true);
 }
-
-#define DECLARE_ENUM(name)                                                    \
-  RUNTIME_FUNCTION(Runtime_ThrowWasm##name) {                                 \
-    int message_id = wasm::WasmOpcodes::TrapReasonToMessageId(wasm::k##name); \
-    return ThrowRuntimeError(isolate, message_id, 0, false);                  \
-  }
-FOREACH_WASM_TRAPREASON(DECLARE_ENUM)
-#undef DECLARE_ENUM
 
 RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
   HandleScope scope(isolate);

@@ -834,7 +834,19 @@ class Isolate;
   CPP(TypedArrayPrototypeCopyWithin)                                           \
                                                                                \
   /* Wasm */                                                                   \
-  TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmStackGuard, 1)
+  TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)            \
+  TFS(ThrowWasmTrapUnreachable, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)  \
+  TFS(ThrowWasmTrapMemOutOfBounds, BUILTIN, kNoExtraICState, WasmRuntimeCall,  \
+      1)                                                                       \
+  TFS(ThrowWasmTrapDivByZero, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)    \
+  TFS(ThrowWasmTrapDivUnrepresentable, BUILTIN, kNoExtraICState,               \
+      WasmRuntimeCall, 1)                                                      \
+  TFS(ThrowWasmTrapRemByZero, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)    \
+  TFS(ThrowWasmTrapFloatUnrepresentable, BUILTIN, kNoExtraICState,             \
+      WasmRuntimeCall, 1)                                                      \
+  TFS(ThrowWasmTrapFuncInvalid, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)  \
+  TFS(ThrowWasmTrapFuncSigMismatch, BUILTIN, kNoExtraICState, WasmRuntimeCall, \
+      1)
 
 #define IGNORE_BUILTIN(...)
 
@@ -874,7 +886,7 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(byte* pc);
 
-  enum Name {
+  enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST_ALL(DEF_ENUM)
 #undef DEF_ENUM

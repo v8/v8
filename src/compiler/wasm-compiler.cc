@@ -11,6 +11,8 @@
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
 
+#include "src/builtins/builtins.h"
+
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -172,23 +174,23 @@ class WasmTrapHelper : public ZoneObject {
     return TrapIfEq64(reason, node, 0, position);
   }
 
-  Runtime::FunctionId GetFunctionIdForTrap(wasm::TrapReason reason) {
+  Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason) {
     if (builder_->module_ && !builder_->module_->instance->context.is_null()) {
       switch (reason) {
 #define TRAPREASON_TO_MESSAGE(name) \
   case wasm::k##name:               \
-    return Runtime::kThrowWasm##name;
+    return Builtins::kThrowWasm##name;
         FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
 #undef TRAPREASON_TO_MESSAGE
         default:
           UNREACHABLE();
-          return Runtime::kNumFunctions;
+          return Builtins::builtin_count;
       }
     } else {
       // We use Runtime::kNumFunctions as a marker to tell the code generator
       // to generate a call to a testing c-function instead of a runtime
       // function. This code should only be called from a cctest.
-      return Runtime::kNumFunctions;
+      return Builtins::builtin_count;
     }
   }
 
@@ -204,7 +206,7 @@ class WasmTrapHelper : public ZoneObject {
                      wasm::WasmCodePosition position) {
 #ifdef WASM_TRAP_IF_SUPPORTED
     if (FLAG_wasm_trap_if) {
-      int32_t trap_id = GetFunctionIdForTrap(reason);
+      int32_t trap_id = GetBuiltinIdForTrap(reason);
       Node* node = graph()->NewNode(common()->TrapIf(trap_id), cond,
                                     builder_->Effect(), builder_->Control());
       *builder_->control_ = node;
@@ -220,7 +222,7 @@ class WasmTrapHelper : public ZoneObject {
                       wasm::WasmCodePosition position) {
 #ifdef WASM_TRAP_IF_SUPPORTED
     if (FLAG_wasm_trap_if) {
-      int32_t trap_id = GetFunctionIdForTrap(reason);
+      int32_t trap_id = GetBuiltinIdForTrap(reason);
 
       Node* node = graph()->NewNode(common()->TrapUnless(trap_id), cond,
                                     builder_->Effect(), builder_->Control());
@@ -495,7 +497,7 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
 
   Handle<Code> code = jsgraph()->isolate()->builtins()->WasmStackGuard();
   CallInterfaceDescriptor idesc =
-      WasmStackGuardDescriptor(jsgraph()->isolate());
+      WasmRuntimeCallDescriptor(jsgraph()->isolate());
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), idesc, 0,
       CallDescriptor::kNoFlags, Operator::kNoProperties);

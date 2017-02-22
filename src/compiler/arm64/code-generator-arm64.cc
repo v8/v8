@@ -1711,8 +1711,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
           gen_(gen) {}
     void Generate() final {
       Arm64OperandConverter i(gen_, instr_);
-      Runtime::FunctionId trap_id = static_cast<Runtime::FunctionId>(
-          i.InputInt32(instr_->InputCount() - 1));
+      Builtins::Name trap_id =
+          static_cast<Builtins::Name>(i.InputInt32(instr_->InputCount() - 1));
       bool old_has_frame = __ has_frame();
       if (frame_elided_) {
         __ set_has_frame(true);
@@ -1725,8 +1725,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
     }
 
    private:
-    void GenerateCallToTrap(Runtime::FunctionId trap_id) {
-      if (trap_id == Runtime::kNumFunctions) {
+    void GenerateCallToTrap(Builtins::Name trap_id) {
+      if (trap_id == Builtins::builtin_count) {
         // We cannot test calls to the runtime in cctest/test-run-wasm.
         // Therefore we emit a call to C here instead of a call to the runtime.
         __ CallCFunction(
@@ -1736,11 +1736,11 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret();
       } else {
         DCHECK(csp.Is(__ StackPointer()));
-        __ Move(cp, Smi::kZero);
         // Initialize the jssp because it is required for the runtime call.
         __ Mov(jssp, csp);
         gen_->AssembleSourcePosition(instr_);
-        __ CallRuntime(trap_id);
+        __ Call(handle(isolate()->builtins()->builtin(trap_id), isolate()),
+                RelocInfo::CODE_TARGET);
         ReferenceMap* reference_map =
             new (gen_->zone()) ReferenceMap(gen_->zone());
         gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
