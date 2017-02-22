@@ -248,7 +248,6 @@ void IdentityMapBase::Rehash() {
   for (auto pair : reinsert) {
     int index = InsertKey(pair.first);
     DCHECK_GE(index, 0);
-    DCHECK_NULL(values_[index]);
     values_[index] = pair.second;
   }
 }
