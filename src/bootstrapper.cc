@@ -4927,11 +4927,19 @@ Genesis::Genesis(Isolate* isolate,
     global_proxy = factory()->NewUninitializedJSGlobalProxy(proxy_size);
   }
 
-  // CreateNewGlobals.
+  // Create a remote object as the global object.
   Handle<ObjectTemplateInfo> global_proxy_data =
-      v8::Utils::OpenHandle(*global_proxy_template);
+      Utils::OpenHandle(*global_proxy_template);
   Handle<FunctionTemplateInfo> global_constructor(
       FunctionTemplateInfo::cast(global_proxy_data->constructor()));
+
+  Handle<ObjectTemplateInfo> global_object_template(
+      ObjectTemplateInfo::cast(global_constructor->prototype_template()));
+  Handle<JSObject> global_object =
+      ApiNatives::InstantiateRemoteObject(
+          global_object_template).ToHandleChecked();
+
+  // (Re)initialize the global proxy object.
   Handle<SharedFunctionInfo> shared =
       FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(isolate,
                                                           global_constructor);
@@ -4955,11 +4963,14 @@ Genesis::Genesis(Isolate* isolate,
   global_proxy_function->shared()->set_instance_class_name(*global_name);
   factory()->ReinitializeJSGlobalProxy(global_proxy, global_proxy_function);
 
-  // GlobalProxy.
+  // A remote global proxy has no native context.
   global_proxy->set_native_context(heap()->null_value());
 
-  // DetachGlobal.
-  JSObject::ForceSetPrototype(global_proxy, factory()->null_value());
+  // Configure the hidden prototype chain of the global proxy.
+  JSObject::ForceSetPrototype(global_proxy, global_object);
+  // TODO(dcheng): This is a hack. Why does this need to be manually called
+  // here? Line 4812 should have taken care of it?
+  global_proxy->map()->set_has_hidden_prototype(true);
 
   global_proxy_ = global_proxy;
 }

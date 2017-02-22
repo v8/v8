@@ -67,11 +67,6 @@ TEST_F(RemoteObjectTest, RemoteContextInstanceChecks) {
           .ToLocalChecked();
   EXPECT_TRUE(parent_template->HasInstance(remote_context));
   EXPECT_TRUE(constructor_template->HasInstance(remote_context));
-
-  EXPECT_EQ(remote_context,
-            remote_context->FindInstanceInPrototypeChain(parent_template));
-  EXPECT_EQ(remote_context,
-            remote_context->FindInstanceInPrototypeChain(constructor_template));
 }
 
 }  // namespace v8
