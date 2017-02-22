@@ -2994,14 +2994,26 @@ static String* UpdateReferenceInExternalStringTableEntry(Heap* heap,
   return String::cast(*p);
 }
 
-void MarkCompactCollector::EvacuateNewSpacePrologue() {
+void MarkCompactCollector::EvacuatePrologue() {
+  // New space.
   NewSpace* new_space = heap()->new_space();
   // Append the list of new space pages to be processed.
   for (Page* p : PageRange(new_space->bottom(), new_space->top())) {
-    newspace_evacuation_candidates_.Add(p);
+    new_space_evacuation_pages_.Add(p);
   }
   new_space->Flip();
   new_space->ResetAllocationInfo();
+
+  // Old space.
+  CHECK(old_space_evacuation_pages_.is_empty());
+  old_space_evacuation_pages_.Swap(&evacuation_candidates_);
+}
+
+void MarkCompactCollector::EvacuateEpilogue() {
+  // New space.
+  heap()->new_space()->set_age_mark(heap()->new_space()->top());
+  // Old space. Deallocate evacuated candidate pages.
+  ReleaseEvacuationCandidates();
 }
 
 class MarkCompactCollector::Evacuator : public Malloced {
@@ -3255,14 +3267,14 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
 
   int abandoned_pages = 0;
   intptr_t live_bytes = 0;
-  for (Page* page : evacuation_candidates_) {
+  for (Page* page : old_space_evacuation_pages_) {
     live_bytes += page->LiveBytes();
     job.AddPage(page, &abandoned_pages);
   }
 
   const bool reduce_memory = heap()->ShouldReduceMemory();
   const Address age_mark = heap()->new_space()->age_mark();
-  for (Page* page : newspace_evacuation_candidates_) {
+  for (Page* page : new_space_evacuation_pages_) {
     live_bytes += page->LiveBytes();
     if (!reduce_memory && !page->NeverEvacuate() &&
         (page->LiveBytes() > Evacuator::PageEvacuationThreshold()) &&
@@ -3557,12 +3569,14 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   Heap::RelocationLock relocation_lock(heap());
 
   {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
+    EvacuatePrologue();
+  }
+
+  {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_COPY);
     EvacuationScope evacuation_scope(this);
-
-    EvacuateNewSpacePrologue();
     EvacuatePagesInParallel();
-    heap()->new_space()->set_age_mark(heap()->new_space()->top());
   }
 
   UpdatePointersAfterEvacuation();
@@ -3583,7 +3597,7 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_CLEAN_UP);
 
-    for (Page* p : newspace_evacuation_candidates_) {
+    for (Page* p : new_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
         sweeper().AddPage(p->owner()->identity(), p);
@@ -3594,9 +3608,9 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
         sweeper().AddPage(p->owner()->identity(), p);
       }
     }
-    newspace_evacuation_candidates_.Rewind(0);
+    new_space_evacuation_pages_.Rewind(0);
 
-    for (Page* p : evacuation_candidates_) {
+    for (Page* p : old_space_evacuation_pages_) {
       // Important: skip list should be cleared only after roots were updated
       // because root iteration traverses the stack and might have to find
       // code objects from non-updated pc pointing into evacuation candidate.
@@ -3607,9 +3621,11 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
+  }
 
-    // Deallocate evacuated candidate pages.
-    ReleaseEvacuationCandidates();
+  {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_EPILOGUE);
+    EvacuateEpilogue();
   }
 
 #ifdef VERIFY_HEAP
@@ -3836,14 +3852,14 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
 
 
 void MarkCompactCollector::ReleaseEvacuationCandidates() {
-  for (Page* p : evacuation_candidates_) {
+  for (Page* p : old_space_evacuation_pages_) {
     if (!p->IsEvacuationCandidate()) continue;
     PagedSpace* space = static_cast<PagedSpace*>(p->owner());
     p->ResetLiveBytes();
     CHECK(p->SweepingDone());
     space->ReleasePage(p);
   }
-  evacuation_candidates_.Rewind(0);
+  old_space_evacuation_pages_.Rewind(0);
   compacting_ = false;
   heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }

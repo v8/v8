@@ -754,8 +754,8 @@ class MarkCompactCollector {
   void StartSweepSpaces();
   void StartSweepSpace(PagedSpace* space);
 
-  void EvacuateNewSpacePrologue();
-
+  void EvacuatePrologue();
+  void EvacuateEpilogue();
   void EvacuatePagesInParallel();
 
   // The number of parallel compaction tasks, including the main thread.
@@ -819,8 +819,11 @@ class MarkCompactCollector {
 
   CodeFlusher* code_flusher_;
 
+  // Candidates for pages that should be evacuated.
   List<Page*> evacuation_candidates_;
-  List<Page*> newspace_evacuation_candidates_;
+  // Pages that are actually processed during evacuation.
+  List<Page*> old_space_evacuation_pages_;
+  List<Page*> new_space_evacuation_pages_;
 
   Sweeper sweeper_;
 
