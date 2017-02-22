@@ -3561,6 +3561,9 @@ void Genesis::InitializeGlobal_enable_fast_array_builtins() {
       Object::GetProperty(&it3).ToHandleChecked();
   Handle<JSFunction>::cast(for_each_function)
       ->set_code(isolate->builtins()->builtin(Builtins::kArrayForEach));
+  Handle<JSFunction>::cast(for_each_function)
+      ->shared()
+      ->set_code(isolate->builtins()->builtin(Builtins::kArrayForEach));
 }
 
 void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
