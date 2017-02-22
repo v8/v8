@@ -16,7 +16,7 @@ class Heap;
 
 // Base class of identity maps contains shared code for all template
 // instantions.
-class V8_EXPORT_PRIVATE IdentityMapBase {
+class IdentityMapBase {
  public:
   bool empty() const { return size_ == 0; }
   int size() const { return size_; }
@@ -47,8 +47,8 @@ class V8_EXPORT_PRIVATE IdentityMapBase {
   void* DeleteIndex(int index);
   void Clear();
 
-  RawEntry EntryAtIndex(int index) const;
-  int NextIndex(int index) const;
+  V8_EXPORT_PRIVATE RawEntry EntryAtIndex(int index) const;
+  V8_EXPORT_PRIVATE int NextIndex(int index) const;
 
   void EnableIteration();
   void DisableIteration();
