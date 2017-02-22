@@ -729,6 +729,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StringAdd(Node* context, Node* first, Node* second,
                   AllocationFlags flags = kNone);
 
+  // Unpack the external string, returning a pointer that (offset-wise) looks
+  // like a sequential string.
+  // Note that this pointer is not tagged and does not point to a real
+  // sequential string instance, and may only be used to access the string
+  // data. The pointer is GC-safe as long as a reference to the container
+  // ExternalString is live.
+  // |string| must be an external string. Bailout for short external strings.
+  Node* TryDerefExternalString(Node* const string, Node* const instance_type,
+                               Label* if_bailout);
+
   // Check if |var_string| has an indirect (thin or flat cons) string type,
   // and unpack it if so.
   void MaybeDerefIndirectString(Variable* var_string, Node* instance_type,

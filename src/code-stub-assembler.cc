@@ -3460,23 +3460,8 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // Handle external string.
   Bind(&external_string);
   {
-    // Rule out short external strings.
-    STATIC_ASSERT(kShortExternalStringTag != 0);
-    GotoIf(Word32NotEqual(Word32And(var_instance_type.value(),
-                                    Int32Constant(kShortExternalStringMask)),
-                          Int32Constant(0)),
-           &runtime);
-
-    // Move the pointer so that offset-wise, it looks like a sequential string.
-    STATIC_ASSERT(SeqTwoByteString::kHeaderSize ==
-                  SeqOneByteString::kHeaderSize);
-
-    Node* resource_data =
-        LoadObjectField(var_string.value(), ExternalString::kResourceDataOffset,
-                        MachineType::Pointer());
-    Node* const fake_sequential_string = IntPtrSub(
-        resource_data,
-        IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+    Node* const fake_sequential_string = TryDerefExternalString(
+        var_string.value(), var_instance_type.value(), &runtime);
 
     var_result.Bind(AllocAndCopyStringCharacters(
         this, context, fake_sequential_string, var_instance_type.value(),
@@ -3523,6 +3508,48 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
 
   Bind(&end);
   return var_result.value();
+}
+
+namespace {
+
+Node* IsExternalStringInstanceType(CodeStubAssembler* a,
+                                   Node* const instance_type) {
+  CSA_ASSERT(a, a->IsStringInstanceType(instance_type));
+  return a->Word32Equal(
+      a->Word32And(instance_type, a->Int32Constant(kStringRepresentationMask)),
+      a->Int32Constant(kExternalStringTag));
+}
+
+Node* IsShortExternalStringInstanceType(CodeStubAssembler* a,
+                                        Node* const instance_type) {
+  CSA_ASSERT(a, a->IsStringInstanceType(instance_type));
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  return a->Word32NotEqual(
+      a->Word32And(instance_type, a->Int32Constant(kShortExternalStringMask)),
+      a->Int32Constant(0));
+}
+
+}  // namespace
+
+Node* CodeStubAssembler::TryDerefExternalString(Node* const string,
+                                                Node* const instance_type,
+                                                Label* if_bailout) {
+  Label out(this);
+
+  USE(IsExternalStringInstanceType);
+  CSA_ASSERT(this, IsExternalStringInstanceType(this, instance_type));
+  GotoIf(IsShortExternalStringInstanceType(this, instance_type), if_bailout);
+
+  // Move the pointer so that offset-wise, it looks like a sequential string.
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqOneByteString::kHeaderSize);
+
+  Node* resource_data = LoadObjectField(
+      string, ExternalString::kResourceDataOffset, MachineType::Pointer());
+  Node* const fake_sequential_string =
+      IntPtrSub(resource_data,
+                IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+
+  return fake_sequential_string;
 }
 
 void CodeStubAssembler::MaybeDerefIndirectString(Variable* var_string,

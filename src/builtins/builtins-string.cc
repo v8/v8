@@ -64,7 +64,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   Node* OneByteCharAddress(Node* string, Node* index) {
     Node* offset = OneByteCharOffset(index);
-    return IntPtrAdd(BitcastTaggedToWord(string), offset);
+    return IntPtrAdd(string, offset);
   }
 
   Node* OneByteCharOffset(Node* index) {
@@ -81,14 +81,25 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
     return offset;
   }
 
-  void BranchIfSimpleOneByteStringInstanceType(Node* instance_type,
-                                               Label* if_true,
-                                               Label* if_false) {
+  void DispatchOnStringInstanceType(Node* const instance_type,
+                                    Label* if_onebyte_sequential,
+                                    Label* if_onebyte_external,
+                                    Label* if_otherwise) {
     const int kMask = kStringRepresentationMask | kStringEncodingMask;
-    const int kType = kOneByteStringTag | kSeqStringTag;
-    Branch(Word32Equal(Word32And(instance_type, Int32Constant(kMask)),
-                       Int32Constant(kType)),
-           if_true, if_false);
+    Node* const encoding_and_representation =
+        Word32And(instance_type, Int32Constant(kMask));
+
+    int32_t values[] = {
+        kOneByteStringTag | kSeqStringTag,
+        kOneByteStringTag | kExternalStringTag,
+    };
+    Label* labels[] = {
+        if_onebyte_sequential, if_onebyte_external,
+    };
+    STATIC_ASSERT(arraysize(values) == arraysize(labels));
+
+    Switch(encoding_and_representation, if_otherwise, values, labels,
+           arraysize(values));
   }
 
   void GenerateStringEqual(ResultMode mode);
@@ -861,33 +872,85 @@ void StringBuiltinsAssembler::StringIndexOf(
   CSA_ASSERT(this, IsString(search_string));
   CSA_ASSERT(this, TaggedIsSmi(position));
 
-  Label zero_length_needle(this), call_runtime_unchecked(this),
-      return_minus_1(this), check_search_string(this), continue_fast_path(this);
+  Label zero_length_needle(this),
+      call_runtime_unchecked(this, Label::kDeferred), return_minus_1(this),
+      check_search_string(this), continue_fast_path(this);
+
+  Node* const int_zero = IntPtrConstant(0);
+  Variable var_needle_byte(this, MachineType::PointerRepresentation(),
+                           int_zero);
+  Variable var_string_addr(this, MachineType::PointerRepresentation(),
+                           int_zero);
 
   Node* needle_length = SmiUntag(LoadStringLength(search_string));
   // Use faster/complex runtime fallback for long search strings.
   GotoIf(IntPtrLessThan(IntPtrConstant(1), needle_length),
          &call_runtime_unchecked);
   Node* string_length = SmiUntag(LoadStringLength(receiver));
-  Node* start_position = IntPtrMax(SmiUntag(position), IntPtrConstant(0));
+  Node* start_position = IntPtrMax(SmiUntag(position), int_zero);
 
-  GotoIf(IntPtrEqual(IntPtrConstant(0), needle_length), &zero_length_needle);
+  GotoIf(IntPtrEqual(int_zero, needle_length), &zero_length_needle);
   // Check that the needle fits in the start position.
   GotoIfNot(IntPtrLessThanOrEqual(needle_length,
                                   IntPtrSub(string_length, start_position)),
             &return_minus_1);
-  // Only support one-byte strings on the fast path.
-  BranchIfSimpleOneByteStringInstanceType(instance_type, &check_search_string,
-                                          &call_runtime_unchecked);
+
+  // Load the string address.
+  {
+    Label if_onebyte_sequential(this);
+    Label if_onebyte_external(this, Label::kDeferred);
+
+    // Only support one-byte strings on the fast path.
+    DispatchOnStringInstanceType(instance_type, &if_onebyte_sequential,
+                                 &if_onebyte_external, &call_runtime_unchecked);
+
+    Bind(&if_onebyte_sequential);
+    {
+      var_string_addr.Bind(
+          OneByteCharAddress(BitcastTaggedToWord(receiver), start_position));
+      Goto(&check_search_string);
+    }
+
+    Bind(&if_onebyte_external);
+    {
+      Node* const unpacked = TryDerefExternalString(receiver, instance_type,
+                                                    &call_runtime_unchecked);
+      var_string_addr.Bind(OneByteCharAddress(unpacked, start_position));
+      Goto(&check_search_string);
+    }
+  }
+
+  // Load the needle character.
   Bind(&check_search_string);
-  BranchIfSimpleOneByteStringInstanceType(search_string_instance_type,
-                                          &continue_fast_path,
-                                          &call_runtime_unchecked);
+  {
+    Label if_onebyte_sequential(this);
+    Label if_onebyte_external(this, Label::kDeferred);
+
+    DispatchOnStringInstanceType(search_string_instance_type,
+                                 &if_onebyte_sequential, &if_onebyte_external,
+                                 &call_runtime_unchecked);
+
+    Bind(&if_onebyte_sequential);
+    {
+      var_needle_byte.Bind(
+          ChangeInt32ToIntPtr(LoadOneByteChar(search_string, int_zero)));
+      Goto(&continue_fast_path);
+    }
+
+    Bind(&if_onebyte_external);
+    {
+      Node* const unpacked = TryDerefExternalString(
+          search_string, search_string_instance_type, &call_runtime_unchecked);
+      var_needle_byte.Bind(
+          ChangeInt32ToIntPtr(LoadOneByteChar(unpacked, int_zero)));
+      Goto(&continue_fast_path);
+    }
+  }
+
   Bind(&continue_fast_path);
   {
-    Node* needle_byte =
-        ChangeInt32ToIntPtr(LoadOneByteChar(search_string, IntPtrConstant(0)));
-    Node* start_address = OneByteCharAddress(receiver, start_position);
+    Node* needle_byte = var_needle_byte.value();
+    Node* string_addr = var_string_addr.value();
     Node* search_length = IntPtrSub(string_length, start_position);
     // Call out to the highly optimized memchr to perform the actual byte
     // search.
@@ -896,19 +959,22 @@ void StringBuiltinsAssembler::StringIndexOf(
     Node* result_address =
         CallCFunction3(MachineType::Pointer(), MachineType::Pointer(),
                        MachineType::IntPtr(), MachineType::UintPtr(), memchr,
-                       start_address, needle_byte, search_length);
-    GotoIf(WordEqual(result_address, IntPtrConstant(0)), &return_minus_1);
+                       string_addr, needle_byte, search_length);
+    GotoIf(WordEqual(result_address, int_zero), &return_minus_1);
     Node* result_index =
-        IntPtrAdd(IntPtrSub(result_address, start_address), start_position);
+        IntPtrAdd(IntPtrSub(result_address, string_addr), start_position);
     f_return(SmiTag(result_index));
   }
+
   Bind(&return_minus_1);
-  { f_return(SmiConstant(-1)); }
+  f_return(SmiConstant(-1));
+
   Bind(&zero_length_needle);
   {
     Comment("0-length search_string");
     f_return(SmiTag(IntPtrMin(string_length, start_position)));
   }
+
   Bind(&call_runtime_unchecked);
   {
     // Simplified version of the runtime call where the types of the arguments
