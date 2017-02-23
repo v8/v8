@@ -516,6 +516,11 @@ class StatusFilesProcessor(SourceFileProcessor):
     return success
 
 
+def CheckDeps(workspace):
+  checkdeps_py = join(workspace, 'buildtools', 'checkdeps', 'checkdeps.py')
+  return subprocess.call([sys.executable, checkdeps_py, workspace]) == 0
+
+
 def GetOptions():
   result = optparse.OptionParser()
   result.add_option('--no-lint', help="Do not run cpplint", default=False,
@@ -528,6 +533,8 @@ def Main():
   parser = GetOptions()
   (options, args) = parser.parse_args()
   success = True
+  print "Running checkdeps..."
+  success &= CheckDeps(workspace)
   print "Running C++ lint check..."
   if not options.no_lint:
     success &= CppLintProcessor().RunOnPath(workspace)
