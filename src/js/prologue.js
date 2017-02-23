@@ -170,8 +170,6 @@ function PostNatives(utils) {
     "FormatDateToParts",
     "MapEntries",
     "MapIteratorNext",
-    "MaxSimple",
-    "MinSimple",
     "SetIteratorNext",
     "SetValues",
     "ToLocaleLowerCaseI18N",
