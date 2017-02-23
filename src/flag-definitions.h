@@ -268,7 +268,6 @@ DEFINE_IMPLICATION(turbo, thin_strings)
 DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
 DEFINE_IMPLICATION(ignition_staging, ignition)
 DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
-DEFINE_IMPLICATION(ignition_staging, validate_asm)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
