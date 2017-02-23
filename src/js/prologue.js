@@ -169,11 +169,9 @@ function PostNatives(utils) {
   var expose_list = [
     "FormatDateToParts",
     "MapEntries",
-    "MapIterator",
     "MapIteratorNext",
     "MaxSimple",
     "MinSimple",
-    "SetIterator",
     "SetIteratorNext",
     "SetValues",
     "ToLocaleLowerCaseI18N",
