@@ -1378,7 +1378,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       CHECK(candidates[i]->HasDebugInfo());
       Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
       FindBreakablePositions(debug_info, start_position, end_position,
-                             BREAK_POSITION_ALIGNED, positions);
+                             STATEMENT_ALIGNED, positions);
     }
     return true;
   }
