@@ -4,6 +4,7 @@
 
 #include "src/heap/objects-visiting.h"
 
+#include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 

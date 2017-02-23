@@ -16,6 +16,7 @@
 #include "src/deoptimizer.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/source-position-table.h"
 
 namespace v8 {
 namespace internal {

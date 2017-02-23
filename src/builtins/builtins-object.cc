@@ -7,6 +7,10 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/keys.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/property-descriptor.h"
 
 namespace v8 {

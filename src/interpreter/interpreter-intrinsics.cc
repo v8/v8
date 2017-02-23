@@ -5,6 +5,7 @@
 #include "src/interpreter/interpreter-intrinsics.h"
 
 #include "src/code-factory.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

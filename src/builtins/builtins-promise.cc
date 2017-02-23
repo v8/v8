@@ -8,6 +8,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

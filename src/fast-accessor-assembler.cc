@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/code-stubs.h"  // For CallApiCallbackStub.
 #include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects.h"  // For FAA::LoadInternalField impl.
 
 namespace v8 {

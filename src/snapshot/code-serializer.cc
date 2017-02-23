@@ -7,8 +7,10 @@
 #include <memory>
 
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/snapshot/deserializer.h"
 #include "src/snapshot/snapshot.h"
 #include "src/version.h"

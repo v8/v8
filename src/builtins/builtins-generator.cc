@@ -7,6 +7,7 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

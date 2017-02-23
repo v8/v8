@@ -22,7 +22,9 @@
 #include "src/codegen.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 
 namespace v8 {

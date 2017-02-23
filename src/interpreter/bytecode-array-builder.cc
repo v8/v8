@@ -11,6 +11,7 @@
 #include "src/interpreter/bytecode-peephole-optimizer.h"
 #include "src/interpreter/bytecode-register-optimizer.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -14,6 +14,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

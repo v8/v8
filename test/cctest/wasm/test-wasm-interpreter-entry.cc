@@ -4,6 +4,7 @@
 
 #include <cstdint>
 
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-objects.h"
 

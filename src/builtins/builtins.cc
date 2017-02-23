@@ -3,13 +3,14 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins.h"
+#include "src/api.h"
 #include "src/code-events.h"
 #include "src/compiler/code-assembler.h"
 #include "src/ic/ic-state.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

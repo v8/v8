@@ -4,7 +4,10 @@
 
 #include "src/ic/ic-state.h"
 
+#include "src/ast/ast-types.h"
+#include "src/feedback-vector.h"
 #include "src/ic/ic.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

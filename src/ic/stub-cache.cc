@@ -7,6 +7,7 @@
 #include "src/ast/ast.h"
 #include "src/base/bits.h"
 #include "src/counters.h"
+#include "src/heap/heap.h"
 #include "src/ic/ic-inl.h"
 #include "src/type-info.h"
 

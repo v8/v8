@@ -6,6 +6,7 @@
 #define V8_OBJECTS_VISITING_INL_H_
 
 #include "src/heap/array-buffer-tracker.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"

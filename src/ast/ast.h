@@ -1594,10 +1594,7 @@ class ArrayLiteral final : public MaterializedLiteral {
   ZoneList<Expression*>::iterator EndValue() const { return values_->end(); }
 
   // Rewind an array literal omitting everything from the first spread on.
-  void RewindSpreads() {
-    values_->Rewind(first_spread_index_);
-    first_spread_index_ = -1;
-  }
+  void RewindSpreads();
 
   enum Flags {
     kNoFlags = 0,

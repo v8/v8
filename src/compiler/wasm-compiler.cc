@@ -6,13 +6,12 @@
 
 #include <memory>
 
-#include "src/isolate-inl.h"
-
+#include "src/assembler-inl.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
-
 #include "src/builtins/builtins.h"
-
+#include "src/code-factory.h"
+#include "src/code-stubs.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
@@ -29,12 +28,9 @@
 #include "src/compiler/pipeline.h"
 #include "src/compiler/simd-scalar-lowering.h"
 #include "src/compiler/zone-stats.h"
-
-#include "src/code-factory.h"
-#include "src/code-stubs.h"
 #include "src/factory.h"
+#include "src/isolate-inl.h"
 #include "src/log-inl.h"
-
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"

@@ -4,13 +4,19 @@
 
 #include "src/objects.h"
 
+#include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/disasm.h"
 #include "src/disassembler.h"
 #include "src/field-type.h"
+#include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
+#include "src/objects/literal-objects.h"
+#include "src/objects/module-info.h"
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {

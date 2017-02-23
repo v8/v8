@@ -9,6 +9,7 @@
 #include <fstream>  // NOLINT(readability/streams)
 #include <sstream>
 
+#include "src/assembler-inl.h"
 #include "src/ast/ast-value-factory.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/hashmap.h"

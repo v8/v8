@@ -12,10 +12,12 @@
 #include "src/bailout-reason.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/counters.h"
 #include "src/crankshaft/compilation-phase.h"
 #include "src/crankshaft/hydrogen-instructions.h"
 #include "src/globals.h"
 #include "src/parsing/parse-info.h"
+#include "src/string-stream.h"
 #include "src/transitions.h"
 #include "src/zone/zone.h"
 

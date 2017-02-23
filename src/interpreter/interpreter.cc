@@ -14,6 +14,8 @@
 #include "src/code-factory.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
+#include "src/counters.h"
+#include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -22,6 +24,7 @@
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/log.h"
+#include "src/objects-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

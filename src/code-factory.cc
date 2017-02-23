@@ -6,6 +6,7 @@
 
 #include "src/bootstrapper.h"
 #include "src/ic/ic.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

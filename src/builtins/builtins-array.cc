@@ -8,8 +8,12 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/counters.h"
 #include "src/elements.h"
 #include "src/isolate.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
+#include "src/prototype.h"
 
 namespace v8 {
 namespace internal {

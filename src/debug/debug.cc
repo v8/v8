@@ -8,6 +8,7 @@
 
 #include "src/api.h"
 #include "src/arguments.h"
+#include "src/assembler-inl.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"

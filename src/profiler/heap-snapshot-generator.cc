@@ -6,13 +6,18 @@
 
 #include <utility>
 
+#include "src/api.h"
 #include "src/code-stubs.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
+#include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
+#include "src/objects-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
+#include "src/prototype.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {

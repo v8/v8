@@ -6,8 +6,10 @@
 
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
+#include "src/counters.h"
 #include "src/ic/handler-configuration.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

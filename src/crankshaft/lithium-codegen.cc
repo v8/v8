@@ -6,6 +6,8 @@
 
 #include <sstream>
 
+#include "src/objects-inl.h"
+
 #if V8_TARGET_ARCH_IA32
 #include "src/crankshaft/ia32/lithium-ia32.h"  // NOLINT
 #include "src/crankshaft/ia32/lithium-codegen-ia32.h"  // NOLINT

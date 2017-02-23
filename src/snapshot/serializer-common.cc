@@ -7,6 +7,7 @@
 #include "src/external-reference-table.h"
 #include "src/ic/stub-cache.h"
 #include "src/list-inl.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

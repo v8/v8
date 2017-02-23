@@ -11,11 +11,14 @@
 #include "src/bootstrapper.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
 #include "src/factory.h"
 #include "src/gdb-jit.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/tracing/tracing-category-observer.h"
 
 namespace v8 {

@@ -48,6 +48,7 @@
 #include "src/json-parser.h"
 #include "src/json-stringifier.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/pending-compilation-error-handler.h"

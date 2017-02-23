@@ -7,6 +7,7 @@
 
 #include "src/ic/ic.h"
 
+#include "src/assembler-inl.h"
 #include "src/debug/debug.h"
 #include "src/macro-assembler.h"
 #include "src/prototype.h"

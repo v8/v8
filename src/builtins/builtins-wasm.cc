@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/code-stub-assembler.h"
+#include "src/objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {

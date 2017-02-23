@@ -8,6 +8,7 @@
 #include "src/compiler/node.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
 #include "test/unittests/compiler/node-test-utils.h"
 

@@ -8,6 +8,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/objects-inl.h"
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
 

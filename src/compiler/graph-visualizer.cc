@@ -22,6 +22,7 @@
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects-inl.h"
 #include "src/ostreams.h"
 
 namespace v8 {

@@ -11,6 +11,8 @@
 #include "src/disassembler.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/call-tester.h"

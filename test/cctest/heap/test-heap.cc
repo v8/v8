@@ -28,9 +28,12 @@
 #include <stdlib.h>
 #include <utility>
 
+#include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/context-measure.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
 #include "src/execution.h"
@@ -38,11 +41,15 @@
 #include "src/field-type.h"
 #include "src/global-handles.h"
 #include "src/heap/gc-tracer.h"
+#include "src/heap/incremental-marking.h"
+#include "src/heap/mark-compact.h"
 #include "src/heap/memory-reducer.h"
 #include "src/ic/ic.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/jsregexp.h"
 #include "src/snapshot/snapshot.h"
+#include "src/transitions.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/heap/heap-tester.h"
 #include "test/cctest/heap/heap-utils.h"

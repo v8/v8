@@ -10,6 +10,7 @@
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION

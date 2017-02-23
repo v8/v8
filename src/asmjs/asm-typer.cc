@@ -19,6 +19,7 @@
 #include "src/codegen.h"
 #include "src/globals.h"
 #include "src/messages.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/vector.h"
 

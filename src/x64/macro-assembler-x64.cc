@@ -8,11 +8,14 @@
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
-#include "src/heap/heap.h"
+#include "src/heap/heap-inl.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/x64/assembler-x64.h"
-#include "src/x64/macro-assembler-x64.h"
+
+#include "src/x64/macro-assembler-x64.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {

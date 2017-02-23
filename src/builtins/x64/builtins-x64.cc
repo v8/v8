@@ -6,8 +6,10 @@
 
 #include "src/code-factory.h"
 #include "src/codegen.h"
+#include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/full-codegen/full-codegen.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

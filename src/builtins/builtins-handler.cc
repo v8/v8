@@ -8,6 +8,7 @@
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/keyed-store-generic.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

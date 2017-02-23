@@ -7,6 +7,10 @@
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler.h"
+#include "src/conversions.h"
+#include "src/counters.h"
+#include "src/lookup.h"
+#include "src/objects-inl.h"
 #include "src/string-builder.h"
 
 namespace v8 {

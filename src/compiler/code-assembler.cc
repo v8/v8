@@ -19,6 +19,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/machine-type.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/utils.h"
 #include "src/zone/zone.h"
 

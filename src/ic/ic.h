@@ -5,6 +5,8 @@
 #ifndef V8_IC_H_
 #define V8_IC_H_
 
+#include "src/factory.h"
+#include "src/feedback-vector.h"
 #include "src/ic/ic-state.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"

@@ -18,6 +18,9 @@
 #include "src/global-handles.h"
 #include "src/ic/stub-cache.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
+#include "src/property.h"
+#include "src/transitions.h"
 
 using namespace v8::internal;
 

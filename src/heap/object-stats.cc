@@ -4,6 +4,7 @@
 
 #include "src/heap/object-stats.h"
 
+#include "src/assembler-inl.h"
 #include "src/compilation-cache.h"
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"

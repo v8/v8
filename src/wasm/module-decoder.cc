@@ -7,9 +7,11 @@
 
 #include "src/base/functional.h"
 #include "src/base/platform/platform.h"
+#include "src/counters.h"
 #include "src/flags.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
+#include "src/ostreams.h"
 #include "src/v8.h"
 
 #include "src/wasm/decoder.h"

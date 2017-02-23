@@ -8,10 +8,9 @@
 
 #include <memory>
 
-#include "src/wasm/wasm-macro-gen.h"
-
+#include "src/assembler-inl.h"
 #include "src/wasm/wasm-interpreter.h"
-
+#include "src/wasm/wasm-macro-gen.h"
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"

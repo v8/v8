@@ -6,6 +6,7 @@
 
 #include "src/accessors.h"
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/base/bits.h"
 #include "src/base/once.h"

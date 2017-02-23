@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compilation-info.h"
@@ -14,6 +15,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/schedule.h"
+#include "src/objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/zone/zone.h"
 #include "test/cctest/cctest.h"

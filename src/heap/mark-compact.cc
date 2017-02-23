@@ -28,6 +28,7 @@
 #include "src/tracing/tracing-category-observer.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
+#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {

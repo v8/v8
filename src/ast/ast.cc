@@ -15,7 +15,9 @@
 #include "src/code-stubs.h"
 #include "src/contexts.h"
 #include "src/conversions.h"
+#include "src/double.h"
 #include "src/elements.h"
+#include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/property-details.h"
 #include "src/property.h"
@@ -785,6 +787,11 @@ bool ArrayLiteral::IsFastCloningSupported() const {
   return depth() <= 1 &&
          values()->length() <=
              ConstructorBuiltinsAssembler::kMaximumClonedShallowArrayElements;
+}
+
+void ArrayLiteral::RewindSpreads() {
+  values_->Rewind(first_spread_index_);
+  first_spread_index_ = -1;
 }
 
 void ArrayLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,

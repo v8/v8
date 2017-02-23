@@ -5,7 +5,9 @@
 #ifndef V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 #define V8_OBJECTS_BODY_DESCRIPTORS_INL_H_
 
+#include "src/assembler-inl.h"
 #include "src/objects-body-descriptors.h"
+#include "src/transitions.h"
 
 namespace v8 {
 namespace internal {

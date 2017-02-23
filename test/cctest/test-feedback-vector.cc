@@ -11,7 +11,7 @@
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/macro-assembler.h"
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "test/cctest/test-feedback-vector.h"
 
 using namespace v8::internal;
