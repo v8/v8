@@ -7,8 +7,7 @@ include_rules = [
   "+src/conversions.h",
   "+src/inspector",
   "+src/tracing",
-  # TODO(dgozman): Fix includes and re-enable.
-  #"-include/v8-debug.h",
+  "-include/v8-debug.h",
   "+src/debug/debug-interface.h",
   "+src/debug/interface-types.h",
 ]
