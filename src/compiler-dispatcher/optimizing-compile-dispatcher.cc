@@ -51,8 +51,6 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
     DisallowHandleDereference no_deref;
 
     {
-      HistogramTimerScope histogram_timer(
-          isolate_->counters()->compile_optimized_background_thread());
       TimerEventScope<TimerEventRecompileConcurrent> timer(isolate_);
 
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
