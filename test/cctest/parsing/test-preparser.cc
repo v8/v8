@@ -12,6 +12,19 @@
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
 
+namespace {
+
+enum SkipStrict {
+  DONT_SKIP = 0,
+  // Skip if the test function declares itself strict, otherwise don't skip.
+  SKIP_STRICT_FUNCTION = 1,
+  // Skip if there's a "use strict" directive above the test.
+  SKIP_STRICT_OUTER = 1 << 1,
+  SKIP_STRICT = SKIP_STRICT_FUNCTION | SKIP_STRICT_OUTER
+};
+
+}  // namespace
+
 TEST(PreParserScopeAnalysis) {
   i::FLAG_lazy_inner_functions = true;
   i::FLAG_preparser_scope_analysis = true;
@@ -57,44 +70,48 @@ TEST(PreParserScopeAnalysis) {
     const char* suffix;
     const char* lazy_inner;
     const char* eager_inner;
-    bool strict;
+    bool strict_outer;
+    bool strict_test_function;
   } outers[] = {
       // The scope start positions must match; note the extra space in
       // lazy_inner.
       {"(function outer() { ", "})();", " function test(%s) { %s }",
-       "(function test(%s) { %s })()", false},
+       "(function test(%s) { %s })()", false, false},
       {"(function outer() { ", "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()", false},
+       "(function inner() { function test(%s) { %s } })()", false, false},
       // FIXME(marja): enable test for arrow functions once it passes.
       // {"(function outer() { ", "})();",
       // " function inner() { (%s) => { %s } }",
       // "(function inner() { (%s) => { %s } })()", false},
       {"(function outer() { 'use strict'; ", "})();",
-       " function test(%s) { %s }", "(function test(%s) { %s })()", true},
+       " function test(%s) { %s }", "(function test(%s) { %s })()", true,
+       false},
       {"(function outer() { 'use strict'; ", "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()", true},
+       "(function inner() { function test(%s) { %s } })()", true, false},
       {"(function outer() { ", "})();",
        " function test(%s) { 'use strict'; %s }",
-       "(function test(%s) { 'use strict'; %s })()", true},
+       "(function test(%s) { 'use strict'; %s })()", false, true},
       {"(function outer() { ", "})();",
        " function inner() { function test(%s) { 'use strict'; %s } }",
-       "(function inner() { function test(%s) { 'use strict'; %s } })()", true},
+       "(function inner() { function test(%s) { 'use strict'; %s } })()", false,
+       true},
   };
 
   struct Inner {
     Inner(const char* s) : source(s) {}  // NOLINT
-    Inner(const char* s, bool skip) : source(s), skip_in_strict_mode(skip) {}
-    Inner(const char* s, bool skip, bool precise)
+    Inner(const char* s, SkipStrict skip)
+        : source(s), skip_in_strict_mode(skip) {}
+    Inner(const char* s, SkipStrict skip, bool precise)
         : source(s),
           skip_in_strict_mode(skip),
           precise_maybe_assigned(precise) {}
 
     Inner(const char* p, const char* s) : params(p), source(s) {}
-    Inner(const char* p, const char* s, bool skip)
+    Inner(const char* p, const char* s, SkipStrict skip)
         : params(p), source(s), skip_in_strict_mode(skip) {}
-    Inner(const char* p, const char* s, bool skip, bool precise)
+    Inner(const char* p, const char* s, SkipStrict skip, bool precise)
         : params(p),
           source(s),
           skip_in_strict_mode(skip),
@@ -102,7 +119,7 @@ TEST(PreParserScopeAnalysis) {
 
     const char* params = "";
     const char* source;
-    bool skip_in_strict_mode = false;
+    SkipStrict skip_in_strict_mode = DONT_SKIP;
     bool precise_maybe_assigned = true;
   } inners[] = {
       // Simple cases
@@ -114,7 +131,7 @@ TEST(PreParserScopeAnalysis) {
       // Var declarations and assignments.
       {"var var1;"},
       {"var var1; var1 = 5;"},
-      {"if (true) { var var1; }", false, false},
+      {"if (true) { var var1; }", DONT_SKIP, false},
       {"if (true) { var var1; var1 = 5; }"},
       {"var var1; function f() { var1; }"},
       {"var var1; var1 = 5; function f() { var1; }"},
@@ -154,33 +171,35 @@ TEST(PreParserScopeAnalysis) {
 
       // Arguments and this.
       {"arguments;"},
-      {"arguments = 5;", true},
+      {"arguments = 5;", SKIP_STRICT},
       {"if (true) { arguments; }"},
-      {"if (true) { arguments = 5; }", true},
+      {"if (true) { arguments = 5; }", SKIP_STRICT},
 
       {"this;"},
       {"if (true) { this; }"},
 
       // Variable called "arguments"
-      {"var arguments;", true},
-      {"var arguments; arguments = 5;", true},
-      {"if (true) { var arguments; }", true, false},
-      {"if (true) { var arguments; arguments = 5; }", true},
-      {"var arguments; function f() { arguments; }", true},
-      {"var arguments; arguments = 5; function f() { arguments; }", true},
-      {"var arguments; function f() { arguments = 5; }", true},
+      {"var arguments;", SKIP_STRICT},
+      {"var arguments; arguments = 5;", SKIP_STRICT},
+      {"if (true) { var arguments; }", SKIP_STRICT, false},
+      {"if (true) { var arguments; arguments = 5; }", SKIP_STRICT},
+      {"var arguments; function f() { arguments; }", SKIP_STRICT},
+      {"var arguments; arguments = 5; function f() { arguments; }",
+       SKIP_STRICT},
+      {"var arguments; function f() { arguments = 5; }", SKIP_STRICT},
 
-      {"let arguments;", true},
-      {"let arguments; arguments = 5;", true},
-      {"if (true) { let arguments; }", true},
-      {"if (true) { let arguments; arguments = 5; }", true},
-      {"let arguments; function f() { arguments; }", true},
-      {"let arguments; arguments = 5; function f() { arguments; }", true},
-      {"let arguments; function f() { arguments = 5; }", true},
+      {"let arguments;", SKIP_STRICT},
+      {"let arguments; arguments = 5;", SKIP_STRICT},
+      {"if (true) { let arguments; }", SKIP_STRICT},
+      {"if (true) { let arguments; arguments = 5; }", SKIP_STRICT},
+      {"let arguments; function f() { arguments; }", SKIP_STRICT},
+      {"let arguments; arguments = 5; function f() { arguments; }",
+       SKIP_STRICT},
+      {"let arguments; function f() { arguments = 5; }", SKIP_STRICT},
 
-      {"const arguments = 5;", true},
-      {"if (true) { const arguments = 5; }", true},
-      {"const arguments = 5; function f() { arguments; }", true},
+      {"const arguments = 5;", SKIP_STRICT},
+      {"if (true) { const arguments = 5; }", SKIP_STRICT},
+      {"const arguments = 5; function f() { arguments; }", SKIP_STRICT},
 
       // Destructuring declarations.
       {"var [var1, var2] = [1, 2];"},
@@ -214,16 +233,16 @@ TEST(PreParserScopeAnalysis) {
       {"test;"},
       {"function f1() { f1; }"},
       {"function f1() { function f2() { f1; } }"},
-      {"function arguments() {}", true},
-      {"function f1() {} function f1() {}", true},
+      {"function arguments() {}", SKIP_STRICT},
+      {"function f1() {} function f1() {}", SKIP_STRICT},
       {"var f1; function f1() {}"},
 
       // Assigning to the function variable.
       {"test = 3;"},
       {"function f1() { f1 = 3; }"},
       {"function f1() { f1; } f1 = 3;"},
-      {"function arguments() {} arguments = 8;", true},
-      {"function f1() {} f1 = 3; function f1() {}", true},
+      {"function arguments() {} arguments = 8;", SKIP_STRICT},
+      {"function f1() {} f1 = 3; function f1() {}", SKIP_STRICT},
 
       // Evals.
       {"var var1; eval('');"},
@@ -315,23 +334,24 @@ TEST(PreParserScopeAnalysis) {
 
       // Block functions (potentially sloppy).
       {"if (true) { function f1() {} }"},
-      {"if (true) { function f1() {} function f1() {} }", true},
+      {"if (true) { function f1() {} function f1() {} }", SKIP_STRICT},
       {"if (true) { if (true) { function f1() {} } }"},
-      {"if (true) { if (true) { function f1() {} function f1() {} } }", true},
+      {"if (true) { if (true) { function f1() {} function f1() {} } }",
+       SKIP_STRICT},
       {"if (true) { function f1() {} f1 = 3; }"},
 
       {"if (true) { function f1() {} function foo() { f1; } }"},
       {"if (true) { function f1() {} } function foo() { f1; }"},
       {"if (true) { function f1() {} function f1() {} function foo() { f1; } "
        "}",
-       true},
+       SKIP_STRICT},
       {"if (true) { function f1() {} function f1() {} } function foo() { f1; "
        "}",
-       true},
+       SKIP_STRICT},
       {"if (true) { if (true) { function f1() {} } function foo() { f1; } }"},
       {"if (true) { if (true) { function f1() {} function f1() {} } function "
        "foo() { f1; } }",
-       true},
+       SKIP_STRICT},
       {"if (true) { function f1() {} f1 = 3; function foo() { f1; } }"},
       {"if (true) { function f1() {} f1 = 3; } function foo() { f1; }"},
 
@@ -356,101 +376,117 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var2", "function f1() { var1 = 9; }"},
 
       // Duplicate parameters.
-      {"var1, var1", "", true},
-      {"var1, var1", "var1;", true},
-      {"var1, var1", "var1 = 9;", true},
-      {"var1, var1", "function f1() { var1; }", true},
-      {"var1, var1", "function f1() { var1 = 9; }", true},
+      {"var1, var1", "", SKIP_STRICT},
+      {"var1, var1", "var1;", SKIP_STRICT},
+      {"var1, var1", "var1 = 9;", SKIP_STRICT},
+      {"var1, var1", "function f1() { var1; }", SKIP_STRICT},
+      {"var1, var1", "function f1() { var1 = 9; }", SKIP_STRICT},
+
+      // If the function declares itself strict, non-simple parameters aren't
+      // allowed.
 
       // Rest parameter.
-      {"...var2", "", true},
-      {"...var2", "var2;", true},
-      {"...var2", "var2 = 9;", true},
-      {"...var2", "function f1() { var2; }", true},
-      {"...var2", "function f1() { var2 = 9; }", true},
+      {"...var2", "", SKIP_STRICT_FUNCTION},
+      {"...var2", "var2;", SKIP_STRICT_FUNCTION},
+      {"...var2", "var2 = 9;", SKIP_STRICT_FUNCTION},
+      {"...var2", "function f1() { var2; }", SKIP_STRICT_FUNCTION},
+      {"...var2", "function f1() { var2 = 9; }", SKIP_STRICT_FUNCTION},
 
-      {"var1, ...var2", "", true},
-      {"var1, ...var2", "var2;", true},
-      {"var1, ...var2", "var2 = 9;", true},
-      {"var1, ...var2", "function f1() { var2; }", true},
-      {"var1, ...var2", "function f1() { var2 = 9; }", true},
+      {"var1, ...var2", "", SKIP_STRICT_FUNCTION},
+      {"var1, ...var2", "var2;", SKIP_STRICT_FUNCTION},
+      {"var1, ...var2", "var2 = 9;", SKIP_STRICT_FUNCTION},
+      {"var1, ...var2", "function f1() { var2; }", SKIP_STRICT_FUNCTION},
+      {"var1, ...var2", "function f1() { var2 = 9; }", SKIP_STRICT_FUNCTION},
 
       // Default parameters.
-      {"var1 = 3", "", true},
-      {"var1, var2 = var1", "", true},
-      {"var1, var2 = 4, ...var3", "", true},
+      {"var1 = 3", "", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION},
 
       // Destructuring parameters. Because of the search space explosion, we
       // cannot test all interesting cases. Let's try to test a relevant subset.
-      {"[]", "", true},
-      {"{}", "", true},
+      {"[]", "", SKIP_STRICT_FUNCTION},
+      {"{}", "", SKIP_STRICT_FUNCTION},
 
-      {"[var1]", "", true},
-      {"{name1: var1}", "", true},
-      {"{var1}", "", true},
+      {"[var1]", "", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "", SKIP_STRICT_FUNCTION},
+      {"{var1}", "", SKIP_STRICT_FUNCTION},
 
-      {"[var1]", "var1;", true},
-      {"{name1: var1}", "var1;", true},
-      {"{name1: var1}", "name1;", true},
-      {"{var1}", "var1;", true},
+      {"[var1]", "var1;", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "var1;", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "name1;", SKIP_STRICT_FUNCTION},
+      {"{var1}", "var1;", SKIP_STRICT_FUNCTION},
 
-      {"[var1]", "var1 = 16;", true},
-      {"{name1: var1}", "var1 = 16;", true},
-      {"{name1: var1}", "name1 = 16;", true},
-      {"{var1}", "var1 = 16;", true},
+      {"[var1]", "var1 = 16;", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "var1 = 16;", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "name1 = 16;", SKIP_STRICT_FUNCTION},
+      {"{var1}", "var1 = 16;", SKIP_STRICT_FUNCTION},
 
-      {"[var1]", "() => { var1; }", true},
-      {"{name1: var1}", "() => { var1; }", true},
-      {"{name1: var1}", "() => { name1; }", true},
-      {"{var1}", "() => { var1; }", true},
+      {"[var1]", "() => { var1; }", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "() => { var1; }", SKIP_STRICT_FUNCTION},
+      {"{name1: var1}", "() => { name1; }", SKIP_STRICT_FUNCTION},
+      {"{var1}", "() => { var1; }", SKIP_STRICT_FUNCTION},
 
-      {"[var1, var2, var3]", "", true},
-      {"{name1: var1, name2: var2, name3: var3}", "", true},
-      {"{var1, var2, var3}", "", true},
+      {"[var1, var2, var3]", "", SKIP_STRICT_FUNCTION},
+      {"{name1: var1, name2: var2, name3: var3}", "", SKIP_STRICT_FUNCTION},
+      {"{var1, var2, var3}", "", SKIP_STRICT_FUNCTION},
 
-      {"[var1, var2, var3]", "() => { var2 = 16;}", true},
-      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;}", true},
-      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;}", true},
-      {"{var1, var2, var3}", "() => { var2 = 16;}", true},
+      {"[var1, var2, var3]", "() => { var2 = 16;}", SKIP_STRICT_FUNCTION},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { var2 = 16;}",
+       SKIP_STRICT_FUNCTION},
+      {"{name1: var1, name2: var2, name3: var3}", "() => { name2 = 16;}",
+       SKIP_STRICT_FUNCTION},
+      {"{var1, var2, var3}", "() => { var2 = 16;}", SKIP_STRICT_FUNCTION},
 
       // Nesting destructuring.
-      {"[var1, [var2, var3], {var4, name5: [var5, var6]}]", "", true},
+      {"[var1, [var2, var3], {var4, name5: [var5, var6]}]", "",
+       SKIP_STRICT_FUNCTION},
 
       // Complicated params.
       {"var1, [var2], var3, [var4, var5], var6, {var7}, var8, {name9: var9, "
        "name10: var10}, ...var11",
-       "", true},
+       "", SKIP_STRICT_FUNCTION},
 
       // Destructuring rest. Because we can.
-      {"var1, ...[var2]", "() => { }", true},
-      {"var1, ...[var2]", "() => { var2; }", true},
+      {"var1, ...[var2]", "() => { }", SKIP_STRICT_FUNCTION},
+      {"var1, ...[var2]", "() => { var2; }", SKIP_STRICT_FUNCTION},
 
       // Default parameters for destruring parameters.
-      {"[var1 = 4, var2 = var1]", "", true, false},
-      {"{var1 = 4, var2 = var1}", "", true, false},
+      {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION, false},
+      {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION, false},
 
       // Locals shadowing parameters.
       {"var1, var2", "var var1 = 16; () => { var1 = 17; }"},
 
       // Locals shadowing destructuring parameters and the rest parameter.
-      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; }", true},
-      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; }", true},
-      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }", true},
-      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }", true},
+      {"[var1, var2]", "var var1 = 16; () => { var1 = 17; }",
+       SKIP_STRICT_FUNCTION},
+      {"{var1, var2}", "var var1 = 16; () => { var1 = 17; }",
+       SKIP_STRICT_FUNCTION},
+      {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }",
+       SKIP_STRICT_FUNCTION},
+      {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }",
+       SKIP_STRICT_FUNCTION},
 
       // Hoisted sloppy block function shadowing a parameter.
       {"var1, var2", "for (;;) { function var1() { } }"},
 
       // Eval in default parameter.
-      {"var1, var2 = eval(''), var3", "let var4 = 0;", true},
-      {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;", true},
+      {"var1, var2 = eval(''), var3", "let var4 = 0;", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;",
+       SKIP_STRICT_FUNCTION},
 
       // FIXME(marja): arguments parameter
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
     for (unsigned inner_ix = 0; inner_ix < arraysize(inners); ++inner_ix) {
-      if (outers[outer_ix].strict && inners[inner_ix].skip_in_strict_mode) {
+      if (outers[outer_ix].strict_outer &&
+          (inners[inner_ix].skip_in_strict_mode & SKIP_STRICT_OUTER)) {
+        continue;
+      }
+      if (outers[outer_ix].strict_test_function &&
+          (inners[inner_ix].skip_in_strict_mode & SKIP_STRICT_FUNCTION)) {
         continue;
       }
 
