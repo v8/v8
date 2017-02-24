@@ -1667,6 +1667,11 @@ AllocationSiteMode AllocationSite::GetMode(
 }
 
 inline bool AllocationSite::CanTrack(InstanceType type) {
+  if (FLAG_turbo) {
+    // TurboFan doesn't care at all about String pretenuring feedback,
+    // so don't bother even trying to track that.
+    return type == JS_ARRAY_TYPE || type == JS_OBJECT_TYPE;
+  }
   if (FLAG_allocation_site_pretenuring) {
     return type == JS_ARRAY_TYPE ||
         type == JS_OBJECT_TYPE ||
