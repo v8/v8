@@ -224,6 +224,10 @@ class FreeListCategory {
   friend class PagedSpace;
 };
 
+// MarkingMode determines which bitmaps and counters should be used when
+// accessing marking information on MemoryChunk.
+enum class MarkingMode { FULL, YOUNG_GENERATION };
+
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
@@ -323,30 +327,32 @@ class MemoryChunk {
   static const intptr_t kReservationOffset = kAreaEndOffset + kPointerSize;
   static const intptr_t kOwnerOffset = kReservationOffset + 2 * kPointerSize;
 
-  static const size_t kMinHeaderSize =
-      kSizeOffset + kSizetSize  // size_t size
-      + kIntptrSize             // Flags flags_
-      + kPointerSize            // Address area_start_
-      + kPointerSize            // Address area_end_
-      + 2 * kPointerSize        // base::VirtualMemory reservation_
-      + kPointerSize            // Address owner_
-      + kPointerSize            // Heap* heap_
-      + kIntSize                // int progress_bar_
-      + kIntSize                // int live_bytes_count_
-      + kPointerSize            // SlotSet* old_to_new_slots_
-      + kPointerSize            // SlotSet* old_to_old_slots_
-      + kPointerSize            // TypedSlotSet* typed_old_to_new_slots_
-      + kPointerSize            // TypedSlotSet* typed_old_to_old_slots_
-      + kPointerSize            // SkipList* skip_list_
-      + kPointerSize            // AtomicValue high_water_mark_
-      + kPointerSize            // base::Mutex* mutex_
-      + kPointerSize            // base::AtomicWord concurrent_sweeping_
-      + 2 * kSizetSize          // AtomicNumber free-list statistics
-      + kPointerSize            // AtomicValue next_chunk_
-      + kPointerSize            // AtomicValue prev_chunk_
-      // FreeListCategory categories_[kNumberOfCategories]
-      + FreeListCategory::kSize * kNumberOfCategories +
-      kPointerSize;  // LocalArrayBufferTracker* local_tracker_
+  static const size_t kMinHeaderSize = kSizeOffset  // NOLINT
+      + kSizetSize        // size_t size
+      + kIntptrSize       // Flags flags_
+      + kPointerSize      // Address area_start_
+      + kPointerSize      // Address area_end_
+      + 2 * kPointerSize  // base::VirtualMemory reservation_
+      + kPointerSize      // Address owner_
+      + kPointerSize      // Heap* heap_
+      + kIntSize          // int progress_bar_
+      + kIntSize          // int live_bytes_count_
+      + kPointerSize      // SlotSet* old_to_new_slots_
+      + kPointerSize      // SlotSet* old_to_old_slots_
+      + kPointerSize      // TypedSlotSet* typed_old_to_new_slots_
+      + kPointerSize      // TypedSlotSet* typed_old_to_old_slots_
+      + kPointerSize      // SkipList* skip_list_
+      + kPointerSize      // AtomicValue high_water_mark_
+      + kPointerSize      // base::Mutex* mutex_
+      + kPointerSize      // base::AtomicWord concurrent_sweeping_
+      + 2 * kSizetSize    // AtomicNumber free-list statistics
+      + kPointerSize      // AtomicValue next_chunk_
+      + kPointerSize      // AtomicValue prev_chunk_
+      + FreeListCategory::kSize * kNumberOfCategories
+                          // FreeListCategory categories_[kNumberOfCategories]
+      + kPointerSize      // LocalArrayBufferTracker* local_tracker_
+      + kIntptrSize       // intptr_t young_generation_live_byte_count_
+      + kPointerSize;     // Bitmap* young_generation_bitmap_
 
   // We add some more space to the computed header size to amount for missing
   // alignment requirements in our computation.
@@ -370,6 +376,7 @@ class MemoryChunk {
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
+  template <MarkingMode mode = MarkingMode::FULL>
   static inline void IncrementLiveBytes(HeapObject* object, int by);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
@@ -395,7 +402,9 @@ class MemoryChunk {
 
   static bool IsValid(MemoryChunk* chunk) { return chunk != nullptr; }
 
-  Address address() { return reinterpret_cast<Address>(this); }
+  Address address() const {
+    return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
+  }
 
   base::Mutex* mutex() { return mutex_; }
 
@@ -418,12 +427,24 @@ class MemoryChunk {
   }
 
   // Manage live byte count, i.e., count of bytes in black objects.
+  template <MarkingMode mode = MarkingMode::FULL>
   inline void ResetLiveBytes();
+  template <MarkingMode mode = MarkingMode::FULL>
   inline void IncrementLiveBytes(int by);
 
+  template <MarkingMode mode = MarkingMode::FULL>
   int LiveBytes() {
-    DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
-    return live_byte_count_;
+    switch (mode) {
+      case MarkingMode::FULL:
+        DCHECK_LE(static_cast<unsigned>(live_byte_count_), size_);
+        return live_byte_count_;
+      case MarkingMode::YOUNG_GENERATION:
+        DCHECK_LE(static_cast<unsigned>(young_generation_live_byte_count_),
+                  size_);
+        return static_cast<int>(young_generation_live_byte_count_);
+    }
+    UNREACHABLE();
+    return 0;
   }
 
   void SetLiveBytes(int live_bytes) {
@@ -461,6 +482,8 @@ class MemoryChunk {
   void ReleaseTypedOldToOldSlots();
   void AllocateLocalTracker();
   void ReleaseLocalTracker();
+  void AllocateExternalBitmap();
+  void ReleaseExternalBitmap();
 
   Address area_start() { return area_start_; }
   Address area_end() { return area_end_; }
@@ -489,15 +512,18 @@ class MemoryChunk {
     }
   }
 
-  inline Bitmap* markbits() {
-    return Bitmap::FromAddress(address() + kHeaderSize);
+  template <MarkingMode mode = MarkingMode::FULL>
+  inline Bitmap* markbits() const {
+    return mode == MarkingMode::FULL
+               ? Bitmap::FromAddress(address() + kHeaderSize)
+               : young_generation_bitmap_;
   }
 
-  inline uint32_t AddressToMarkbitIndex(Address addr) {
+  inline uint32_t AddressToMarkbitIndex(Address addr) const {
     return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
   }
 
-  inline Address MarkbitIndexToAddress(uint32_t index) {
+  inline Address MarkbitIndexToAddress(uint32_t index) const {
     return this->address() + (index << kPointerSizeLog2);
   }
 
@@ -588,6 +614,9 @@ class MemoryChunk {
 
   base::VirtualMemory* reserved_memory() { return &reservation_; }
 
+  template <MarkingMode mode = MarkingMode::FULL>
+  inline void TraceLiveBytes(intptr_t old_value, intptr_t new_value);
+
   size_t size_;
   Flags flags_;
 
@@ -642,6 +671,9 @@ class MemoryChunk {
   FreeListCategory categories_[kNumberOfCategories];
 
   LocalArrayBufferTracker* local_tracker_;
+
+  intptr_t young_generation_live_byte_count_;
+  Bitmap* young_generation_bitmap_;
 
  private:
   void InitializeReservedMemory() { reservation_.Reset(); }
@@ -2642,6 +2674,9 @@ class NewSpace : public Space {
   iterator end() { return to_space_.end(); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
+  SemiSpace& from_space() { return from_space_; }
+  SemiSpace& to_space() { return to_space_; }
 
  private:
   // Update allocation info to match the current to-space page.

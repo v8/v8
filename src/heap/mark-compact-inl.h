@@ -12,10 +12,11 @@
 namespace v8 {
 namespace internal {
 
+template <MarkingMode mode>
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsBlack(obj));
-  if (!marking_deque()->Push(obj)) {
-    ObjectMarking::BlackToGrey(obj);
+  DCHECK(ObjectMarking::IsBlack<mode>(obj));
+  if (!marking_deque<mode>()->Push(obj)) {
+    ObjectMarking::BlackToGrey<mode>(obj);
   }
 }
 
@@ -27,10 +28,11 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
   }
 }
 
+template <MarkingMode mode>
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite(obj)) {
-    ObjectMarking::WhiteToBlack(obj);
-    PushBlack(obj);
+  if (ObjectMarking::IsWhite<mode>(obj)) {
+    ObjectMarking::WhiteToBlack<mode>(obj);
+    PushBlack<mode>(obj);
   }
 }
 
