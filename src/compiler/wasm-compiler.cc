@@ -65,10 +65,12 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
   }
 }
 
-Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
-                         Handle<Context> context, Node** parameters,
-                         int parameter_count, Node** effect_ptr,
-                         Node* control) {
+// Only call this function for code which is not reused across instantiations,
+// as we do not patch the embedded context.
+Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, JSGraph* jsgraph,
+                                    Node* context, Node** parameters,
+                                    int parameter_count, Node** effect_ptr,
+                                    Node* control) {
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       jsgraph->zone(), f, fun->nargs, Operator::kNoProperties,
@@ -76,7 +78,7 @@ Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
   // CEntryStubConstant nodes have to be created and cached in the main
   // thread. At the moment this is only done for CEntryStubConstant(1).
   DCHECK_EQ(1, fun->result_size);
-  // At the moment we only allow 2 parameters. If more parameters are needed,
+  // At the moment we only allow 3 parameters. If more parameters are needed,
   // increase this constant accordingly.
   static const int kMaxParams = 3;
   DCHECK_GE(kMaxParams, parameter_count);
@@ -89,9 +91,7 @@ Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
   inputs[count++] = jsgraph->ExternalConstant(
       ExternalReference(f, jsgraph->isolate()));         // ref
   inputs[count++] = jsgraph->Int32Constant(fun->nargs);  // arity
-  inputs[count++] = context.is_null()
-                        ? jsgraph->SmiConstant(0)
-                        : jsgraph->HeapConstant(context);  // context
+  inputs[count++] = context;                             // context
   inputs[count++] = *effect_ptr;
   inputs[count++] = control;
 
@@ -99,6 +99,14 @@ Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
       jsgraph->graph()->NewNode(jsgraph->common()->Call(desc), count, inputs);
   *effect_ptr = node;
   return node;
+}
+
+Node* BuildCallToRuntime(Runtime::FunctionId f, JSGraph* jsgraph,
+                         Node** parameters, int parameter_count,
+                         Node** effect_ptr, Node* control) {
+  return BuildCallToRuntimeWithContext(f, jsgraph, jsgraph->NoContextConstant(),
+                                       parameters, parameter_count, effect_ptr,
+                                       control);
 }
 
 }  // namespace
@@ -327,8 +335,7 @@ class WasmTrapHelper : public ZoneObject {
     if (module && !module->instance->context.is_null()) {
       Node* parameters[] = {trap_reason_smi,     // message id
                             trap_position_smi};  // byte position
-      BuildCallToRuntime(Runtime::kThrowWasmError, jsgraph(),
-                         Handle<Context>::null(), parameters,
+      BuildCallToRuntime(Runtime::kThrowWasmError, jsgraph(), parameters,
                          arraysize(parameters), effect_ptr, *control_ptr);
     }
     if (false) {
@@ -499,7 +506,7 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
       CallDescriptor::kNoFlags, Operator::kNoProperties);
   Node* stub_code = jsgraph()->HeapConstant(code);
 
-  Node* context = jsgraph()->SmiConstant(0);
+  Node* context = jsgraph()->NoContextConstant();
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
                                 context, *effect, stack_check.if_false);
 
@@ -1790,30 +1797,18 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
 
   check_input_range.Chain(*control_);
 
-  Runtime::FunctionId function_id = Runtime::kWasmGrowMemory;
-  const Runtime::Function* function = Runtime::FunctionForId(function_id);
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      jsgraph()->zone(), function_id, function->nargs, Operator::kNoThrow,
-      CallDescriptor::kNoFlags);
-  wasm::ModuleEnv* module = module_;
-  input = BuildChangeUint32ToSmi(input);
-  Node* inputs[] = {
-      jsgraph()->CEntryStubConstant(function->result_size), input,  // C entry
-      jsgraph()->ExternalConstant(
-          ExternalReference(function_id, jsgraph()->isolate())),  // ref
-      jsgraph()->Int32Constant(function->nargs),                  // arity
-      jsgraph()->HeapConstant(module->instance->context),         // context
-      *effect_,
-      check_input_range.if_true};
-  Node* call = graph()->NewNode(jsgraph()->common()->Call(desc),
-                                static_cast<int>(arraysize(inputs)), inputs);
+  Node* parameters[] = {BuildChangeUint32ToSmi(input)};
+  Node* old_effect = *effect_;
+  Node* call = BuildCallToRuntime(Runtime::kWasmGrowMemory, jsgraph(),
+                                  parameters, arraysize(parameters), effect_,
+                                  check_input_range.if_true);
 
   Node* result = BuildChangeSmiToInt32(call);
 
   result = check_input_range.Phi(MachineRepresentation::kWord32, result,
                                  jsgraph()->Int32Constant(-1));
-  *effect_ = graph()->NewNode(jsgraph()->common()->EffectPhi(2), call, *effect_,
-                              check_input_range.merge);
+  *effect_ = graph()->NewNode(jsgraph()->common()->EffectPhi(2), call,
+                              old_effect, check_input_range.merge);
   *control_ = check_input_range.merge;
   return result;
 }
@@ -1836,8 +1831,7 @@ Node* WasmGraphBuilder::Throw(Node* input) {
       graph()->NewNode(machine->Word32And(), input, Int32Constant(0xFFFFu)));
 
   Node* parameters[] = {lower, upper};  // thrown value
-  return BuildCallToRuntime(Runtime::kWasmThrow, jsgraph(),
-                            module_->instance->context, parameters,
+  return BuildCallToRuntime(Runtime::kWasmThrow, jsgraph(), parameters,
                             arraysize(parameters), effect_, *control_);
 }
 
@@ -1847,8 +1841,7 @@ Node* WasmGraphBuilder::Catch(Node* input, wasm::WasmCodePosition position) {
   Node* parameters[] = {input};  // caught value
   Node* value =
       BuildCallToRuntime(Runtime::kWasmGetCaughtExceptionValue, jsgraph(),
-                         module_->instance->context, parameters,
-                         arraysize(parameters), effect_, *control_);
+                         parameters, arraysize(parameters), effect_, *control_);
 
   Node* is_smi;
   Node* is_heap;
@@ -2769,12 +2762,18 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
   *control_ = start;
   *effect_ = start;
 
+  // Create the context parameter
+  Node* context = graph()->NewNode(
+      jsgraph()->common()->Parameter(
+          Linkage::GetJSCallContextParamIndex(wasm_count + 1), "%context"),
+      graph()->start());
+
   if (!HasJSCompatibleSignature(sig_)) {
-    // Throw a TypeError. The native context is good enough here because we
-    // only throw a TypeError.
-    BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
-                       jsgraph()->isolate()->native_context(), nullptr, 0,
-                       effect_, *control_);
+    // Throw a TypeError. Use the context of the calling javascript function
+    // (passed as a parameter), such that the generated code is context
+    // independent.
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, jsgraph(),
+                                  context, nullptr, 0, effect_, *control_);
 
     // Add a dummy call to the wasm function so that the generated wrapper
     // contains a reference to the wrapped wasm function. Without this reference
@@ -2792,12 +2791,6 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
     Return(jsgraph()->UndefinedConstant());
     return;
   }
-
-  // Create the context parameter
-  Node* context = graph()->NewNode(
-      jsgraph()->common()->Parameter(
-          Linkage::GetJSCallContextParamIndex(wasm_count + 1), "%context"),
-      graph()->start());
 
   int pos = 0;
   args[pos++] = HeapConstant(wasm_code);
@@ -2849,11 +2842,13 @@ void WasmGraphBuilder::BuildWasmToJSWrapper(Handle<JSReceiver> target,
   *control_ = start;
 
   if (!HasJSCompatibleSignature(sig_)) {
-    // Throw a TypeError. The native context is good enough here because we
-    // only throw a TypeError.
-    Return(BuildCallToRuntime(Runtime::kWasmThrowTypeError, jsgraph(),
-                              jsgraph()->isolate()->native_context(), nullptr,
-                              0, effect_, *control_));
+    // Throw a TypeError. Embedding the context is ok here, since this code is
+    // regenerated at instantiation time.
+    Node* context =
+        jsgraph()->HeapConstant(jsgraph()->isolate()->native_context());
+    Return(BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError,
+                                         jsgraph(), context, nullptr, 0,
+                                         effect_, *control_));
     return;
   }
 
@@ -3005,8 +3000,7 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
       jsgraph()->SmiConstant(function_index),  // function index
       arg_buffer,                              // argument buffer
   };
-  BuildCallToRuntime(Runtime::kWasmRunInterpreter, jsgraph(),
-                     instance->compiled_module()->native_context(), parameters,
+  BuildCallToRuntime(Runtime::kWasmRunInterpreter, jsgraph(), parameters,
                      arraysize(parameters), effect_, *control_);
 
   // Read back the return value.

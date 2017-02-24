@@ -55,6 +55,11 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
   Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
                                       isolate);
+
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(instance->compiled_module()->ptr_to_native_context());
+
   return *isolate->factory()->NewNumberFromInt(
       wasm::GrowMemory(isolate, instance, delta_pages));
 }
@@ -145,6 +150,10 @@ RUNTIME_FUNCTION(Runtime_WasmThrow) {
 
   const int32_t thrown_value = (upper << 16) | lower;
 
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+
   return isolate->Throw(*isolate->factory()->NewNumberFromInt(thrown_value));
 }
 
@@ -176,8 +185,9 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(arg_buffer_obj->IsSmi());
   uint8_t* arg_buffer = reinterpret_cast<uint8_t*>(*arg_buffer_obj);
 
-  DCHECK_EQ(isolate->context(),
-            instance->compiled_module()->ptr_to_native_context());
+  // Set the current isolate's context.
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(instance->compiled_module()->ptr_to_native_context());
 
   instance->debug_info()->RunInterpreter(func_index, arg_buffer);
   return isolate->heap()->undefined_value();
