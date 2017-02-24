@@ -1986,8 +1986,26 @@ class RepresentationSelector {
         if (BothInputsAre(node, Type::PlainPrimitive())) {
           if (truncation.IsUnused()) return VisitUnused(node);
         }
+        NumberOperationHint hint = NumberOperationHintOf(node->op());
+        Type* rhs_type = GetUpperBound(node->InputAt(1));
+        if (rhs_type->Is(type_cache_.kZeroish) &&
+            (hint == NumberOperationHint::kSignedSmall ||
+             hint == NumberOperationHint::kSigned32) &&
+            !truncation.IsUsedAsWord32()) {
+          // The SignedSmall or Signed32 feedback means that the results that we
+          // have seen so far were of type Unsigned31.  We speculate that this
+          // will continue to hold.  Moreover, since the RHS is 0, the result
+          // will just be the (converted) LHS.
+          VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
+                     MachineRepresentation::kWord32, Type::Unsigned31());
+          if (lower()) {
+            node->RemoveInput(1);
+            NodeProperties::ChangeOp(node,
+                                     simplified()->CheckedUint32ToInt32());
+          }
+          return;
+        }
         if (BothInputsAre(node, Type::NumberOrOddball())) {
-          Type* rhs_type = GetUpperBound(node->InputAt(1));
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
@@ -1996,8 +2014,6 @@ class RepresentationSelector {
           }
           return;
         }
-        NumberOperationHint hint = NumberOperationHintOf(node->op());
-        Type* rhs_type = GetUpperBound(node->InputAt(1));
         VisitBinop(node, CheckedUseInfoAsWord32FromHint(hint),
                    MachineRepresentation::kWord32, Type::Unsigned32());
         if (lower()) {
