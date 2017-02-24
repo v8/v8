@@ -405,9 +405,13 @@ void InstructionSelector::VisitWord32And(Node* node) {
         // zeros.
         if (lsb + mask_width > 32) mask_width = 32 - lsb;
 
-        Emit(kMipsExt, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
-             g.TempImmediate(mask_width));
+        if (lsb == 0 && mask_width == 32) {
+          Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(mleft.left().node()));
+        } else {
+          Emit(kMipsExt, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+               g.TempImmediate(mask_width));
+        }
         return;
       }
       // Other cases fall through to the normal And operation.

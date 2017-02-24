@@ -562,9 +562,13 @@ void InstructionSelector::VisitWord64And(Node* node) {
         // zeros.
         if (lsb + mask_width > 64) mask_width = 64 - lsb;
 
-        Emit(kMips64Dext, g.DefineAsRegister(node),
-             g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
-             g.TempImmediate(static_cast<int32_t>(mask_width)));
+        if (lsb == 0 && mask_width == 64) {
+          Emit(kArchNop, g.DefineSameAsFirst(node), g.Use(mleft.left().node()));
+        } else {
+          Emit(kMips64Dext, g.DefineAsRegister(node),
+               g.UseRegister(mleft.left().node()), g.TempImmediate(lsb),
+               g.TempImmediate(static_cast<int32_t>(mask_width)));
+        }
         return;
       }
       // Other cases fall through to the normal And operation.
