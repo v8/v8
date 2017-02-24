@@ -477,9 +477,9 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 
 #if V8_TARGET_ARCH_PPC64
-const int kLoadIntptrOpcode = LD;
+const uint32_t kLoadIntptrOpcode = LD;
 #else
-const int kLoadIntptrOpcode = LWZ;
+const uint32_t kLoadIntptrOpcode = LWZ;
 #endif
 
 // Constant pool load sequence detection:
@@ -492,7 +492,7 @@ const int kLoadIntptrOpcode = LWZ;
 bool Assembler::IsConstantPoolLoadStart(Address pc,
                                         ConstantPoolEntry::Access* access) {
   Instr instr = instr_at(pc);
-  int opcode = instr & kOpcodeMask;
+  uint32_t opcode = instr & kOpcodeMask;
   if (!GetRA(instr).is(kConstantPoolRegister)) return false;
   bool overflowed = (opcode == ADDIS);
 #ifdef DEBUG
@@ -512,7 +512,7 @@ bool Assembler::IsConstantPoolLoadStart(Address pc,
 bool Assembler::IsConstantPoolLoadEnd(Address pc,
                                       ConstantPoolEntry::Access* access) {
   Instr instr = instr_at(pc);
-  int opcode = instr & kOpcodeMask;
+  uint32_t opcode = instr & kOpcodeMask;
   bool overflowed = false;
   if (!(opcode == kLoadIntptrOpcode || opcode == LFD)) return false;
   if (!GetRA(instr).is(kConstantPoolRegister)) {
