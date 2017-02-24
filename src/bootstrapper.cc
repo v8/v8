@@ -4961,8 +4961,6 @@ Genesis::Genesis(Isolate* isolate,
   JSFunction::SetInitialMap(global_proxy_function, global_proxy_map,
                             factory()->null_value());
   global_proxy_map->set_is_access_check_needed(true);
-  global_proxy_map->set_is_callable();
-  global_proxy_map->set_is_constructor(true);
   global_proxy_map->set_has_hidden_prototype(true);
 
   Handle<String> global_name = factory()->global_string();

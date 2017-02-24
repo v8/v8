@@ -63,10 +63,35 @@ TEST_F(RemoteObjectTest, RemoteContextInstanceChecks) {
 
   Local<Object> remote_context =
       Context::NewRemoteContext(isolate(),
-                                    constructor_template->InstanceTemplate())
+                                constructor_template->InstanceTemplate())
           .ToLocalChecked();
   EXPECT_TRUE(parent_template->HasInstance(remote_context));
   EXPECT_TRUE(constructor_template->HasInstance(remote_context));
+}
+
+TEST_F(RemoteObjectTest, TypeOfRemoteContext) {
+  Local<ObjectTemplate> global_template = ObjectTemplate::New(isolate());
+  global_template->SetAccessCheckCallbackAndHandler(
+      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
+      IndexedPropertyHandlerConfiguration());
+
+  Local<Object> remote_context =
+      Context::NewRemoteContext(isolate(), global_template).ToLocalChecked();
+  String::Utf8Value result(remote_context->TypeOf(isolate()));
+  EXPECT_STREQ("object", *result);
+}
+
+TEST_F(RemoteObjectTest, TypeOfRemoteObject) {
+  Local<FunctionTemplate> constructor_template =
+      FunctionTemplate::New(isolate(), Constructor);
+  constructor_template->InstanceTemplate()->SetAccessCheckCallbackAndHandler(
+      AccessCheck, NamedPropertyHandlerConfiguration(NamedGetter),
+      IndexedPropertyHandlerConfiguration());
+
+  Local<Object> remote_object =
+      constructor_template->NewRemoteInstance().ToLocalChecked();
+  String::Utf8Value result(remote_object->TypeOf(isolate()));
+  EXPECT_STREQ("object", *result);
 }
 
 }  // namespace v8
