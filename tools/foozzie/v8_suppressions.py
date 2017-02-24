@@ -100,6 +100,8 @@ IGNORE_OUTPUT = {
         re.compile(r'WebAssembly\.Instance', re.S),
     'crbug.com/681088':
         re.compile(r'TypeError: Cannot read property \w+ of undefined', re.S),
+    'crbug.com/689877':
+        re.compile(r'^.*SyntaxError: .*Stack overflow$', re.M),
   },
   'validate_asm': {
     'validate_asm':
@@ -159,9 +161,6 @@ IGNORE_LINES = [
 
   # crbug.com/680064
   r'^\s*at .* \(<anonymous>\)$',
-
-  # crbug.com/689877
-  r'^.*SyntaxError: .*Stack overflow$',
 ]
 
 
