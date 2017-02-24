@@ -9,7 +9,6 @@
 #include "src/inspector/v8-debugger.h"
 #include "src/inspector/v8-inspector-impl.h"
 
-#include "include/v8-debug.h"
 #include "include/v8-version.h"
 
 namespace v8_inspector {
