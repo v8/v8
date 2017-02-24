@@ -19,7 +19,6 @@
 #include "src/ic/call-optimization.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/handler-configuration-inl.h"
-#include "src/ic/ic-compiler.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-stats.h"
 #include "src/ic/stub-cache.h"
@@ -2145,9 +2144,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
     store_mode = GetNonTransitioningStoreMode(store_mode);
-    Handle<Object> handler =
-        PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(monomorphic_map,
-                                                                store_mode);
+    Handle<Object> handler = StoreElementHandler(monomorphic_map, store_mode);
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
   }
 
@@ -2180,8 +2177,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
       store_mode = GetNonTransitioningStoreMode(store_mode);
       Handle<Object> handler =
-          PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(
-              transitioned_receiver_map, store_mode);
+          StoreElementHandler(transitioned_receiver_map, store_mode);
       ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
       return;
     }
@@ -2193,9 +2189,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // A "normal" IC that handles stores can switch to a version that can
       // grow at the end of the array, handle OOB accesses or copy COW arrays
       // and still stay MONOMORPHIC.
-      Handle<Object> handler =
-          PropertyICCompiler::ComputeKeyedStoreMonomorphicHandler(receiver_map,
-                                                                  store_mode);
+      Handle<Object> handler = StoreElementHandler(receiver_map, store_mode);
       return ConfigureVectorState(Handle<Name>(), receiver_map, handler);
     }
   }
@@ -2254,8 +2248,8 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   MapHandleList transitioned_maps(target_receiver_maps.length());
   List<Handle<Object>> handlers(target_receiver_maps.length());
-  PropertyICCompiler::ComputeKeyedStorePolymorphicHandlers(
-      &target_receiver_maps, &transitioned_maps, &handlers, store_mode);
+  StoreElementPolymorphicHandlers(&target_receiver_maps, &transitioned_maps,
+                                  &handlers, store_mode);
   ConfigureVectorState(&target_receiver_maps, &transitioned_maps, &handlers);
 }
 
@@ -2289,6 +2283,91 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
   return MaybeHandle<Map>().ToHandleChecked();
 }
 
+Handle<Object> KeyedStoreIC::StoreElementHandler(
+    Handle<Map> receiver_map, KeyedAccessStoreMode store_mode) {
+  DCHECK(store_mode == STANDARD_STORE ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+         store_mode == STORE_NO_TRANSITION_HANDLE_COW);
+
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
+  Handle<Code> stub;
+  if (receiver_map->has_sloppy_arguments_elements()) {
+    TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_KeyedStoreSloppyArgumentsStub);
+    stub = KeyedStoreSloppyArgumentsStub(isolate(), store_mode).GetCode();
+  } else if (receiver_map->has_fast_elements() ||
+             receiver_map->has_fixed_typed_array_elements()) {
+    TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreFastElementStub);
+    stub =
+        StoreFastElementStub(isolate(), is_jsarray, elements_kind, store_mode)
+            .GetCode();
+  } else {
+    TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
+    DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
+    stub = StoreSlowElementStub(isolate(), store_mode).GetCode();
+  }
+  Handle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+  if (validity_cell.is_null()) {
+    return stub;
+  }
+  return isolate()->factory()->NewTuple2(validity_cell, stub);
+}
+
+void KeyedStoreIC::StoreElementPolymorphicHandlers(
+    MapHandleList* receiver_maps, MapHandleList* transitioned_maps,
+    List<Handle<Object>>* handlers, KeyedAccessStoreMode store_mode) {
+  DCHECK(store_mode == STANDARD_STORE ||
+         store_mode == STORE_AND_GROW_NO_TRANSITION ||
+         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
+         store_mode == STORE_NO_TRANSITION_HANDLE_COW);
+
+  for (int i = 0; i < receiver_maps->length(); ++i) {
+    Handle<Map> receiver_map(receiver_maps->at(i));
+    Handle<Object> handler;
+    Handle<Map> transitioned_map;
+    {
+      Map* tmap = receiver_map->FindElementsKindTransitionedMap(receiver_maps);
+      if (tmap != nullptr) transitioned_map = handle(tmap);
+    }
+
+    // TODO(mvstanton): The code below is doing pessimistic elements
+    // transitions. I would like to stop doing that and rely on Allocation Site
+    // Tracking to do a better job of ensuring the data types are what they need
+    // to be. Not all the elements are in place yet, pessimistic elements
+    // transitions are still important for performance.
+    if (!transitioned_map.is_null()) {
+      bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+      ElementsKind elements_kind = receiver_map->elements_kind();
+      TRACE_HANDLER_STATS(isolate(),
+                          KeyedStoreIC_ElementsTransitionAndStoreStub);
+      Handle<Code> stub =
+          ElementsTransitionAndStoreStub(isolate(), elements_kind,
+                                         transitioned_map->elements_kind(),
+                                         is_js_array, store_mode)
+              .GetCode();
+      Handle<Object> validity_cell =
+          Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+      if (validity_cell.is_null()) {
+        handler = stub;
+      } else {
+        handler = isolate()->factory()->NewTuple2(validity_cell, stub);
+      }
+
+    } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
+      // TODO(mvstanton): Consider embedding store_mode in the state of the slow
+      // keyed store ic for uniformity.
+      TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
+      handler = isolate()->builtins()->KeyedStoreIC_Slow();
+    } else {
+      handler = StoreElementHandler(receiver_map, store_mode);
+    }
+    DCHECK(!handler.is_null());
+    handlers->Add(handler);
+    transitioned_maps->Add(transitioned_map);
+  }
+}
 
 bool IsOutOfBoundsAccess(Handle<JSObject> receiver, uint32_t index) {
   uint32_t length = 0;

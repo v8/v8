@@ -6,7 +6,6 @@
 
 #include "src/codegen.h"
 #include "src/ic/ic.h"
-#include "src/ic/ic-compiler.h"
 #include "src/ic/stub-cache.h"
 
 namespace v8 {

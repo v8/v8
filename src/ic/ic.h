@@ -425,6 +425,14 @@ class KeyedStoreIC : public StoreIC {
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
 
+  Handle<Object> StoreElementHandler(Handle<Map> receiver_map,
+                                     KeyedAccessStoreMode store_mode);
+
+  void StoreElementPolymorphicHandlers(MapHandleList* receiver_maps,
+                                       MapHandleList* transitioned_maps,
+                                       List<Handle<Object>>* handlers,
+                                       KeyedAccessStoreMode store_mode);
+
   friend class IC;
 };
 
