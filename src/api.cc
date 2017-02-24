@@ -8030,6 +8030,18 @@ v8::Local<v8::Context> Isolate::GetEnteredContext() {
   return Utils::ToLocal(i::Handle<i::Context>::cast(last));
 }
 
+v8::Local<v8::Context> Isolate::GetEnteredOrMicrotaskContext() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  i::Handle<i::Object> last;
+  if (isolate->handle_scope_implementer()
+          ->MicrotaskContextIsLastEnteredContext()) {
+    last = isolate->handle_scope_implementer()->MicrotaskContext();
+  } else {
+    last = isolate->handle_scope_implementer()->LastEnteredContext();
+  }
+  if (last.is_null()) return Local<Context>();
+  return Utils::ToLocal(i::Handle<i::Context>::cast(last));
+}
 
 v8::Local<Value> Isolate::ThrowException(v8::Local<v8::Value> value) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
