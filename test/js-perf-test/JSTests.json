@@ -298,6 +298,30 @@
           "test_flags": ["constructor"]
         },
         {
+          "name": "ConstructWithBuffer",
+          "main": "run.js",
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructWithBuffer--Future",
+          "flags": ["--future"],
+          "results_regexp": "^TypedArrays\\-ConstructWithBuffer\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["construct-buffer"]
+        },
+        {
+          "name": "ConstructArrayLike",
+          "main": "run.js",
+          "test_flags": ["construct-arraylike"]
+        },
+        {
+          "name": "ConstructArrayLike--Future",
+          "flags": ["--future"],
+          "results_regexp": "^TypedArrays\\-ConstructArrayLike\\(Score\\): (.+)$",
+          "main": "run.js",
+          "test_flags": ["construct-arraylike"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "test_flags": ["sort"]
