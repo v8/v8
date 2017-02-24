@@ -169,6 +169,9 @@ TEST(PreParserScopeAnalysis) {
       {"var var1; if (true) { const var1 = 0; }"},
       {"const var1 = 0; if (true) { const var1 = 0; }"},
 
+      // Variables deeper in the subscopes (scopes without variables inbetween).
+      {"if (true) { if (true) { function f() { var var1 = 5; } } }"},
+
       // Arguments and this.
       {"arguments;"},
       {"arguments = 5;", SKIP_STRICT},

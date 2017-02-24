@@ -17,6 +17,10 @@ class PreParsedScopeData {
   PreParsedScopeData() {}
   ~PreParsedScopeData() {}
 
+  // Whether the scope has variables whose context allocation or
+  // maybeassignedness we need to decide based on preparsed scope data.
+  static bool HasVariablesWhichNeedAllocationData(Scope* scope);
+
   class ScopeScope {
    public:
     ScopeScope(PreParsedScopeData* data, ScopeType scope_type,
@@ -30,8 +34,9 @@ class PreParsedScopeData {
     size_t index_in_data_;
     ScopeScope* previous_scope_;
 
-    int inner_scope_count_;
-    int variable_count_;
+    int inner_scope_count_ = 0;
+    int variable_count_ = 0;
+    bool got_data_ = false;
     DISALLOW_COPY_AND_ASSIGN(ScopeScope);
   };
 

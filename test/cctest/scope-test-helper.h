@@ -17,22 +17,10 @@ class ScopeTestHelper {
     return var->scope()->MustAllocateInContext(var);
   }
 
-  // True if the scope is and its entire subscope tree are hidden.
-  static bool ScopeTreeIsHidden(Scope* scope) {
-    if (!scope->is_hidden()) {
-      return false;
-    }
-    for (Scope* inner = scope->inner_scope(); inner != nullptr;
-         inner = inner->sibling()) {
-      if (!ScopeTreeIsHidden(inner)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   static void CompareScopeToData(Scope* scope, const PreParsedScopeData* data,
                                  size_t& index, bool precise_maybe_assigned) {
+    CHECK(PreParsedScopeData::HasVariablesWhichNeedAllocationData(scope));
+    CHECK_GT(data->backing_store_.size(), index + 4);
     CHECK_EQ(data->backing_store_[index++], scope->scope_type());
     CHECK_EQ(data->backing_store_[index++], scope->start_position());
     CHECK_EQ(data->backing_store_[index++], scope->end_position());
@@ -40,9 +28,7 @@ class ScopeTestHelper {
     int inner_scope_count = 0;
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      // FIXME(marja): This is probably not the right condition for knowing what
-      // scopes are present in the preparse data.
-      if (!ScopeTreeIsHidden(inner)) {
+      if (PreParsedScopeData::HasVariablesWhichNeedAllocationData(inner)) {
         ++inner_scope_count;
       }
     }
@@ -81,7 +67,7 @@ class ScopeTestHelper {
 
     for (Scope* inner = scope->inner_scope(); inner != nullptr;
          inner = inner->sibling()) {
-      if (!ScopeTreeIsHidden(inner)) {
+      if (PreParsedScopeData::HasVariablesWhichNeedAllocationData(inner)) {
         CompareScopeToData(inner, data, index, precise_maybe_assigned);
       }
     }

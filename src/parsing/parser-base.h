@@ -3531,7 +3531,6 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   //   BindingElement[?Yield, ?GeneratorParameter]
   bool is_rest = parameters->has_rest;
 
-  int initializer_start_position = kNoSourcePosition;
   ExpressionT pattern = ParsePrimaryExpression(CHECK_OK_CUSTOM(Void));
   ValidateBindingPattern(CHECK_OK_CUSTOM(Void));
 
@@ -3544,7 +3543,6 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   ExpressionT initializer = impl()->EmptyExpression();
   if (!is_rest && Check(Token::ASSIGN)) {
     ExpressionClassifier init_classifier(this);
-    initializer_start_position = scanner()->peek_location().beg_pos;
     initializer = ParseAssignmentExpression(true, CHECK_OK_CUSTOM(Void));
     impl()->RewriteNonPattern(CHECK_OK_CUSTOM(Void));
     ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
@@ -3556,7 +3554,6 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
   }
 
   impl()->AddFormalParameter(parameters, pattern, initializer,
-                             initializer_start_position,
                              scanner()->location().end_pos, is_rest);
 }
 
