@@ -76,6 +76,19 @@ bool EnableGuardRegions() {
   return FLAG_wasm_guard_pages && kGuardRegionsSupported;
 }
 
+static void RecordStats(Isolate* isolate, Code* code) {
+  isolate->counters()->wasm_generated_code_size()->Increment(code->body_size());
+  isolate->counters()->wasm_reloc_size()->Increment(
+      code->relocation_info()->length());
+}
+
+static void RecordStats(Isolate* isolate, Handle<FixedArray> functions) {
+  DisallowHeapAllocation no_gc;
+  for (int i = 0; i < functions->length(); ++i) {
+    RecordStats(isolate, Code::cast(functions->get(i)));
+  }
+}
+
 void* TryAllocateBackingStore(Isolate* isolate, size_t size,
                               bool enable_guard_regions, bool& is_external) {
   is_external = false;
@@ -121,235 +134,415 @@ void FlushICache(Isolate* isolate, Handle<FixedArray> code_table) {
   }
 }
 
-// Fetches the compilation unit of a wasm function and executes its parallel
-// phase.
-bool FetchAndExecuteCompilationUnit(
-    Isolate* isolate,
-    std::vector<compiler::WasmCompilationUnit*>* compilation_units,
-    std::queue<compiler::WasmCompilationUnit*>* executed_units,
-    base::Mutex* result_mutex, base::AtomicNumber<size_t>* next_unit) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  DisallowCodeDependencyChange no_dependency_change;
+Handle<Script> CreateWasmScript(Isolate* isolate,
+                                const ModuleWireBytes& wire_bytes) {
+  Handle<Script> script =
+      isolate->factory()->NewScript(isolate->factory()->empty_string());
+  FixedArray* array = isolate->native_context()->embedder_data();
+  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
+  script->set_type(Script::TYPE_WASM);
 
-  // - 1 because AtomicIncrement returns the value after the atomic increment.
-  size_t index = next_unit->Increment(1) - 1;
-  if (index >= compilation_units->size()) {
-    return false;
-  }
+  int hash = StringHasher::HashSequentialString(
+      reinterpret_cast<const char*>(wire_bytes.start()), wire_bytes.length(),
+      kZeroHashSeed);
 
-  compiler::WasmCompilationUnit* unit = compilation_units->at(index);
-  if (unit != nullptr) {
-    unit->ExecuteCompilation();
-    base::LockGuard<base::Mutex> guard(result_mutex);
-    executed_units->push(unit);
-  }
-  return true;
+  const int kBufferSize = 32;
+  char buffer[kBufferSize];
+  int url_chars = SNPrintF(ArrayVector(buffer), "wasm://wasm/%08x", hash);
+  DCHECK(url_chars >= 0 && url_chars < kBufferSize);
+  MaybeHandle<String> url_str = isolate->factory()->NewStringFromOneByte(
+      Vector<const uint8_t>(reinterpret_cast<uint8_t*>(buffer), url_chars),
+      TENURED);
+  script->set_source_url(*url_str.ToHandleChecked());
+
+  int name_chars = SNPrintF(ArrayVector(buffer), "wasm-%08x", hash);
+  DCHECK(name_chars >= 0 && name_chars < kBufferSize);
+  MaybeHandle<String> name_str = isolate->factory()->NewStringFromOneByte(
+      Vector<const uint8_t>(reinterpret_cast<uint8_t*>(buffer), name_chars),
+      TENURED);
+  script->set_name(*name_str.ToHandleChecked());
+
+  return script;
 }
 
-class WasmCompilationTask : public CancelableTask {
+class JSToWasmWrapperCache {
  public:
-  WasmCompilationTask(
-      Isolate* isolate,
-      std::vector<compiler::WasmCompilationUnit*>* compilation_units,
-      std::queue<compiler::WasmCompilationUnit*>* executed_units,
-      base::Semaphore* on_finished, base::Mutex* result_mutex,
-      base::AtomicNumber<size_t>* next_unit)
-      : CancelableTask(isolate),
-        isolate_(isolate),
-        compilation_units_(compilation_units),
-        executed_units_(executed_units),
-        on_finished_(on_finished),
-        result_mutex_(result_mutex),
-        next_unit_(next_unit) {}
-
-  void RunInternal() override {
-    while (FetchAndExecuteCompilationUnit(isolate_, compilation_units_,
-                                          executed_units_, result_mutex_,
-                                          next_unit_)) {
+  Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
+                                             const wasm::WasmModule* module,
+                                             Handle<Code> wasm_code,
+                                             uint32_t index) {
+    const wasm::WasmFunction* func = &module->functions[index];
+    int cached_idx = sig_map_.Find(func->sig);
+    if (cached_idx >= 0) {
+      Handle<Code> code = isolate->factory()->CopyCode(code_cache_[cached_idx]);
+      // Now patch the call to wasm code.
+      for (RelocIterator it(*code, RelocInfo::kCodeTargetMask);; it.next()) {
+        DCHECK(!it.done());
+        Code* target =
+            Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+        if (target->kind() == Code::WASM_FUNCTION ||
+            target->kind() == Code::WASM_TO_JS_FUNCTION ||
+            target->builtin_index() == Builtins::kIllegal) {
+          it.rinfo()->set_target_address(wasm_code->instruction_start());
+          break;
+        }
+      }
+      return code;
     }
-    on_finished_->Signal();
+
+    Handle<Code> code =
+        compiler::CompileJSToWasmWrapper(isolate, module, wasm_code, index);
+    uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
+    DCHECK_EQ(code_cache_.size(), new_cache_idx);
+    USE(new_cache_idx);
+    code_cache_.push_back(code);
+    return code;
   }
 
-  Isolate* isolate_;
-  std::vector<compiler::WasmCompilationUnit*>* compilation_units_;
-  std::queue<compiler::WasmCompilationUnit*>* executed_units_;
-  base::Semaphore* on_finished_;
-  base::Mutex* result_mutex_;
-  base::AtomicNumber<size_t>* next_unit_;
+ private:
+  // sig_map_ maps signatures to an index in code_cache_.
+  wasm::SignatureMap sig_map_;
+  std::vector<Handle<Code>> code_cache_;
 };
 
-static void RecordStats(Isolate* isolate, Code* code) {
-  isolate->counters()->wasm_generated_code_size()->Increment(code->body_size());
-  isolate->counters()->wasm_reloc_size()->Increment(
-      code->relocation_info()->length());
-}
+// A helper for compiling an entire module.
+class CompilationHelper {
+ public:
+  CompilationHelper(Isolate* isolate, WasmModule* module)
+      : isolate_(isolate), module_(module) {}
 
-static void RecordStats(Isolate* isolate, Handle<FixedArray> functions) {
-  DisallowHeapAllocation no_gc;
-  for (int i = 0; i < functions->length(); ++i) {
-    RecordStats(isolate, Code::cast(functions->get(i)));
+  // The actual runnable task that performs compilations in the background.
+  class CompilationTask : public CancelableTask {
+   public:
+    CompilationHelper* helper_;
+    explicit CompilationTask(CompilationHelper* helper)
+        : CancelableTask(helper->isolate_), helper_(helper) {}
+
+    void RunInternal() override {
+      while (helper_->FetchAndExecuteCompilationUnit()) {
+      }
+      helper_->module_->pending_tasks.get()->Signal();
+    }
+  };
+
+  Isolate* isolate_;
+  WasmModule* module_;
+  std::vector<compiler::WasmCompilationUnit*> compilation_units_;
+  std::queue<compiler::WasmCompilationUnit*> executed_units_;
+  base::Mutex result_mutex_;
+  base::AtomicNumber<size_t> next_unit_;
+
+  // Run by each compilation task and by the main thread.
+  bool FetchAndExecuteCompilationUnit() {
+    DisallowHeapAllocation no_allocation;
+    DisallowHandleAllocation no_handles;
+    DisallowHandleDereference no_deref;
+    DisallowCodeDependencyChange no_dependency_change;
+
+    // - 1 because AtomicIncrement returns the value after the atomic increment.
+    size_t index = next_unit_.Increment(1) - 1;
+    if (index >= compilation_units_.size()) {
+      return false;
+    }
+
+    compiler::WasmCompilationUnit* unit = compilation_units_.at(index);
+    if (unit != nullptr) {
+      unit->ExecuteCompilation();
+      base::LockGuard<base::Mutex> guard(&result_mutex_);
+      executed_units_.push(unit);
+    }
+    return true;
   }
-}
 
-void InitializeParallelCompilation(
-    Isolate* isolate, const std::vector<WasmFunction>& functions,
-    std::vector<compiler::WasmCompilationUnit*>& compilation_units,
-    ModuleBytesEnv& module_env, ErrorThrower* thrower) {
-  for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size(); ++i) {
-    const WasmFunction* func = &functions[i];
-    compilation_units[i] =
-        func->imported ? nullptr : new compiler::WasmCompilationUnit(
-                                       thrower, isolate, &module_env, func, i);
-  }
-}
-
-uint32_t* StartCompilationTasks(
-    Isolate* isolate,
-    std::vector<compiler::WasmCompilationUnit*>& compilation_units,
-    std::queue<compiler::WasmCompilationUnit*>& executed_units,
-    base::Semaphore* pending_tasks, base::Mutex& result_mutex,
-    base::AtomicNumber<size_t>& next_unit) {
-  const size_t num_tasks =
-      Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
-          V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
-  uint32_t* task_ids = new uint32_t[num_tasks];
-  for (size_t i = 0; i < num_tasks; ++i) {
-    WasmCompilationTask* task =
-        new WasmCompilationTask(isolate, &compilation_units, &executed_units,
-                                pending_tasks, &result_mutex, &next_unit);
-    task_ids[i] = task->id();
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
-  }
-  return task_ids;
-}
-
-void WaitForCompilationTasks(Isolate* isolate, uint32_t* task_ids,
-                             base::Semaphore* pending_tasks) {
-  const size_t num_tasks =
-      Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
-          V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
-  for (size_t i = 0; i < num_tasks; ++i) {
-    // If the task has not started yet, then we abort it. Otherwise we wait for
-    // it to finish.
-    if (isolate->cancelable_task_manager()->TryAbort(task_ids[i]) !=
-        CancelableTaskManager::kTaskAborted) {
-      pending_tasks->Wait();
+  void InitializeParallelCompilation(const std::vector<WasmFunction>& functions,
+                                     ModuleBytesEnv& module_env,
+                                     ErrorThrower* thrower) {
+    compilation_units_.reserve(functions.size());
+    for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
+         ++i) {
+      const WasmFunction* func = &functions[i];
+      compilation_units_.push_back(
+          func->imported ? nullptr
+                         : new compiler::WasmCompilationUnit(
+                               thrower, isolate_, &module_env, func, i));
     }
   }
-}
 
-void FinishCompilationUnits(
-    std::queue<compiler::WasmCompilationUnit*>& executed_units,
-    std::vector<Handle<Code>>& results, base::Mutex& result_mutex) {
-  while (true) {
-    compiler::WasmCompilationUnit* unit = nullptr;
-    {
-      base::LockGuard<base::Mutex> guard(&result_mutex);
-      if (executed_units.empty()) {
+  uint32_t* StartCompilationTasks() {
+    const size_t num_tasks =
+        Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
+            V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
+    uint32_t* task_ids = new uint32_t[num_tasks];
+    for (size_t i = 0; i < num_tasks; ++i) {
+      CompilationTask* task = new CompilationTask(this);
+      task_ids[i] = task->id();
+      V8::GetCurrentPlatform()->CallOnBackgroundThread(
+          task, v8::Platform::kShortRunningTask);
+    }
+    return task_ids;
+  }
+
+  void WaitForCompilationTasks(uint32_t* task_ids) {
+    const size_t num_tasks =
+        Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
+            V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
+    for (size_t i = 0; i < num_tasks; ++i) {
+      // If the task has not started yet, then we abort it. Otherwise we wait
+      // for
+      // it to finish.
+      if (isolate_->cancelable_task_manager()->TryAbort(task_ids[i]) !=
+          CancelableTaskManager::kTaskAborted) {
+        module_->pending_tasks.get()->Wait();
+      }
+    }
+  }
+
+  void FinishCompilationUnits(std::vector<Handle<Code>>& results) {
+    while (true) {
+      compiler::WasmCompilationUnit* unit = nullptr;
+      {
+        base::LockGuard<base::Mutex> guard(&result_mutex_);
+        if (executed_units_.empty()) {
+          break;
+        }
+        unit = executed_units_.front();
+        executed_units_.pop();
+      }
+      int j = unit->index();
+      results[j] = unit->FinishCompilation();
+      delete unit;
+    }
+  }
+
+  void CompileInParallel(ModuleBytesEnv* module_env,
+                         std::vector<Handle<Code>>& results,
+                         ErrorThrower* thrower) {
+    const WasmModule* module = module_env->module_env.module;
+    // Data structures for the parallel compilation.
+
+    //-----------------------------------------------------------------------
+    // For parallel compilation:
+    // 1) The main thread allocates a compilation unit for each wasm function
+    //    and stores them in the vector {compilation_units}.
+    // 2) The main thread spawns {CompilationTask} instances which run on
+    //    the background threads.
+    // 3.a) The background threads and the main thread pick one compilation
+    //      unit at a time and execute the parallel phase of the compilation
+    //      unit. After finishing the execution of the parallel phase, the
+    //      result is enqueued in {executed_units}.
+    // 3.b) If {executed_units} contains a compilation unit, the main thread
+    //      dequeues it and finishes the compilation.
+    // 4) After the parallel phase of all compilation units has started, the
+    //    main thread waits for all {CompilationTask} instances to finish.
+    // 5) The main thread finishes the compilation.
+
+    // Turn on the {CanonicalHandleScope} so that the background threads can
+    // use the node cache.
+    CanonicalHandleScope canonical(isolate_);
+
+    // 1) The main thread allocates a compilation unit for each wasm function
+    //    and stores them in the vector {compilation_units}.
+    InitializeParallelCompilation(module->functions, *module_env, thrower);
+
+    // Objects for the synchronization with the background threads.
+    base::AtomicNumber<size_t> next_unit(
+        static_cast<size_t>(FLAG_skip_compiling_wasm_funcs));
+
+    // 2) The main thread spawns {CompilationTask} instances which run on
+    //    the background threads.
+    std::unique_ptr<uint32_t[]> task_ids(StartCompilationTasks());
+
+    // 3.a) The background threads and the main thread pick one compilation
+    //      unit at a time and execute the parallel phase of the compilation
+    //      unit. After finishing the execution of the parallel phase, the
+    //      result is enqueued in {executed_units}.
+    while (FetchAndExecuteCompilationUnit()) {
+      // 3.b) If {executed_units} contains a compilation unit, the main thread
+      //      dequeues it and finishes the compilation unit. Compilation units
+      //      are finished concurrently to the background threads to save
+      //      memory.
+      FinishCompilationUnits(results);
+    }
+    // 4) After the parallel phase of all compilation units has started, the
+    //    main thread waits for all {CompilationTask} instances to finish.
+    WaitForCompilationTasks(task_ids.get());
+    // Finish the compilation of the remaining compilation units.
+    FinishCompilationUnits(results);
+  }
+
+  void CompileSequentially(ModuleBytesEnv* module_env,
+                           std::vector<Handle<Code>>& results,
+                           ErrorThrower* thrower) {
+    DCHECK(!thrower->error());
+
+    const WasmModule* module = module_env->module_env.module;
+    for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
+         i < module->functions.size(); ++i) {
+      const WasmFunction& func = module->functions[i];
+      if (func.imported)
+        continue;  // Imports are compiled at instantiation time.
+
+      Handle<Code> code = Handle<Code>::null();
+      // Compile the function.
+      code = compiler::WasmCompilationUnit::CompileWasmFunction(
+          thrower, isolate_, module_env, &func);
+      if (code.is_null()) {
+        WasmName str = module_env->wire_bytes.GetName(&func);
+        thrower->CompileError("Compilation of #%d:%.*s failed.", i,
+                              str.length(), str.start());
         break;
       }
-      unit = executed_units.front();
-      executed_units.pop();
+      results[i] = code;
     }
-    int j = unit->index();
-    results[j] = unit->FinishCompilation();
-    delete unit;
   }
-}
 
-void CompileInParallel(Isolate* isolate, ModuleBytesEnv* module_env,
-                       std::vector<Handle<Code>>& functions,
-                       ErrorThrower* thrower) {
-  const WasmModule* module = module_env->module_env.module;
-  // Data structures for the parallel compilation.
-  std::vector<compiler::WasmCompilationUnit*> compilation_units(
-      module->functions.size());
-  std::queue<compiler::WasmCompilationUnit*> executed_units;
+  MaybeHandle<WasmModuleObject> CompileToModuleObject(
+      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+      Handle<Script> asm_js_script,
+      Vector<const byte> asm_js_offset_table_bytes) {
+    Factory* factory = isolate_->factory();
+    // The {module_wrapper} will take ownership of the {WasmModule} object,
+    // and it will be destroyed when the GC reclaims the wrapper object.
+    Handle<WasmModuleWrapper> module_wrapper =
+        WasmModuleWrapper::New(isolate_, module_);
+    WasmInstance temp_instance(module_);
+    temp_instance.context = isolate_->native_context();
+    temp_instance.mem_size = WasmModule::kPageSize * module_->min_mem_pages;
+    temp_instance.mem_start = nullptr;
+    temp_instance.globals_start = nullptr;
 
-  //-----------------------------------------------------------------------
-  // For parallel compilation:
-  // 1) The main thread allocates a compilation unit for each wasm function
-  //    and stores them in the vector {compilation_units}.
-  // 2) The main thread spawns {WasmCompilationTask} instances which run on
-  //    the background threads.
-  // 3.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
-  // 3.b) If {executed_units} contains a compilation unit, the main thread
-  //      dequeues it and finishes the compilation.
-  // 4) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {WasmCompilationTask} instances to finish.
-  // 5) The main thread finishes the compilation.
-
-  // Turn on the {CanonicalHandleScope} so that the background threads can
-  // use the node cache.
-  CanonicalHandleScope canonical(isolate);
-
-  // 1) The main thread allocates a compilation unit for each wasm function
-  //    and stores them in the vector {compilation_units}.
-  InitializeParallelCompilation(isolate, module->functions, compilation_units,
-                                *module_env, thrower);
-
-  // Objects for the synchronization with the background threads.
-  base::Mutex result_mutex;
-  base::AtomicNumber<size_t> next_unit(
-      static_cast<size_t>(FLAG_skip_compiling_wasm_funcs));
-
-  // 2) The main thread spawns {WasmCompilationTask} instances which run on
-  //    the background threads.
-  std::unique_ptr<uint32_t[]> task_ids(StartCompilationTasks(
-      isolate, compilation_units, executed_units, module->pending_tasks.get(),
-      result_mutex, next_unit));
-
-  // 3.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
-  while (FetchAndExecuteCompilationUnit(isolate, &compilation_units,
-                                        &executed_units, &result_mutex,
-                                        &next_unit)) {
-    // 3.b) If {executed_units} contains a compilation unit, the main thread
-    //      dequeues it and finishes the compilation unit. Compilation units
-    //      are finished concurrently to the background threads to save
-    //      memory.
-    FinishCompilationUnits(executed_units, functions, result_mutex);
-  }
-  // 4) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {WasmCompilationTask} instances to finish.
-  WaitForCompilationTasks(isolate, task_ids.get(), module->pending_tasks.get());
-  // Finish the compilation of the remaining compilation units.
-  FinishCompilationUnits(executed_units, functions, result_mutex);
-}
-
-void CompileSequentially(Isolate* isolate, ModuleBytesEnv* module_env,
-                         std::vector<Handle<Code>>& functions,
-                         ErrorThrower* thrower) {
-  DCHECK(!thrower->error());
-
-  const WasmModule* module = module_env->module_env.module;
-  for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
-       i < module->functions.size(); ++i) {
-    const WasmFunction& func = module->functions[i];
-    if (func.imported) continue;  // Imports are compiled at instantiation time.
-
-    Handle<Code> code = Handle<Code>::null();
-    // Compile the function.
-    code = compiler::WasmCompilationUnit::CompileWasmFunction(
-        thrower, isolate, module_env, &func);
-    if (code.is_null()) {
-      WasmName str = module_env->wire_bytes.GetName(&func);
-      thrower->CompileError("Compilation of #%d:%.*s failed.", i, str.length(),
-                            str.start());
-      break;
+    // Initialize the indirect tables with placeholders.
+    int function_table_count =
+        static_cast<int>(module_->function_tables.size());
+    Handle<FixedArray> function_tables =
+        factory->NewFixedArray(function_table_count, TENURED);
+    Handle<FixedArray> signature_tables =
+        factory->NewFixedArray(function_table_count, TENURED);
+    for (int i = 0; i < function_table_count; ++i) {
+      temp_instance.function_tables[i] = factory->NewFixedArray(1, TENURED);
+      temp_instance.signature_tables[i] = factory->NewFixedArray(1, TENURED);
+      function_tables->set(i, *temp_instance.function_tables[i]);
+      signature_tables->set(i, *temp_instance.signature_tables[i]);
     }
-    // Install the code into the linker table.
-    functions[i] = code;
-  }
+
+    HistogramTimerScope wasm_compile_module_time_scope(
+        isolate_->counters()->wasm_compile_module_time());
+
+    ModuleBytesEnv module_env(module_, &temp_instance, wire_bytes);
+
+    // The {code_table} array contains import wrappers and functions (which
+    // are both included in {functions.size()}, and export wrappers.
+    int code_table_size = static_cast<int>(module_->functions.size() +
+                                           module_->num_exported_functions);
+    Handle<FixedArray> code_table =
+        factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
+
+    // Initialize the code table with the illegal builtin. All call sites will
+    // be
+    // patched at instantiation.
+    Handle<Code> illegal_builtin = isolate_->builtins()->Illegal();
+    for (uint32_t i = 0; i < module_->functions.size(); ++i) {
+      code_table->set(static_cast<int>(i), *illegal_builtin);
+      temp_instance.function_code[i] = illegal_builtin;
+    }
+
+    isolate_->counters()->wasm_functions_per_module()->AddSample(
+        static_cast<int>(module_->functions.size()));
+    CompilationHelper helper(isolate_, module_);
+    if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0) {
+      // Avoid a race condition by collecting results into a second vector.
+      std::vector<Handle<Code>> results(temp_instance.function_code);
+      helper.CompileInParallel(&module_env, results, thrower);
+      temp_instance.function_code.swap(results);
+    } else {
+      helper.CompileSequentially(&module_env, temp_instance.function_code,
+                                 thrower);
+    }
+    if (thrower->error()) return {};
+
+    // At this point, compilation has completed. Update the code table.
+    for (size_t i = FLAG_skip_compiling_wasm_funcs;
+         i < temp_instance.function_code.size(); ++i) {
+      Code* code = *temp_instance.function_code[i];
+      code_table->set(static_cast<int>(i), code);
+      RecordStats(isolate_, code);
+    }
+
+    // Create heap objects for script, module bytes and asm.js offset table to
+    // be
+    // stored in the shared module data.
+    Handle<Script> script;
+    Handle<ByteArray> asm_js_offset_table;
+    if (asm_js_script.is_null()) {
+      script = CreateWasmScript(isolate_, wire_bytes);
+    } else {
+      script = asm_js_script;
+      asm_js_offset_table =
+          isolate_->factory()->NewByteArray(asm_js_offset_table_bytes.length());
+      asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
+                                   asm_js_offset_table_bytes.length());
+    }
+    // TODO(wasm): only save the sections necessary to deserialize a
+    // {WasmModule}. E.g. function bodies could be omitted.
+    Handle<String> module_bytes =
+        factory
+            ->NewStringFromOneByte({wire_bytes.start(), wire_bytes.length()},
+                                   TENURED)
+            .ToHandleChecked();
+    DCHECK(module_bytes->IsSeqOneByteString());
+
+    // Create the shared module data.
+    // TODO(clemensh): For the same module (same bytes / same hash), we should
+    // only have one WasmSharedModuleData. Otherwise, we might only set
+    // breakpoints on a (potentially empty) subset of the instances.
+
+    Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
+        isolate_, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
+        script, asm_js_offset_table);
+
+    // Create the compiled module object, and populate with compiled functions
+    // and information needed at instantiation time. This object needs to be
+    // serializable. Instantiation may occur off a deserialized version of this
+    // object.
+    Handle<WasmCompiledModule> compiled_module =
+        WasmCompiledModule::New(isolate_, shared);
+    compiled_module->set_num_imported_functions(
+        module_->num_imported_functions);
+    compiled_module->set_code_table(code_table);
+    compiled_module->set_min_mem_pages(module_->min_mem_pages);
+    compiled_module->set_max_mem_pages(module_->max_mem_pages);
+    if (function_table_count > 0) {
+      compiled_module->set_function_tables(function_tables);
+      compiled_module->set_signature_tables(signature_tables);
+      compiled_module->set_empty_function_tables(function_tables);
+    }
+
+    // If we created a wasm script, finish it now and make it public to the
+    // debugger.
+    if (asm_js_script.is_null()) {
+      script->set_wasm_compiled_module(*compiled_module);
+      isolate_->debug()->OnAfterCompile(script);
+    }
+
+    // Compile JS->WASM wrappers for exported functions.
+    JSToWasmWrapperCache js_to_wasm_cache;
+    int func_index = 0;
+    for (auto exp : module_->export_table) {
+      if (exp.kind != kExternalFunction) continue;
+      Handle<Code> wasm_code(Code::cast(code_table->get(exp.index)), isolate_);
+      Handle<Code> wrapper_code =
+          js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(isolate_, module_,
+                                                         wasm_code, exp.index);
+      int export_index =
+          static_cast<int>(module_->functions.size() + func_index);
+      code_table->set(export_index, *wrapper_code);
+      RecordStats(isolate_, *wrapper_code);
+      func_index++;
+    }
+
+    return WasmModuleObject::New(isolate_, compiled_module);
 }
+};
 
 static void ResetCompiledModule(Isolate* isolate, WasmInstanceObject* owner,
                                 WasmCompiledModule* compiled_module) {
@@ -544,78 +737,6 @@ std::pair<int, int> GetFunctionOffsetAndLength(
   return {static_cast<int>(func.code_start_offset),
           static_cast<int>(func.code_end_offset - func.code_start_offset)};
 }
-
-Handle<Script> CreateWasmScript(Isolate* isolate,
-                                const ModuleWireBytes& wire_bytes) {
-  Handle<Script> script =
-      isolate->factory()->NewScript(isolate->factory()->empty_string());
-  FixedArray* array = isolate->native_context()->embedder_data();
-  script->set_context_data(array->get(v8::Context::kDebugIdIndex));
-  script->set_type(Script::TYPE_WASM);
-
-  int hash = StringHasher::HashSequentialString(
-      reinterpret_cast<const char*>(wire_bytes.start()), wire_bytes.length(),
-      kZeroHashSeed);
-
-  const int kBufferSize = 50;
-  char buffer[kBufferSize];
-  int url_chars = SNPrintF(ArrayVector(buffer), "wasm://wasm/%08x", hash);
-  DCHECK(url_chars >= 0 && url_chars < kBufferSize);
-  MaybeHandle<String> url_str = isolate->factory()->NewStringFromOneByte(
-      Vector<const uint8_t>(reinterpret_cast<uint8_t*>(buffer), url_chars),
-      TENURED);
-  script->set_source_url(*url_str.ToHandleChecked());
-
-  int name_chars = SNPrintF(ArrayVector(buffer), "wasm-%08x", hash);
-  DCHECK(name_chars >= 0 && name_chars < kBufferSize);
-  MaybeHandle<String> name_str = isolate->factory()->NewStringFromOneByte(
-      Vector<const uint8_t>(reinterpret_cast<uint8_t*>(buffer), name_chars),
-      TENURED);
-  script->set_name(*name_str.ToHandleChecked());
-
-  return script;
-}
-
-class JSToWasmWrapperCache {
- public:
-  Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
-                                             const wasm::WasmModule* module,
-                                             Handle<Code> wasm_code,
-                                             uint32_t index) {
-    const wasm::WasmFunction* func = &module->functions[index];
-    int cached_idx = sig_map_.Find(func->sig);
-    if (cached_idx >= 0) {
-      Handle<Code> code = isolate->factory()->CopyCode(code_cache_[cached_idx]);
-      // Now patch the call to wasm code.
-      for (RelocIterator it(*code, RelocInfo::kCodeTargetMask);; it.next()) {
-        DCHECK(!it.done());
-        Code* target =
-            Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-        if (target->kind() == Code::WASM_FUNCTION ||
-            target->kind() == Code::WASM_TO_JS_FUNCTION ||
-            target->builtin_index() == Builtins::kIllegal) {
-          it.rinfo()->set_target_address(wasm_code->instruction_start());
-          break;
-        }
-      }
-      return code;
-    }
-
-    Handle<Code> code =
-        compiler::CompileJSToWasmWrapper(isolate, module, wasm_code, index);
-    uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
-    DCHECK_EQ(code_cache_.size(), new_cache_idx);
-    USE(new_cache_idx);
-    code_cache_.push_back(code);
-    return code;
-  }
-
- private:
-  // sig_map_ maps signatures to an index in code_cache_.
-  wasm::SignatureMap sig_map_;
-  std::vector<Handle<Code>> code_cache_;
-};
-
 }  // namespace
 
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* backing_store,
@@ -722,146 +843,6 @@ int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
 
 WasmModule::WasmModule(Zone* owned)
     : owned_zone(owned), pending_tasks(new base::Semaphore(0)) {}
-
-MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, WasmModule* m, ErrorThrower* thrower,
-    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) {
-  Factory* factory = isolate->factory();
-  MaybeHandle<WasmModuleObject> nothing;
-  // The {module_wrapper} will take ownership of the {WasmModule} object,
-  // and it will be destroyed when the GC reclaims the wrapper object.
-  Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(isolate, m);
-  WasmInstance temp_instance(m);
-  temp_instance.context = isolate->native_context();
-  temp_instance.mem_size = WasmModule::kPageSize * m->min_mem_pages;
-  temp_instance.mem_start = nullptr;
-  temp_instance.globals_start = nullptr;
-
-  // Initialize the indirect tables with placeholders.
-  int function_table_count = static_cast<int>(m->function_tables.size());
-  Handle<FixedArray> function_tables =
-      factory->NewFixedArray(function_table_count, TENURED);
-  Handle<FixedArray> signature_tables =
-      factory->NewFixedArray(function_table_count, TENURED);
-  for (int i = 0; i < function_table_count; ++i) {
-    temp_instance.function_tables[i] = factory->NewFixedArray(1, TENURED);
-    temp_instance.signature_tables[i] = factory->NewFixedArray(1, TENURED);
-    function_tables->set(i, *temp_instance.function_tables[i]);
-    signature_tables->set(i, *temp_instance.signature_tables[i]);
-  }
-
-  HistogramTimerScope wasm_compile_module_time_scope(
-      isolate->counters()->wasm_compile_module_time());
-
-  ModuleBytesEnv module_env(m, &temp_instance, wire_bytes);
-
-  // The {code_table} array contains import wrappers and functions (which
-  // are both included in {functions.size()}, and export wrappers.
-  int code_table_size =
-      static_cast<int>(m->functions.size() + m->num_exported_functions);
-  Handle<FixedArray> code_table =
-      factory->NewFixedArray(static_cast<int>(code_table_size), TENURED);
-
-  // Initialize the code table with the illegal builtin. All call sites will be
-  // patched at instantiation.
-  Handle<Code> illegal_builtin = isolate->builtins()->Illegal();
-  for (uint32_t i = 0; i < m->functions.size(); ++i) {
-    code_table->set(static_cast<int>(i), *illegal_builtin);
-    temp_instance.function_code[i] = illegal_builtin;
-  }
-
-  isolate->counters()->wasm_functions_per_module()->AddSample(
-      static_cast<int>(m->functions.size()));
-  if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0) {
-    // Avoid a race condition by collecting results into a second vector.
-    std::vector<Handle<Code>> results(temp_instance.function_code);
-    CompileInParallel(isolate, &module_env, results, thrower);
-    temp_instance.function_code.swap(results);
-  } else {
-    CompileSequentially(isolate, &module_env, temp_instance.function_code,
-                        thrower);
-  }
-  if (thrower->error()) return nothing;
-
-  // At this point, compilation has completed. Update the code table.
-  for (size_t i = FLAG_skip_compiling_wasm_funcs;
-       i < temp_instance.function_code.size(); ++i) {
-    Code* code = *temp_instance.function_code[i];
-    code_table->set(static_cast<int>(i), code);
-    RecordStats(isolate, code);
-  }
-
-  // Create heap objects for script, module bytes and asm.js offset table to be
-  // stored in the shared module data.
-  Handle<Script> script;
-  Handle<ByteArray> asm_js_offset_table;
-  if (asm_js_script.is_null()) {
-    script = CreateWasmScript(isolate, wire_bytes);
-  } else {
-    script = asm_js_script;
-    asm_js_offset_table =
-        isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
-    asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
-                                 asm_js_offset_table_bytes.length());
-  }
-  // TODO(wasm): only save the sections necessary to deserialize a
-  // {WasmModule}. E.g. function bodies could be omitted.
-  Handle<String> module_bytes =
-      factory
-          ->NewStringFromOneByte({wire_bytes.start(), wire_bytes.length()},
-                                 TENURED)
-          .ToHandleChecked();
-  DCHECK(module_bytes->IsSeqOneByteString());
-
-  // Create the shared module data.
-  // TODO(clemensh): For the same module (same bytes / same hash), we should
-  // only have one WasmSharedModuleData. Otherwise, we might only set
-  // breakpoints on a (potentially empty) subset of the instances.
-
-  Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
-      script, asm_js_offset_table);
-
-  // Create the compiled module object, and populate with compiled functions
-  // and information needed at instantiation time. This object needs to be
-  // serializable. Instantiation may occur off a deserialized version of this
-  // object.
-  Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, shared);
-  compiled_module->set_num_imported_functions(m->num_imported_functions);
-  compiled_module->set_code_table(code_table);
-  compiled_module->set_min_mem_pages(m->min_mem_pages);
-  compiled_module->set_max_mem_pages(m->max_mem_pages);
-  if (function_table_count > 0) {
-    compiled_module->set_function_tables(function_tables);
-    compiled_module->set_signature_tables(signature_tables);
-    compiled_module->set_empty_function_tables(function_tables);
-  }
-
-  // If we created a wasm script, finish it now and make it public to the
-  // debugger.
-  if (asm_js_script.is_null()) {
-    script->set_wasm_compiled_module(*compiled_module);
-    isolate->debug()->OnAfterCompile(script);
-  }
-
-  // Compile JS->WASM wrappers for exported functions.
-  JSToWasmWrapperCache js_to_wasm_cache;
-  int func_index = 0;
-  for (auto exp : m->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    Handle<Code> wasm_code(Code::cast(code_table->get(exp.index)), isolate);
-    Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, m, wasm_code, exp.index);
-    int export_index = static_cast<int>(m->functions.size() + func_index);
-    code_table->set(export_index, *wrapper_code);
-    RecordStats(isolate, *wrapper_code);
-    func_index++;
-  }
-
-  return WasmModuleObject::New(isolate, compiled_module);
-}
 
 static WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
                                                      Handle<Object> target) {
@@ -982,14 +963,12 @@ class InstantiationHelper {
 
   // Build an instance, in all of its glory.
   MaybeHandle<WasmInstanceObject> Build() {
-    MaybeHandle<WasmInstanceObject> nothing;
-
     // Check that an imports argument was provided, if the module requires it.
     // No point in continuing otherwise.
     if (!module_->import_table.empty() && ffi_.is_null()) {
       thrower_->TypeError(
           "Imports argument must be present and must be an object");
-      return nothing;
+      return {};
     }
 
     HistogramTimerScope wasm_instantiate_module_time_scope(
@@ -1086,7 +1065,7 @@ class InstantiationHelper {
       globals_ = global_buffer;
       if (globals_.is_null()) {
         thrower_->RangeError("Out of memory: wasm globals");
-        return nothing;
+        return {};
       }
       Address old_globals_start = nullptr;
       if (!owner.is_null()) {
@@ -1116,7 +1095,7 @@ class InstantiationHelper {
     // Process the imports for the module.
     //--------------------------------------------------------------------------
     int num_imported_functions = ProcessImports(code_table, instance);
-    if (num_imported_functions < 0) return nothing;
+    if (num_imported_functions < 0) return {};
 
     //--------------------------------------------------------------------------
     // Process the initialization for the module's globals.
@@ -1145,7 +1124,7 @@ class InstantiationHelper {
                                                memory_->has_guard_region());
     } else if (min_mem_pages > 0) {
       memory_ = AllocateMemory(min_mem_pages);
-      if (memory_.is_null()) return nothing;  // failed to allocate memory
+      if (memory_.is_null()) return {};  // failed to allocate memory
     }
 
     //--------------------------------------------------------------------------
@@ -1159,7 +1138,7 @@ class InstantiationHelper {
       if (!in_bounds(base, static_cast<uint32_t>(table_init.entries.size()),
                      table_size)) {
         thrower_->LinkError("table initializer is out of bounds");
-        return nothing;
+        return {};
       }
     }
 
@@ -1172,7 +1151,7 @@ class InstantiationHelper {
           ? 0 : static_cast<uint32_t>(memory_->byte_length()->Number());
       if (!in_bounds(base, seg.source_size, mem_size)) {
         thrower_->LinkError("data segment is out of bounds");
-        return nothing;
+        return {};
       }
     }
 
@@ -1340,7 +1319,7 @@ class InstantiationHelper {
         // chain. However, we need to set up everything before executing the
         // start function, such that stack trace information can be generated
         // correctly already in the start function.
-        return nothing;
+        return {};
       }
     }
 
@@ -2613,7 +2592,6 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-  MaybeHandle<WasmModuleObject> nothing;
 
   ModuleResult result = DecodeWasmModule(isolate, bytes.start(), bytes.end(),
                                          false, kAsmJsOrigin);
@@ -2621,22 +2599,20 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
     // TODO(titzer): use Result<std::unique_ptr<const WasmModule*>>?
     if (result.val) delete result.val;
     thrower->CompileFailed("Wasm decoding failed", result);
-    return nothing;
+    return {};
   }
 
-  return CompileToModuleObject(isolate, const_cast<WasmModule*>(result.val),
-                               thrower, bytes, asm_js_script,
-                               asm_js_offset_table_bytes);
+  CompilationHelper helper(isolate, const_cast<WasmModule*>(result.val));
+  return helper.CompileToModuleObject(thrower, bytes, asm_js_script,
+                                      asm_js_offset_table_bytes);
 }
 
 MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
                                                 ErrorThrower* thrower,
                                                 const ModuleWireBytes& bytes) {
-  MaybeHandle<WasmModuleObject> nothing;
-
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     thrower->CompileError("Wasm code generation disallowed in this context");
-    return nothing;
+    return {};
   }
 
   ModuleResult result =
@@ -2644,12 +2620,12 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
   if (result.failed()) {
     if (result.val) delete result.val;
     thrower->CompileFailed("Wasm decoding failed", result);
-    return nothing;
+    return {};
   }
 
-  return CompileToModuleObject(isolate, const_cast<WasmModule*>(result.val),
-                               thrower, bytes, Handle<Script>(),
-                               Vector<const byte>());
+  CompilationHelper helper(isolate, const_cast<WasmModule*>(result.val));
+  return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
+                                      Vector<const byte>());
 }
 
 MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(

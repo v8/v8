@@ -4091,11 +4091,10 @@ void WasmCompilationUnit::ExecuteCompilation() {
   if (FLAG_trace_wasm_decode_time) {
     double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
     PrintF(
-        "wasm-compilation phase 1 ok: %d bytes, %0.3f ms decode, %zu nodes, "
+        "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
         "%0.3f ms pipeline\n",
-        static_cast<int>(function_->code_end_offset -
-                         function_->code_start_offset),
-        decode_ms, node_count, pipeline_ms);
+        function_->code_end_offset - function_->code_start_offset, decode_ms,
+        node_count, pipeline_ms);
   }
 }
 
@@ -4112,12 +4111,12 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
 
     return Handle<Code>::null();
   }
+  base::ElapsedTimer codegen_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    codegen_timer.Start();
+  }
   if (job_->FinalizeJob() != CompilationJob::SUCCEEDED) {
     return Handle<Code>::null();
-  }
-  base::ElapsedTimer compile_timer;
-  if (FLAG_trace_wasm_decode_time) {
-    compile_timer.Start();
   }
   Handle<Code> code = info_.code();
   DCHECK(!code.is_null());
@@ -4131,11 +4130,10 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
   }
 
   if (FLAG_trace_wasm_decode_time) {
-    double compile_ms = compile_timer.Elapsed().InMillisecondsF();
-    PrintF("wasm-code-generation ok: %d bytes, %0.3f ms code generation\n",
-           static_cast<int>(function_->code_end_offset -
-                            function_->code_start_offset),
-           compile_ms);
+    double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
+    PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
+           function_->code_end_offset - function_->code_start_offset,
+           codegen_ms);
   }
 
   return code;
