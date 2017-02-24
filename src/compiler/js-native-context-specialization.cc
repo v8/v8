@@ -77,6 +77,8 @@ JSNativeContextSpecialization::JSNativeContextSpecialization(
 
 Reduction JSNativeContextSpecialization::Reduce(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kJSAdd:
+      return ReduceJSAdd(node);
     case IrOpcode::kJSGetSuperConstructor:
       return ReduceJSGetSuperConstructor(node);
     case IrOpcode::kJSInstanceOf:
@@ -103,6 +105,30 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSStoreDataPropertyInLiteral(node);
     default:
       break;
+  }
+  return NoChange();
+}
+
+Reduction JSNativeContextSpecialization::ReduceJSAdd(Node* node) {
+  // TODO(turbofan): This has to run together with the inlining and
+  // native context specialization to be able to leverage the string
+  // constant-folding for optimizing property access, but we should
+  // nevertheless find a better home for this at some point.
+  DCHECK_EQ(IrOpcode::kJSAdd, node->opcode());
+
+  // Constant-fold string concatenation.
+  HeapObjectBinopMatcher m(node);
+  if (m.left().HasValue() && m.left().Value()->IsString() &&
+      m.right().HasValue() && m.right().Value()->IsString()) {
+    Handle<String> left = Handle<String>::cast(m.left().Value());
+    Handle<String> right = Handle<String>::cast(m.right().Value());
+    if (left->length() + right->length() <= String::kMaxLength) {
+      Handle<String> result =
+          factory()->NewConsString(left, right).ToHandleChecked();
+      Node* value = jsgraph()->HeapConstant(result);
+      ReplaceWithValue(node, value);
+      return Replace(value);
+    }
   }
   return NoChange();
 }
