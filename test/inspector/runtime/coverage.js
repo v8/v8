@@ -23,6 +23,11 @@ function ClearAndGC() {
            .then(() => Protocol.HeapProfiler.disable());
 }
 
+function LogSorted(message) {
+  message.result.result.sort((a, b) => parseInt(a.scriptId) - parseInt(b.scriptId));
+  return InspectorTest.logMessage(message);
+}
+
 InspectorTest.runTestSuite([
   function testPreciseCoverage(next)
   {
@@ -33,9 +38,9 @@ InspectorTest.runTestSuite([
       .then(ClearAndGC)
       .then(InspectorTest.logMessage)
       .then(Protocol.Runtime.takePreciseCoverage)
-      .then(InspectorTest.logMessage)
+      .then(LogSorted)
       .then(Protocol.Runtime.takePreciseCoverage)
-      .then(InspectorTest.logMessage)
+      .then(LogSorted)
       .then(ClearAndGC)
       .then(Protocol.Runtime.stopPreciseCoverage)
       .then(Protocol.Runtime.disable)
@@ -62,9 +67,9 @@ InspectorTest.runTestSuite([
       .then(InspectorTest.logMessage)
       .then(ClearAndGC)
       .then(Protocol.Runtime.getBestEffortCoverage)
-      .then(InspectorTest.logMessage)
+      .then(LogSorted)
       .then(Protocol.Runtime.getBestEffortCoverage)
-      .then(InspectorTest.logMessage)
+      .then(LogSorted)
       .then(ClearAndGC)
       .then(Protocol.Runtime.disable)
       .then(next);
@@ -78,9 +83,9 @@ InspectorTest.runTestSuite([
       .then(InspectorTest.logMessage)
       .then(ClearAndGC)
       .then(Protocol.Runtime.getBestEffortCoverage)
-      .then(InspectorTest.logMessage)
+      .then(LogSorted)
       .then(Protocol.Runtime.getBestEffortCoverage)
-      .then(InspectorTest.logMessage)
+      .then(LogSorted)
       .then(ClearAndGC)
       .then(Protocol.Runtime.stopPreciseCoverage)
       .then(Protocol.Runtime.disable)
