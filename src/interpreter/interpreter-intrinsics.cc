@@ -299,6 +299,44 @@ Node* IntrinsicsHelper::ClassOf(Node* args_reg, Node* arg_count,
   return __ ClassOf(value);
 }
 
+Node* IntrinsicsHelper::CreateAsyncFromSyncIterator(Node* args_reg,
+                                                    Node* arg_count,
+                                                    Node* context) {
+  InterpreterAssembler::Label not_receiver(
+      assembler_, InterpreterAssembler::Label::kDeferred);
+  InterpreterAssembler::Label done(assembler_);
+  InterpreterAssembler::Variable return_value(assembler_,
+                                              MachineRepresentation::kTagged);
+
+  Node* sync_iterator = __ LoadRegister(args_reg);
+
+  __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
+  __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
+
+  Node* const native_context = __ LoadNativeContext(context);
+  Node* const map = __ LoadContextElement(
+      native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX);
+  Node* const iterator = __ AllocateJSObjectFromMap(map);
+
+  __ StoreObjectFieldNoWriteBarrier(
+      iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
+
+  return_value.Bind(iterator);
+  __ Goto(&done);
+
+  __ Bind(&not_receiver);
+  {
+    return_value.Bind(
+        __ CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context));
+
+    // Unreachable due to the Throw in runtime call.
+    __ Goto(&done);
+  }
+
+  __ Bind(&done);
+  return return_value.value();
+}
+
 void IntrinsicsHelper::AbortIfArgCountMismatch(int expected, Node* actual) {
   InterpreterAssembler::Label match(assembler_);
   Node* comparison = __ Word32Equal(actual, __ Int32Constant(expected));

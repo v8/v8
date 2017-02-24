@@ -225,6 +225,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case JS_SET_ITERATOR_TYPE:
     case JS_MAP_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
 
     case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
     case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:

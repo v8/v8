@@ -197,11 +197,14 @@ enum ContextLookupFlags {
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function)                          \
+  V(ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX, Map, async_from_sync_iterator_map)     \
   V(ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN, SharedFunctionInfo,                \
     async_function_await_reject_shared_fun)                                    \
   V(ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN, SharedFunctionInfo,               \
     async_function_await_resolve_shared_fun)                                   \
   V(ASYNC_FUNCTION_FUNCTION_INDEX, JSFunction, async_function_constructor)     \
+  V(ASYNC_ITERATOR_VALUE_UNWRAP_SHARED_FUN, SharedFunctionInfo,                \
+    async_iterator_value_unwrap_shared_fun)                                    \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \

@@ -398,6 +398,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
   V(JS_ERROR_TYPE)                                              \
+  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
   V(JS_STRING_ITERATOR_TYPE)                                    \
                                                                 \
   V(JS_TYPED_ARRAY_KEY_ITERATOR_TYPE)                           \
@@ -743,6 +744,7 @@ enum InstanceType {
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
   JS_ERROR_TYPE,
+  JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
 
   JS_TYPED_ARRAY_KEY_ITERATOR_TYPE,
@@ -1039,6 +1041,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSArray)                     \
   V(JSArrayBuffer)               \
   V(JSArrayBufferView)           \
+  V(JSAsyncFromSyncIterator)     \
   V(JSCollection)                \
   V(JSTypedArray)                \
   V(JSArrayIterator)             \
@@ -10435,6 +10438,32 @@ class JSArrayIterator : public JSObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayIterator);
+};
+
+// The [Async-from-Sync Iterator] object
+// (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
+// An object which wraps an ordinary Iterator and converts it to behave
+// according to the Async Iterator protocol.
+// (See https://tc39.github.io/proposal-async-iteration/#sec-iteration)
+class JSAsyncFromSyncIterator : public JSObject {
+ public:
+  DECLARE_CAST(JSAsyncFromSyncIterator)
+  DECLARE_PRINTER(JSAsyncFromSyncIterator)
+  DECLARE_VERIFIER(JSAsyncFromSyncIterator)
+
+  // Async-from-Sync Iterator instances are ordinary objects that inherit
+  // properties from the %AsyncFromSyncIteratorPrototype% intrinsic object.
+  // Async-from-Sync Iterator instances are initially created with the internal
+  // slots listed in Table 4.
+  // (proposal-async-iteration/#table-async-from-sync-iterator-internal-slots)
+  DECL_ACCESSORS(sync_iterator, JSReceiver)
+
+  // Offsets of object fields.
+  static const int kSyncIteratorOffset = JSObject::kHeaderSize;
+  static const int kSize = kSyncIteratorOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncFromSyncIterator);
 };
 
 class JSStringIterator : public JSObject {

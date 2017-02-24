@@ -3794,6 +3794,19 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_index(Smi::cast(*next_index)->value());
       return object;
     }
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE: {
+      Handle<JSAsyncFromSyncIterator> object =
+          Handle<JSAsyncFromSyncIterator>::cast(
+              isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
+      slot->value_ = object;
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> sync_iterator = materializer.FieldAt(value_index);
+      object->set_properties(FixedArray::cast(*properties));
+      object->set_elements(FixedArrayBase::cast(*elements));
+      object->set_sync_iterator(JSReceiver::cast(*sync_iterator));
+      return object;
+    }
     case JS_ARRAY_TYPE: {
       Handle<JSArray> object = Handle<JSArray>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));

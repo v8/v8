@@ -172,6 +172,7 @@ class Genesis BASE_EMBEDDED {
 
   void CreateStrictModeFunctionMaps(Handle<JSFunction> empty);
   void CreateIteratorMaps(Handle<JSFunction> empty);
+  void CreateAsyncIteratorMaps();
   void CreateAsyncFunctionMaps(Handle<JSFunction> empty);
   void CreateJSProxyMaps();
 
@@ -785,6 +786,50 @@ void Genesis::CreateIteratorMaps(Handle<JSFunction> empty) {
       *generator_object_prototype_map);
 }
 
+void Genesis::CreateAsyncIteratorMaps() {
+  // %AsyncIteratorPrototype%
+  // proposal-async-iteration/#sec-asynciteratorprototype
+  Handle<JSObject> async_iterator_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+
+  Handle<JSFunction> async_iterator_prototype_iterator = SimpleCreateFunction(
+      isolate(), factory()->NewStringFromAsciiChecked("[Symbol.asyncIterator]"),
+      Builtins::kReturnReceiver, 0, true);
+
+  JSObject::AddProperty(async_iterator_prototype,
+                        factory()->async_iterator_symbol(),
+                        async_iterator_prototype_iterator, DONT_ENUM);
+
+  // %AsyncFromSyncIteratorPrototype%
+  // proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object
+  Handle<JSObject> async_from_sync_iterator_prototype =
+      factory()->NewJSObject(isolate()->object_function(), TENURED);
+  SimpleInstallFunction(async_from_sync_iterator_prototype,
+                        factory()->next_string(),
+                        Builtins::kAsyncFromSyncIteratorPrototypeNext, 1, true);
+  SimpleInstallFunction(
+      async_from_sync_iterator_prototype, factory()->return_string(),
+      Builtins::kAsyncFromSyncIteratorPrototypeReturn, 1, true);
+  SimpleInstallFunction(
+      async_from_sync_iterator_prototype, factory()->throw_string(),
+      Builtins::kAsyncFromSyncIteratorPrototypeThrow, 1, true);
+
+  JSObject::AddProperty(
+      async_from_sync_iterator_prototype, factory()->to_string_tag_symbol(),
+      factory()->NewStringFromAsciiChecked("Async-from-Sync Iterator"),
+      static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  JSObject::ForceSetPrototype(async_from_sync_iterator_prototype,
+                              async_iterator_prototype);
+
+  Handle<Map> async_from_sync_iterator_map = factory()->NewMap(
+      JS_ASYNC_FROM_SYNC_ITERATOR_TYPE, JSAsyncFromSyncIterator::kSize);
+  Map::SetPrototype(async_from_sync_iterator_map,
+                    async_from_sync_iterator_prototype);
+  native_context()->set_async_from_sync_iterator_map(
+      *async_from_sync_iterator_map);
+}
+
 void Genesis::CreateAsyncFunctionMaps(Handle<JSFunction> empty) {
   // %AsyncFunctionPrototype% intrinsic
   Handle<JSObject> async_function_prototype =
@@ -1293,6 +1338,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     sloppy_function_map_writable_prototype_->SetConstructor(*function_fun);
     strict_function_map_writable_prototype_->SetConstructor(*function_fun);
     class_function_map_->SetConstructor(*function_fun);
+  }
+
+  {
+    // --- A s y n c F r o m S y n c I t e r a t o r
+    Handle<Code> code = isolate->builtins()->AsyncIteratorValueUnwrap();
+    Handle<SharedFunctionInfo> info =
+        factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
+    info->set_internal_formal_parameter_count(1);
+    info->set_length(1);
+    native_context()->set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
   {  // --- A r r a y ---
@@ -4761,6 +4816,7 @@ Genesis::Genesis(
     Handle<JSFunction> empty_function = CreateEmptyFunction(isolate);
     CreateStrictModeFunctionMaps(empty_function);
     CreateIteratorMaps(empty_function);
+    CreateAsyncIteratorMaps();
     CreateAsyncFunctionMaps(empty_function);
     Handle<JSGlobalObject> global_object =
         CreateNewGlobals(global_proxy_template, global_proxy);

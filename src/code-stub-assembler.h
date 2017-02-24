@@ -692,6 +692,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSGlobalProxy(Node* object);
   Node* IsJSReceiverInstanceType(Node* instance_type);
   Node* IsJSReceiver(Node* object);
+  Node* IsJSReceiverMap(Node* map);
   Node* IsMap(Node* object);
   Node* IsCallableMap(Node* map);
   Node* IsCallable(Node* object);
@@ -1003,6 +1004,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_found, Variable* var_value,
                          Label* if_not_found, Label* if_bailout);
 
+  Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
+    return CallStub(CodeFactory::GetProperty(isolate()), context, receiver,
+                    HeapConstant(name));
+  }
+
   void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
                                   Node* name_index, Variable* var_details,
                                   Variable* var_value);
@@ -1257,6 +1263,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void Print(const char* s);
   void Print(const char* prefix, Node* tagged_value);
   inline void Print(Node* tagged_value) { return Print(nullptr, tagged_value); }
+
+  template <class... TArgs>
+  Node* MakeTypeError(MessageTemplate::Template message, Node* context,
+                      TArgs... args) {
+    STATIC_ASSERT(sizeof...(TArgs) <= 3);
+    Node* const make_type_error = LoadContextElement(
+        LoadNativeContext(context), Context::MAKE_TYPE_ERROR_INDEX);
+    return CallJS(CodeFactory::Call(isolate()), context, make_type_error,
+                  UndefinedConstant(), SmiConstant(message), args...);
+  }
 
  protected:
   void DescriptorLookup(Node* unique_name, Node* descriptors, Node* bitfield3,

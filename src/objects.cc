@@ -12555,6 +12555,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_API_OBJECT_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_DATA_VIEW_TYPE:
     case JS_DATE_TYPE:

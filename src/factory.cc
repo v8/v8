@@ -1975,6 +1975,16 @@ Handle<JSIteratorResult> Factory::NewJSIteratorResult(Handle<Object> value,
   return js_iter_result;
 }
 
+Handle<JSAsyncFromSyncIterator> Factory::NewJSAsyncFromSyncIterator(
+    Handle<JSReceiver> sync_iterator) {
+  Handle<Map> map(isolate()->native_context()->async_from_sync_iterator_map());
+  Handle<JSAsyncFromSyncIterator> iterator =
+      Handle<JSAsyncFromSyncIterator>::cast(NewJSObjectFromMap(map));
+
+  iterator->set_sync_iterator(*sync_iterator);
+  return iterator;
+}
+
 Handle<JSMap> Factory::NewJSMap() {
   Handle<Map> map(isolate()->native_context()->js_map_map());
   Handle<JSMap> js_map = Handle<JSMap>::cast(NewJSObjectFromMap(map));

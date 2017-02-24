@@ -846,7 +846,18 @@ class Isolate;
       WasmRuntimeCall, 1)                                                      \
   TFS(ThrowWasmTrapFuncInvalid, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)  \
   TFS(ThrowWasmTrapFuncSigMismatch, BUILTIN, kNoExtraICState, WasmRuntimeCall, \
-      1)
+      1)                                                                       \
+                                                                               \
+  /* Async-from-Sync Iterator */                                               \
+                                                                               \
+  /* %AsyncFromSyncIteratorPrototype% */                                       \
+  /* (proposal-async-iteration/#sec-%asyncfromsynciteratorprototype%-object)*/ \
+  TFJ(AsyncFromSyncIteratorPrototypeNext, 1)                                   \
+  TFJ(AsyncFromSyncIteratorPrototypeThrow, 1)                                  \
+  TFJ(AsyncFromSyncIteratorPrototypeReturn, 1)                                 \
+                                                                               \
+  /* proposal-async-iteration/#sec-async-iterator-value-unwrap-functions */    \
+  TFJ(AsyncIteratorValueUnwrap, 1)
 
 #define IGNORE_BUILTIN(...)
 

@@ -2890,6 +2890,11 @@ Node* CodeStubAssembler::IsJSReceiver(Node* object) {
   return IsJSReceiverInstanceType(LoadInstanceType(object));
 }
 
+Node* CodeStubAssembler::IsJSReceiverMap(Node* map) {
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  return IsJSReceiverInstanceType(LoadMapInstanceType(map));
+}
+
 Node* CodeStubAssembler::IsJSObject(Node* object) {
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   return Int32GreaterThanOrEqual(LoadInstanceType(object),

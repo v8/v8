@@ -511,10 +511,18 @@ RUNTIME_FUNCTION(Runtime_AllowDynamicFunction) {
 }
 
 RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
-  // TODO(caitp): split AsyncFromSyncIterator functionality out of
-  //              https://codereview.chromium.org/2622833002
-  UNREACHABLE();
-  return isolate->heap()->undefined_value();
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, sync_iterator, 0);
+
+  if (!sync_iterator->IsJSReceiver()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
+  }
+
+  return *isolate->factory()->NewJSAsyncFromSyncIterator(
+      Handle<JSReceiver>::cast(sync_iterator));
 }
 
 }  // namespace internal

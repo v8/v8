@@ -477,6 +477,7 @@
         'builtins/builtins-arguments.h',
         'builtins/builtins-arraybuffer.cc',
         'builtins/builtins-array.cc',
+        'builtins/builtins-async-iterator.cc',
         'builtins/builtins-async-function.cc',
         'builtins/builtins-async.cc',
         'builtins/builtins-async.h',

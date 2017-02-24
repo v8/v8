@@ -200,6 +200,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_STRING_ITERATOR_TYPE:
       JSStringIterator::cast(this)->JSStringIteratorVerify();
       break;
+    case JS_ASYNC_FROM_SYNC_ITERATOR_TYPE:
+      JSAsyncFromSyncIterator::cast(this)->JSAsyncFromSyncIteratorVerify();
+      break;
     case JS_WEAK_MAP_TYPE:
       JSWeakMap::cast(this)->JSWeakMapVerify();
       break;
@@ -888,6 +891,12 @@ void JSStringIterator::JSStringIteratorVerify() {
 
   CHECK_GE(index(), 0);
   CHECK_LE(index(), String::kMaxLength);
+}
+
+void JSAsyncFromSyncIterator::JSAsyncFromSyncIteratorVerify() {
+  CHECK(IsJSAsyncFromSyncIterator());
+  JSObjectVerify();
+  VerifyHeapPointer(sync_iterator());
 }
 
 void JSWeakSet::JSWeakSetVerify() {
