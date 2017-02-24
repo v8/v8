@@ -323,6 +323,8 @@ def BuildOptions():
                     default=False, action="store_true")
   result.add_option("--json-test-results",
                     help="Path to a file for storing json results.")
+  result.add_option("--flakiness-results",
+                    help="Path to a file for storing flakiness json.")
   result.add_option("--rerun-failures-count",
                     help=("Number of times to rerun each failing test case. "
                           "Very slow tests will be rerun only once."),
@@ -878,6 +880,9 @@ def Execute(arch, mode, args, options, suites):
     progress_indicator.Register(progress.JsonTestProgressIndicator(
         options.json_test_results, arch, MODES[mode]["execution_mode"],
         ctx.random_seed))
+  if options.flakiness_results:
+    progress_indicator.Register(progress.FlakinessTestProgressIndicator(
+        options.flakiness_results))
 
   run_networked = not options.no_network
   if not run_networked:
