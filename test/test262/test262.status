@@ -548,6 +548,8 @@
   'intl402/NumberFormat/11.2.3_b': [FAIL],
   'intl402/NumberFormat/prototype/11.3_a': [FAIL],
   'intl402/String/prototype/localeCompare/13.1.1_7': [PASS, FAIL],
+  'intl402/NumberFormat/default-currency-maximum-fraction-digits': [PASS, FAIL],
+  'intl402/NumberFormat/fraction-digit-options-read-once': [PASS, FAIL],
 
   ##################### DELIBERATE INCOMPATIBILITIES #####################
 
