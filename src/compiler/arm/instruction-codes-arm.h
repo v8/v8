@@ -201,6 +201,7 @@ namespace compiler {
   V(ArmUint8x16Max)                \
   V(ArmUint8x16GreaterThan)        \
   V(ArmUint8x16GreaterThanOrEqual) \
+  V(ArmSimd128Zero)                \
   V(ArmSimd128And)                 \
   V(ArmSimd128Or)                  \
   V(ArmSimd128Xor)                 \

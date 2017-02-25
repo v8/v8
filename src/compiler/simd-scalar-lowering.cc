@@ -74,13 +74,13 @@ void SimdScalarLowering::LowerGraph() {
 #define FOREACH_INT32X4_OPCODE(V) \
   V(Int32x4Add)                   \
   V(Int32x4ExtractLane)           \
-  V(CreateInt32x4)                \
+  V(Int32x4Splat)                 \
   V(Int32x4ReplaceLane)
 
 #define FOREACH_FLOAT32X4_OPCODE(V) \
   V(Float32x4Add)                   \
   V(Float32x4ExtractLane)           \
-  V(CreateFloat32x4)                \
+  V(Float32x4Splat)                 \
   V(Float32x4ReplaceLane)
 
 void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
@@ -385,14 +385,14 @@ void SimdScalarLowering::LowerNode(Node* node) {
       LowerBinaryOp(node, rep_type, machine()->Float32Add());
       break;
     }
-    case IrOpcode::kCreateInt32x4:
-    case IrOpcode::kCreateFloat32x4: {
+    case IrOpcode::kInt32x4Splat:
+    case IrOpcode::kFloat32x4Splat: {
       Node* rep_node[kMaxLanes];
       for (int i = 0; i < kMaxLanes; ++i) {
-        if (HasReplacement(0, node->InputAt(i))) {
-          rep_node[i] = GetReplacements(node->InputAt(i))[0];
+        if (HasReplacement(0, node->InputAt(0))) {
+          rep_node[i] = GetReplacements(node->InputAt(0))[0];
         } else {
-          rep_node[i] = node->InputAt(i);
+          rep_node[i] = node->InputAt(0);
         }
       }
       ReplaceNode(node, rep_node);

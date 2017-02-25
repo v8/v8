@@ -1908,6 +1908,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
+    case kArmSimd128Zero: {
+      __ veor(i.OutputSimd128Register(), i.OutputSimd128Register(),
+              i.OutputSimd128Register());
+      break;
+    }
     case kArmSimd128And: {
       __ vand(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));

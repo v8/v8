@@ -552,7 +552,7 @@
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_RETURN_SIMD_OP_LIST(V) \
-  V(CreateFloat32x4)                        \
+  V(Float32x4Splat)                         \
   V(Float32x4ReplaceLane)                   \
   V(Float32x4Abs)                           \
   V(Float32x4Neg)                           \
@@ -575,7 +575,7 @@
   V(Float32x4GreaterThanOrEqual)            \
   V(Float32x4FromInt32x4)                   \
   V(Float32x4FromUint32x4)                  \
-  V(CreateInt32x4)                          \
+  V(Int32x4Splat)                           \
   V(Int32x4ReplaceLane)                     \
   V(Int32x4Neg)                             \
   V(Int32x4Add)                             \
@@ -605,7 +605,7 @@
   V(Bool32x4Or)                             \
   V(Bool32x4Xor)                            \
   V(Bool32x4Not)                            \
-  V(CreateInt16x8)                          \
+  V(Int16x8Splat)                           \
   V(Int16x8ReplaceLane)                     \
   V(Int16x8Neg)                             \
   V(Int16x8Add)                             \
@@ -637,7 +637,7 @@
   V(Bool16x8Or)                             \
   V(Bool16x8Xor)                            \
   V(Bool16x8Not)                            \
-  V(CreateInt8x16)                          \
+  V(Int8x16Splat)                           \
   V(Int8x16ReplaceLane)                     \
   V(Int8x16Neg)                             \
   V(Int8x16Add)                             \
@@ -669,6 +669,7 @@
   V(Bool8x16Or)                             \
   V(Bool8x16Xor)                            \
   V(Bool8x16Not)                            \
+  V(Simd128Zero)                            \
   V(Simd128And)                             \
   V(Simd128Or)                              \
   V(Simd128Xor)                             \
@@ -681,7 +682,10 @@
   V(Simd16x8Shuffle)                        \
   V(Simd8x16Select)                         \
   V(Simd8x16Swizzle)                        \
-  V(Simd8x16Shuffle)
+  V(Simd8x16Shuffle)                        \
+  V(Simd1x4Zero)                            \
+  V(Simd1x8Zero)                            \
+  V(Simd1x16Zero)
 
 #define MACHINE_SIMD_RETURN_NUM_OP_LIST(V) \
   V(Float32x4ExtractLane)                  \

@@ -2154,7 +2154,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ xchgl(i.InputRegister(index), operand);
       break;
     }
-    case kX64Int32x4Create: {
+    case kX64Int32x4Splat: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputRegister(0));
@@ -2184,6 +2184,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64Int32x4Sub: {
       CpuFeatureScope sse_scope(masm(), SSE4_1);
       __ psubd(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64Simd128Zero: {
+      CpuFeatureScope sse_scope(masm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      __ xorps(dst, dst);
       break;
     }
     case kCheckedLoadInt8:

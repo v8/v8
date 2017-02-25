@@ -2274,9 +2274,9 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   Emit(code, 0, static_cast<InstructionOperand*>(nullptr), input_count, inputs);
 }
 
-void InstructionSelector::VisitCreateInt32x4(Node* node) {
+void InstructionSelector::VisitInt32x4Splat(Node* node) {
   X64OperandGenerator g(this);
-  Emit(kX64Int32x4Create, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+  Emit(kX64Int32x4Splat, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
@@ -2304,6 +2304,26 @@ void InstructionSelector::VisitInt32x4Sub(Node* node) {
   X64OperandGenerator g(this);
   Emit(kX64Int32x4Sub, g.DefineSameAsFirst(node),
        g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)));
+}
+
+void InstructionSelector::VisitSimd128Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitSimd1x4Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitSimd1x8Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
+}
+
+void InstructionSelector::VisitSimd1x16Zero(Node* node) {
+  X64OperandGenerator g(this);
+  Emit(kX64Simd128Zero, g.DefineSameAsFirst(node));
 }
 
 // static

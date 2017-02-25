@@ -123,11 +123,12 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Lea:
     case kX64Dec32:
     case kX64Inc32:
-    case kX64Int32x4Create:
+    case kX64Int32x4Splat:
     case kX64Int32x4ExtractLane:
     case kX64Int32x4ReplaceLane:
     case kX64Int32x4Add:
     case kX64Int32x4Sub:
+    case kX64Simd128Zero:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;

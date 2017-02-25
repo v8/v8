@@ -274,10 +274,16 @@ class WasmTrapHelper : public ZoneObject {
         return jsgraph()->Float32Constant(bit_cast<float>(0xdeadbeef));
       case wasm::kWasmF64:
         return jsgraph()->Float64Constant(bit_cast<double>(0xdeadbeefdeadbeef));
-        break;
+      // We can't always set SIMD types to specific bit patterns. Just zero
+      // them out.
       case wasm::kWasmS128:
-        return builder_->CreateS128Value(0xdeadbeef);
-        break;
+        return builder_->Simd128Zero();
+      case wasm::kWasmS1x4:
+        return builder_->Simd1x4Zero();
+      case wasm::kWasmS1x8:
+        return builder_->Simd1x8Zero();
+      case wasm::kWasmS1x16:
+        return builder_->Simd1x16Zero();
       default:
         UNREACHABLE();
         return nullptr;
@@ -3337,13 +3343,24 @@ void WasmGraphBuilder::SetSourcePosition(Node* node,
     source_position_table_->SetSourcePosition(node, SourcePosition(position));
 }
 
-Node* WasmGraphBuilder::CreateS128Value(int32_t value) {
-  // TODO(gdeepti): Introduce Simd128Constant to common-operator.h and use
-  // instead of creating a SIMD Value.
+Node* WasmGraphBuilder::Simd128Zero() {
   has_simd_ = true;
-  return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(),
-                          Int32Constant(value), Int32Constant(value),
-                          Int32Constant(value), Int32Constant(value));
+  return graph()->NewNode(jsgraph()->machine()->Simd128Zero());
+}
+
+Node* WasmGraphBuilder::Simd1x4Zero() {
+  has_simd_ = true;
+  return graph()->NewNode(jsgraph()->machine()->Simd1x4Zero());
+}
+
+Node* WasmGraphBuilder::Simd1x8Zero() {
+  has_simd_ = true;
+  return graph()->NewNode(jsgraph()->machine()->Simd1x8Zero());
+}
+
+Node* WasmGraphBuilder::Simd1x16Zero() {
+  has_simd_ = true;
+  return graph()->NewNode(jsgraph()->machine()->Simd1x16Zero());
 }
 
 Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
@@ -3351,8 +3368,8 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
   has_simd_ = true;
   switch (opcode) {
     case wasm::kExprF32x4Splat:
-      return graph()->NewNode(jsgraph()->machine()->CreateFloat32x4(),
-                              inputs[0], inputs[0], inputs[0], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Splat(),
+                              inputs[0]);
     case wasm::kExprF32x4SConvertI32x4:
       return graph()->NewNode(jsgraph()->machine()->Float32x4FromInt32x4(),
                               inputs[0]);
@@ -3376,8 +3393,7 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(jsgraph()->machine()->Float32x4NotEqual(),
                               inputs[0], inputs[1]);
     case wasm::kExprI32x4Splat:
-      return graph()->NewNode(jsgraph()->machine()->CreateInt32x4(), inputs[0],
-                              inputs[0], inputs[0], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->Int32x4Splat(), inputs[0]);
     case wasm::kExprI32x4SConvertF32x4:
       return graph()->NewNode(jsgraph()->machine()->Int32x4FromFloat32x4(),
                               inputs[0]);
@@ -3440,9 +3456,7 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
           jsgraph()->machine()->Uint32x4GreaterThanOrEqual(), inputs[0],
           inputs[1]);
     case wasm::kExprI16x8Splat:
-      return graph()->NewNode(jsgraph()->machine()->CreateInt16x8(), inputs[0],
-                              inputs[0], inputs[0], inputs[0], inputs[0],
-                              inputs[0], inputs[0], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->Int16x8Splat(), inputs[0]);
     case wasm::kExprI16x8Neg:
       return graph()->NewNode(jsgraph()->machine()->Int16x8Neg(), inputs[0]);
     case wasm::kExprI16x8Add:
@@ -3511,11 +3525,7 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
           jsgraph()->machine()->Uint16x8GreaterThanOrEqual(), inputs[0],
           inputs[1]);
     case wasm::kExprI8x16Splat:
-      return graph()->NewNode(jsgraph()->machine()->CreateInt8x16(), inputs[0],
-                              inputs[0], inputs[0], inputs[0], inputs[0],
-                              inputs[0], inputs[0], inputs[0], inputs[0],
-                              inputs[0], inputs[0], inputs[0], inputs[0],
-                              inputs[0], inputs[0], inputs[0]);
+      return graph()->NewNode(jsgraph()->machine()->Int8x16Splat(), inputs[0]);
     case wasm::kExprI8x16Neg:
       return graph()->NewNode(jsgraph()->machine()->Int8x16Neg(), inputs[0]);
     case wasm::kExprI8x16Add:

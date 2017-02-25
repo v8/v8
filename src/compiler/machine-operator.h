@@ -425,7 +425,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float64SilenceNaN();
 
   // SIMD operators.
-  const Operator* CreateFloat32x4();
+  const Operator* Float32x4Splat();
   const Operator* Float32x4ExtractLane(int32_t);
   const Operator* Float32x4ReplaceLane(int32_t);
   const Operator* Float32x4Abs();
@@ -450,7 +450,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Float32x4FromInt32x4();
   const Operator* Float32x4FromUint32x4();
 
-  const Operator* CreateInt32x4();
+  const Operator* Int32x4Splat();
   const Operator* Int32x4ExtractLane(int32_t);
   const Operator* Int32x4ReplaceLane(int32_t);
   const Operator* Int32x4Neg();
@@ -485,7 +485,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Bool32x4AnyTrue();
   const Operator* Bool32x4AllTrue();
 
-  const Operator* CreateInt16x8();
+  const Operator* Int16x8Splat();
   const Operator* Int16x8ExtractLane(int32_t);
   const Operator* Int16x8ReplaceLane(int32_t);
   const Operator* Int16x8Neg();
@@ -522,7 +522,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Bool16x8AnyTrue();
   const Operator* Bool16x8AllTrue();
 
-  const Operator* CreateInt8x16();
+  const Operator* Int8x16Splat();
   const Operator* Int8x16ExtractLane(int32_t);
   const Operator* Int8x16ReplaceLane(int32_t);
   const Operator* Int8x16Neg();
@@ -567,10 +567,13 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd128Store1();
   const Operator* Simd128Store2();
   const Operator* Simd128Store3();
+
+  const Operator* Simd128Zero();
   const Operator* Simd128And();
   const Operator* Simd128Or();
   const Operator* Simd128Xor();
   const Operator* Simd128Not();
+
   const Operator* Simd32x4Select();
   const Operator* Simd32x4Swizzle(uint32_t);
   const Operator* Simd32x4Shuffle();
@@ -580,6 +583,10 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd8x16Select();
   const Operator* Simd8x16Swizzle(uint32_t);
   const Operator* Simd8x16Shuffle();
+
+  const Operator* Simd1x4Zero();
+  const Operator* Simd1x8Zero();
+  const Operator* Simd1x16Zero();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

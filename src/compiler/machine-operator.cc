@@ -220,7 +220,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Word32PairShl, Operator::kNoProperties, 3, 0, 2)                       \
   V(Word32PairShr, Operator::kNoProperties, 3, 0, 2)                       \
   V(Word32PairSar, Operator::kNoProperties, 3, 0, 2)                       \
-  V(CreateFloat32x4, Operator::kNoProperties, 4, 0, 1)                     \
+  V(Float32x4Splat, Operator::kNoProperties, 1, 0, 1)                      \
   V(Float32x4Abs, Operator::kNoProperties, 1, 0, 1)                        \
   V(Float32x4Neg, Operator::kNoProperties, 1, 0, 1)                        \
   V(Float32x4Sqrt, Operator::kNoProperties, 1, 0, 1)                       \
@@ -242,7 +242,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Float32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)         \
   V(Float32x4FromInt32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Float32x4FromUint32x4, Operator::kNoProperties, 1, 0, 1)               \
-  V(CreateInt32x4, Operator::kNoProperties, 4, 0, 1)                       \
+  V(Int32x4Splat, Operator::kNoProperties, 1, 0, 1)                        \
   V(Int32x4Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int32x4Add, Operator::kCommutative, 2, 0, 1)                           \
   V(Int32x4Sub, Operator::kNoProperties, 2, 0, 1)                          \
@@ -269,7 +269,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Bool32x4Not, Operator::kNoProperties, 1, 0, 1)                         \
   V(Bool32x4AnyTrue, Operator::kNoProperties, 1, 0, 1)                     \
   V(Bool32x4AllTrue, Operator::kNoProperties, 1, 0, 1)                     \
-  V(CreateInt16x8, Operator::kNoProperties, 8, 0, 1)                       \
+  V(Int16x8Splat, Operator::kNoProperties, 1, 0, 1)                        \
   V(Int16x8Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int16x8Add, Operator::kCommutative, 2, 0, 1)                           \
   V(Int16x8AddSaturate, Operator::kCommutative, 2, 0, 1)                   \
@@ -298,7 +298,7 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Bool16x8Not, Operator::kNoProperties, 1, 0, 1)                         \
   V(Bool16x8AnyTrue, Operator::kNoProperties, 1, 0, 1)                     \
   V(Bool16x8AllTrue, Operator::kNoProperties, 1, 0, 1)                     \
-  V(CreateInt8x16, Operator::kNoProperties, 16, 0, 1)                      \
+  V(Int8x16Splat, Operator::kNoProperties, 1, 0, 1)                        \
   V(Int8x16Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int8x16Add, Operator::kCommutative, 2, 0, 1)                           \
   V(Int8x16AddSaturate, Operator::kCommutative, 2, 0, 1)                   \
@@ -335,13 +335,17 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   V(Simd128Store1, Operator::kNoProperties, 3, 0, 1)                       \
   V(Simd128Store2, Operator::kNoProperties, 3, 0, 1)                       \
   V(Simd128Store3, Operator::kNoProperties, 3, 0, 1)                       \
+  V(Simd128Zero, Operator::kNoProperties, 0, 0, 1)                         \
   V(Simd128And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Simd128Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)   \
   V(Simd128Xor, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)  \
   V(Simd128Not, Operator::kNoProperties, 1, 0, 1)                          \
   V(Simd32x4Select, Operator::kNoProperties, 3, 0, 1)                      \
   V(Simd16x8Select, Operator::kNoProperties, 3, 0, 1)                      \
-  V(Simd8x16Select, Operator::kNoProperties, 3, 0, 1)
+  V(Simd8x16Select, Operator::kNoProperties, 3, 0, 1)                      \
+  V(Simd1x4Zero, Operator::kNoProperties, 0, 0, 1)                         \
+  V(Simd1x8Zero, Operator::kNoProperties, 0, 0, 1)                         \
+  V(Simd1x16Zero, Operator::kNoProperties, 0, 0, 1)
 
 #define PURE_OPTIONAL_OP_LIST(V)                            \
   V(Word32Ctz, Operator::kNoProperties, 1, 0, 1)            \

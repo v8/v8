@@ -2192,6 +2192,12 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(16x8)                   \
   V(8x16)
 
+#define SIMD_ZERO_OP_LIST(V) \
+  V(Simd128Zero)             \
+  V(Simd1x4Zero)             \
+  V(Simd1x8Zero)             \
+  V(Simd1x16Zero)
+
 #define SIMD_UNOP_LIST(V)  \
   V(Float32x4FromInt32x4)  \
   V(Float32x4FromUint32x4) \
@@ -2271,9 +2277,9 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
   V(Int8x16ShiftRightByScalar)  \
   V(Uint8x16ShiftRightByScalar)
 
-#define SIMD_VISIT_SPLAT(Type)                              \
-  void InstructionSelector::VisitCreate##Type(Node* node) { \
-    VisitRR(this, kArm##Type##Splat, node);                 \
+#define SIMD_VISIT_SPLAT(Type)                               \
+  void InstructionSelector::Visit##Type##Splat(Node* node) { \
+    VisitRR(this, kArm##Type##Splat, node);                  \
   }
 SIMD_TYPE_LIST(SIMD_VISIT_SPLAT)
 #undef SIMD_VISIT_SPLAT
@@ -2291,6 +2297,14 @@ SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
+
+#define SIMD_VISIT_ZERO_OP(Name)                                               \
+  void InstructionSelector::Visit##Name(Node* node) {                          \
+    ArmOperandGenerator g(this);                                               \
+    Emit(kArmSimd128Zero, g.DefineAsRegister(node), g.DefineAsRegister(node)); \
+  }
+SIMD_ZERO_OP_LIST(SIMD_VISIT_ZERO_OP)
+#undef SIMD_VISIT_ZERO_OP
 
 #define SIMD_VISIT_UNOP(Name)                         \
   void InstructionSelector::Visit##Name(Node* node) { \

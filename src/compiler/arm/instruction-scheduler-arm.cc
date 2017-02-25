@@ -189,6 +189,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArmUint8x16Max:
     case kArmUint8x16GreaterThan:
     case kArmUint8x16GreaterThanOrEqual:
+    case kArmSimd128Zero:
     case kArmSimd128And:
     case kArmSimd128Or:
     case kArmSimd128Xor:
