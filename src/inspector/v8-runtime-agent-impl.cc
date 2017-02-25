@@ -52,7 +52,6 @@ namespace V8RuntimeAgentImplState {
 static const char customObjectFormatterEnabled[] =
     "customObjectFormatterEnabled";
 static const char runtimeEnabled[] = "runtimeEnabled";
-static const char preciseCoverageStarted[] = "preciseCoverageStarted";
 };
 
 using protocol::Runtime::RemoteObject;
@@ -647,88 +646,6 @@ void V8RuntimeAgentImpl::runScript(
       std::move(callback));
 }
 
-Response V8RuntimeAgentImpl::startPreciseCoverage() {
-  m_state->setBoolean(V8RuntimeAgentImplState::preciseCoverageStarted, true);
-  v8::debug::Coverage::TogglePrecise(m_inspector->isolate(), true);
-  return Response::OK();
-}
-
-Response V8RuntimeAgentImpl::stopPreciseCoverage() {
-  m_state->setBoolean(V8RuntimeAgentImplState::preciseCoverageStarted, false);
-  v8::debug::Coverage::TogglePrecise(m_inspector->isolate(), false);
-  return Response::OK();
-}
-
-namespace {
-Response takeCoverage(
-    v8::Isolate* isolate, bool reset_count,
-    std::unique_ptr<protocol::Array<protocol::Runtime::ScriptCoverage>>*
-        out_result) {
-  std::unique_ptr<protocol::Array<protocol::Runtime::ScriptCoverage>> result =
-      protocol::Array<protocol::Runtime::ScriptCoverage>::create();
-  v8::HandleScope handle_scope(isolate);
-  v8::debug::Coverage coverage =
-      v8::debug::Coverage::Collect(isolate, reset_count);
-  for (size_t i = 0; i < coverage.ScriptCount(); i++) {
-    v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(i);
-    v8::Local<v8::debug::Script> script = script_data.GetScript();
-    std::unique_ptr<protocol::Array<protocol::Runtime::FunctionCoverage>>
-        functions =
-            protocol::Array<protocol::Runtime::FunctionCoverage>::create();
-    for (size_t j = 0; j < script_data.FunctionCount(); j++) {
-      v8::debug::Coverage::FunctionData function_data =
-          script_data.GetFunctionData(j);
-      std::unique_ptr<protocol::Array<protocol::Runtime::CoverageRange>>
-          ranges = protocol::Array<protocol::Runtime::CoverageRange>::create();
-      // At this point we only have per-function coverage data, so there is
-      // only one range per function.
-      ranges->addItem(
-          protocol::Runtime::CoverageRange::create()
-              .setStartLineNumber(function_data.Start().GetLineNumber())
-              .setStartColumnNumber(function_data.Start().GetColumnNumber())
-              .setEndLineNumber(function_data.End().GetLineNumber())
-              .setEndColumnNumber(function_data.End().GetColumnNumber())
-              .setCount(function_data.Count())
-              .build());
-      functions->addItem(
-          protocol::Runtime::FunctionCoverage::create()
-              .setFunctionName(toProtocolString(
-                  function_data.Name().FromMaybe(v8::Local<v8::String>())))
-              .setRanges(std::move(ranges))
-              .build());
-    }
-    String16 url;
-    v8::Local<v8::String> name;
-    if (script->Name().ToLocal(&name) || script->SourceURL().ToLocal(&name)) {
-      url = toProtocolString(name);
-    }
-    result->addItem(protocol::Runtime::ScriptCoverage::create()
-                        .setScriptId(String16::fromInteger(script->Id()))
-                        .setUrl(url)
-                        .setFunctions(std::move(functions))
-                        .build());
-  }
-  *out_result = std::move(result);
-  return Response::OK();
-}
-}  // anonymous namespace
-
-Response V8RuntimeAgentImpl::takePreciseCoverage(
-    std::unique_ptr<protocol::Array<protocol::Runtime::ScriptCoverage>>*
-        out_result) {
-  if (!m_state->booleanProperty(V8RuntimeAgentImplState::preciseCoverageStarted,
-                                false)) {
-    return Response::Error("Precise coverage has not been started.");
-  }
-  return takeCoverage(m_inspector->isolate(), true, out_result);
-}
-
-Response V8RuntimeAgentImpl::getBestEffortCoverage(
-    std::unique_ptr<protocol::Array<protocol::Runtime::ScriptCoverage>>*
-        out_result) {
-  return takeCoverage(m_inspector->isolate(), false, out_result);
-}
-
 void V8RuntimeAgentImpl::restore() {
   if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
     return;
@@ -737,9 +654,6 @@ void V8RuntimeAgentImpl::restore() {
   if (m_state->booleanProperty(
           V8RuntimeAgentImplState::customObjectFormatterEnabled, false))
     m_session->setCustomObjectFormatterEnabled(true);
-  if (m_state->booleanProperty(V8RuntimeAgentImplState::preciseCoverageStarted,
-                               false))
-    startPreciseCoverage();
 }
 
 Response V8RuntimeAgentImpl::enable() {
@@ -767,7 +681,6 @@ Response V8RuntimeAgentImpl::disable() {
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(
       m_session->contextGroupId());
-  stopPreciseCoverage();
   return Response::OK();
 }
 

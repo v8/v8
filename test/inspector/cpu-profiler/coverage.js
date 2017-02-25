@@ -14,7 +14,7 @@ function fib(x) {
 fib(5);
 `;
 
-print("Test collecting code coverage data with Runtime.collectCoverage.");
+print("Test collecting code coverage data with Profiler.collectCoverage.");
 
 function ClearAndGC() {
   return Protocol.Runtime.evaluate({ expression: "fib = null;" })
@@ -32,30 +32,34 @@ InspectorTest.runTestSuite([
   function testPreciseCoverage(next)
   {
     Protocol.Runtime.enable()
-      .then(Protocol.Runtime.startPreciseCoverage)
+      .then(Protocol.Profiler.enable)
+      .then(Protocol.Profiler.startPreciseCoverage)
       .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: "1", persistScript: true }))
       .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
       .then(ClearAndGC)
       .then(InspectorTest.logMessage)
-      .then(Protocol.Runtime.takePreciseCoverage)
+      .then(Protocol.Profiler.takePreciseCoverage)
       .then(LogSorted)
-      .then(Protocol.Runtime.takePreciseCoverage)
+      .then(Protocol.Profiler.takePreciseCoverage)
       .then(LogSorted)
       .then(ClearAndGC)
-      .then(Protocol.Runtime.stopPreciseCoverage)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(Protocol.Profiler.disable)
       .then(Protocol.Runtime.disable)
       .then(next);
   },
   function testPreciseCoverageFail(next)
   {
     Protocol.Runtime.enable()
+      .then(Protocol.Profiler.enable)
       .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: "2", persistScript: true }))
       .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
       .then(InspectorTest.logMessage)
       .then(ClearAndGC)
-      .then(Protocol.Runtime.takePreciseCoverage)
+      .then(Protocol.Profiler.takePreciseCoverage)
       .then(InspectorTest.logMessage)
       .then(ClearAndGC)
+      .then(Protocol.Profiler.disable)
       .then(Protocol.Runtime.disable)
       .then(next);
   },
@@ -66,9 +70,9 @@ InspectorTest.runTestSuite([
       .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
       .then(InspectorTest.logMessage)
       .then(ClearAndGC)
-      .then(Protocol.Runtime.getBestEffortCoverage)
+      .then(Protocol.Profiler.getBestEffortCoverage)
       .then(LogSorted)
-      .then(Protocol.Runtime.getBestEffortCoverage)
+      .then(Protocol.Profiler.getBestEffortCoverage)
       .then(LogSorted)
       .then(ClearAndGC)
       .then(Protocol.Runtime.disable)
@@ -77,17 +81,19 @@ InspectorTest.runTestSuite([
   function testBestEffortCoveragePrecise(next)
   {
     Protocol.Runtime.enable()
-      .then(Protocol.Runtime.startPreciseCoverage)
+      .then(Protocol.Profiler.enable)
+      .then(Protocol.Profiler.startPreciseCoverage)
       .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: "4", persistScript: true }))
       .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
       .then(InspectorTest.logMessage)
       .then(ClearAndGC)
-      .then(Protocol.Runtime.getBestEffortCoverage)
+      .then(Protocol.Profiler.getBestEffortCoverage)
       .then(LogSorted)
-      .then(Protocol.Runtime.getBestEffortCoverage)
+      .then(Protocol.Profiler.getBestEffortCoverage)
       .then(LogSorted)
       .then(ClearAndGC)
-      .then(Protocol.Runtime.stopPreciseCoverage)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(Protocol.Profiler.disable)
       .then(Protocol.Runtime.disable)
       .then(next);
   },

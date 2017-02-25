@@ -1,4 +1,4 @@
-Test collecting code coverage data with Runtime.collectCoverage.
+Test collecting code coverage data with Profiler.collectCoverage.
 
 Running test: testPreciseCoverage
 {
