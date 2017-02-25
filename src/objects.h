@@ -10793,6 +10793,10 @@ class JSTypedArray: public JSArrayBufferView {
 
   Handle<JSArrayBuffer> GetBuffer();
 
+  static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
+                                                   Handle<Object> receiver,
+                                                   const char* method_name);
+
   // Dispatched behavior.
   DECLARE_PRINTER(JSTypedArray)
   DECLARE_VERIFIER(JSTypedArray)

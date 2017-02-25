@@ -614,6 +614,7 @@ namespace internal {
   F(TypedArrayGetLength, 1, 1)               \
   F(TypedArrayGetBuffer, 1, 1)               \
   F(TypedArraySetFastCases, 3, 1)            \
+  F(TypedArraySortFast, 1, 1)                \
   F(TypedArrayMaxSizeInHeap, 0, 1)           \
   F(IsTypedArray, 1, 1)                      \
   F(IsSharedTypedArray, 1, 1)                \

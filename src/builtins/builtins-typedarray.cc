@@ -148,18 +148,6 @@ TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
 
 namespace {
 
-MaybeHandle<JSTypedArray> ValidateTypedArray(Isolate* isolate,
-                                             Handle<Object> receiver,
-                                             const char* method_name) {
-  if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
-    const MessageTemplate::Template message = MessageTemplate::kNotTypedArray;
-    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
-  }
-
-  // TODO(caitp): throw if array.[[ViewedArrayBuffer]] is neutered (per v8:4648)
-  return Handle<JSTypedArray>::cast(receiver);
-}
-
 int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
   int64_t relative;
   if (V8_LIKELY(num->IsSmi())) {
@@ -186,7 +174,7 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   Handle<JSTypedArray> array;
   const char* method = "%TypedArray%.prototype.copyWithin";
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, ValidateTypedArray(isolate, args.receiver(), method));
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
 
   if (V8_UNLIKELY(array->WasNeutered())) return *array;
 

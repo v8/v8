@@ -6927,6 +6927,18 @@ void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
 }
 
+// static
+MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
+                                                 Handle<Object> receiver,
+                                                 const char* method_name) {
+  if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
+    const MessageTemplate::Template message = MessageTemplate::kNotTypedArray;
+    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
+  }
+
+  // TODO(caitp): throw if array.[[ViewedArrayBuffer]] is neutered (per v8:4648)
+  return Handle<JSTypedArray>::cast(receiver);
+}
 
 #ifdef VERIFY_HEAP
 ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)

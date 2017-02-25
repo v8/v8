@@ -367,6 +367,60 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   }
 }
 
+namespace {
+
+#define TYPED_ARRAY_SORT_COMPAREFN(Type, type, TYPE, ctype, size) \
+  bool compare##Type(ctype x, ctype y) {                          \
+    if (x < y) {                                                  \
+      return true;                                                \
+    } else if (x > y) {                                           \
+      return false;                                               \
+    } else if (x == 0 && x == y) {                                \
+      return std::signbit(static_cast<double>(x)) ? true : false; \
+    } else if (std::isnan(static_cast<double>(x))) {              \
+      return false;                                               \
+    }                                                             \
+    return true;                                                  \
+  }
+
+TYPED_ARRAYS(TYPED_ARRAY_SORT_COMPAREFN)
+#undef TYPED_ARRAY_SORT_COMPAREFN
+
+}  // namespace
+
+RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(Object, target_obj, 0);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.sort";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, target_obj, method));
+
+  // This line can be remove when JSTypedArray::Validate throws
+  // if array.[[ViewedArrayBuffer]] is neutered(v8:4648)
+  if (V8_UNLIKELY(array->WasNeutered())) return *array;
+
+  size_t length = array->length_value();
+  if (length == 0) return *array;
+
+  switch (array->type()) {
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)              \
+  case kExternal##Type##Array: {                                     \
+    ctype* backing_store =                                           \
+        static_cast<ctype*>(array->GetBuffer()->backing_store());    \
+    std::sort(backing_store, backing_store + length, compare##Type); \
+    break;                                                           \
+  }
+
+    TYPED_ARRAYS(TYPED_ARRAY_SORT)
+#undef TYPED_ARRAY_SORT
+  }
+
+  return *array;
+}
 
 RUNTIME_FUNCTION(Runtime_TypedArrayMaxSizeInHeap) {
   DCHECK_EQ(0, args.length());
