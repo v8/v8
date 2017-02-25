@@ -2021,11 +2021,13 @@ void Builtins::Generate_ArrayIndexOf(compiler::CodeAssemblerState* state) {
 
   assembler.Bind(&init_len);
   {
-    // Handle case where JSArray length is not an Smi in the runtime
-    Node* len = assembler.LoadObjectField(array, JSArray::kLengthOffset);
-    assembler.GotoIfNot(assembler.TaggedIsSmi(len), &call_runtime);
+    // JSArray length is always an Smi for fast arrays.
+    CSA_ASSERT(&assembler, assembler.TaggedIsSmi(assembler.LoadObjectField(
+                               array, JSArray::kLengthOffset)));
+    Node* len =
+        assembler.LoadAndUntagObjectField(array, JSArray::kLengthOffset);
 
-    len_var.Bind(assembler.SmiToWord(len));
+    len_var.Bind(len);
     assembler.Branch(assembler.WordEqual(len_var.value(), intptr_zero),
                      &return_not_found, &init_k);
   }
