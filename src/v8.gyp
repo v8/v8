@@ -32,6 +32,7 @@
     'v8_vector_stores%': 0,
     'embed_script%': "",
     'warmup_script%': "",
+    'v8_extra_library_files%': [],
     'v8_experimental_extra_library_files%': [],
     'v8_enable_inspector%': 0,
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
