@@ -1685,14 +1685,12 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
   Node* const start_from = Parameter(2);
   Node* const context = Parameter(3 + 2);
 
-  Variable len_var(this, MachineType::PointerRepresentation()),
-      index_var(this, MachineType::PointerRepresentation());
+  Variable index_var(this, MachineType::PointerRepresentation());
 
   Label init_k(this), return_true(this), return_false(this), call_runtime(this);
   Label init_len(this), select_loop(this);
 
   index_var.Bind(IntPtrConstant(0));
-  len_var.Bind(IntPtrConstant(0));
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
@@ -1701,18 +1699,14 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
                       &init_len, &call_runtime);
 
   Bind(&init_len);
-  {
-    // Handle case where JSArray length is not an Smi in the runtime
-    Node* len = LoadObjectField(array, JSArray::kLengthOffset);
-    GotoIfNot(TaggedIsSmi(len), &call_runtime);
+  // JSArray length is always an Smi for fast arrays.
+  CSA_ASSERT(this, TaggedIsSmi(LoadObjectField(array, JSArray::kLengthOffset)));
+  Node* const len = LoadAndUntagObjectField(array, JSArray::kLengthOffset);
 
-    len_var.Bind(SmiToWord(len));
+  GotoIf(IsUndefined(start_from), &select_loop);
 
-    GotoIf(IsUndefined(start_from), &select_loop);
-
-    // Bailout to slow path if startIndex is not an Smi.
-    Branch(TaggedIsSmi(start_from), &init_k, &call_runtime);
-  }
+  // Bailout to slow path if startIndex is not an Smi.
+  Branch(TaggedIsSmi(start_from), &init_k, &call_runtime);
 
   Bind(&init_k);
   CSA_ASSERT(this, TaggedIsSmi(start_from));
@@ -1721,7 +1715,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
       IntPtrGreaterThanOrEqual(untagged_start_from, IntPtrConstant(0)),
       [=]() { return untagged_start_from; },
       [=]() {
-        Node* const index = IntPtrAdd(len_var.value(), untagged_start_from);
+        Node* const index = IntPtrAdd(len, untagged_start_from);
         return SelectConstant(IntPtrLessThan(index, IntPtrConstant(0)),
                               IntPtrConstant(0), index,
                               MachineType::PointerRepresentation());
@@ -1771,8 +1765,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
 
     Bind(&ident_loop);
     {
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(WordEqual(element_k, search_element), &return_true);
 
@@ -1782,8 +1775,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
 
     Bind(&undef_loop);
     {
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(WordEqual(element_k, UndefinedConstant()), &return_true);
       GotoIf(WordEqual(element_k, TheHoleConstant()), &return_true);
@@ -1800,8 +1792,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
       Bind(&not_nan_loop);
       {
         Label continue_loop(this), not_smi(this);
-        GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                  &return_false);
+        GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
         Node* element_k = LoadFixedArrayElement(elements, index_var.value());
         GotoIfNot(TaggedIsSmi(element_k), &not_smi);
         Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
@@ -1820,8 +1811,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
       Bind(&nan_loop);
       {
         Label continue_loop(this);
-        GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                  &return_false);
+        GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
         Node* element_k = LoadFixedArrayElement(elements, index_var.value());
         GotoIf(TaggedIsSmi(element_k), &continue_loop);
         GotoIfNot(IsHeapNumber(element_k), &continue_loop);
@@ -1837,8 +1827,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     Bind(&string_loop);
     {
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
       GotoIf(TaggedIsSmi(element_k), &continue_loop);
       GotoIfNot(IsStringInstanceType(LoadInstanceType(element_k)),
@@ -1877,8 +1866,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     Bind(&not_nan_loop);
     {
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
                                                     MachineType::Float64());
       Branch(Float64Equal(element_k, search_num.value()), &return_true,
@@ -1892,8 +1880,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     Bind(&nan_loop);
     {
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
       Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
                                                     MachineType::Float64());
       BranchIfFloat64IsNaN(element_k, &return_true, &continue_loop);
@@ -1925,8 +1912,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     Bind(&not_nan_loop);
     {
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
 
       // Load double value or continue if it contains a double hole.
       Node* element_k = LoadFixedDoubleArrayElement(
@@ -1944,8 +1930,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     Bind(&nan_loop);
     {
       Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
 
       // Load double value or continue if it contains a double hole.
       Node* element_k = LoadFixedDoubleArrayElement(
@@ -1961,8 +1946,7 @@ TF_BUILTIN(ArrayIncludes, CodeStubAssembler) {
     // Search for the Hole
     Bind(&hole_loop);
     {
-      GotoIfNot(UintPtrLessThan(index_var.value(), len_var.value()),
-                &return_false);
+      GotoIfNot(UintPtrLessThan(index_var.value(), len), &return_false);
 
       // Check if the element is a double hole, but don't load it.
       LoadFixedDoubleArrayElement(
