@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "5b6f777da671be977f56f0e8fc3469a3ccbb4474",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "94cdccbebc7a634c27145a3d84089e85fbb42e69",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "7e53759cf4e553e3a51b5c97420da022cc83de44",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
   "v8/third_party/jinja2":
