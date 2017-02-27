@@ -1522,8 +1522,10 @@ class Object {
 
 // In objects.h to be usable without objects-inl.h inclusion.
 bool Object::IsSmi() const { return HAS_SMI_TAG(this); }
-bool Object::IsHeapObject() const { return Internals::HasHeapObjectTag(this); }
-
+bool Object::IsHeapObject() const {
+  DCHECK_EQ(!IsSmi(), Internals::HasHeapObjectTag(this));
+  return !IsSmi();
+}
 
 struct Brief {
   explicit Brief(const Object* const v) : value(v) {}
