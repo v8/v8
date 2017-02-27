@@ -485,6 +485,32 @@ Reduction JSCallReducer::ReduceSpreadCall(Node* node, int arity) {
   return Changed(node);
 }
 
+namespace {
+
+bool ShouldUseCallICFeedback(Node* node) {
+  HeapObjectMatcher m(node);
+  if (m.HasValue() || m.IsJSCreateClosure()) {
+    // Don't use CallIC feedback when we know the function
+    // being called, i.e. either know the closure itself or
+    // at least the SharedFunctionInfo.
+    return false;
+  } else if (m.IsPhi()) {
+    // Protect against endless loops here.
+    Node* control = NodeProperties::GetControlInput(node);
+    if (control->opcode() == IrOpcode::kLoop) return false;
+    // Check if {node} is a Phi of nodes which shouldn't
+    // use CallIC feedback (not looking through loops).
+    int const value_input_count = m.node()->op()->ValueInputCount();
+    for (int n = 0; n < value_input_count; ++n) {
+      if (ShouldUseCallICFeedback(node->InputAt(n))) return true;
+    }
+    return false;
+  }
+  return true;
+}
+
+}  // namespace
+
 Reduction JSCallReducer::ReduceJSCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -624,6 +650,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     NodeProperties::ReplaceEffectInput(node, effect);
     return ReduceArrayConstructor(node);
   } else if (feedback->IsWeakCell()) {
+    // Check if we want to use CallIC feedback here.
+    if (!ShouldUseCallICFeedback(target)) return NoChange();
+
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
     if (cell->value()->IsJSFunction()) {
       Node* target_function =
@@ -744,6 +773,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
     return Changed(node);
   } else if (feedback->IsWeakCell()) {
+    // Check if we want to use CallIC feedback here.
+    if (!ShouldUseCallICFeedback(target)) return NoChange();
+
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
     if (cell->value()->IsJSFunction()) {
       Node* target_function =
