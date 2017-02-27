@@ -220,7 +220,7 @@ function StringRepeat(count) {
 
   // The maximum string length is stored in a smi, so a longer repeat
   // must result in a range error.
-  if (n > %_MaxSmi()) throw %make_range_error(kInvalidCountValue);
+  if (n > %_MaxSmi()) throw %make_range_error(kInvalidStringLength);
 
   var r = "";
   while (true) {
