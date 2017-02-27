@@ -120,6 +120,7 @@ Node* GetArgumentsFrameState(Node* frame_state) {
 bool IsAllocationInlineable(Handle<JSFunction> target,
                             Handle<JSFunction> new_target) {
   return new_target->has_initial_map() &&
+         !new_target->initial_map()->is_dictionary_map() &&
          new_target->initial_map()->constructor_or_backpointer() == *target;
 }
 

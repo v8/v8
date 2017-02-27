@@ -9744,6 +9744,7 @@ bool HOptimizedGraphBuilder::TryInlineArrayCall(Expression* expression,
 static bool IsAllocationInlineable(Handle<JSFunction> constructor) {
   return constructor->has_initial_map() &&
          !IsDerivedConstructor(constructor->shared()->kind()) &&
+         !constructor->initial_map()->is_dictionary_map() &&
          constructor->initial_map()->instance_type() == JS_OBJECT_TYPE &&
          constructor->initial_map()->instance_size() <
              HAllocate::kMaxInlineSize;

@@ -236,22 +236,27 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(
       LoadObjectField(initial_map, Map::kConstructorOrBackPointerOffset);
   GotoIf(WordNotEqual(target, new_target_constructor), call_runtime);
 
+  Variable properties(this, MachineRepresentation::kTagged);
+
+  Label instantiate_map(this), allocate_properties(this);
+  GotoIf(IsDictionaryMap(initial_map), &allocate_properties);
+  {
+    properties.Bind(EmptyFixedArrayConstant());
+    Goto(&instantiate_map);
+  }
+  Bind(&allocate_properties);
+  {
+    properties.Bind(AllocateNameDictionary(NameDictionary::kInitialCapacity));
+    Goto(&instantiate_map);
+  }
+
+  Bind(&instantiate_map);
+
+  Node* object = AllocateJSObjectFromMap(initial_map, properties.value());
+
   Node* instance_size_words = ChangeUint32ToWord(LoadObjectField(
       initial_map, Map::kInstanceSizeOffset, MachineType::Uint8()));
   Node* instance_size =
-      WordShl(instance_size_words, IntPtrConstant(kPointerSizeLog2));
-
-  Node* object = Allocate(instance_size);
-  StoreMapNoWriteBarrier(object, initial_map);
-  Node* empty_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldNoWriteBarrier(object, JSObject::kPropertiesOffset,
-                                 empty_array);
-  StoreObjectFieldNoWriteBarrier(object, JSObject::kElementsOffset,
-                                 empty_array);
-
-  instance_size_words = ChangeUint32ToWord(LoadObjectField(
-      initial_map, Map::kInstanceSizeOffset, MachineType::Uint8()));
-  instance_size =
       WordShl(instance_size_words, IntPtrConstant(kPointerSizeLog2));
 
   // Perform in-object slack tracking if requested.

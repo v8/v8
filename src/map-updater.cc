@@ -219,13 +219,23 @@ MapUpdater::State MapUpdater::FindRootMap() {
   DCHECK_EQ(kInitialized, state_);
   // Check the state of the root map.
   root_map_ = handle(old_map_->FindRootMap(), isolate_);
+  ElementsKind from_kind = root_map_->elements_kind();
+  ElementsKind to_kind = new_elements_kind_;
+  if (root_map_->is_deprecated()) {
+    state_ = kEnd;
+    result_map_ = handle(
+        JSFunction::cast(root_map_->GetConstructor())->initial_map(), isolate_);
+    if (from_kind != to_kind) {
+      result_map_ = Map::AsElementsKind(result_map_, to_kind);
+    }
+    DCHECK(result_map_->is_dictionary_map());
+    return state_;
+  }
   int root_nof = root_map_->NumberOfOwnDescriptors();
   if (!old_map_->EquivalentToForTransition(*root_map_)) {
     return CopyGeneralizeAllFields("GenAll_NotEquivalent");
   }
 
-  ElementsKind from_kind = root_map_->elements_kind();
-  ElementsKind to_kind = new_elements_kind_;
   // TODO(ishell): Add a test for SLOW_SLOPPY_ARGUMENTS_ELEMENTS.
   if (from_kind != to_kind && to_kind != DICTIONARY_ELEMENTS &&
       to_kind != SLOW_STRING_WRAPPER_ELEMENTS &&

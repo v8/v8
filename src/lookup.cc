@@ -286,7 +286,9 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
                                           kMutable, value);
     JSObject::MigrateToMap(holder, new_map);
     ReloadPropertyInformation<false>();
-  } else {
+  }
+
+  if (!IsElement() && !holder->HasFastProperties()) {
     PropertyDetails details(kData, attributes, 0, PropertyCellType::kMutable);
     if (holder->IsJSGlobalObject()) {
       Handle<GlobalDictionary> dictionary(holder->global_dictionary());
