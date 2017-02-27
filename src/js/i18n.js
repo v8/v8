@@ -101,20 +101,14 @@ function IntlConstruct(receiver, constructor, create, newTarget, args,
   var locales = args[0];
   var options = args[1];
 
-  if (IS_UNDEFINED(newTarget)) {
-    if (compat && receiver instanceof constructor) {
-      let success = %object_define_property(receiver, IntlFallbackSymbol,
-                           { value: new constructor(locales, options) });
-      if (!success) {
-        throw %make_type_error(kReinitializeIntl, constructor);
-      }
-      return receiver;
-    }
+  var instance = create(locales, options);
 
-    return new constructor(locales, options);
+  if (compat && IS_UNDEFINED(newTarget) && receiver instanceof constructor) {
+    %object_define_property(receiver, IntlFallbackSymbol, { value: instance });
+    return receiver;
   }
 
-  return create(locales, options);
+  return instance;
 }
 
 
