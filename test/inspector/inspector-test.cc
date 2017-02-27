@@ -53,6 +53,7 @@ class UtilsExtension : public v8::Extension {
                       "native function print();"
                       "native function quit();"
                       "native function setlocale();"
+                      "native function read();"
                       "native function load();"
                       "native function compileAndRunWithOrigin();"
                       "native function setCurrentTimeMSForTest();"
@@ -78,6 +79,12 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::SetLocale);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "read",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Read);
     } else if (name->Equals(context,
                             v8::String::NewFromUtf8(isolate, "load",
                                                     v8::NewStringType::kNormal)
@@ -173,27 +180,49 @@ class UtilsExtension : public v8::Extension {
     setlocale(LC_NUMERIC, *str);
   }
 
+  static bool ReadFile(v8::Isolate* isolate, v8::Local<v8::Value> name,
+                       v8::internal::Vector<const char>* chars) {
+    v8::String::Utf8Value str(name);
+    bool exists = false;
+    std::string filename(*str, str.length());
+    *chars = v8::internal::ReadFile(filename.c_str(), &exists);
+    if (!exists) {
+      isolate->ThrowException(
+          v8::String::NewFromUtf8(isolate, "Error reading file",
+                                  v8::NewStringType::kNormal)
+              .ToLocalChecked());
+      return false;
+    }
+    return true;
+  }
+
+  static void Read(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      fprintf(stderr, "Internal error: read gets one string argument.");
+      Exit();
+    }
+    v8::internal::Vector<const char> chars;
+    v8::Isolate* isolate = args.GetIsolate();
+    if (ReadFile(isolate, args[0], &chars)) {
+      args.GetReturnValue().Set(
+          v8::String::NewFromUtf8(isolate, chars.start(),
+                                  v8::NewStringType::kNormal, chars.length())
+              .ToLocalChecked());
+    }
+  }
+
   static void Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
     if (args.Length() != 1 || !args[0]->IsString()) {
       fprintf(stderr, "Internal error: load gets one string argument.");
       Exit();
     }
-    v8::String::Utf8Value str(args[0]);
+    v8::internal::Vector<const char> chars;
     v8::Isolate* isolate = args.GetIsolate();
-    bool exists = false;
-    std::string filename(*str, str.length());
-    v8::internal::Vector<const char> chars =
-        v8::internal::ReadFile(filename.c_str(), &exists);
-    if (!exists) {
-      isolate->ThrowException(
-          v8::String::NewFromUtf8(isolate, "Error loading file",
-                                  v8::NewStringType::kNormal)
-              .ToLocalChecked());
-      return;
+    if (ReadFile(isolate, args[0], &chars)) {
+      ExecuteStringTask task(chars);
+      v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
+      task.Run(isolate, context);
     }
-    ExecuteStringTask task(chars);
-    v8::Global<v8::Context> context(isolate, isolate->GetCurrentContext());
-    task.Run(isolate, context);
   }
 
   static void CompileAndRunWithOrigin(

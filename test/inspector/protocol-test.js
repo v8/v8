@@ -269,3 +269,7 @@ InspectorTest._dispatchMessage = function(messageObject)
     InspectorTest.completeTest();
   }
 }
+
+InspectorTest.loadScript = function(fileName) {
+  InspectorTest.addScript(read(fileName));
+}
