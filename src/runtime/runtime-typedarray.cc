@@ -375,12 +375,17 @@ namespace {
       return true;                                                \
     } else if (x > y) {                                           \
       return false;                                               \
-    } else if (x == 0 && x == y) {                                \
-      return std::signbit(static_cast<double>(x)) ? true : false; \
-    } else if (std::isnan(static_cast<double>(x))) {              \
-      return false;                                               \
+    } else {                                                      \
+      double _x = x, _y = y;                                      \
+      if (x == 0 && x == y) {                                     \
+        /* -0.0 is less than +0.0 */                              \
+        return std::signbit(_x) && !std::signbit(_y);             \
+      } else if (!std::isnan(_x) && std::isnan(_y)) {             \
+        /* number is less than NaN */                             \
+        return true;                                              \
+      }                                                           \
     }                                                             \
-    return true;                                                  \
+    return false;                                                 \
   }
 
 TYPED_ARRAYS(TYPED_ARRAY_SORT_COMPAREFN)
@@ -399,7 +404,7 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, array, JSTypedArray::Validate(isolate, target_obj, method));
 
-  // This line can be remove when JSTypedArray::Validate throws
+  // This line can be removed when JSTypedArray::Validate throws
   // if array.[[ViewedArrayBuffer]] is neutered(v8:4648)
   if (V8_UNLIKELY(array->WasNeutered())) return *array;
 
