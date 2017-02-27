@@ -57,6 +57,8 @@ Handle<String> Bootstrapper::SourceLookup(int index) {
 
 
 template Handle<String> Bootstrapper::SourceLookup<Natives>(int index);
+template Handle<String> Bootstrapper::SourceLookup<ExperimentalNatives>(
+    int index);
 template Handle<String> Bootstrapper::SourceLookup<ExperimentalExtraNatives>(
     int index);
 template Handle<String> Bootstrapper::SourceLookup<ExtraNatives>(int index);
@@ -131,6 +133,7 @@ void DeleteNativeSources(Object* maybe_array) {
 
 void Bootstrapper::TearDown() {
   DeleteNativeSources(Natives::GetSourceCache(isolate_->heap()));
+  DeleteNativeSources(ExperimentalNatives::GetSourceCache(isolate_->heap()));
   DeleteNativeSources(ExtraNatives::GetSourceCache(isolate_->heap()));
   DeleteNativeSources(
       ExperimentalExtraNatives::GetSourceCache(isolate_->heap()));
@@ -228,6 +231,7 @@ class Genesis BASE_EMBEDDED {
 
   void InstallTypedArray(const char* name, ElementsKind elements_kind,
                          Handle<JSFunction>* fun);
+  bool InstallExperimentalNatives();
   bool InstallExtraNatives();
   bool InstallExperimentalExtraNatives();
   bool InstallDebuggerNatives();
@@ -3056,6 +3060,19 @@ bool Bootstrapper::CompileBuiltin(Isolate* isolate, int index) {
 }
 
 
+bool Bootstrapper::CompileExperimentalBuiltin(Isolate* isolate, int index) {
+  HandleScope scope(isolate);
+  Vector<const char> name = ExperimentalNatives::GetScriptName(index);
+  Handle<String> source_code =
+      isolate->bootstrapper()->SourceLookup<ExperimentalNatives>(index);
+  Handle<Object> global = isolate->global_object();
+  Handle<Object> utils = isolate->natives_utils_object();
+  Handle<Object> args[] = {global, utils};
+  return Bootstrapper::CompileNative(isolate, name, source_code,
+                                     arraysize(args), args, NATIVES_CODE);
+}
+
+
 bool Bootstrapper::CompileExtraBuiltin(Isolate* isolate, int index) {
   HandleScope scope(isolate);
   Vector<const char> name = ExtraNatives::GetScriptName(index);
@@ -3682,36 +3699,11 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
   Handle<JSObject> atomics_object = factory->NewJSObject(cons, TENURED);
   DCHECK(atomics_object->IsJSObject());
   JSObject::AddProperty(global, name, atomics_object, DONT_ENUM);
-  JSObject::AddProperty(atomics_object, factory->to_string_tag_symbol(), name,
-                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("load"),
                         Builtins::kAtomicsLoad, 2, true);
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("store"),
                         Builtins::kAtomicsStore, 3, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("add"),
-                        Builtins::kAtomicsAdd, 3, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("sub"),
-                        Builtins::kAtomicsSub, 3, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("and"),
-                        Builtins::kAtomicsAnd, 3, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("or"),
-                        Builtins::kAtomicsOr, 3, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("xor"),
-                        Builtins::kAtomicsXor, 3, true);
-  SimpleInstallFunction(atomics_object,
-                        factory->InternalizeUtf8String("exchange"),
-                        Builtins::kAtomicsExchange, 3, true);
-  SimpleInstallFunction(atomics_object,
-                        factory->InternalizeUtf8String("compareExchange"),
-                        Builtins::kAtomicsCompareExchange, 4, true);
-  SimpleInstallFunction(atomics_object,
-                        factory->InternalizeUtf8String("isLockFree"),
-                        Builtins::kAtomicsIsLockFree, 1, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("wait"),
-                        Builtins::kAtomicsWait, 4, true);
-  SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("wake"),
-                        Builtins::kAtomicsWake, 3, true);
 }
 
 void Genesis::InitializeGlobal_harmony_array_prototype_values() {
@@ -4315,6 +4307,58 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   return true;
 }
 
+
+bool Genesis::InstallExperimentalNatives() {
+  static const char* harmony_tailcalls_natives[] = {nullptr};
+  static const char* harmony_sharedarraybuffer_natives[] = {
+      "native harmony-atomics.js", NULL};
+  static const char* harmony_do_expressions_natives[] = {nullptr};
+  static const char* harmony_regexp_lookbehind_natives[] = {nullptr};
+  static const char* harmony_regexp_named_captures_natives[] = {nullptr};
+  static const char* harmony_regexp_property_natives[] = {nullptr};
+  static const char* harmony_function_sent_natives[] = {nullptr};
+  static const char* harmony_array_prototype_values_natives[] = {nullptr};
+#ifdef V8_I18N_SUPPORT
+  static const char* icu_case_mapping_natives[] = {nullptr};
+  static const char* datetime_format_to_parts_natives[] = {nullptr};
+#endif
+  static const char* harmony_restrictive_generators_natives[] = {nullptr};
+  static const char* harmony_trailing_commas_natives[] = {nullptr};
+  static const char* harmony_function_tostring_natives[] = {nullptr};
+  static const char* harmony_class_fields_natives[] = {nullptr};
+  static const char* harmony_object_rest_spread_natives[] = {nullptr};
+  static const char* harmony_async_iteration_natives[] = {nullptr};
+  static const char* harmony_dynamic_import_natives[] = {nullptr};
+  static const char* harmony_promise_finally_natives[] = {nullptr};
+  static const char* harmony_template_escapes_natives[] = {nullptr};
+
+  for (int i = ExperimentalNatives::GetDebuggerCount();
+       i < ExperimentalNatives::GetBuiltinsCount(); i++) {
+#define INSTALL_EXPERIMENTAL_NATIVES(id, desc)                                \
+  if (FLAG_##id) {                                                            \
+    for (size_t j = 0; id##_natives[j] != NULL; j++) {                        \
+      Vector<const char> script_name = ExperimentalNatives::GetScriptName(i); \
+      if (strncmp(script_name.start(), id##_natives[j],                       \
+                  script_name.length()) == 0) {                               \
+        if (!Bootstrapper::CompileExperimentalBuiltin(isolate(), i)) {        \
+          return false;                                                       \
+        }                                                                     \
+      }                                                                       \
+    }                                                                         \
+  }
+    HARMONY_INPROGRESS(INSTALL_EXPERIMENTAL_NATIVES);
+    HARMONY_STAGED(INSTALL_EXPERIMENTAL_NATIVES);
+    HARMONY_SHIPPING(INSTALL_EXPERIMENTAL_NATIVES);
+#undef INSTALL_EXPERIMENTAL_NATIVES
+  }
+
+  if (!CallUtilsFunction(isolate(), "PostExperimentals")) return false;
+
+  InstallExperimentalBuiltinFunctionIds();
+  return true;
+}
+
+
 bool Genesis::InstallExtraNatives() {
   HandleScope scope(isolate());
 
@@ -4346,7 +4390,7 @@ bool Genesis::InstallDebuggerNatives() {
   for (int i = 0; i < Natives::GetDebuggerCount(); ++i) {
     if (!Bootstrapper::CompileBuiltin(isolate(), i)) return false;
   }
-  return true;
+  return CallUtilsFunction(isolate(), "PostDebug");
 }
 
 
@@ -4381,6 +4425,26 @@ void Genesis::InstallBuiltinFunctionIds() {
     Handle<JSObject> holder =
         ResolveBuiltinIdHolder(native_context(), builtin.holder_expr);
     InstallBuiltinFunctionId(holder, builtin.fun_name, builtin.id);
+  }
+}
+
+
+void Genesis::InstallExperimentalBuiltinFunctionIds() {
+  if (FLAG_harmony_sharedarraybuffer) {
+    struct BuiltinFunctionIds {
+      const char* holder_expr;
+      const char* fun_name;
+      BuiltinFunctionId id;
+    };
+
+    const BuiltinFunctionIds atomic_builtins[] = {
+        ATOMIC_FUNCTIONS_WITH_ID_LIST(INSTALL_BUILTIN_ID)};
+
+    for (const BuiltinFunctionIds& builtin : atomic_builtins) {
+      Handle<JSObject> holder =
+          ResolveBuiltinIdHolder(native_context(), builtin.holder_expr);
+      InstallBuiltinFunctionId(holder, builtin.fun_name, builtin.id);
+    }
   }
 }
 
@@ -4894,6 +4958,7 @@ Genesis::Genesis(
   if (context_type == FULL_CONTEXT) {
     if (!isolate->serializer_enabled()) {
       InitializeExperimentalGlobal();
+      if (!InstallExperimentalNatives()) return;
 
       if (FLAG_experimental_extras) {
         if (!InstallExperimentalExtraNatives()) return;
@@ -4908,6 +4973,8 @@ Genesis::Genesis(
       native_context()->set_string_function_prototype_map(
           string_function_prototype->map());
     }
+    // The serializer cannot serialize typed arrays. Reset those typed arrays
+    // for each new context.
   } else if (context_type == DEBUG_CONTEXT) {
     DCHECK(!isolate->serializer_enabled());
     InitializeExperimentalGlobal();

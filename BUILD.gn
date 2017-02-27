@@ -476,6 +476,43 @@ action("js2c") {
   }
 }
 
+action("js2c_experimental") {
+  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+
+  script = "tools/js2c.py"
+
+  # The script depends on this other script, this rule causes a rebuild if it
+  # changes.
+  inputs = [
+    "tools/jsmin.py",
+  ]
+
+  # NOSORT
+  sources = [
+    "src/js/macros.py",
+    "src/messages.h",
+    "src/js/harmony-atomics.js",
+  ]
+
+  outputs = [
+    "$target_gen_dir/experimental-libraries.cc",
+  ]
+
+  args = [
+           rebase_path("$target_gen_dir/experimental-libraries.cc",
+                       root_build_dir),
+           "EXPERIMENTAL",
+         ] + rebase_path(sources, root_build_dir)
+
+  if (v8_use_external_startup_data) {
+    outputs += [ "$target_gen_dir/libraries_experimental.bin" ]
+    args += [
+      "--startup_blob",
+      rebase_path("$target_gen_dir/libraries_experimental.bin", root_build_dir),
+    ]
+  }
+}
+
 action("js2c_extras") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
@@ -586,6 +623,7 @@ if (v8_use_external_startup_data) {
 
     deps = [
       ":js2c",
+      ":js2c_experimental",
       ":js2c_experimental_extras",
       ":js2c_extras",
     ]
@@ -593,6 +631,7 @@ if (v8_use_external_startup_data) {
     # NOSORT
     sources = [
       "$target_gen_dir/libraries.bin",
+      "$target_gen_dir/libraries_experimental.bin",
       "$target_gen_dir/libraries_extras.bin",
       "$target_gen_dir/libraries_experimental_extras.bin",
     ]
@@ -755,6 +794,7 @@ v8_source_set("v8_nosnapshot") {
 
   deps = [
     ":js2c",
+    ":js2c_experimental",
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
@@ -762,6 +802,7 @@ v8_source_set("v8_nosnapshot") {
 
   sources = [
     "$target_gen_dir/experimental-extras-libraries.cc",
+    "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
     "$target_gen_dir/libraries.cc",
     "src/snapshot/snapshot-empty.cc",
@@ -780,6 +821,7 @@ v8_source_set("v8_snapshot") {
 
   deps = [
     ":js2c",
+    ":js2c_experimental",
     ":js2c_experimental_extras",
     ":js2c_extras",
     ":v8_base",
@@ -792,6 +834,7 @@ v8_source_set("v8_snapshot") {
 
   sources = [
     "$target_gen_dir/experimental-extras-libraries.cc",
+    "$target_gen_dir/experimental-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
     "$target_gen_dir/libraries.cc",
     "$target_gen_dir/snapshot.cc",
@@ -806,6 +849,7 @@ if (v8_use_external_startup_data) {
 
     deps = [
       ":js2c",
+      ":js2c_experimental",
       ":js2c_experimental_extras",
       ":js2c_extras",
       ":v8_base",
