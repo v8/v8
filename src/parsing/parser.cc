@@ -1261,11 +1261,8 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
       Assignment* assignment = factory()->NewAssignment(
           Token::INIT, decl->proxy(), value, kNoSourcePosition);
-      Block* block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
-      block->statements()->Add(
-          factory()->NewExpressionStatement(assignment, kNoSourcePosition),
-          zone());
-      result = block;
+      result = IgnoreCompletion(
+          factory()->NewExpressionStatement(assignment, kNoSourcePosition));
 
       ExpectSemicolon(CHECK_OK);
       break;
@@ -1512,10 +1509,8 @@ Statement* Parser::DeclareClass(const AstRawString* variable_name,
 
   Assignment* assignment = factory()->NewAssignment(Token::INIT, decl->proxy(),
                                                     value, class_token_pos);
-  Block* block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
-  block->statements()->Add(
-      factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
-  return block;
+  return IgnoreCompletion(
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition));
 }
 
 Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {
@@ -1571,6 +1566,12 @@ bool Parser::ContainsLabel(ZoneList<const AstRawString*>* labels,
     }
   }
   return false;
+}
+
+Block* Parser::IgnoreCompletion(Statement* statement) {
+  Block* block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  block->statements()->Add(statement, zone());
+  return block;
 }
 
 Expression* Parser::RewriteReturn(Expression* return_value, int pos) {
@@ -2096,10 +2097,8 @@ Statement* Parser::InitializeForOfStatement(
         Token::ASSIGN, proxy,
         factory()->NewSmiLiteral(Parser::kAbruptCompletion, nopos), nopos);
 
-    Block* block = factory()->NewBlock(nullptr, 1, true, nopos);
-    block->statements()->Add(
-        factory()->NewExpressionStatement(assignment, nopos), zone());
-    set_completion_abrupt = block;
+    set_completion_abrupt =
+        IgnoreCompletion(factory()->NewExpressionStatement(assignment, nopos));
   }
 
   // do { let tmp = #result_value; #set_completion_abrupt; tmp }
@@ -2137,10 +2136,8 @@ Statement* Parser::InitializeForOfStatement(
         Token::ASSIGN, proxy,
         factory()->NewSmiLiteral(Parser::kNormalCompletion, nopos), nopos);
 
-    Block* block = factory()->NewBlock(nullptr, 1, true, nopos);
-    block->statements()->Add(
-        factory()->NewExpressionStatement(assignment, nopos), zone());
-    set_completion_normal = block;
+    set_completion_normal =
+        IgnoreCompletion(factory()->NewExpressionStatement(assignment, nopos));
   }
 
   // { #loop-body; #set_completion_normal }
@@ -2384,10 +2381,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       Statement* empty = factory()->NewEmptyStatement(kNoSourcePosition);
       Statement* if_flag_break =
           factory()->NewIfStatement(compare, stop, empty, kNoSourcePosition);
-      Block* ignore_completion_block =
-          factory()->NewBlock(NULL, 1, true, kNoSourcePosition);
-      ignore_completion_block->statements()->Add(if_flag_break, zone());
-      inner_block->statements()->Add(ignore_completion_block, zone());
+      inner_block->statements()->Add(IgnoreCompletion(if_flag_break), zone());
     }
 
     inner_block->set_scope(inner_scope);
@@ -3014,13 +3008,11 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   catch_scope->set_is_hidden();
   Variable* catch_variable =
       catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
-  Block* catch_block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
 
   Expression* promise_reject = BuildRejectPromise(
       factory()->NewVariableProxy(catch_variable), kNoSourcePosition);
-  ReturnStatement* return_promise_reject =
-      factory()->NewReturnStatement(promise_reject, kNoSourcePosition);
-  catch_block->statements()->Add(return_promise_reject, zone());
+  Block* catch_block = IgnoreCompletion(
+      factory()->NewReturnStatement(promise_reject, kNoSourcePosition));
 
   TryStatement* try_catch_statement =
       factory()->NewTryCatchStatementForAsyncAwait(inner_block, catch_scope,
@@ -3028,13 +3020,10 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
                                                    kNoSourcePosition);
 
   // There is no TryCatchFinally node, so wrap it in an outer try/finally
-  Block* outer_try_block =
-      factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
-  outer_try_block->statements()->Add(try_catch_statement, zone());
+  Block* outer_try_block = IgnoreCompletion(try_catch_statement);
 
   // finally { %AsyncFunctionPromiseRelease(.promise) }
-  Block* finally_block =
-      factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  Block* finally_block;
   {
     ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
     args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
@@ -3042,7 +3031,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
         Context::ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, args, kNoSourcePosition);
     Statement* promise_release = factory()->NewExpressionStatement(
         call_promise_release, kNoSourcePosition);
-    finally_block->statements()->Add(promise_release, zone());
+    finally_block = IgnoreCompletion(promise_release);
   }
 
   Statement* try_finally_statement = factory()->NewTryFinallyStatement(
@@ -4793,11 +4782,8 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
                                     type);
     DCHECK(block->statements()->length() == 2);
 
-    maybe_close = factory()->NewBlock(nullptr, 1, true, nopos);
-    maybe_close->statements()->Add(
-        factory()->NewIfStatement(condition, block,
-                                  factory()->NewEmptyStatement(nopos), nopos),
-        zone());
+    maybe_close = IgnoreCompletion(factory()->NewIfStatement(
+        condition, block, factory()->NewEmptyStatement(nopos), nopos));
   }
 
   // try { #try_block }

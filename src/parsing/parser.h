@@ -371,6 +371,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE Statement* DeclareNative(const AstRawString* name, int pos,
                                      bool* ok);
 
+  V8_INLINE Block* IgnoreCompletion(Statement* statement);
+
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:
     static void DeclareAndInitializeVariables(
