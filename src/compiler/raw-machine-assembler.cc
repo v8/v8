@@ -167,8 +167,7 @@ void RawMachineAssembler::PopAndReturn(Node* pop, Node* v1, Node* v2,
 void RawMachineAssembler::DebugBreak() { AddNode(machine()->DebugBreak()); }
 
 void RawMachineAssembler::Unreachable() {
-  Node* values[] = {UndefinedConstant()};  // Unused.
-  Node* ret = MakeNode(common()->Throw(), 1, values);
+  Node* ret = MakeNode(common()->Throw(), 0, nullptr);
   schedule()->AddThrow(CurrentBlock(), ret);
   current_block_ = nullptr;
 }

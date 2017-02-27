@@ -2700,7 +2700,7 @@ Node* AstGraphBuilder::BuildThrowError(Node* exception, BailoutId bailout_id) {
   const Operator* op = javascript()->CallRuntime(Runtime::kThrow);
   Node* call = NewNode(op, exception);
   PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
@@ -2712,7 +2712,7 @@ Node* AstGraphBuilder::BuildThrowReferenceError(Variable* variable,
   const Operator* op = javascript()->CallRuntime(Runtime::kThrowReferenceError);
   Node* call = NewNode(op, variable_name);
   PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
@@ -2723,7 +2723,7 @@ Node* AstGraphBuilder::BuildThrowConstAssignError(BailoutId bailout_id) {
       javascript()->CallRuntime(Runtime::kThrowConstAssignError);
   Node* call = NewNode(op);
   PrepareFrameState(call, bailout_id);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return call;
 }
@@ -2744,7 +2744,7 @@ Node* AstGraphBuilder::BuildReturn(Node* return_value) {
 
 Node* AstGraphBuilder::BuildThrow(Node* exception_value) {
   NewNode(javascript()->CallRuntime(Runtime::kReThrow), exception_value);
-  Node* control = NewNode(common()->Throw(), exception_value);
+  Node* control = NewNode(common()->Throw());
   UpdateControlDependencyToLeaveFunction(control);
   return control;
 }

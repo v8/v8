@@ -354,7 +354,7 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
   V(IfException, Operator::kKontrol, 0, 1, 1, 1, 1, 1)                        \
   V(IfDefault, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
-  V(Throw, Operator::kKontrol, 1, 1, 1, 0, 0, 1)                              \
+  V(Throw, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                              \
   V(Terminate, Operator::kKontrol, 0, 1, 1, 0, 0, 1)                          \
   V(OsrNormalEntry, Operator::kFoldable, 0, 1, 1, 0, 1, 1)                    \
   V(OsrLoopEntry, Operator::kFoldable | Operator::kNoThrow, 0, 1, 1, 0, 1, 1) \

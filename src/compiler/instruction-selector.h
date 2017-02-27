@@ -365,7 +365,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
                        Node* value);
   void VisitReturn(Node* ret);
-  void VisitThrow(Node* value);
+  void VisitThrow(Node* node);
   void VisitRetain(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,

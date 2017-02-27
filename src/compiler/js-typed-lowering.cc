@@ -714,7 +714,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
           javascript()->CallRuntime(Runtime::kThrowInvalidStringLength),
           context, frame_state, efalse, if_false);
       if_false = graph()->NewNode(common()->IfSuccess(), vfalse);
-      if_false = graph()->NewNode(common()->Throw(), vfalse, efalse, if_false);
+      if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
       // TODO(bmeurer): This should be on the AdvancedReducer somehow.
       NodeProperties::MergeControlToEnd(graph(), common(), if_false);
       Revisit(graph()->end());

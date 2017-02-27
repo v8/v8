@@ -521,8 +521,6 @@ class MachineRepresentationChecker {
             break;
           }
           case IrOpcode::kThrow:
-            CheckValueInputIsTagged(node, 0);
-            break;
           case IrOpcode::kTypedStateValues:
           case IrOpcode::kFrameState:
             break;

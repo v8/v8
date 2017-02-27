@@ -347,8 +347,7 @@ class WasmTrapHelper : public ZoneObject {
     if (false) {
       // End the control flow with a throw
       Node* thrw =
-          graph()->NewNode(common()->Throw(), jsgraph()->ZeroConstant(),
-                           *effect_ptr, *control_ptr);
+          graph()->NewNode(common()->Throw(), *effect_ptr, *control_ptr);
       MergeControlToEnd(jsgraph(), thrw);
     } else {
       // End the control flow with returning 0xdeadbeef

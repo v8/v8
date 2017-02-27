@@ -1499,15 +1499,15 @@ void BytecodeGraphBuilder::VisitThrow() {
   Node* value = environment()->LookupAccumulator();
   Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
   environment()->BindAccumulator(call, Environment::kAttachFrameState);
-  Node* control = NewNode(common()->Throw(), call);
+  Node* control = NewNode(common()->Throw());
   MergeControlToLeaveFunction(control);
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
   BuildLoopExitsForFunctionExit();
   Node* value = environment()->LookupAccumulator();
-  Node* call = NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
-  Node* control = NewNode(common()->Throw(), call);
+  NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
+  Node* control = NewNode(common()->Throw());
   MergeControlToLeaveFunction(control);
 }
 
