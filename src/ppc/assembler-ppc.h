@@ -553,6 +553,25 @@ class Assembler : public AssemblerBase {
     return ((cr.code() * CRWIDTH) + crbit);
   }
 
+#define DECLARE_PPC_XX3_INSTRUCTIONS(name, instr_name, instr_value)  \
+  inline void name(const DoubleRegister rt, const DoubleRegister ra, \
+                   const DoubleRegister rb) {                        \
+    xx3_form(instr_name, rt, ra, rb);                                \
+  }
+
+  inline void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
+                       DoubleRegister b) {
+    int AX = ((a.code() & 0x20) >> 5) & 0x1;
+    int BX = ((b.code() & 0x20) >> 5) & 0x1;
+    int TX = ((t.code() & 0x20) >> 5) & 0x1;
+
+    emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
+         (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
+  }
+
+  PPC_XX3_OPCODE_LIST(DECLARE_PPC_XX3_INSTRUCTIONS)
+#undef DECLARE_PPC_XX3_INSTRUCTIONS
+
   // ---------------------------------------------------------------------------
   // Code generation
 
@@ -1102,17 +1121,6 @@ class Assembler : public AssemblerBase {
              const DoubleRegister frc, const DoubleRegister frb,
              RCBit rc = LeaveRC);
 
-  // Support for VSX instructions
-
-  void xsadddp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frb);
-  void xssubdp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frb);
-  void xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frb);
-  void xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
-               const DoubleRegister frc);
-
   // Pseudo instructions
 
   // Different nop operations are used by the code generator to detect certain
@@ -1415,8 +1423,6 @@ class Assembler : public AssemblerBase {
   void x_form(Instr instr, Register ra, Register rs, Register rb, RCBit r);
   void xo_form(Instr instr, Register rt, Register ra, Register rb, OEBit o,
                RCBit r);
-  void xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
-                DoubleRegister b);
   void md_form(Instr instr, Register ra, Register rs, int shift, int maskbit,
                RCBit r);
   void mds_form(Instr instr, Register ra, Register rs, Register rb, int maskbit,

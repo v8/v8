@@ -651,15 +651,6 @@ void Assembler::xo_form(Instr instr, Register rt, Register ra, Register rb,
   emit(instr | rt.code() * B21 | ra.code() * B16 | rb.code() * B11 | o | r);
 }
 
-void Assembler::xx3_form(Instr instr, DoubleRegister t, DoubleRegister a,
-                         DoubleRegister b) {
-  int AX = ((a.code() & 0x20) >> 5) & 0x1;
-  int BX = ((b.code() & 0x20) >> 5) & 0x1;
-  int TX = ((t.code() & 0x20) >> 5) & 0x1;
-  emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 | (b.code()
-       & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
-}
-
 void Assembler::md_form(Instr instr, Register ra, Register rs, int shift,
                         int maskbit, RCBit r) {
   int sh0_4 = shift & 0x1f;
@@ -2353,25 +2344,6 @@ void Assembler::fmsub(const DoubleRegister frt, const DoubleRegister fra,
                       RCBit rc) {
   emit(EXT4 | FMSUB | frt.code() * B21 | fra.code() * B16 | frb.code() * B11 |
        frc.code() * B6 | rc);
-}
-
-// Support for VSX instructions
-
-void Assembler::xsadddp(const DoubleRegister frt, const DoubleRegister fra,
-                        const DoubleRegister frb) {
-  xx3_form(EXT6 | XSADDDP, frt, fra, frb);
-}
-void Assembler::xssubdp(const DoubleRegister frt, const DoubleRegister fra,
-                        const DoubleRegister frb) {
-  xx3_form(EXT6 | XSSUBDP, frt, fra, frb);
-}
-void Assembler::xsdivdp(const DoubleRegister frt, const DoubleRegister fra,
-                        const DoubleRegister frb) {
-  xx3_form(EXT6 | XSDIVDP, frt, fra, frb);
-}
-void Assembler::xsmuldp(const DoubleRegister frt, const DoubleRegister fra,
-                        const DoubleRegister frb) {
-  xx3_form(EXT6 | XSMULDP, frt, fra, frb);
 }
 
 // Pseudo instructions.
