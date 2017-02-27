@@ -6613,15 +6613,16 @@ EVALUATE(LCR) {
   DCHECK_OPCODE(LCR);
   DECODE_RR_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  r2_val = ~r2_val;
-  r2_val = r2_val + 1;
-  set_low_register(r1, r2_val);
+  int32_t result = 0;
+  bool isOF = false;
+  isOF = __builtin_ssub_overflow(0, r2_val, &result);
+  set_low_register(r1, result);
   SetS390ConditionCode<int32_t>(r2_val, 0);
   // Checks for overflow where r2_val = -2147483648.
   // Cannot do int comparison due to GCC 4.8 bug on x86.
   // Detect INT_MIN alternatively, as it is the only value where both
   // original and result are negative due to overflow.
-  if (r2_val == (static_cast<int32_t>(1) << 31)) {
+  if (isOF) {
     SetS390OverflowCode(true);
   }
   return length;
@@ -9972,12 +9973,16 @@ EVALUATE(LCGR) {
   DCHECK_OPCODE(LCGR);
   DECODE_RRE_INSTRUCTION(r1, r2);
   int64_t r2_val = get_register(r2);
-  r2_val = ~r2_val;
-  r2_val = r2_val + 1;
-  set_register(r1, r2_val);
-  SetS390ConditionCode<int64_t>(r2_val, 0);
-  // if the input is INT_MIN, loading its compliment would be overflowing
-  if (r2_val == (static_cast<int64_t>(1) << 63)) {
+  int64_t result = 0;
+  bool isOF = false;
+#ifdef V8_TARGET_ARCH_S390X
+  isOF = __builtin_ssubl_overflow(0L, r2_val, &result);
+#else
+  isOF = __builtin_ssubll_overflow(0L, r2_val, &result);
+#endif
+  set_register(r1, result);
+  SetS390ConditionCode<int64_t>(result, 0);
+  if (isOF) {
     SetS390OverflowCode(true);
   }
   return length;
