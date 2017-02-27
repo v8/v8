@@ -42,6 +42,7 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/bugs/bug-222.js',
     '/v8/test/mjsunit/bugs/bug-941049.js',
     '/v8/test/mjsunit/regress/regress-crbug-668795.js',
+    '/v8/test/mjsunit/regress/regress-1079.js',
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
