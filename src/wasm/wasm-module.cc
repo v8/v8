@@ -246,25 +246,24 @@ class CompilationHelper {
     }
 
     compiler::WasmCompilationUnit* unit = compilation_units_.at(index);
-    if (unit != nullptr) {
-      unit->ExecuteCompilation();
-      base::LockGuard<base::Mutex> guard(&result_mutex_);
-      executed_units_.push(unit);
-    }
+    unit->ExecuteCompilation();
+    base::LockGuard<base::Mutex> guard(&result_mutex_);
+    executed_units_.push(unit);
     return true;
   }
 
   void InitializeParallelCompilation(const std::vector<WasmFunction>& functions,
                                      ModuleBytesEnv& module_env,
                                      ErrorThrower* thrower) {
-    compilation_units_.reserve(functions.size());
-    for (uint32_t i = FLAG_skip_compiling_wasm_funcs; i < functions.size();
-         ++i) {
+    uint32_t start = module_env.module_env.module->num_imported_functions +
+                     FLAG_skip_compiling_wasm_funcs;
+    uint32_t num_funcs = static_cast<uint32_t>(functions.size());
+    uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
+    compilation_units_.reserve(funcs_to_compile);
+    for (uint32_t i = start; i < num_funcs; ++i) {
       const WasmFunction* func = &functions[i];
-      compilation_units_.push_back(
-          func->imported ? nullptr
-                         : new compiler::WasmCompilationUnit(
-                               thrower, isolate_, &module_env, func, i));
+      compilation_units_.push_back(new compiler::WasmCompilationUnit(
+          thrower, isolate_, &module_env, func, i));
     }
   }
 
@@ -449,7 +448,10 @@ class CompilationHelper {
     isolate_->counters()->wasm_functions_per_module()->AddSample(
         static_cast<int>(module_->functions.size()));
     CompilationHelper helper(isolate_, module_);
-    if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0) {
+    size_t funcs_to_compile =
+        module_->functions.size() - module_->num_imported_functions;
+    if (!FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks != 0 &&
+        funcs_to_compile > 1) {
       // Avoid a race condition by collecting results into a second vector.
       std::vector<Handle<Code>> results(temp_instance.function_code);
       helper.CompileInParallel(&module_env, results, thrower);

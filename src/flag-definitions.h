@@ -532,7 +532,7 @@ DEFINE_INT(trace_wasm_text_start, 0,
            "start function for WASM text generation (inclusive)")
 DEFINE_INT(trace_wasm_text_end, 0,
            "end function for WASM text generation (exclusive)")
-DEFINE_INT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
+DEFINE_UINT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,
             "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(wasm_loop_assignment_analysis, true,
