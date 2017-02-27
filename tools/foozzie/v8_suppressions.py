@@ -146,6 +146,9 @@ ALLOWED_LINE_DIFFS = [
 
   # crbug.com/681326
   r'^(.*<anonymous>):\d+:\d+(.*)$',
+
+  # crbug.com/664068
+  r'^(.*)(?:Array buffer allocation failed|Invalid array buffer length)(.*)$',
 ]
 
 # Lines matching any of the following regular expressions will be ignored.
