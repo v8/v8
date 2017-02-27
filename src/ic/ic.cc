@@ -2289,6 +2289,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
          store_mode == STORE_AND_GROW_NO_TRANSITION ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
+  DCHECK(!receiver_map->DictionaryElementsInPrototypeChainOnly());
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -2327,41 +2328,46 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
     Handle<Map> receiver_map(receiver_maps->at(i));
     Handle<Object> handler;
     Handle<Map> transitioned_map;
-    {
-      Map* tmap = receiver_map->FindElementsKindTransitionedMap(receiver_maps);
-      if (tmap != nullptr) transitioned_map = handle(tmap);
-    }
 
-    // TODO(mvstanton): The code below is doing pessimistic elements
-    // transitions. I would like to stop doing that and rely on Allocation Site
-    // Tracking to do a better job of ensuring the data types are what they need
-    // to be. Not all the elements are in place yet, pessimistic elements
-    // transitions are still important for performance.
-    if (!transitioned_map.is_null()) {
-      bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-      ElementsKind elements_kind = receiver_map->elements_kind();
-      TRACE_HANDLER_STATS(isolate(),
-                          KeyedStoreIC_ElementsTransitionAndStoreStub);
-      Handle<Code> stub =
-          ElementsTransitionAndStoreStub(isolate(), elements_kind,
-                                         transitioned_map->elements_kind(),
-                                         is_js_array, store_mode)
-              .GetCode();
-      Handle<Object> validity_cell =
-          Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
-      if (validity_cell.is_null()) {
-        handler = stub;
-      } else {
-        handler = isolate()->factory()->NewTuple2(validity_cell, stub);
-      }
-
-    } else if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE) {
+    if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
+        receiver_map->DictionaryElementsInPrototypeChainOnly()) {
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
       handler = isolate()->builtins()->KeyedStoreIC_Slow();
+
     } else {
-      handler = StoreElementHandler(receiver_map, store_mode);
+      {
+        Map* tmap =
+            receiver_map->FindElementsKindTransitionedMap(receiver_maps);
+        if (tmap != nullptr) transitioned_map = handle(tmap);
+      }
+
+      // TODO(mvstanton): The code below is doing pessimistic elements
+      // transitions. I would like to stop doing that and rely on Allocation
+      // Site Tracking to do a better job of ensuring the data types are what
+      // they need to be. Not all the elements are in place yet, pessimistic
+      // elements transitions are still important for performance.
+      if (!transitioned_map.is_null()) {
+        bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+        ElementsKind elements_kind = receiver_map->elements_kind();
+        TRACE_HANDLER_STATS(isolate(),
+                            KeyedStoreIC_ElementsTransitionAndStoreStub);
+        Handle<Code> stub =
+            ElementsTransitionAndStoreStub(isolate(), elements_kind,
+                                           transitioned_map->elements_kind(),
+                                           is_js_array, store_mode)
+                .GetCode();
+        Handle<Object> validity_cell =
+            Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
+        if (validity_cell.is_null()) {
+          handler = stub;
+        } else {
+          handler = isolate()->factory()->NewTuple2(validity_cell, stub);
+        }
+      } else {
+        handler = StoreElementHandler(receiver_map, store_mode);
+      }
     }
     DCHECK(!handler.is_null());
     handlers->Add(handler);
