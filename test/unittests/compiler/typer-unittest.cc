@@ -8,6 +8,7 @@
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/simplified-operator.h"
 #include "src/objects-inl.h"
 #include "test/cctest/types-fuzz.h"
 #include "test/unittests/compiler/graph-unittest.h"
@@ -22,7 +23,8 @@ class TyperTest : public TypedGraphTest {
   TyperTest()
       : TypedGraphTest(3),
         types_(zone(), isolate(), random_number_generator()),
-        javascript_(zone()) {
+        javascript_(zone()),
+        simplified_(zone()) {
     context_node_ = graph()->NewNode(common()->Parameter(2), graph()->start());
     rng_ = random_number_generator();
 
@@ -52,6 +54,7 @@ class TyperTest : public TypedGraphTest {
 
   Types types_;
   JSOperatorBuilder javascript_;
+  SimplifiedOperatorBuilder simplified_;
   BinaryOperationHint const hints_ = BinaryOperationHint::kAny;
   Node* context_node_;
   v8::base::RandomNumberGenerator* rng_;
@@ -295,12 +298,31 @@ TEST_F(TyperTest, TypeJSLessThan) {
                       std::less<double>());
 }
 
+TEST_F(TyperTest, TypeNumberLessThan) {
+  TestBinaryCompareOp(simplified_.NumberLessThan(), std::less<double>());
+}
+
+TEST_F(TyperTest, TypeSpeculativeNumberLessThan) {
+  TestBinaryCompareOp(simplified_.SpeculativeNumberLessThan(
+                          NumberOperationHint::kNumberOrOddball),
+                      std::less<double>());
+}
 
 TEST_F(TyperTest, TypeJSLessThanOrEqual) {
   TestBinaryCompareOp(javascript_.LessThanOrEqual(CompareOperationHint::kAny),
                       std::less_equal<double>());
 }
 
+TEST_F(TyperTest, TypeNumberLessThanOrEqual) {
+  TestBinaryCompareOp(simplified_.NumberLessThanOrEqual(),
+                      std::less_equal<double>());
+}
+
+TEST_F(TyperTest, TypeSpeculativeNumberLessThanOrEqual) {
+  TestBinaryCompareOp(simplified_.SpeculativeNumberLessThanOrEqual(
+                          NumberOperationHint::kNumberOrOddball),
+                      std::less_equal<double>());
+}
 
 TEST_F(TyperTest, TypeJSGreaterThan) {
   TestBinaryCompareOp(javascript_.GreaterThan(CompareOperationHint::kAny),
