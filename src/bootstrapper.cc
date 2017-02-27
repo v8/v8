@@ -1548,6 +1548,61 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(global_object,
                           factory->NewStringFromAsciiChecked("parseInt"),
                           parse_int_fun, DONT_ENUM);
+
+    // Install Number constants
+    double kMaxValue = 1.7976931348623157e+308;
+    double kMinValue = 5e-324;
+
+    double kMaxSafeInt = 9007199254740991;
+    double kMinSafeInt = -9007199254740991;
+    double kEPS = 2.220446049250313e-16;
+
+    Handle<Object> infinity = factory->infinity_value();
+    Handle<Object> nan = factory->nan_value();
+    Handle<String> nan_name = factory->NewStringFromAsciiChecked("NaN");
+
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("MAX_VALUE"),
+        factory->NewNumber(kMaxValue),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("MIN_VALUE"),
+        factory->NewNumber(kMinValue),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, nan_name, nan,
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("NEGATIVE_INFINITY"),
+        factory->NewNumber(-V8_INFINITY),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("POSITIVE_INFINITY"),
+        infinity,
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("MAX_SAFE_INTEGER"),
+        factory->NewNumber(kMaxSafeInt),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("MIN_SAFE_INTEGER"),
+        factory->NewNumber(kMinSafeInt),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        number_fun, factory->NewStringFromAsciiChecked("EPSILON"),
+        factory->NewNumber(kEPS),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+
+    JSObject::AddProperty(
+        global, factory->NewStringFromAsciiChecked("Infinity"), infinity,
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        global, nan_name, nan,
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
+    JSObject::AddProperty(
+        global, factory->NewStringFromAsciiChecked("undefined"),
+        factory->undefined_value(),
+        static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
   }
 
   {  // --- B o o l e a n ---
