@@ -113,6 +113,32 @@ InspectorTest.logCallFrames = function(callFrames)
   }
 }
 
+InspectorTest.logCallFrameSourceLocation = function(callFrame)
+{
+  var scriptId = callFrame.location.scriptId;
+  if (!InspectorTest._scriptMap || !InspectorTest._scriptMap.has(scriptId)) {
+    InspectorTest.log("InspectorTest.setupScriptMap should be called before Protocol.Debugger.enable.");
+    InspectorTest.completeTest();
+  }
+  var script = InspectorTest._scriptMap.get(scriptId);
+  if (!script.scriptSource) {
+    return Protocol.Debugger.getScriptSource({ scriptId })
+      .then(message => script.scriptSource = message.result.scriptSource)
+      .then(dumpSourceWithLocation);
+  }
+  return Promise.resolve().then(dumpSourceWithLocation);
+
+  function dumpSourceWithLocation() {
+    var location = callFrame.location;
+    var lines = script.scriptSource.split('\n');
+    var line = lines[location.lineNumber];
+    line = line.slice(0, location.columnNumber) + '#' + (line.slice(location.columnNumber) || '');
+    lines[location.lineNumber] = line;
+    InspectorTest.log(lines.slice(Math.max(location.lineNumber - 1, 0), location.lineNumber + 2).join('\n'));
+    InspectorTest.log('');
+  }
+}
+
 InspectorTest.logAsyncStackTrace = function(asyncStackTrace)
 {
   while (asyncStackTrace) {
