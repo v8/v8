@@ -3073,18 +3073,13 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   return result;
 }
 
-Node* WasmGraphBuilder::MemSize(uint32_t offset) {
-  DCHECK(module_ && module_->instance);
-  uint32_t size = static_cast<uint32_t>(module_->instance->mem_size);
-  if (offset == 0) {
-    if (!mem_size_)
-      mem_size_ = jsgraph()->RelocatableInt32Constant(
-          size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
-    return mem_size_;
-  } else {
-    return jsgraph()->RelocatableInt32Constant(
-        size + offset, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
-  }
+Node* WasmGraphBuilder::MemSize() {
+  DCHECK_NOT_NULL(module_);
+  if (mem_size_) return mem_size_;
+  uint32_t size = module_->instance ? module_->instance->mem_size : 0;
+  mem_size_ = jsgraph()->RelocatableInt32Constant(
+      size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  return mem_size_;
 }
 
 void WasmGraphBuilder::EnsureFunctionTableNodes() {
@@ -3292,8 +3287,8 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   // TODO(turbofan): fold bounds checks for constant asm.js loads.
   // asm.js semantics use CheckedLoad (i.e. OOB reads return 0ish).
   const Operator* op = jsgraph()->machine()->CheckedLoad(type);
-  Node* load = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), *effect_,
-                                *control_);
+  Node* load =
+      graph()->NewNode(op, MemBuffer(0), index, MemSize(), *effect_, *control_);
   *effect_ = load;
   return load;
 }
@@ -3304,7 +3299,7 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
   const Operator* op =
       jsgraph()->machine()->CheckedStore(type.representation());
-  Node* store = graph()->NewNode(op, MemBuffer(0), index, MemSize(0), val,
+  Node* store = graph()->NewNode(op, MemBuffer(0), index, MemSize(), val,
                                  *effect_, *control_);
   *effect_ = store;
   return val;
