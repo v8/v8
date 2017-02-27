@@ -3380,6 +3380,18 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprF32x4Sub:
       return graph()->NewNode(jsgraph()->machine()->Float32x4Sub(), inputs[0],
                               inputs[1]);
+    case wasm::kExprF32x4Mul:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Mul(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF32x4Div:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Div(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF32x4Min:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Min(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprF32x4Max:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4Max(), inputs[0],
+                              inputs[1]);
     case wasm::kExprF32x4Eq:
       return graph()->NewNode(jsgraph()->machine()->Float32x4Equal(), inputs[0],
                               inputs[1]);

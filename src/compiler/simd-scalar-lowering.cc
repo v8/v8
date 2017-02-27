@@ -72,16 +72,26 @@ void SimdScalarLowering::LowerGraph() {
 }
 
 #define FOREACH_INT32X4_OPCODE(V) \
-  V(Int32x4Add)                   \
-  V(Int32x4ExtractLane)           \
   V(Int32x4Splat)                 \
-  V(Int32x4ReplaceLane)
+  V(Int32x4ExtractLane)           \
+  V(Int32x4ReplaceLane)           \
+  V(Int32x4Add)                   \
+  V(Int32x4Sub)                   \
+  V(Int32x4Mul)                   \
+  V(Simd128And)                   \
+  V(Simd128Or)                    \
+  V(Simd128Xor)
 
 #define FOREACH_FLOAT32X4_OPCODE(V) \
-  V(Float32x4Add)                   \
-  V(Float32x4ExtractLane)           \
   V(Float32x4Splat)                 \
-  V(Float32x4ReplaceLane)
+  V(Float32x4ExtractLane)           \
+  V(Float32x4ReplaceLane)           \
+  V(Float32x4Add)                   \
+  V(Float32x4Sub)                   \
+  V(Float32x4Mul)                   \
+  V(Float32x4Div)                   \
+  V(Float32x4Min)                   \
+  V(Float32x4Max)
 
 void SimdScalarLowering::SetLoweredType(Node* node, Node* output) {
   switch (node->opcode()) {
@@ -377,14 +387,30 @@ void SimdScalarLowering::LowerNode(Node* node) {
       }
       break;
     }
-    case IrOpcode::kInt32x4Add: {
-      LowerBinaryOp(node, rep_type, machine()->Int32Add());
-      break;
-    }
-    case IrOpcode::kFloat32x4Add: {
-      LowerBinaryOp(node, rep_type, machine()->Float32Add());
-      break;
-    }
+#define I32X4_BINOP_CASE(opcode, instruction)                \
+  case IrOpcode::opcode: {                                   \
+    LowerBinaryOp(node, rep_type, machine()->instruction()); \
+    break;                                                   \
+  }
+      I32X4_BINOP_CASE(kInt32x4Add, Int32Add)
+      I32X4_BINOP_CASE(kInt32x4Sub, Int32Sub)
+      I32X4_BINOP_CASE(kInt32x4Mul, Int32Mul)
+      I32X4_BINOP_CASE(kSimd128And, Word32And)
+      I32X4_BINOP_CASE(kSimd128Or, Word32Or)
+      I32X4_BINOP_CASE(kSimd128Xor, Word32Xor)
+#undef I32X4_BINOP_CASE
+#define F32X4_BINOP_CASE(name)                                 \
+  case IrOpcode::kFloat32x4##name: {                           \
+    LowerBinaryOp(node, rep_type, machine()->Float32##name()); \
+    break;                                                     \
+  }
+      F32X4_BINOP_CASE(Add)
+      F32X4_BINOP_CASE(Sub)
+      F32X4_BINOP_CASE(Mul)
+      F32X4_BINOP_CASE(Div)
+      F32X4_BINOP_CASE(Min)
+      F32X4_BINOP_CASE(Max)
+#undef F32X4_BINOP_CASE
     case IrOpcode::kInt32x4Splat:
     case IrOpcode::kFloat32x4Splat: {
       Node* rep_node[kMaxLanes];
