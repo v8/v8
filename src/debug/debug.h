@@ -312,7 +312,8 @@ class Debug {
 
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
-                              int end_position, std::set<int>* positions);
+                              int end_position, bool restrict_to_function,
+                              std::set<int>* positions);
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
 

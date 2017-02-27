@@ -361,7 +361,7 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
 
 Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     std::unique_ptr<protocol::Debugger::Location> start,
-    Maybe<protocol::Debugger::Location> end,
+    Maybe<protocol::Debugger::Location> end, Maybe<bool> restrictToFunction,
     std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
   String16 scriptId = start->getScriptId();
 
@@ -386,7 +386,8 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   if (it == m_scripts.end()) return Response::Error("Script not found");
 
   std::vector<v8::debug::Location> v8Locations;
-  if (!it->second->getPossibleBreakpoints(v8Start, v8End, &v8Locations))
+  if (!it->second->getPossibleBreakpoints(
+          v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations))
     return Response::InternalError();
 
   *locations = protocol::Array<protocol::Debugger::Location>::create();

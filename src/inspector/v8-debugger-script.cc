@@ -172,10 +172,12 @@ class ActualScript : public V8DebuggerScript {
 
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
+      bool restrictToFunction,
       std::vector<v8::debug::Location>* locations) override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
-    return script->GetPossibleBreakpoints(start, end, locations);
+    return script->GetPossibleBreakpoints(start, end, restrictToFunction,
+                                          locations);
   }
 
   void resetBlackboxedStateCache() override {
@@ -228,6 +230,7 @@ class WasmVirtualScript : public V8DebuggerScript {
 
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
+      bool restrictToFunction,
       std::vector<v8::debug::Location>* locations) override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
@@ -247,8 +250,8 @@ class WasmVirtualScript : public V8DebuggerScript {
                                             scriptId(), v8ScriptId);
     }
 
-    bool success = script->GetPossibleBreakpoints(translatedStart,
-                                                  translatedEnd, locations);
+    bool success = script->GetPossibleBreakpoints(
+        translatedStart, translatedEnd, restrictToFunction, locations);
     for (v8::debug::Location& loc : *locations) {
       TranslateV8LocationToProtocolLocation(m_wasmTranslation, &loc, v8ScriptId,
                                             scriptId());

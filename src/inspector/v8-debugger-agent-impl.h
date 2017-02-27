@@ -66,7 +66,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       override;
   Response getPossibleBreakpoints(
       std::unique_ptr<protocol::Debugger::Location> start,
-      Maybe<protocol::Debugger::Location> end,
+      Maybe<protocol::Debugger::Location> end, Maybe<bool> restrictToFunction,
       std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations)
       override;
   Response setScriptSource(

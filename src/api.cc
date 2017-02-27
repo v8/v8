@@ -9241,7 +9241,7 @@ int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
 
 bool debug::Script::GetPossibleBreakpoints(
     const debug::Location& start, const debug::Location& end,
-    std::vector<debug::Location>* locations) const {
+    bool restrict_to_function, std::vector<debug::Location>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
@@ -9267,8 +9267,8 @@ bool debug::Script::GetPossibleBreakpoints(
   if (start_offset >= end_offset) return true;
 
   std::set<int> offsets;
-  if (!isolate->debug()->GetPossibleBreakpoints(script, start_offset,
-                                                end_offset, &offsets)) {
+  if (!isolate->debug()->GetPossibleBreakpoints(
+          script, start_offset, end_offset, restrict_to_function, &offsets)) {
     return false;
   }
 

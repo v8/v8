@@ -1343,7 +1343,24 @@ void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
 }  // namespace
 
 bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
-                                   int end_position, std::set<int>* positions) {
+                                   int end_position, bool restrict_to_function,
+                                   std::set<int>* positions) {
+  if (restrict_to_function) {
+    Handle<Object> result =
+        FindSharedFunctionInfoInScript(script, start_position);
+    if (result->IsUndefined(isolate_)) return false;
+
+    // Make sure the function has set up the debug info.
+    Handle<SharedFunctionInfo> shared =
+        Handle<SharedFunctionInfo>::cast(result);
+    if (!EnsureDebugInfo(shared)) return false;
+
+    Handle<DebugInfo> debug_info(shared->GetDebugInfo());
+    FindBreakablePositions(debug_info, start_position, end_position,
+                           BREAK_POSITION_ALIGNED, positions);
+    return true;
+  }
+
   while (true) {
     HandleScope scope(isolate_);
     List<Handle<SharedFunctionInfo>> candidates;

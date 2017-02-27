@@ -137,6 +137,7 @@ class V8_EXPORT_PRIVATE Script {
   bool IsModule() const;
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
+                              bool restrict_to_function,
                               std::vector<debug::Location>* locations) const;
 
  private:
