@@ -8373,16 +8373,14 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
 
 Node* CodeStubAssembler::MarkerIsFrameType(Node* marker_or_function,
                                            StackFrame::Type frame_type) {
-  return WordEqual(
-      marker_or_function,
-      IntPtrConstant(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
+  return WordEqual(marker_or_function,
+                   IntPtrConstant(StackFrame::TypeToMarker(frame_type)));
 }
 
 Node* CodeStubAssembler::MarkerIsNotFrameType(Node* marker_or_function,
                                               StackFrame::Type frame_type) {
-  return WordNotEqual(
-      marker_or_function,
-      IntPtrConstant(StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)));
+  return WordNotEqual(marker_or_function,
+                      IntPtrConstant(StackFrame::TypeToMarker(frame_type)));
 }
 
 void CodeStubAssembler::Print(const char* s) {
