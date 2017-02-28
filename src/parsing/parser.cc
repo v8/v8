@@ -1508,12 +1508,14 @@ Statement* Parser::DeclareClass(const AstRawString* variable_name,
   Declaration* decl =
       DeclareVariable(variable_name, LET, class_token_pos, CHECK_OK);
   decl->proxy()->var()->set_initializer_position(end_pos);
+  if (names) names->Add(variable_name, zone());
+
   Assignment* assignment = factory()->NewAssignment(Token::INIT, decl->proxy(),
                                                     value, class_token_pos);
-  Statement* assignment_statement =
-      factory()->NewExpressionStatement(assignment, kNoSourcePosition);
-  if (names) names->Add(variable_name, zone());
-  return assignment_statement;
+  Block* block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+  block->statements()->Add(
+      factory()->NewExpressionStatement(assignment, kNoSourcePosition), zone());
+  return block;
 }
 
 Statement* Parser::DeclareNative(const AstRawString* name, int pos, bool* ok) {

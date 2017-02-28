@@ -20031,8 +20031,12 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, result, Execution::Call(isolate, resume, generator, 0, nullptr),
       Object);
-  DCHECK(Handle<JSIteratorResult>::cast(result)->done()->BooleanValue());
-  return handle(Handle<JSIteratorResult>::cast(result)->value(), isolate);
+  DCHECK(static_cast<JSIteratorResult*>(JSObject::cast(*result))
+             ->done()
+             ->BooleanValue());
+  return handle(
+      static_cast<JSIteratorResult*>(JSObject::cast(*result))->value(),
+      isolate);
 }
 
 namespace {

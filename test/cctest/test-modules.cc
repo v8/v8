@@ -104,14 +104,21 @@ TEST(ModuleEvaluationCompletion1) {
   LocalContext env;
 
   const char* sources[] = {
-      "", "var a = 1", "import '42'", "export * from '42'",
-      "export {} from '42'", "export {}", "var a = 1; export {a}",
+      "",
+      "var a = 1",
+      "import '42'",
+      "export * from '42'",
+      "export {} from '42'",
+      "export {}",
+      "var a = 1; export {a}",
       "export function foo() {}",
-      // TODO(neis): v8:6022 "export class C extends null {}",
-      "export let a = 1", "export default 1",
-      "export default function foo() {}", "export default function () {}",
+      "export class C extends null {}",
+      "export let a = 1",
+      "export default 1",
+      "export default function foo() {}",
+      "export default function () {}",
       "export default (function () {})",
-      // TODO(neis): v8:6022 "export default class C extends null {}",
+      "export default class C extends null {}",
       "export default (class C extends null {})",
       "for (var i = 0; i < 5; ++i) {}",
   };
@@ -134,16 +141,21 @@ TEST(ModuleEvaluationCompletion2) {
   LocalContext env;
 
   const char* sources[] = {
-      "'gaga'; ", "'gaga'; var a = 1", "'gaga'; import '42'",
-      "'gaga'; export * from '42'", "'gaga'; export {} from '42'",
-      "'gaga'; export {}", "'gaga'; var a = 1; export {a}",
+      "'gaga'; ",
+      "'gaga'; var a = 1",
+      "'gaga'; import '42'",
+      "'gaga'; export * from '42'",
+      "'gaga'; export {} from '42'",
+      "'gaga'; export {}",
+      "'gaga'; var a = 1; export {a}",
       "'gaga'; export function foo() {}",
-      // TODO(neis): v8:6022 "'gaga'; export class C extends null {}",
-      "'gaga'; export let a = 1", "'gaga'; export default 1",
+      "'gaga'; export class C extends null {}",
+      "'gaga'; export let a = 1",
+      "'gaga'; export default 1",
       "'gaga'; export default function foo() {}",
       "'gaga'; export default function () {}",
       "'gaga'; export default (function () {})",
-      // TODO(neis): v8:6022 "'gaga'; export default class C extends null {}",
+      "'gaga'; export default class C extends null {}",
       "'gaga'; export default (class C extends null {})",
   };
 
