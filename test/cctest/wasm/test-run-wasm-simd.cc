@@ -214,11 +214,11 @@ T Not(T a) {
 
 }  // namespace
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
 #define SIMD_LOWERING_TARGET 1
 #else
 #define SIMD_LOWERING_TARGET 0
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
 
 // TODO(gdeepti): These are tests using sample values to verify functional
 // correctness of opcodes, add more tests for a range of values and macroize

@@ -1483,7 +1483,6 @@
             'ia32/macro-assembler-ia32.h',
             'ia32/simulator-ia32.cc',
             'ia32/simulator-ia32.h',
-            'ia32/sse-instr.h',
             'builtins/ia32/builtins-ia32.cc',
             'compiler/ia32/code-generator-ia32.cc',
             'compiler/ia32/instruction-codes-ia32.h',

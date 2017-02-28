@@ -113,14 +113,7 @@ namespace compiler {
   V(IA32StackCheck)                \
   V(IA32Xchgb)                     \
   V(IA32Xchgw)                     \
-  V(IA32Xchgl)                     \
-  V(IA32Int32x4Splat)              \
-  V(IA32Int32x4ExtractLane)        \
-  V(IA32Int32x4ReplaceLane)        \
-  V(SSEInt32x4Add)                 \
-  V(SSEInt32x4Sub)                 \
-  V(AVXInt32x4Add)                 \
-  V(AVXInt32x4Sub)
+  V(IA32Xchgl)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes
