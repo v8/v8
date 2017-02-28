@@ -13,6 +13,11 @@
 namespace v8 {
 namespace internal {
 
+Handle<Object> LoadHandler::LoadNormal(Isolate* isolate) {
+  int config = KindBits::encode(kForNormal);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Object> LoadHandler::LoadField(Isolate* isolate,
                                       FieldIndex field_index) {
   int config = KindBits::encode(kForFields) |
@@ -25,16 +30,14 @@ Handle<Object> LoadHandler::LoadField(Isolate* isolate,
 Handle<Object> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
   int config = KindBits::encode(kForConstants) |
                IsAccessorInfoBits::encode(false) |
-               DescriptorValueIndexBits::encode(
-                   DescriptorArray::ToValueIndex(descriptor));
+               DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Object> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
   int config = KindBits::encode(kForConstants) |
                IsAccessorInfoBits::encode(true) |
-               DescriptorValueIndexBits::encode(
-                   DescriptorArray::ToValueIndex(descriptor));
+               DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -79,6 +82,11 @@ Handle<Object> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Object> StoreHandler::StoreNormal(Isolate* isolate) {
+  int config = KindBits::encode(kStoreNormal);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Object> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                                         int descriptor, FieldIndex field_index,
                                         Representation representation,
@@ -101,7 +109,6 @@ Handle<Object> StoreHandler::StoreField(Isolate* isolate, Kind kind,
       UNREACHABLE();
       return Handle<Object>::null();
   }
-  int value_index = DescriptorArray::ToValueIndex(descriptor);
 
   DCHECK(kind == kStoreField || kind == kTransitionToField ||
          (kind == kStoreConstField && FLAG_track_constant_fields));
@@ -112,7 +119,7 @@ Handle<Object> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                StoreHandler::ExtendStorageBits::encode(extend_storage) |
                StoreHandler::IsInobjectBits::encode(field_index.is_inobject()) |
                StoreHandler::FieldRepresentationBits::encode(field_rep) |
-               StoreHandler::DescriptorValueIndexBits::encode(value_index) |
+               StoreHandler::DescriptorBits::encode(descriptor) |
                StoreHandler::FieldOffsetBits::encode(field_index.offset());
   return handle(Smi::FromInt(config), isolate);
 }
@@ -138,10 +145,9 @@ Handle<Object> StoreHandler::TransitionToField(Isolate* isolate, int descriptor,
 Handle<Object> StoreHandler::TransitionToConstant(Isolate* isolate,
                                                   int descriptor) {
   DCHECK(!FLAG_track_constant_fields);
-  int value_index = DescriptorArray::ToValueIndex(descriptor);
   int config =
       StoreHandler::KindBits::encode(StoreHandler::kTransitionToConstant) |
-      StoreHandler::DescriptorValueIndexBits::encode(value_index);
+      StoreHandler::DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 

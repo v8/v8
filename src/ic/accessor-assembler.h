@@ -89,6 +89,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleStoreICHandlerCase(
       const StoreICParameters* p, Node* handler, Label* miss,
       ElementSupport support_elements = kOnlyProperties);
+  void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
  private:
   // Stub generation entry points.
@@ -135,6 +136,10 @@ class AccessorAssembler : public CodeStubAssembler {
                                     Label* if_smi_handler, Label* miss,
                                     ExitPoint* exit_point,
                                     bool throw_reference_error_if_nonexistent);
+
+  void HandleLoadField(Node* holder, Node* handler_word,
+                       Variable* var_double_value, Label* rebox_double,
+                       ExitPoint* exit_point);
 
   Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p, Node* handler,
                                   Node* handler_length, Node* handler_flags,

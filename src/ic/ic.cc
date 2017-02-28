@@ -1383,8 +1383,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
           return slow_stub();
         }
-        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormal);
-        return isolate()->builtins()->LoadIC_Normal();
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
+        return LoadHandler::LoadNormal(isolate());
       }
 
       // -------------- Fields --------------
@@ -2005,9 +2005,9 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         if (holder->IsJSGlobalObject()) {
           break;  // Custom-compiled handler.
         }
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormal);
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));
-        return isolate()->builtins()->StoreIC_Normal();
+        return StoreHandler::StoreNormal(isolate());
       }
 
       // -------------- Fields --------------

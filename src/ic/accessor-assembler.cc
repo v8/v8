@@ -179,6 +179,48 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   }
 }
 
+void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
+                                        Variable* var_double_value,
+                                        Label* rebox_double,
+                                        ExitPoint* exit_point) {
+  Comment("field_load");
+  Node* offset = DecodeWord<LoadHandler::FieldOffsetBits>(handler_word);
+
+  Label inobject(this), out_of_object(this);
+  Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
+         &out_of_object);
+
+  Bind(&inobject);
+  {
+    Label is_double(this);
+    GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+    exit_point->Return(LoadObjectField(holder, offset));
+
+    Bind(&is_double);
+    if (FLAG_unbox_double_fields) {
+      var_double_value->Bind(
+          LoadObjectField(holder, offset, MachineType::Float64()));
+    } else {
+      Node* mutable_heap_number = LoadObjectField(holder, offset);
+      var_double_value->Bind(LoadHeapNumberValue(mutable_heap_number));
+    }
+    Goto(rebox_double);
+  }
+
+  Bind(&out_of_object);
+  {
+    Label is_double(this);
+    Node* properties = LoadProperties(holder);
+    Node* value = LoadObjectField(properties, offset);
+    GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
+    exit_point->Return(value);
+
+    Bind(&is_double);
+    var_double_value->Bind(LoadHeapNumberValue(value));
+    Goto(rebox_double);
+  }
+}
+
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LoadICParameters* p, Node* holder, Node* smi_handler, Label* miss,
     ExitPoint* exit_point, ElementSupport support_elements) {
@@ -232,63 +274,32 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     Comment("property_load");
   }
 
-  Label constant(this), field(this);
-  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
-         &field, &constant);
+  Label constant(this), field(this), normal(this);
+  GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
+         &field);
+
+  Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForConstants)),
+         &constant, &normal);
 
   Bind(&field);
-  {
-    Comment("field_load");
-    Node* offset = DecodeWord<LoadHandler::FieldOffsetBits>(handler_word);
-
-    Label inobject(this), out_of_object(this);
-    Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
-           &out_of_object);
-
-    Bind(&inobject);
-    {
-      Label is_double(this);
-      GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-      exit_point->Return(LoadObjectField(holder, offset));
-
-      Bind(&is_double);
-      if (FLAG_unbox_double_fields) {
-        var_double_value.Bind(
-            LoadObjectField(holder, offset, MachineType::Float64()));
-      } else {
-        Node* mutable_heap_number = LoadObjectField(holder, offset);
-        var_double_value.Bind(LoadHeapNumberValue(mutable_heap_number));
-      }
-      Goto(&rebox_double);
-    }
-
-    Bind(&out_of_object);
-    {
-      Label is_double(this);
-      Node* properties = LoadProperties(holder);
-      Node* value = LoadObjectField(properties, offset);
-      GotoIf(IsSetWord<LoadHandler::IsDoubleBits>(handler_word), &is_double);
-      exit_point->Return(value);
-
-      Bind(&is_double);
-      var_double_value.Bind(LoadHeapNumberValue(value));
-      Goto(&rebox_double);
-    }
-
-    Bind(&rebox_double);
-    exit_point->Return(AllocateHeapNumberWithValue(var_double_value.value()));
-  }
+  HandleLoadField(holder, handler_word, &var_double_value, &rebox_double,
+                  exit_point);
 
   Bind(&constant);
   {
     Comment("constant_load");
     Node* descriptors = LoadMapDescriptors(LoadMap(holder));
-    Node* descriptor =
-        DecodeWord<LoadHandler::DescriptorValueIndexBits>(handler_word);
+    Node* descriptor = DecodeWord<LoadHandler::DescriptorBits>(handler_word);
+    Node* scaled_descriptor =
+        IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
+    Node* value_index =
+        IntPtrAdd(scaled_descriptor,
+                  IntPtrConstant(DescriptorArray::kFirstIndex +
+                                 DescriptorArray::kEntryValueIndex));
     CSA_ASSERT(this,
                UintPtrLessThan(descriptor,
                                LoadAndUntagFixedArrayBaseLength(descriptors)));
-    Node* value = LoadFixedArrayElement(descriptors, descriptor);
+    Node* value = LoadFixedArrayElement(descriptors, value_index);
 
     Label if_accessor_info(this);
     GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
@@ -300,6 +311,29 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     exit_point->ReturnCallStub(callable, p->context, p->receiver, holder,
                                value);
   }
+
+  Bind(&normal);
+  {
+    Comment("load_normal");
+    Node* properties = LoadProperties(holder);
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    Label found(this, &var_name_index);
+    NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
+                                         &var_name_index, miss);
+    Bind(&found);
+    {
+      Variable var_details(this, MachineRepresentation::kWord32);
+      Variable var_value(this, MachineRepresentation::kTagged);
+      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
+                                     &var_details, &var_value);
+      Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
+                                         p->context, p->receiver, miss);
+      exit_point->Return(value);
+    }
+  }
+
+  Bind(&rebox_double);
+  exit_point->Return(AllocateHeapNumberWithValue(var_double_value.value()));
 }
 
 void AccessorAssembler::HandleLoadICProtoHandlerCase(
@@ -464,6 +498,16 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
                              miss, exit_point, kOnlyProperties);
 }
 
+void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
+                                           Label* readonly) {
+  // Accessor properties never have the READ_ONLY attribute set.
+  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
+         readonly);
+  Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
+  GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
+  // Fall through if it's an accessor property.
+}
+
 void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
@@ -479,6 +523,33 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     Node* holder = p->receiver;
     Node* handler_word = SmiUntag(handler);
 
+    Label if_fast_smi(this), slow(this);
+    GotoIfNot(
+        WordEqual(handler_word, IntPtrConstant(StoreHandler::kStoreNormal)),
+        &if_fast_smi);
+
+    Node* properties = LoadProperties(holder);
+
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    Label dictionary_found(this, &var_name_index);
+    NameDictionaryLookup<NameDictionary>(properties, p->name, &dictionary_found,
+                                         &var_name_index, miss);
+    Bind(&dictionary_found);
+    {
+      Node* details = LoadDetailsByKeyIndex<NameDictionary>(
+          properties, var_name_index.value());
+      // Check that the property is a writable data property (no accessor).
+      const int kTypeAndReadOnlyMask = PropertyDetails::KindField::kMask |
+                                       PropertyDetails::kAttributesReadOnlyMask;
+      STATIC_ASSERT(kData == 0);
+      GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+
+      StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
+                                           p->value);
+      Return(p->value);
+    }
+
+    Bind(&if_fast_smi);
     // Handle non-transitioning field stores.
     HandleStoreICSmiHandlerCase(handler_word, holder, p->value, nullptr, miss);
   }
@@ -606,11 +677,20 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
     Bind(&if_transition_to_constant);
     {
       // Check that constant matches value.
-      Node* value_index_in_descriptor =
-          DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
+      Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+      Node* scaled_descriptor =
+          IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
+      Node* value_index =
+          IntPtrAdd(scaled_descriptor,
+                    IntPtrConstant(DescriptorArray::kFirstIndex +
+                                   DescriptorArray::kEntryValueIndex));
       Node* descriptors = LoadMapDescriptors(transition);
-      Node* constant =
-          LoadFixedArrayElement(descriptors, value_index_in_descriptor);
+      CSA_ASSERT(
+          this,
+          UintPtrLessThan(descriptor,
+                          LoadAndUntagFixedArrayBaseLength(descriptors)));
+
+      Node* constant = LoadFixedArrayElement(descriptors, value_index);
       GotoIf(WordNotEqual(p->value, constant), miss);
 
       StoreMap(p->receiver, transition);
@@ -761,12 +841,19 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
                        IntPtrConstant(StoreHandler::kStoreConstField)),
              &done);
     }
-    Node* value_index_in_descriptor =
-        DecodeWord<StoreHandler::DescriptorValueIndexBits>(handler_word);
+    Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+    Node* scaled_descriptor =
+        IntPtrMul(descriptor, IntPtrConstant(DescriptorArray::kEntrySize));
+    Node* value_index =
+        IntPtrAdd(scaled_descriptor,
+                  IntPtrConstant(DescriptorArray::kFirstIndex +
+                                 DescriptorArray::kEntryValueIndex));
     Node* descriptors =
         LoadMapDescriptors(transition ? transition : LoadMap(holder));
-    Node* maybe_field_type =
-        LoadFixedArrayElement(descriptors, value_index_in_descriptor);
+    CSA_ASSERT(this,
+               UintPtrLessThan(descriptor,
+                               LoadAndUntagFixedArrayBaseLength(descriptors)));
+    Node* maybe_field_type = LoadFixedArrayElement(descriptors, value_index);
 
     GotoIf(TaggedIsSmi(maybe_field_type), &done);
     // Check that value type matches the field type.
@@ -1977,8 +2064,16 @@ void AccessorAssembler::GenerateLoadField() {
 
   ExitPoint direct_exit(this);
 
-  HandleLoadICSmiHandlerCase(&p, receiver, Parameter(Descriptor::kSmiHandler),
-                             nullptr, &direct_exit, kOnlyProperties);
+  Variable var_double_value(this, MachineRepresentation::kFloat64);
+  Label rebox_double(this, &var_double_value);
+
+  Node* smi_handler = Parameter(Descriptor::kSmiHandler);
+  Node* handler_word = SmiUntag(smi_handler);
+  HandleLoadField(receiver, handler_word, &var_double_value, &rebox_double,
+                  &direct_exit);
+
+  Bind(&rebox_double);
+  Return(AllocateHeapNumberWithValue(var_double_value.value()));
 }
 
 void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {

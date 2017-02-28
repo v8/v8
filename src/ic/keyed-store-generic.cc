@@ -67,7 +67,6 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
                                 ElementsKind packed_kind,
                                 ElementsKind packed_kind_2, Label* bailout);
 
-  void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
   void LookupPropertyOnPrototypeChain(Node* receiver_map, Node* name,
                                       Label* accessor,
                                       Variable* var_accessor_pair,
@@ -504,17 +503,6 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
     // TODO(jkummerow): Support typed arrays.
     Goto(slow);
   }
-}
-
-void KeyedStoreGenericAssembler::JumpIfDataProperty(Node* details,
-                                                    Label* writable,
-                                                    Label* readonly) {
-  // Accessor properties never have the READ_ONLY attribute set.
-  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
-         readonly);
-  Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
-  GotoIf(Word32Equal(kind, Int32Constant(kData)), writable);
-  // Fall through if it's an accessor property.
 }
 
 void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
