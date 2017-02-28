@@ -248,6 +248,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  USE(bytes);
   if (!IsCompilationAllowed(i_isolate, &thrower, args[0], true)) {
     resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     return;
@@ -294,6 +295,7 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  USE(bytes);
   if (!IsCompilationAllowed(i_isolate, &thrower, args[0], false)) return;
 
   i::MaybeHandle<i::JSObject> module_obj =
