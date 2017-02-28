@@ -108,6 +108,22 @@ class ConnectTask : public TaskRunner::Task {
   v8::base::Semaphore* ready_semaphore_;
 };
 
+class DisconnectTask : public TaskRunner::Task {
+ public:
+  explicit DisconnectTask(InspectorClientImpl* client) : client_(client) {}
+  virtual ~DisconnectTask() = default;
+
+  bool is_inspector_task() final { return true; }
+
+  void Run(v8::Isolate* isolate,
+           const v8::Global<v8::Context>& global_context) {
+    client_->disconnect();
+  }
+
+ private:
+  InspectorClientImpl* client_;
+};
+
 InspectorClientImpl::InspectorClientImpl(TaskRunner* task_runner,
                                          FrontendChannel* frontend_channel,
                                          v8::base::Semaphore* ready_semaphore)
@@ -125,12 +141,25 @@ void InspectorClientImpl::connect(v8::Local<v8::Context> context) {
   channel_.reset(new ChannelImpl(frontend_channel_));
 
   inspector_ = v8_inspector::V8Inspector::create(isolate_, this);
-  session_ = inspector_->connect(1, channel_.get(), v8_inspector::StringView());
+  v8_inspector::StringView state =
+      state_ ? state_->string() : v8_inspector::StringView();
+  session_ = inspector_->connect(1, channel_.get(), state);
 
   context->SetAlignedPointerInEmbedderData(kInspectorClientIndex, this);
   inspector_->contextCreated(
       v8_inspector::V8ContextInfo(context, 1, v8_inspector::StringView()));
   context_.Reset(isolate_, context);
+}
+
+void InspectorClientImpl::scheduleReconnect(
+    v8::base::Semaphore* ready_semaphore) {
+  task_runner_->Append(new DisconnectTask(this));
+  task_runner_->Append(new ConnectTask(this, ready_semaphore));
+}
+
+void InspectorClientImpl::disconnect() {
+  state_ = session_->stateJSON();
+  session_.reset();
 }
 
 v8::Local<v8::Context> InspectorClientImpl::ensureDefaultContextInGroup(int) {

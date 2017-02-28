@@ -58,7 +58,8 @@ class UtilsExtension : public v8::Extension {
                       "native function compileAndRunWithOrigin();"
                       "native function setCurrentTimeMSForTest();"
                       "native function schedulePauseOnNextStatement();"
-                      "native function cancelPauseOnNextStatement();") {}
+                      "native function cancelPauseOnNextStatement();"
+                      "native function reconnect();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -120,6 +121,12 @@ class UtilsExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(
           isolate, UtilsExtension::CancelPauseOnNextStatement);
+    } else if (name->Equals(context,
+                            v8::String::NewFromUtf8(isolate, "reconnect",
+                                                    v8::NewStringType::kNormal)
+                                .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate, UtilsExtension::Reconnect);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -274,6 +281,16 @@ class UtilsExtension : public v8::Extension {
       Exit();
     }
     inspector_client_->session()->cancelPauseOnNextStatement();
+  }
+
+  static void Reconnect(const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: reconnect().");
+      Exit();
+    }
+    v8::base::Semaphore ready_semaphore(0);
+    inspector_client_->scheduleReconnect(&ready_semaphore);
+    ready_semaphore.Wait();
   }
 };
 

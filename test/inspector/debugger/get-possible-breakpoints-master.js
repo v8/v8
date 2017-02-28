@@ -2,9 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks Debugger.getPossibleBreakpoints');
+InspectorTest.log('Checks Debugger.getPossibleBreakpoints');
 
-var source = read('test/inspector/debugger/resources/break-locations.js');
+var source = utils.read('test/inspector/debugger/resources/break-locations.js');
 InspectorTest.addScript(source);
 
 Protocol.Debugger.onceScriptParsed()

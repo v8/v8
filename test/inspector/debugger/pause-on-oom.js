@@ -4,7 +4,7 @@
 
 // Flags: --max-old-space-size=4
 
-print('Check pause on OOM');
+InspectorTest.log('Check pause on OOM');
 
 InspectorTest.addScript(`
 var arr = [];

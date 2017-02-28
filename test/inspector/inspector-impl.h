@@ -25,6 +25,8 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
                       v8::base::Semaphore* ready_semaphore);
   virtual ~InspectorClientImpl();
 
+  void scheduleReconnect(v8::base::Semaphore* ready_semaphore);
+
   static v8_inspector::V8Inspector* InspectorFromContext(
       v8::Local<v8::Context> context);
   static v8_inspector::V8InspectorSession* SessionFromContext(
@@ -46,10 +48,13 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
   friend class ConnectTask;
   void connect(v8::Local<v8::Context> context);
+  friend class DisconnectTask;
+  void disconnect();
 
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
+  std::unique_ptr<v8_inspector::StringBuffer> state_;
 
   v8::Isolate* isolate_;
   v8::Global<v8::Context> context_;

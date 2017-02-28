@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions');
+InspectorTest.log('Checks Debugger.getPossibleBreakpoints with ignoreNestedFunctions');
 
 var source = `
 function test() {

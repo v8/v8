@@ -521,6 +521,7 @@ Response V8RuntimeAgentImpl::runIfWaitingForDebugger() {
 Response V8RuntimeAgentImpl::setCustomObjectFormatterEnabled(bool enabled) {
   m_state->setBoolean(V8RuntimeAgentImplState::customObjectFormatterEnabled,
                       enabled);
+  if (!m_enabled) return Response::Error("Runtime agent is not enabled");
   m_session->setCustomObjectFormatterEnabled(enabled);
   return Response::OK();
 }
@@ -678,6 +679,7 @@ Response V8RuntimeAgentImpl::disable() {
   m_state->setBoolean(V8RuntimeAgentImplState::runtimeEnabled, false);
   m_inspector->disableStackCapturingIfNeeded();
   m_session->discardInjectedScripts();
+  m_session->setCustomObjectFormatterEnabled(false);
   reset();
   m_inspector->client()->endEnsureAllContextsInGroup(
       m_session->contextGroupId());

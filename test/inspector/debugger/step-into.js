@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks possible break locations.');
+InspectorTest.log('Checks possible break locations.');
 
 InspectorTest.setupScriptMap();
 Protocol.Debugger.onPaused(message => {

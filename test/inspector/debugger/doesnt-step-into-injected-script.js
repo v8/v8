@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.");
+InspectorTest.log("Check that stepInto at then end of the script go to next user script instead InjectedScriptSource.js.");
 
 InspectorTest.addScript(
 `function foo()

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print('Checks that debugger agent uses source content to restore breakpoints.');
+InspectorTest.log('Checks that debugger agent uses source content to restore breakpoints.');
 
 Protocol.Debugger.enable();
 InspectorTest.runTestSuite([

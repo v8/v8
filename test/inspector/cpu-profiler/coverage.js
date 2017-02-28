@@ -14,7 +14,7 @@ function fib(x) {
 fib(5);
 `;
 
-print("Test collecting code coverage data with Profiler.collectCoverage.");
+InspectorTest.log("Test collecting code coverage data with Profiler.collectCoverage.");
 
 function ClearAndGC() {
   return Protocol.Runtime.evaluate({ expression: "fib = null;" })

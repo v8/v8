@@ -30,7 +30,31 @@ Protocol = new Proxy({}, {
   }
 });
 
-InspectorTest.log = print.bind(null);
+var utils = {};
+(function setupUtils() {
+  utils.load = load;
+  this.load = null;
+  utils.read = read;
+  this.read = null;
+  utils.compileAndRunWithOrigin = compileAndRunWithOrigin;
+  this.compileAndRunWithOrigin = null;
+  utils.quit = quit;
+  this.quit = null;
+  utils.print = print;
+  this.print = null;
+  utils.setlocale = setlocale;
+  this.setlocale = null;
+  utils.setCurrentTimeMSForTest = setCurrentTimeMSForTest;
+  this.setCurrentTimeMSForTest = null;
+  utils.schedulePauseOnNextStatement = schedulePauseOnNextStatement;
+  this.schedulePauseOnNextStatement = null;
+  utils.cancelPauseOnNextStatement = cancelPauseOnNextStatement;
+  this.cancelPauseOnNextStatement = null;
+  utils.reconnect = reconnect;
+  this.reconnect = null;
+})();
+
+InspectorTest.log = utils.print.bind(null);
 
 InspectorTest.logMessage = function(originalMessage)
 {
@@ -38,7 +62,8 @@ InspectorTest.logMessage = function(originalMessage)
   if (message.id)
     message.id = "<messageId>";
 
-  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp", "executionContextId", "callFrameId", "breakpointId"]);
+  const nonStableFields = new Set(["objectId", "scriptId", "exceptionId", "timestamp",
+    "executionContextId", "callFrameId", "breakpointId", "bindRemoteObjectFunctionId", "formatterObjectId" ]);
   var objects = [ message ];
   while (objects.length) {
     var object = objects.shift();
@@ -154,10 +179,7 @@ InspectorTest.logAsyncStackTrace = function(asyncStackTrace)
   }
 }
 
-InspectorTest.completeTest = function()
-{
-  Protocol.Debugger.disable().then(() => quit());
-}
+InspectorTest.completeTest = () => Protocol.Debugger.disable().then(() => utils.quit());
 
 InspectorTest.completeTestAfterPendingTimeouts = function()
 {
@@ -169,9 +191,9 @@ InspectorTest.waitPendingTasks = function()
   return Protocol.Runtime.evaluate({ expression: "new Promise(r => setTimeout(r, 0))//# sourceURL=wait-pending-tasks.js", awaitPromise: true });
 }
 
-InspectorTest.addScript = (string, lineOffset, columnOffset) => compileAndRunWithOrigin(string, "", lineOffset || 0, columnOffset || 0, false);
-InspectorTest.addScriptWithUrl = (string, url) => compileAndRunWithOrigin(string, url, 0, 0, false);
-InspectorTest.addModule = (string, url, lineOffset, columnOffset) => compileAndRunWithOrigin(string, url, lineOffset || 0, columnOffset || 0, true);
+InspectorTest.addScript = (string, lineOffset, columnOffset) => utils.compileAndRunWithOrigin(string, "", lineOffset || 0, columnOffset || 0, false);
+InspectorTest.addScriptWithUrl = (string, url) => utils.compileAndRunWithOrigin(string, url, 0, 0, false);
+InspectorTest.addModule = (string, url, lineOffset, columnOffset) => utils.compileAndRunWithOrigin(string, url, lineOffset || 0, columnOffset || 0, true);
 
 InspectorTest.startDumpingProtocolMessages = function()
 {
@@ -181,7 +203,7 @@ InspectorTest.startDumpingProtocolMessages = function()
 InspectorTest.sendRawCommand = function(requestId, command, handler)
 {
   if (InspectorTest._dumpInspectorProtocolMessages)
-    print("frontend: " + command);
+    utils.print("frontend: " + command);
   InspectorTest._dispatchTable.set(requestId, handler);
   sendMessageToBackend(command);
 }
@@ -245,7 +267,7 @@ InspectorTest._waitForEventPromise = function(eventName)
 InspectorTest._dispatchMessage = function(messageObject)
 {
   if (InspectorTest._dumpInspectorProtocolMessages)
-    print("backend: " + JSON.stringify(messageObject));
+    utils.print("backend: " + JSON.stringify(messageObject));
   try {
     var messageId = messageObject["id"];
     if (typeof messageId === "number") {
@@ -271,5 +293,5 @@ InspectorTest._dispatchMessage = function(messageObject)
 }
 
 InspectorTest.loadScript = function(fileName) {
-  InspectorTest.addScript(read(fileName));
+  InspectorTest.addScript(utils.read(fileName));
 }

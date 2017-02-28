@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-print("Checks that inspector reports script compiled in Runtime.evaluate," +
+InspectorTest.log("Checks that inspector reports script compiled in Runtime.evaluate," +
   "Runtime.callFunctionOn and  Runtime.compileScript");
 
 Promise.prototype.thenLog = function log(message) {
