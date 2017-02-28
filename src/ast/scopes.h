@@ -112,6 +112,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   class Snapshot final BASE_EMBEDDED {
    public:
     explicit Snapshot(Scope* scope);
+    ~Snapshot();
 
     void Reparent(DeclarationScope* new_parent) const;
 
@@ -121,6 +122,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     VariableProxy* top_unresolved_;
     ThreadedList<Variable>::Iterator top_local_;
     ThreadedList<Declaration>::Iterator top_decl_;
+    const bool outer_scope_calls_eval_;
   };
 
   enum class DeserializationMode { kIncludingVariables, kScopesOnly };
@@ -145,10 +147,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // from the current outer_scope_'s inner scope list).
   // Assumes outer_scope_ is non-null.
   void ReplaceOuterScope(Scope* outer_scope);
-
-  // Propagates any eagerly-gathered scope usage flags (such as calls_eval())
-  // to the passed-in scope.
-  void PropagateUsageFlagsToScope(Scope* other);
 
   Zone* zone() const { return zone_; }
 

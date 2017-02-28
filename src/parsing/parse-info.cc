@@ -59,6 +59,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_language_mode(shared->language_mode());
   set_shared_info(shared);
   set_module(shared->kind() == FunctionKind::kModule);
+  set_scope_info_is_empty(shared->scope_info() == ScopeInfo::Empty(isolate_));
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
@@ -121,6 +122,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_language_mode(shared->language_mode());
   p->set_shared_info(shared);
   p->set_module(shared->kind() == FunctionKind::kModule);
+  p->set_scope_info_is_empty(shared->scope_info() == ScopeInfo::Empty(isolate));
 
   // BUG(5946): This function exists as a workaround until we can
   // get rid of %SetCode in our native functions. The ParseInfo

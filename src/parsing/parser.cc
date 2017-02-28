@@ -868,13 +868,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       // TODO(adamk): We should construct this scope from the ScopeInfo.
       DeclarationScope* scope = NewFunctionScope(kind);
 
-      // These two bits only need to be explicitly set because we're
+      // This bit only needs to be explicitly set because we're
       // not passing the ScopeInfo to the Scope constructor.
-      // TODO(adamk): Remove these calls once the above NewScope call
-      // passes the ScopeInfo.
-      if (info->calls_eval()) {
-        scope->RecordEvalCall();
-      }
       SetLanguageMode(scope, info->language_mode());
 
       scope->set_start_position(info->start_position());
@@ -951,6 +946,8 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
   DCHECK_NULL(target_stack_);
   DCHECK_IMPLIES(result,
                  info->function_literal_id() == result->function_literal_id());
+  DCHECK_IMPLIES(!info->scope_info_is_empty() && result,
+                 info->calls_eval() == result->scope()->calls_eval());
   return result;
 }
 

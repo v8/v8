@@ -2726,11 +2726,9 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     DeclarationScope* scope =
         NewFunctionScope(is_async ? FunctionKind::kAsyncArrowFunction
                                   : FunctionKind::kArrowFunction);
-    // Because the arrow's parameters were parsed in the outer scope, any
-    // usage flags that might have been triggered there need to be copied
-    // to the arrow scope.
-    this->scope()->PropagateUsageFlagsToScope(scope);
 
+    // Because the arrow's parameters were parsed in the outer scope,
+    // we need to fix up the scope chain appropriately.
     scope_snapshot.Reparent(scope);
 
     FormalParametersT parameters(scope);

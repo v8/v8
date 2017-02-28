@@ -155,7 +155,18 @@ Scope::Snapshot::Snapshot(Scope* scope)
       top_inner_scope_(scope->inner_scope_),
       top_unresolved_(scope->unresolved_),
       top_local_(scope->GetClosureScope()->locals_.end()),
-      top_decl_(scope->GetClosureScope()->decls_.end()) {}
+      top_decl_(scope->GetClosureScope()->decls_.end()),
+      outer_scope_calls_eval_(scope->scope_calls_eval_) {
+  // Reset in order to record eval calls during this Snapshot's lifetime.
+  outer_scope_->scope_calls_eval_ = false;
+}
+
+Scope::Snapshot::~Snapshot() {
+  // Restore previous calls_eval bit if needed.
+  if (outer_scope_calls_eval_) {
+    outer_scope_->scope_calls_eval_ = true;
+  }
+}
 
 DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory)
@@ -778,7 +789,9 @@ Scope* Scope::FinalizeBlockScope() {
     unresolved_ = nullptr;
   }
 
-  PropagateUsageFlagsToScope(outer_scope_);
+  if (scope_calls_eval_) outer_scope()->scope_calls_eval_ = true;
+  if (inner_scope_calls_eval_) outer_scope()->inner_scope_calls_eval_ = true;
+
   // This block does not need a context.
   num_heap_slots_ = 0;
 
@@ -820,10 +833,15 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
     for (; inner_scope->sibling() != top_inner_scope_;
          inner_scope = inner_scope->sibling()) {
       inner_scope->outer_scope_ = new_parent;
+      if (inner_scope->inner_scope_calls_eval_) {
+        new_parent->inner_scope_calls_eval_ = true;
+      }
       DCHECK_NE(inner_scope, new_parent);
     }
     inner_scope->outer_scope_ = new_parent;
-
+    if (inner_scope->inner_scope_calls_eval_) {
+      new_parent->inner_scope_calls_eval_ = true;
+    }
     new_parent->inner_scope_ = new_parent->sibling_;
     inner_scope->sibling_ = nullptr;
     // Reset the sibling rather than the inner_scope_ since we
@@ -860,6 +878,14 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   }
   outer_closure->locals_.Rewind(top_local_);
   outer_closure->decls_.Rewind(top_decl_);
+
+  // Move eval calls since Snapshot's creation into new_parent.
+  if (outer_scope_->scope_calls_eval_) {
+    new_parent->scope_calls_eval_ = true;
+  }
+  // Reset the outer_scope's eval state. It will be restored to its
+  // original value as necessary in the destructor of this class.
+  outer_scope_->scope_calls_eval_ = false;
 }
 
 void Scope::ReplaceOuterScope(Scope* outer) {
@@ -869,15 +895,6 @@ void Scope::ReplaceOuterScope(Scope* outer) {
   outer_scope_->RemoveInnerScope(this);
   outer->AddInnerScope(this);
   outer_scope_ = outer;
-}
-
-
-void Scope::PropagateUsageFlagsToScope(Scope* other) {
-  DCHECK_NOT_NULL(other);
-  DCHECK(!already_resolved_);
-  DCHECK(!other->already_resolved_);
-  if (calls_eval()) other->RecordEvalCall();
-  if (inner_scope_calls_eval_) other->inner_scope_calls_eval_ = true;
 }
 
 Variable* Scope::LookupInScopeInfo(const AstRawString* name) {

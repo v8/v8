@@ -73,6 +73,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kCallsEval, calls_eval, set_calls_eval)
   FLAG_ACCESSOR(kDebug, is_debug, set_is_debug)
   FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
+  FLAG_ACCESSOR(kScopeInfoIsEmpty, scope_info_is_empty, set_scope_info_is_empty)
 
 #undef FLAG_ACCESSOR
 
@@ -247,8 +248,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kCallsEval = 1 << 9,
     kDebug = 1 << 10,
     kSerializing = 1 << 11,
+    kScopeInfoIsEmpty = 1 << 12,
     // ---------- Output flags --------------------------
-    kAstValueFactoryOwned = 1 << 12
+    kAstValueFactoryOwned = 1 << 13
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
