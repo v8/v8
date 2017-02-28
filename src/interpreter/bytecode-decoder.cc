@@ -74,7 +74,7 @@ const char* NameForRuntimeId(uint32_t idx) {
   case Runtime::k##name:           \
     return #name;                  \
   case Runtime::kInline##name:     \
-    return #name;
+    return "_" #name;
     FOR_EACH_INTRINSIC(CASE)
 #undef CASE
     default:

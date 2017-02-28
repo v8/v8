@@ -313,14 +313,8 @@ Reduction JSIntrinsicLowering::ReduceCall(Node* node) {
 }
 
 Reduction JSIntrinsicLowering::ReduceGetSuperConstructor(Node* node) {
-  Node* active_function = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  Node* active_function_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       active_function, effect, control);
-  return Change(node, simplified()->LoadField(AccessBuilder::ForMapPrototype()),
-                active_function_map, effect, control);
+  NodeProperties::ChangeOp(node, javascript()->GetSuperConstructor());
+  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::ReduceArrayBufferViewField(
