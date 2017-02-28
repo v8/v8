@@ -264,6 +264,7 @@
       'test-javascript-arm64.cc',
       'test-js-arm64-variables.cc',
       'test-run-wasm-relocation-arm64.cc',
+      'test-simulator-arm64.cc',
     ],
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',

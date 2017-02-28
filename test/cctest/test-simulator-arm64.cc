@@ -1,4 +1,4 @@
-// Copyright 2016 the V8 project authors. All rights reserved.
+// Copyright 2017 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,8 +28,7 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-#include "src/arm/simulator-arm.h"
-#include "src/disassembler.h"
+#include "src/arm64/simulator-arm64.h"
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 
@@ -42,11 +41,7 @@
 using namespace v8::base;
 using namespace v8::internal;
 
-// Define these function prototypes to match JSEntryFunction in execution.cc.
-typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
-typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
-
-#define __ assm.
+#define __ masm.
 
 struct MemoryAccess {
   enum class Kind {
@@ -84,11 +79,11 @@ struct TestData {
   int dummy;
 };
 
-static void AssembleMemoryAccess(Assembler* assembler, MemoryAccess access,
+static void AssembleMemoryAccess(MacroAssembler* assembler, MemoryAccess access,
                                  Register dest_reg, Register value_reg,
                                  Register addr_reg) {
-  Assembler& assm = *assembler;
-  __ add(addr_reg, r0, Operand(access.offset));
+  MacroAssembler& masm = *assembler;
+  __ Add(addr_reg, x0, Operand(access.offset));
 
   switch (access.kind) {
     case MemoryAccess::Kind::None:
@@ -113,15 +108,15 @@ static void AssembleMemoryAccess(Assembler* assembler, MemoryAccess access,
     case MemoryAccess::Kind::LoadExcl:
       switch (access.size) {
         case MemoryAccess::Size::Byte:
-          __ ldrexb(value_reg, addr_reg);
+          __ ldaxrb(value_reg, addr_reg);
           break;
 
         case MemoryAccess::Size::HalfWord:
-          __ ldrexh(value_reg, addr_reg);
+          __ ldaxrh(value_reg, addr_reg);
           break;
 
         case MemoryAccess::Size::Word:
-          __ ldrex(value_reg, addr_reg);
+          __ ldaxr(value_reg, addr_reg);
           break;
       }
       break;
@@ -129,17 +124,17 @@ static void AssembleMemoryAccess(Assembler* assembler, MemoryAccess access,
     case MemoryAccess::Kind::Store:
       switch (access.size) {
         case MemoryAccess::Size::Byte:
-          __ mov(value_reg, Operand(access.value));
+          __ Mov(value_reg, Operand(access.value));
           __ strb(value_reg, MemOperand(addr_reg));
           break;
 
         case MemoryAccess::Size::HalfWord:
-          __ mov(value_reg, Operand(access.value));
+          __ Mov(value_reg, Operand(access.value));
           __ strh(value_reg, MemOperand(addr_reg));
           break;
 
         case MemoryAccess::Size::Word:
-          __ mov(value_reg, Operand(access.value));
+          __ Mov(value_reg, Operand(access.value));
           __ str(value_reg, MemOperand(addr_reg));
           break;
       }
@@ -148,31 +143,31 @@ static void AssembleMemoryAccess(Assembler* assembler, MemoryAccess access,
     case MemoryAccess::Kind::StoreExcl:
       switch (access.size) {
         case MemoryAccess::Size::Byte:
-          __ mov(value_reg, Operand(access.value));
-          __ strexb(dest_reg, value_reg, addr_reg);
+          __ Mov(value_reg, Operand(access.value));
+          __ stlxrb(dest_reg, value_reg, addr_reg);
           break;
 
         case MemoryAccess::Size::HalfWord:
-          __ mov(value_reg, Operand(access.value));
-          __ strexh(dest_reg, value_reg, addr_reg);
+          __ Mov(value_reg, Operand(access.value));
+          __ stlxrh(dest_reg, value_reg, addr_reg);
           break;
 
         case MemoryAccess::Size::Word:
-          __ mov(value_reg, Operand(access.value));
-          __ strex(dest_reg, value_reg, addr_reg);
+          __ Mov(value_reg, Operand(access.value));
+          __ stlxr(dest_reg, value_reg, addr_reg);
           break;
       }
       break;
   }
 }
 
-static void AssembleLoadExcl(Assembler* assembler, MemoryAccess access,
+static void AssembleLoadExcl(MacroAssembler* assembler, MemoryAccess access,
                              Register value_reg, Register addr_reg) {
   DCHECK(access.kind == MemoryAccess::Kind::LoadExcl);
   AssembleMemoryAccess(assembler, access, no_reg, value_reg, addr_reg);
 }
 
-static void AssembleStoreExcl(Assembler* assembler, MemoryAccess access,
+static void AssembleStoreExcl(MacroAssembler* assembler, MemoryAccess access,
                               Register dest_reg, Register value_reg,
                               Register addr_reg) {
   DCHECK(access.kind == MemoryAccess::Kind::StoreExcl);
@@ -184,24 +179,24 @@ static void TestInvalidateExclusiveAccess(
     MemoryAccess access3, int expected_res, TestData expected_data) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
+  MacroAssembler masm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
 
-  Assembler assm(isolate, NULL, 0);
-
-  AssembleLoadExcl(&assm, access1, r1, r1);
-  AssembleMemoryAccess(&assm, access2, r3, r2, r1);
-  AssembleStoreExcl(&assm, access3, r0, r3, r1);
-
-  __ mov(pc, Operand(lr));
+  AssembleLoadExcl(&masm, access1, w1, x1);
+  AssembleMemoryAccess(&masm, access2, w3, w2, x1);
+  AssembleStoreExcl(&masm, access3, w0, w3, x1);
+  __ br(lr);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  masm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  F3 f = FUNCTION_CAST<F3>(code->entry());
   TestData t = initial_data;
+  Simulator::CallArgument args[] = {
+      Simulator::CallArgument(reinterpret_cast<uintptr_t>(&t)),
+      Simulator::CallArgument::End()};
+  Simulator::current(isolate)->CallVoid(code->entry(), args);
+  int res = Simulator::current(isolate)->wreg(0);
 
-  int res =
-      reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, &t, 0, 0, 0, 0));
   CHECK_EQ(expected_res, res);
   switch (access3.size) {
     case MemoryAccess::Size::Byte:
@@ -222,53 +217,54 @@ TEST(simulator_invalidate_exclusive_access) {
   using Kind = MemoryAccess::Kind;
   using Size = MemoryAccess::Size;
 
-  MemoryAccess ldrex_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));
-  MemoryAccess strex_w(Kind::StoreExcl, Size::Word, offsetof(TestData, w), 7);
+  MemoryAccess ldaxr_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));
+  MemoryAccess stlxr_w(Kind::StoreExcl, Size::Word, offsetof(TestData, w), 7);
 
   // Address mismatch.
   TestInvalidateExclusiveAccess(
-      TestData(1), ldrex_w,
+      TestData(1), ldaxr_w,
       MemoryAccess(Kind::LoadExcl, Size::Word, offsetof(TestData, dummy)),
-      strex_w, 1, TestData(1));
+      stlxr_w, 1, TestData(1));
 
   // Size mismatch.
   TestInvalidateExclusiveAccess(
-      TestData(1), ldrex_w, MemoryAccess(),
+      TestData(1), ldaxr_w, MemoryAccess(),
       MemoryAccess(Kind::StoreExcl, Size::HalfWord, offsetof(TestData, w), 7),
       1, TestData(1));
 
-  // Load between ldrex/strex.
+  // Load between ldaxr/stlxr.
   TestInvalidateExclusiveAccess(
-      TestData(1), ldrex_w,
-      MemoryAccess(Kind::Load, Size::Word, offsetof(TestData, dummy)), strex_w,
+      TestData(1), ldaxr_w,
+      MemoryAccess(Kind::Load, Size::Word, offsetof(TestData, dummy)), stlxr_w,
       1, TestData(1));
 
-  // Store between ldrex/strex.
+  // Store between ldaxr/stlxr.
   TestInvalidateExclusiveAccess(
-      TestData(1), ldrex_w,
-      MemoryAccess(Kind::Store, Size::Word, offsetof(TestData, dummy)), strex_w,
+      TestData(1), ldaxr_w,
+      MemoryAccess(Kind::Store, Size::Word, offsetof(TestData, dummy)), stlxr_w,
       1, TestData(1));
 
   // Match
-  TestInvalidateExclusiveAccess(TestData(1), ldrex_w, MemoryAccess(), strex_w,
+  TestInvalidateExclusiveAccess(TestData(1), ldaxr_w, MemoryAccess(), stlxr_w,
                                 0, TestData(7));
 }
 
 static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                                MemoryAccess access) {
   HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
-  AssembleMemoryAccess(&assm, access, r0, r2, r1);
-  __ bx(lr);
+  MacroAssembler masm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  AssembleMemoryAccess(&masm, access, w0, w2, x1);
+  __ br(lr);
 
   CodeDesc desc;
-  assm.GetCode(&desc);
+  masm.GetCode(&desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  F3 f = FUNCTION_CAST<F3>(code->entry());
-
-  return reinterpret_cast<int>(
-      CALL_GENERATED_CODE(isolate, f, test_data, 0, 0, 0, 0));
+  Simulator::CallArgument args[] = {
+      Simulator::CallArgument(reinterpret_cast<uintptr_t>(test_data)),
+      Simulator::CallArgument::End()};
+  Simulator::current(isolate)->CallVoid(code->entry(), args);
+  return Simulator::current(isolate)->wreg(0);
 }
 
 class MemoryAccessThread : public v8::base::Thread {
@@ -346,36 +342,36 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
   MemoryAccessThread thread;
   thread.Start();
 
-  MemoryAccess ldrex_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));
-  MemoryAccess strex_w(Kind::StoreExcl, Size::Word, offsetof(TestData, w), 7);
+  MemoryAccess ldaxr_w(Kind::LoadExcl, Size::Word, offsetof(TestData, w));
+  MemoryAccess stlxr_w(Kind::StoreExcl, Size::Word, offsetof(TestData, w), 7);
 
   // Exclusive store completed by another thread first.
   test_data = TestData(1);
   thread.NextAndWait(&test_data, MemoryAccess(Kind::LoadExcl, Size::Word,
                                               offsetof(TestData, w)));
-  ExecuteMemoryAccess(isolate, &test_data, ldrex_w);
+  ExecuteMemoryAccess(isolate, &test_data, ldaxr_w);
   thread.NextAndWait(&test_data, MemoryAccess(Kind::StoreExcl, Size::Word,
                                               offsetof(TestData, w), 5));
-  CHECK_EQ(1, ExecuteMemoryAccess(isolate, &test_data, strex_w));
+  CHECK_EQ(1, ExecuteMemoryAccess(isolate, &test_data, stlxr_w));
   CHECK_EQ(5, test_data.w);
 
   // Exclusive store completed by another thread; different address, but masked
   // to same
   test_data = TestData(1);
-  ExecuteMemoryAccess(isolate, &test_data, ldrex_w);
+  ExecuteMemoryAccess(isolate, &test_data, ldaxr_w);
   thread.NextAndWait(&test_data, MemoryAccess(Kind::LoadExcl, Size::Word,
                                               offsetof(TestData, dummy)));
   thread.NextAndWait(&test_data, MemoryAccess(Kind::StoreExcl, Size::Word,
                                               offsetof(TestData, dummy), 5));
-  CHECK_EQ(1, ExecuteMemoryAccess(isolate, &test_data, strex_w));
+  CHECK_EQ(1, ExecuteMemoryAccess(isolate, &test_data, stlxr_w));
   CHECK_EQ(1, test_data.w);
 
-  // Test failure when store between ldrex/strex.
+  // Test failure when store between ldaxr/stlxr.
   test_data = TestData(1);
-  ExecuteMemoryAccess(isolate, &test_data, ldrex_w);
+  ExecuteMemoryAccess(isolate, &test_data, ldaxr_w);
   thread.NextAndWait(&test_data, MemoryAccess(Kind::Store, Size::Word,
                                               offsetof(TestData, dummy)));
-  CHECK_EQ(1, ExecuteMemoryAccess(isolate, &test_data, strex_w));
+  CHECK_EQ(1, ExecuteMemoryAccess(isolate, &test_data, stlxr_w));
   CHECK_EQ(1, test_data.w);
 
   thread.Finish();
