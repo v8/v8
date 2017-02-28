@@ -20027,7 +20027,12 @@ MaybeHandle<Object> Module::Evaluate(Handle<Module> module) {
   // Evaluation of module body.
   Handle<JSFunction> resume(
       isolate->native_context()->generator_next_internal(), isolate);
-  return Execution::Call(isolate, resume, generator, 0, nullptr);
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result, Execution::Call(isolate, resume, generator, 0, nullptr),
+      Object);
+  DCHECK(Handle<JSIteratorResult>::cast(result)->done()->BooleanValue());
+  return handle(Handle<JSIteratorResult>::cast(result)->value(), isolate);
 }
 
 namespace {

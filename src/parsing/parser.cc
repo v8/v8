@@ -1264,7 +1264,11 @@ Statement* Parser::ParseExportDefault(bool* ok) {
 
       Assignment* assignment = factory()->NewAssignment(
           Token::INIT, decl->proxy(), value, kNoSourcePosition);
-      result = factory()->NewExpressionStatement(assignment, kNoSourcePosition);
+      Block* block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+      block->statements()->Add(
+          factory()->NewExpressionStatement(assignment, kNoSourcePosition),
+          zone());
+      result = block;
 
       ExpectSemicolon(CHECK_OK);
       break;

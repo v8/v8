@@ -8215,6 +8215,16 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Name> key,
                                                     FAST_ELEMENTS, 2);
 }
 
+JSIteratorResult* JSIteratorResult::cast(Object* object) {
+  SLOW_DCHECK(object->IsJSObject() &&
+              JSObject::cast(object)->map() ==
+                  JSObject::cast(object)
+                      ->GetIsolate()
+                      ->native_context()
+                      ->iterator_result_map());
+  return reinterpret_cast<JSIteratorResult*>(object);
+}
+
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
 

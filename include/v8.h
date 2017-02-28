@@ -1095,6 +1095,8 @@ class V8_EXPORT Module {
 
   /**
    * ModuleEvaluation
+   *
+   * Returns the completion value.
    */
   V8_WARN_UNUSED_RESULT MaybeLocal<Value> Evaluate(Local<Context> context);
 };

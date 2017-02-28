@@ -2639,8 +2639,9 @@ class JSDataPropertyDescriptor: public JSObject {
 // as specified by ES6 section 25.1.1.3 The IteratorResult Interface
 class JSIteratorResult: public JSObject {
  public:
-  DECL_ACCESSORS(value, Object)
+  DECLARE_CAST(JSIteratorResult)
 
+  DECL_ACCESSORS(value, Object)
   DECL_ACCESSORS(done, Object)
 
   // Offsets of object fields.
