@@ -443,7 +443,7 @@ function assertValidAsm(func) {
     return foo;
   }
   Module();
-  assertFalse(% IsAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestBadIntConditionalReturn() {
@@ -458,7 +458,7 @@ function assertValidAsm(func) {
     return foo;
   }
   Module();
-  assertFalse(% IsAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestBadSignedConditionalReturn() {
@@ -474,7 +474,7 @@ function assertValidAsm(func) {
     return foo;
   }
   Module();
-  assertFalse(% IsAsmWasmCode(Module));
+  assertFalse(%IsAsmWasmCode(Module));
 })();
 
 (function TestAsmIsRegular() {
