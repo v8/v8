@@ -492,9 +492,7 @@ class Operand BASE_EMBEDDED {
   // immediate
   INLINE(explicit Operand(int32_t immediate,
          RelocInfo::Mode rmode = RelocInfo::NONE32));
-  INLINE(static Operand Zero()) {
-    return Operand(static_cast<int32_t>(0));
-  }
+  INLINE(static Operand Zero());
   INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
@@ -520,7 +518,12 @@ class Operand BASE_EMBEDDED {
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  INLINE(bool is_reg() const) {
+    return rm_.is_valid() &&
+        rs_.is(no_reg) &&
+        shift_op_ == LSL &&
+        shift_imm_ == 0;
+  }
 
   // Return the number of actual instructions required to implement the given
   // instruction for this particular operand. This can be a single instruction,
@@ -814,9 +817,7 @@ class Assembler : public AssemblerBase {
   void sub(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
   void sub(Register dst, Register src1, Register src2,
-           SBit s = LeaveCC, Condition cond = al) {
-    sub(dst, src1, Operand(src2), s, cond);
-  }
+           SBit s = LeaveCC, Condition cond = al);
 
   void rsb(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -824,9 +825,7 @@ class Assembler : public AssemblerBase {
   void add(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
   void add(Register dst, Register src1, Register src2,
-           SBit s = LeaveCC, Condition cond = al) {
-    add(dst, src1, Operand(src2), s, cond);
-  }
+           SBit s = LeaveCC, Condition cond = al);
 
   void adc(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -838,16 +837,13 @@ class Assembler : public AssemblerBase {
            SBit s = LeaveCC, Condition cond = al);
 
   void tst(Register src1, const Operand& src2, Condition cond = al);
-  void tst(Register src1, Register src2, Condition cond = al) {
-    tst(src1, Operand(src2), cond);
-  }
+  void tst(Register src1, Register src2, Condition cond = al);
 
   void teq(Register src1, const Operand& src2, Condition cond = al);
 
   void cmp(Register src1, const Operand& src2, Condition cond = al);
-  void cmp(Register src1, Register src2, Condition cond = al) {
-    cmp(src1, Operand(src2), cond);
-  }
+  void cmp(Register src1, Register src2, Condition cond = al);
+
   void cmp_raw_immediate(Register src1, int raw_immediate, Condition cond = al);
 
   void cmn(Register src1, const Operand& src2, Condition cond = al);
@@ -855,15 +851,11 @@ class Assembler : public AssemblerBase {
   void orr(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
   void orr(Register dst, Register src1, Register src2,
-           SBit s = LeaveCC, Condition cond = al) {
-    orr(dst, src1, Operand(src2), s, cond);
-  }
+           SBit s = LeaveCC, Condition cond = al);
 
   void mov(Register dst, const Operand& src,
            SBit s = LeaveCC, Condition cond = al);
-  void mov(Register dst, Register src, SBit s = LeaveCC, Condition cond = al) {
-    mov(dst, Operand(src), s, cond);
-  }
+  void mov(Register dst, Register src, SBit s = LeaveCC, Condition cond = al);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.
@@ -883,31 +875,13 @@ class Assembler : public AssemblerBase {
   // Shift instructions
 
   void asr(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
-           Condition cond = al) {
-    if (src2.is_reg()) {
-      mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
-    } else {
-      mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
-    }
-  }
+           Condition cond = al);
 
   void lsl(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
-           Condition cond = al) {
-    if (src2.is_reg()) {
-      mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
-    } else {
-      mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
-    }
-  }
+           Condition cond = al);
 
   void lsr(Register dst, Register src1, const Operand& src2, SBit s = LeaveCC,
-           Condition cond = al) {
-    if (src2.is_reg()) {
-      mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
-    } else {
-      mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
-    }
-  }
+           Condition cond = al);
 
   // Multiply instructions
 
@@ -1443,9 +1417,7 @@ class Assembler : public AssemblerBase {
     ldr(dst, MemOperand(sp, 4, PostIndex), cond);
   }
 
-  void pop() {
-    add(sp, sp, Operand(kPointerSize));
-  }
+  void pop();
 
   void vpush(DwVfpRegister src, Condition cond = al) {
     vstm(db_w, sp, src, src, cond);
@@ -1808,12 +1780,11 @@ class Assembler : public AssemblerBase {
   friend class EnsureSpace;
 };
 
+static const int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
 
 class EnsureSpace BASE_EMBEDDED {
  public:
-  explicit EnsureSpace(Assembler* assembler) {
-    assembler->CheckBuffer();
-  }
+  INLINE(explicit EnsureSpace(Assembler* assembler));
 };
 
 

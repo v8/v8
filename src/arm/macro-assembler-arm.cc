@@ -6,11 +6,14 @@
 
 #if V8_TARGET_ARCH_ARM
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/bootstrapper.h"
 #include "src/codegen.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
+#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
@@ -238,6 +241,9 @@ void MacroAssembler::Push(Handle<Object> handle) {
   push(ip);
 }
 
+void MacroAssembler::Push(Smi* smi) { Push(Handle<Smi>(smi, isolate())); }
+
+void MacroAssembler::Move(Register dst, Smi* smi) { mov(dst, Operand(smi)); }
 
 void MacroAssembler::Move(Register dst, Handle<Object> value) {
   mov(dst, Operand(value));
@@ -1894,6 +1900,14 @@ void MacroAssembler::IsObjectJSStringType(Register object,
   b(ne, fail);
 }
 
+Condition MacroAssembler::IsObjectStringType(Register obj, Register type,
+                                             Condition cond) {
+  ldr(type, FieldMemOperand(obj, HeapObject::kMapOffset), cond);
+  ldrb(type, FieldMemOperand(type, Map::kInstanceTypeOffset), cond);
+  tst(type, Operand(kIsNotStringMask), cond);
+  DCHECK_EQ(0u, kStringTag);
+  return eq;
+}
 
 void MacroAssembler::IsObjectNameType(Register object,
                                       Register scratch,
@@ -2813,6 +2827,11 @@ void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
   }
 }
 
+void MacroAssembler::InitializeRootRegister() {
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(isolate());
+  mov(kRootRegister, Operand(roots_array_start));
+}
 
 void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
     Register reg,
@@ -2836,6 +2855,13 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZeroAndNeg(
   b(ne, not_power_of_two);
 }
 
+void MacroAssembler::SmiTag(Register reg, SBit s) {
+  add(reg, reg, Operand(reg), s);
+}
+
+void MacroAssembler::SmiTag(Register dst, Register src, SBit s) {
+  add(dst, src, Operand(src), s);
+}
 
 void MacroAssembler::JumpIfNotBothSmi(Register reg1,
                                       Register reg2,
@@ -2852,6 +2878,24 @@ void MacroAssembler::UntagAndJumpIfSmi(
   STATIC_ASSERT(kSmiTag == 0);
   SmiUntag(dst, src, SetCC);
   b(cc, smi_case);  // Shifter carry is not set for a smi.
+}
+
+void MacroAssembler::SmiTst(Register value) {
+  tst(value, Operand(kSmiTagMask));
+}
+
+void MacroAssembler::NonNegativeSmiTst(Register value) {
+  tst(value, Operand(kSmiTagMask | kSmiSignMask));
+}
+
+void MacroAssembler::JumpIfSmi(Register value, Label* smi_label) {
+  tst(value, Operand(kSmiTagMask));
+  b(eq, smi_label);
+}
+
+void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
+  tst(value, Operand(kSmiTagMask));
+  b(ne, not_smi_label);
 }
 
 void MacroAssembler::JumpIfEitherSmi(Register reg1,
@@ -3615,6 +3659,22 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
   ldr(dst, FieldMemOperand(dst, offset));
 }
 
+template <typename Field>
+void MacroAssembler::DecodeFieldToSmi(Register dst, Register src) {
+  static const int shift = Field::kShift;
+  static const int mask = Field::kMask >> shift << kSmiTagSize;
+  STATIC_ASSERT((mask & (0x80000000u >> (kSmiTagSize - 1))) == 0);
+  STATIC_ASSERT(kSmiTag == 0);
+  if (shift < kSmiTagSize) {
+    mov(dst, Operand(src, LSL, kSmiTagSize - shift));
+    and_(dst, dst, Operand(mask));
+  } else if (shift > kSmiTagSize) {
+    mov(dst, Operand(src, LSR, shift - kSmiTagSize));
+    and_(dst, dst, Operand(mask));
+  } else {
+    and_(dst, src, Operand(mask));
+  }
+}
 
 void MacroAssembler::CheckEnumCache(Label* call_runtime) {
   Register null_value = r5;

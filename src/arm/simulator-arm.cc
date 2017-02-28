@@ -10,10 +10,11 @@
 
 #include "src/arm/constants-arm.h"
 #include "src/arm/simulator-arm.h"
-#include "src/assembler.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime-utils.h"
 
 #if defined(USE_SIMULATOR)

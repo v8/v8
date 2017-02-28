@@ -188,9 +188,6 @@ void RelocInfo::set_target_cell(Cell* cell,
 }
 
 
-static const int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
-
-
 Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
   UNREACHABLE();  // This should never be reached on Arm.
   return Handle<Object>();
@@ -299,6 +296,7 @@ Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rmode_ = rmode;
 }
 
+Operand Operand::Zero() { return Operand(static_cast<int32_t>(0)); }
 
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
@@ -319,14 +317,6 @@ Operand::Operand(Register rm) {
   rs_ = no_reg;
   shift_op_ = LSL;
   shift_imm_ = 0;
-}
-
-
-bool Operand::is_reg() const {
-  return rm_.is_valid() &&
-         rs_.is(no_reg) &&
-         shift_op_ == LSL &&
-         shift_imm_ == 0;
 }
 
 
@@ -601,6 +591,8 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
   Address constant_pool = code ? code->constant_pool() : NULL;
   set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
 }
+
+EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 
 }  // namespace internal
 }  // namespace v8

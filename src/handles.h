@@ -98,7 +98,7 @@ class Handle final : public HandleBase {
   }
 
   V8_INLINE explicit Handle(T* object) : Handle(object, object->GetIsolate()) {}
-  V8_INLINE Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}
+  V8_INLINE Handle(T* object, Isolate* isolate);
 
   // Allocate a new handle for the object, do not canonicalize.
   V8_INLINE static Handle<T> New(T* object, Isolate* isolate);

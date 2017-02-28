@@ -4,6 +4,7 @@
 
 #include "src/crankshaft/arm/lithium-codegen-arm.h"
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/builtins/builtins-constructor.h"
 #include "src/code-factory.h"
@@ -12,6 +13,7 @@
 #include "src/crankshaft/hydrogen-osr.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

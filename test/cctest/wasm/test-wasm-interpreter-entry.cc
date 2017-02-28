@@ -4,10 +4,10 @@
 
 #include <cstdint>
 
+#include "src/assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/wasm/wasm-macro-gen.h"
 #include "src/wasm/wasm-objects.h"
-
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"
 #include "test/cctest/wasm/wasm-run-utils.h"

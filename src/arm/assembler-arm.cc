@@ -39,9 +39,11 @@
 #if V8_TARGET_ARCH_ARM
 
 #include "src/arm/assembler-arm-inl.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1523,6 +1525,10 @@ void Assembler::sub(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | SUB | s, src1, dst, src2);
 }
 
+void Assembler::sub(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  sub(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::rsb(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -1535,6 +1541,10 @@ void Assembler::add(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | ADD | s, src1, dst, src2);
 }
 
+void Assembler::add(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  add(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::adc(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
@@ -1558,6 +1568,9 @@ void Assembler::tst(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | TST | S, src1, r0, src2);
 }
 
+void Assembler::tst(Register src1, Register src2, Condition cond) {
+  tst(src1, Operand(src2), cond);
+}
 
 void Assembler::teq(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | TEQ | S, src1, r0, src2);
@@ -1568,6 +1581,9 @@ void Assembler::cmp(Register src1, const Operand& src2, Condition cond) {
   addrmod1(cond | CMP | S, src1, r0, src2);
 }
 
+void Assembler::cmp(Register src1, Register src2, Condition cond) {
+  cmp(src1, Operand(src2), cond);
+}
 
 void Assembler::cmp_raw_immediate(
     Register src, int raw_immediate, Condition cond) {
@@ -1586,6 +1602,10 @@ void Assembler::orr(Register dst, Register src1, const Operand& src2,
   addrmod1(cond | ORR | s, src1, dst, src2);
 }
 
+void Assembler::orr(Register dst, Register src1, Register src2, SBit s,
+                    Condition cond) {
+  orr(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   // Don't allow nop instructions in the form mov rn, rn to be generated using
@@ -1595,6 +1615,9 @@ void Assembler::mov(Register dst, const Operand& src, SBit s, Condition cond) {
   addrmod1(cond | MOV | s, r0, dst, src);
 }
 
+void Assembler::mov(Register dst, Register src, SBit s, Condition cond) {
+  mov(dst, Operand(src), s, cond);
+}
 
 void Assembler::mov_label_offset(Register dst, Label* label) {
   if (label->is_bound()) {
@@ -1657,6 +1680,32 @@ void Assembler::mvn(Register dst, const Operand& src, SBit s, Condition cond) {
   addrmod1(cond | MVN | s, r0, dst, src);
 }
 
+void Assembler::asr(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, ASR, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, ASR, src2.immediate()), s, cond);
+  }
+}
+
+void Assembler::lsl(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, LSL, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, LSL, src2.immediate()), s, cond);
+  }
+}
+
+void Assembler::lsr(Register dst, Register src1, const Operand& src2, SBit s,
+                    Condition cond) {
+  if (src2.is_reg()) {
+    mov(dst, Operand(src1, LSR, src2.rm()), s, cond);
+  } else {
+    mov(dst, Operand(src1, LSR, src2.immediate()), s, cond);
+  }
+}
 
 // Multiply instructions.
 void Assembler::mla(Register dst, Register src1, Register src2, Register srcA,
@@ -4690,6 +4739,7 @@ void Assembler::nop(int type) {
   emit(al | 13*B21 | type*B12 | type);
 }
 
+void Assembler::pop() { add(sp, sp, Operand(kPointerSize)); }
 
 bool Assembler::IsMovT(Instr instr) {
   instr &= ~(((kNumberOfConditions - 1) << 28) |  // Mask off conditions
