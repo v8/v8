@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "c7c2db69cd571523ce728c4d3dceedbd1896b519",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "d25400d94208ddd714d1139410c56a01e19554d4",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "e7079f0e0e14108ab0dba58728ff219637458563",
   "v8/third_party/icu":
@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "5b6f777da671be977f56f0e8fc3469a3ccbb4474",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "7e53759cf4e553e3a51b5c97420da022cc83de44",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "b3771b1935ea74c388b6fb1750e83f5d83b39dec",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "06294c8a4a6f744ef284cd63cfe54dbf61eea290",
   "v8/third_party/jinja2":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "9913fb19b687b0c858f697efd7bd2468d789a3d5",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "37d701b87a10a2bdee1a5c3523f754ebf64a7e66",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "002e57c86ccf5c80db0de6e40246665340350c43",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "b43a6a289a7588b1769814f04dd6c7d7176974cc",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "47b98570f6e86ab98d28a572c4111fa15b22c3eb",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "4f3d6da8af75d0aa3b0aa535319c13393269512f",
   },
   "win": {
     "v8/third_party/cygwin":
