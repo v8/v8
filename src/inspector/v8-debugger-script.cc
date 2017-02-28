@@ -133,10 +133,9 @@ class ActualScript : public V8DebuggerScript {
     }
 
     if (script->Source().ToLocal(&tmp)) {
-      m_sourceObj.Reset(m_isolate, tmp);
-      String16 source = toProtocolString(tmp);
+      m_source = toProtocolString(tmp);
       // V8 will not count last line if script source ends with \n.
-      if (source.length() > 1 && source[source.length() - 1] == '\n') {
+      if (m_source.length() > 0 && m_source[m_source.length() - 1] == '\n') {
         m_endLine++;
         m_endColumn = 0;
       }
@@ -154,20 +153,8 @@ class ActualScript : public V8DebuggerScript {
     return m_sourceMappingURL;
   }
 
-  String16 source(v8::Isolate* isolate) const override {
-    if (!m_sourceObj.IsEmpty())
-      return toProtocolString(m_sourceObj.Get(isolate));
-    return V8DebuggerScript::source(isolate);
-  }
-
   void setSourceMappingURL(const String16& sourceMappingURL) override {
     m_sourceMappingURL = sourceMappingURL;
-  }
-
-  void setSource(v8::Local<v8::String> source) override {
-    m_source = String16();
-    m_sourceObj.Reset(m_isolate, source);
-    m_hash = String16();
   }
 
   bool getPossibleBreakpoints(
@@ -185,6 +172,17 @@ class ActualScript : public V8DebuggerScript {
     v8::debug::ResetBlackboxedStateCache(m_isolate, m_script.Get(m_isolate));
   }
 
+  int offset(int lineNumber, int columnNumber) const override {
+    v8::HandleScope scope(m_isolate);
+    return m_script.Get(m_isolate)->GetSourceOffset(
+        v8::debug::Location(lineNumber, columnNumber));
+  }
+
+  v8::debug::Location location(int offset) const override {
+    v8::HandleScope scope(m_isolate);
+    return m_script.Get(m_isolate)->GetSourceLocation(offset);
+  }
+
  private:
   String16 GetNameOrSourceUrl(v8::Local<v8::debug::Script> script) {
     v8::Local<v8::String> name;
@@ -194,7 +192,6 @@ class ActualScript : public V8DebuggerScript {
   }
 
   String16 m_sourceMappingURL;
-  v8::Global<v8::String> m_sourceObj;
   bool m_isLiveEdit = false;
   bool m_isModule = false;
   v8::Global<v8::debug::Script> m_script;
@@ -261,6 +258,14 @@ class WasmVirtualScript : public V8DebuggerScript {
 
   void resetBlackboxedStateCache() override {}
 
+  int offset(int lineNumber, int columnNumber) const override {
+    return kNoOffset;
+  }
+
+  v8::debug::Location location(int offset) const override {
+    return v8::debug::Location();
+  }
+
  private:
   static const String16& emptyString() {
     static const String16 singleEmptyString;
@@ -299,8 +304,8 @@ const String16& V8DebuggerScript::sourceURL() const {
   return m_sourceURL.isEmpty() ? m_url : m_sourceURL;
 }
 
-const String16& V8DebuggerScript::hash(v8::Isolate* isolate) const {
-  if (m_hash.isEmpty()) m_hash = calculateHash(source(isolate));
+const String16& V8DebuggerScript::hash() const {
+  if (m_hash.isEmpty()) m_hash = calculateHash(source());
   DCHECK(!m_hash.isEmpty());
   return m_hash;
 }

@@ -9257,13 +9257,10 @@ bool debug::Script::GetPossibleBreakpoints(
       i::Handle<i::FixedArray>::cast(i::handle(script->line_ends(), isolate));
   CHECK(line_ends->length());
 
-  int start_offset = GetSourcePosition(start);
-  int end_offset;
-  if (end.IsEmpty()) {
-    end_offset = GetSmiValue(line_ends, line_ends->length() - 1) + 1;
-  } else {
-    end_offset = GetSourcePosition(end);
-  }
+  int start_offset = GetSourceOffset(start);
+  int end_offset = end.IsEmpty()
+                       ? GetSmiValue(line_ends, line_ends->length() - 1) + 1
+                       : GetSourceOffset(end);
   if (start_offset >= end_offset) return true;
 
   std::set<int> offsets;
@@ -9292,7 +9289,7 @@ bool debug::Script::GetPossibleBreakpoints(
   return true;
 }
 
-int debug::Script::GetSourcePosition(const debug::Location& location) const {
+int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     // TODO(clemensh): Return the proper thing for wasm.
@@ -9316,6 +9313,17 @@ int debug::Script::GetSourcePosition(const debug::Location& location) const {
   if (line == 0) return std::min(column, line_offset);
   int prev_line_offset = GetSmiValue(line_ends, line - 1);
   return std::min(prev_line_offset + column + 1, line_offset);
+}
+
+v8::debug::Location debug::Script::GetSourceLocation(int offset) const {
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  if (script->type() == i::Script::TYPE_WASM) {
+    // TODO(clemensh): Return the proper thing for wasm.
+    return v8::debug::Location();
+  }
+  i::Script::PositionInfo info;
+  i::Script::GetPositionInfo(script, offset, &info, i::Script::WITH_OFFSET);
+  return debug::Location(info.line, info.column);
 }
 
 debug::WasmScript* debug::WasmScript::Cast(debug::Script* script) {

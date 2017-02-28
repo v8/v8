@@ -139,9 +139,8 @@ class V8_EXPORT_PRIVATE Script {
                               const debug::Location& end,
                               bool restrict_to_function,
                               std::vector<debug::Location>* locations) const;
-
- private:
-  int GetSourcePosition(const debug::Location& location) const;
+  int GetSourceOffset(const debug::Location& location) const;
+  v8::debug::Location GetSourceLocation(int offset) const;
 };
 
 // Specialization for wasm Scripts.
