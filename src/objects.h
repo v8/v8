@@ -1437,6 +1437,11 @@ class Object {
   MUST_USE_RESULT static MaybeHandle<Object> ArraySpeciesConstructor(
       Isolate* isolate, Handle<Object> original_array);
 
+  // ES6 section 7.3.20 SpeciesConstructor ( O, defaultConstructor )
+  MUST_USE_RESULT static MaybeHandle<Object> SpeciesConstructor(
+      Isolate* isolate, Handle<JSReceiver> recv,
+      Handle<JSFunction> default_ctor);
+
   // Tries to convert an object to an array length. Returns true and sets the
   // output parameter if it succeeds.
   inline bool ToArrayLength(uint32_t* index);

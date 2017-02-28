@@ -289,6 +289,7 @@ class Isolate;
   CPP(ArrayBufferConstructor_ConstructStub)                                    \
   CPP(ArrayBufferPrototypeGetByteLength)                                       \
   CPP(ArrayBufferIsView)                                                       \
+  CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
   TFJ(AsyncFunctionAwaitCaught, 3)                                             \

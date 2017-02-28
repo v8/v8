@@ -1306,43 +1306,6 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
 
 namespace {
 
-// ES##sec-speciesconstructor
-// SpeciesConstructor ( O, defaultConstructor )
-MUST_USE_RESULT MaybeHandle<Object> SpeciesConstructor(
-    Isolate* isolate, Handle<JSReceiver> recv,
-    Handle<JSFunction> default_ctor) {
-  Handle<Object> ctor_obj;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, ctor_obj,
-      JSObject::GetProperty(recv, isolate->factory()->constructor_string()),
-      Object);
-
-  if (ctor_obj->IsUndefined(isolate)) return default_ctor;
-
-  if (!ctor_obj->IsJSReceiver()) {
-    THROW_NEW_ERROR(isolate,
-                    NewTypeError(MessageTemplate::kConstructorNotReceiver),
-                    Object);
-  }
-
-  Handle<JSReceiver> ctor = Handle<JSReceiver>::cast(ctor_obj);
-
-  Handle<Object> species;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, species,
-      JSObject::GetProperty(ctor, isolate->factory()->species_symbol()),
-      Object);
-
-  if (species->IsNullOrUndefined(isolate)) {
-    return default_ctor;
-  }
-
-  if (species->IsConstructor()) return species;
-
-  THROW_NEW_ERROR(
-      isolate, NewTypeError(MessageTemplate::kSpeciesNotConstructor), Object);
-}
-
 MUST_USE_RESULT MaybeHandle<Object> ToUint32(Isolate* isolate,
                                              Handle<Object> object,
                                              uint32_t* out) {
@@ -1384,7 +1347,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   Handle<JSFunction> regexp_fun = isolate->regexp_function();
   Handle<Object> ctor;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, ctor, SpeciesConstructor(isolate, recv, regexp_fun));
+      isolate, ctor, Object::SpeciesConstructor(isolate, recv, regexp_fun));
 
   Handle<Object> flags_obj;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(

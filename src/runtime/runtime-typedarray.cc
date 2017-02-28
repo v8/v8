@@ -21,39 +21,6 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferGetByteLength) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_ArrayBufferSliceImpl) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, source, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSArrayBuffer, target, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(first, 2);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(new_length, 3);
-
-  if (source->was_neutered() || target->was_neutered()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kDetachedOperation,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "ArrayBuffer.prototype.slice")));
-  }
-
-  CHECK(!source.is_identical_to(target));
-  size_t start = 0, target_length = 0;
-  CHECK(TryNumberToSize(*first, &start));
-  CHECK(TryNumberToSize(*new_length, &target_length));
-  CHECK(NumberToSize(target->byte_length()) >= target_length);
-
-  if (target_length == 0) return isolate->heap()->undefined_value();
-
-  size_t source_byte_length = NumberToSize(source->byte_length());
-  CHECK(start <= source_byte_length);
-  CHECK(source_byte_length - start >= target_length);
-  uint8_t* source_data = reinterpret_cast<uint8_t*>(source->backing_store());
-  uint8_t* target_data = reinterpret_cast<uint8_t*>(target->backing_store());
-  CopyBytes(target_data, source_data + start, target_length);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

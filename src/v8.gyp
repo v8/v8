@@ -2266,7 +2266,6 @@
           'js/v8natives.js',
           'js/array.js',
           'js/string.js',
-          'js/arraybuffer.js',
           'js/typedarray.js',
           'js/collection.js',
           'js/weak-collection.js',
