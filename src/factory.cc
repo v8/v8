@@ -2330,6 +2330,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
     map->set_is_prototype_map(true);
   }
   JSObject::NotifyMapChange(old_map, map, isolate());
+  old_map->NotifyLeafMapLayoutChange();
 
   // Check that the already allocated object has the same size and type as
   // objects allocated using the constructor.
