@@ -1194,7 +1194,8 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
 void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
                                             Node* instance_type, Node* key,
                                             const LoadICParameters* p,
-                                            Label* slow) {
+                                            Label* slow,
+                                            UseStubCache use_stub_cache) {
   Comment("key is unique name");
   Label if_found_on_receiver(this), if_property_dictionary(this),
       lookup_prototype_chain(this);
@@ -1220,8 +1221,10 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   Label if_descriptor_found(this), stub_cache(this);
   Variable var_name_index(this, MachineType::PointerRepresentation());
+  Label* notfound =
+      use_stub_cache == kUseStubCache ? &stub_cache : &lookup_prototype_chain;
   DescriptorLookup(key, descriptors, bitfield3, &if_descriptor_found,
-                   &var_name_index, &stub_cache);
+                   &var_name_index, notfound);
 
   Bind(&if_descriptor_found);
   {
@@ -1231,8 +1234,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     Goto(&if_found_on_receiver);
   }
 
-  Bind(&stub_cache);
-  {
+  if (use_stub_cache == kUseStubCache) {
+    Bind(&stub_cache);
     Comment("stub cache probe for fast property load");
     Variable var_handler(this, MachineRepresentation::kTagged);
     Label found_handler(this, &var_handler), stub_cache_miss(this);
@@ -1452,6 +1455,7 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   // TODO(ishell): defer blocks when it works.
   Label if_handler(this, &var_handler), try_polymorphic(this),
       try_megamorphic(this /*, Label::kDeferred*/),
+      try_uninitialized(this /*, Label::kDeferred*/),
       miss(this /*, Label::kDeferred*/);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
@@ -1478,13 +1482,77 @@ void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   {
     // Check megamorphic case.
     GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
-              &miss);
+              &try_uninitialized);
 
     TryProbeStubCache(isolate()->load_stub_cache(), p->receiver, p->name,
                       &if_handler, &var_handler, &miss);
   }
+  Bind(&try_uninitialized);
+  {
+    // Check uninitialized case.
+    GotoIfNot(
+        WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+        &miss);
+    TailCallStub(CodeFactory::LoadIC_Uninitialized(isolate()), p->context,
+                 p->receiver, p->name, p->slot, p->vector);
+  }
   Bind(&miss);
   {
+    TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
+                    p->slot, p->vector);
+  }
+}
+
+void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
+  Label miss(this);
+  Node* receiver = p->receiver;
+  GotoIf(TaggedIsSmi(receiver), &miss);
+  Node* receiver_map = LoadMap(receiver);
+  Node* instance_type = LoadMapInstanceType(receiver_map);
+
+  // Optimistically write the state transition to the vector.
+  StoreFixedArrayElement(p->vector, p->slot,
+                         LoadRoot(Heap::kpremonomorphic_symbolRootIndex),
+                         SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+
+  Label not_function_prototype(this);
+  GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
+         &not_function_prototype);
+  GotoIfNot(WordEqual(p->name, LoadRoot(Heap::kprototype_stringRootIndex)),
+            &not_function_prototype);
+  Node* bit_field = LoadMapBitField(receiver_map);
+  GotoIf(IsSetWord32(bit_field, 1 << Map::kHasNonInstancePrototype),
+         &not_function_prototype);
+  // Function.prototype load.
+  {
+    // TODO(jkummerow): Unify with LoadIC_FunctionPrototype builtin
+    // (when we have a shared CSA base class for all builtins).
+    Node* proto_or_map =
+        LoadObjectField(receiver, JSFunction::kPrototypeOrInitialMapOffset);
+    GotoIf(IsTheHole(proto_or_map), &miss);
+
+    Variable var_result(this, MachineRepresentation::kTagged, proto_or_map);
+    Label done(this, &var_result);
+    GotoIfNot(IsMap(proto_or_map), &done);
+
+    var_result.Bind(LoadMapPrototype(proto_or_map));
+    Goto(&done);
+
+    Bind(&done);
+    Return(var_result.value());
+  }
+  Bind(&not_function_prototype);
+
+  GenericPropertyLoad(receiver, receiver_map, instance_type, p->name, p, &miss,
+                      kDontUseStubCache);
+
+  Bind(&miss);
+  {
+    // Undo the optimistic state transition.
+    StoreFixedArrayElement(p->vector, p->slot,
+                           LoadRoot(Heap::kuninitialized_symbolRootIndex),
+                           SKIP_WRITE_BARRIER, 0, SMI_PARAMETERS);
+
     TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
                     p->slot, p->vector);
   }
@@ -1854,6 +1922,19 @@ void AccessorAssembler::GenerateLoadIC() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC(&p);
+}
+
+void AccessorAssembler::GenerateLoadIC_Uninitialized() {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadIC_Uninitialized(&p);
 }
 
 void AccessorAssembler::GenerateLoadICTrampoline() {

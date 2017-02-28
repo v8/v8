@@ -24,6 +24,7 @@ class AccessorAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   void GenerateLoadIC();
+  void GenerateLoadIC_Uninitialized();
   void GenerateLoadField();
   void GenerateLoadICTrampoline();
   void GenerateKeyedLoadIC();
@@ -93,6 +94,7 @@ class AccessorAssembler : public CodeStubAssembler {
   // Stub generation entry points.
 
   void LoadIC(const LoadICParameters* p);
+  void LoadIC_Uninitialized(const LoadICParameters* p);
   void LoadICProtoArray(const LoadICParameters* p, Node* handler,
                         bool throw_reference_error_if_nonexistent);
   void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
@@ -167,9 +169,11 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenericElementLoad(Node* receiver, Node* receiver_map,
                           Node* instance_type, Node* index, Label* slow);
 
+  enum UseStubCache { kUseStubCache, kDontUseStubCache };
   void GenericPropertyLoad(Node* receiver, Node* receiver_map,
                            Node* instance_type, Node* key,
-                           const LoadICParameters* p, Label* slow);
+                           const LoadICParameters* p, Label* slow,
+                           UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
 

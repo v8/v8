@@ -23,6 +23,7 @@ namespace internal {
   }
 
 IC_BUILTIN(LoadIC)
+IC_BUILTIN(LoadIC_Uninitialized)
 IC_BUILTIN(KeyedLoadIC)
 IC_BUILTIN(LoadICTrampoline)
 IC_BUILTIN(LoadField)

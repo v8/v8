@@ -248,6 +248,7 @@ class Isolate;
   TFS(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector, 1)                \
   TFS(LoadIC_Normal, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                \
   TFS(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector, 1)                  \
+  TFS(LoadIC_Uninitialized, BUILTIN, kNoExtraICState, LoadWithVector, 1)       \
   TFS(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector, 1)              \
   TFS(StoreIC_Normal, HANDLER, Code::STORE_IC, StoreWithVector, 1)             \
   ASH(StoreIC_Setter_ForDeopt, BUILTIN, kNoExtraICState)                       \
