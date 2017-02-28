@@ -278,7 +278,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
 }
 
 Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
-             Handle<ScopeInfo> scope_info)
+             MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info)
     : zone_(zone),
       outer_scope_(nullptr),
       variables_(zone),
@@ -291,7 +291,8 @@ Scope::Scope(Zone* zone, const AstRawString* catch_variable_name,
   // Cache the catch variable, even though it's also available via the
   // scope_info, as the parser expects that a catch scope always has the catch
   // variable as first and only variable.
-  Variable* variable = Declare(zone, catch_variable_name, VAR);
+  Variable* variable = Declare(zone, catch_variable_name, VAR, NORMAL_VARIABLE,
+                               kCreatedInitialized, maybe_assigned);
   AllocateHeapSlot(variable);
 }
 
@@ -431,10 +432,15 @@ Scope* Scope::DeserializeScopeChain(Isolate* isolate, Zone* zone,
     } else {
       DCHECK_EQ(scope_info->scope_type(), CATCH_SCOPE);
       DCHECK_EQ(scope_info->LocalCount(), 1);
-      String* name = scope_info->LocalName(0);
+      DCHECK_EQ(scope_info->ContextLocalCount(), 1);
+      DCHECK_EQ(scope_info->ContextLocalMode(0), VAR);
+      DCHECK_EQ(scope_info->ContextLocalInitFlag(0), kCreatedInitialized);
+      String* name = scope_info->ContextLocalName(0);
+      MaybeAssignedFlag maybe_assigned =
+          scope_info->ContextLocalMaybeAssignedFlag(0);
       outer_scope = new (zone)
           Scope(zone, ast_value_factory->GetString(handle(name, isolate)),
-                handle(scope_info));
+                maybe_assigned, handle(scope_info));
     }
     if (deserialization_mode == DeserializationMode::kScopesOnly) {
       outer_scope->scope_info_ = Handle<ScopeInfo>::null();

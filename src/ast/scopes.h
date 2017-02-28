@@ -595,7 +595,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // Construct a catch scope with a binding for the name.
   Scope(Zone* zone, const AstRawString* catch_variable_name,
-        Handle<ScopeInfo> scope_info);
+        MaybeAssignedFlag maybe_assigned, Handle<ScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
     inner_scope->sibling_ = inner_scope_;
