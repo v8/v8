@@ -27,7 +27,9 @@ namespace internal {
 // Version 10: one-byte (Latin-1) strings
 // Version 11: properly separate undefined from the hole in arrays
 // Version 12: regexp and string objects share normal string encoding
-static const uint32_t kLatestVersion = 12;
+// Version 13: host objects have an explicit tag (rather than handling all
+//             unknown tags)
+static const uint32_t kLatestVersion = 13;
 
 static const int kPretenureThreshold = 100 * KB;
 
@@ -124,6 +126,9 @@ enum class SerializationTag : uint8_t {
   //  wasmWireByteLength:uint32_t, then raw data
   //  compiledDataLength:uint32_t, then raw data
   kWasmModule = 'W',
+  // The delegate is responsible for processing all following data.
+  // This "escapes" to whatever wire format the delegate chooses.
+  kHostObject = '\\',
 };
 
 namespace {
@@ -823,6 +828,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<JSObject> object) {
 }
 
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
+  WriteTag(SerializationTag::kHostObject);
   if (!delegate_) {
     isolate_->Throw(*isolate_->factory()->NewError(
         isolate_->error_function(), MessageTemplate::kDataCloneError, object));
@@ -1144,11 +1150,16 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
     }
     case SerializationTag::kWasmModule:
       return ReadWasmModule();
-    default:
-      // TODO(jbroman): Introduce an explicit tag for host objects to avoid
-      // having to treat every unknown tag as a potential host object.
-      position_--;
+    case SerializationTag::kHostObject:
       return ReadHostObject();
+    default:
+      // Before there was an explicit tag for host objects, all unknown tags
+      // were delegated to the host.
+      if (version_ < 13) {
+        position_--;
+        return ReadHostObject();
+      }
+      return MaybeHandle<Object>();
   }
 }
 

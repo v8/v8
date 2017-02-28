@@ -2370,8 +2370,9 @@ class ValueSerializerTestWithHostObject : public ValueSerializerTest {
   friend class DeserializerDelegate;
 };
 
-// This is a tag that's not used in V8.
-const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = '+';
+// This is a tag that is used in V8. Using this ensures that we have separate
+// tag namespaces.
+const uint8_t ValueSerializerTestWithHostObject::kExampleHostObjectTag = 'T';
 
 TEST_F(ValueSerializerTestWithHostObject, RoundTripUint32) {
   // The host can serialize data as uint32_t.
@@ -2541,6 +2542,19 @@ TEST_F(ValueSerializerTestWithHostObject, RoundTripSameObject) {
         EXPECT_TRUE(EvaluateScriptForResultBool(
             "result.a instanceof ExampleHostObject"));
         EXPECT_TRUE(EvaluateScriptForResultBool("result.a === result.b"));
+      });
+}
+
+TEST_F(ValueSerializerTestWithHostObject, DecodeSimpleHostObject) {
+  EXPECT_CALL(deserializer_delegate_, ReadHostObject(isolate()))
+      .WillRepeatedly(Invoke([this](Isolate*) {
+        EXPECT_TRUE(ReadExampleHostObjectTag());
+        return NewHostObject(deserialization_context(), 0, nullptr);
+      }));
+  DecodeTest(
+      {0xff, 0x0d, 0x5c, kExampleHostObjectTag}, [this](Local<Value> value) {
+        EXPECT_TRUE(EvaluateScriptForResultBool(
+            "Object.getPrototypeOf(result) === ExampleHostObject.prototype"));
       });
 }
 
