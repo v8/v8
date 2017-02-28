@@ -157,11 +157,6 @@ struct ParserFormalParameters : FormalParametersBase {
       return pattern->IsVariableProxy() && initializer == nullptr && !is_rest;
     }
 
-    bool is_nondestructuring_rest() const {
-      DCHECK_IMPLIES(is_rest, initializer == nullptr);
-      return is_rest && pattern->IsVariableProxy();
-    }
-
     Parameter** next() { return &next_parameter; }
     Parameter* const* next() const { return &next_parameter; }
   };
@@ -1080,11 +1075,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (!is_simple) scope->SetHasNonSimpleParameters();
     for (auto parameter : parameters) {
       bool is_duplicate = false;
-      bool use_name = is_simple || parameter->is_nondestructuring_rest();
       bool is_optional = parameter->initializer != nullptr;
+      // If the parameter list is simple, declare the parameters normally with
+      // their names. If the parameter list is not simple, declare a temporary
+      // for each parameter - the corresponding named variable is declared by
+      // BuildParamerterInitializationBlock.
       scope->DeclareParameter(
-          use_name ? parameter->name : ast_value_factory()->empty_string(),
-          use_name ? VAR : TEMPORARY, is_optional, parameter->is_rest,
+          is_simple ? parameter->name : ast_value_factory()->empty_string(),
+          is_simple ? VAR : TEMPORARY, is_optional, parameter->is_rest,
           &is_duplicate, ast_value_factory());
       if (is_duplicate &&
           classifier()->is_valid_formal_parameter_list_without_duplicates()) {

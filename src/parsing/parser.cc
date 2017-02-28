@@ -2913,10 +2913,10 @@ Block* Parser::BuildParameterInitializationBlock(
     const ParserFormalParameters& parameters, bool* ok) {
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
+  DCHECK_EQ(scope(), parameters.scope);
   Block* init_block = factory()->NewBlock(NULL, 1, true, kNoSourcePosition);
   int index = 0;
   for (auto parameter : parameters.params) {
-    if (parameter->is_nondestructuring_rest()) break;
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::PARAMETER;
     descriptor.scope = scope();

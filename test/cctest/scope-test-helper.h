@@ -55,7 +55,23 @@ class ScopeTestHelper {
           CHECK_EQ(data->backing_store_[index++], local_name->raw_data()[i]);
         }
 #endif
-        CHECK_EQ(data->backing_store_[index++], local->location());
+        // Allow PreParser to not distinguish between parameter / local; that
+        // information is not relevant for deciding the allocation (potentially
+        // skipped inner functions don't affect it).
+        int location = data->backing_store_[index++];
+        switch (local->location()) {
+          case PARAMETER:
+          case LOCAL:
+            CHECK(location == PARAMETER || location == LOCAL);
+            break;
+          case CONTEXT:
+          case UNALLOCATED:
+            CHECK_EQ(location, local->location());
+            break;
+          default:
+            CHECK(false);
+        }
+
         if (precise_maybe_assigned) {
           CHECK_EQ(data->backing_store_[index++], local->maybe_assigned());
         } else {
