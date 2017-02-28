@@ -163,7 +163,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable GrowFastSmiOrObjectElements(Isolate* isolate);
 
   static Callable NewUnmappedArgumentsElements(Isolate* isolate);
-  static Callable NewRestParameterElements(Isolate* isolate);
 
   static Callable AllocateHeapNumber(Isolate* isolate);
 

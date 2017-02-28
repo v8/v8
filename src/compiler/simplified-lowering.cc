@@ -2570,10 +2570,18 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::Undetectable(), lowering);
         return;
       }
-      case IrOpcode::kNewRestParameterElements:
+      case IrOpcode::kArgumentsFrame: {
+        SetOutput(node, MachineType::PointerRepresentation());
+        return;
+      }
+      case IrOpcode::kArgumentsLength: {
+        VisitUnop(node, UseInfo::PointerInt(),
+                  MachineRepresentation::kTaggedSigned);
+        return;
+      }
       case IrOpcode::kNewUnmappedArgumentsElements: {
-        ProcessRemainingInputs(node, 0);
-        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        VisitBinop(node, UseInfo::PointerInt(), UseInfo::TaggedSigned(),
+                   MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kArrayBufferWasNeutered: {
@@ -2687,7 +2695,7 @@ class RepresentationSelector {
       case IrOpcode::kBeginRegion:
       case IrOpcode::kProjection:
       case IrOpcode::kOsrValue:
-      case IrOpcode::kArgumentsObjectState:
+      case IrOpcode::kArgumentsElementsState:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)

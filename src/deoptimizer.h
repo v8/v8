@@ -132,7 +132,8 @@ class TranslatedValue {
     Float32 float_value_;
     // kind is kDouble
     Float64 double_value_;
-    // kind is kDuplicatedObject or kArgumentsObject or kCapturedObject.
+    // kind is kDuplicatedObject or kArgumentsObject or
+    // kCapturedObject.
     MaterializedObjectInfo materialization_info_;
   };
 
@@ -305,7 +306,7 @@ class TranslatedState {
 
   void Init(Address input_frame_pointer, TranslationIterator* iterator,
             FixedArray* literal_array, RegisterValues* registers,
-            FILE* trace_file);
+            FILE* trace_file, int parameter_count);
 
  private:
   friend TranslatedValue;
@@ -314,12 +315,12 @@ class TranslatedState {
                                             FixedArray* literal_array,
                                             Address fp,
                                             FILE* trace_file);
-  TranslatedValue CreateNextTranslatedValue(int frame_index, int value_index,
-                                            TranslationIterator* iterator,
-                                            FixedArray* literal_array,
-                                            Address fp,
-                                            RegisterValues* registers,
-                                            FILE* trace_file);
+  int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
+                                FixedArray* literal_array, Address fp,
+                                RegisterValues* registers, FILE* trace_file);
+  void CreateArgumentsElementsTranslatedValues(int frame_index,
+                                               Address input_frame_pointer,
+                                               bool is_rest);
 
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
@@ -337,6 +338,7 @@ class TranslatedState {
   Isolate* isolate_;
   Address stack_frame_pointer_;
   bool has_adapted_arguments_;
+  int formal_parameter_count_;
 
   struct ObjectPosition {
     int frame_index_;
@@ -932,6 +934,7 @@ class TranslationIterator BASE_EMBEDDED {
   V(COMPILED_STUB_FRAME)           \
   V(DUPLICATED_OBJECT)             \
   V(ARGUMENTS_OBJECT)              \
+  V(ARGUMENTS_ELEMENTS)            \
   V(CAPTURED_OBJECT)               \
   V(REGISTER)                      \
   V(INT32_REGISTER)                \
@@ -980,6 +983,7 @@ class Translation BASE_EMBEDDED {
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
   void BeginArgumentsObject(int args_length);
+  void ArgumentsElements(bool is_rest);
   void BeginCapturedObject(int length);
   void DuplicateObject(int object_index);
   void StoreRegister(Register reg);

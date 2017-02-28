@@ -1232,11 +1232,16 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsObjectState() {
-  return new (zone()) Operator(                          // --
-      IrOpcode::kArgumentsObjectState, Operator::kPure,  // opcode
-      "ArgumentsObjectState",                            // name
-      0, 0, 0, 1, 0, 0);                                 // counts
+const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                     // --
+      IrOpcode::kArgumentsElementsState, Operator::kPure,  // opcode
+      "ArgumentsElementsState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                          // counts
+}
+
+bool IsRestOf(Operator const* op) {
+  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState);
+  return OpParameter<bool>(op);
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(int pointer_slots) {

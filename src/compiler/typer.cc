@@ -837,7 +837,7 @@ Type* Typer::Visitor::TypeTypedStateValues(Node* node) {
   return Type::Internal();
 }
 
-Type* Typer::Visitor::TypeArgumentsObjectState(Node* node) {
+Type* Typer::Visitor::TypeArgumentsElementsState(Node* node) {
   return Type::Internal();
 }
 
@@ -1952,11 +1952,15 @@ Type* Typer::Visitor::TypeObjectIsUndetectable(Node* node) {
   return TypeUnaryOp(node, ObjectIsUndetectable);
 }
 
-Type* Typer::Visitor::TypeNewUnmappedArgumentsElements(Node* node) {
-  return Type::OtherInternal();
+Type* Typer::Visitor::TypeArgumentsLength(Node* node) {
+  return TypeCache::Get().kArgumentsLengthType;
 }
 
-Type* Typer::Visitor::TypeNewRestParameterElements(Node* node) {
+Type* Typer::Visitor::TypeArgumentsFrame(Node* node) {
+  return Type::ExternalPointer();
+}
+
+Type* Typer::Visitor::TypeNewUnmappedArgumentsElements(Node* node) {
   return Type::OtherInternal();
 }
 

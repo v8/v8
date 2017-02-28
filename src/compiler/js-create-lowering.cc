@@ -311,12 +311,14 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           if (shared_info->internal_formal_parameter_count() == 0) {
             Node* const callee = NodeProperties::GetValueInput(node, 0);
             Node* effect = NodeProperties::GetEffectInput(node);
+            Node* const arguments_frame =
+                graph()->NewNode(simplified()->ArgumentsFrame());
+            Node* const arguments_length = graph()->NewNode(
+                simplified()->ArgumentsLength(0, false), arguments_frame);
             // Allocate the elements backing store.
-            Node* const elements = effect = graph()->NewNode(
-                simplified()->NewUnmappedArgumentsElements(0), effect);
-            Node* const length = effect = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-                elements, effect, control);
+            Node* const elements = effect =
+                graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+                                 arguments_frame, arguments_length, effect);
             // Load the arguments object map.
             Node* const arguments_map = jsgraph()->HeapConstant(
                 handle(native_context()->sloppy_arguments_map(), isolate()));
@@ -328,7 +330,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             a.Store(AccessBuilder::ForMap(), arguments_map);
             a.Store(AccessBuilder::ForJSObjectProperties(), properties);
             a.Store(AccessBuilder::ForJSObjectElements(), elements);
-            a.Store(AccessBuilder::ForArgumentsLength(), length);
+            a.Store(AccessBuilder::ForArgumentsLength(), arguments_length);
             a.Store(AccessBuilder::ForArgumentsCallee(), callee);
             RelaxControls(node);
             a.FinishAndChange(node);
@@ -352,14 +354,16 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Handle<SharedFunctionInfo> shared_info;
         if (state_info.shared_info().ToHandle(&shared_info)) {
           Node* effect = NodeProperties::GetEffectInput(node);
+          Node* const arguments_frame =
+              graph()->NewNode(simplified()->ArgumentsFrame());
+          Node* const arguments_length = graph()->NewNode(
+              simplified()->ArgumentsLength(
+                  shared_info->internal_formal_parameter_count(), false),
+              arguments_frame);
           // Allocate the elements backing store.
-          Node* const elements = effect = graph()->NewNode(
-              simplified()->NewUnmappedArgumentsElements(
-                  shared_info->internal_formal_parameter_count()),
-              effect);
-          Node* const length = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-              elements, effect, control);
+          Node* const elements = effect =
+              graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+                               arguments_frame, arguments_length, effect);
           // Load the arguments object map.
           Node* const arguments_map = jsgraph()->HeapConstant(
               handle(native_context()->strict_arguments_map(), isolate()));
@@ -371,7 +375,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           a.Store(AccessBuilder::ForMap(), arguments_map);
           a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
-          a.Store(AccessBuilder::ForArgumentsLength(), length);
+          a.Store(AccessBuilder::ForArgumentsLength(), arguments_length);
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {
@@ -391,14 +395,19 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
         Handle<SharedFunctionInfo> shared_info;
         if (state_info.shared_info().ToHandle(&shared_info)) {
           Node* effect = NodeProperties::GetEffectInput(node);
-          // Allocate the elements backing store.
-          Node* const elements = effect = graph()->NewNode(
-              simplified()->NewRestParameterElements(
-                  shared_info->internal_formal_parameter_count()),
-              effect);
-          Node* const length = effect = graph()->NewNode(
-              simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-              elements, effect, control);
+          Node* const arguments_frame =
+              graph()->NewNode(simplified()->ArgumentsFrame());
+          int formal_parameter_count =
+              shared_info->internal_formal_parameter_count();
+          Node* const rest_length = graph()->NewNode(
+              simplified()->ArgumentsLength(formal_parameter_count, true),
+              arguments_frame);
+          // Allocate the elements backing store. Since
+          // NewUnmappedArgumentsElements copies from the end of the arguments
+          // adapter frame, this is a suffix of the actual arguments.
+          Node* const elements = effect =
+              graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+                               arguments_frame, rest_length, effect);
           // Load the JSArray object map.
           Node* const jsarray_map = jsgraph()->HeapConstant(handle(
               native_context()->js_array_fast_elements_map_index(), isolate()));
@@ -410,7 +419,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
           a.Store(AccessBuilder::ForMap(), jsarray_map);
           a.Store(AccessBuilder::ForJSObjectProperties(), properties);
           a.Store(AccessBuilder::ForJSObjectElements(), elements);
-          a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), length);
+          a.Store(AccessBuilder::ForJSArrayLength(FAST_ELEMENTS), rest_length);
           RelaxControls(node);
           a.FinishAndChange(node);
         } else {

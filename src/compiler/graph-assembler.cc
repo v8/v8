@@ -56,6 +56,10 @@ Node* GraphAssembler::CEntryStubConstant(int result_size) {
   return jsgraph()->CEntryStubConstant(result_size);
 }
 
+Node* GraphAssembler::LoadFramePointer() {
+  return graph()->NewNode(machine()->LoadFramePointer());
+}
+
 #define SINGLETON_CONST_DEF(Name) \
   Node* GraphAssembler::Name() { return jsgraph()->Name(); }
 JSGRAPH_SINGLETON_CONSTANT_LIST(SINGLETON_CONST_DEF)

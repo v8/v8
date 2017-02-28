@@ -227,85 +227,13 @@ void Generate_NewArgumentsElements(CodeStubAssembler* assembler,
 
 void Builtins::Generate_NewUnmappedArgumentsElements(
     compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
   typedef compiler::Node Node;
   typedef NewArgumentsElementsDescriptor Descriptor;
   CodeStubAssembler assembler(state);
 
-  Node* formal_parameter_count =
-      assembler.Parameter(Descriptor::kFormalParameterCount);
-
-  // Determine the frame that holds the parameters.
-  Label done(&assembler);
-  Variable var_frame(&assembler, MachineType::PointerRepresentation()),
-      var_length(&assembler, MachineType::PointerRepresentation());
-  var_frame.Bind(assembler.LoadParentFramePointer());
-  var_length.Bind(formal_parameter_count);
-  Node* parent_frame = assembler.Load(
-      MachineType::Pointer(), var_frame.value(),
-      assembler.IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
-  Node* parent_frame_type =
-      assembler.Load(MachineType::AnyTagged(), parent_frame,
-                     assembler.IntPtrConstant(
-                         CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoIfNot(assembler.MarkerIsFrameType(
-                          parent_frame_type, StackFrame::ARGUMENTS_ADAPTOR),
-                      &done);
-  {
-    // Determine the length from the ArgumentsAdaptorFrame.
-    Node* length = assembler.LoadAndUntagSmi(
-        parent_frame, ArgumentsAdaptorFrameConstants::kLengthOffset);
-
-    // Take the arguments from the ArgumentsAdaptorFrame.
-    var_frame.Bind(parent_frame);
-    var_length.Bind(length);
-  }
-  assembler.Goto(&done);
-
-  // Allocate the actual FixedArray for the elements.
-  assembler.Bind(&done);
-  Generate_NewArgumentsElements(&assembler, var_frame.value(),
-                                var_length.value());
-}
-
-void Builtins::Generate_NewRestParameterElements(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-  typedef NewArgumentsElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
-
-  Node* formal_parameter_count =
-      assembler.Parameter(Descriptor::kFormalParameterCount);
-
-  // Check if we have an ArgumentsAdaptorFrame, as we will only have rest
-  // parameters in that case.
-  Label if_empty(&assembler);
-  Node* frame = assembler.Load(
-      MachineType::Pointer(), assembler.LoadParentFramePointer(),
-      assembler.IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
-  Node* frame_type =
-      assembler.Load(MachineType::AnyTagged(), frame,
-                     assembler.IntPtrConstant(
-                         CommonFrameConstants::kContextOrFrameTypeOffset));
-  assembler.GotoIfNot(
-      assembler.MarkerIsFrameType(frame_type, StackFrame::ARGUMENTS_ADAPTOR),
-      &if_empty);
-
-  // Determine the length from the ArgumentsAdaptorFrame.
-  Node* frame_length = assembler.LoadAndUntagSmi(
-      frame, ArgumentsAdaptorFrameConstants::kLengthOffset);
-
-  // Compute the actual rest parameter length (may be negative).
-  Node* length = assembler.IntPtrSub(frame_length, formal_parameter_count);
-
-  // Allocate the actual FixedArray for the elements.
-  Generate_NewArgumentsElements(&assembler, frame, length);
-
-  // No rest parameters, return an empty FixedArray.
-  assembler.Bind(&if_empty);
-  assembler.Return(assembler.EmptyFixedArrayConstant());
+  Node* frame = assembler.Parameter(Descriptor::kFrame);
+  Node* length = assembler.Parameter(Descriptor::kLength);
+  Generate_NewArgumentsElements(&assembler, frame, assembler.SmiToWord(length));
 }
 
 void Builtins::Generate_ReturnReceiver(compiler::CodeAssemblerState* state) {

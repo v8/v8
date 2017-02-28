@@ -14450,6 +14450,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
+        case Translation::ARGUMENTS_ELEMENTS: {
+          bool is_rest = iterator.Next();
+          os << "{is_rest=" << (is_rest ? "true" : "false") << "}";
+          break;
+        }
+
         case Translation::ARGUMENTS_OBJECT:
         case Translation::CAPTURED_OBJECT: {
           int args_length = iterator.Next();

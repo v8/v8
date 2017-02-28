@@ -13,7 +13,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -739,8 +738,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsUndetectable:
       result = LowerObjectIsUndetectable(node);
       break;
-    case IrOpcode::kNewRestParameterElements:
-      result = LowerNewRestParameterElements(node);
+    case IrOpcode::kArgumentsFrame:
+      result = LowerArgumentsFrame(node);
+      break;
+    case IrOpcode::kArgumentsLength:
+      result = LowerArgumentsLength(node);
       break;
     case IrOpcode::kNewUnmappedArgumentsElements:
       result = LowerNewUnmappedArgumentsElements(node);
@@ -1839,21 +1841,83 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerNewRestParameterElements(Node* node) {
-  int const formal_parameter_count = ParameterCountOf(node->op());
+Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
+  Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
+  int formal_parameter_count = FormalParameterCountOf(node->op());
+  bool is_rest_length = IsRestLengthOf(node->op());
+  DCHECK(formal_parameter_count >= 0);
 
-  Callable const callable = CodeFactory::NewRestParameterElements(isolate());
-  Operator::Properties const properties = node->op()->properties();
-  CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()),
-                 __ IntPtrConstant(formal_parameter_count),
-                 __ NoContextConstant());
+  if (is_rest_length) {
+    // The ArgumentsLength node is computing the number of rest parameters,
+    // which is max(0, actual_parameter_count - formal_parameter_count).
+    // We have to distinguish the case, when there is an arguments adaptor frame
+    // (i.e., arguments_frame != LoadFramePointer()).
+    auto if_adaptor_frame = __ MakeLabel<1>();
+    auto done = __ MakeLabel<3>(MachineRepresentation::kTaggedSigned);
+
+    Node* frame = __ LoadFramePointer();
+    __ GotoIf(__ WordEqual(arguments_frame, frame), &done, __ SmiConstant(0));
+    __ Goto(&if_adaptor_frame);
+
+    __ Bind(&if_adaptor_frame);
+    Node* arguments_length = __ Load(
+        MachineType::TaggedSigned(), arguments_frame,
+        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+    Node* rest_length =
+        __ IntSub(arguments_length, __ SmiConstant(formal_parameter_count));
+    __ GotoIf(__ IntLessThan(rest_length, __ SmiConstant(0)), &done,
+              __ SmiConstant(0));
+    __ Goto(&done, rest_length);
+
+    __ Bind(&done);
+    return done.PhiAt(0);
+  } else {
+    // The ArgumentsLength node is computing the actual number of arguments.
+    // We have to distinguish the case when there is an arguments adaptor frame
+    // (i.e., arguments_frame != LoadFramePointer()).
+    auto if_adaptor_frame = __ MakeLabel<1>();
+    auto done = __ MakeLabel<2>(MachineRepresentation::kTaggedSigned);
+
+    Node* frame = __ LoadFramePointer();
+    __ GotoIf(__ WordEqual(arguments_frame, frame), &done,
+              __ SmiConstant(formal_parameter_count));
+    __ Goto(&if_adaptor_frame);
+
+    __ Bind(&if_adaptor_frame);
+    Node* arguments_length = __ Load(
+        MachineType::TaggedSigned(), arguments_frame,
+        __ IntPtrConstant(ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ Goto(&done, arguments_length);
+
+    __ Bind(&done);
+    return done.PhiAt(0);
+  }
+}
+
+Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
+  auto done = __ MakeLabel<2>(MachineType::PointerRepresentation());
+
+  Node* frame = __ LoadFramePointer();
+  Node* parent_frame =
+      __ Load(MachineType::AnyTagged(), frame,
+              __ IntPtrConstant(StandardFrameConstants::kCallerFPOffset));
+  Node* parent_frame_type = __ Load(
+      MachineType::AnyTagged(), parent_frame,
+      __ IntPtrConstant(CommonFrameConstants::kContextOrFrameTypeOffset));
+  __ GotoIf(__ WordEqual(parent_frame_type,
+                         __ IntPtrConstant(StackFrame::TypeToMarker(
+                             StackFrame::ARGUMENTS_ADAPTOR))),
+            &done, parent_frame);
+  __ Goto(&done, frame);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerNewUnmappedArgumentsElements(Node* node) {
-  int const formal_parameter_count = ParameterCountOf(node->op());
+  Node* frame = NodeProperties::GetValueInput(node, 0);
+  Node* length = NodeProperties::GetValueInput(node, 1);
 
   Callable const callable =
       CodeFactory::NewUnmappedArgumentsElements(isolate());
@@ -1861,8 +1925,7 @@ Node* EffectControlLinearizer::LowerNewUnmappedArgumentsElements(Node* node) {
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()),
-                 __ IntPtrConstant(formal_parameter_count),
+  return __ Call(desc, __ HeapConstant(callable.code()), frame, length,
                  __ NoContextConstant());
 }
 

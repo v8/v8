@@ -136,20 +136,6 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
     // the outermost function.
     Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
     if (outer_state->opcode() != IrOpcode::kFrameState) {
-      // TODO(jarin,bmeurer): Support the NewUnmappedArgumentsElement and
-      // NewRestParameterElements in the EscapeAnalysis and Deoptimizer
-      // instead, then we don't need this hack.
-      // Only works with zero formal parameters because of lacking deoptimizer
-      // support.
-      if (type != CreateArgumentsType::kRestParameter &&
-          formal_parameter_count == 0) {
-        // There are no other uses of the {arg_array} except in StateValues,
-        // so we just replace {arg_array} with a marker for the Deoptimizer
-        // that this refers to the arguments object.
-        Node* arguments = graph()->NewNode(common()->ArgumentsObjectState());
-        ReplaceWithValue(arg_array, arguments);
-      }
-
       // Reduce {node} to a JSCallForwardVarargs operation, which just
       // re-pushes the incoming arguments and calls the {target}.
       node->RemoveInput(0);  // Function.prototype.apply

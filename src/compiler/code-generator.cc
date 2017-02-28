@@ -698,9 +698,9 @@ void CodeGenerator::TranslateStateValueDescriptor(
       TranslateStateValueDescriptor(field.desc, field.nested, translation,
                                     iter);
     }
-  } else if (desc->IsArguments()) {
+  } else if (desc->IsArgumentsElements()) {
     if (translation != nullptr) {
-      translation->BeginArgumentsObject(0);
+      translation->ArgumentsElements(desc->is_rest());
     }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {

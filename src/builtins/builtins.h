@@ -196,8 +196,6 @@ class Isolate;
       GrowArrayElements, 1)                                                    \
   TFS(NewUnmappedArgumentsElements, BUILTIN, kNoExtraICState,                  \
       NewArgumentsElements, 1)                                                 \
-  TFS(NewRestParameterElements, BUILTIN, kNoExtraICState,                      \
-      NewArgumentsElements, 1)                                                 \
                                                                                \
   /* Debugger */                                                               \
   DBG(FrameDropperTrampoline)                                                  \
@@ -888,7 +886,7 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(byte* pc);
 
-  enum Name : int32_t {
+  enum Name {
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST_ALL(DEF_ENUM)
 #undef DEF_ENUM

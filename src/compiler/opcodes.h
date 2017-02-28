@@ -48,29 +48,29 @@
   V(RelocatableInt32Constant) \
   V(RelocatableInt64Constant)
 
-#define INNER_OP_LIST(V)  \
-  V(Select)               \
-  V(Phi)                  \
-  V(EffectPhi)            \
-  V(InductionVariablePhi) \
-  V(Checkpoint)           \
-  V(BeginRegion)          \
-  V(FinishRegion)         \
-  V(FrameState)           \
-  V(StateValues)          \
-  V(TypedStateValues)     \
-  V(ArgumentsObjectState) \
-  V(ObjectState)          \
-  V(TypedObjectState)     \
-  V(Call)                 \
-  V(Parameter)            \
-  V(OsrValue)             \
-  V(OsrGuard)             \
-  V(LoopExit)             \
-  V(LoopExitValue)        \
-  V(LoopExitEffect)       \
-  V(Projection)           \
-  V(Retain)               \
+#define INNER_OP_LIST(V)    \
+  V(Select)                 \
+  V(Phi)                    \
+  V(EffectPhi)              \
+  V(InductionVariablePhi)   \
+  V(Checkpoint)             \
+  V(BeginRegion)            \
+  V(FinishRegion)           \
+  V(FrameState)             \
+  V(StateValues)            \
+  V(TypedStateValues)       \
+  V(ArgumentsElementsState) \
+  V(ObjectState)            \
+  V(TypedObjectState)       \
+  V(Call)                   \
+  V(Parameter)              \
+  V(OsrValue)               \
+  V(OsrGuard)               \
+  V(LoopExit)               \
+  V(LoopExitValue)          \
+  V(LoopExitEffect)         \
+  V(Projection)             \
+  V(Retain)                 \
   V(TypeGuard)
 
 #define COMMON_OP_LIST(V) \
@@ -339,7 +339,8 @@
   V(ObjectIsSmi)                    \
   V(ObjectIsString)                 \
   V(ObjectIsUndetectable)           \
-  V(NewRestParameterElements)       \
+  V(ArgumentsFrame)                 \
+  V(ArgumentsLength)                \
   V(NewUnmappedArgumentsElements)   \
   V(ArrayBufferWasNeutered)         \
   V(EnsureWritableFastElements)     \
