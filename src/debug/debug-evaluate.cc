@@ -504,7 +504,12 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
 static const Address accessors_with_no_side_effect[] = {
     // Whitelist for accessors.
     FUNCTION_ADDR(Accessors::StringLengthGetter),
-    FUNCTION_ADDR(Accessors::ArrayLengthGetter)};
+    FUNCTION_ADDR(Accessors::ArrayLengthGetter),
+    FUNCTION_ADDR(Accessors::FunctionLengthGetter),
+    FUNCTION_ADDR(Accessors::FunctionNameGetter),
+    FUNCTION_ADDR(Accessors::BoundFunctionLengthGetter),
+    FUNCTION_ADDR(Accessors::BoundFunctionNameGetter),
+};
 
 }  // anonymous namespace
 
