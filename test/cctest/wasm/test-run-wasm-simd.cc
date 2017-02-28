@@ -1327,7 +1327,7 @@ WASM_SIMD_SELECT_TEST(16x8)
 WASM_SIMD_SELECT_TEST(8x16)
 #endif  // V8_TARGET_ARCH_ARM
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+#if SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4ExtractWithF32x4) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
@@ -1381,7 +1381,9 @@ WASM_EXEC_COMPILED_TEST(SimdI32x4AddWithF32x4) {
             WASM_I32V(1), WASM_I32V(0)));
   FOR_INT32_INPUTS(i) { CHECK_EQ(1, r.Call()); }
 }
+#endif  // SIMD_LOWERING_TARGET
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(SimdI32x4Local) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t> r(kExecuteCompiled);
