@@ -326,18 +326,6 @@
   # https://bugs.chromium.org/p/v8/issues/detail?id=5139
   'annexB/built-ins/Date/prototype/setYear/year-number-relative': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5155
-  'language/white-space/mongolian-vowel-separator': [FAIL],
-  'language/white-space/mongolian-vowel-separator-eval': [FAIL],
-  'built-ins/RegExp/S15.10.2.12_A2_T1': [FAIL],
-  'built-ins/RegExp/S15.10.2.12_A1_T1': [FAIL],
-  'built-ins/parseFloat/S15.1.2.3_A2_T10_U180E': [FAIL],
-  'built-ins/parseInt/S15.1.2.2_A2_T10_U180E': [FAIL],
-  'built-ins/String/prototype/trim/u180e': [FAIL],
-  'built-ins/Number/S9.3.1_A3_T2_U180E': [FAIL],
-  'built-ins/Number/S9.3.1_A3_T1_U180E': [FAIL],
-  'built-ins/Number/S9.3.1_A2_U180E': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4698
   'language/expressions/call/tco-call-args': ['--harmony-tailcalls'],
   'language/expressions/call/tco-member-args': ['--harmony-tailcalls'],
