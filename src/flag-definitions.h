@@ -499,6 +499,8 @@ DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
             "randomly schedule instructions to stress dependency tracking")
 DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
+DEFINE_BOOL(turbo_experimental, false,
+            "enable crashing features, for testing purposes only")
 // TODO(turbofan): Rename --crankshaft to --optimize eventually.
 DEFINE_IMPLICATION(turbo, crankshaft)
 
