@@ -2270,19 +2270,18 @@ void MacroAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {
     movd(dst, src);
     return;
   }
-  DCHECK_EQ(1, imm8);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pextrd(dst, src, imm8);
     return;
   }
-  pshufd(xmm0, src, 1);
+  DCHECK_LT(imm8, 4);
+  pshufd(xmm0, src, imm8);
   movd(dst, xmm0);
 }
 
 
 void MacroAssembler::Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8) {
-  DCHECK(imm8 == 0 || imm8 == 1);
   if (CpuFeatures::IsSupported(SSE4_1)) {
     CpuFeatureScope sse_scope(this, SSE4_1);
     pinsrd(dst, src, imm8);

@@ -2864,6 +2864,24 @@ void Assembler::rorx(Register dst, const Operand& src, byte imm8) {
   EMIT(imm8);
 }
 
+void Assembler::sse2_instr(XMMRegister dst, const Operand& src, byte prefix,
+                           byte escape, byte opcode) {
+  EnsureSpace ensure_space(this);
+  EMIT(prefix);
+  EMIT(escape);
+  EMIT(opcode);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::vinstr(byte op, XMMRegister dst, XMMRegister src1,
+                       const Operand& src2, SIMDPrefix pp, LeadingOpcode m,
+                       VexW w) {
+  DCHECK(IsEnabled(AVX));
+  EnsureSpace ensure_space(this);
+  emit_vex_prefix(src1, kL128, pp, m, w);
+  EMIT(op);
+  emit_sse_operand(dst, src2);
+}
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
   Register ireg = { reg.code() };

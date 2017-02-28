@@ -97,6 +97,13 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXFloat32Neg:
     case kIA32BitcastFI:
     case kIA32BitcastIF:
+    case kIA32Int32x4Splat:
+    case kIA32Int32x4ExtractLane:
+    case kIA32Int32x4ReplaceLane:
+    case kSSEInt32x4Add:
+    case kSSEInt32x4Sub:
+    case kAVXInt32x4Add:
+    case kAVXInt32x4Sub:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
