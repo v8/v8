@@ -1202,6 +1202,10 @@ Object* Isolate::UnwindAndFindHandler() {
   for (StackFrameIterator iter(this); !iter.done(); iter.Advance()) {
     StackFrame* frame = iter.frame();
 
+    if (frame->is_wasm() && trap_handler::IsThreadInWasm()) {
+      trap_handler::ClearThreadInWasm();
+    }
+
     // For JSEntryStub frames we always have a handler.
     if (frame->is_entry() || frame->is_entry_construct()) {
       StackHandler* handler = frame->top_handler();
@@ -1233,6 +1237,11 @@ Object* Isolate::UnwindAndFindHandler() {
 
           handler_sp = return_sp;
           handler_fp = frame->fp();
+
+          // This is going to be handled by Wasm, so we need to set the TLS flag
+          // again.
+          trap_handler::SetThreadInWasm();
+
           break;
         }
       }
