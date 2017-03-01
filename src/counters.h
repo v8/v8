@@ -790,6 +790,7 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadNonexistentDH)                    \
   V(LoadIC_LoadNonexistent)                      \
   V(LoadIC_LoadNormalDH)                         \
+  V(LoadIC_LoadNormalFromPrototypeDH)            \
   V(LoadIC_LoadScriptContextFieldStub)           \
   V(LoadIC_LoadViaGetter)                        \
   V(LoadIC_NonReceiver)                          \

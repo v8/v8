@@ -880,8 +880,6 @@ template <bool fill_array = true>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                         Handle<JSObject> holder, Handle<Name> name,
                         Handle<FixedArray> array, int first_index) {
-  DCHECK(holder.is_null() || holder->HasFastProperties());
-
   // We don't encode the requirement to check access rights because we already
   // passed the access check for current native context and the access
   // can't be revoked.
@@ -1367,49 +1365,31 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
     case LookupIterator::DATA: {
       DCHECK_EQ(kData, lookup->property_details().kind());
+      Handle<Object> smi_handler;
       if (lookup->is_dictionary_holder()) {
-        if (!IsLoadIC() && !IsLoadGlobalIC()) {  // IsKeyedLoadIC()?
-          TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
-          return slow_stub();
-        }
         if (holder->IsJSGlobalObject()) {
           break;  // Custom-compiled handler.
         }
-        // There is only one shared stub for loading normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the object for the stub to be
-        // applicable.
-        if (!receiver_is_holder) {
-          TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
-          return slow_stub();
-        }
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalDH);
-        return LoadHandler::LoadNormal(isolate());
-      }
+        smi_handler = LoadHandler::LoadNormal(isolate());
+        if (receiver_is_holder) return smi_handler;
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadNormalFromPrototypeDH);
 
-      // -------------- Fields --------------
-      if (lookup->property_details().location() == kField) {
+      } else if (lookup->property_details().location() == kField) {
         FieldIndex field = lookup->GetFieldIndex();
-        Handle<Object> smi_handler = SimpleFieldLoad(isolate(), field);
-        if (receiver_is_holder) {
-          return smi_handler;
-        }
+        smi_handler = SimpleFieldLoad(isolate(), field);
+        if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
-        return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
-      }
-
-      // -------------- Constant properties --------------
-      DCHECK_EQ(kDescriptor, lookup->property_details().location());
-      Handle<Object> smi_handler =
-          LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
-      if (receiver_is_holder) {
+      } else {
+        DCHECK_EQ(kDescriptor, lookup->property_details().location());
+        smi_handler =
+            LoadHandler::LoadConstant(isolate(), lookup->GetConstantIndex());
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantDH);
-        return smi_handler;
+        if (receiver_is_holder) return smi_handler;
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
       }
-      TRACE_HANDLER_STATS(isolate(), LoadIC_LoadConstantFromPrototypeDH);
       return LoadFromPrototype(map, holder, lookup->name(), smi_handler);
     }
-
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
       TRACE_HANDLER_STATS(isolate(), LoadIC_SlowStub);
       return slow_stub();
@@ -1512,7 +1492,6 @@ Handle<Object> LoadIC::CompileHandler(LookupIterator* lookup,
 
     case LookupIterator::DATA: {
       DCHECK(lookup->is_dictionary_holder());
-      DCHECK(IsLoadIC() || IsLoadGlobalIC());
       DCHECK(holder->IsJSGlobalObject());
       TRACE_HANDLER_STATS(isolate(), LoadIC_LoadGlobal);
       NamedLoadHandlerCompiler compiler(isolate(), map, holder, cache_holder);
