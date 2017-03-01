@@ -7794,10 +7794,9 @@ Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
 
 
 bool NameDictionaryShape::IsMatch(Handle<Name> key, Object* other) {
-  // We know that all entries in a hash table had their hash keys created.
-  // Use that knowledge to have fast failure.
-  if (key->Hash() != Name::cast(other)->Hash()) return false;
-  return key->Equals(Name::cast(other));
+  DCHECK(Name::cast(other)->IsUniqueName());
+  DCHECK(key->IsUniqueName());
+  return *key == other;
 }
 
 
