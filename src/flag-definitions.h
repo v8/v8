@@ -254,7 +254,12 @@ HARMONY_STAGED(FLAG_STAGED_FEATURES)
 HARMONY_SHIPPING(FLAG_SHIPPING_FEATURES)
 #undef FLAG_SHIPPING_FEATURES
 
-DEFINE_BOOL(future, false,
+#ifdef V8_ENABLE_FUTURE
+#define FUTURE_BOOL true
+#else
+#define FUTURE_BOOL false
+#endif
+DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 DEFINE_IMPLICATION(future, turbo)

@@ -20,6 +20,9 @@ declare_args() {
   # Print to stdout on Android.
   v8_android_log_stdout = false
 
+  # Sets -DV8_ENABLE_FUTURE.
+  v8_enable_future = false
+
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = ""
 
@@ -196,6 +199,9 @@ config("features") {
 
   if (v8_enable_disassembler) {
     defines += [ "ENABLE_DISASSEMBLER" ]
+  }
+  if (v8_enable_future) {
+    defines += [ "V8_ENABLE_FUTURE" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]
