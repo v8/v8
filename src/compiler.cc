@@ -328,10 +328,6 @@ void EnsureFeedbackMetadata(CompilationInfo* info) {
 }
 
 bool UseTurboFan(Handle<SharedFunctionInfo> shared) {
-  if (shared->optimization_disabled()) {
-    return false;
-  }
-
   bool must_use_ignition_turbo = shared->must_use_ignition_turbo();
 
   // Check the enabling conditions for Turbofan.
@@ -864,6 +860,13 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   // Do not use Crankshaft/TurboFan if we need to be able to set break points.
   if (info->shared_info()->HasDebugInfo()) {
     info->AbortOptimization(kFunctionBeingDebugged);
+    return MaybeHandle<Code>();
+  }
+
+  // Do not use Crankshaft/TurboFan when %NeverOptimizeFunction was applied.
+  if (shared->optimization_disabled() &&
+      shared->disable_optimization_reason() == kOptimizationDisabledForTest) {
+    info->AbortOptimization(kOptimizationDisabledForTest);
     return MaybeHandle<Code>();
   }
 
