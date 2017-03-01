@@ -212,6 +212,11 @@ T Not(T a) {
   return ~a;
 }
 
+template <typename T>
+T Sqrt(T a) {
+  return std::sqrt(a);
+}
+
 }  // namespace
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
@@ -379,9 +384,7 @@ WASM_EXEC_COMPILED_TEST(F32x4ReplaceLane) {
 
   CHECK_EQ(1, r.Call(3.14159f, -1.5f));
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM
 // Tests both signed and unsigned conversion.
 WASM_EXEC_COMPILED_TEST(F32x4FromInt32x4) {
   FLAG_wasm_simd_prototype = true;
@@ -417,13 +420,18 @@ void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op) {
 
   FOR_FLOAT32_INPUTS(i) {
     if (std::isnan(*i)) continue;
+    if (std::isnan(expected_op(*i))) continue;
     CHECK_EQ(1, r.Call(*i, expected_op(*i)));
   }
 }
 
 WASM_EXEC_COMPILED_TEST(F32x4Abs) { RunF32x4UnOpTest(kExprF32x4Abs, std::abs); }
 WASM_EXEC_COMPILED_TEST(F32x4Neg) { RunF32x4UnOpTest(kExprF32x4Neg, Negate); }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+
+#if SIMD_LOWERING_TARGET
+WASM_EXEC_COMPILED_TEST(F32x4Sqrt) { RunF32x4UnOpTest(kExprF32x4Sqrt, Sqrt); }
+#endif  // SIMD_LOWERING_TARGET
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op,
@@ -808,7 +816,9 @@ WASM_EXEC_COMPILED_TEST(I32x4FromFloat32x4) {
     CHECK_EQ(1, r.Call(*i, signed_value, unsigned_value));
   }
 }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunI32x4UnOpTest(WasmOpcode simd_op, Int32UnOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -825,7 +835,7 @@ void RunI32x4UnOpTest(WasmOpcode simd_op, Int32UnOp expected_op) {
 WASM_EXEC_COMPILED_TEST(I32x4Neg) { RunI32x4UnOpTest(kExprI32x4Neg, Negate); }
 
 WASM_EXEC_COMPILED_TEST(S128Not) { RunI32x4UnOpTest(kExprS128Not, Not); }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
 void RunI32x4BinOpTest(WasmOpcode simd_op, Int32BinOp expected_op) {
   FLAG_wasm_simd_prototype = true;

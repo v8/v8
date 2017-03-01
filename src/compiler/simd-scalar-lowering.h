@@ -59,7 +59,8 @@ class SimdScalarLowering {
                    const Operator* load_op);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
-  void LowerBinaryOp(Node* node, SimdType rep_type, const Operator* op);
+  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op);
+  void LowerUnaryOp(Node* node, SimdType input_rep_type, const Operator* op);
 
   struct NodeState {
     Node* node;
