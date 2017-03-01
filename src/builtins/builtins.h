@@ -805,7 +805,6 @@ class Isolate;
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
-  TFJ(TypedArrayInitialize, 6)                                                 \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 section 22.2.3.2 get %TypedArray%.prototype.byteLength */             \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \

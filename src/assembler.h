@@ -978,7 +978,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference ieee754_tanh_function(Isolate* isolate);
 
   static ExternalReference libc_memchr_function(Isolate* isolate);
-  static ExternalReference libc_memset_function(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 
