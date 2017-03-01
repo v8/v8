@@ -1436,6 +1436,9 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case ADB:
       Format(instr, "adb\t'f1,'d1('r2d, 'r3)");
       break;
+    case AEB:
+      Format(instr, "aeb\t'f1,'d1('r2d, 'r3)");
+      break;
     case CDB:
       Format(instr, "cdb\t'f1,'d1('r2d, 'r3)");
       break;
@@ -1445,11 +1448,20 @@ bool Decoder::DecodeSixByte(Instruction* instr) {
     case SDB:
       Format(instr, "sdb\t'r1,'d1('r2d, 'r3)");
       break;
+    case SEB:
+      Format(instr, "seb\t'r1,'d1('r2d, 'r3)");
+      break;
     case MDB:
       Format(instr, "mdb\t'r1,'d1('r2d, 'r3)");
       break;
+    case MEEB:
+      Format(instr, "meeb\t'r1,'d1('r2d, 'r3)");
+      break;
     case DDB:
       Format(instr, "ddb\t'r1,'d1('r2d, 'r3)");
+      break;
+    case DEB:
+      Format(instr, "deb\t'r1,'d1('r2d, 'r3)");
       break;
     case SQDB:
       Format(instr, "sqdb\t'r1,'d1('r2d, 'r3)");

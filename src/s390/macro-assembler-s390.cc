@@ -3374,13 +3374,6 @@ void MacroAssembler::Div32(Register dst, Register src1, Register src2) {
   Generate_Div32(dsgfr);
 }
 
-void MacroAssembler::Div32(Register dst, Register src1, const Operand& src2) {
-  USE(dst);
-  USE(src1);
-  USE(src2);
-  UNREACHABLE();
-}
-
 #undef Generate_Div32
 
 #define Generate_DivU32(instr) \
@@ -3400,14 +3393,44 @@ void MacroAssembler::DivU32(Register dst, Register src1, Register src2) {
   Generate_DivU32(dlr);
 }
 
-void MacroAssembler::DivU32(Register dst, Register src1, const Operand& src2) {
-  USE(dst);
-  USE(src1);
-  USE(src2);
-  UNREACHABLE();
+#undef Generate_DivU32
+
+#define Generate_Div64(instr) \
+  {                           \
+    lgr(r1, src1);            \
+    instr(r0, src2);          \
+    lgr(dst, r1);             \
+  }
+
+void MacroAssembler::Div64(Register dst, Register src1,
+                           const MemOperand& src2) {
+  Generate_Div64(dsg);
 }
 
-#undef Generate_DivU32
+void MacroAssembler::Div64(Register dst, Register src1, Register src2) {
+  Generate_Div64(dsgr);
+}
+
+#undef Generate_Div64
+
+#define Generate_DivU64(instr) \
+  {                            \
+    lgr(r1, src1);             \
+    lghi(r0, Operand::Zero()); \
+    instr(r0, src2);           \
+    lgr(dst, r1);              \
+  }
+
+void MacroAssembler::DivU64(Register dst, Register src1,
+                            const MemOperand& src2) {
+  Generate_DivU64(dlg);
+}
+
+void MacroAssembler::DivU64(Register dst, Register src1, Register src2) {
+  Generate_DivU64(dlgr);
+}
+
+#undef Generate_DivU64
 
 #define Generate_Mod32(instr) \
   {                           \
@@ -3423,13 +3446,6 @@ void MacroAssembler::Mod32(Register dst, Register src1,
 
 void MacroAssembler::Mod32(Register dst, Register src1, Register src2) {
   Generate_Mod32(dsgfr);
-}
-
-void MacroAssembler::Mod32(Register dst, Register src1, const Operand& src2) {
-  USE(dst);
-  USE(src1);
-  USE(src2);
-  UNREACHABLE();
 }
 
 #undef Generate_Mod32
@@ -3451,14 +3467,44 @@ void MacroAssembler::ModU32(Register dst, Register src1, Register src2) {
   Generate_ModU32(dlr);
 }
 
-void MacroAssembler::ModU32(Register dst, Register src1, const Operand& src2) {
-  USE(dst);
-  USE(src1);
-  USE(src2);
-  UNREACHABLE();
+#undef Generate_ModU32
+
+#define Generate_Mod64(instr) \
+  {                           \
+    lgr(r1, src1);            \
+    instr(r0, src2);          \
+    lgr(dst, r0);             \
+  }
+
+void MacroAssembler::Mod64(Register dst, Register src1,
+                           const MemOperand& src2) {
+  Generate_Mod64(dsg);
 }
 
-#undef Generate_ModU32
+void MacroAssembler::Mod64(Register dst, Register src1, Register src2) {
+  Generate_Mod64(dsgr);
+}
+
+#undef Generate_Mod64
+
+#define Generate_ModU64(instr) \
+  {                            \
+    lgr(r1, src1);             \
+    lghi(r0, Operand::Zero()); \
+    instr(r0, src2);           \
+    lgr(dst, r0);              \
+  }
+
+void MacroAssembler::ModU64(Register dst, Register src1,
+                            const MemOperand& src2) {
+  Generate_ModU64(dlg);
+}
+
+void MacroAssembler::ModU64(Register dst, Register src1, Register src2) {
+  Generate_ModU64(dlgr);
+}
+
+#undef Generate_ModU64
 
 void MacroAssembler::MulP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
@@ -4998,6 +5044,97 @@ void MacroAssembler::StoreDoubleAsFloat32(DoubleRegister src,
                                           DoubleRegister scratch) {
   ledbr(scratch, src);
   StoreFloat32(scratch, mem);
+}
+
+void MacroAssembler::AddFloat32(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    aeb(dst, opnd);
+  } else {
+    ley(scratch, opnd);
+    aebr(dst, scratch);
+  }
+}
+
+void MacroAssembler::AddFloat64(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    adb(dst, opnd);
+  } else {
+    ldy(scratch, opnd);
+    adbr(dst, scratch);
+  }
+}
+
+void MacroAssembler::SubFloat32(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    seb(dst, opnd);
+  } else {
+    ley(scratch, opnd);
+    sebr(dst, scratch);
+  }
+}
+
+void MacroAssembler::SubFloat64(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    sdb(dst, opnd);
+  } else {
+    ldy(scratch, opnd);
+    sdbr(dst, scratch);
+  }
+}
+
+void MacroAssembler::MulFloat32(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    meeb(dst, opnd);
+  } else {
+    ley(scratch, opnd);
+    meebr(dst, scratch);
+  }
+}
+
+void MacroAssembler::MulFloat64(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    mdb(dst, opnd);
+  } else {
+    ldy(scratch, opnd);
+    mdbr(dst, scratch);
+  }
+}
+
+void MacroAssembler::DivFloat32(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    deb(dst, opnd);
+  } else {
+    ley(scratch, opnd);
+    debr(dst, scratch);
+  }
+}
+
+void MacroAssembler::DivFloat64(DoubleRegister dst, const MemOperand& opnd,
+                                DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    ddb(dst, opnd);
+  } else {
+    ldy(scratch, opnd);
+    ddbr(dst, scratch);
+  }
+}
+
+void MacroAssembler::LoadFloat32ToDouble(DoubleRegister dst,
+                                         const MemOperand& opnd,
+                                         DoubleRegister scratch) {
+  if (is_uint12(opnd.offset())) {
+    ldeb(dst, opnd);
+  } else {
+    ley(scratch, opnd);
+    ldebr(dst, scratch);
+  }
 }
 
 // Variable length depending on whether offset fits into immediate field
