@@ -360,11 +360,11 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var page = version.get(state.page);
       if (!page) return false;
       if (!state.entry) {
-        showPage(page);
+        showEntry(page.total);
       } else {
         var entry = page.get(state.entry);
         if (!entry) {
-          showPage(page);
+          showEntry(page.total);
         } else {
           showEntry(entry);
         }
@@ -386,10 +386,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       window.history.pushState(state, selection.toString(), params);
     }
 
+    function showSelectedEntryInPage(page) {
+      if (!selectedEntry) return showPage(page);
+      var entry = page.get(selectedEntry.name);
+      if (!entry) return showPage(page);
+      selectEntry(entry);
+    }
+
     function showPage(firstPage) {
       var changeSelectedEntry = selectedEntry !== undefined
           && selectedEntry.page === selectedPage;
-      pushHistoryState();
       selectedPage = firstPage;
       selectedPage.sort();
       showPageInColumn(firstPage, 0);
@@ -487,14 +493,14 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
           td(tr, '-', 'position');
           td(tr, referenceEntry.name, 'name');
           diffStatus(
-            td(tr, ms(-referenceEntry.time), 'value time'),
-            -referenceEntry.time, 0);
+            td(tr, ms(referenceEntry.time), 'value time'),
+            referenceEntry.time, 0);
           diffStatus(
-            td(tr, percent(-referenceEntry.timePercent), 'value time'),
-            -referenceEntry.timePercent, 0);
+            td(tr, percent(referenceEntry.timePercent), 'value time'),
+            referenceEntry.timePercent, 0);
           diffStatus(
-            td(tr, count(-referenceEntry.count), 'value count'),
-            -referenceEntry.count, 0);
+            td(tr, count(referenceEntry.count), 'value count'),
+            referenceEntry.count, 0);
         } else {
           // Display empty entry / baseline entry
           var showBaselineEntry = entry !== undefined;
@@ -526,16 +532,16 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     }
 
     function showEntry(entry) {
-      selectedEntry = entry;
       selectEntry(entry, true);
     }
 
     function selectEntry(entry, updateSelectedPage) {
-      if (updateSelectedPage) {
+      var needsPageSwitch = true;
+      if (updateSelectedPage && selectedPage) {
         entry = selectedPage.version.getEntry(entry);
+        needsPageSwitch = updateSelectedPage && entry.page != selectedPage;
       }
       var rowIndex = 0;
-      var needsPageSwitch = updateSelectedPage && entry.page != selectedPage;
       // If clicked in the detail row change the first column to that page.
       if (needsPageSwitch) showPage(entry.page);
       var childNodes = $('column_0').querySelector('.list tbody').childNodes;
@@ -561,11 +567,13 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         toggleCssClass(row, 'selected', row.entry && row.entry.name ==
           firstEntry.name);
       });
-      if (updateSelectedPage) {
+      if (updateSelectedPage && selectedEntry) {
         entry = selectedEntry.page.version.getEntry(entry);
       }
-      selectedEntry = entry;
-      showEntryDetail(entry);
+      if (entry !== selectedEntry) {
+        selectedEntry = entry;
+        showEntryDetail(entry);
+      }
     }
 
     function showEntryDetail(entry) {
@@ -1119,9 +1127,8 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       pages = new Pages();
       versions = Versions.fromJSON(json);
       initialize()
-      showPage(versions.versions[0].pages[0]);
       if (!popHistoryState(state)) {
-        selectEntry(selectedPage.total);
+        showEntry(selectedPage.total);
       }
     }
 
@@ -1133,7 +1140,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
     function handleSelectPage(select, event) {
       var option = select.options[select.selectedIndex];
       if (select.id == "select_0") {
-        showPage(option.page);
+        showSelectedEntryInPage(option.page);
       } else {
         var columnIndex = select.id.split('_')[1];
         showPageInColumn(option.page, columnIndex);
@@ -1145,7 +1152,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
       var version = option.version;
       if (select.id == "selectVersion_0") {
         var page = version.get(selectedPage.name);
-        showPage(page);
+        showSelectedEntryInPage(page);
       } else {
         var columnIndex = select.id.split('_')[1];
         var pageSelect = $('select_' + columnIndex);
@@ -1668,6 +1675,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         super(0, GroupedEntry.prefix + group.name, 0, 0, 0, 0, 0, 0);
         this.group = group;
         this.entries = [];
+        this.missingEntries = null;
       }
       get regexp() { return this.group.regexp }
       get color() { return this.group.color }
@@ -1681,8 +1689,7 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
         entry.parent = this;
         return true;
       }
-      forEach(fun) {
-        // Show also all entries which are in at least one version.
+      _initializeMissingEntries() {
         var dummyEntryNames = new Set();
         versions.forEach((version) => {
           var groupEntry = version.getEntry(this);
@@ -1694,19 +1701,25 @@ code is governed by a BSD-style license that can be found in the LICENSE file.
             }
           }
         });
-        var tmpEntries = [];
+        this.missingEntries  = [];
         for (var name of dummyEntryNames) {
           var tmpEntry = new Entry(0, name, 0, 0, 0, 0, 0, 0);
           tmpEntry.page = this.page;
-          tmpEntries.push(tmpEntry);
+          this.missingEntries.push(tmpEntry);
         };
+      }
 
+      forEach(fun) {
+        // Show also all entries which are in at least one version.
         // Concatenate our real entries.
-        tmpEntries = tmpEntries.concat(this.entries);
+        if (this.missingEntries == null) {
+          this._initializeMissingEntries();
+        }
+        var tmpEntries = this.missingEntries.concat(this.entries);
 
         // The compared entries are sorted by absolute impact.
         tmpEntries.sort((a, b) => {
-          return a.time - b.time
+          return b.time - a.time
         });
         tmpEntries.forEach(fun);
       }
