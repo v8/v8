@@ -21,7 +21,234 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                          int object_offset);
   template <IterationKind kIterationKind>
   void GenerateTypedArrayPrototypeIterationMethod(const char* method_name);
+
+  void LoadMapAndElementsSize(Node* array, Variable* typed_map, Variable* size);
 };
+
+void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* array,
+                                                         Variable* typed_map,
+                                                         Variable* size) {
+  Label unreachable(this), done(this);
+  Label uint8_elements(this), uint8_clamped_elements(this), int8_elements(this),
+      uint16_elements(this), int16_elements(this), uint32_elements(this),
+      int32_elements(this), float32_elements(this), float64_elements(this);
+  Label* elements_kind_labels[] = {
+      &uint8_elements,  &uint8_clamped_elements, &int8_elements,
+      &uint16_elements, &int16_elements,         &uint32_elements,
+      &int32_elements,  &float32_elements,       &float64_elements};
+  int32_t elements_kinds[] = {
+      UINT8_ELEMENTS,  UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
+      UINT16_ELEMENTS, INT16_ELEMENTS,         UINT32_ELEMENTS,
+      INT32_ELEMENTS,  FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS};
+  const size_t kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                                         1;
+  DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
+  DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
+
+  Node* array_map = LoadMap(array);
+  Node* elements_kind = LoadMapElementsKind(array_map);
+  Switch(elements_kind, &unreachable, elements_kinds, elements_kind_labels,
+         kTypedElementsKindCount);
+
+  for (int i = 0; i < static_cast<int>(kTypedElementsKindCount); i++) {
+    Bind(elements_kind_labels[i]);
+    {
+      ElementsKind kind = static_cast<ElementsKind>(elements_kinds[i]);
+      ExternalArrayType type =
+          isolate()->factory()->GetArrayTypeFromElementsKind(kind);
+      Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
+      typed_map->Bind(HeapConstant(map));
+      size->Bind(SmiConstant(static_cast<int>(
+          isolate()->factory()->GetExternalArrayElementSize(type))));
+      Goto(&done);
+    }
+  }
+
+  Bind(&unreachable);
+  { Unreachable(); }
+  Bind(&done);
+}
+
+TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
+  Node* holder = Parameter(1);
+  Node* length = Parameter(2);
+  Node* maybe_buffer = Parameter(3);
+  Node* byte_offset = Parameter(4);
+  Node* byte_length = Parameter(5);
+  Node* initialize = Parameter(6);
+  Node* context = Parameter(9);
+
+  static const int32_t fta_base_data_offset =
+      FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
+
+  Label setup_holder(this), alloc_array_buffer(this), aligned(this),
+      allocate_elements(this), attach_buffer(this), done(this);
+  Variable fixed_typed_map(this, MachineRepresentation::kTagged);
+  Variable element_size(this, MachineRepresentation::kTagged);
+  Variable total_size(this, MachineType::PointerRepresentation());
+
+  // Make sure length is a Smi. The caller guarantees this is the case.
+  length = ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero);
+  CSA_ASSERT(this, TaggedIsSmi(length));
+
+  byte_offset =
+      ToInteger(context, byte_offset, CodeStubAssembler::kTruncateMinusZero);
+  CSA_ASSERT(this, TaggedIsSmi(byte_offset));
+
+  // byte_length can be -0, get rid of it.
+  byte_length =
+      ToInteger(context, byte_length, CodeStubAssembler::kTruncateMinusZero);
+
+  GotoIfNot(IsNull(maybe_buffer), &setup_holder);
+  // If the buffer is null, then we need a Smi byte_length. The caller
+  // guarantees this is the case, because when byte_length >
+  // TypedArrayMaxSizeInHeap, a buffer is allocated and passed in here.
+  CSA_ASSERT(this, TaggedIsSmi(byte_length));
+  Goto(&setup_holder);
+
+  Bind(&setup_holder);
+  {
+    LoadMapAndElementsSize(holder, &fixed_typed_map, &element_size);
+    // Setup the holder (JSArrayBufferView).
+    //  - Set the length.
+    //  - Set the byte_offset.
+    //  - Set the byte_length.
+    //  - Set InternalFields to 0.
+    StoreObjectFieldNoWriteBarrier(holder, JSTypedArray::kLengthOffset, length);
+    StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteOffsetOffset,
+                                   byte_offset);
+    StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kByteLengthOffset,
+                                   byte_length);
+    for (int offset = JSTypedArray::kSize;
+         offset < JSTypedArray::kSizeWithInternalFields;
+         offset += kPointerSize) {
+      StoreObjectFieldNoWriteBarrier(holder, offset, SmiConstant(Smi::kZero));
+    }
+
+    Branch(IsNull(maybe_buffer), &alloc_array_buffer, &attach_buffer);
+  }
+
+  Bind(&alloc_array_buffer);
+  {
+    // Allocate a new ArrayBuffer and initialize it with empty properties and
+    // elements.
+    Node* const native_context = LoadNativeContext(context);
+    Node* const map =
+        LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX);
+    Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
+
+    Node* buffer = Allocate(JSArrayBuffer::kSizeWithInternalFields);
+    StoreMapNoWriteBarrier(buffer, map);
+    StoreObjectFieldNoWriteBarrier(buffer, JSArray::kPropertiesOffset,
+                                   empty_fixed_array);
+    StoreObjectFieldNoWriteBarrier(buffer, JSArray::kElementsOffset,
+                                   empty_fixed_array);
+    // Setup the ArrayBuffer.
+    //  - Set BitField to 0.
+    //  - Set IsExternal and IsNeuterable bits of BitFieldSlot.
+    //  - Set the byte_length field to byte_length.
+    //  - Set backing_store to null/Smi(0).
+    //  - Set all internal fields to Smi(0).
+    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldSlot,
+                                   SmiConstant(Smi::kZero));
+    int32_t bitfield_value = (1 << JSArrayBuffer::IsExternal::kShift) |
+                             (1 << JSArrayBuffer::IsNeuterable::kShift);
+    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBitFieldOffset,
+                                   Int32Constant(bitfield_value),
+                                   MachineRepresentation::kWord32);
+
+    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kByteLengthOffset,
+                                   byte_length);
+    StoreObjectFieldNoWriteBarrier(buffer, JSArrayBuffer::kBackingStoreOffset,
+                                   SmiConstant(Smi::kZero));
+    for (int i = 0; i < v8::ArrayBuffer::kInternalFieldCount; i++) {
+      int offset = JSArrayBuffer::kSize + i * kPointerSize;
+      StoreObjectFieldNoWriteBarrier(buffer, offset, SmiConstant(Smi::kZero));
+    }
+
+    StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kBufferOffset,
+                                   buffer);
+
+    // Check the alignment.
+    GotoIf(SmiEqual(SmiMod(element_size.value(), SmiConstant(kObjectAlignment)),
+                    SmiConstant(0)),
+           &aligned);
+
+    // Fix alignment if needed.
+    DCHECK_EQ(0, FixedTypedArrayBase::kHeaderSize & kObjectAlignmentMask);
+    Node* aligned_header_size =
+        IntPtrConstant(FixedTypedArrayBase::kHeaderSize + kObjectAlignmentMask);
+    Node* size = IntPtrAdd(SmiToWord(byte_length), aligned_header_size);
+    total_size.Bind(WordAnd(size, IntPtrConstant(~kObjectAlignmentMask)));
+    Goto(&allocate_elements);
+  }
+
+  Bind(&aligned);
+  {
+    Node* header_size = IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
+    total_size.Bind(IntPtrAdd(SmiToWord(byte_length), header_size));
+    Goto(&allocate_elements);
+  }
+
+  Bind(&allocate_elements);
+  {
+    // Allocate a FixedTypedArray and set the length, base pointer and external
+    // pointer.
+    CSA_ASSERT(this, IsRegularHeapObjectSize(total_size.value()));
+    Node* elements = Allocate(total_size.value());
+
+    StoreMapNoWriteBarrier(elements, fixed_typed_map.value());
+    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+    StoreObjectFieldNoWriteBarrier(
+        elements, FixedTypedArrayBase::kBasePointerOffset, elements);
+    StoreObjectFieldNoWriteBarrier(elements,
+                                   FixedTypedArrayBase::kExternalPointerOffset,
+                                   IntPtrConstant(fta_base_data_offset),
+                                   MachineType::PointerRepresentation());
+
+    StoreObjectFieldNoWriteBarrier(holder, JSObject::kElementsOffset, elements);
+
+    GotoIf(IsFalse(initialize), &done);
+    // Initialize the backing store by filling it with 0s.
+    Node* backing_store = IntPtrAdd(BitcastTaggedToWord(elements),
+                                    IntPtrConstant(fta_base_data_offset));
+    // Call out to memset to perform initialization.
+    Node* memset =
+        ExternalConstant(ExternalReference::libc_memset_function(isolate()));
+    CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                   MachineType::IntPtr(), MachineType::UintPtr(), memset,
+                   backing_store, IntPtrConstant(0), SmiToWord(byte_length));
+    Goto(&done);
+  }
+
+  Bind(&attach_buffer);
+  {
+    StoreObjectFieldNoWriteBarrier(holder, JSArrayBufferView::kBufferOffset,
+                                   maybe_buffer);
+
+    Node* elements = Allocate(FixedTypedArrayBase::kHeaderSize);
+    StoreMapNoWriteBarrier(elements, fixed_typed_map.value());
+    StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset, length);
+    StoreObjectFieldNoWriteBarrier(
+        elements, FixedTypedArrayBase::kBasePointerOffset, SmiConstant(0));
+
+    Node* backing_store =
+        LoadObjectField(maybe_buffer, JSArrayBuffer::kBackingStoreOffset,
+                        MachineType::Pointer());
+    Node* external_pointer = IntPtrAdd(backing_store, SmiToWord(byte_offset));
+    StoreObjectFieldNoWriteBarrier(
+        elements, FixedTypedArrayBase::kExternalPointerOffset, external_pointer,
+        MachineType::PointerRepresentation());
+
+    StoreObjectFieldNoWriteBarrier(holder, JSObject::kElementsOffset, elements);
+
+    Goto(&done);
+  }
+
+  Bind(&done);
+  { Return(UndefinedConstant()); }
+}
 
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
