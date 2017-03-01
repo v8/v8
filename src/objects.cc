@@ -9230,10 +9230,12 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
       reason = buffer->start();
     }
 #endif
-    Handle<Map> result;
-    Handle<JSFunction> constructor(JSFunction::cast(map->GetConstructor()));
+    Handle<Object> maybe_constructor(map->GetConstructor(), isolate);
     if (FLAG_feedback_normalization && map->new_target_is_base() &&
-        !constructor->shared()->native()) {
+        maybe_constructor->IsJSFunction() &&
+        !JSFunction::cast(*maybe_constructor)->shared()->native()) {
+      Handle<JSFunction> constructor =
+          Handle<JSFunction>::cast(maybe_constructor);
       DCHECK_NE(*constructor,
                 constructor->context()->native_context()->object_function());
       Handle<Map> initial_map(constructor->initial_map(), isolate);
@@ -9252,7 +9254,6 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
     } else {
       result = Map::Normalize(map, CLEAR_INOBJECT_PROPERTIES, reason);
     }
-    return result;
   }
 
   return result;
