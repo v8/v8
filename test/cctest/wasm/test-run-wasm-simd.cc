@@ -752,7 +752,9 @@ WASM_EXEC_COMPILED_TEST(I8x16ReplaceLane) {
 
   CHECK_EQ(1, r.Call(1, 2));
 }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 // Determines if conversion from float to int will be valid.
 bool CanRoundToZeroAndConvert(double val, bool unsigned_integer) {
   const double max_uint = static_cast<double>(0xffffffffu);
@@ -816,9 +818,7 @@ WASM_EXEC_COMPILED_TEST(I32x4FromFloat32x4) {
     CHECK_EQ(1, r.Call(*i, signed_value, unsigned_value));
   }
 }
-#endif  // V8_TARGET_ARCH_ARM
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunI32x4UnOpTest(WasmOpcode simd_op, Int32UnOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -868,9 +868,7 @@ WASM_EXEC_COMPILED_TEST(S128And) { RunI32x4BinOpTest(kExprS128And, And); }
 WASM_EXEC_COMPILED_TEST(S128Or) { RunI32x4BinOpTest(kExprS128Or, Or); }
 
 WASM_EXEC_COMPILED_TEST(S128Xor) { RunI32x4BinOpTest(kExprS128Xor, Xor); }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM
 WASM_EXEC_COMPILED_TEST(I32x4Min) {
   RunI32x4BinOpTest(kExprI32x4MinS, Minimum);
 }
@@ -886,9 +884,9 @@ WASM_EXEC_COMPILED_TEST(Ui32x4Min) {
 WASM_EXEC_COMPILED_TEST(Ui32x4Max) {
   RunI32x4BinOpTest(kExprI32x4MaxU, UnsignedMaximum);
 }
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
-
-
+#if V8_TARGET_ARCH_ARM
 void RunI32x4CompareOpTest(WasmOpcode simd_op, Int32BinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -949,7 +947,9 @@ WASM_EXEC_COMPILED_TEST(Ui32x4Less) {
 WASM_EXEC_COMPILED_TEST(Ui32x4LessEqual) {
   RunI32x4CompareOpTest(kExprI32x4LeU, UnsignedLessEqual);
 }
+#endif  // V8_TARGET_ARCH_ARM
 
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunI32x4ShiftOpTest(WasmOpcode simd_op, Int32ShiftOp expected_op,
                          int shift) {
   FLAG_wasm_simd_prototype = true;
@@ -976,6 +976,9 @@ WASM_EXEC_COMPILED_TEST(I32x4ShrS) {
 WASM_EXEC_COMPILED_TEST(I32x4ShrU) {
   RunI32x4ShiftOpTest(kExprI32x4ShrU, LogicalShiftRight, 1);
 }
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+
+#if V8_TARGET_ARCH_ARM
 
 void RunI16x8UnOpTest(WasmOpcode simd_op, Int16UnOp expected_op) {
   FLAG_wasm_simd_prototype = true;
