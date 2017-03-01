@@ -888,6 +888,7 @@ void Scope::Snapshot::Reparent(DeclarationScope* new_parent) const {
   // Move eval calls since Snapshot's creation into new_parent.
   if (outer_scope_->scope_calls_eval_) {
     new_parent->scope_calls_eval_ = true;
+    new_parent->inner_scope_calls_eval_ = true;
   }
   // Reset the outer_scope's eval state. It will be restored to its
   // original value as necessary in the destructor of this class.

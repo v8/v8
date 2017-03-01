@@ -14,12 +14,13 @@
 
 namespace {
 
-enum SkipStrict {
+enum SkipTests {
   DONT_SKIP = 0,
   // Skip if the test function declares itself strict, otherwise don't skip.
   SKIP_STRICT_FUNCTION = 1,
   // Skip if there's a "use strict" directive above the test.
   SKIP_STRICT_OUTER = 1 << 1,
+  SKIP_ARROW = 1 << 2,
   SKIP_STRICT = SKIP_STRICT_FUNCTION | SKIP_STRICT_OUTER
 };
 
@@ -72,54 +73,55 @@ TEST(PreParserScopeAnalysis) {
     const char* eager_inner;
     bool strict_outer;
     bool strict_test_function;
+    bool arrow;
   } outers[] = {
       // The scope start positions must match; note the extra space in
       // lazy_inner.
       {"(function outer() { ", "})();", " function test(%s) { %s }",
-       "(function test(%s) { %s })()", false, false},
+       "(function test(%s) { %s })()", false, false, false},
       {"(function outer() { ", "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()", false, false},
-      // FIXME(marja): enable test for arrow functions once it passes.
-      // {"(function outer() { ", "})();",
-      // " function inner() { (%s) => { %s } }",
-      // "(function inner() { (%s) => { %s } })()", false},
+       "(function inner() { function test(%s) { %s } })()", false, false,
+       false},
+      {"(function outer() { ", "})();", " function inner() { (%s) => { %s } }",
+       "(function inner() { (%s) => { %s } })()", false, false, true},
       {"(function outer() { 'use strict'; ", "})();",
-       " function test(%s) { %s }", "(function test(%s) { %s })()", true,
+       " function test(%s) { %s }", "(function test(%s) { %s })()", true, false,
        false},
       {"(function outer() { 'use strict'; ", "})();",
        " function inner() { function test(%s) { %s } }",
-       "(function inner() { function test(%s) { %s } })()", true, false},
+       "(function inner() { function test(%s) { %s } })()", true, false, false},
+      {"(function outer() { 'use strict'; ", "})();",
+       " function inner() { (%s) => { %s } }",
+       "(function inner() { (%s) => { %s } })()", true, false, true},
       {"(function outer() { ", "})();",
        " function test(%s) { 'use strict'; %s }",
-       "(function test(%s) { 'use strict'; %s })()", false, true},
+       "(function test(%s) { 'use strict'; %s })()", false, true, false},
       {"(function outer() { ", "})();",
        " function inner() { function test(%s) { 'use strict'; %s } }",
        "(function inner() { function test(%s) { 'use strict'; %s } })()", false,
+       true, false},
+      {"(function outer() { ", "})();",
+       " function inner() { (%s) => { 'use strict'; %s } }",
+       "(function inner() { (%s) => { 'use strict'; %s } })()", false, true,
        true},
   };
 
   struct Inner {
     Inner(const char* s) : source(s) {}  // NOLINT
-    Inner(const char* s, SkipStrict skip)
-        : source(s), skip_in_strict_mode(skip) {}
-    Inner(const char* s, SkipStrict skip, bool precise)
-        : source(s),
-          skip_in_strict_mode(skip),
-          precise_maybe_assigned(precise) {}
+    Inner(const char* s, SkipTests skip) : source(s), skip(skip) {}
+    Inner(const char* s, SkipTests skip, bool precise)
+        : source(s), skip(skip), precise_maybe_assigned(precise) {}
 
     Inner(const char* p, const char* s) : params(p), source(s) {}
-    Inner(const char* p, const char* s, SkipStrict skip)
-        : params(p), source(s), skip_in_strict_mode(skip) {}
-    Inner(const char* p, const char* s, SkipStrict skip, bool precise)
-        : params(p),
-          source(s),
-          skip_in_strict_mode(skip),
-          precise_maybe_assigned(precise) {}
+    Inner(const char* p, const char* s, SkipTests skip)
+        : params(p), source(s), skip(skip) {}
+    Inner(const char* p, const char* s, SkipTests skip, bool precise)
+        : params(p), source(s), skip(skip), precise_maybe_assigned(precise) {}
 
     const char* params = "";
     const char* source;
-    SkipStrict skip_in_strict_mode = DONT_SKIP;
+    SkipTests skip = DONT_SKIP;
     bool precise_maybe_assigned = true;
   } inners[] = {
       // Simple cases
@@ -379,11 +381,13 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var2", "function f1() { var1 = 9; }"},
 
       // Duplicate parameters.
-      {"var1, var1", "", SKIP_STRICT},
-      {"var1, var1", "var1;", SKIP_STRICT},
-      {"var1, var1", "var1 = 9;", SKIP_STRICT},
-      {"var1, var1", "function f1() { var1; }", SKIP_STRICT},
-      {"var1, var1", "function f1() { var1 = 9; }", SKIP_STRICT},
+      {"var1, var1", "", SkipTests(SKIP_STRICT | SKIP_ARROW)},
+      {"var1, var1", "var1;", SkipTests(SKIP_STRICT | SKIP_ARROW)},
+      {"var1, var1", "var1 = 9;", SkipTests(SKIP_STRICT | SKIP_ARROW)},
+      {"var1, var1", "function f1() { var1; }",
+       SkipTests(SKIP_STRICT | SKIP_ARROW)},
+      {"var1, var1", "function f1() { var1 = 9; }",
+       SkipTests(SKIP_STRICT | SKIP_ARROW)},
 
       // If the function declares itself strict, non-simple parameters aren't
       // allowed.
@@ -402,9 +406,9 @@ TEST(PreParserScopeAnalysis) {
       {"var1, ...var2", "function f1() { var2 = 9; }", SKIP_STRICT_FUNCTION},
 
       // Default parameters.
-      {"var1 = 3", "", SKIP_STRICT_FUNCTION},
-      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION},
-      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION},
+      {"var1 = 3", "", SKIP_STRICT_FUNCTION, false},
+      {"var1, var2 = var1", "", SKIP_STRICT_FUNCTION, false},
+      {"var1, var2 = 4, ...var3", "", SKIP_STRICT_FUNCTION, false},
 
       // Destructuring parameters. Because of the search space explosion, we
       // cannot test all interesting cases. Let's try to test a relevant subset.
@@ -446,15 +450,25 @@ TEST(PreParserScopeAnalysis) {
        SKIP_STRICT_FUNCTION},
 
       // Complicated params.
-      {"var1, [var2], var3, [var4, var5], var6, {var7}, var8, {name9: var9, "
-       "name10: var10}, ...var11",
-       "", SKIP_STRICT_FUNCTION},
+      {"var1, [var2], var3 = 24, [var4, var5] = [2, 4], var6, {var7}, var8, "
+       "{name9: var9, name10: var10}, ...var11",
+       "", SKIP_STRICT_FUNCTION, false},
 
       // Destructuring rest. Because we can.
-      {"var1, ...[var2]", "() => { }", SKIP_STRICT_FUNCTION},
+      {"var1, ...[var2]", "", SKIP_STRICT_FUNCTION},
       {"var1, ...[var2]", "() => { var2; }", SKIP_STRICT_FUNCTION},
+      {"var1, ...{0: var2}", "", SKIP_STRICT_FUNCTION},
+      {"var1, ...{0: var2}", "() => { var2; }", SKIP_STRICT_FUNCTION},
+      {"var1, ...[]", "", SKIP_STRICT_FUNCTION},
+      {"var1, ...{}", "", SKIP_STRICT_FUNCTION},
+      {"var1, ...[var2, var3]", "", SKIP_STRICT_FUNCTION},
+      {"var1, ...{0: var2, 1: var3}", "", SKIP_STRICT_FUNCTION},
 
       // Default parameters for destruring parameters.
+      {"[var1, var2] = [2, 4]", "", SKIP_STRICT_FUNCTION, false},
+      {"{var1, var2} = {var1: 3, var2: 3}", "", SKIP_STRICT_FUNCTION, false},
+
+      // Default parameters inside destruring parameters.
       {"[var1 = 4, var2 = var1]", "", SKIP_STRICT_FUNCTION, false},
       {"{var1 = 4, var2 = var1}", "", SKIP_STRICT_FUNCTION, false},
 
@@ -469,15 +483,17 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var2, ...var3", "var var3 = 16; () => { var3 = 17; }",
        SKIP_STRICT_FUNCTION},
       {"var1, var2 = var1", "var var1 = 16; () => { var1 = 17; }",
-       SKIP_STRICT_FUNCTION},
+       SKIP_STRICT_FUNCTION, false},
 
       // Hoisted sloppy block function shadowing a parameter.
-      {"var1, var2", "for (;;) { function var1() { } }"},
+      // FIXME(marja): why is maybe_assigned inaccurate?
+      {"var1, var2", "for (;;) { function var1() { } }", DONT_SKIP, false},
 
       // Eval in default parameter.
-      {"var1, var2 = eval(''), var3", "let var4 = 0;", SKIP_STRICT_FUNCTION},
+      {"var1, var2 = eval(''), var3", "let var4 = 0;", SKIP_STRICT_FUNCTION,
+       false},
       {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;",
-       SKIP_STRICT_FUNCTION},
+       SKIP_STRICT_FUNCTION, false},
 
       // FIXME(marja): arguments parameter
   };
@@ -485,11 +501,14 @@ TEST(PreParserScopeAnalysis) {
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
     for (unsigned inner_ix = 0; inner_ix < arraysize(inners); ++inner_ix) {
       if (outers[outer_ix].strict_outer &&
-          (inners[inner_ix].skip_in_strict_mode & SKIP_STRICT_OUTER)) {
+          (inners[inner_ix].skip & SKIP_STRICT_OUTER)) {
         continue;
       }
       if (outers[outer_ix].strict_test_function &&
-          (inners[inner_ix].skip_in_strict_mode & SKIP_STRICT_FUNCTION)) {
+          (inners[inner_ix].skip & SKIP_STRICT_FUNCTION)) {
+        continue;
+      }
+      if (outers[outer_ix].arrow && (inners[inner_ix].skip & SKIP_ARROW)) {
         continue;
       }
 
