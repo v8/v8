@@ -3062,14 +3062,15 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
 
 
 void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
-  LargePage* current = first_page_;
-  while (current != NULL) {
-    HeapObject* object = current->GetObject();
-    DCHECK(ObjectMarking::IsBlack(object));
-    ObjectMarking::ClearMarkBit(object);
-    Page::FromAddress(object->address())->ResetProgressBar();
-    Page::FromAddress(object->address())->ResetLiveBytes();
-    current = current->next_page();
+  LargeObjectIterator it(this);
+  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
+    if (ObjectMarking::IsBlackOrGrey(obj)) {
+      ObjectMarking::ClearMarkBit(obj);
+      MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
+      chunk->ResetProgressBar();
+      chunk->ResetLiveBytes();
+    }
+    DCHECK(ObjectMarking::IsWhite(obj));
   }
 }
 

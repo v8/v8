@@ -390,14 +390,7 @@ void MarkCompactCollector::ClearMarkbits() {
   ClearMarkbitsInPagedSpace(heap_->map_space());
   ClearMarkbitsInPagedSpace(heap_->old_space());
   ClearMarkbitsInNewSpace(heap_->new_space());
-
-  LargeObjectIterator it(heap_->lo_space());
-  for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
-    ObjectMarking::ClearMarkBit(obj);
-    MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
-    chunk->ResetProgressBar();
-    chunk->ResetLiveBytes();
-  }
+  heap_->lo_space()->ClearMarkingStateOfLiveObjects();
 }
 
 class MarkCompactCollector::Sweeper::SweeperTask : public v8::Task {
