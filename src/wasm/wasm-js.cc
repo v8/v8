@@ -32,10 +32,6 @@ namespace v8 {
 
 namespace {
 
-#define RANGE_ERROR_MSG                                                        \
-  "Wasm compilation exceeds internal limits in this context for the provided " \
-  "arguments"
-
 // TODO(wasm): move brand check to the respective types, and don't throw
 // in it, rather, use a provided ErrorThrower, or let caller handle it.
 static bool HasBrand(i::Handle<i::Object> value, i::Handle<i::Symbol> sym) {
@@ -88,7 +84,10 @@ bool IsCompilationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
   AllowWasmCompileCallback callback = isolate->allow_wasm_compile_callback();
   if (callback != nullptr &&
       !callback(reinterpret_cast<v8::Isolate*>(isolate), source, is_async)) {
-    thrower->RangeError(RANGE_ERROR_MSG);
+    thrower->RangeError(
+        "%ssynchronous compilation disallowed due to module size limit set by "
+        "embedder",
+        is_async ? "a" : "");
     return false;
   }
   return true;
@@ -110,7 +109,10 @@ bool IsInstantiationAllowed(i::Isolate* isolate, ErrorThrower* thrower,
   if (callback != nullptr &&
       !callback(reinterpret_cast<v8::Isolate*>(isolate), module_or_bytes,
                 v8_ffi, is_async)) {
-    thrower->RangeError(RANGE_ERROR_MSG);
+    thrower->RangeError(
+        "%ssynchronous instantiation disallowed due to module size limit set "
+        "by embedder",
+        is_async ? "a" : "");
     return false;
   }
   return true;
