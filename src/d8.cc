@@ -36,7 +36,6 @@
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/natives.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
 
@@ -2942,13 +2941,6 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;
     create_params.add_histogram_sample_callback = AddHistogramSample;
-  }
-
-  if (i::trap_handler::UseTrapHandler()) {
-    if (!v8::V8::RegisterDefaultSignalHandler()) {
-      fprintf(stderr, "Could not register signal handler");
-      exit(1);
-    }
   }
 
   Isolate* isolate = Isolate::New(create_params);

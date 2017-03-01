@@ -270,12 +270,13 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
 class WasmOutOfLineTrap final : public OutOfLineCode {
  public:
   WasmOutOfLineTrap(CodeGenerator* gen, int pc, bool frame_elided,
-                    int32_t position)
+                    int32_t position, Instruction* instr)
       : OutOfLineCode(gen),
         gen_(gen),
         pc_(pc),
         frame_elided_(frame_elided),
-        position_(position) {}
+        position_(position),
+        instr_(instr) {}
 
   // TODO(eholk): Refactor this method to take the code generator as a
   // parameter.
@@ -289,17 +290,14 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
     wasm::TrapReason trap_id = wasm::kTrapMemOutOfBounds;
     int trap_reason = wasm::WasmOpcodes::TrapReasonToMessageId(trap_id);
     __ Push(Smi::FromInt(trap_reason));
-    // TODO(eholk): use AssembleSourcePosition instead of passing in position_
-    // as a parameter. See AssembleArchTrap as an example. Consider sharing code
-    // with AssembleArchTrap.
     __ Push(Smi::FromInt(position_));
-    __ Move(rsi, Smi::kZero);
+    __ Move(rsi, gen_->isolate()->native_context());
     __ CallRuntime(Runtime::kThrowWasmError);
 
-    ReferenceMap* reference_map =
-        new (gen_->code()->zone()) ReferenceMap(gen_->code()->zone());
-    gen_->RecordSafepoint(reference_map, Safepoint::kSimple, 0,
-                          Safepoint::kNoLazyDeopt);
+    if (instr_->reference_map() != nullptr) {
+      gen_->RecordSafepoint(instr_->reference_map(), Safepoint::kSimple, 0,
+                            Safepoint::kNoLazyDeopt);
+    }
   }
 
  private:
@@ -307,17 +305,18 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
   int pc_;
   bool frame_elided_;
   int32_t position_;
+  Instruction* instr_;
 };
 
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, size_t input_count,
-                         X64OperandConverter& i, int pc) {
+                         X64OperandConverter& i, int pc, Instruction* instr) {
   const X64MemoryProtection protection =
       static_cast<X64MemoryProtection>(MiscField::decode(opcode));
   if (protection == X64MemoryProtection::kProtected) {
     const bool frame_elided = !codegen->frame_access_state()->has_frame();
     const int32_t position = i.InputInt32(input_count - 1);
-    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, position);
+    new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, position, instr);
   }
 }
 }  // namespace
@@ -1855,30 +1854,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Movsxbl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxbl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxbl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxbq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxbq);
       break;
     case kX64Movzxbq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxbq);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movb: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
@@ -1890,30 +1889,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Movsxwl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movzxwl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxwl);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movsxwq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxwq);
       break;
     case kX64Movzxwq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movzxwq);
       __ AssertZeroExtended(i.OutputRegister());
       break;
     case kX64Movw: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       size_t index = 0;
       Operand operand = i.MemoryOperand(&index);
       if (HasImmediateInput(instr, index)) {
@@ -1925,7 +1924,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kX64Movl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         if (instr->addressing_mode() == kMode_None) {
           if (instr->InputAt(0)->IsRegister()) {
@@ -1949,12 +1948,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Movsxlq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       ASSEMBLE_MOVX(movsxlq);
       break;
     case kX64Movq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         __ movq(i.OutputRegister(), i.MemoryOperand());
       } else {
@@ -1969,7 +1968,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Movss:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         __ movss(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {
@@ -1980,7 +1979,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kX64Movsd:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr->InputCount(), i,
-                          __ pc_offset());
+                          __ pc_offset(), instr);
       if (instr->HasOutput()) {
         __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
       } else {

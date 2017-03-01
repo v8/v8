@@ -7693,35 +7693,6 @@ class V8_EXPORT V8 {
    */
   static void ShutdownPlatform();
 
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64
-  /**
-   * Give the V8 signal handler a chance to handle a fault.
-   *
-   * This function determines whether a memory access violation can be recovered
-   * by V8. If so, it will return true and modify context to return to a code
-   * fragment that can recover from the fault. Otherwise, TryHandleSignal will
-   * return false.
-   *
-   * The parameters to this function correspond to those passed to a Linux
-   * signal handler.
-   *
-   * \param signal_number The signal number.
-   *
-   * \param info A pointer to the siginfo_t structure provided to the signal
-   * handler.
-   *
-   * \param context The third argument passed to the Linux signal handler, which
-   * points to a ucontext_t structure.
-   */
-  static bool TryHandleSignal(int signal_number, void* info, void* context);
-#endif  // V8_OS_LINUX
-
-  /**
-   * Enable the default signal handler rather than using one provided by the
-   * embedder.
-   */
-  static bool RegisterDefaultSignalHandler();
-
  private:
   V8();
 

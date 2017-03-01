@@ -6652,7 +6652,6 @@ CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(handler_table, FixedArray, kHandlerTableOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, ByteArray, kSourcePositionTableOffset)
-CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
 CODE_ACCESSORS(raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
 #undef CODE_ACCESSORS
