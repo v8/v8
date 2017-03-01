@@ -631,7 +631,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
   Branch(TaggedIsSmi(maybe_transition_cell), &array_handler, &tuple_handler);
 
   Variable var_transition(this, MachineRepresentation::kTagged);
-  Label if_transition(this), if_transition_to_constant(this);
+  Label if_transition(this), if_transition_to_constant(this),
+      if_store_normal(this);
   Bind(&tuple_handler);
   {
     Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
@@ -666,6 +667,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
     GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(transition)), miss);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kStoreNormal)),
+           &if_store_normal);
     GotoIf(WordEqual(handler_kind,
                      IntPtrConstant(StoreHandler::kTransitionToConstant)),
            &if_transition_to_constant);
@@ -695,6 +698,42 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
 
       StoreMap(p->receiver, transition);
       Return(p->value);
+    }
+
+    Bind(&if_store_normal);
+    {
+      Node* properties = LoadProperties(p->receiver);
+
+      Variable var_name_index(this, MachineType::PointerRepresentation());
+      Label found(this, &var_name_index), not_found(this);
+      NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
+                                           &var_name_index, &not_found);
+      Bind(&found);
+      {
+        Node* details = LoadDetailsByKeyIndex<NameDictionary>(
+            properties, var_name_index.value());
+        // Check that the property is a writable data property (no accessor).
+        const int kTypeAndReadOnlyMask =
+            PropertyDetails::KindField::kMask |
+            PropertyDetails::kAttributesReadOnlyMask;
+        STATIC_ASSERT(kData == 0);
+        GotoIf(IsSetWord32(details, kTypeAndReadOnlyMask), miss);
+
+        StoreValueByKeyIndex<NameDictionary>(properties, var_name_index.value(),
+                                             p->value);
+        Return(p->value);
+      }
+
+      Bind(&not_found);
+      {
+        Label slow(this);
+        Add<NameDictionary>(properties, p->name, p->value, &slow);
+        Return(p->value);
+
+        Bind(&slow);
+        TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context, p->value,
+                        p->slot, p->vector, p->receiver, p->name);
+      }
     }
   }
 }

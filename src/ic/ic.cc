@@ -1818,28 +1818,33 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
                                         Handle<JSObject> holder,
                                         Handle<Map> transition,
                                         Handle<Name> name) {
-  int descriptor = transition->LastAdded();
-  Handle<DescriptorArray> descriptors(transition->instance_descriptors());
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-  Representation representation = details.representation();
-  DCHECK(!representation.IsNone());
-
-  // Declarative handlers don't support access checks.
-  DCHECK(!transition->is_access_check_needed());
-
   Handle<Object> smi_handler;
-  DCHECK_EQ(kData, details.kind());
-  if (details.location() == kDescriptor) {
-    smi_handler = StoreHandler::TransitionToConstant(isolate(), descriptor);
-
+  if (transition->is_dictionary_map()) {
+    smi_handler = StoreHandler::StoreNormal(isolate());
   } else {
-    DCHECK_EQ(kField, details.location());
-    bool extend_storage =
-        Map::cast(transition->GetBackPointer())->unused_property_fields() == 0;
+    int descriptor = transition->LastAdded();
+    Handle<DescriptorArray> descriptors(transition->instance_descriptors());
+    PropertyDetails details = descriptors->GetDetails(descriptor);
+    Representation representation = details.representation();
+    DCHECK(!representation.IsNone());
 
-    FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
-    smi_handler = StoreHandler::TransitionToField(
-        isolate(), descriptor, index, representation, extend_storage);
+    // Declarative handlers don't support access checks.
+    DCHECK(!transition->is_access_check_needed());
+
+    DCHECK_EQ(kData, details.kind());
+    if (details.location() == kDescriptor) {
+      smi_handler = StoreHandler::TransitionToConstant(isolate(), descriptor);
+
+    } else {
+      DCHECK_EQ(kField, details.location());
+      bool extend_storage =
+          Map::cast(transition->GetBackPointer())->unused_property_fields() ==
+          0;
+
+      FieldIndex index = FieldIndex::ForDescriptor(*transition, descriptor);
+      smi_handler = StoreHandler::TransitionToField(
+          isolate(), descriptor, index, representation, extend_storage);
+    }
   }
   // |holder| is either a receiver if the property is non-existent or
   // one of the prototypes.
@@ -1910,6 +1915,7 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
         return slow_stub();
       }
+
       DCHECK(lookup->IsCacheableTransition());
       Handle<Map> transition = lookup->transition_map();
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
