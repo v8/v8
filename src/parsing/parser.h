@@ -373,6 +373,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE Block* IgnoreCompletion(Statement* statement);
 
+  V8_INLINE Scope* NewHiddenCatchScopeWithParent(Scope* parent);
+
   class PatternRewriter final : public AstVisitor<PatternRewriter> {
    public:
     static void DeclareAndInitializeVariables(
