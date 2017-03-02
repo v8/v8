@@ -575,9 +575,9 @@ class ModuleDecoder : public Decoder {
         WasmIndirectFunctionTable* table = nullptr;
         if (table_index >= module->function_tables.size()) {
           error(pos, pos, "out of bounds table index %u", table_index);
-        } else {
-          table = &module->function_tables[table_index];
+          break;
         }
+        table = &module->function_tables[table_index];
         WasmInitExpr offset = consume_init_expr(module, kWasmI32);
         uint32_t num_elem =
             consume_count("number of elements", kV8MaxWasmTableEntries);
@@ -587,11 +587,12 @@ class ModuleDecoder : public Decoder {
         for (uint32_t j = 0; ok() && j < num_elem; j++) {
           WasmFunction* func = nullptr;
           uint32_t index = consume_func_index(module, &func);
+          DCHECK_EQ(func != nullptr, ok());
+          if (!func) break;
+          DCHECK_EQ(index, func->func_index);
           init->entries.push_back(index);
-          if (table && index < module->functions.size()) {
-            // Canonicalize signature indices during decoding.
-            table->map.FindOrInsert(module->functions[index].sig);
-          }
+          // Canonicalize signature indices during decoding.
+          table->map.FindOrInsert(func->sig);
         }
       }
 

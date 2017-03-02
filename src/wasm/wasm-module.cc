@@ -828,7 +828,6 @@ WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
   DCHECK(code->kind() == Code::WASM_FUNCTION ||
          code->kind() == Code::WASM_INTERPRETER_ENTRY);
   FixedArray* deopt_data = code->deoptimization_data();
-  DCHECK_NOT_NULL(deopt_data);
   DCHECK_EQ(code->kind() == Code::WASM_INTERPRETER_ENTRY ? 1 : 2,
             deopt_data->length());
   Object* weak_link = deopt_data->get(0);
@@ -846,8 +845,10 @@ int wasm::GetFunctionCodeOffset(Handle<WasmCompiledModule> compiled_module,
 WasmModule::WasmModule(Zone* owned)
     : owned_zone(owned), pending_tasks(new base::Semaphore(0)) {}
 
-static WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
-                                                     Handle<Object> target) {
+namespace {
+
+WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
+                                              Handle<Object> target) {
   if (target->IsJSFunction()) {
     Handle<JSFunction> func = Handle<JSFunction>::cast(target);
     if (func->code()->kind() == Code::JS_TO_WASM_FUNCTION) {
@@ -884,12 +885,11 @@ static Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper) {
   return Handle<Code>::null();
 }
 
-static Handle<Code> CompileImportWrapper(Isolate* isolate, int index,
-                                         FunctionSig* sig,
-                                         Handle<JSReceiver> target,
-                                         Handle<String> module_name,
-                                         MaybeHandle<String> import_name,
-                                         ModuleOrigin origin) {
+Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
+                                  Handle<JSReceiver> target,
+                                  Handle<String> module_name,
+                                  MaybeHandle<String> import_name,
+                                  ModuleOrigin origin) {
   WasmFunction* other_func = GetWasmFunctionForImportWrapper(isolate, target);
   if (other_func) {
     if (sig->Equals(other_func->sig)) {
@@ -906,10 +906,9 @@ static Handle<Code> CompileImportWrapper(Isolate* isolate, int index,
   }
 }
 
-static void UpdateDispatchTablesInternal(Isolate* isolate,
-                                         Handle<FixedArray> dispatch_tables,
-                                         int index, WasmFunction* function,
-                                         Handle<Code> code) {
+void UpdateDispatchTablesInternal(Isolate* isolate,
+                                  Handle<FixedArray> dispatch_tables, int index,
+                                  WasmFunction* function, Handle<Code> code) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
     int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
@@ -922,18 +921,18 @@ static void UpdateDispatchTablesInternal(Isolate* isolate,
       // a dangling pointer in the signature map.
       Handle<WasmInstanceObject> instance(
           WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
-      int sig_index = static_cast<int>(
-          instance->module()->function_tables[table_index].map.FindOrInsert(
-              function->sig));
-      signature_table->set(index, Smi::FromInt(sig_index));
+      auto func_table = instance->module()->function_tables[table_index];
+      uint32_t sig_index = func_table.map.FindOrInsert(function->sig);
+      signature_table->set(index, Smi::FromInt(static_cast<int>(sig_index)));
       function_table->set(index, *code);
     } else {
-      Code* code = nullptr;
       signature_table->set(index, Smi::FromInt(-1));
-      function_table->set(index, code);
+      function_table->set(index, Smi::kZero);
     }
   }
 }
+
+}  // namespace
 
 void wasm::UpdateDispatchTables(Isolate* isolate,
                                 Handle<FixedArray> dispatch_tables, int index,
@@ -1024,8 +1023,7 @@ class InstantiationHelper {
 
         // Clone the code for WASM functions and exports.
         for (int i = 0; i < code_table->length(); ++i) {
-          Handle<Code> orig_code =
-              code_table->GetValueChecked<Code>(isolate_, i);
+          Handle<Code> orig_code(Code::cast(code_table->get(i)), isolate_);
           switch (orig_code->kind()) {
             case Code::WASM_TO_JS_FUNCTION:
               // Imports will be overwritten with newly compiled wrappers.
@@ -1187,14 +1185,14 @@ class InstantiationHelper {
     //--------------------------------------------------------------------------
     Handle<WeakCell> weak_link = factory->NewWeakCell(instance);
 
-    for (int i = num_imported_functions + FLAG_skip_compiling_wasm_funcs;
-         i < code_table->length(); ++i) {
-      Handle<Code> code = code_table->GetValueChecked<Code>(isolate_, i);
+    for (int i = num_imported_functions + FLAG_skip_compiling_wasm_funcs,
+             num_functions = code_table->length();
+         i < num_functions; ++i) {
+      Handle<Code> code = handle(Code::cast(code_table->get(i)), isolate_);
       if (code->kind() == Code::WASM_FUNCTION) {
         Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
         deopt_data->set(0, *weak_link);
-        deopt_data->set(1, Smi::FromInt(static_cast<int>(i)));
-        deopt_data->set_length(2);
+        deopt_data->set(1, Smi::FromInt(i));
         code->set_deoptimization_data(*deopt_data);
       }
     }
@@ -1303,8 +1301,8 @@ class InstantiationHelper {
     if (module_->start_function_index >= 0) {
       HandleScope scope(isolate_);
       int start_index = module_->start_function_index;
-      Handle<Code> startup_code =
-          code_table->GetValueChecked<Code>(isolate_, start_index);
+      Handle<Code> startup_code(Code::cast(code_table->get(start_index)),
+                                isolate_);
       FunctionSig* sig = module_->functions[start_index].sig;
       Handle<Code> wrapper_code =
           js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
@@ -2002,7 +2000,8 @@ class InstantiationHelper {
         uint32_t base = EvalUint32InitExpr(table_init.offset);
         DCHECK(in_bounds(base, static_cast<uint32_t>(table_init.entries.size()),
                          table_instance.function_table->length()));
-        for (int i = 0; i < static_cast<int>(table_init.entries.size()); ++i) {
+        for (int i = 0, e = static_cast<int>(table_init.entries.size()); i < e;
+             ++i) {
           uint32_t func_index = table_init.entries[i];
           WasmFunction* function = &module_->functions[func_index];
           int table_index = static_cast<int>(i + base);
@@ -2642,6 +2641,8 @@ MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
   return helper.Build();
 }
 
+namespace {
+
 void RejectPromise(Isolate* isolate, ErrorThrower* thrower,
                    Handle<JSPromise> promise) {
   v8::Local<v8::Promise::Resolver> resolver =
@@ -2658,6 +2659,8 @@ void ResolvePromise(Isolate* isolate, Handle<JSPromise> promise,
   Handle<Context> context(isolate->context(), isolate);
   resolver->Resolve(v8::Utils::ToLocal(context), v8::Utils::ToLocal(result));
 }
+
+}  // namespace
 
 void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
                         const ModuleWireBytes& bytes) {

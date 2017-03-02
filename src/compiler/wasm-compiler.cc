@@ -179,22 +179,24 @@ class WasmTrapHelper : public ZoneObject {
   }
 
   Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason) {
-    if (builder_->module_ && !builder_->module_->instance->context.is_null()) {
-      switch (reason) {
-#define TRAPREASON_TO_MESSAGE(name) \
-  case wasm::k##name:               \
-    return Builtins::kThrowWasm##name;
-        FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
-#undef TRAPREASON_TO_MESSAGE
-        default:
-          UNREACHABLE();
-          return Builtins::builtin_count;
-      }
-    } else {
-      // We use Runtime::kNumFunctions as a marker to tell the code generator
+    bool in_cctest =
+        !builder_->module_ || builder_->module_->instance->context.is_null();
+    if (in_cctest) {
+      // We use Builtins::builtin_count as a marker to tell the code generator
       // to generate a call to a testing c-function instead of a runtime
       // function. This code should only be called from a cctest.
       return Builtins::builtin_count;
+    }
+
+    switch (reason) {
+#define TRAPREASON_TO_MESSAGE(name) \
+  case wasm::k##name:               \
+    return Builtins::kThrowWasm##name;
+      FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
+#undef TRAPREASON_TO_MESSAGE
+      default:
+        UNREACHABLE();
+        return Builtins::builtin_count;
     }
   }
 
@@ -372,11 +374,11 @@ WasmGraphBuilder::WasmGraphBuilder(
       trap_(new (zone) WasmTrapHelper(this)),
       sig_(sig),
       source_position_table_(source_position_table) {
-  for (size_t i = 0; i < sig->parameter_count(); i++) {
-    if (sig->GetParam(i) == wasm::kWasmS128) has_simd_ = true;
+  for (size_t i = sig->parameter_count(); i > 0 && !has_simd_; --i) {
+    if (sig->GetParam(i - 1) == wasm::kWasmS128) has_simd_ = true;
   }
-  for (size_t i = 0; i < sig->return_count(); i++) {
-    if (sig->GetReturn(i) == wasm::kWasmS128) has_simd_ = true;
+  for (size_t i = sig->return_count(); i > 0 && !has_simd_; --i) {
+    if (sig->GetReturn(i - 1) == wasm::kWasmS128) has_simd_ = true;
   }
   DCHECK_NOT_NULL(jsgraph_);
 }
@@ -3064,13 +3066,12 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       jsgraph()->zone(), function_id, function->nargs, Operator::kNoThrow,
       CallDescriptor::kNoFlags);
-  wasm::ModuleEnv* module = module_;
   Node* inputs[] = {
       jsgraph()->CEntryStubConstant(function->result_size),  // C entry
       jsgraph()->ExternalConstant(
           ExternalReference(function_id, jsgraph()->isolate())),  // ref
       jsgraph()->Int32Constant(function->nargs),                  // arity
-      jsgraph()->HeapConstant(module->instance->context),         // context
+      jsgraph()->HeapConstant(module_->instance->context),        // context
       *effect_,
       *control_};
   Node* call = graph()->NewNode(jsgraph()->common()->Call(desc),

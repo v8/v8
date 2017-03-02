@@ -205,7 +205,7 @@ class TestingModule : public ModuleEnv {
     if (interpreter_) {
       const WasmFunction* function = &module->functions.back();
       int interpreter_index = interpreter_->AddFunctionForTesting(function);
-      CHECK_EQ(index, static_cast<uint32_t>(interpreter_index));
+      CHECK_EQ(index, interpreter_index);
     }
     DCHECK_LT(index, kMaxFunctions);  // limited for testing.
     return index;
@@ -628,7 +628,6 @@ class WasmFunctionCompiler : private GraphAndBuilders {
         isolate()->factory()->NewWeakCell(testing_module_->instance_object());
     deopt_data->set(0, *weak_instance);
     deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
-    deopt_data->set_length(2);
     code->set_deoptimization_data(*deopt_data);
 
 #ifdef ENABLE_DISASSEMBLER

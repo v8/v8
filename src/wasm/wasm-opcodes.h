@@ -33,16 +33,16 @@ static const uint8_t kMultivalBlock = 0x41;
 // We reuse the internal machine type to represent WebAssembly types.
 // A typedef improves readability without adding a whole new type system.
 typedef MachineRepresentation ValueType;
-const ValueType kWasmStmt = MachineRepresentation::kNone;
-const ValueType kWasmI32 = MachineRepresentation::kWord32;
-const ValueType kWasmI64 = MachineRepresentation::kWord64;
-const ValueType kWasmF32 = MachineRepresentation::kFloat32;
-const ValueType kWasmF64 = MachineRepresentation::kFloat64;
-const ValueType kWasmS128 = MachineRepresentation::kSimd128;
-const ValueType kWasmS1x4 = MachineRepresentation::kSimd1x4;
-const ValueType kWasmS1x8 = MachineRepresentation::kSimd1x8;
-const ValueType kWasmS1x16 = MachineRepresentation::kSimd1x16;
-const ValueType kWasmVar = MachineRepresentation::kTagged;
+constexpr ValueType kWasmStmt = MachineRepresentation::kNone;
+constexpr ValueType kWasmI32 = MachineRepresentation::kWord32;
+constexpr ValueType kWasmI64 = MachineRepresentation::kWord64;
+constexpr ValueType kWasmF32 = MachineRepresentation::kFloat32;
+constexpr ValueType kWasmF64 = MachineRepresentation::kFloat64;
+constexpr ValueType kWasmS128 = MachineRepresentation::kSimd128;
+constexpr ValueType kWasmS1x4 = MachineRepresentation::kSimd1x4;
+constexpr ValueType kWasmS1x8 = MachineRepresentation::kSimd1x8;
+constexpr ValueType kWasmS1x16 = MachineRepresentation::kSimd1x16;
+constexpr ValueType kWasmVar = MachineRepresentation::kTagged;
 
 typedef Signature<ValueType> FunctionSig;
 std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
@@ -50,7 +50,7 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 typedef Vector<const char> WasmName;
 
 typedef int WasmCodePosition;
-const WasmCodePosition kNoCodePosition = -1;
+constexpr WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)      \

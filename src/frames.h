@@ -1274,7 +1274,7 @@ class BuiltinFrame final : public JavaScriptFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmCompiledFrame : public StandardFrame {
+class WasmCompiledFrame final : public StandardFrame {
  public:
   Type type() const override { return WASM_COMPILED; }
 
@@ -1316,7 +1316,7 @@ class WasmCompiledFrame : public StandardFrame {
   friend class StackFrameIteratorBase;
 };
 
-class WasmInterpreterEntryFrame : public StandardFrame {
+class WasmInterpreterEntryFrame final : public StandardFrame {
  public:
   Type type() const override { return WASM_INTERPRETER_ENTRY; }
 
