@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --max-old-space-size=4
+// Flags: --max-old-space-size=8
 
 InspectorTest.log('Check pause on OOM');
 
