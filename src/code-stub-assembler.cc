@@ -794,6 +794,13 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
   return address.value();
 }
 
+Node* CodeStubAssembler::AllocateInNewSpace(Node* size_in_bytes,
+                                            AllocationFlags flags) {
+  DCHECK(flags == kNone || flags == kDoubleAlignment);
+  CSA_ASSERT(this, IsRegularHeapObjectSize(size_in_bytes));
+  return Allocate(size_in_bytes, flags);
+}
+
 Node* CodeStubAssembler::Allocate(Node* size_in_bytes, AllocationFlags flags) {
   Comment("Allocate");
   bool const new_space = !(flags & kPretenured);
@@ -820,6 +827,13 @@ Node* CodeStubAssembler::Allocate(Node* size_in_bytes, AllocationFlags flags) {
 #endif
 
   return AllocateRawUnaligned(size_in_bytes, flags, top_address, limit_address);
+}
+
+Node* CodeStubAssembler::AllocateInNewSpace(int size_in_bytes,
+                                            AllocationFlags flags) {
+  CHECK(flags == kNone || flags == kDoubleAlignment);
+  DCHECK_LE(size_in_bytes, kMaxRegularHeapObjectSize);
+  return CodeStubAssembler::Allocate(IntPtrConstant(size_in_bytes), flags);
 }
 
 Node* CodeStubAssembler::Allocate(int size_in_bytes, AllocationFlags flags) {
@@ -1560,7 +1574,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context, Node* length,
   Bind(&if_sizeissmall);
   {
     // Just allocate the SeqOneByteString in new space.
-    Node* result = Allocate(size, flags);
+    Node* result = AllocateInNewSpace(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
     StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
@@ -1631,7 +1645,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context, Node* length,
   Bind(&if_sizeissmall);
   {
     // Just allocate the SeqTwoByteString in new space.
-    Node* result = Allocate(size, flags);
+    Node* result = AllocateInNewSpace(size, flags);
     DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
     StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(
@@ -1853,7 +1867,7 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
       IntPtrAdd(WordShl(length, IntPtrConstant(kPointerSizeLog2)),
                 IntPtrConstant(NameDictionary::kHeaderSize));
 
-  Node* result = Allocate(store_size);
+  Node* result = AllocateInNewSpace(store_size);
   Comment("Initialize NameDictionary");
   // Initialize FixedArray fields.
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kHashTableMapRootIndex));
@@ -1894,8 +1908,7 @@ Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
   CSA_ASSERT(this, IsMap(map));
   Node* size =
       IntPtrMul(LoadMapInstanceSize(map), IntPtrConstant(kPointerSize));
-  CSA_ASSERT(this, IsRegularHeapObjectSize(size));
-  Node* object = Allocate(size, flags);
+  Node* object = AllocateInNewSpace(size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeJSObjectFromMap(object, map, size, properties, elements);
   return object;
@@ -1996,7 +2009,8 @@ Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
                                                       Node* length,
                                                       Node* allocation_site,
                                                       Node* size_in_bytes) {
-  Node* array = Allocate(size_in_bytes);
+  // Allocate space for the JSArray and the elements FixedArray in one go.
+  Node* array = AllocateInNewSpace(size_in_bytes);
 
   Comment("write JSArray headers");
   StoreMapNoWriteBarrier(array, array_map);

@@ -241,6 +241,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void GotoIfNumber(Node* value, Label* is_number);
 
   // Allocate an object of the given size.
+  Node* AllocateInNewSpace(Node* size, AllocationFlags flags = kNone);
+  Node* AllocateInNewSpace(int size, AllocationFlags flags = kNone);
   Node* Allocate(Node* size, AllocationFlags flags = kNone);
   Node* Allocate(int size, AllocationFlags flags = kNone);
   Node* InnerAllocate(Node* previous, int offset);

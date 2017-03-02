@@ -338,7 +338,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(
   Node* size = GetFixedArrayAllocationSize(length, FAST_ELEMENTS, mode);
 
   // Create a new closure from the given function info in new space
-  Node* function_context = Allocate(size);
+  Node* function_context = AllocateInNewSpace(size);
 
   Heap::RootListIndex context_type;
   switch (scope_type) {
@@ -690,7 +690,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   Node* size_in_words = WordShr(object_size, kPointerSizeLog2);
   GotoIfNot(WordEqual(instance_size, size_in_words), call_runtime);
 
-  Node* copy = Allocate(allocation_size);
+  Node* copy = AllocateInNewSpace(allocation_size);
 
   // Copy boilerplate elements.
   Variable offset(this, MachineType::PointerRepresentation());
