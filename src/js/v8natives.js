@@ -11,7 +11,6 @@
 
 var GlobalObject = global.Object;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var NaN = %GetRootNaN();
 var ObjectToString = utils.ImportNow("object_to_string");
 
 // ----------------------------------------------------------------------------

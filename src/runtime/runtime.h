@@ -371,7 +371,6 @@ namespace internal {
   F(SmiLexicographicCompare, 2, 1)     \
   F(MaxSmi, 0, 1)                      \
   F(IsSmi, 1, 1)                       \
-  F(GetRootNaN, 0, 1)                  \
   F(GetHoleNaNUpper, 0, 1)             \
   F(GetHoleNaNLower, 0, 1)
 
