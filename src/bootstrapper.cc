@@ -2620,6 +2620,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
+
+    // %typed_array_initialize
+    Handle<JSFunction> typed_array_initialize = SimpleCreateFunction(
+        isolate, factory->NewStringFromAsciiChecked("typedArrayInitialize"),
+        Builtins::kTypedArrayInitialize, 6, false);
+    InstallWithIntrinsicDefaultProto(isolate, typed_array_initialize,
+                                     Context::TYPED_ARRAY_INITIALIZE_INDEX);
   }
 
   {  // -- D a t a V i e w

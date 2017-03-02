@@ -536,6 +536,9 @@ class V8_EXPORT_PRIVATE Factory final {
       SharedFlag shared = SharedFlag::kNotShared,
       PretenureFlag pretenure = NOT_TENURED);
 
+  ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind);
+  size_t GetExternalArrayElementSize(ExternalArrayType type);
+
   Handle<JSTypedArray> NewJSTypedArray(ExternalArrayType type,
                                        PretenureFlag pretenure = NOT_TENURED);
 

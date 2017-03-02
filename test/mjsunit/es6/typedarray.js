@@ -822,3 +822,12 @@ function TestNonConfigurableProperties(constructor) {
 for(i = 0; i < typedArrayConstructors.length; i++) {
   TestNonConfigurableProperties(typedArrayConstructors[i]);
 }
+
+(function TestInitialization() {
+  for (var i = 0; i <= 128; i++) {
+    var arr = new Uint8Array(i);
+    for (var j = 0; j < i; j++) {
+      assertEquals(0, arr[j]);
+    }
+  }
+})();
