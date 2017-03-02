@@ -3014,10 +3014,11 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
                                                             kNoGCCallbackFlags);
   AllocationStep(object->address(), object_size);
 
+  heap()->CreateFillerObjectAt(object->address(), object_size,
+                               ClearRecordedSlots::kNo);
+
   if (heap()->incremental_marking()->black_allocation()) {
-    // We cannot use ObjectMarking here as the object still lacks a size.
-    Marking::WhiteToBlack(ObjectMarking::MarkBitFrom(object));
-    MemoryChunk::IncrementLiveBytes(object, object_size);
+    ObjectMarking::WhiteToBlack(object);
   }
   return object;
 }
@@ -3182,12 +3183,13 @@ void LargeObjectSpace::Verify() {
     // We have only code, sequential strings, external strings
     // (sequential strings that have been morphed into external
     // strings), thin strings (sequential strings that have been
-    // morphed into thin strings), fixed arrays, byte arrays, and
-    // constant pool arrays in the large object space.
+    // morphed into thin strings), fixed arrays, fixed double arrays,
+    // byte arrays, and free space (right after allocation) in the
+    // large object space.
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
-          object->IsByteArray());
+          object->IsByteArray() || object->IsFreeSpace());
 
     // The object itself should look OK.
     object->ObjectVerify();
