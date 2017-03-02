@@ -862,20 +862,24 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 MaybeLocal<Context> Shell::CreateRealm(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, int index,
+    v8::MaybeLocal<Value> global_object) {
   Isolate* isolate = args.GetIsolate();
   TryCatch try_catch(isolate);
   PerIsolateData* data = PerIsolateData::Get(isolate);
-  Global<Context>* old_realms = data->realms_;
-  int index = data->realm_count_;
-  data->realms_ = new Global<Context>[++data->realm_count_];
-  for (int i = 0; i < index; ++i) {
-    data->realms_[i].Reset(isolate, old_realms[i]);
-    old_realms[i].Reset();
+  if (index < 0) {
+    Global<Context>* old_realms = data->realms_;
+    index = data->realm_count_;
+    data->realms_ = new Global<Context>[++data->realm_count_];
+    for (int i = 0; i < index; ++i) {
+      data->realms_[i].Reset(isolate, old_realms[i]);
+      old_realms[i].Reset();
+    }
+    delete[] old_realms;
   }
-  delete[] old_realms;
   Local<ObjectTemplate> global_template = CreateGlobalTemplate(isolate);
-  Local<Context> context = Context::New(isolate, NULL, global_template);
+  Local<Context> context =
+      Context::New(isolate, NULL, global_template, global_object);
   if (context.IsEmpty()) {
     DCHECK(try_catch.HasCaught());
     try_catch.ReThrow();
@@ -887,10 +891,20 @@ MaybeLocal<Context> Shell::CreateRealm(
   return context;
 }
 
+void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
+                         int index) {
+  Isolate* isolate = args.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
+  data->realms_[index].Reset();
+  isolate->ContextDisposedNotification();
+  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
+}
+
 // Realm.create() creates a new realm with a distinct security token
 // and returns its index.
 void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CreateRealm(args);
+  CreateRealm(args, -1, v8::MaybeLocal<Value>());
 }
 
 // Realm.createAllowCrossRealmAccess() creates a new realm with the same
@@ -898,10 +912,24 @@ void Shell::RealmCreate(const v8::FunctionCallbackInfo<v8::Value>& args) {
 void Shell::RealmCreateAllowCrossRealmAccess(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context;
-  if (CreateRealm(args).ToLocal(&context)) {
+  if (CreateRealm(args, -1, v8::MaybeLocal<Value>()).ToLocal(&context)) {
     context->SetSecurityToken(
         args.GetIsolate()->GetEnteredContext()->GetSecurityToken());
   }
+}
+
+// Realm.navigate(i) creates a new realm with a distinct security token
+// in place of realm i.
+void Shell::RealmNavigate(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  PerIsolateData* data = PerIsolateData::Get(isolate);
+  int index = data->RealmIndexOrThrow(args, 0);
+  if (index == -1) return;
+
+  Local<Context> context = Local<Context>::New(isolate, data->realms_[index]);
+  v8::MaybeLocal<Value> global_object = context->Global();
+  DisposeRealm(args, index);
+  CreateRealm(args, index, global_object);
 }
 
 // Realm.dispose(i) disposes the reference to the realm i.
@@ -915,10 +943,7 @@ void Shell::RealmDispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
     Throw(args.GetIsolate(), "Invalid realm index");
     return;
   }
-  DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
-  data->realms_[index].Reset();
-  isolate->ContextDisposedNotification();
-  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
+  DisposeRealm(args, index);
 }
 
 
@@ -1511,6 +1536,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
                           NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, RealmCreateAllowCrossRealmAccess));
+  realm_template->Set(
+      String::NewFromUtf8(isolate, "navigate", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, RealmNavigate));
   realm_template->Set(
       String::NewFromUtf8(isolate, "dispose", NewStringType::kNormal)
           .ToLocalChecked(),
