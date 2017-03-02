@@ -133,19 +133,12 @@ ALLOWED_LINE_DIFFS = [
   r'^.* is not a function(.*)$',
   r'^(.*) is not a .*$',
 
-  # Ignore lines of stack traces as character positions might not match.
-  r'^    at (?:new )?([^:]*):\d+:\d+(.*)$',
-  r'^(.*):\d+:(.*)$',
-
   # crbug.com/662840
   r"^.*(?:Trying to access ')?(\w*)(?:(?:' through proxy)|"
   r"(?: is not defined))$",
 
   # crbug.com/680064. This subsumes one of the above expressions.
   r'^(.*)TypeError: .* function$',
-
-  # crbug.com/681326
-  r'^(.*<anonymous>):\d+:\d+(.*)$',
 
   # crbug.com/664068
   r'^(.*)(?:Array buffer allocation failed|Invalid array buffer length)(.*)$',
@@ -162,9 +155,6 @@ IGNORE_LINES = [
 
   # crbug.com/677032
   r'^.*:\d+:.*asm\.js.*: success$',
-
-  # crbug.com/680064
-  r'^\s*at .* \(<anonymous>\)$',
 ]
 
 
