@@ -2170,6 +2170,7 @@ class HOptimizedGraphBuilder : public HGraphBuilder,
   F(SubString)                         \
   F(DebugIsActive)                     \
   /* Typed Arrays */                   \
+  F(TypedArrayInitialize)              \
   F(MaxSmi)                            \
   F(TypedArrayMaxSizeInHeap)           \
   F(ArrayBufferViewGetByteLength)      \
