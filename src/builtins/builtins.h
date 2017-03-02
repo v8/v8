@@ -633,7 +633,6 @@ class Isolate;
   CPP(ObjectPreventExtensions)                                                 \
   /* ES6 section 19.1.3.6 Object.prototype.toString () */                      \
   TFJ(ObjectProtoToString, 0)                                                  \
-  TFJ(ObjectPrototypeValueOf, 0)                                               \
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \

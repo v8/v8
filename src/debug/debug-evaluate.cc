@@ -261,7 +261,7 @@ namespace {
 
 bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   switch (id) {
-    // Whitelist for intrinsics and runtime functions.
+    // Whitelist for intrinsics amd runtime functions.
     // Conversions.
     case Runtime::kToInteger:
     case Runtime::kInlineToInteger:
@@ -405,8 +405,6 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
 bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
-    // Object builtins.
-    case Builtins::kObjectPrototypeValueOf:
     // Array builtins.
     case Builtins::kArrayCode:
     case Builtins::kArrayIndexOf:

@@ -310,17 +310,6 @@ TF_BUILTIN(ObjectProtoToString, ObjectBuiltinsAssembler) {
   }
 }
 
-// ES6 19.3.7 Object.prototype.valueOf
-TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
-  Node* receiver = Parameter(0);
-  Node* context = Parameter(3);
-
-  Callable to_object = CodeFactory::ToObject(isolate());
-  receiver = CallStub(to_object, context, receiver);
-
-  Return(receiver);
-}
-
 TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   Node* prototype = Parameter(1);
   Node* properties = Parameter(2);
