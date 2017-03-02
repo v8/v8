@@ -55,14 +55,7 @@ static MaybeHandle<Object> KeyedGetObjectProperty(Isolate* isolate,
         !receiver_obj->IsAccessCheckNeeded() && key_obj->IsName()) {
       Handle<JSObject> receiver = Handle<JSObject>::cast(receiver_obj);
       Handle<Name> key = Handle<Name>::cast(key_obj);
-      // Get to a ThinString's referenced internalized string, but don't
-      // otherwise force internalization.
-      if (key->IsThinString()) {
-        key_obj = key =
-            handle(Handle<ThinString>::cast(key)->actual(), isolate);
-      } else {
-        key_obj = key = isolate->factory()->InternalizeName(key);
-      }
+      key_obj = key = isolate->factory()->InternalizeName(key);
 
       DisallowHeapAllocation no_allocation;
       if (receiver->IsJSGlobalObject()) {
