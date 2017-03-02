@@ -112,11 +112,12 @@ void SloppyBlockFunctionMap::Delegate::set_statement(Statement* statement) {
 }
 
 SloppyBlockFunctionMap::SloppyBlockFunctionMap(Zone* zone)
-    : ZoneHashMap(8, ZoneAllocationPolicy(zone)) {}
+    : ZoneHashMap(8, ZoneAllocationPolicy(zone)), count_(0) {}
 
-void SloppyBlockFunctionMap::Declare(
-    Zone* zone, const AstRawString* name,
-    SloppyBlockFunctionMap::Delegate* delegate) {
+void SloppyBlockFunctionMap::Declare(Zone* zone, const AstRawString* name,
+                                     Scope* scope,
+                                     SloppyBlockFunctionStatement* statement) {
+  auto* delegate = new (zone) Delegate(scope, statement, count_++);
   // AstRawStrings are unambiguous, i.e., the same string is always represented
   // by the same AstRawString*.
   Entry* p =
@@ -170,10 +171,7 @@ Scope::Snapshot::~Snapshot() {
 
 DeclarationScope::DeclarationScope(Zone* zone,
                                    AstValueFactory* ast_value_factory)
-    : Scope(zone),
-      function_kind_(kNormalFunction),
-      params_(4, zone),
-      sloppy_block_function_map_(zone) {
+    : Scope(zone), function_kind_(kNormalFunction), params_(4, zone) {
   DCHECK_EQ(scope_type_, SCRIPT_SCOPE);
   SetDefaults();
 
@@ -187,8 +185,7 @@ DeclarationScope::DeclarationScope(Zone* zone, Scope* outer_scope,
                                    FunctionKind function_kind)
     : Scope(zone, outer_scope, scope_type),
       function_kind_(function_kind),
-      params_(4, zone),
-      sloppy_block_function_map_(zone) {
+      params_(4, zone) {
   DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
   asm_function_ = outer_scope_->IsAsmModule();
@@ -271,8 +268,7 @@ DeclarationScope::DeclarationScope(Zone* zone, ScopeType scope_type,
                                    Handle<ScopeInfo> scope_info)
     : Scope(zone, scope_type, scope_info),
       function_kind_(scope_info->function_kind()),
-      params_(0, zone),
-      sloppy_block_function_map_(zone) {
+      params_(0, zone) {
   DCHECK_NE(scope_type, SCRIPT_SCOPE);
   SetDefaults();
 }
@@ -305,6 +301,7 @@ void DeclarationScope::SetDefaults() {
   has_arguments_parameter_ = false;
   scope_uses_super_property_ = false;
   has_rest_ = false;
+  sloppy_block_function_map_ = nullptr;
   receiver_ = nullptr;
   new_target_ = nullptr;
   function_ = nullptr;
@@ -486,9 +483,12 @@ int Scope::num_parameters() const {
 void DeclarationScope::DeclareSloppyBlockFunction(
     const AstRawString* name, Scope* scope,
     SloppyBlockFunctionStatement* statement) {
-  auto* delegate =
-      new (zone()) SloppyBlockFunctionMap::Delegate(scope, statement);
-  sloppy_block_function_map_.Declare(zone(), name, delegate);
+  if (sloppy_block_function_map_ == nullptr) {
+    sloppy_block_function_map_ =
+        new (zone()->New(sizeof(SloppyBlockFunctionMap)))
+            SloppyBlockFunctionMap(zone());
+  }
+  sloppy_block_function_map_->Declare(zone(), name, scope, statement);
 }
 
 void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
@@ -498,12 +498,19 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
   DCHECK(HasSimpleParameters() || is_block_scope() || is_being_lazily_parsed_);
   DCHECK_EQ(factory == nullptr, is_being_lazily_parsed_);
 
-  bool has_simple_parameters = HasSimpleParameters();
+  SloppyBlockFunctionMap* map = sloppy_block_function_map();
+  if (map == nullptr) return;
+
+  const bool has_simple_parameters = HasSimpleParameters();
+
+  // The declarations need to be added in the order they were seen,
+  // so accumulate declared names sorted by index.
+  ZoneMap<int, const AstRawString*> names_to_declare(zone());
+
   // For each variable which is used as a function declaration in a sloppy
   // block,
-  SloppyBlockFunctionMap* map = sloppy_block_function_map();
   for (ZoneHashMap::Entry* p = map->Start(); p != nullptr; p = map->Next(p)) {
-    AstRawString* name = static_cast<AstRawString*>(p->key);
+    const AstRawString* name = static_cast<AstRawString*>(p->key);
 
     // If the variable wouldn't conflict with a lexical declaration
     // or parameter,
@@ -526,7 +533,7 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       }
     }
 
-    Variable* created_variable = nullptr;
+    bool declaration_queued = false;
 
     // Write in assignments to var for each block-scoped function declaration
     auto delegates = static_cast<SloppyBlockFunctionMap::Delegate*>(p->value);
@@ -560,40 +567,47 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
 
       if (!should_hoist) continue;
 
-      // Declare a var-style binding for the function in the outer scope
+      if (!declaration_queued) {
+        declaration_queued = true;
+        names_to_declare.insert({delegate->index(), name});
+      }
+
       if (factory) {
         DCHECK(!is_being_lazily_parsed_);
-        if (created_variable == nullptr) {
-          VariableProxy* proxy =
-              factory->NewVariableProxy(name, NORMAL_VARIABLE);
-          auto declaration =
-              factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
-          // Based on the preceding check, it doesn't matter what we pass as
-          // allow_harmony_restrictive_generators and
-          // sloppy_mode_block_scope_function_redefinition.
-          bool ok = true;
-          created_variable = DeclareVariable(
-              declaration, VAR, Variable::DefaultInitializationFlag(VAR), false,
-              nullptr, &ok);
-          CHECK(ok);  // Based on the preceding check, this should not fail
-        }
-
         Expression* assignment = factory->NewAssignment(
             Token::ASSIGN, NewUnresolved(factory, name),
             delegate->scope()->NewUnresolved(factory, name), kNoSourcePosition);
         Statement* statement =
             factory->NewExpressionStatement(assignment, kNoSourcePosition);
         delegate->set_statement(statement);
-      } else {
-        DCHECK(is_being_lazily_parsed_);
-        if (created_variable == nullptr) {
-          created_variable = DeclareVariableName(name, VAR);
-          if (created_variable != kDummyPreParserVariable &&
-              created_variable != kDummyPreParserLexicalVariable) {
-            DCHECK(FLAG_preparser_scope_analysis);
-            created_variable->set_maybe_assigned();
-          }
-        }
+      }
+    }
+  }
+
+  if (names_to_declare.empty()) return;
+
+  for (const auto& index_and_name : names_to_declare) {
+    const AstRawString* name = index_and_name.second;
+    if (factory) {
+      DCHECK(!is_being_lazily_parsed_);
+      VariableProxy* proxy = factory->NewVariableProxy(name, NORMAL_VARIABLE);
+      auto declaration =
+          factory->NewVariableDeclaration(proxy, this, kNoSourcePosition);
+      // Based on the preceding checks, it doesn't matter what we pass as
+      // allow_harmony_restrictive_generators and
+      // sloppy_mode_block_scope_function_redefinition.
+      bool ok = true;
+      DeclareVariable(declaration, VAR,
+                      Variable::DefaultInitializationFlag(VAR), false, nullptr,
+                      &ok);
+      DCHECK(ok);
+    } else {
+      DCHECK(is_being_lazily_parsed_);
+      Variable* var = DeclareVariableName(name, VAR);
+      if (var != kDummyPreParserVariable &&
+          var != kDummyPreParserLexicalVariable) {
+        DCHECK(FLAG_preparser_scope_analysis);
+        var->set_maybe_assigned();
       }
     }
   }
@@ -1095,12 +1109,14 @@ Variable* Scope::DeclareVariable(
         // will be a permitted duplicate.
         FunctionKind function_kind =
             declaration->AsFunctionDeclaration()->fun()->kind();
-        duplicate_allowed =
-            GetDeclarationScope()->sloppy_block_function_map()->Lookup(
-                const_cast<AstRawString*>(name), name->hash()) != nullptr &&
-            !IsAsyncFunction(function_kind) &&
-            !(allow_harmony_restrictive_generators &&
-              IsGeneratorFunction(function_kind));
+        SloppyBlockFunctionMap* map =
+            GetDeclarationScope()->sloppy_block_function_map();
+        duplicate_allowed = map != nullptr &&
+                            map->Lookup(const_cast<AstRawString*>(name),
+                                        name->hash()) != nullptr &&
+                            !IsAsyncFunction(function_kind) &&
+                            !(allow_harmony_restrictive_generators &&
+                              IsGeneratorFunction(function_kind));
       }
       if (duplicate_allowed) {
         *sloppy_mode_block_scope_function_redefinition = true;
@@ -1459,12 +1475,12 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
   locals_.Clear();
   inner_scope_ = nullptr;
   unresolved_ = nullptr;
+  sloppy_block_function_map_ = nullptr;
 
   if (aborted) {
     // Prepare scope for use in the outer zone.
     zone_ = ast_value_factory->zone();
     variables_.Reset(ZoneAllocationPolicy(zone_));
-    sloppy_block_function_map_.Reset(ZoneAllocationPolicy(zone_));
     if (!IsArrowFunction(function_kind_)) {
       DeclareDefaultFunctionVariables(ast_value_factory);
     }
@@ -1472,7 +1488,6 @@ void DeclarationScope::ResetAfterPreparsing(AstValueFactory* ast_value_factory,
     // Make sure this scope isn't used for allocation anymore.
     zone_ = nullptr;
     variables_.Invalidate();
-    sloppy_block_function_map_.Invalidate();
   }
 
 #ifdef DEBUG

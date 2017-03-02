@@ -53,22 +53,27 @@ class SloppyBlockFunctionMap : public ZoneHashMap {
  public:
   class Delegate : public ZoneObject {
    public:
-    explicit Delegate(Scope* scope,
-                      SloppyBlockFunctionStatement* statement = nullptr)
-        : scope_(scope), statement_(statement), next_(nullptr) {}
+    Delegate(Scope* scope, SloppyBlockFunctionStatement* statement, int index)
+        : scope_(scope), statement_(statement), next_(nullptr), index_(index) {}
     void set_statement(Statement* statement);
     void set_next(Delegate* next) { next_ = next; }
     Delegate* next() const { return next_; }
     Scope* scope() const { return scope_; }
+    int index() const { return index_; }
 
    private:
     Scope* scope_;
     SloppyBlockFunctionStatement* statement_;
     Delegate* next_;
+    int index_;
   };
 
   explicit SloppyBlockFunctionMap(Zone* zone);
-  void Declare(Zone* zone, const AstRawString* name, Delegate* delegate);
+  void Declare(Zone* zone, const AstRawString* name, Scope* scope,
+               SloppyBlockFunctionStatement* statement);
+
+ private:
+  int count_;
 };
 
 enum class AnalyzeMode { kRegular, kDebugger };
@@ -804,7 +809,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   void HoistSloppyBlockFunctions(AstNodeFactory* factory);
 
   SloppyBlockFunctionMap* sloppy_block_function_map() {
-    return &sloppy_block_function_map_;
+    return sloppy_block_function_map_;
   }
 
   // Compute top scope and allocate variables. For lazy compilation the top
@@ -887,7 +892,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
   // Parameter list in source order.
   ZoneList<Variable*> params_;
   // Map of function names to lists of functions defined in sloppy blocks
-  SloppyBlockFunctionMap sloppy_block_function_map_;
+  SloppyBlockFunctionMap* sloppy_block_function_map_;
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
