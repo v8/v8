@@ -56,6 +56,14 @@ class PatchDirectCallsHelper {
   const byte* func_bytes;
 };
 
+bool IsAtWasmDirectCallTarget(RelocIterator& it) {
+  DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
+  Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+  return code->kind() == Code::WASM_FUNCTION ||
+         code->kind() == Code::WASM_TO_JS_FUNCTION ||
+         code->builtin_index() == Builtins::kIllegal;
+}
+
 }  // namespace
 
 CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone)
@@ -131,26 +139,20 @@ bool CodeSpecialization::ApplyToWholeInstance(
     Code* export_wrapper = Code::cast(code_table->get(func_index));
     DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
     // There must be exactly one call to WASM_FUNCTION or WASM_TO_JS_FUNCTION.
-    int num_wasm_calls = 0;
     for (RelocIterator it(export_wrapper,
                           RelocInfo::ModeMask(RelocInfo::CODE_TARGET));
-         !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsCodeTarget(it.rinfo()->rmode()));
-      Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+         ; it.next()) {
+      DCHECK(!it.done());
       // Ignore calls to other builtins like ToNumber.
-      if (code->kind() != Code::WASM_FUNCTION &&
-          code->kind() != Code::WASM_TO_JS_FUNCTION &&
-          code->builtin_index() != Builtins::kIllegal)
-        continue;
-      ++num_wasm_calls;
+      if (!IsAtWasmDirectCallTarget(it)) continue;
       Code* new_code = Code::cast(code_table->get(exp.index));
       DCHECK(new_code->kind() == Code::WASM_FUNCTION ||
              new_code->kind() == Code::WASM_TO_JS_FUNCTION);
       it.rinfo()->set_target_address(new_code->instruction_start(),
                                      UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-      changed = true;
+      break;
     }
-    DCHECK_EQ(1, num_wasm_calls);
+    changed = true;
     func_index++;
   }
   DCHECK_EQ(code_table->length(), func_index);
@@ -201,13 +203,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
         break;
       case RelocInfo::CODE_TARGET: {
         DCHECK(reloc_direct_calls);
-        Code* old_code =
-            Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
         // Skip everything which is not a wasm call (stack checks, traps, ...).
-        if (old_code->kind() != Code::WASM_FUNCTION &&
-            old_code->kind() != Code::WASM_TO_JS_FUNCTION &&
-            old_code->builtin_index() != Builtins::kIllegal)
-          continue;
+        if (!IsAtWasmDirectCallTarget(it)) continue;
         // Iterate simultaneously over the relocation information and the source
         // position table. For each call in the reloc info, move the source
         // position iterator forward to that position to find the byte offset of

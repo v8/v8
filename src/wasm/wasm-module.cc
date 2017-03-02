@@ -860,24 +860,28 @@ static WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
   return nullptr;
 }
 
-static Handle<Code> UnwrapImportWrapper(Handle<Object> target) {
-  Handle<JSFunction> func = Handle<JSFunction>::cast(target);
+static Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper) {
+  Handle<JSFunction> func = Handle<JSFunction>::cast(import_wrapper);
   Handle<Code> export_wrapper_code = handle(func->code());
-  int found = 0;
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-  Handle<Code> code;
-  for (RelocIterator it(*export_wrapper_code, mask); !it.done(); it.next()) {
-    RelocInfo* rinfo = it.rinfo();
-    Address target_address = rinfo->target_address();
-    Code* target = Code::GetCodeFromTargetAddress(target_address);
-    if (target->kind() == Code::WASM_FUNCTION ||
-        target->kind() == Code::WASM_TO_JS_FUNCTION) {
-      ++found;
-      code = handle(target);
+  for (RelocIterator it(*export_wrapper_code, mask);; it.next()) {
+    DCHECK(!it.done());
+    Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+    if (target->kind() != Code::WASM_FUNCTION &&
+        target->kind() != Code::WASM_TO_JS_FUNCTION)
+      continue;
+// There should only be this one call to wasm code.
+#ifdef DEBUG
+    for (it.next(); !it.done(); it.next()) {
+      Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+      DCHECK(code->kind() != Code::WASM_FUNCTION &&
+             code->kind() != Code::WASM_TO_JS_FUNCTION);
     }
+#endif
+    return handle(target);
   }
-  DCHECK_EQ(1, found);
-  return code;
+  UNREACHABLE();
+  return Handle<Code>::null();
 }
 
 static Handle<Code> CompileImportWrapper(Isolate* isolate, int index,
