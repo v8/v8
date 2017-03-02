@@ -209,6 +209,23 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
   return isolate->heap()->false_value();
 }
 
+RUNTIME_FUNCTION(Runtime_AddDictionaryProperty) {
+  HandleScope scope(isolate);
+  Handle<JSObject> receiver = args.at<JSObject>(0);
+  Handle<Name> name = args.at<Name>(1);
+  Handle<Object> value = args.at(2);
+
+  DCHECK(name->IsUniqueName());
+
+  Handle<NameDictionary> dictionary(receiver->property_dictionary(), isolate);
+  int entry;
+  PropertyDetails property_details(kData, NONE, 0, PropertyCellType::kNoCell);
+  dictionary =
+      NameDictionary::Add(dictionary, name, value, property_details, &entry);
+  receiver->set_properties(*dictionary);
+  return *value;
+}
+
 // ES6 section 19.1.2.2 Object.create ( O [ , Properties ] )
 // TODO(verwaest): Support the common cases with precached map directly in
 // an Object.create stub.

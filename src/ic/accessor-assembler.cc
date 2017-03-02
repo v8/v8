@@ -731,8 +731,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
         Return(p->value);
 
         Bind(&slow);
-        TailCallRuntime(Runtime::kKeyedStoreIC_Slow, p->context, p->value,
-                        p->slot, p->vector, p->receiver, p->name);
+        TailCallRuntime(Runtime::kAddDictionaryProperty, p->context,
+                        p->receiver, p->name, p->value);
       }
     }
   }
