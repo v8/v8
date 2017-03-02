@@ -30,8 +30,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
-  void GenerateStoreIC();
-  void GenerateStoreICTrampoline();
+  void GenerateStoreIC(LanguageMode language_mode);
+  void GenerateStoreICTrampoline(LanguageMode language_mode);
 
   void GenerateLoadICProtoArray(bool throw_reference_error_if_nonexistent);
 

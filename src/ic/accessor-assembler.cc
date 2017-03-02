@@ -2072,8 +2072,8 @@ void AccessorAssembler::GenerateLoadICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  LoadICParameters p(context, receiver, name, slot, vector);
-  LoadIC(&p);
+  Callable callable = CodeFactory::LoadICInOptimizedCode(isolate());
+  TailCallStub(callable, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadICProtoArray(
@@ -2135,8 +2135,9 @@ void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  LoadICParameters p(context, nullptr, name, slot, vector);
-  LoadGlobalIC(&p, typeof_mode);
+  Callable callable =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), typeof_mode);
+  TailCallStub(callable, context, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC() {
@@ -2161,8 +2162,8 @@ void AccessorAssembler::GenerateKeyedLoadICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  LoadICParameters p(context, receiver, name, slot, vector);
-  KeyedLoadIC(&p);
+  Callable callable = CodeFactory::KeyedLoadICInOptimizedCode(isolate());
+  TailCallStub(callable, context, receiver, name, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
@@ -2178,7 +2179,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
   KeyedLoadICGeneric(&p);
 }
 
-void AccessorAssembler::GenerateStoreIC() {
+void AccessorAssembler::GenerateStoreIC(LanguageMode language_mode) {
   typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2189,10 +2190,11 @@ void AccessorAssembler::GenerateStoreIC() {
   Node* context = Parameter(Descriptor::kContext);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
+  // Current StoreIC dispatcher does not depend on the language mode.
   StoreIC(&p);
 }
 
-void AccessorAssembler::GenerateStoreICTrampoline() {
+void AccessorAssembler::GenerateStoreICTrampoline(LanguageMode language_mode) {
   typedef StoreDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2202,8 +2204,9 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  StoreICParameters p(context, receiver, name, value, slot, vector);
-  StoreIC(&p);
+  Callable callable =
+      CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
+  TailCallStub(callable, context, receiver, name, value, slot, vector);
 }
 
 void AccessorAssembler::GenerateKeyedStoreIC(LanguageMode language_mode) {
@@ -2231,8 +2234,9 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline(
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  StoreICParameters p(context, receiver, name, value, slot, vector);
-  KeyedStoreIC(&p, language_mode);
+  Callable callable =
+      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), language_mode);
+  TailCallStub(callable, context, receiver, name, value, slot, vector);
 }
 
 }  // namespace internal
