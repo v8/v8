@@ -1637,10 +1637,46 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsSimd128(node), VisitSimd8x16Select(node);
     case IrOpcode::kSimd1x4Zero:
       return MarkAsSimd1x4(node), VisitSimd1x4Zero(node);
+    case IrOpcode::kSimd1x4And:
+      return MarkAsSimd1x4(node), VisitSimd1x4And(node);
+    case IrOpcode::kSimd1x4Or:
+      return MarkAsSimd1x4(node), VisitSimd1x4Or(node);
+    case IrOpcode::kSimd1x4Xor:
+      return MarkAsSimd1x4(node), VisitSimd1x4Xor(node);
+    case IrOpcode::kSimd1x4Not:
+      return MarkAsSimd1x4(node), VisitSimd1x4Not(node);
+    case IrOpcode::kSimd1x4AnyTrue:
+      return MarkAsWord32(node), VisitSimd1x4AnyTrue(node);
+    case IrOpcode::kSimd1x4AllTrue:
+      return MarkAsWord32(node), VisitSimd1x4AllTrue(node);
     case IrOpcode::kSimd1x8Zero:
       return MarkAsSimd1x8(node), VisitSimd1x8Zero(node);
+    case IrOpcode::kSimd1x8And:
+      return MarkAsSimd1x8(node), VisitSimd1x8And(node);
+    case IrOpcode::kSimd1x8Or:
+      return MarkAsSimd1x8(node), VisitSimd1x8Or(node);
+    case IrOpcode::kSimd1x8Xor:
+      return MarkAsSimd1x8(node), VisitSimd1x8Xor(node);
+    case IrOpcode::kSimd1x8Not:
+      return MarkAsSimd1x8(node), VisitSimd1x8Not(node);
+    case IrOpcode::kSimd1x8AnyTrue:
+      return MarkAsWord32(node), VisitSimd1x8AnyTrue(node);
+    case IrOpcode::kSimd1x8AllTrue:
+      return MarkAsWord32(node), VisitSimd1x8AllTrue(node);
     case IrOpcode::kSimd1x16Zero:
       return MarkAsSimd1x16(node), VisitSimd1x16Zero(node);
+    case IrOpcode::kSimd1x16And:
+      return MarkAsSimd1x16(node), VisitSimd1x16And(node);
+    case IrOpcode::kSimd1x16Or:
+      return MarkAsSimd1x16(node), VisitSimd1x16Or(node);
+    case IrOpcode::kSimd1x16Xor:
+      return MarkAsSimd1x16(node), VisitSimd1x16Xor(node);
+    case IrOpcode::kSimd1x16Not:
+      return MarkAsSimd1x16(node), VisitSimd1x16Not(node);
+    case IrOpcode::kSimd1x16AnyTrue:
+      return MarkAsWord32(node), VisitSimd1x16AnyTrue(node);
+    case IrOpcode::kSimd1x16AllTrue:
+      return MarkAsWord32(node), VisitSimd1x16AllTrue(node);
     default:
       V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
                node->opcode(), node->op()->mnemonic(), node->id());
@@ -2254,6 +2290,42 @@ void InstructionSelector::VisitSimd32x4Select(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitSimd16x8Select(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitSimd8x16Select(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x4And(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x4Or(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x4Xor(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x4Not(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x4AnyTrue(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x4AllTrue(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x8And(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x8Or(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x8Xor(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x8Not(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x8AnyTrue(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x8AllTrue(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x16And(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x16Or(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x16Xor(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x16Not(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x16AnyTrue(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitSimd1x16AllTrue(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM
 
 void InstructionSelector::VisitFinishRegion(Node* node) { EmitIdentity(node); }

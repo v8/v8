@@ -418,7 +418,8 @@ const QwNeonRegister q15 = { 15 };
 // compilation unit that includes this header doesn't use the variables.
 #define kFirstCalleeSavedDoubleReg d8
 #define kLastCalleeSavedDoubleReg d15
-// kDoubleRegZero and kScratchDoubleReg must pair to form kScratchQuadReg.
+// kDoubleRegZero and kScratchDoubleReg must pair to form kScratchQuadReg. SIMD
+// code depends on kDoubleRegZero before kScratchDoubleReg.
 #define kDoubleRegZero d14
 #define kScratchDoubleReg d15
 // After using kScratchQuadReg, kDoubleRegZero must be reset to 0.
@@ -1359,6 +1360,10 @@ class Assembler : public AssemblerBase {
   void vmax(QwNeonRegister dst, QwNeonRegister src1, QwNeonRegister src2);
   void vmax(NeonDataType dt, QwNeonRegister dst,
             QwNeonRegister src1, QwNeonRegister src2);
+  void vpmin(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
+             DwVfpRegister src2);
+  void vpmax(NeonDataType dt, DwVfpRegister dst, DwVfpRegister src1,
+             DwVfpRegister src2);
   void vshl(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   void vshr(NeonDataType dt, QwNeonRegister dst, QwNeonRegister src, int shift);
   // vrecpe and vrsqrte only support floating point lanes.

@@ -1162,6 +1162,15 @@ void MacroAssembler::ExtractLane(Register dst, QwNeonRegister src,
   vmov(dt, dst, double_source, double_lane);
 }
 
+void MacroAssembler::ExtractLane(Register dst, DwVfpRegister src,
+                                 NeonDataType dt, int lane) {
+  int size = NeonSz(dt);  // 0, 1, 2
+  int byte = lane << size;
+  int double_byte = byte & (kDoubleSize - 1);
+  int double_lane = double_byte >> size;
+  vmov(dt, dst, src, double_lane);
+}
+
 void MacroAssembler::ExtractLane(SwVfpRegister dst, QwNeonRegister src,
                                  Register scratch, int lane) {
   int s_code = src.code() * 4 + lane;

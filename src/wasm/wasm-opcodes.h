@@ -381,7 +381,25 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(S16x8Shuffle, 0xe54d, s_ss)          \
   V(S8x16Select, 0xe56a, s_s1x16ss)      \
   V(S8x16Swizzle, 0xe56b, s_s)           \
-  V(S8x16Shuffle, 0xe56c, s_ss)
+  V(S8x16Shuffle, 0xe56c, s_ss)          \
+  V(S1x4And, 0xe580, s1x4_s1x4s1x4)      \
+  V(S1x4Or, 0xe581, s1x4_s1x4s1x4)       \
+  V(S1x4Xor, 0xe582, s1x4_s1x4s1x4)      \
+  V(S1x4Not, 0xe583, s1x4_s1x4)          \
+  V(S1x4AnyTrue, 0xe584, i_s1x4)         \
+  V(S1x4AllTrue, 0xe585, i_s1x4)         \
+  V(S1x8And, 0xe586, s1x8_s1x8s1x8)      \
+  V(S1x8Or, 0xe587, s1x8_s1x8s1x8)       \
+  V(S1x8Xor, 0xe588, s1x8_s1x8s1x8)      \
+  V(S1x8Not, 0xe589, s1x8_s1x8)          \
+  V(S1x8AnyTrue, 0xe58a, i_s1x8)         \
+  V(S1x8AllTrue, 0xe58b, i_s1x8)         \
+  V(S1x16And, 0xe58c, s1x16_s1x16s1x16)  \
+  V(S1x16Or, 0xe58d, s1x16_s1x16s1x16)   \
+  V(S1x16Xor, 0xe58e, s1x16_s1x16s1x16)  \
+  V(S1x16Not, 0xe58f, s1x16_s1x16)       \
+  V(S1x16AnyTrue, 0xe590, i_s1x16)       \
+  V(S1x16AllTrue, 0xe591, i_s1x16)
 
 #define FOREACH_SIMD_1_OPERAND_OPCODE(V) \
   V(F32x4ExtractLane, 0xe501, _)         \
@@ -483,19 +501,28 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(f_if, kWasmF32, kWasmI32, kWasmF32) \
   V(l_il, kWasmI64, kWasmI32, kWasmI64)
 
-#define FOREACH_SIMD_SIGNATURE(V)                         \
-  V(s_s, kWasmS128, kWasmS128)                            \
-  V(s_f, kWasmS128, kWasmF32)                             \
-  V(s_ss, kWasmS128, kWasmS128, kWasmS128)                \
-  V(s1x4_ss, kWasmS1x4, kWasmS128, kWasmS128)             \
-  V(s1x8_ss, kWasmS1x8, kWasmS128, kWasmS128)             \
-  V(s1x16_ss, kWasmS1x16, kWasmS128, kWasmS128)           \
-  V(s_i, kWasmS128, kWasmI32)                             \
-  V(s_si, kWasmS128, kWasmS128, kWasmI32)                 \
-  V(i_s, kWasmI32, kWasmS128)                             \
-  V(s_s1x4ss, kWasmS128, kWasmS1x4, kWasmS128, kWasmS128) \
-  V(s_s1x8ss, kWasmS128, kWasmS1x8, kWasmS128, kWasmS128) \
-  V(s_s1x16ss, kWasmS128, kWasmS1x16, kWasmS128, kWasmS128)
+#define FOREACH_SIMD_SIGNATURE(V)                           \
+  V(s_s, kWasmS128, kWasmS128)                              \
+  V(s_f, kWasmS128, kWasmF32)                               \
+  V(s_ss, kWasmS128, kWasmS128, kWasmS128)                  \
+  V(s1x4_ss, kWasmS1x4, kWasmS128, kWasmS128)               \
+  V(s1x8_ss, kWasmS1x8, kWasmS128, kWasmS128)               \
+  V(s1x16_ss, kWasmS1x16, kWasmS128, kWasmS128)             \
+  V(s_i, kWasmS128, kWasmI32)                               \
+  V(s_si, kWasmS128, kWasmS128, kWasmI32)                   \
+  V(i_s, kWasmI32, kWasmS128)                               \
+  V(i_s1x4, kWasmI32, kWasmS1x4)                            \
+  V(i_s1x8, kWasmI32, kWasmS1x8)                            \
+  V(i_s1x16, kWasmI32, kWasmS1x16)                          \
+  V(s_s1x4ss, kWasmS128, kWasmS1x4, kWasmS128, kWasmS128)   \
+  V(s_s1x8ss, kWasmS128, kWasmS1x8, kWasmS128, kWasmS128)   \
+  V(s_s1x16ss, kWasmS128, kWasmS1x16, kWasmS128, kWasmS128) \
+  V(s1x4_s1x4, kWasmS1x4, kWasmS1x4)                        \
+  V(s1x4_s1x4s1x4, kWasmS1x4, kWasmS1x4, kWasmS1x4)         \
+  V(s1x8_s1x8, kWasmS1x8, kWasmS1x8)                        \
+  V(s1x8_s1x8s1x8, kWasmS1x8, kWasmS1x8, kWasmS1x8)         \
+  V(s1x16_s1x16, kWasmS1x16, kWasmS1x16)                    \
+  V(s1x16_s1x16s1x16, kWasmS1x16, kWasmS1x16, kWasmS1x16)
 
 #define FOREACH_PREFIX(V) \
   V(Simd, 0xe5)           \

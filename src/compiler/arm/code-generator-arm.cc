@@ -1636,8 +1636,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmInt32x4GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonS32, dst, i.InputSimd128Register(0),
+      __ vcge(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
@@ -1662,8 +1661,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmUint32x4GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonU32, dst, i.InputSimd128Register(0),
+      __ vcge(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
@@ -1748,8 +1746,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmInt16x8GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonS16, dst, i.InputSimd128Register(0),
+      __ vcge(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
@@ -1784,8 +1781,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmUint16x8GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonU16, dst, i.InputSimd128Register(0),
+      __ vcge(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
@@ -1869,8 +1865,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmInt8x16GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonS8, dst, i.InputSimd128Register(0),
+      __ vcge(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
@@ -1905,8 +1900,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArmUint8x16GreaterThanOrEqual: {
-      Simd128Register dst = i.OutputSimd128Register();
-      __ vcge(NeonU8, dst, i.InputSimd128Register(0),
+      __ vcge(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
       break;
     }
@@ -1934,13 +1928,67 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
-    case kArmSimd32x4Select:
-    case kArmSimd16x8Select:
-    case kArmSimd8x16Select: {
+    case kArmSimd128Select: {
       // vbsl clobbers the mask input so make sure it was DefineSameAsFirst.
       DCHECK(i.OutputSimd128Register().is(i.InputSimd128Register(0)));
       __ vbsl(i.OutputSimd128Register(), i.InputSimd128Register(1),
               i.InputSimd128Register(2));
+      break;
+    }
+    case kArmSimd1x4AnyTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmax(NeonU32, kScratchDoubleReg, src.low(), src.high());
+      __ vpmax(NeonU32, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
+      break;
+    }
+    case kArmSimd1x4AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmin(NeonU32, kScratchDoubleReg, src.low(), src.high());
+      __ vpmin(NeonU32, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
+      break;
+    }
+    case kArmSimd1x8AnyTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmax(NeonU16, kScratchDoubleReg, src.low(), src.high());
+      __ vpmax(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ vpmax(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS16, 0);
+      break;
+    }
+    case kArmSimd1x8AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmin(NeonU16, kScratchDoubleReg, src.low(), src.high());
+      __ vpmin(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ vpmin(NeonU16, kScratchDoubleReg, kScratchDoubleReg,
+               kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS16, 0);
+      break;
+    }
+    case kArmSimd1x16AnyTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmax(NeonU8, kScratchDoubleReg, src.low(), src.high());
+      __ vpmax(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      // vtst to detect any bits in the bottom 32 bits of kScratchDoubleReg.
+      // This saves an instruction vs. the naive sequence of vpmax.
+      // kDoubleRegZero is not changed, since it is 0.
+      __ vtst(Neon32, kScratchQuadReg, kScratchQuadReg, kScratchQuadReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS32, 0);
+      break;
+    }
+    case kArmSimd1x16AllTrue: {
+      const QwNeonRegister& src = i.InputSimd128Register(0);
+      __ vpmin(NeonU8, kScratchDoubleReg, src.low(), src.high());
+      __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpmin(NeonU8, kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS8, 0);
       break;
     }
     case kCheckedLoadInt8:

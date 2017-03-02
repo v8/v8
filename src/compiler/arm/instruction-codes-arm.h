@@ -206,9 +206,13 @@ namespace compiler {
   V(ArmSimd128Or)                  \
   V(ArmSimd128Xor)                 \
   V(ArmSimd128Not)                 \
-  V(ArmSimd32x4Select)             \
-  V(ArmSimd16x8Select)             \
-  V(ArmSimd8x16Select)
+  V(ArmSimd128Select)              \
+  V(ArmSimd1x4AnyTrue)             \
+  V(ArmSimd1x4AllTrue)             \
+  V(ArmSimd1x8AnyTrue)             \
+  V(ArmSimd1x8AllTrue)             \
+  V(ArmSimd1x16AnyTrue)            \
+  V(ArmSimd1x16AllTrue)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

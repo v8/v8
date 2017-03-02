@@ -3611,15 +3611,6 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
       return graph()->NewNode(
           jsgraph()->machine()->Uint8x16GreaterThanOrEqual(), inputs[0],
           inputs[1]);
-    case wasm::kExprS32x4Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd32x4Select(), inputs[0],
-                              inputs[1], inputs[2]);
-    case wasm::kExprS16x8Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd16x8Select(), inputs[0],
-                              inputs[1], inputs[2]);
-    case wasm::kExprS8x16Select:
-      return graph()->NewNode(jsgraph()->machine()->Simd8x16Select(), inputs[0],
-                              inputs[1], inputs[2]);
     case wasm::kExprS128And:
       return graph()->NewNode(jsgraph()->machine()->Simd128And(), inputs[0],
                               inputs[1]);
@@ -3631,6 +3622,66 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
                               inputs[1]);
     case wasm::kExprS128Not:
       return graph()->NewNode(jsgraph()->machine()->Simd128Not(), inputs[0]);
+    case wasm::kExprS32x4Select:
+      return graph()->NewNode(jsgraph()->machine()->Simd32x4Select(), inputs[0],
+                              inputs[1], inputs[2]);
+    case wasm::kExprS16x8Select:
+      return graph()->NewNode(jsgraph()->machine()->Simd16x8Select(), inputs[0],
+                              inputs[1], inputs[2]);
+    case wasm::kExprS8x16Select:
+      return graph()->NewNode(jsgraph()->machine()->Simd8x16Select(), inputs[0],
+                              inputs[1], inputs[2]);
+    case wasm::kExprS1x4And:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x4And(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x4Or:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x4Or(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x4Xor:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x4Xor(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x4Not:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x4Not(), inputs[0]);
+    case wasm::kExprS1x4AnyTrue:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x4AnyTrue(),
+                              inputs[0]);
+    case wasm::kExprS1x4AllTrue:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x4AllTrue(),
+                              inputs[0]);
+    case wasm::kExprS1x8And:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x8And(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x8Or:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x8Or(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x8Xor:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x8Xor(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x8Not:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x8Not(), inputs[0]);
+    case wasm::kExprS1x8AnyTrue:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x8AnyTrue(),
+                              inputs[0]);
+    case wasm::kExprS1x8AllTrue:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x8AllTrue(),
+                              inputs[0]);
+    case wasm::kExprS1x16And:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x16And(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x16Or:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x16Or(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x16Xor:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x16Xor(), inputs[0],
+                              inputs[1]);
+    case wasm::kExprS1x16Not:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x16Not(), inputs[0]);
+    case wasm::kExprS1x16AnyTrue:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x16AnyTrue(),
+                              inputs[0]);
+    case wasm::kExprS1x16AllTrue:
+      return graph()->NewNode(jsgraph()->machine()->Simd1x16AllTrue(),
+                              inputs[0]);
     default:
       return graph()->NewNode(UnsupportedOpcode(opcode), nullptr);
   }

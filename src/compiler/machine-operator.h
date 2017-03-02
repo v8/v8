@@ -478,13 +478,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint32x4GreaterThanOrEqual();
   const Operator* Uint32x4FromFloat32x4();
 
-  const Operator* Bool32x4And();
-  const Operator* Bool32x4Or();
-  const Operator* Bool32x4Xor();
-  const Operator* Bool32x4Not();
-  const Operator* Bool32x4AnyTrue();
-  const Operator* Bool32x4AllTrue();
-
   const Operator* Int16x8Splat();
   const Operator* Int16x8ExtractLane(int32_t);
   const Operator* Int16x8ReplaceLane(int32_t);
@@ -514,13 +507,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint16x8LessThanOrEqual();
   const Operator* Uint16x8GreaterThan();
   const Operator* Uint16x8GreaterThanOrEqual();
-
-  const Operator* Bool16x8And();
-  const Operator* Bool16x8Or();
-  const Operator* Bool16x8Xor();
-  const Operator* Bool16x8Not();
-  const Operator* Bool16x8AnyTrue();
-  const Operator* Bool16x8AllTrue();
 
   const Operator* Int8x16Splat();
   const Operator* Int8x16ExtractLane(int32_t);
@@ -552,13 +538,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Uint8x16GreaterThan();
   const Operator* Uint8x16GreaterThanOrEqual();
 
-  const Operator* Bool8x16And();
-  const Operator* Bool8x16Or();
-  const Operator* Bool8x16Xor();
-  const Operator* Bool8x16Not();
-  const Operator* Bool8x16AnyTrue();
-  const Operator* Bool8x16AllTrue();
-
   const Operator* Simd128Load();
   const Operator* Simd128Load1();
   const Operator* Simd128Load2();
@@ -585,8 +564,28 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Simd8x16Shuffle();
 
   const Operator* Simd1x4Zero();
+  const Operator* Simd1x4And();
+  const Operator* Simd1x4Or();
+  const Operator* Simd1x4Xor();
+  const Operator* Simd1x4Not();
+  const Operator* Simd1x4AnyTrue();
+  const Operator* Simd1x4AllTrue();
+
   const Operator* Simd1x8Zero();
+  const Operator* Simd1x8And();
+  const Operator* Simd1x8Or();
+  const Operator* Simd1x8Xor();
+  const Operator* Simd1x8Not();
+  const Operator* Simd1x8AnyTrue();
+  const Operator* Simd1x8AllTrue();
+
   const Operator* Simd1x16Zero();
+  const Operator* Simd1x16And();
+  const Operator* Simd1x16Or();
+  const Operator* Simd1x16Xor();
+  const Operator* Simd1x16Not();
+  const Operator* Simd1x16AnyTrue();
+  const Operator* Simd1x16AllTrue();
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);

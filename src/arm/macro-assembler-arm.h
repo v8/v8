@@ -563,6 +563,7 @@ class MacroAssembler: public Assembler {
   void VmovExtended(const MemOperand& dst, int src_code, Register scratch);
 
   void ExtractLane(Register dst, QwNeonRegister src, NeonDataType dt, int lane);
+  void ExtractLane(Register dst, DwVfpRegister src, NeonDataType dt, int lane);
   void ExtractLane(SwVfpRegister dst, QwNeonRegister src, Register scratch,
                    int lane);
   void ReplaceLane(QwNeonRegister dst, QwNeonRegister src, Register src_lane,
