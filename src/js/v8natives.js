@@ -30,12 +30,6 @@ function ObjectToLocaleString() {
 }
 
 
-// ES6 19.1.3.7 Object.prototype.valueOf()
-function ObjectValueOf() {
-  return TO_OBJECT(this);
-}
-
-
 // ES6 19.1.3.3 Object.prototype.isPrototypeOf(V)
 function ObjectIsPrototypeOf(V) {
   if (!IS_RECEIVER(V)) return false;
@@ -75,7 +69,7 @@ function ObjectConstructor(x) {
 utils.InstallFunctions(GlobalObject.prototype, DONT_ENUM, [
   "toString", ObjectToString,
   "toLocaleString", ObjectToLocaleString,
-  "valueOf", ObjectValueOf,
+  // valueOf is added in bootstrapper.cc.
   "isPrototypeOf", ObjectIsPrototypeOf,
   // propertyIsEnumerable is added in bootstrapper.cc.
   // __defineGetter__ is added in bootstrapper.cc.
@@ -111,9 +105,5 @@ utils.Export(function(to) {
   to.GetMethod = GetMethod;
   to.ObjectHasOwnProperty = GlobalObject.prototype.hasOwnProperty;
 });
-
-%InstallToContext([
-  "object_value_of", ObjectValueOf,
-]);
 
 })
