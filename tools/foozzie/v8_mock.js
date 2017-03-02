@@ -32,14 +32,25 @@ var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
   }
 
   var origDate = Date;
+  var constructDate = function(args) {
+    if (args.length > 0) {
+      var result = new (
+          Function.prototype.bind.apply(origDate, [null].concat(args)));
+    } else {
+      var result = new origDate(mockDateNow());
+    }
+    result.constructor = function(...args) { return constructDate(args); }
+    Object.defineProperty(
+        result, "constructor", { configurable: false, writable: false });
+    return result
+  }
+
   var handler = {
-    construct: function(target, args, newTarget) {
-      if (args.length > 0) {
-        return new (
-            Function.prototype.bind.apply(origDate, [null].concat(args)));
-      } else {
-        return new origDate(mockDateNow());
-      }
+    apply: function (target, thisArg, args) {
+      return constructDate(args)
+    },
+    construct: function (target, args, newTarget) {
+      return constructDate(args)
     },
     get: function(target, property, receiver) {
       if (property == "now") {
