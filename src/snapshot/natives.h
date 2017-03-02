@@ -15,6 +15,7 @@ namespace internal {
 
 enum NativeType {
   CORE,
+  EXPERIMENTAL,
   EXTRAS,
   EXPERIMENTAL_EXTRAS,
   D8,
@@ -53,6 +54,7 @@ class V8_EXPORT_PRIVATE NativesCollection {
 };
 
 typedef NativesCollection<CORE> Natives;
+typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
 typedef NativesCollection<EXTRAS> ExtraNatives;
 typedef NativesCollection<EXPERIMENTAL_EXTRAS> ExperimentalExtraNatives;
 
