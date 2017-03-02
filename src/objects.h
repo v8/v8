@@ -6268,6 +6268,11 @@ class Map: public HeapObject {
       Handle<Map> split_map, Handle<DescriptorArray> descriptors,
       Handle<LayoutDescriptor> full_layout_descriptor);
 
+  // Fires when the layout of an object with a leaf map changes.
+  // This includes adding transitions to the leaf map or changing
+  // the descriptor array.
+  inline void NotifyLeafMapLayoutChange();
+
  private:
   // Returns the map that this (root) map transitions to if its elements_kind
   // is changed to |elements_kind|, or |nullptr| if no such map is cached yet.
@@ -6320,11 +6325,6 @@ class Map: public HeapObject {
   static Handle<Map> CopyGeneralizeAllFields(
       Handle<Map> map, ElementsKind elements_kind, int modify_index,
       PropertyKind kind, PropertyAttributes attributes, const char* reason);
-
-  // Fires when the layout of an object with a leaf map changes.
-  // This includes adding transitions to the leaf map or changing
-  // the descriptor array.
-  inline void NotifyLeafMapLayoutChange();
 
   void DeprecateTransitionTree();
 
