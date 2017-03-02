@@ -2422,7 +2422,16 @@ Handle<String> String::SlowFlatten(Handle<ConsString> cons,
   DCHECK(cons->second()->length() != 0);
 
   // TurboFan can create cons strings with empty first parts.
-  if (cons->first()->length() == 0) return handle(cons->second());
+  while (cons->first()->length() == 0) {
+    // We do not want to call this function recursively. Therefore we call
+    // String::Flatten only in those cases where String::SlowFlatten is not
+    // called again.
+    if (cons->second()->IsConsString() && !cons->second()->IsFlat()) {
+      cons = handle(ConsString::cast(cons->second()));
+    } else {
+      return String::Flatten(handle(cons->second()));
+    }
+  }
 
   DCHECK(AllowHeapAllocation::IsAllowed());
   Isolate* isolate = cons->GetIsolate();
