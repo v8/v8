@@ -506,6 +506,7 @@ void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
 void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSRegExp");
   os << "\n - data = " << Brief(data());
+  os << "\n - source = " << Brief(source());
   JSObjectPrintBody(os, this);
 }
 

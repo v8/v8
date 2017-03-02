@@ -2433,31 +2433,6 @@ void Smi::SmiPrint(std::ostream& os) const {  // NOLINT
   os << value();
 }
 
-
-// Should a word be prefixed by 'a' or 'an' in order to read naturally in
-// English?  Returns false for non-ASCII or words that don't start with
-// a capital letter.  The a/an rule follows pronunciation in English.
-// We don't use the BBC's overcorrect "an historic occasion" though if
-// you speak a dialect you may well say "an 'istoric occasion".
-static bool AnWord(String* str) {
-  if (str->length() == 0) return false;  // A nothing.
-  int c0 = str->Get(0);
-  int c1 = str->length() > 1 ? str->Get(1) : 0;
-  if (c0 == 'U') {
-    if (c1 > 'Z') {
-      return true;  // An Umpire, but a UTF8String, a U.
-    }
-  } else if (c0 == 'A' || c0 == 'E' || c0 == 'I' || c0 == 'O') {
-    return true;    // An Ape, an ABCBook.
-  } else if ((c1 == 0 || (c1 >= 'A' && c1 <= 'Z')) &&
-           (c0 == 'F' || c0 == 'H' || c0 == 'M' || c0 == 'N' || c0 == 'R' ||
-            c0 == 'S' || c0 == 'X')) {
-    return true;    // An MP3File, an M.
-  }
-  return false;
-}
-
-
 Handle<String> String::SlowFlatten(Handle<ConsString> cons,
                                    PretenureFlag pretenure) {
   DCHECK(cons->second()->length() != 0);
@@ -2712,27 +2687,34 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       double length = JSArray::cast(this)->length()->IsUndefined(GetIsolate())
                           ? 0
                           : JSArray::cast(this)->length()->Number();
-      accumulator->Add("<JS Array[%u]>", static_cast<uint32_t>(length));
+      accumulator->Add("<JSArray[%u]>", static_cast<uint32_t>(length));
       break;
     }
     case JS_BOUND_FUNCTION_TYPE: {
       JSBoundFunction* bound_function = JSBoundFunction::cast(this);
-      accumulator->Add("<JS BoundFunction");
+      accumulator->Add("<JSBoundFunction");
       accumulator->Add(
           " (BoundTargetFunction %p)>",
           reinterpret_cast<void*>(bound_function->bound_target_function()));
       break;
     }
     case JS_WEAK_MAP_TYPE: {
-      accumulator->Add("<JS WeakMap>");
+      accumulator->Add("<JSWeakMap>");
       break;
     }
     case JS_WEAK_SET_TYPE: {
-      accumulator->Add("<JS WeakSet>");
+      accumulator->Add("<JSWeakSet>");
       break;
     }
     case JS_REGEXP_TYPE: {
-      accumulator->Add("<JS RegExp>");
+      accumulator->Add("<JSRegExp");
+      JSRegExp* regexp = JSRegExp::cast(this);
+      if (regexp->source()->IsString()) {
+        accumulator->Add(" ");
+        String::cast(regexp->source())->StringShortPrint(accumulator);
+      }
+      accumulator->Add(">");
+
       break;
     }
     case JS_FUNCTION_TYPE: {
@@ -2742,13 +2724,13 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       if (fun_name->IsString()) {
         String* str = String::cast(fun_name);
         if (str->length() > 0) {
-          accumulator->Add("<JS Function ");
+          accumulator->Add("<JSFunction ");
           accumulator->Put(str);
           printed = true;
         }
       }
       if (!printed) {
-        accumulator->Add("<JS Function");
+        accumulator->Add("<JSFunction");
       }
       if (FLAG_trace_file_names) {
         Object* source_name =
@@ -2762,13 +2744,13 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
           }
         }
       }
-      accumulator->Add(" (SharedFunctionInfo %p)",
+      accumulator->Add(" (sfi = %p)",
                        reinterpret_cast<void*>(function->shared()));
       accumulator->Put('>');
       break;
     }
     case JS_GENERATOR_OBJECT_TYPE: {
-      accumulator->Add("<JS Generator>");
+      accumulator->Add("<JSGenerator>");
       break;
     }
     // All other JSObjects are rather similar to each other (JSObject,
@@ -2792,13 +2774,11 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
             if (constructor_name->IsString()) {
               String* str = String::cast(constructor_name);
               if (str->length() > 0) {
-                bool vowel = AnWord(str);
-                accumulator->Add("<%sa%s ",
-                       global_object ? "Global Object: " : "",
-                       vowel ? "n" : "");
+                accumulator->Add(global_object ? "<GlobalObject " : "<");
                 accumulator->Put(str);
-                accumulator->Add(" with %smap %p",
-                    map_of_this->is_deprecated() ? "deprecated " : "",
+                accumulator->Add(
+                    " %smap = %p",
+                    map_of_this->is_deprecated() ? "deprecated-" : "",
                     map_of_this);
                 printed = true;
               }
@@ -2806,7 +2786,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
           }
         }
         if (!printed) {
-          accumulator->Add("<JS %sObject", global_object ? "Global " : "");
+          accumulator->Add("<JS%sObject", global_object ? "Global " : "");
         }
       }
       if (IsJSValue()) {
@@ -3032,14 +3012,14 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
 #undef MAKE_STRUCT_CASE
     case CODE_TYPE: {
       Code* code = Code::cast(this);
-      os << "<Code: " << Code::Kind2String(code->kind()) << ">";
+      os << "<Code " << Code::Kind2String(code->kind()) << ">";
       break;
     }
     case ODDBALL_TYPE: {
       if (IsUndefined(isolate)) {
         os << "<undefined>";
       } else if (IsTheHole(isolate)) {
-        os << "<the hole>";
+        os << "<the_hole>";
       } else if (IsNull(isolate)) {
         os << "<null>";
       } else if (IsTrue(isolate)) {
@@ -3059,13 +3039,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       break;
     }
     case HEAP_NUMBER_TYPE: {
-      os << "<Number: ";
+      os << "<Number ";
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">";
       break;
     }
     case MUTABLE_HEAP_NUMBER_TYPE: {
-      os << "<MutableNumber: ";
+      os << "<MutableNumber ";
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << '>';
       break;
@@ -3077,28 +3057,31 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<Foreign>";
       break;
     case CELL_TYPE: {
-      os << "Cell for ";
+      os << "<Cell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
       Cell::cast(this)->value()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
+      os << '>';
       break;
     }
     case PROPERTY_CELL_TYPE: {
-      os << "PropertyCell for ";
+      os << "<PropertyCell value=";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
       PropertyCell* cell = PropertyCell::cast(this);
       cell->value()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
+      os << '>';
       break;
     }
     case WEAK_CELL_TYPE: {
-      os << "WeakCell for ";
+      os << "<WeakCell value= ";
       HeapStringAllocator allocator;
       StringStream accumulator(&allocator);
       WeakCell::cast(this)->value()->ShortPrint(&accumulator);
       os << accumulator.ToCString().get();
+      os << '>';
       break;
     }
     default:

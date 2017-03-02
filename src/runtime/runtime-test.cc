@@ -528,6 +528,7 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
   if (args[0]->IsString() && isolate->context() != nullptr) {
     // If we have a string, assume it's a code "marker"
     // and print some interesting cpu debugging info.
+    args[0]->Print(os);
     JavaScriptFrameIterator it(isolate);
     JavaScriptFrame* frame = it.frame();
     os << "fp = " << static_cast<void*>(frame->fp())
@@ -535,8 +536,8 @@ RUNTIME_FUNCTION(Runtime_DebugPrint) {
        << ", caller_sp = " << static_cast<void*>(frame->caller_sp()) << ": ";
   } else {
     os << "DebugPrint: ";
+    args[0]->Print(os);
   }
-  args[0]->Print(os);
   if (args[0]->IsHeapObject()) {
     HeapObject::cast(args[0])->map()->Print(os);
   }
