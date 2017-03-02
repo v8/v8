@@ -886,7 +886,7 @@ class Builtins {
   // Disassembler support.
   const char* Lookup(byte* pc);
 
-  enum Name {
+  enum Name : int32_t {
 #define DEF_ENUM(Name, ...) k##Name,
     BUILTIN_LIST_ALL(DEF_ENUM)
 #undef DEF_ENUM
