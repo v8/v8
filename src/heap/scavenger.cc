@@ -147,9 +147,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     if (marks_handling == TRANSFER_MARKS) {
-      if (IncrementalMarking::TransferColor(source, target, size)) {
-        MemoryChunk::IncrementLiveBytes(target, size);
-      }
+      IncrementalMarking::TransferColor(source, target, size);
     }
   }
 
