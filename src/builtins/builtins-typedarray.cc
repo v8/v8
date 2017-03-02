@@ -24,6 +24,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void GenerateTypedArrayPrototypeIterationMethod(const char* method_name);
 
   void LoadMapAndElementsSize(Node* array, Variable* typed_map, Variable* size);
+
+  void DoInitialize(Node* holder, Node* length, Node* maybe_buffer,
+                    Node* byte_offset, Node* byte_length, Node* initialize,
+                    Node* context);
 };
 
 void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* array,
@@ -71,15 +75,9 @@ void TypedArrayBuiltinsAssembler::LoadMapAndElementsSize(Node* array,
   Bind(&done);
 }
 
-TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
-  Node* holder = Parameter(1);
-  Node* length = Parameter(2);
-  Node* maybe_buffer = Parameter(3);
-  Node* byte_offset = Parameter(4);
-  Node* byte_length = Parameter(5);
-  Node* initialize = Parameter(6);
-  Node* context = Parameter(9);
-
+void TypedArrayBuiltinsAssembler::DoInitialize(
+    Node* holder, Node* length, Node* maybe_buffer, Node* byte_offset,
+    Node* byte_length, Node* initialize, Node* context) {
   static const int32_t fta_base_data_offset =
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag;
 
@@ -244,11 +242,77 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   }
 
   Bind(&done);
-  { Return(UndefinedConstant()); }
+  Return(UndefinedConstant());
+}
+
+TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
+  Node* holder = Parameter(1);
+  Node* length = Parameter(2);
+  Node* maybe_buffer = Parameter(3);
+  Node* byte_offset = Parameter(4);
+  Node* byte_length = Parameter(5);
+  Node* initialize = Parameter(6);
+  Node* context = Parameter(9);
+
+  DoInitialize(holder, length, maybe_buffer, byte_offset, byte_length,
+               initialize, context);
 }
 
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
+
+// ES6 section 22.2.4.2 TypedArray ( length )
+TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
+  // We know that holder cannot be an object if this builtin was called.
+  Node* holder = Parameter(1);
+  Node* length = Parameter(2);
+  Node* element_size = Parameter(3);
+  Node* context = Parameter(6);
+
+  Variable maybe_buffer(this, MachineRepresentation::kTagged);
+  maybe_buffer.Bind(NullConstant());
+  Node* byte_offset = SmiConstant(0);
+  Node* initialize = BooleanConstant(true);
+
+  Label external_buffer(this), call_init(this), invalid_length(this);
+
+  length = ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero);
+  // The maximum length of a TypedArray is MaxSmi().
+  // Note: this is not per spec, but rather a constraint of our current
+  // representation (which uses smi's).
+  GotoIf(TaggedIsNotSmi(length), &invalid_length);
+  GotoIf(SmiLessThan(length, SmiConstant(0)), &invalid_length);
+
+  // For byte_length < typed_array_max_size_in_heap, we allocate the buffer on
+  // the heap. Otherwise we allocate it externally and attach it.
+  Node* byte_length = SmiMul(length, element_size);
+  GotoIf(TaggedIsNotSmi(byte_length), &external_buffer);
+  Branch(SmiLessThanOrEqual(byte_length,
+                            SmiConstant(FLAG_typed_array_max_size_in_heap)),
+         &call_init, &external_buffer);
+
+  Bind(&external_buffer);
+  {
+    Node* const buffer_constructor = LoadContextElement(
+        LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX);
+    maybe_buffer.Bind(ConstructJS(CodeFactory::Construct(isolate()), context,
+                                  buffer_constructor, byte_length));
+    Goto(&call_init);
+  }
+
+  Bind(&call_init);
+  {
+    DoInitialize(holder, length, maybe_buffer.value(), byte_offset, byte_length,
+                 initialize, context);
+  }
+
+  Bind(&invalid_length);
+  {
+    CallRuntime(Runtime::kThrowRangeError, context,
+                SmiConstant(MessageTemplate::kInvalidTypedArrayLength));
+    Unreachable();
+  }
+}
 
 // ES6 section 22.2.3.1 get %TypedArray%.prototype.buffer
 BUILTIN(TypedArrayPrototypeBuffer) {

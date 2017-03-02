@@ -95,22 +95,30 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolAsyncIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolAsyncIteratorInvalid));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
-  HandleScope scope(isolate);
-  DCHECK_LE(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);
+#define THROW_ERROR(isolate, args, call)                              \
+  HandleScope scope(isolate);                                         \
+  DCHECK_LE(1, args.length());                                        \
+  CONVERT_SMI_ARG_CHECKED(message_id_smi, 0);                         \
+                                                                      \
+  Handle<Object> undefined = isolate->factory()->undefined_value();   \
+  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined; \
+  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined; \
+  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined; \
+                                                                      \
+  MessageTemplate::Template message_id =                              \
+      static_cast<MessageTemplate::Template>(message_id_smi);         \
+                                                                      \
+  THROW_NEW_ERROR_RETURN_FAILURE(isolate, call(message_id, arg0, arg1, arg2));
 
-  Handle<Object> undefined = isolate->factory()->undefined_value();
-  Handle<Object> arg0 = (args.length() > 1) ? args.at(1) : undefined;
-  Handle<Object> arg1 = (args.length() > 2) ? args.at(2) : undefined;
-  Handle<Object> arg2 = (args.length() > 3) ? args.at(3) : undefined;
-
-  MessageTemplate::Template message_id =
-      static_cast<MessageTemplate::Template>(message_id_smi);
-
-  THROW_NEW_ERROR_RETURN_FAILURE(isolate,
-                                 NewTypeError(message_id, arg0, arg1, arg2));
+RUNTIME_FUNCTION(Runtime_ThrowRangeError) {
+  THROW_ERROR(isolate, args, NewRangeError);
 }
+
+RUNTIME_FUNCTION(Runtime_ThrowTypeError) {
+  THROW_ERROR(isolate, args, NewTypeError);
+}
+
+#undef THROW_ERROR
 
 RUNTIME_FUNCTION(Runtime_UnwindAndFindExceptionHandler) {
   SealHandleScope shs(isolate);

@@ -259,6 +259,8 @@ function TestTypedArray(constr, elementSize, typicalElement) {
 
   assertThrows(function() { new constr(Symbol()); }, TypeError);
 
+  assertThrows(function() { new constr(-1); }, RangeError);
+
   var jsArray = [];
   for (i = 0; i < 30; i++) {
     jsArray.push(typicalElement);

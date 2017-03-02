@@ -172,23 +172,6 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   %typed_array_initialize(obj, newLength, buffer, offset, newByteLength, true);
 }
 
-function NAMEConstructByLength(obj, length) {
-  var l = IS_UNDEFINED(length) ?
-    0 : ToIndex(length, kInvalidTypedArrayLength);
-  if (l > %_MaxSmi()) {
-    // Note: this is not per spec, but rather a constraint of our current
-    // representation (which uses smi's).
-    throw %make_range_error(kInvalidTypedArrayLength);
-  }
-  var byteLength = l * ELEMENT_SIZE;
-  if (byteLength > %_TypedArrayMaxSizeInHeap()) {
-    var buffer = new GlobalArrayBuffer(byteLength);
-    %typed_array_initialize(obj, l, buffer, 0, byteLength, true);
-  } else {
-    %typed_array_initialize(obj, l, null, 0, byteLength, true);
-  }
-}
-
 function NAMEConstructByArrayLike(obj, arrayLike, length) {
   var l = ToPositiveInteger(length, kInvalidTypedArrayLength);
 
@@ -262,7 +245,7 @@ function NAMEConstructor(arg1, arg2, arg3) {
         NAMEConstructByIterable(this, arg1, iteratorFn);
       }
     } else {
-      NAMEConstructByLength(this, arg1);
+      %typed_array_construct_by_length(this, arg1, ELEMENT_SIZE);
     }
   } else {
     throw %make_type_error(kConstructorNotFunction, "NAME")
