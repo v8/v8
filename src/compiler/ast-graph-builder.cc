@@ -2931,7 +2931,7 @@ Node* AstGraphBuilder::MakeNode(const Operator* op, int value_input_count,
     result = graph()->NewNode(op, input_count_with_deps, buffer, incomplete);
     if (!environment()->IsMarkedAsUnreachable()) {
       // Update the current control dependency for control-producing nodes.
-      if (NodeProperties::IsControl(result)) {
+      if (result->op()->ControlOutputCount() > 0) {
         environment_->UpdateControlDependency(result);
       }
       // Update the current effect dependency for effect-producing nodes.

@@ -513,35 +513,18 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
   }
 
-  // Find the IfException node, if any.
+  // Calls surrounded by a local try-block are only inlined if the appropriate
+  // flag is active. We also discover the {IfException} projection this way.
   Node* exception_target = nullptr;
-  for (Edge edge : node->use_edges()) {
-    if (NodeProperties::IsControlEdge(edge) &&
-        edge.from()->opcode() == IrOpcode::kIfException) {
-      DCHECK_NULL(exception_target);
-      exception_target = edge.from();
-    }
-  }
-
-  NodeVector uncaught_subcalls(local_zone_);
-
-  if (exception_target != nullptr) {
-    if (!FLAG_inline_into_try) {
-      TRACE(
-          "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
-          "inlining %s into %s.\n",
-          exception_target->id(), exception_target->op()->mnemonic(),
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get());
-      return NoChange();
-    } else {
-      TRACE(
-          "Inlining %s into %s regardless of surrounding try-block to catcher "
-          "#%d:%s\n",
-          shared_info->DebugName()->ToCString().get(),
-          info_->shared_info()->DebugName()->ToCString().get(),
-          exception_target->id(), exception_target->op()->mnemonic());
-    }
+  if (NodeProperties::IsExceptionalCall(node, &exception_target) &&
+      !FLAG_inline_into_try) {
+    TRACE(
+        "Try block surrounds #%d:%s and --no-inline-into-try active, so not "
+        "inlining %s into %s.\n",
+        exception_target->id(), exception_target->op()->mnemonic(),
+        shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get());
+    return NoChange();
   }
 
   ParseInfo parse_info(shared_info);
@@ -570,9 +553,9 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
   // After this point, we've made a decision to inline this function.
   // We shall not bailout from inlining if we got here.
 
-  TRACE("Inlining %s into %s\n",
-        shared_info->DebugName()->ToCString().get(),
-        info_->shared_info()->DebugName()->ToCString().get());
+  TRACE("Inlining %s into %s%s\n", shared_info->DebugName()->ToCString().get(),
+        info_->shared_info()->DebugName()->ToCString().get(),
+        (exception_target != nullptr) ? " (inside try-block)" : "");
 
   // Determine the targets feedback vector and its context.
   Node* context;
@@ -595,6 +578,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     end = graph()->end();
   }
 
+  NodeVector uncaught_subcalls(local_zone_);
   if (exception_target != nullptr) {
     // Find all uncaught 'calls' in the inlinee.
     AllNodes inlined_nodes(local_zone_, end, graph());
