@@ -224,6 +224,10 @@ class FreeListCategory {
   friend class PagedSpace;
 };
 
+// MarkingMode determines which bitmaps and counters should be used when
+// accessing marking information on MemoryChunk.
+enum class MarkingMode { FULL, YOUNG_GENERATION };
+
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
 // 1MB aligned. Start of the body is aligned so it can accommodate
@@ -370,6 +374,7 @@ class MemoryChunk {
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
+  template <MarkingMode mode = MarkingMode::FULL>
   static inline void IncrementLiveBytes(HeapObject* object, int by);
 
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
@@ -395,7 +400,9 @@ class MemoryChunk {
 
   static bool IsValid(MemoryChunk* chunk) { return chunk != nullptr; }
 
-  Address address() { return reinterpret_cast<Address>(this); }
+  Address address() const {
+    return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
+  }
 
   base::Mutex* mutex() { return mutex_; }
 
@@ -489,15 +496,16 @@ class MemoryChunk {
     }
   }
 
-  inline Bitmap* markbits() {
+  template <MarkingMode mode = MarkingMode::FULL>
+  inline Bitmap* markbits() const {
     return Bitmap::FromAddress(address() + kHeaderSize);
   }
 
-  inline uint32_t AddressToMarkbitIndex(Address addr) {
+  inline uint32_t AddressToMarkbitIndex(Address addr) const {
     return static_cast<uint32_t>(addr - this->address()) >> kPointerSizeLog2;
   }
 
-  inline Address MarkbitIndexToAddress(uint32_t index) {
+  inline Address MarkbitIndexToAddress(uint32_t index) const {
     return this->address() + (index << kPointerSizeLog2);
   }
 

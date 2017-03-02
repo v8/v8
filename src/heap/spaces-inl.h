@@ -226,6 +226,7 @@ void Page::InitializeFreeListCategories() {
   }
 }
 
+template <MarkingMode mode>
 void MemoryChunk::IncrementLiveBytes(HeapObject* object, int by) {
   MemoryChunk::FromAddress(object->address())->IncrementLiveBytes(by);
 }

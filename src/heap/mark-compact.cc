@@ -1332,12 +1332,12 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
   heap()->isolate()->compilation_cache()->IterateFunctions(&visitor);
   heap()->isolate()->handle_scope_implementer()->Iterate(&visitor);
 
-  ProcessMarkingDeque<MarkCompactMode::FULL>();
+  ProcessMarkingDeque<MarkingMode::FULL>();
 }
 
 
 // Visitor class for marking heap roots.
-template <MarkCompactMode mode>
+template <MarkingMode mode>
 class RootMarkingVisitor : public ObjectVisitor {
  public:
   explicit RootMarkingVisitor(Heap* heap)
@@ -1359,7 +1359,7 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     HeapObject* object = HeapObject::cast(*p);
 
-    if (mode == MarkCompactMode::YOUNG_GENERATION &&
+    if (mode == MarkingMode::YOUNG_GENERATION &&
         !collector_->heap()->InNewSpace(object))
       return;
 
@@ -1367,15 +1367,15 @@ class RootMarkingVisitor : public ObjectVisitor {
 
     Map* map = object->map();
     // Mark the object.
-    ObjectMarking::WhiteToBlack(object);
+    ObjectMarking::WhiteToBlack<mode>(object);
 
     switch (mode) {
-      case MarkCompactMode::FULL: {
+      case MarkingMode::FULL: {
         // Mark the map pointer and body, and push them on the marking stack.
         collector_->MarkObject(map);
         MarkCompactMarkingVisitor::IterateBody(map, object);
       } break;
-      case MarkCompactMode::YOUNG_GENERATION:
+      case MarkingMode::YOUNG_GENERATION:
         StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
         break;
     }
@@ -1950,7 +1950,7 @@ bool MarkCompactCollector::IsUnmarkedHeapObjectWithHeap(Heap* heap,
 }
 
 void MarkCompactCollector::MarkStringTable(
-    RootMarkingVisitor<MarkCompactMode::FULL>* visitor) {
+    RootMarkingVisitor<MarkingMode::FULL>* visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
   if (ObjectMarking::IsWhite(string_table)) {
@@ -1959,11 +1959,11 @@ void MarkCompactCollector::MarkStringTable(
   }
   // Explicitly mark the prefix.
   string_table->IteratePrefix(visitor);
-  ProcessMarkingDeque<MarkCompactMode::FULL>();
+  ProcessMarkingDeque<MarkingMode::FULL>();
 }
 
 void MarkCompactCollector::MarkRoots(
-    RootMarkingVisitor<MarkCompactMode::FULL>* visitor) {
+    RootMarkingVisitor<MarkingMode::FULL>* visitor) {
   // Mark the heap roots including global variables, stack variables,
   // etc., and all objects reachable from them.
   heap()->IterateStrongRoots(visitor, VISIT_ONLY_STRONG);
@@ -1973,8 +1973,8 @@ void MarkCompactCollector::MarkRoots(
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_deque()->overflowed()) {
-    RefillMarkingDeque<MarkCompactMode::FULL>();
-    EmptyMarkingDeque<MarkCompactMode::FULL>();
+    RefillMarkingDeque<MarkingMode::FULL>();
+    EmptyMarkingDeque<MarkingMode::FULL>();
   }
 }
 
@@ -2014,7 +2014,7 @@ void MarkCompactCollector::MarkImplicitRefGroups(
 // Before: the marking stack contains zero or more heap object pointers.
 // After: the marking stack is empty, and all objects reachable from the
 // marking stack have been marked, or are overflowed in the heap.
-template <MarkCompactMode mode>
+template <MarkingMode mode>
 void MarkCompactCollector::EmptyMarkingDeque() {
   while (!marking_deque()->IsEmpty()) {
     HeapObject* object = marking_deque()->Pop();
@@ -2026,11 +2026,11 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 
     Map* map = object->map();
     switch (mode) {
-      case MarkCompactMode::FULL: {
+      case MarkingMode::FULL: {
         MarkObject(map);
         MarkCompactMarkingVisitor::IterateBody(map, object);
       } break;
-      case MarkCompactMode::YOUNG_GENERATION: {
+      case MarkingMode::YOUNG_GENERATION: {
         DCHECK(ObjectMarking::IsBlack(object));
         StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
       } break;
@@ -2044,7 +2044,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // before sweeping completes.  If sweeping completes, there are no remaining
 // overflowed objects in the heap so the overflow flag on the markings stack
 // is cleared.
-template <MarkCompactMode mode>
+template <MarkingMode mode>
 void MarkCompactCollector::RefillMarkingDeque() {
   isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
   DCHECK(marking_deque()->overflowed());
@@ -2052,7 +2052,7 @@ void MarkCompactCollector::RefillMarkingDeque() {
   DiscoverGreyObjectsInNewSpace();
   if (marking_deque()->IsFull()) return;
 
-  if (mode == MarkCompactMode::FULL) {
+  if (mode == MarkingMode::FULL) {
     DiscoverGreyObjectsInSpace(heap()->old_space());
     if (marking_deque()->IsFull()) return;
     DiscoverGreyObjectsInSpace(heap()->code_space());
@@ -2072,7 +2072,7 @@ void MarkCompactCollector::RefillMarkingDeque() {
 // stack.  Before: the marking stack contains zero or more heap object
 // pointers.  After: the marking stack is empty and there are no overflowed
 // objects in the heap.
-template <MarkCompactMode mode>
+template <MarkingMode mode>
 void MarkCompactCollector::ProcessMarkingDeque() {
   EmptyMarkingDeque<mode>();
   while (marking_deque()->overflowed()) {
@@ -2112,7 +2112,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     }
     ProcessWeakCollections();
     work_to_do = !marking_deque()->IsEmpty();
-    ProcessMarkingDeque<MarkCompactMode::FULL>();
+    ProcessMarkingDeque<MarkingMode::FULL>();
   }
   CHECK(marking_deque()->IsEmpty());
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
@@ -2129,7 +2129,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
       if (!code->CanDeoptAt(it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code, visitor);
       }
-      ProcessMarkingDeque<MarkCompactMode::FULL>();
+      ProcessMarkingDeque<MarkingMode::FULL>();
       return;
     }
   }
@@ -2313,7 +2313,7 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
   PostponeInterruptsScope postpone(isolate());
 
   StaticYoungGenerationMarkingVisitor::Initialize(heap());
-  RootMarkingVisitor<MarkCompactMode::YOUNG_GENERATION> root_visitor(heap());
+  RootMarkingVisitor<MarkingMode::YOUNG_GENERATION> root_visitor(heap());
 
   marking_deque()->StartUsing();
 
@@ -2323,7 +2323,7 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_ROOTS);
     heap()->IterateRoots(&root_visitor, VISIT_ALL_IN_SCAVENGE);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque<MarkingMode::YOUNG_GENERATION>();
   }
 
   {
@@ -2340,20 +2340,20 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
                                           reinterpret_cast<Address>(addr));
               });
         });
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque<MarkingMode::YOUNG_GENERATION>();
   }
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
     heap()->VisitEncounteredWeakCollections(&root_visitor);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque<MarkingMode::YOUNG_GENERATION>();
   }
 
   if (is_code_flushing_enabled()) {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_MARK_CODE_FLUSH_CANDIDATES);
     code_flusher()->IteratePointersToFromSpace(&root_visitor);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque<MarkingMode::YOUNG_GENERATION>();
   }
 
   {
@@ -2364,7 +2364,7 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
         ->global_handles()
         ->IterateNewSpaceWeakUnmodifiedRoots<GlobalHandles::VISIT_OTHERS>(
             &root_visitor);
-    ProcessMarkingDeque<MarkCompactMode::YOUNG_GENERATION>();
+    ProcessMarkingDeque<MarkingMode::YOUNG_GENERATION>();
   }
 
   marking_deque()->StopUsing();
@@ -2401,7 +2401,7 @@ void MarkCompactCollector::MarkLiveObjects() {
     PrepareForCodeFlushing();
   }
 
-  RootMarkingVisitor<MarkCompactMode::FULL> root_visitor(heap());
+  RootMarkingVisitor<MarkingMode::FULL> root_visitor(heap());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_ROOTS);
@@ -2433,7 +2433,7 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
       heap()->isolate()->global_handles()->IdentifyWeakHandles(
           &IsUnmarkedHeapObject);
-      ProcessMarkingDeque<MarkCompactMode::FULL>();
+      ProcessMarkingDeque<MarkingMode::FULL>();
     }
     // Then we mark the objects.
 
@@ -2441,7 +2441,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
       heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
-      ProcessMarkingDeque<MarkCompactMode::FULL>();
+      ProcessMarkingDeque<MarkingMode::FULL>();
     }
 
     // Repeat Harmony weak maps marking to mark unmarked objects reachable from
