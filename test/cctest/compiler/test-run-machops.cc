@@ -6741,6 +6741,15 @@ TEST(Regression5951) {
 
 #endif  // V8_TARGET_ARCH_64_BIT
 
+TEST(Regression6028) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Word32Equal(
+      m.Word32And(m.Int32Constant(0x23),
+                  m.Word32Sar(m.Int32Constant(1), m.Int32Constant(18))),
+      m.Int32Constant(0)));
+  CHECK_EQ(1, m.Call());
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

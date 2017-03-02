@@ -1278,10 +1278,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Cmn(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Tst:
-      __ Tst(i.InputOrZeroRegister64(0), i.InputOperand(1));
+      __ Tst(i.InputOrZeroRegister64(0), i.InputOperand2_64(1));
       break;
     case kArm64Tst32:
-      __ Tst(i.InputOrZeroRegister32(0), i.InputOperand32(1));
+      __ Tst(i.InputOrZeroRegister32(0), i.InputOperand2_32(1));
       break;
     case kArm64Float32Cmp:
       if (instr->InputAt(1)->IsFPRegister()) {
