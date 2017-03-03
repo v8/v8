@@ -68,6 +68,16 @@ IGNORE_SOURCES = {
   'crbug.com/688159': [
     '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
+
+  # TODO(machenbach): Implement blacklisting files for particular configs only,
+  # here ignition_eager.
+  'crbug.com/691589': [
+    '/v8/test/mjsunit/regress/regress-1200351.js',
+  ],
+
+  'crbug.com/691587': [
+    '/v8/test/mjsunit/asm/regress-674089.js',
+  ],
 }
 
 # Ignore by test case pattern. Map from bug->regexp.
