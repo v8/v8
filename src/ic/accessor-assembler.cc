@@ -145,14 +145,13 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   Comment("have_handler");
   ExitPoint direct_exit(this);
 
-  Variable var_holder(this, MachineRepresentation::kTagged);
-  var_holder.Bind(p->receiver);
-  Variable var_smi_handler(this, MachineRepresentation::kTagged);
-  var_smi_handler.Bind(handler);
+  Variable var_holder(this, MachineRepresentation::kTagged, p->receiver);
+  Variable var_smi_handler(this, MachineRepresentation::kTagged, handler);
 
   Variable* vars[] = {&var_holder, &var_smi_handler};
   Label if_smi_handler(this, 2, vars);
-  Label try_proto_handler(this), call_handler(this);
+  Label try_proto_handler(this, Label::kDeferred),
+      call_handler(this, Label::kDeferred);
 
   Branch(TaggedIsSmi(handler), &if_smi_handler, &try_proto_handler);
 
@@ -274,7 +273,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     Comment("property_load");
   }
 
-  Label constant(this), field(this), normal(this);
+  Label constant(this, Label::kDeferred), field(this),
+      normal(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
          &field);
 
@@ -301,7 +301,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
                                LoadAndUntagFixedArrayBaseLength(descriptors)));
     Node* value = LoadFixedArrayElement(descriptors, value_index);
 
-    Label if_accessor_info(this);
+    Label if_accessor_info(this, Label::kDeferred);
     GotoIf(IsSetWord<LoadHandler::IsAccessorInfoBits>(handler_word),
            &if_accessor_info);
     exit_point->Return(value);
@@ -1578,11 +1578,9 @@ void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache, Node* receiver,
 
 void AccessorAssembler::LoadIC(const LoadICParameters* p) {
   Variable var_handler(this, MachineRepresentation::kTagged);
-  // TODO(ishell): defer blocks when it works.
-  Label if_handler(this, &var_handler), try_polymorphic(this),
-      try_megamorphic(this /*, Label::kDeferred*/),
-      try_uninitialized(this /*, Label::kDeferred*/),
-      miss(this /*, Label::kDeferred*/);
+  Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
+      try_megamorphic(this, Label::kDeferred),
+      try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
   GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
@@ -1784,11 +1782,10 @@ void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
 
 void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   Variable var_handler(this, MachineRepresentation::kTagged);
-  // TODO(ishell): defer blocks when it works.
-  Label if_handler(this, &var_handler), try_polymorphic(this),
-      try_megamorphic(this /*, Label::kDeferred*/),
-      try_polymorphic_name(this /*, Label::kDeferred*/),
-      miss(this /*, Label::kDeferred*/);
+  Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
+      try_megamorphic(this, Label::kDeferred),
+      try_polymorphic_name(this, Label::kDeferred),
+      miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
   GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
@@ -1880,10 +1877,8 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
 
 void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   Variable var_handler(this, MachineRepresentation::kTagged);
-  // TODO(ishell): defer blocks when it works.
-  Label if_handler(this, &var_handler), try_polymorphic(this),
-      try_megamorphic(this /*, Label::kDeferred*/),
-      miss(this /*, Label::kDeferred*/);
+  Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
+      try_megamorphic(this, Label::kDeferred), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
   GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
@@ -1927,15 +1922,14 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 
 void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
                                      LanguageMode language_mode) {
-  // TODO(ishell): defer blocks when it works.
-  Label miss(this /*, Label::kDeferred*/);
+  Label miss(this, Label::kDeferred);
   {
     Variable var_handler(this, MachineRepresentation::kTagged);
 
-    // TODO(ishell): defer blocks when it works.
-    Label if_handler(this, &var_handler), try_polymorphic(this),
-        try_megamorphic(this /*, Label::kDeferred*/),
-        try_polymorphic_name(this /*, Label::kDeferred*/);
+    Label if_handler(this, &var_handler),
+        try_polymorphic(this, Label::kDeferred),
+        try_megamorphic(this, Label::kDeferred),
+        try_polymorphic_name(this, Label::kDeferred);
 
     Node* receiver_map = LoadReceiverMap(p->receiver);
     GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
