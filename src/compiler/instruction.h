@@ -1126,6 +1126,7 @@ class FrameStateDescriptor;
 
 enum class StateValueKind : uint8_t {
   kArgumentsElements,
+  kArgumentsLength,
   kPlain,
   kOptimizedOut,
   kNested,
@@ -1139,6 +1140,12 @@ class StateValueDescriptor {
 
   static StateValueDescriptor ArgumentsElements(bool is_rest) {
     StateValueDescriptor descr(StateValueKind::kArgumentsElements,
+                               MachineType::AnyTagged());
+    descr.is_rest_ = is_rest;
+    return descr;
+  }
+  static StateValueDescriptor ArgumentsLength(bool is_rest) {
+    StateValueDescriptor descr(StateValueKind::kArgumentsLength,
                                MachineType::AnyTagged());
     descr.is_rest_ = is_rest;
     return descr;
@@ -1166,6 +1173,9 @@ class StateValueDescriptor {
   bool IsArgumentsElements() const {
     return kind_ == StateValueKind::kArgumentsElements;
   }
+  bool IsArgumentsLength() const {
+    return kind_ == StateValueKind::kArgumentsLength;
+  }
   bool IsPlain() const { return kind_ == StateValueKind::kPlain; }
   bool IsOptimizedOut() const { return kind_ == StateValueKind::kOptimizedOut; }
   bool IsNested() const { return kind_ == StateValueKind::kNested; }
@@ -1177,7 +1187,8 @@ class StateValueDescriptor {
     return id_;
   }
   int is_rest() const {
-    DCHECK(kind_ == StateValueKind::kArgumentsElements);
+    DCHECK(kind_ == StateValueKind::kArgumentsElements ||
+           kind_ == StateValueKind::kArgumentsLength);
     return is_rest_;
   }
 
@@ -1251,6 +1262,9 @@ class StateValueList {
   }
   void PushArgumentsElements(bool is_rest) {
     fields_.push_back(StateValueDescriptor::ArgumentsElements(is_rest));
+  }
+  void PushArgumentsLength(bool is_rest) {
+    fields_.push_back(StateValueDescriptor::ArgumentsLength(is_rest));
   }
   void PushDuplicate(size_t id) {
     fields_.push_back(StateValueDescriptor::Duplicate(id));

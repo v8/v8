@@ -1239,8 +1239,16 @@ const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
       0, 0, 0, 1, 0, 0, is_rest);                          // counts
 }
 
+const Operator* CommonOperatorBuilder::ArgumentsLengthState(bool is_rest) {
+  return new (zone()) Operator1<bool>(                   // --
+      IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
+      "ArgumentsLengthState",                            // name
+      0, 0, 0, 1, 0, 0, is_rest);                        // counts
+}
+
 bool IsRestOf(Operator const* op) {
-  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState);
+  DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
+         op->opcode() == IrOpcode::kArgumentsLengthState);
   return OpParameter<bool>(op);
 }
 

@@ -96,8 +96,8 @@
     var rest = arguments;
     for (var i = 0; i < rest.length; ++i) {
       var j = i;
-      if (rest.length % 15 == 0 && i == 10) j += rest.length;
-      sum += rest[j] || rest[j-rest.length];
+      if (rest.length % 15 == 0 && i == 10) j += 10000;
+      sum += rest[j] || i+1;
     }
     return sum;
   };
@@ -113,11 +113,10 @@
 (function ArgumentsAccessSloppy () {
   function sum2(a,b,c) {
     var sum = 0;
-    var rest = arguments;
-    for (var i = 0; i < rest.length; ++i) {
+    for (var i = 0; i < arguments.length; ++i) {
       var j = i;
-      if (rest.length % 15 == 0 && i == 10) j += rest.length;
-      sum += rest[j] || rest[j-rest.length];
+      if (arguments.length % 15 == 0 && i == 10) j += 10000;
+      sum += arguments[j] || i+1;
     }
     return sum;
   };
@@ -135,8 +134,8 @@
     var sum = 0;
     for (var i = 0; i < rest.length; ++i) {
       var j = i;
-      if (rest.length % 15 == 0 && i == 10) j += rest.length;
-      sum += rest[j] || rest[j-rest.length];
+      if (rest.length % 15 == 0 && i == 10) j += 10000;
+      sum += rest[j] || i+1;
     }
     return sum;
   };
@@ -154,8 +153,8 @@
     var sum = 0;
     for (var i = 0; i < rest.length; ++i) {
       var j = i;
-      if (rest.length % 15 == 0 && i == 10) j += rest.length;
-      sum += rest[j] || rest[j-rest.length];
+      if (rest.length % 15 == 0 && i == 10) j += 10000;
+      sum += rest[j] || i+2;
     }
     return sum;
   };
@@ -165,5 +164,20 @@
     args.push(i);
     if (i%10 == 0) %OptimizeFunctionOnNextCall(sum4);
     assertEquals(i*(i+1)/2-1, sum4(...args));
+  }
+})();
+
+
+(function ReadArguments () {
+  function read() {
+    if (arguments.length % 10 == 5) %DeoptimizeNow();
+    return arguments[arguments.length-1];
+  };
+
+  var args = []
+  for (var i = 1; i < 30; ++i) {
+    args.push(i);
+    if (i%10 == 0) %OptimizeFunctionOnNextCall(read);
+    assertEquals(i, read(...args));
   }
 })();

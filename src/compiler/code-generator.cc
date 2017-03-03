@@ -702,6 +702,10 @@ void CodeGenerator::TranslateStateValueDescriptor(
     if (translation != nullptr) {
       translation->ArgumentsElements(desc->is_rest());
     }
+  } else if (desc->IsArgumentsLength()) {
+    if (translation != nullptr) {
+      translation->ArgumentsLength(desc->is_rest());
+    }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {
       translation->DuplicateObject(static_cast<int>(desc->id()));

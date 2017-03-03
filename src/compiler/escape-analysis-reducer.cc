@@ -411,6 +411,28 @@ void EscapeAnalysisReducer::Finalize() {
     Node* arguments_length = NodeProperties::GetValueInput(node, 1);
     if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
 
+    Node* arguments_length_state = nullptr;
+    for (Edge edge : arguments_length->use_edges()) {
+      Node* use = edge.from();
+      switch (use->opcode()) {
+        case IrOpcode::kObjectState:
+        case IrOpcode::kTypedObjectState:
+        case IrOpcode::kStateValues:
+        case IrOpcode::kTypedStateValues:
+          if (!arguments_length_state) {
+            arguments_length_state = jsgraph()->graph()->NewNode(
+                jsgraph()->common()->ArgumentsLengthState(
+                    IsRestLengthOf(arguments_length->op())));
+            NodeProperties::SetType(arguments_length_state,
+                                    Type::OtherInternal());
+          }
+          edge.UpdateTo(arguments_length_state);
+          break;
+        default:
+          break;
+      }
+    }
+
     bool escaping_use = false;
     ZoneVector<Node*> loads(zone());
     for (Edge edge : node->use_edges()) {

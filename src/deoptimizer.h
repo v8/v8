@@ -318,6 +318,8 @@ class TranslatedState {
   int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
                                 FixedArray* literal_array, Address fp,
                                 RegisterValues* registers, FILE* trace_file);
+  Address ComputeArgumentsPosition(Address input_frame_pointer, bool is_rest,
+                                   int* length);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
                                                bool is_rest);
@@ -935,6 +937,7 @@ class TranslationIterator BASE_EMBEDDED {
   V(DUPLICATED_OBJECT)             \
   V(ARGUMENTS_OBJECT)              \
   V(ARGUMENTS_ELEMENTS)            \
+  V(ARGUMENTS_LENGTH)              \
   V(CAPTURED_OBJECT)               \
   V(REGISTER)                      \
   V(INT32_REGISTER)                \
@@ -984,6 +987,7 @@ class Translation BASE_EMBEDDED {
   void BeginSetterStubFrame(int literal_id);
   void BeginArgumentsObject(int args_length);
   void ArgumentsElements(bool is_rest);
+  void ArgumentsLength(bool is_rest);
   void BeginCapturedObject(int length);
   void DuplicateObject(int object_index);
   void StoreRegister(Register reg);

@@ -454,6 +454,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
       return g->UseImmediate(input);
     }
     case IrOpcode::kArgumentsElementsState:
+    case IrOpcode::kArgumentsLengthState:
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       UNREACHABLE();
@@ -511,6 +512,10 @@ size_t InstructionSelector::AddOperandToStateValueDescriptor(
   switch (input->opcode()) {
     case IrOpcode::kArgumentsElementsState: {
       values->PushArgumentsElements(IsRestOf(input->op()));
+      return 0;
+    }
+    case IrOpcode::kArgumentsLengthState: {
+      values->PushArgumentsLength(IsRestOf(input->op()));
       return 0;
     }
     case IrOpcode::kObjectState: {

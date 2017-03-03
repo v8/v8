@@ -60,6 +60,7 @@
   V(StateValues)            \
   V(TypedStateValues)       \
   V(ArgumentsElementsState) \
+  V(ArgumentsLengthState)   \
   V(ObjectState)            \
   V(TypedObjectState)       \
   V(Call)                   \

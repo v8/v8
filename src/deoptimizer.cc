@@ -2407,6 +2407,11 @@ void Translation::ArgumentsElements(bool is_rest) {
   buffer_->Add(is_rest);
 }
 
+void Translation::ArgumentsLength(bool is_rest) {
+  buffer_->Add(ARGUMENTS_LENGTH);
+  buffer_->Add(is_rest);
+}
+
 void Translation::BeginCapturedObject(int length) {
   buffer_->Add(CAPTURED_OBJECT);
   buffer_->Add(length);
@@ -2540,6 +2545,7 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case CONSTRUCT_STUB_FRAME:
       return 3;
     case ARGUMENTS_ELEMENTS:
+    case ARGUMENTS_LENGTH:
       return 1;
   }
   FATAL("Unexpected translation type");
@@ -3309,6 +3315,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
     case Translation::DUPLICATED_OBJECT:
     case Translation::ARGUMENTS_OBJECT:
     case Translation::ARGUMENTS_ELEMENTS:
+    case Translation::ARGUMENTS_LENGTH:
     case Translation::CAPTURED_OBJECT:
     case Translation::REGISTER:
     case Translation::INT32_REGISTER:
@@ -3344,6 +3351,36 @@ void TranslatedFrame::AdvanceIterator(
   }
 }
 
+Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
+                                                  bool is_rest, int* length) {
+  Address parent_frame_pointer = *reinterpret_cast<Address*>(
+      input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
+  intptr_t parent_frame_type = Memory::intptr_at(
+      parent_frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset);
+
+  Address arguments_frame;
+  if (parent_frame_type ==
+      StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)) {
+    if (length)
+      *length = Smi::cast(*reinterpret_cast<Object**>(
+                              parent_frame_pointer +
+                              ArgumentsAdaptorFrameConstants::kLengthOffset))
+                    ->value();
+    arguments_frame = parent_frame_pointer;
+  } else {
+    if (length) *length = formal_parameter_count_;
+    arguments_frame = input_frame_pointer;
+  }
+
+  if (is_rest) {
+    // If the actual number of arguments is less than the number of formal
+    // parameters, we have zero rest parameters.
+    if (length) *length = std::max(0, *length - formal_parameter_count_);
+  }
+
+  return arguments_frame;
+}
+
 // Creates translated values for an arguments backing store, or the backing
 // store for the rest parameters if {is_rest} is true. The TranslatedValue
 // objects for the fields are not read from the TranslationIterator, but instead
@@ -3352,29 +3389,9 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     int frame_index, Address input_frame_pointer, bool is_rest) {
   TranslatedFrame& frame = frames_[frame_index];
 
-  Address parent_frame_pointer = *reinterpret_cast<Address*>(
-      input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
-  intptr_t parent_frame_type = Memory::intptr_at(
-      parent_frame_pointer + CommonFrameConstants::kContextOrFrameTypeOffset);
   int length;
-  Address arguments_frame;
-  if (parent_frame_type ==
-      StackFrame::TypeToMarker(StackFrame::ARGUMENTS_ADAPTOR)) {
-    length = Smi::cast(*reinterpret_cast<Object**>(
-                           parent_frame_pointer +
-                           ArgumentsAdaptorFrameConstants::kLengthOffset))
-                 ->value();
-    arguments_frame = parent_frame_pointer;
-  } else {
-    length = formal_parameter_count_;
-    arguments_frame = input_frame_pointer;
-  }
-
-  if (is_rest) {
-    // If the actual number of arguments is less than the number of formal
-    // parameters, we have zero rest parameters.
-    length = std::max(0, length - formal_parameter_count_);
-  }
+  Address arguments_frame =
+      ComputeArgumentsPosition(input_frame_pointer, is_rest, &length);
 
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
@@ -3456,6 +3473,14 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::ARGUMENTS_ELEMENTS: {
       bool is_rest = iterator->Next();
       CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest);
+      return 0;
+    }
+
+    case Translation::ARGUMENTS_LENGTH: {
+      bool is_rest = iterator->Next();
+      int length;
+      ComputeArgumentsPosition(fp, is_rest, &length);
+      frame.Add(TranslatedValue::NewInt32(this, length));
       return 0;
     }
 

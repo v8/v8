@@ -498,6 +498,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kStateValues:
     case IrOpcode::kTypedStateValues:
     case IrOpcode::kArgumentsElementsState:
+    case IrOpcode::kArgumentsLengthState:
     case IrOpcode::kObjectState:
     case IrOpcode::kTypedObjectState:
       // TODO(jarin): what are the constraints on these?

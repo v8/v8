@@ -848,6 +848,10 @@ Type* Typer::Visitor::TypeArgumentsElementsState(Node* node) {
   return Type::Internal();
 }
 
+Type* Typer::Visitor::TypeArgumentsLengthState(Node* node) {
+  return Type::Internal();
+}
+
 Type* Typer::Visitor::TypeObjectState(Node* node) { return Type::Internal(); }
 
 Type* Typer::Visitor::TypeTypedObjectState(Node* node) {

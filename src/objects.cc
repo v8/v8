@@ -14479,7 +14479,8 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
           break;
         }
 
-        case Translation::ARGUMENTS_ELEMENTS: {
+        case Translation::ARGUMENTS_ELEMENTS:
+        case Translation::ARGUMENTS_LENGTH: {
           bool is_rest = iterator.Next();
           os << "{is_rest=" << (is_rest ? "true" : "false") << "}";
           break;

@@ -2725,6 +2725,7 @@ class RepresentationSelector {
       case IrOpcode::kProjection:
       case IrOpcode::kOsrValue:
       case IrOpcode::kArgumentsElementsState:
+      case IrOpcode::kArgumentsLengthState:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)
