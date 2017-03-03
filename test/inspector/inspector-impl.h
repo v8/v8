@@ -38,6 +38,7 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
 
  private:
   // V8InspectorClient implementation.
+  bool formatAccessorsAsProperties(v8::Local<v8::Value>) override;
   v8::Local<v8::Context> ensureDefaultContextInGroup(
       int context_group_id) override;
   double currentTimeMS() override;

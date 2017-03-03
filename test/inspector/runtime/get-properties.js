@@ -176,6 +176,46 @@ function callbackEvalBound(result)
 function callbackPropertiesBound(result)
 {
   logGetPropertiesResult("Bound function", result);
+  return { callback: callbackStartObjectThrowsLength };
+}
+
+
+// Object throws on length access
+
+function callbackStartObjectThrowsLength() {
+  var expression = "({get length() { throw 'Length called'; }})";
+  return { command: "Runtime.evaluate", params: {expression: expression}, callback: callbackEvalObjectThrowsLength };
+}
+function callbackEvalObjectThrowsLength(result) {
+  var id = result.result.objectId;
+  if (id === undefined)
+    throw new Error("objectId is expected");
+  return {
+    command: "Runtime.getProperties", params: {objectId: id, ownProperties: true}, callback: callbackPropertiesObjectThrowsLength
+  };
+}
+function callbackPropertiesObjectThrowsLength(result) {
+  logGetPropertiesResult("Object that throws on length access", result);
+  return { callback: callbackStartTypedArrayWithoutLength };
+}
+
+
+// Typed array without length
+
+function callbackStartTypedArrayWithoutLength() {
+  var expression = "({__proto__: Uint8Array.prototype})";
+  return { command: "Runtime.evaluate", params: {expression: expression}, callback: callbackEvalTypedArrayWithoutLength };
+}
+function callbackEvalTypedArrayWithoutLength(result) {
+  var id = result.result.objectId;
+  if (id === undefined)
+    throw new Error("objectId is expected");
+  return {
+    command: "Runtime.getProperties", params: {objectId: id, ownProperties: true}, callback: callbackPropertiesTypedArrayWithoutLength
+  };
+}
+function callbackPropertiesTypedArrayWithoutLength(result) {
+  logGetPropertiesResult("TypedArray without length", result);
   return; // End of test
 }
 

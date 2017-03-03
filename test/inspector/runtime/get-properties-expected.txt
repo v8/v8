@@ -37,3 +37,8 @@ Internal properties
   [[BoundArgs]] object undefined
   [[BoundThis]] object undefined
   [[TargetFunction]] function undefined
+Properties of Object that throws on length access
+  __proto__ own object undefined
+  length own no value, getter
+Properties of TypedArray without length
+  __proto__ own object undefined

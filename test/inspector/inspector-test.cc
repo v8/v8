@@ -382,7 +382,8 @@ class InspectorExtension : public v8::Extension {
                       "native function setMaxAsyncTaskStacks();"
                       "native function breakProgram();"
                       "native function createObjectWithStrictCheck();"
-                      "native function callWithScheduledBreak();") {}
+                      "native function callWithScheduledBreak();"
+                      "native function allowAccessorFormatting();") {}
 
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
@@ -427,6 +428,13 @@ class InspectorExtension : public v8::Extension {
                    .FromJust()) {
       return v8::FunctionTemplate::New(
           isolate, InspectorExtension::CallWithScheduledBreak);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "allowAccessorFormatting",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(
+          isolate, InspectorExtension::AllowAccessorFormatting);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -524,6 +532,24 @@ class InspectorExtension : public v8::Extension {
     result = args[0].As<v8::Function>()->Call(context, context->Global(), 0,
                                               nullptr);
     session->cancelPauseOnNextStatement();
+  }
+
+  static void AllowAccessorFormatting(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 1 || !args[0]->IsObject()) {
+      fprintf(stderr, "Internal error: allowAccessorFormatting('object').");
+      Exit();
+    }
+    v8::Local<v8::Object> object = args[0].As<v8::Object>();
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::Private> shouldFormatAccessorsPrivate = v8::Private::ForApi(
+        isolate, v8::String::NewFromUtf8(isolate, "allowAccessorFormatting",
+                                         v8::NewStringType::kNormal)
+                     .ToLocalChecked());
+    object
+        ->SetPrivate(isolate->GetCurrentContext(), shouldFormatAccessorsPrivate,
+                     v8::Null(isolate))
+        .ToChecked();
   }
 };
 

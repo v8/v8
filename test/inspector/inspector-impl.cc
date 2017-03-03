@@ -162,6 +162,20 @@ void InspectorClientImpl::disconnect() {
   session_.reset();
 }
 
+bool InspectorClientImpl::formatAccessorsAsProperties(
+    v8::Local<v8::Value> object) {
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
+  v8::Local<v8::Private> shouldFormatAccessorsPrivate = v8::Private::ForApi(
+      isolate, v8::String::NewFromUtf8(isolate, "allowAccessorFormatting",
+                                       v8::NewStringType::kNormal)
+                   .ToLocalChecked());
+  CHECK(object->IsObject());
+  return object.As<v8::Object>()
+      ->HasPrivate(context, shouldFormatAccessorsPrivate)
+      .FromMaybe(false);
+}
+
 v8::Local<v8::Context> InspectorClientImpl::ensureDefaultContextInGroup(int) {
   CHECK(isolate_);
   return context_.Get(isolate_);
