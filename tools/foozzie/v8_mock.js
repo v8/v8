@@ -31,11 +31,13 @@ var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
     return mockDate
   }
 
+  var origConcat = Array.prototype.concat
   var origDate = Date;
   var constructDate = function(args) {
     if (args.length > 0) {
       var result = new (
-          Function.prototype.bind.apply(origDate, [null].concat(args)));
+          Function.prototype.bind.apply(
+              origDate, origConcat.apply([null], args)));
     } else {
       var result = new origDate(mockDateNow());
     }
