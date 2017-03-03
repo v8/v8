@@ -1873,6 +1873,7 @@
         'base/safe_math_impl.h',
         'base/sys-info.cc',
         'base/sys-info.h',
+        'base/timezone-cache.h',
         'base/utils/random-number-generator.cc',
         'base/utils/random-number-generator.h',
       ],
@@ -1913,6 +1914,7 @@
             'sources': [
               'base/debug/stack_trace_posix.cc',
               'base/platform/platform-linux.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
             ],
           }
@@ -1920,6 +1922,7 @@
         ['OS=="android"', {
             'sources': [
               'base/debug/stack_trace_android.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
             ],
             'link_settings': {
@@ -1975,6 +1978,7 @@
             },
             'sources': [
               'base/debug/stack_trace_posix.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
               'base/qnx-math.h'
             ],
@@ -2005,6 +2009,7 @@
             'sources': [
               'base/debug/stack_trace_posix.cc',
               'base/platform/platform-freebsd.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
             ],
           }
@@ -2016,6 +2021,7 @@
             ]},
             'sources': [
               'base/platform/platform-openbsd.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc'
             ],
           }
@@ -2028,6 +2034,7 @@
             'sources': [
               'base/debug/stack_trace_posix.cc',
               'base/platform/platform-openbsd.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
             ],
           }
@@ -2036,6 +2043,7 @@
           'sources': [
             'base/debug/stack_trace_posix.cc',
             'base/platform/platform-aix.cc',
+            'base/platform/platform-posix.h',
             'base/platform/platform-posix.cc'
           ]},
         ],
@@ -2047,6 +2055,7 @@
             'sources': [
               'base/debug/stack_trace_posix.cc',
               'base/platform/platform-solaris.cc',
+              'base/platform/platform-posix.h',
               'base/platform/platform-posix.cc',
             ],
           }
@@ -2055,6 +2064,7 @@
           'sources': [
             'base/debug/stack_trace_posix.cc',
             'base/platform/platform-macos.cc',
+            'base/platform/platform-posix.h',
             'base/platform/platform-posix.cc',
           ]},
         ],
@@ -2075,6 +2085,7 @@
                   'sources': [
                     'base/debug/stack_trace_posix.cc',
                     'base/platform/platform-cygwin.cc',
+                    'base/platform/platform-posix.h',
                     'base/platform/platform-posix.cc',
                   ],
                 }, {

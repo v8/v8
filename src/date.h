@@ -7,8 +7,8 @@
 
 #include "src/allocation.h"
 #include "src/base/platform/platform.h"
+#include "src/base/timezone-cache.h"
 #include "src/globals.h"
-
 
 namespace v8 {
 namespace internal {
@@ -44,7 +44,7 @@ class DateCache {
   }
 
   virtual ~DateCache() {
-    base::OS::DisposeTimezoneCache(tz_cache_);
+    delete tz_cache_;
     tz_cache_ = NULL;
   }
 
@@ -93,7 +93,7 @@ class DateCache {
     if (time_ms < 0 || time_ms > kMaxEpochTimeInMs) {
       time_ms = EquivalentTime(time_ms);
     }
-    return base::OS::LocalTimezone(static_cast<double>(time_ms), tz_cache_);
+    return tz_cache_->LocalTimezone(static_cast<double>(time_ms));
   }
 
   // ECMA 262 - 15.9.5.26
@@ -204,12 +204,11 @@ class DateCache {
   // These functions are virtual so that we can override them when testing.
   virtual int GetDaylightSavingsOffsetFromOS(int64_t time_sec) {
     double time_ms = static_cast<double>(time_sec * 1000);
-    return static_cast<int>(
-        base::OS::DaylightSavingsOffset(time_ms, tz_cache_));
+    return static_cast<int>(tz_cache_->DaylightSavingsOffset(time_ms));
   }
 
   virtual int GetLocalOffsetFromOS() {
-    double offset = base::OS::LocalTimeOffset(tz_cache_);
+    double offset = tz_cache_->LocalTimeOffset();
     DCHECK(offset < kInvalidLocalOffsetInMs);
     return static_cast<int>(offset);
   }
