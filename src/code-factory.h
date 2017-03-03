@@ -119,7 +119,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable Equal(Isolate* isolate);
   static Callable NotEqual(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
-  static Callable StrictNotEqual(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
                             PretenureFlag pretenure_flag);

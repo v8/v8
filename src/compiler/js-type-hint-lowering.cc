@@ -191,7 +191,6 @@ Reduction JSTypeHintLowering::ReduceBinaryOperation(const Operator* op,
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSNotEqual:
-    case IrOpcode::kJSStrictNotEqual:
       break;
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:

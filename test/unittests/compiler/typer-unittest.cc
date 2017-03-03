@@ -356,12 +356,6 @@ TEST_F(TyperTest, TypeJSStrictEqual) {
 }
 
 
-TEST_F(TyperTest, TypeJSStrictNotEqual) {
-  TestBinaryCompareOp(javascript_.StrictNotEqual(CompareOperationHint::kAny),
-                      std::not_equal_to<double>());
-}
-
-
 //------------------------------------------------------------------------------
 // Monotonicity
 
@@ -372,7 +366,6 @@ TEST_F(TyperTest, TypeJSStrictNotEqual) {
 TEST_BINARY_MONOTONICITY(Equal)
 TEST_BINARY_MONOTONICITY(NotEqual)
 TEST_BINARY_MONOTONICITY(StrictEqual)
-TEST_BINARY_MONOTONICITY(StrictNotEqual)
 TEST_BINARY_MONOTONICITY(LessThan)
 TEST_BINARY_MONOTONICITY(GreaterThan)
 TEST_BINARY_MONOTONICITY(LessThanOrEqual)

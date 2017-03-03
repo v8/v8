@@ -515,7 +515,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:

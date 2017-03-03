@@ -32,7 +32,6 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
 
     // Strict equality cannot lazily deoptimize.
     case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
       return false;
 
     // Binary operations

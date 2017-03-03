@@ -528,7 +528,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSEqual ||
          op->opcode() == IrOpcode::kJSNotEqual ||
          op->opcode() == IrOpcode::kJSStrictEqual ||
-         op->opcode() == IrOpcode::kJSStrictNotEqual ||
          op->opcode() == IrOpcode::kJSLessThan ||
          op->opcode() == IrOpcode::kJSGreaterThan ||
          op->opcode() == IrOpcode::kJSLessThanOrEqual ||
@@ -576,7 +575,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(Equal, Operator::kNoProperties)           \
   V(NotEqual, Operator::kNoProperties)        \
   V(StrictEqual, Operator::kPure)             \
-  V(StrictNotEqual, Operator::kPure)          \
   V(LessThan, Operator::kNoProperties)        \
   V(GreaterThan, Operator::kNoProperties)     \
   V(LessThanOrEqual, Operator::kNoProperties) \

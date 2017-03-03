@@ -1305,8 +1305,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
           assembler->Equal(CodeStubAssembler::kNegateResult, lhs, rhs, context);
       break;
     case Token::EQ_STRICT:
-      result = assembler->StrictEqual(CodeStubAssembler::kDontNegateResult, lhs,
-                                      rhs, context);
+      result = assembler->StrictEqual(lhs, rhs, context);
       break;
     case Token::LT:
       result = assembler->RelationalComparison(CodeStubAssembler::kLessThan,

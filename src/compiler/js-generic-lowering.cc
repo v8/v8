@@ -127,15 +127,6 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
                       Operator::kEliminatable);
 }
 
-void JSGenericLowering::LowerJSStrictNotEqual(Node* node) {
-  // The !== operator doesn't need the current context.
-  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  Callable callable = CodeFactory::StrictNotEqual(isolate());
-  node->RemoveInput(4);  // control
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoFlags,
-                      Operator::kEliminatable);
-}
-
 void JSGenericLowering::LowerJSToBoolean(Node* node) {
   // The ToBoolean conversion doesn't need the current context.
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());

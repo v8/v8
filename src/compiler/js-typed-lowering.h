@@ -59,7 +59,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSStoreModule(Node* node);
   Reduction ReduceJSEqualTypeOf(Node* node, bool invert);
   Reduction ReduceJSEqual(Node* node, bool invert);
-  Reduction ReduceJSStrictEqual(Node* node, bool invert);
+  Reduction ReduceJSStrictEqual(Node* node);
   Reduction ReduceJSToBoolean(Node* node);
   Reduction ReduceJSToInteger(Node* node);
   Reduction ReduceJSToLength(Node* node);

@@ -565,7 +565,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Equal(CompareOperationHint hint);
   const Operator* NotEqual(CompareOperationHint hint);
   const Operator* StrictEqual(CompareOperationHint hint);
-  const Operator* StrictNotEqual(CompareOperationHint hint);
   const Operator* LessThan(CompareOperationHint hint);
   const Operator* GreaterThan(CompareOperationHint hint);
   const Operator* LessThanOrEqual(CompareOperationHint hint);

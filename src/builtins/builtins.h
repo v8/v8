@@ -604,7 +604,6 @@ class Isolate;
   TFS(Equal, BUILTIN, kNoExtraICState, Compare, 1)                             \
   TFS(NotEqual, BUILTIN, kNoExtraICState, Compare, 1)                          \
   TFS(StrictEqual, BUILTIN, kNoExtraICState, Compare, 1)                       \
-  TFS(StrictNotEqual, BUILTIN, kNoExtraICState, Compare, 1)                    \
                                                                                \
   /* Object */                                                                 \
   CPP(ObjectAssign)                                                            \

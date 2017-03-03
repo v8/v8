@@ -7323,8 +7323,7 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
   return result.value();
 }
 
-Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
-                                     Node* context) {
+Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs, Node* context) {
   // Here's pseudo-code for the algorithm below in case of kDontNegateResult
   // mode; for kNegateResult mode we properly negate the result.
   //
@@ -7473,9 +7472,7 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
 
             Bind(&if_rhsisstring);
             {
-              Callable callable = (mode == kDontNegateResult)
-                                      ? CodeFactory::StringEqual(isolate())
-                                      : CodeFactory::StringNotEqual(isolate());
+              Callable callable = CodeFactory::StringEqual(isolate());
               result.Bind(CallStub(callable, context, lhs, rhs));
               Goto(&end);
             }
@@ -7530,13 +7527,13 @@ Node* CodeStubAssembler::StrictEqual(ResultMode mode, Node* lhs, Node* rhs,
 
   Bind(&if_equal);
   {
-    result.Bind(BooleanConstant(mode == kDontNegateResult));
+    result.Bind(TrueConstant());
     Goto(&end);
   }
 
   Bind(&if_notequal);
   {
-    result.Bind(BooleanConstant(mode == kNegateResult));
+    result.Bind(FalseConstant());
     Goto(&end);
   }
 
@@ -7621,7 +7618,7 @@ Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs, Node* context) {
 
   Bind(&strict_equal);
   {
-    Node* const is_equal = StrictEqual(kDontNegateResult, lhs, rhs, context);
+    Node* const is_equal = StrictEqual(lhs, rhs, context);
     Node* const result = WordEqual(is_equal, TrueConstant());
     var_result.Bind(result);
     Goto(&out);

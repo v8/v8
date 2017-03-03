@@ -989,14 +989,13 @@ Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
+Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   JSBinopReduction r(this, node);
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
-    Node* replacement = graph()->NewNode(simplified()->ObjectIsNaN(), r.left());
-    if (!invert) {
-      replacement = graph()->NewNode(simplified()->BooleanNot(), replacement);
-    }
+    Node* replacement = graph()->NewNode(
+        simplified()->BooleanNot(),
+        graph()->NewNode(simplified()->ObjectIsNaN(), r.left()));
     ReplaceWithValue(node, replacement);
     return Replace(replacement);
   }
@@ -1005,47 +1004,47 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
     // Number) an empty type intersection means the values cannot be strictly
     // equal.
     if (!r.left_type()->Maybe(r.right_type())) {
-      Node* replacement = jsgraph()->BooleanConstant(invert);
+      Node* replacement = jsgraph()->FalseConstant();
       ReplaceWithValue(node, replacement);
       return Replace(replacement);
     }
   }
 
-  Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
+  Reduction const reduction = ReduceJSEqualTypeOf(node, false);
   if (reduction.Changed()) return reduction;
 
   if (r.BothInputsAre(Type::Unique())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.OneInputIs(pointer_comparable_type_)) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.IsInternalizedStringCompareOperation()) {
     r.CheckInputsToInternalizedString();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
 
   NumberOperationHint hint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.GetCompareNumberOperationHint(&hint)) {
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
+        simplified()->SpeculativeNumberEqual(hint), false, Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
     // For strict equality, it's enough to know that one input is a Receiver,
     // as a strict equality comparison with a Receiver can only yield true if
     // both sides refer to the same Receiver than.
     r.CheckLeftInputToReceiver();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
   return NoChange();
 }
@@ -2373,9 +2372,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSNotEqual:
       return ReduceJSEqual(node, true);
     case IrOpcode::kJSStrictEqual:
-      return ReduceJSStrictEqual(node, false);
-    case IrOpcode::kJSStrictNotEqual:
-      return ReduceJSStrictEqual(node, true);
+      return ReduceJSStrictEqual(node);
     case IrOpcode::kJSLessThan:         // fall through
     case IrOpcode::kJSGreaterThan:      // fall through
     case IrOpcode::kJSLessThanOrEqual:  // fall through

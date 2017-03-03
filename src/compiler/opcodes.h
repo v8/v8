@@ -84,7 +84,6 @@
   V(JSEqual)                     \
   V(JSNotEqual)                  \
   V(JSStrictEqual)               \
-  V(JSStrictNotEqual)            \
   V(JSLessThan)                  \
   V(JSGreaterThan)               \
   V(JSLessThanOrEqual)           \

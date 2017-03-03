@@ -1213,7 +1213,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* Equal(ResultMode mode, Node* lhs, Node* rhs, Node* context);
 
-  Node* StrictEqual(ResultMode mode, Node* lhs, Node* rhs, Node* context);
+  Node* StrictEqual(Node* lhs, Node* rhs, Node* context);
 
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero

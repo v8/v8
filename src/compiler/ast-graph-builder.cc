@@ -1996,9 +1996,6 @@ void AstGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
     case Token::EQ_STRICT:
       op = javascript()->StrictEqual(hint);
       break;
-    case Token::NE_STRICT:
-      op = javascript()->StrictNotEqual(hint);
-      break;
     case Token::LT:
       op = javascript()->LessThan(hint);
       break;
@@ -2816,7 +2813,6 @@ Node* AstGraphBuilder::TryFastToBoolean(Node* input) {
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSStrictEqual:
-    case IrOpcode::kJSStrictNotEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThan:
