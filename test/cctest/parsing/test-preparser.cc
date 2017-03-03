@@ -69,22 +69,30 @@ TEST(PreParserScopeAnalysis) {
   struct {
     const char* prefix;
     const char* suffix;
+    // The scope start positions must match; note the extra space in
+    // lazy_inner.
     const char* lazy_inner;
     const char* eager_inner;
     bool strict_outer;
     bool strict_test_function;
     bool arrow;
   } outers[] = {
-      // The scope start positions must match; note the extra space in
-      // lazy_inner.
+      // Normal case (test function at the laziness boundary):
       {"(function outer() { ", "})();", " function test(%s) { %s }",
        "(function test(%s) { %s })()", false, false, false},
+
+      // Test function deeper:
       {"(function outer() { ", "})();",
        " function inner() { function test(%s) { %s } }",
        "(function inner() { function test(%s) { %s } })()", false, false,
        false},
+
+      // Arrow functions (they can never be at the laziness boundary):
       {"(function outer() { ", "})();", " function inner() { (%s) => { %s } }",
        "(function inner() { (%s) => { %s } })()", false, false, true},
+
+      // Repeat the above mentioned cases w/ outer function declaring itself
+      // strict:
       {"(function outer() { 'use strict'; ", "})();",
        " function test(%s) { %s }", "(function test(%s) { %s })()", true, false,
        false},
@@ -94,6 +102,8 @@ TEST(PreParserScopeAnalysis) {
       {"(function outer() { 'use strict'; ", "})();",
        " function inner() { (%s) => { %s } }",
        "(function inner() { (%s) => { %s } })()", true, false, true},
+
+      // ... and with the test function declaring itself strict:
       {"(function outer() { ", "})();",
        " function test(%s) { 'use strict'; %s }",
        "(function test(%s) { 'use strict'; %s })()", false, true, false},
@@ -105,6 +115,8 @@ TEST(PreParserScopeAnalysis) {
        " function inner() { (%s) => { 'use strict'; %s } }",
        "(function inner() { (%s) => { 'use strict'; %s } })()", false, true,
        true},
+
+      // FIXME(marja): Generators and async functions
   };
 
   struct Inner {
@@ -138,6 +150,7 @@ TEST(PreParserScopeAnalysis) {
       {"var var1; function f() { var1; }"},
       {"var var1; var1 = 5; function f() { var1; }"},
       {"var var1; function f() { var1 = 5; }"},
+      {"function f1() { f2(); } function f2() {}"},
 
       // Let declarations and assignments.
       {"let var1;"},
@@ -179,9 +192,15 @@ TEST(PreParserScopeAnalysis) {
       {"arguments = 5;", SKIP_STRICT},
       {"if (true) { arguments; }"},
       {"if (true) { arguments = 5; }", SKIP_STRICT},
+      {"() => { arguments; }"},
+      {"var1, var2, var3", "arguments;"},
+      {"var1, var2, var3", "arguments = 5;", SKIP_STRICT},
+      {"var1, var2, var3", "() => { arguments; }"},
+      {"var1, var2, var3", "() => { arguments = 5; }", SKIP_STRICT},
 
       {"this;"},
       {"if (true) { this; }"},
+      {"() => { this; }"},
 
       // Variable called "arguments"
       {"var arguments;", SKIP_STRICT},
@@ -323,6 +342,22 @@ TEST(PreParserScopeAnalysis) {
       {"for (let var1 in {a: 6}) { function foo() { var1 = 0; } }"},
       {"for (const var1 in {a: 6}) { function foo() { var1 = 0; } }"},
 
+      // Destructuring loop variable
+      {"for ([var1, var2] of [[1, 1], [2, 2]]) { }"},
+      {"for (var [var1, var2] of [[1, 1], [2, 2]]) { }"},
+      {"for (let [var1, var2] of [[1, 1], [2, 2]]) { }"},
+      {"for (const [var1, var2] of [[1, 1], [2, 2]]) { }"},
+
+      {"for ([var1, var2] of [[1, 1], [2, 2]]) { var2 = 3; }"},
+      {"for (var [var1, var2] of [[1, 1], [2, 2]]) { var2 = 3; }"},
+      {"for (let [var1, var2] of [[1, 1], [2, 2]]) { var2 = 3; }"},
+      {"for (const [var1, var2] of [[1, 1], [2, 2]]) { var2 = 3; }"},
+
+      {"for ([var1, var2] of [[1, 1], [2, 2]]) { () => { var2 = 3; } }"},
+      {"for (var [var1, var2] of [[1, 1], [2, 2]]) { () => { var2 = 3; } }"},
+      {"for (let [var1, var2] of [[1, 1], [2, 2]]) { () => { var2 = 3; } }"},
+      {"for (const [var1, var2] of [[1, 1], [2, 2]]) { () => { var2 = 3; } }"},
+
       // Loops without declarations
       {"var var1 = 0; for ( ; var1 < 2; ++var1) { }"},
       {"var var1 = 0; for ( ; var1 < 2; ++var1) { function foo() { var1; } }"},
@@ -362,6 +397,8 @@ TEST(PreParserScopeAnalysis) {
 
       {"var f1 = 1; if (true) { function f1() {} }"},
       {"var f1 = 1; if (true) { function f1() {} } function foo() { f1; }"},
+
+      {"if (true) { function f1() {} function f2() { f1(); } }"},
 
       // Simple parameters.
       {"var1", ""},
@@ -495,7 +532,21 @@ TEST(PreParserScopeAnalysis) {
       {"var1, var2 = eval(''), var3 = eval('')", "let var4 = 0;",
        SKIP_STRICT_FUNCTION, false},
 
-      // FIXME(marja): arguments parameter
+      // Eval in arrow function parameter list which is inside another arrow
+      // function parameter list.
+      {"var1, var2 = (var3, var4 = eval(''), var5) => { let var6; }, var7",
+       "let var8 = 0;", SKIP_STRICT_FUNCTION},
+
+      // Catch variable
+      {"try { } catch(var1) { }"},
+      {"try { } catch(var1) { var1; }"},
+      {"try { } catch(var1) { var1 = 3; }"},
+      {"try { } catch(var1) { function f() { var1; } }"},
+      {"try { } catch(var1) { function f() { var1 = 3; } }"},
+
+      // Shadowing the catch variable
+      {"try { } catch(var1) { var var1 = 3; }"},
+      {"try { } catch(var1) { var var1 = 3; function f() { var1 = 3; } }"},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
