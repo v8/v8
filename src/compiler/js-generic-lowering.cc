@@ -528,8 +528,7 @@ void JSGenericLowering::LowerJSConstruct(Node* node) {
 }
 
 void JSGenericLowering::LowerJSConstructWithSpread(Node* node) {
-  ConstructWithSpreadParameters const& p =
-      ConstructWithSpreadParametersOf(node->op());
+  SpreadWithArityParameters const& p = SpreadWithArityParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::ConstructWithSpread(isolate());
@@ -582,7 +581,7 @@ void JSGenericLowering::LowerJSCall(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCallWithSpread(Node* node) {
-  CallWithSpreadParameters const& p = CallWithSpreadParametersOf(node->op());
+  SpreadWithArityParameters const& p = SpreadWithArityParametersOf(node->op());
   int const arg_count = static_cast<int>(p.arity() - 2);
   Callable callable = CodeFactory::CallWithSpread(isolate());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

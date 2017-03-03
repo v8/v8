@@ -87,12 +87,12 @@ std::ostream& operator<<(std::ostream&, ConstructParameters const&);
 
 ConstructParameters const& ConstructParametersOf(Operator const*);
 
-// Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSConstructWithSpread
-// operators.
-class ConstructWithSpreadParameters final {
+// Defines the arity for JavaScript calls with a spread as the last
+// parameter. This is used as a parameter by JSConstructWithSpread and
+// JSCallWithSpread operators.
+class SpreadWithArityParameters final {
  public:
-  explicit ConstructWithSpreadParameters(uint32_t arity) : arity_(arity) {}
+  explicit SpreadWithArityParameters(uint32_t arity) : arity_(arity) {}
 
   uint32_t arity() const { return arity_; }
 
@@ -100,17 +100,16 @@ class ConstructWithSpreadParameters final {
   uint32_t const arity_;
 };
 
-bool operator==(ConstructWithSpreadParameters const&,
-                ConstructWithSpreadParameters const&);
-bool operator!=(ConstructWithSpreadParameters const&,
-                ConstructWithSpreadParameters const&);
+bool operator==(SpreadWithArityParameters const&,
+                SpreadWithArityParameters const&);
+bool operator!=(SpreadWithArityParameters const&,
+                SpreadWithArityParameters const&);
 
-size_t hash_value(ConstructWithSpreadParameters const&);
+size_t hash_value(SpreadWithArityParameters const&);
 
-std::ostream& operator<<(std::ostream&, ConstructWithSpreadParameters const&);
+std::ostream& operator<<(std::ostream&, SpreadWithArityParameters const&);
 
-ConstructWithSpreadParameters const& ConstructWithSpreadParametersOf(
-    Operator const*);
+SpreadWithArityParameters const& SpreadWithArityParametersOf(Operator const*);
 
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSCallForwardVarargs operators.
@@ -198,29 +197,6 @@ std::ostream& operator<<(std::ostream&, CallParameters const&);
 
 const CallParameters& CallParametersOf(const Operator* op);
 
-// Defines the arity for a JavaScript constructor call with a spread as the last
-// parameters. This is used as a parameter by JSConstructWithSpread
-// operators.
-class CallWithSpreadParameters final {
- public:
-  explicit CallWithSpreadParameters(uint32_t arity) : arity_(arity) {}
-
-  uint32_t arity() const { return arity_; }
-
- private:
-  uint32_t const arity_;
-};
-
-bool operator==(CallWithSpreadParameters const&,
-                CallWithSpreadParameters const&);
-bool operator!=(CallWithSpreadParameters const&,
-                CallWithSpreadParameters const&);
-
-size_t hash_value(CallWithSpreadParameters const&);
-
-std::ostream& operator<<(std::ostream&, CallWithSpreadParameters const&);
-
-CallWithSpreadParameters const& CallWithSpreadParametersOf(Operator const*);
 
 // Defines the arity and the ID for a runtime function call. This is used as a
 // parameter by JSCallRuntime operators.
