@@ -224,7 +224,7 @@ CompilerDispatcher::CompilerDispatcher(Isolate* isolate, Platform* platform,
       memory_pressure_level_(MemoryPressureLevel::kNone),
       abort_(false),
       idle_task_scheduled_(false),
-      num_scheduled_background_tasks_(0),
+      num_background_tasks_(0),
       main_thread_blocking_on_job_(nullptr),
       block_for_testing_(false),
       semaphore_for_testing_(0) {
@@ -567,10 +567,10 @@ void CompilerDispatcher::ScheduleMoreBackgroundTasksIfNeeded() {
     base::LockGuard<base::Mutex> lock(&mutex_);
     if (pending_background_jobs_.empty()) return;
     if (platform_->NumberOfAvailableBackgroundThreads() <=
-        num_scheduled_background_tasks_) {
+        num_background_tasks_) {
       return;
     }
-    ++num_scheduled_background_tasks_;
+    ++num_background_tasks_;
   }
   platform_->CallOnBackgroundThread(
       new BackgroundTask(isolate_, task_manager_.get(), this),
@@ -578,49 +578,53 @@ void CompilerDispatcher::ScheduleMoreBackgroundTasksIfNeeded() {
 }
 
 void CompilerDispatcher::DoBackgroundWork() {
-  CompilerDispatcherJob* job = nullptr;
-  {
-    base::LockGuard<base::Mutex> lock(&mutex_);
-    --num_scheduled_background_tasks_;
-    if (!pending_background_jobs_.empty()) {
-      auto it = pending_background_jobs_.begin();
-      job = *it;
-      pending_background_jobs_.erase(it);
-      running_background_jobs_.insert(job);
+  for (;;) {
+    CompilerDispatcherJob* job = nullptr;
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      if (!pending_background_jobs_.empty()) {
+        auto it = pending_background_jobs_.begin();
+        job = *it;
+        pending_background_jobs_.erase(it);
+        running_background_jobs_.insert(job);
+      }
+    }
+    if (job == nullptr) break;
+
+    if (V8_UNLIKELY(block_for_testing_.Value())) {
+      block_for_testing_.SetValue(false);
+      semaphore_for_testing_.Wait();
+    }
+
+    if (trace_compiler_dispatcher_) {
+      PrintF("CompilerDispatcher: doing background work\n");
+    }
+
+    DoNextStepOnBackgroundThread(job);
+    // Unconditionally schedule an idle task, as all background steps have to be
+    // followed by a main thread step.
+    ScheduleIdleTaskFromAnyThread();
+
+    {
+      base::LockGuard<base::Mutex> lock(&mutex_);
+      running_background_jobs_.erase(job);
+
+      if (main_thread_blocking_on_job_ == job) {
+        main_thread_blocking_on_job_ = nullptr;
+        main_thread_blocking_signal_.NotifyOne();
+      }
     }
   }
-  if (job == nullptr) return;
-
-  if (V8_UNLIKELY(block_for_testing_.Value())) {
-    block_for_testing_.SetValue(false);
-    semaphore_for_testing_.Wait();
-  }
-
-  if (trace_compiler_dispatcher_) {
-    PrintF("CompilerDispatcher: doing background work\n");
-  }
-
-  DoNextStepOnBackgroundThread(job);
-
-  ScheduleMoreBackgroundTasksIfNeeded();
-  // Unconditionally schedule an idle task, as all background steps have to be
-  // followed by a main thread step.
-  ScheduleIdleTaskFromAnyThread();
 
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
-    running_background_jobs_.erase(job);
+    --num_background_tasks_;
 
     if (running_background_jobs_.empty() && abort_) {
       // This is the last background job that finished. The abort task
       // scheduled by AbortAll might already have ran, so schedule another
       // one to be on the safe side.
       ScheduleAbortTask();
-    }
-
-    if (main_thread_blocking_on_job_ == job) {
-      main_thread_blocking_on_job_ = nullptr;
-      main_thread_blocking_signal_.NotifyOne();
     }
   }
   // Don't touch |this| anymore after this point, as it might have been

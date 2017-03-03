@@ -1102,5 +1102,68 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
   platform.ClearBackgroundTasks();
 }
 
+TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
+  MockPlatform platform;
+  CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
+
+  const char script1[] =
+      "function g() { var y = 1; function f19(x) { return x * y }; "
+      "return f19; } g();";
+  Handle<JSFunction> f1 = Handle<JSFunction>::cast(RunJS(isolate(), script1));
+  Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
+  const char script2[] =
+      "function g() { var y = 1; function f20(x) { return x * y }; "
+      "return f20; } g();";
+  Handle<JSFunction> f2 = Handle<JSFunction>::cast(RunJS(isolate(), script2));
+  Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
+
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(dispatcher.Enqueue(shared1));
+  ASSERT_TRUE(dispatcher.Enqueue(shared2));
+  ASSERT_TRUE(platform.IdleTaskPending());
+
+  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kInitial);
+  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->status() ==
+              CompileJobStatus::kInitial);
+
+  // Make compiling super expensive, and advance job as much as possible on the
+  // foreground thread.
+  dispatcher.tracer_->RecordCompile(50000.0, 1);
+  platform.RunIdleTask(10.0, 0.0);
+  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->status() ==
+              CompileJobStatus::kReadyToCompile);
+
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared1));
+  ASSERT_TRUE(dispatcher.IsEnqueued(shared2));
+  ASSERT_FALSE(shared1->is_compiled());
+  ASSERT_FALSE(shared2->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+  ASSERT_TRUE(platform.BackgroundTasksPending());
+
+  platform.RunBackgroundTasksAndBlock(V8::GetCurrentPlatform());
+
+  ASSERT_TRUE(platform.IdleTaskPending());
+  ASSERT_FALSE(platform.BackgroundTasksPending());
+  ASSERT_EQ(dispatcher.jobs_.size(), 2u);
+  ASSERT_TRUE(dispatcher.jobs_.begin()->second->status() ==
+              CompileJobStatus::kCompiled);
+  ASSERT_TRUE((++dispatcher.jobs_.begin())->second->status() ==
+              CompileJobStatus::kCompiled);
+
+  // Now grant a lot of idle time and freeze time.
+  platform.RunIdleTask(1000.0, 0.0);
+
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared1));
+  ASSERT_FALSE(dispatcher.IsEnqueued(shared2));
+  ASSERT_TRUE(shared1->is_compiled());
+  ASSERT_TRUE(shared2->is_compiled());
+  ASSERT_FALSE(platform.IdleTaskPending());
+}
+
 }  // namespace internal
 }  // namespace v8
