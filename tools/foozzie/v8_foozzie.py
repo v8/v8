@@ -31,6 +31,9 @@ CONFIGS = dict(
   ignition_turbo=['--ignition-staging', '--turbo', '--validate-asm'],
   ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt',
                       '--validate-asm'],
+  ignition_turbo_opt_eager=[
+    '--ignition-staging', '--turbo', '--always-opt', '--validate-asm',
+    '--no-lazy', '--no-lazy-inner-functions'],
 )
 
 # Timeout in seconds for one d8 run.
