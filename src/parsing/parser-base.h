@@ -78,7 +78,6 @@ struct FormalParametersBase {
   DeclarationScope* scope;
   bool has_rest = false;
   bool is_simple = true;
-  int materialized_literals_count = 0;
   int function_length = 0;
   int arity = 0;
 };
@@ -287,7 +286,6 @@ class ParserBase {
 
   enum class FunctionBodyType { kNormal, kSingleExpression };
 
-  class Checkpoint;
   class ClassLiteralChecker;
   class ObjectLiteralChecker;
 
@@ -449,11 +447,6 @@ class ParserBase {
         *ok = false;
     }
 
-    // Used to assign an index to each literal that needs materialization in
-    // the function.  Includes regexp literals, and boilerplate for object and
-    // array literals.
-    int next_materialized_literal_index_;
-
     // Properties count estimation.
     int expected_property_count_;
 
@@ -477,7 +470,6 @@ class ParserBase {
     bool previous_function_was_likely_called_;
 
     friend Impl;
-    friend class Checkpoint;
   };
 
   // This scope sets current ReturnExprContext to given value.
@@ -520,34 +512,6 @@ class ParserBase {
    private:
     FunctionState* function_state_;
     TailCallExpressionList* list_;
-  };
-
-  // Annoyingly, arrow functions first parse as comma expressions, then when we
-  // see the => we have to go back and reinterpret the arguments as being formal
-  // parameters.  To do so we need to reset some of the parser state back to
-  // what it was before the arguments were first seen.
-  class Checkpoint BASE_EMBEDDED {
-   public:
-    explicit Checkpoint(ParserBase* parser) {
-      function_state_ = parser->function_state_;
-      next_materialized_literal_index_ =
-          function_state_->next_materialized_literal_index_;
-      expected_property_count_ = function_state_->expected_property_count_;
-    }
-
-    void Restore(int* materialized_literal_index_delta) {
-      *materialized_literal_index_delta =
-          function_state_->next_materialized_literal_index_ -
-          next_materialized_literal_index_;
-      function_state_->next_materialized_literal_index_ =
-          next_materialized_literal_index_;
-      function_state_->expected_property_count_ = expected_property_count_;
-    }
-
-   private:
-    FunctionState* function_state_;
-    int next_materialized_literal_index_;
-    int expected_property_count_;
   };
 
   struct DeclarationDescriptor {
@@ -1469,7 +1433,6 @@ ParserBase<Impl>::FunctionState::FunctionState(
     FunctionState** function_state_stack, Scope** scope_stack,
     DeclarationScope* scope)
     : BlockState(scope_stack, scope),
-      next_materialized_literal_index_(0),
       expected_property_count_(0),
       function_state_stack_(function_state_stack),
       outer_function_state_(*function_state_stack),
@@ -2672,7 +2635,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   }
 
   FuncNameInferrer::State fni_state(fni_);
-  Checkpoint checkpoint(this);
   ExpressionClassifier arrow_formals_classifier(
       this, classifier()->duplicate_finder());
 
@@ -2734,8 +2696,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       scope->SetHasNonSimpleParameters();
       parameters.is_simple = false;
     }
-
-    checkpoint.Restore(&parameters.materialized_literals_count);
 
     scope->set_start_position(lhs_beg_pos);
     Scanner::Location duplicate_loc = Scanner::Location::invalid();
@@ -2812,11 +2772,10 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   impl()->RewriteNonPattern(CHECK_OK);
   impl()->AccumulateFormalParameterContainmentErrors();
 
-  // TODO(1231235): We try to estimate the set of properties set by
-  // constructors. We define a new property whenever there is an
-  // assignment to a property of 'this'. We should probably only add
-  // properties if we haven't seen them before. Otherwise we'll
-  // probably overestimate the number of properties.
+  // We try to estimate the set of properties set by constructors. We define a
+  // new property whenever there is an assignment to a property of 'this'. We
+  // should probably only add properties if we haven't seen them
+  // before. Otherwise we'll probably overestimate the number of properties.
   if (op == Token::ASSIGN && impl()->IsThisProperty(expression)) {
     function_state_->AddProperty();
   }

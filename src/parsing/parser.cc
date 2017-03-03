@@ -875,7 +875,6 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       scope->set_start_position(info->start_position());
       ExpressionClassifier formals_classifier(this);
       ParserFormalParameters formals(scope);
-      Checkpoint checkpoint(this);
       {
         // Parsing patterns as variable reference expression creates
         // NewUnresolved references in current scope. Entrer arrow function
@@ -893,7 +892,6 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       }
 
       if (ok) {
-        checkpoint.Restore(&formals.materialized_literals_count);
         if (GetLastFunctionLiteralId() != info->function_literal_id() - 1) {
           // If there were FunctionLiterals in the parameters, we need to
           // renumber them to shift down so the next function literal id for
