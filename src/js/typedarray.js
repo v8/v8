@@ -166,6 +166,9 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
     }
   }
   var newLength = newByteLength / ELEMENT_SIZE;
+  if (newLength > %_MaxSmi()) {
+    throw %make_range_error(kInvalidTypedArrayLength);
+  }
   %typed_array_initialize(obj, newLength, buffer, offset, newByteLength, true);
 }
 

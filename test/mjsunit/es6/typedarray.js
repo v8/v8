@@ -831,3 +831,15 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
     }
   }
 })();
+
+(function TestBufferLengthTooLong() {
+  try {
+    var buf = new ArrayBuffer(2147483648);
+    assertThrows(function() {
+      new Int8Array(buf);
+    }, RangeError);
+  } catch (e) {
+    // The ArrayBuffer allocation fails on 32-bit archs, so no need to try to
+    // construct the typed array.
+  }
+})();
