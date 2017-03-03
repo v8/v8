@@ -1101,7 +1101,6 @@ class TryStatement : public Statement {
 class TryCatchStatement final : public TryStatement {
  public:
   Scope* scope() { return scope_; }
-  Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
   void set_catch_block(Block* b) { catch_block_ = b; }
 
@@ -1122,18 +1121,15 @@ class TryCatchStatement final : public TryStatement {
  private:
   friend class AstNodeFactory;
 
-  TryCatchStatement(Block* try_block, Scope* scope, Variable* variable,
-                    Block* catch_block,
+  TryCatchStatement(Block* try_block, Scope* scope, Block* catch_block,
                     HandlerTable::CatchPrediction catch_prediction, int pos)
       : TryStatement(try_block, pos, kTryCatchStatement),
         scope_(scope),
-        variable_(variable),
         catch_block_(catch_block) {
     catch_prediction_ = catch_prediction;
   }
 
   Scope* scope_;
-  Variable* variable_;
   Block* catch_block_;
 };
 
@@ -3245,38 +3241,33 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   TryCatchStatement* NewTryCatchStatement(Block* try_block, Scope* scope,
-                                          Variable* variable,
                                           Block* catch_block, int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::CAUGHT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::CAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForReThrow(Block* try_block,
                                                     Scope* scope,
-                                                    Variable* variable,
                                                     Block* catch_block,
                                                     int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::UNCAUGHT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::UNCAUGHT, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForDesugaring(Block* try_block,
                                                        Scope* scope,
-                                                       Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_) TryCatchStatement(
-        try_block, scope, variable, catch_block, HandlerTable::DESUGARING, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::DESUGARING, pos);
   }
 
   TryCatchStatement* NewTryCatchStatementForAsyncAwait(Block* try_block,
                                                        Scope* scope,
-                                                       Variable* variable,
                                                        Block* catch_block,
                                                        int pos) {
-    return new (zone_)
-        TryCatchStatement(try_block, scope, variable, catch_block,
-                          HandlerTable::ASYNC_AWAIT, pos);
+    return new (zone_) TryCatchStatement(try_block, scope, catch_block,
+                                         HandlerTable::ASYNC_AWAIT, pos);
   }
 
   TryFinallyStatement* NewTryFinallyStatement(Block* try_block,

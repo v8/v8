@@ -360,10 +360,10 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const { return outer_scope_; }
 
-  const AstRawString* catch_variable_name() const {
+  Variable* catch_variable() const {
     DCHECK(is_catch_scope());
     DCHECK_EQ(1, num_var());
-    return static_cast<AstRawString*>(variables_.Start()->key);
+    return static_cast<Variable*>(variables_.Start()->value);
   }
 
   // ---------------------------------------------------------------------------

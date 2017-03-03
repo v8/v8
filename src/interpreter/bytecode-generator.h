@@ -122,7 +122,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalActivationContext();
   void BuildLocalActivationContextInitialization();
   void BuildNewLocalBlockContext(Scope* scope);
-  void BuildNewLocalCatchContext(Variable* variable, Scope* scope);
+  void BuildNewLocalCatchContext(Scope* scope);
   void BuildNewLocalWithContext(Scope* scope);
 
   void VisitGeneratorPrologue();

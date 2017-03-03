@@ -856,9 +856,8 @@ void AstPrinter::VisitForOfStatement(ForOfStatement* node) {
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH", node->position());
   PrintTryStatement(node);
-  PrintLiteralWithModeIndented("CATCHVAR",
-                               node->variable(),
-                               node->variable()->name());
+  PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
+                               node->scope()->catch_variable()->name());
   PrintIndentedVisit("CATCH", node->catch_block());
 }
 

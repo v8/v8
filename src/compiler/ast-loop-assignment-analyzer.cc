@@ -222,8 +222,7 @@ void ALAA::VisitSloppyBlockFunctionStatement(
 void ALAA::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
   Visit(stmt->catch_block());
-  // TODO(turbofan): are catch variables well-scoped?
-  AnalyzeAssignment(stmt->variable());
+  AnalyzeAssignment(stmt->scope()->catch_variable());
 }
 
 

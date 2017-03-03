@@ -587,7 +587,6 @@ class ParserBase {
    public:
     explicit CatchInfo(ParserBase* parser)
         : name(parser->impl()->EmptyIdentifier()),
-          variable(nullptr),
           pattern(parser->impl()->EmptyExpression()),
           scope(nullptr),
           init_block(parser->impl()->NullBlock()),
@@ -595,7 +594,6 @@ class ParserBase {
           bound_names(1, parser->zone()),
           tail_call_expressions(parser->zone()) {}
     IdentifierT name;
-    Variable* variable;
     ExpressionT pattern;
     Scope* scope;
     BlockT init_block;

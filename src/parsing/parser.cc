@@ -1676,7 +1676,8 @@ void Parser::RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {
     DCHECK_NOT_NULL(catch_info->pattern);
     catch_info->name = ast_value_factory()->dot_catch_string();
   }
-  catch_info->variable = catch_info->scope->DeclareLocal(catch_info->name, VAR);
+  Variable* catch_variable =
+      catch_info->scope->DeclareLocal(catch_info->name, VAR);
   if (catch_info->pattern != nullptr) {
     DeclarationDescriptor descriptor;
     descriptor.declaration_kind = DeclarationDescriptor::NORMAL;
@@ -1690,7 +1691,7 @@ void Parser::RewriteCatchPattern(CatchInfo* catch_info, bool* ok) {
 
     DeclarationParsingResult::Declaration decl(
         catch_info->pattern, initializer_position,
-        factory()->NewVariableProxy(catch_info->variable));
+        factory()->NewVariableProxy(catch_variable));
 
     catch_info->init_block =
         factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
@@ -1732,10 +1733,8 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
   if (catch_block != nullptr && finally_block != nullptr) {
     // If we have both, create an inner try/catch.
     DCHECK_NOT_NULL(catch_info.scope);
-    DCHECK_NOT_NULL(catch_info.variable);
     TryCatchStatement* statement;
     statement = factory()->NewTryCatchStatement(try_block, catch_info.scope,
-                                                catch_info.variable,
                                                 catch_block, kNoSourcePosition);
 
     try_block = factory()->NewBlock(nullptr, 1, false, kNoSourcePosition);
@@ -1751,9 +1750,8 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
 
     DCHECK_NULL(finally_block);
     DCHECK_NOT_NULL(catch_info.scope);
-    DCHECK_NOT_NULL(catch_info.variable);
-    return factory()->NewTryCatchStatement(
-        try_block, catch_info.scope, catch_info.variable, catch_block, pos);
+    return factory()->NewTryCatchStatement(try_block, catch_info.scope,
+                                           catch_block, pos);
   } else {
     DCHECK_NOT_NULL(finally_block);
     return factory()->NewTryFinallyStatement(try_block, finally_block, pos);
@@ -1992,7 +1990,7 @@ void Parser::DesugarBindingInForEachStatement(ForInfo* for_info,
       Scope* catch_scope = scope();
       while (catch_scope != nullptr && !catch_scope->is_declaration_scope()) {
         if (catch_scope->is_catch_scope()) {
-          auto name = catch_scope->catch_variable_name();
+          auto name = catch_scope->catch_variable()->raw_name();
           // If it's a simple binding and the name is declared in the for loop.
           if (name != ast_value_factory()->dot_catch_string() &&
               for_info->bound_names.Contains(name)) {
@@ -3015,9 +3013,8 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
       factory()->NewReturnStatement(promise_reject, kNoSourcePosition));
 
   TryStatement* try_catch_statement =
-      factory()->NewTryCatchStatementForAsyncAwait(inner_block, catch_scope,
-                                                   catch_variable, catch_block,
-                                                   kNoSourcePosition);
+      factory()->NewTryCatchStatementForAsyncAwait(
+          inner_block, catch_scope, catch_block, kNoSourcePosition);
 
   // There is no TryCatchFinally node, so wrap it in an outer try/finally
   Block* outer_try_block = IgnoreCompletion(try_catch_statement);
@@ -4511,10 +4508,10 @@ Expression* Parser::RewriteYieldStar(Expression* generator,
     Scope* catch_scope = NewScope(CATCH_SCOPE);
     catch_scope->set_is_hidden();
     const AstRawString* name = ast_value_factory()->dot_catch_string();
-    Variable* catch_variable = catch_scope->DeclareLocal(name, VAR);
+    catch_scope->DeclareLocal(name, VAR);
 
     try_catch = factory()->NewTryCatchStatementForDesugaring(
-        try_block, catch_scope, catch_variable, catch_block, nopos);
+        try_block, catch_scope, catch_block, nopos);
   }
 
   // try { ... } finally { ... }
@@ -4815,7 +4812,7 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
     catch_block->statements()->Add(rethrow, zone());
 
     try_catch = factory()->NewTryCatchStatementForReThrow(
-        iterator_use, catch_scope, catch_variable, catch_block, nopos);
+        iterator_use, catch_scope, catch_block, nopos);
   }
 
   // try { #try_catch } finally { #maybe_close }
@@ -4913,12 +4910,11 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
     Block* catch_block = factory()->NewBlock(nullptr, 0, false, nopos);
 
     Scope* catch_scope = NewScopeWithParent(scope, CATCH_SCOPE);
-    Variable* catch_variable =
-        catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
+    catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
     catch_scope->set_is_hidden();
 
-    try_call_return = factory()->NewTryCatchStatement(
-        try_block, catch_scope, catch_variable, catch_block, nopos);
+    try_call_return = factory()->NewTryCatchStatement(try_block, catch_scope,
+                                                      catch_block, nopos);
   }
 
   // let output = %_Call(iteratorReturn, iterator);
