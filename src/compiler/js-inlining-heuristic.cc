@@ -164,6 +164,10 @@ void JSInliningHeuristic::Finalize() {
     auto i = candidates_.begin();
     Candidate candidate = *i;
     candidates_.erase(i);
+    // Only include candidates that we've successfully called before.
+    // The candidate list is sorted, so we can exit at the first occurance of
+    // frequency 0 in the list.
+    if (candidate.frequency <= 0.0) return;
     // Make sure we don't try to inline dead candidate nodes.
     if (!candidate.node->IsDead()) {
       Reduction const reduction = InlineCandidate(candidate);
