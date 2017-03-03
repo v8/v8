@@ -128,8 +128,15 @@ function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2, conservative) {
 
 macro TYPED_ARRAY_CONSTRUCTOR(ARRAY_ID, NAME, ELEMENT_SIZE)
 function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
+  var offset;
   if (!IS_UNDEFINED(byteOffset)) {
-    byteOffset = ToIndex(byteOffset, kInvalidTypedArrayLength);
+    offset = ToIndex(byteOffset, kInvalidTypedArrayLength);
+    if (offset % ELEMENT_SIZE !== 0) {
+      throw %make_range_error(kInvalidTypedArrayAlignment,
+                           "start offset", "NAME", ELEMENT_SIZE);
+    }
+  } else {
+    offset = 0;
   }
   if (!IS_UNDEFINED(length)) {
     length = ToIndex(length, kInvalidTypedArrayLength);
@@ -141,17 +148,6 @@ function NAMEConstructByArrayBuffer(obj, buffer, byteOffset, length) {
   }
 
   var bufferByteLength = %_ArrayBufferGetByteLength(buffer);
-  var offset;
-  if (IS_UNDEFINED(byteOffset)) {
-    offset = 0;
-  } else {
-    offset = byteOffset;
-
-    if (offset % ELEMENT_SIZE !== 0) {
-      throw %make_range_error(kInvalidTypedArrayAlignment,
-                           "start offset", "NAME", ELEMENT_SIZE);
-    }
-  }
 
   var newByteLength;
   if (IS_UNDEFINED(length)) {
