@@ -52,22 +52,21 @@ Handle<Object> LoadHandler::EnableAccessCheckOnReceiver(
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::EnableNegativeLookupOnReceiver(
-    Isolate* isolate, Handle<Object> smi_handler) {
+Handle<Object> LoadHandler::EnableLookupOnReceiver(Isolate* isolate,
+                                                   Handle<Object> smi_handler) {
   int config = Smi::cast(*smi_handler)->value();
 #ifdef DEBUG
   Kind kind = KindBits::decode(config);
   DCHECK_NE(kForElements, kind);
 #endif
-  config = DoNegativeLookupOnReceiverBits::update(config, true);
+  config = LookupOnReceiverBits::update(config, true);
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Object> LoadHandler::LoadNonExistent(
-    Isolate* isolate, bool do_negative_lookup_on_receiver) {
-  int config =
-      KindBits::encode(kForNonExistent) |
-      DoNegativeLookupOnReceiverBits::encode(do_negative_lookup_on_receiver);
+Handle<Object> LoadHandler::LoadNonExistent(Isolate* isolate,
+                                            bool do_lookup_on_receiver) {
+  int config = KindBits::encode(kForNonExistent) |
+               LookupOnReceiverBits::encode(do_lookup_on_receiver);
   return handle(Smi::FromInt(config), isolate);
 }
 

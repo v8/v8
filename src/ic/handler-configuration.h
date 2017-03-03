@@ -31,10 +31,11 @@ class LoadHandler {
   class DoAccessCheckOnReceiverBits
       : public BitField<bool, KindBits::kNext, 1> {};
 
-  // Defines whether negative lookup check should be done on receiver object.
-  // Applicable to kForFields, kForConstants and kForNonExistent kinds only when
-  // loading value from prototype chain. Ignored when loading from holder.
-  class DoNegativeLookupOnReceiverBits
+  // Defines whether a lookup should be done on receiver object before
+  // proceeding to the prototype chain. Applicable to kForFields, kForConstants
+  // and kForNonExistent kinds only when loading value from prototype chain.
+  // Ignored when loading from holder.
+  class LookupOnReceiverBits
       : public BitField<bool, DoAccessCheckOnReceiverBits::kNext, 1> {};
 
   //
@@ -42,7 +43,7 @@ class LoadHandler {
   //
 
   class IsAccessorInfoBits
-      : public BitField<bool, DoNegativeLookupOnReceiverBits::kNext, 1> {};
+      : public BitField<bool, LookupOnReceiverBits::kNext, 1> {};
   // Index of a value entry in the descriptor array.
   class DescriptorBits : public BitField<unsigned, IsAccessorInfoBits::kNext,
                                          kDescriptorIndexBitCount> {};
@@ -52,8 +53,8 @@ class LoadHandler {
   //
   // Encoding when KindBits contains kForFields.
   //
-  class IsInobjectBits
-      : public BitField<bool, DoNegativeLookupOnReceiverBits::kNext, 1> {};
+  class IsInobjectBits : public BitField<bool, LookupOnReceiverBits::kNext, 1> {
+  };
   class IsDoubleBits : public BitField<bool, IsInobjectBits::kNext, 1> {};
   // +1 here is to cover all possible JSObject header sizes.
   class FieldOffsetBits
@@ -105,15 +106,15 @@ class LoadHandler {
   static inline Handle<Object> EnableAccessCheckOnReceiver(
       Isolate* isolate, Handle<Object> smi_handler);
 
-  // Sets DoNegativeLookupOnReceiverBits in given Smi-handler. The receiver
+  // Sets LookupOnReceiverBits in given Smi-handler. The receiver
   // check is a part of a prototype chain check.
-  static inline Handle<Object> EnableNegativeLookupOnReceiver(
+  static inline Handle<Object> EnableLookupOnReceiver(
       Isolate* isolate, Handle<Object> smi_handler);
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
-  static inline Handle<Object> LoadNonExistent(
-      Isolate* isolate, bool do_negative_lookup_on_receiver);
+  static inline Handle<Object> LoadNonExistent(Isolate* isolate,
+                                               bool do_lookup_on_receiver);
 
   // Creates a Smi-handler for loading an element.
   static inline Handle<Object> LoadElement(Isolate* isolate,

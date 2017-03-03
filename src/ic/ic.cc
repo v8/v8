@@ -979,8 +979,7 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
         LoadHandler::EnableAccessCheckOnReceiver(isolate(), smi_handler);
   } else if (receiver_map->is_dictionary_map() &&
              !receiver_map->IsJSGlobalObjectMap()) {
-    smi_handler =
-        LoadHandler::EnableNegativeLookupOnReceiver(isolate(), smi_handler);
+    smi_handler = LoadHandler::EnableLookupOnReceiver(isolate(), smi_handler);
   }
 
   Handle<Cell> validity_cell =

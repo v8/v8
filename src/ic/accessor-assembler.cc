@@ -368,15 +368,26 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   Node* handler_flags = SmiUntag(smi_handler);
 
   Label check_prototypes(this);
-  GotoIfNot(
-      IsSetWord<LoadHandler::DoNegativeLookupOnReceiverBits>(handler_flags),
-      &check_prototypes);
+  GotoIfNot(IsSetWord<LoadHandler::LookupOnReceiverBits>(handler_flags),
+            &check_prototypes);
   {
     CSA_ASSERT(this, Word32BinaryNot(
                          HasInstanceType(p->receiver, JS_GLOBAL_OBJECT_TYPE)));
-    // We have a dictionary receiver, do a negative lookup check.
-    NameDictionaryNegativeLookup(p->receiver, p->name, miss);
-    Goto(&check_prototypes);
+    Node* properties = LoadProperties(p->receiver);
+    Variable var_name_index(this, MachineType::PointerRepresentation());
+    Label found(this, &var_name_index);
+    NameDictionaryLookup<NameDictionary>(properties, p->name, &found,
+                                         &var_name_index, &check_prototypes);
+    Bind(&found);
+    {
+      Variable var_details(this, MachineRepresentation::kWord32);
+      Variable var_value(this, MachineRepresentation::kTagged);
+      LoadPropertyFromNameDictionary(properties, var_name_index.value(),
+                                     &var_details, &var_value);
+      Node* value = CallGetterIfAccessor(var_value.value(), var_details.value(),
+                                         p->context, p->receiver, miss);
+      exit_point->Return(value);
+    }
   }
 
   Bind(&check_prototypes);
