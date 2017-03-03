@@ -4053,14 +4053,10 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   MachineOperatorBuilder* machine = jsgraph_->machine();
   SourcePositionTable* source_position_table =
       new (jsgraph_->zone()) SourcePositionTable(graph);
-  WasmGraphBuilder builder(&module_env_->module_env, jsgraph_->zone(), jsgraph_,
-                           function_->sig, source_position_table);
-  const byte* module_start = module_env_->wire_bytes.start();
-  wasm::FunctionBody body = {function_->sig, module_start,
-                             module_start + function_->code_start_offset,
-                             module_start + function_->code_end_offset};
+  WasmGraphBuilder builder(module_env_, jsgraph_->zone(), jsgraph_,
+                           func_body_.sig, source_position_table);
   graph_construction_result_ =
-      wasm::BuildTFGraph(isolate_->allocator(), &builder, body);
+      wasm::BuildTFGraph(isolate_->allocator(), &builder, func_body_);
 
   if (graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
@@ -4071,65 +4067,64 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   }
 
   if (machine->Is32()) {
-    Int64Lowering(graph, machine, common, jsgraph_->zone(), function_->sig)
+    Int64Lowering(graph, machine, common, jsgraph_->zone(), func_body_.sig)
         .LowerGraph();
   }
 
   if (builder.has_simd() && !CpuFeatures::SupportsSimd128()) {
-    SimdScalarLowering(jsgraph_, function_->sig).LowerGraph();
+    SimdScalarLowering(jsgraph_, func_body_.sig).LowerGraph();
   }
 
-  int index = static_cast<int>(function_->func_index);
-
-  if (index >= FLAG_trace_wasm_ast_start && index < FLAG_trace_wasm_ast_end) {
-    OFStream os(stdout);
-    PrintRawWasmCode(isolate_->allocator(), body,
-                     module_env_->module_env.module);
+  if (func_index_ >= FLAG_trace_wasm_ast_start &&
+      func_index_ < FLAG_trace_wasm_ast_end) {
+    PrintRawWasmCode(isolate_->allocator(), func_body_, module_env_->module);
   }
-  if (index >= FLAG_trace_wasm_text_start && index < FLAG_trace_wasm_text_end) {
-    OFStream os(stdout);
-    PrintWasmText(module_env_->module_env.module, module_env_->wire_bytes,
-                  function_->func_index, os, nullptr);
-  }
+  // TODO(clemens): Remove the trace_wasm_text_start flag.
+  // if (func_index_ >= FLAG_trace_wasm_text_start && func_index_ <
+  // FLAG_trace_wasm_text_end) {
+  //  OFStream os(stdout);
+  //  PrintWasmText(module_env_.module, module_env_->wire_bytes,
+  //                function_->func_index, os, nullptr);
+  //}
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
   }
   return source_position_table;
 }
 
-char* WasmCompilationUnit::GetTaggedFunctionName(
-    const wasm::WasmFunction* function) {
-  snprintf(function_name_, sizeof(function_name_), "wasm#%d",
-           function->func_index);
-  return function_name_;
-}
-
-WasmCompilationUnit::WasmCompilationUnit(wasm::ErrorThrower* thrower,
-                                         Isolate* isolate,
+WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
                                          wasm::ModuleBytesEnv* module_env,
-                                         const wasm::WasmFunction* function,
-                                         uint32_t index)
-    : thrower_(thrower),
-      isolate_(isolate),
+                                         const wasm::WasmFunction* function)
+    : WasmCompilationUnit(
+          isolate, &module_env->module_env,
+          wasm::FunctionBody{
+              function->sig, module_env->wire_bytes.start(),
+              module_env->wire_bytes.start() + function->code_start_offset,
+              module_env->wire_bytes.start() + function->code_end_offset},
+          module_env->wire_bytes.GetNameOrNull(function),
+          function->func_index) {}
+
+WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate,
+                                         wasm::ModuleEnv* module_env,
+                                         wasm::FunctionBody body,
+                                         wasm::WasmName name, int index)
+    : isolate_(isolate),
       module_env_(module_env),
-      function_(&module_env->module_env.module->functions[index]),
+      func_body_(body),
+      func_name_(name),
       graph_zone_(new Zone(isolate->allocator(), ZONE_NAME)),
       jsgraph_(new (graph_zone()) JSGraph(
           isolate, new (graph_zone()) Graph(graph_zone()),
           new (graph_zone()) CommonOperatorBuilder(graph_zone()), nullptr,
-          nullptr, new (graph_zone()) MachineOperatorBuilder(
-                       graph_zone(), MachineType::PointerRepresentation(),
-                       InstructionSelector::SupportedMachineOperatorFlags(),
-                       InstructionSelector::AlignmentRequirements()))),
+          nullptr,
+          new (graph_zone()) MachineOperatorBuilder(
+              graph_zone(), MachineType::PointerRepresentation(),
+              InstructionSelector::SupportedMachineOperatorFlags(),
+              InstructionSelector::AlignmentRequirements()))),
       compilation_zone_(isolate->allocator(), ZONE_NAME),
-      info_(function->name_length != 0
-                ? module_env->wire_bytes.GetNameOrNull(function)
-                : CStrVector(GetTaggedFunctionName(function)),
-            isolate, &compilation_zone_,
+      info_(name, isolate, &compilation_zone_,
             Code::ComputeFlags(Code::WASM_FUNCTION)),
-      job_(),
-      index_(index),
-      ok_(true),
+      func_index_(index),
       protected_instructions_(&compilation_zone_) {
   // Create and cache this node in the main thread.
   jsgraph_->CEntryStubConstant(1);
@@ -4140,12 +4135,12 @@ void WasmCompilationUnit::ExecuteCompilation() {
   //    HistogramTimerScope wasm_compile_function_time_scope(
   //        isolate_->counters()->wasm_compile_function_time());
   if (FLAG_trace_wasm_compiler) {
-    OFStream os(stdout);
-    os << "Compiling WASM function "
-       << wasm::WasmFunctionName(
-              function_, module_env_->wire_bytes.GetNameOrNull(function_))
-       << std::endl;
-    os << std::endl;
+    if (func_name_.start() != nullptr) {
+      PrintF("Compiling WASM function %d:'%.*s'\n\n", func_index(),
+             func_name_.length(), func_name_.start());
+    } else {
+      PrintF("Compiling WASM function %d:<unnamed>\n\n", func_index());
+    }
   }
 
   double decode_ms = 0;
@@ -4167,14 +4162,14 @@ void WasmCompilationUnit::ExecuteCompilation() {
 
   // Run the compiler pipeline to generate machine code.
   CallDescriptor* descriptor = wasm::ModuleEnv::GetWasmCallDescriptor(
-      &compilation_zone_, function_->sig);
+      &compilation_zone_, func_body_.sig);
   if (jsgraph_->machine()->Is32()) {
-    descriptor = module_env_->module_env.GetI32WasmCallDescriptor(
-        &compilation_zone_, descriptor);
+    descriptor =
+        module_env_->GetI32WasmCallDescriptor(&compilation_zone_, descriptor);
   }
   job_.reset(Pipeline::NewWasmCompilationJob(
       &info_, jsgraph_, descriptor, source_positions, &protected_instructions_,
-      module_env_->module_env.module->origin != wasm::kWasmOrigin));
+      module_env_->module->origin != wasm::kWasmOrigin));
   ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
   // TODO(bradnelson): Improve histogram handling of size_t.
   // TODO(ahaas): The counters are not thread-safe at the moment.
@@ -4187,20 +4182,25 @@ void WasmCompilationUnit::ExecuteCompilation() {
     PrintF(
         "wasm-compilation phase 1 ok: %u bytes, %0.3f ms decode, %zu nodes, "
         "%0.3f ms pipeline\n",
-        function_->code_end_offset - function_->code_start_offset, decode_ms,
+        static_cast<unsigned>(func_body_.end - func_body_.start), decode_ms,
         node_count, pipeline_ms);
   }
 }
 
-Handle<Code> WasmCompilationUnit::FinishCompilation() {
+Handle<Code> WasmCompilationUnit::FinishCompilation(
+    wasm::ErrorThrower* thrower) {
   if (!ok_) {
     if (graph_construction_result_.failed()) {
       // Add the function as another context for the exception
       ScopedVector<char> buffer(128);
-      wasm::WasmName name = module_env_->wire_bytes.GetName(function_);
-      SNPrintF(buffer, "Compiling WASM function #%d:%.*s failed:",
-               function_->func_index, name.length(), name.start());
-      thrower_->CompileFailed(buffer.start(), graph_construction_result_);
+      if (func_name_.start() == nullptr) {
+        SNPrintF(buffer,
+                 "Compiling WASM function #%d:%.*s failed:", func_index_,
+                 func_name_.length(), func_name_.start());
+      } else {
+        SNPrintF(buffer, "Compiling WASM function #%d failed:", func_index_);
+      }
+      thrower->CompileFailed(buffer.start(), graph_construction_result_);
     }
 
     return Handle<Code>::null();
@@ -4218,19 +4218,27 @@ Handle<Code> WasmCompilationUnit::FinishCompilation() {
   if (isolate_->logger()->is_logging_code_events() ||
       isolate_->is_profiling()) {
     RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
-                              "WASM_function", function_->func_index,
-                              wasm::WasmName("module"),
-                              module_env_->wire_bytes.GetName(function_));
+                              "WASM_function", func_index_,
+                              wasm::WasmName("module"), func_name_);
   }
 
   if (FLAG_trace_wasm_decode_time) {
     double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
     PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
-           function_->code_end_offset - function_->code_start_offset,
+           static_cast<unsigned>(func_body_.end - func_body_.start),
            codegen_ms);
   }
 
   return code;
+}
+
+// static
+Handle<Code> WasmCompilationUnit::CompileWasmFunction(
+    wasm::ErrorThrower* thrower, Isolate* isolate,
+    wasm::ModuleBytesEnv* module_env, const wasm::WasmFunction* function) {
+  WasmCompilationUnit unit(isolate, module_env, function);
+  unit.ExecuteCompilation();
+  return unit.FinishCompilation(thrower);
 }
 
 }  // namespace compiler

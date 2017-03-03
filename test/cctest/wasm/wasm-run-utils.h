@@ -609,7 +609,10 @@ class WasmFunctionCompiler : private GraphAndBuilders {
     if (kPointerSize == 4) {
       desc = testing_module_->GetI32WasmCallDescriptor(this->zone(), desc);
     }
-    CompilationInfo info(CStrVector("wasm"), this->isolate(), this->zone(),
+    EmbeddedVector<char, 16> comp_name;
+    int comp_name_len = SNPrintF(comp_name, "wasm#%u", this->function_index());
+    comp_name.Truncate(comp_name_len);
+    CompilationInfo info(comp_name, this->isolate(), this->zone(),
                          Code::ComputeFlags(Code::WASM_FUNCTION));
     std::unique_ptr<CompilationJob> job(Pipeline::NewWasmCompilationJob(
         &info, &jsgraph, desc, &source_position_table_, nullptr, false));

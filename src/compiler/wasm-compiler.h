@@ -12,6 +12,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
@@ -46,45 +47,38 @@ typedef compiler::JSGraph TFGraph;
 namespace compiler {
 class WasmCompilationUnit final {
  public:
-  WasmCompilationUnit(wasm::ErrorThrower* thrower, Isolate* isolate,
-                      wasm::ModuleBytesEnv* module_env,
-                      const wasm::WasmFunction* function, uint32_t index);
+  WasmCompilationUnit(Isolate* isolate, wasm::ModuleBytesEnv* module_env,
+                      const wasm::WasmFunction* function);
+  WasmCompilationUnit(Isolate* isolate, wasm::ModuleEnv* module_env,
+                      wasm::FunctionBody body, wasm::WasmName name, int index);
 
   Zone* graph_zone() { return graph_zone_.get(); }
-  int index() const { return index_; }
+  int func_index() const { return func_index_; }
 
   void ExecuteCompilation();
-  Handle<Code> FinishCompilation();
+  Handle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
 
   static Handle<Code> CompileWasmFunction(wasm::ErrorThrower* thrower,
                                           Isolate* isolate,
                                           wasm::ModuleBytesEnv* module_env,
-                                          const wasm::WasmFunction* function) {
-    WasmCompilationUnit unit(thrower, isolate, module_env, function,
-                             function->func_index);
-    unit.ExecuteCompilation();
-    return unit.FinishCompilation();
-  }
+                                          const wasm::WasmFunction* function);
 
  private:
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
-  char* GetTaggedFunctionName(const wasm::WasmFunction* function);
 
-  wasm::ErrorThrower* thrower_;
   Isolate* isolate_;
-  wasm::ModuleBytesEnv* module_env_;
-  const wasm::WasmFunction* function_;
-  // Function name is tagged with uint32 func_index - wasm#<func_index>
-  char function_name_[16];
+  wasm::ModuleEnv* module_env_;
+  wasm::FunctionBody func_body_;
+  wasm::WasmName func_name_;
   // The graph zone is deallocated at the end of ExecuteCompilation.
   std::unique_ptr<Zone> graph_zone_;
   JSGraph* jsgraph_;
   Zone compilation_zone_;
   CompilationInfo info_;
   std::unique_ptr<CompilationJob> job_;
-  uint32_t index_;
+  int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
-  bool ok_;
+  bool ok_ = true;
   ZoneVector<trap_handler::ProtectedInstructionData>
       protected_instructions_;  // Instructions that are protected by the signal
                                 // handler.

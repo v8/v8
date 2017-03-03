@@ -262,8 +262,8 @@ class CompilationHelper {
     compilation_units_.reserve(funcs_to_compile);
     for (uint32_t i = start; i < num_funcs; ++i) {
       const WasmFunction* func = &functions[i];
-      compilation_units_.push_back(new compiler::WasmCompilationUnit(
-          thrower, isolate_, &module_env, func, i));
+      compilation_units_.push_back(
+          new compiler::WasmCompilationUnit(isolate_, &module_env, func));
     }
   }
 
@@ -296,7 +296,8 @@ class CompilationHelper {
     }
   }
 
-  void FinishCompilationUnits(std::vector<Handle<Code>>& results) {
+  void FinishCompilationUnits(std::vector<Handle<Code>>& results,
+                              ErrorThrower* thrower) {
     while (true) {
       compiler::WasmCompilationUnit* unit = nullptr;
       {
@@ -307,8 +308,8 @@ class CompilationHelper {
         unit = executed_units_.front();
         executed_units_.pop();
       }
-      int j = unit->index();
-      results[j] = unit->FinishCompilation();
+      int j = unit->func_index();
+      results[j] = unit->FinishCompilation(thrower);
       delete unit;
     }
   }
@@ -360,13 +361,13 @@ class CompilationHelper {
       //      dequeues it and finishes the compilation unit. Compilation units
       //      are finished concurrently to the background threads to save
       //      memory.
-      FinishCompilationUnits(results);
+      FinishCompilationUnits(results, thrower);
     }
     // 4) After the parallel phase of all compilation units has started, the
     //    main thread waits for all {CompilationTask} instances to finish.
     WaitForCompilationTasks(task_ids.get());
     // Finish the compilation of the remaining compilation units.
-    FinishCompilationUnits(results);
+    FinishCompilationUnits(results, thrower);
   }
 
   void CompileSequentially(ModuleBytesEnv* module_env,
