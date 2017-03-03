@@ -3335,9 +3335,7 @@ void WasmGraphBuilder::Int64LoweringForTesting() {
 }
 
 void WasmGraphBuilder::SimdScalarLoweringForTesting() {
-  SimdScalarLowering(jsgraph()->graph(), jsgraph()->machine(),
-                     jsgraph()->common(), jsgraph()->zone(), sig_)
-      .LowerGraph();
+  SimdScalarLowering(jsgraph(), sig_).LowerGraph();
 }
 
 void WasmGraphBuilder::SetSourcePosition(Node* node,
@@ -4063,8 +4061,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   }
 
   if (builder.has_simd() && !CpuFeatures::SupportsSimd128()) {
-    SimdScalarLowering(graph, machine, common, jsgraph_->zone(), function_->sig)
-        .LowerGraph();
+    SimdScalarLowering(jsgraph_, function_->sig).LowerGraph();
   }
 
   int index = static_cast<int>(function_->func_index);
