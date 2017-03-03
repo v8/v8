@@ -784,7 +784,7 @@ class AndroidPlatform(Platform):  # pragma: no cover
     )
     self._PushFile(
         shell_dir,
-        "snapshot_blob_ignition.bin",
+        "icudtl.dat",
         target_dir,
         skip_if_missing=True,
     )
