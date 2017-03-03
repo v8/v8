@@ -138,9 +138,9 @@ InspectorTest.logCallFrames = function(callFrames)
   }
 }
 
-InspectorTest.logCallFrameSourceLocation = function(callFrame)
+InspectorTest.logSourceLocation = function(location)
 {
-  var scriptId = callFrame.location.scriptId;
+  var scriptId = location.scriptId;
   if (!InspectorTest._scriptMap || !InspectorTest._scriptMap.has(scriptId)) {
     InspectorTest.log("InspectorTest.setupScriptMap should be called before Protocol.Debugger.enable.");
     InspectorTest.completeTest();
@@ -154,7 +154,6 @@ InspectorTest.logCallFrameSourceLocation = function(callFrame)
   return Promise.resolve().then(dumpSourceWithLocation);
 
   function dumpSourceWithLocation() {
-    var location = callFrame.location;
     var lines = script.scriptSource.split('\n');
     var line = lines[location.lineNumber];
     line = line.slice(0, location.columnNumber) + '#' + (line.slice(location.columnNumber) || '');
@@ -162,6 +161,12 @@ InspectorTest.logCallFrameSourceLocation = function(callFrame)
     InspectorTest.log(lines.slice(Math.max(location.lineNumber - 1, 0), location.lineNumber + 2).join('\n'));
     InspectorTest.log('');
   }
+}
+
+InspectorTest.logSourceLocations = function(locations) {
+  if (locations.length == 0) return Promise.resolve();
+  return InspectorTest.logSourceLocation(locations[0])
+      .then(() => InspectorTest.logSourceLocations(locations.splice(1)));
 }
 
 InspectorTest.logAsyncStackTrace = function(asyncStackTrace)

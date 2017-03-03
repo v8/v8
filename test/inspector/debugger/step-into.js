@@ -13,7 +13,7 @@ Protocol.Debugger.onPaused(message => {
   }
   var scriptId = frames[0].location.scriptId;
   InspectorTest.log('break at:');
-  InspectorTest.logCallFrameSourceLocation(frames[0])
+  InspectorTest.logSourceLocation(frames[0].location)
     .then(() => Protocol.Debugger.stepInto());
 });
 

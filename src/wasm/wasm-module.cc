@@ -869,6 +869,11 @@ static Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper) {
   for (RelocIterator it(*export_wrapper_code, mask);; it.next()) {
     DCHECK(!it.done());
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+    if (target->kind() == Code::WASM_INTERPRETER_ENTRY) {
+      // Don't call the interpreter entry directly, otherwise we cannot
+      // disable the breakpoint later by patching the exported code.
+      return Handle<Code>::null();
+    }
     if (target->kind() != Code::WASM_FUNCTION &&
         target->kind() != Code::WASM_TO_JS_FUNCTION)
       continue;
@@ -893,18 +898,18 @@ Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
                                   ModuleOrigin origin) {
   WasmFunction* other_func = GetWasmFunctionForImportWrapper(isolate, target);
   if (other_func) {
-    if (sig->Equals(other_func->sig)) {
-      // Signature matched. Unwrap the JS->WASM wrapper and return the raw
-      // WASM function code.
-      return UnwrapImportWrapper(target);
-    } else {
-      return Handle<Code>::null();
-    }
-  } else {
-    // Signature mismatch. Compile a new wrapper for the new signature.
-    return compiler::CompileWasmToJSWrapper(isolate, target, sig, index,
-                                            module_name, import_name, origin);
+    if (!sig->Equals(other_func->sig)) return Handle<Code>::null();
+    // Signature matched. Unwrap the JS->WASM wrapper and return the raw
+    // WASM function code.
+    Handle<Code> code = UnwrapImportWrapper(target);
+    // If we got no code (imported function is being debugged), fall through
+    // to CompileWasmToJSWrapper.
+    if (!code.is_null()) return code;
   }
+  // No wasm function or being debugged. Compile a new wrapper for the new
+  // signature.
+  return compiler::CompileWasmToJSWrapper(isolate, target, sig, index,
+                                          module_name, import_name, origin);
 }
 
 void UpdateDispatchTablesInternal(Isolate* isolate,
