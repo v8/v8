@@ -520,6 +520,15 @@ const int kMinComplexMemCopy = 8;
 // ----------------------------------------------------------------------------
 // Miscellaneous
 
+// Memory offset for lower and higher bits in a 64 bit integer.
+#if defined(V8_TARGET_LITTLE_ENDIAN)
+static const int kInt64LowerHalfMemoryOffset = 0;
+static const int kInt64UpperHalfMemoryOffset = 4;
+#elif defined(V8_TARGET_BIG_ENDIAN)
+static const int kInt64LowerHalfMemoryOffset = 4;
+static const int kInt64UpperHalfMemoryOffset = 0;
+#endif  // V8_TARGET_LITTLE_ENDIAN
+
 // A static resource holds a static instance that can be reserved in
 // a local scope using an instance of Access.  Attempts to re-reserve
 // the instance will cause an error.

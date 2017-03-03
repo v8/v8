@@ -2977,30 +2977,30 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
     Node* param = Param(param_index++);
     bool is_i64_as_two_params =
         jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kWasmI64;
-    MachineRepresentation param_rep =
-        is_i64_as_two_params ? wasm::kWasmI32 : sig->GetParam(i);
-    StoreRepresentation store_rep(param_rep, WriteBarrierKind::kNoWriteBarrier);
-    *effect_ =
-        graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
-                         Int32Constant(offset), param, *effect_, *control_);
 
     if (is_i64_as_two_params) {
-      offset += 1 << ElementSizeLog2Of(wasm::kWasmI32);
-    } else {
-      offset += RoundUpToMultipleOfPowOf2(1 << ElementSizeLog2Of(param_rep), 8);
-    }
-
-    // TODO(clemensh): Respect endianess here. Might need to swap upper and
-    // lower word.
-    if (is_i64_as_two_params) {
-      // Also store the upper half.
-      param = Param(param_index++);
       StoreRepresentation store_rep(wasm::kWasmI32,
                                     WriteBarrierKind::kNoWriteBarrier);
       *effect_ =
           graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
+                           Int32Constant(offset + kInt64LowerHalfMemoryOffset),
+                           param, *effect_, *control_);
+
+      param = Param(param_index++);
+      *effect_ =
+          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
+                           Int32Constant(offset + kInt64UpperHalfMemoryOffset),
+                           param, *effect_, *control_);
+      offset += 8;
+
+    } else {
+      MachineRepresentation param_rep = sig->GetParam(i);
+      StoreRepresentation store_rep(param_rep,
+                                    WriteBarrierKind::kNoWriteBarrier);
+      *effect_ =
+          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
                            Int32Constant(offset), param, *effect_, *control_);
-      offset += 1 << ElementSizeLog2Of(wasm::kWasmI32);
+      offset += RoundUpToMultipleOfPowOf2(1 << ElementSizeLog2Of(param_rep), 8);
     }
 
     DCHECK(IsAligned(offset, 8));
