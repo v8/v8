@@ -3408,6 +3408,21 @@ Node* WasmGraphBuilder::SimdOp(wasm::WasmOpcode opcode,
     case wasm::kExprF32x4Ne:
       return graph()->NewNode(jsgraph()->machine()->Float32x4NotEqual(),
                               inputs[0], inputs[1]);
+    // TODO(aseemgarg): Get rid of GreaterThan and GreaterThanEquals machine ops
+    // for all SIMD types.
+    case wasm::kExprF32x4Gt:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4GreaterThan(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF32x4Ge:
+      return graph()->NewNode(
+          jsgraph()->machine()->Float32x4GreaterThanOrEqual(), inputs[0],
+          inputs[1]);
+    case wasm::kExprF32x4Lt:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4LessThan(),
+                              inputs[0], inputs[1]);
+    case wasm::kExprF32x4Le:
+      return graph()->NewNode(jsgraph()->machine()->Float32x4LessThanOrEqual(),
+                              inputs[0], inputs[1]);
     case wasm::kExprI32x4Splat:
       return graph()->NewNode(jsgraph()->machine()->Int32x4Splat(), inputs[0]);
     case wasm::kExprI32x4SConvertF32x4:

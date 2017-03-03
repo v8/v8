@@ -28,7 +28,7 @@ class SimdScalarLowering {
  private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
-  enum class SimdType : uint8_t { kInt32, kFloat32 };
+  enum class SimdType : uint8_t { kInt32, kFloat32, kSimd1x4 };
 
   static const int kMaxLanes = 4;
   static const int kLaneWidth = 16 / kMaxLanes;
@@ -64,12 +64,14 @@ class SimdScalarLowering {
                    const Operator* load_op);
   void LowerStoreOp(MachineRepresentation rep, Node* node,
                     const Operator* store_op, SimdType rep_type);
-  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op);
+  void LowerBinaryOp(Node* node, SimdType input_rep_type, const Operator* op,
+                     bool invert_inputs = false);
   void LowerUnaryOp(Node* node, SimdType input_rep_type, const Operator* op);
   void LowerIntMinMax(Node* node, const Operator* op, bool is_max);
   void LowerConvertFromFloat(Node* node, bool is_signed);
   void LowerShiftOp(Node* node, const Operator* op);
   Node* BuildF64Trunc(Node* input);
+  void LowerNotEqual(Node* node, SimdType input_rep_type, const Operator* op);
 
   JSGraph* const jsgraph_;
   NodeMarker<State> state_;

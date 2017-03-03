@@ -28,12 +28,27 @@ typedef int8_t (*Int8UnOp)(int8_t);
 typedef int8_t (*Int8BinOp)(int8_t, int8_t);
 typedef int8_t (*Int8ShiftOp)(int8_t, int);
 
-#if V8_TARGET_ARCH_ARM
-// Floating point specific value functions, only used by ARM so far.
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+#define SIMD_LOWERING_TARGET 1
+#else
+#define SIMD_LOWERING_TARGET 0
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 int32_t Equal(float a, float b) { return a == b ? 1 : 0; }
 
 int32_t NotEqual(float a, float b) { return a != b ? 1 : 0; }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+
+#if SIMD_LOWERING_TARGET
+int32_t Less(float a, float b) { return a < b ? 1 : 0; }
+
+int32_t LessEqual(float a, float b) { return a <= b ? 1 : 0; }
+
+int32_t Greater(float a, float b) { return a > b ? 1 : 0; }
+
+int32_t GreaterEqual(float a, float b) { return a >= b ? 1 : 0; }
+#endif  // SIMD_LOWERING_TARGET
 
 // Generic expected value functions.
 template <typename T>
@@ -223,12 +238,6 @@ T Sqrt(T a) {
 }
 
 }  // namespace
-
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
-#define SIMD_LOWERING_TARGET 1
-#else
-#define SIMD_LOWERING_TARGET 0
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
 
 #define WASM_SIMD_CHECK_LANE(TYPE, value, LANE_TYPE, lane_value, lane_index) \
   WASM_IF(WASM_##LANE_TYPE##_NE(WASM_GET_LOCAL(lane_value),                  \
@@ -492,7 +501,7 @@ WASM_EXEC_COMPILED_TEST(Simd_F32x4_Max) {
 }
 #endif  // SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, float, float, int32_t> r(kExecuteCompiled);
@@ -527,7 +536,22 @@ WASM_EXEC_COMPILED_TEST(F32x4Equal) {
 WASM_EXEC_COMPILED_TEST(F32x4NotEqual) {
   RunF32x4CompareOpTest(kExprF32x4Ne, NotEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+
+#if SIMD_LOWERING_TARGET
+WASM_EXEC_COMPILED_TEST(F32x4LessThan) {
+  RunF32x4CompareOpTest(kExprF32x4Lt, Less);
+}
+WASM_EXEC_COMPILED_TEST(F32x4LessThanOrEqual) {
+  RunF32x4CompareOpTest(kExprF32x4Le, LessEqual);
+}
+WASM_EXEC_COMPILED_TEST(F32x4GreaterThan) {
+  RunF32x4CompareOpTest(kExprF32x4Gt, Greater);
+}
+WASM_EXEC_COMPILED_TEST(F32x4GreaterThanOrEqual) {
+  RunF32x4CompareOpTest(kExprF32x4Ge, GreaterEqual);
+}
+#endif  // SIMD_LOWERING_TARGET
 
 WASM_EXEC_COMPILED_TEST(I32x4Splat) {
   FLAG_wasm_simd_prototype = true;
@@ -894,9 +918,7 @@ WASM_EXEC_COMPILED_TEST(Ui32x4Min) {
 WASM_EXEC_COMPILED_TEST(Ui32x4Max) {
   RunI32x4BinOpTest(kExprI32x4MaxU, UnsignedMaximum);
 }
-#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 
-#if V8_TARGET_ARCH_ARM
 void RunI32x4CompareOpTest(WasmOpcode simd_op, Int32BinOp expected_op) {
   FLAG_wasm_simd_prototype = true;
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteCompiled);
@@ -957,9 +979,7 @@ WASM_EXEC_COMPILED_TEST(Ui32x4Less) {
 WASM_EXEC_COMPILED_TEST(Ui32x4LessEqual) {
   RunI32x4CompareOpTest(kExprI32x4LeU, UnsignedLessEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM
 
-#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 void RunI32x4ShiftOpTest(WasmOpcode simd_op, Int32ShiftOp expected_op,
                          int shift) {
   FLAG_wasm_simd_prototype = true;
