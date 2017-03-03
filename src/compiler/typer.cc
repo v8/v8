@@ -285,6 +285,7 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_METHOD
 
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
+  static Type* ObjectIsNaN(Type*, Typer*);
   static Type* ObjectIsNonCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
   static Type* ObjectIsReceiver(Type*, Typer*);
@@ -509,6 +510,12 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 Type* Typer::Visitor::ObjectIsDetectableCallable(Type* type, Typer* t) {
   if (type->Is(Type::DetectableCallable())) return t->singleton_true_;
   if (!type->Maybe(Type::DetectableCallable())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsNaN(Type* type, Typer* t) {
+  if (type->Is(Type::NaN())) return t->singleton_true_;
+  if (!type->Maybe(Type::NaN())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1924,6 +1931,10 @@ Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {
   return TypeUnaryOp(node, ObjectIsDetectableCallable);
+}
+
+Type* Typer::Visitor::TypeObjectIsNaN(Node* node) {
+  return TypeUnaryOp(node, ObjectIsNaN);
 }
 
 Type* Typer::Visitor::TypeObjectIsNonCallable(Node* node) {

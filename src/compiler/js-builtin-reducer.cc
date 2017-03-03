@@ -1513,14 +1513,10 @@ Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
 // ES6 section 20.1.2.4 Number.isNaN ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
   JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Number.isNaN(a:number) -> BooleanNot(NumberEqual(a, a))
-    Node* input = r.GetJSCallInput(0);
-    Node* check = graph()->NewNode(simplified()->NumberEqual(), input, input);
-    Node* value = graph()->NewNode(simplified()->BooleanNot(), check);
-    return Replace(value);
-  }
-  return NoChange();
+  // Number.isNaN(a:number) -> ObjectIsNaN(a)
+  Node* input = r.GetJSCallInput(0);
+  Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
+  return Replace(value);
 }
 
 // ES6 section 20.1.2.5 Number.isSafeInteger ( number )

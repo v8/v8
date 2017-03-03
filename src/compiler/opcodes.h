@@ -333,6 +333,7 @@
   V(StoreElement)                   \
   V(StoreTypedElement)              \
   V(ObjectIsDetectableCallable)     \
+  V(ObjectIsNaN)                    \
   V(ObjectIsNonCallable)            \
   V(ObjectIsNumber)                 \
   V(ObjectIsReceiver)               \

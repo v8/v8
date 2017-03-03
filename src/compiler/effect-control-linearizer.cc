@@ -720,6 +720,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsDetectableCallable:
       result = LowerObjectIsDetectableCallable(node);
       break;
+    case IrOpcode::kObjectIsNaN:
+      result = LowerObjectIsNaN(node);
+      break;
     case IrOpcode::kObjectIsNonCallable:
       result = LowerObjectIsNonCallable(node);
       break;
@@ -1712,6 +1715,29 @@ Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
 
   __ Bind(&if_smi);
   __ Goto(&done, __ Int32Constant(0));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerObjectIsNaN(Node* node) {
+  Node* value = node->InputAt(0);
+  Node* zero = __ Int32Constant(0);
+
+  auto done = __ MakeLabel<3>(MachineRepresentation::kBit);
+
+  // Check if {value} is a Smi.
+  __ GotoIf(ObjectIsSmi(value), &done, zero);
+
+  // Check if {value} is a HeapNumber.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  __ GotoUnless(__ WordEqual(value_map, __ HeapNumberMapConstant()), &done,
+                zero);
+
+  // Check if {value} contains a NaN.
+  Node* value_value = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  __ Goto(&done,
+          __ Word32Equal(__ Float64Equal(value_value, value_value), zero));
 
   __ Bind(&done);
   return done.PhiAt(0);

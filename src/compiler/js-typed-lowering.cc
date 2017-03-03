@@ -993,11 +993,12 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node, bool invert) {
   JSBinopReduction r(this, node);
   if (r.left() == r.right()) {
     // x === x is always true if x != NaN
-    if (!r.left_type()->Maybe(Type::NaN())) {
-      Node* replacement = jsgraph()->BooleanConstant(!invert);
-      ReplaceWithValue(node, replacement);
-      return Replace(replacement);
+    Node* replacement = graph()->NewNode(simplified()->ObjectIsNaN(), r.left());
+    if (!invert) {
+      replacement = graph()->NewNode(simplified()->BooleanNot(), replacement);
     }
+    ReplaceWithValue(node, replacement);
+    return Replace(replacement);
   }
   if (r.OneInputCannotBe(Type::NumberOrString())) {
     // For values with canonical representation (i.e. neither String, nor

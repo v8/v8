@@ -2545,6 +2545,35 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::DetectableCallable(), lowering);
         return;
       }
+      case IrOpcode::kObjectIsNaN: {
+        Type* const input_type = GetUpperBound(node->InputAt(0));
+        if (input_type->Is(Type::NaN())) {
+          VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
+          if (lower()) {
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+          }
+        } else if (!input_type->Maybe(Type::NaN())) {
+          VisitUnop(node, UseInfo::Any(), MachineRepresentation::kBit);
+          if (lower()) {
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+          }
+        } else if (input_type->Is(Type::Number())) {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kBit);
+          if (lower()) {
+            // ObjectIsNaN(x:kRepFloat64) => Word32Equal(Float64Equal(x,x),#0)
+            Node* const input = node->InputAt(0);
+            node->ReplaceInput(
+                0, jsgraph_->graph()->NewNode(
+                       lowering->machine()->Float64Equal(), input, input));
+            node->AppendInput(jsgraph_->zone(), jsgraph_->Int32Constant(0));
+            NodeProperties::ChangeOp(node, lowering->machine()->Word32Equal());
+          }
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        }
+        return;
+      }
       case IrOpcode::kObjectIsNonCallable: {
         VisitObjectIs(node, Type::NonCallable(), lowering);
         return;
