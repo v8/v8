@@ -37,7 +37,7 @@ Checks basic ES6 modules support.
     method : Debugger.scriptParsed
     params : {
         endColumn : 0
-        endLine : 9
+        endLine : 8
         executionContextId : <executionContextId>
         hasSourceURL : false
         hash : 54D834614FBF9B389082DAE06CD3EFC499BEBF13

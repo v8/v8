@@ -134,11 +134,6 @@ class ActualScript : public V8DebuggerScript {
 
     if (script->Source().ToLocal(&tmp)) {
       m_source = toProtocolString(tmp);
-      // V8 will not count last line if script source ends with \n.
-      if (m_source.length() > 0 && m_source[m_source.length() - 1] == '\n') {
-        m_endLine++;
-        m_endColumn = 0;
-      }
     }
 
     m_isModule = script->IsModule();
