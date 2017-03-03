@@ -121,14 +121,6 @@ void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj) {
   heap_->mark_compact_collector()->marking_deque()->Push(obj);
 }
 
-
-static void MarkObjectGreyDoNotEnqueue(Object* obj) {
-  if (obj->IsHeapObject()) {
-    HeapObject* heap_obj = HeapObject::cast(obj);
-    ObjectMarking::AnyToGrey(heap_obj);
-  }
-}
-
 void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
                                       HeapObject* to) {
   DCHECK(MemoryChunk::FromAddress(from->address())->SweepingDone());
@@ -227,7 +219,14 @@ class IncrementalMarkingMarkingVisitor
     // so the cache can be undefined.
     Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
     if (!cache->IsUndefined(map->GetIsolate())) {
-      MarkObjectGreyDoNotEnqueue(cache);
+      if (cache->IsHeapObject()) {
+        HeapObject* heap_obj = HeapObject::cast(cache);
+        // Mark the object grey if it is white, do not enque it into the marking
+        // deque.
+        if (ObjectMarking::IsWhite(heap_obj)) {
+          ObjectMarking::WhiteToGrey(heap_obj);
+        }
+      }
     }
     VisitNativeContext(map, context);
   }

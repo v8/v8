@@ -121,15 +121,6 @@ class ObjectMarking : public AllStatic {
     MemoryChunk::IncrementLiveBytes<mode>(obj, obj->Size());
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void AnyToGrey(HeapObject* obj) {
-    MarkBit markbit = MarkBitFrom<mode>(obj);
-    if (Marking::IsBlack(markbit)) {
-      MemoryChunk::IncrementLiveBytes<mode>(obj, -obj->Size());
-    }
-    Marking::AnyToGrey(markbit);
-  }
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectMarking);
 };

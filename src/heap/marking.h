@@ -336,11 +336,6 @@ class Marking : public AllStatic {
     markbit.Next().Set();
   }
 
-  INLINE(static void AnyToGrey(MarkBit markbit)) {
-    markbit.Set();
-    markbit.Next().Clear();
-  }
-
   enum ObjectColor {
     BLACK_OBJECT,
     WHITE_OBJECT,
