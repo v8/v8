@@ -19,10 +19,7 @@
 namespace v8 {
 namespace internal {
 
-// Scoped helper for saving & restoring scanner error state.
-// This is used for tagged template literals, in which normally forbidden
-// escape sequences are allowed.
-class ErrorState {
+class Scanner::ErrorState {
  public:
   ErrorState(MessageTemplate::Template* message_stack,
              Scanner::Location* location_stack)
@@ -31,7 +28,7 @@ class ErrorState {
         location_stack_(location_stack),
         old_location_(*location_stack) {
     *message_stack_ = MessageTemplate::kNone;
-    *location_stack_ = Scanner::Location::invalid();
+    *location_stack_ = Location::invalid();
   }
 
   ~ErrorState() {
@@ -39,17 +36,16 @@ class ErrorState {
     *location_stack_ = old_location_;
   }
 
-  void MoveErrorTo(MessageTemplate::Template* message_dest,
-                   Scanner::Location* location_dest) {
+  void MoveErrorTo(TokenDesc* dest) {
     if (*message_stack_ == MessageTemplate::kNone) {
       return;
     }
-    if (*message_dest == MessageTemplate::kNone) {
-      *message_dest = *message_stack_;
-      *location_dest = *location_stack_;
+    if (dest->invalid_template_escape_message == MessageTemplate::kNone) {
+      dest->invalid_template_escape_message = *message_stack_;
+      dest->invalid_template_escape_location = *location_stack_;
     }
     *message_stack_ = MessageTemplate::kNone;
-    *location_stack_ = Scanner::Location::invalid();
+    *location_stack_ = Location::invalid();
   }
 
  private:
@@ -397,6 +393,7 @@ Token::Value Scanner::Next() {
       next_.location.end_pos = pos + 1;
       next_.literal_chars = nullptr;
       next_.raw_literal_chars = nullptr;
+      next_.invalid_template_escape_message = MessageTemplate::kNone;
       Advance();
       return current_.token;
     }
@@ -609,6 +606,7 @@ Token::Value Scanner::ScanHtmlComment() {
 void Scanner::Scan() {
   next_.literal_chars = NULL;
   next_.raw_literal_chars = NULL;
+  next_.invalid_template_escape_message = MessageTemplate::kNone;
   Token::Value token;
   do {
     // Remember the position of the next token
@@ -889,6 +887,8 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
   // - TEMPLATE_*: need both literal + raw literal chars.
   // - IDENTIFIERS, STRINGS, etc.: need a literal, but no raw literal.
   // - all others: should have neither.
+  // Furthermore, only TEMPLATE_* tokens can have a
+  // invalid_template_escape_message.
 
   switch (token.token) {
     case Token::UNINITIALIZED:
@@ -909,10 +909,12 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
     case Token::STRING:
       DCHECK_NOT_NULL(token.literal_chars);
       DCHECK_NULL(token.raw_literal_chars);
+      DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
       break;
     default:
       DCHECK_NULL(token.literal_chars);
       DCHECK_NULL(token.raw_literal_chars);
+      DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
       break;
   }
 }
@@ -1117,10 +1119,8 @@ Token::Value Scanner::ScanTemplateSpan() {
         DCHECK_EQ(!success, has_error());
         // For templates, invalid escape sequence checking is handled in the
         // parser.
-        scanner_error_state.MoveErrorTo(&invalid_template_escape_message_,
-                                        &invalid_template_escape_location_);
-        octal_error_state.MoveErrorTo(&invalid_template_escape_message_,
-                                      &invalid_template_escape_location_);
+        scanner_error_state.MoveErrorTo(&next_);
+        octal_error_state.MoveErrorTo(&next_);
       }
     } else if (c < 0) {
       // Unterminated template literal
@@ -1736,7 +1736,9 @@ void Scanner::SeekNext(size_t position) {
   // 1, Reset the current_, next_ and next_next_ tokens
   //    (next_ + next_next_ will be overwrittem by Next(),
   //     current_ will remain unchanged, so overwrite it fully.)
-  current_ = {{0, 0}, nullptr, nullptr, 0, Token::UNINITIALIZED};
+  current_ = {
+      {0, 0}, nullptr, nullptr, 0, Token::UNINITIALIZED, MessageTemplate::kNone,
+      {0, 0}};
   next_.token = Token::UNINITIALIZED;
   next_next_.token = Token::UNINITIALIZED;
   // 2, reset the source to the desired position,

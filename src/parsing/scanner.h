@@ -215,19 +215,15 @@ class Scanner {
   Location error_location() const { return scanner_error_location_; }
 
   bool has_invalid_template_escape() const {
-    return invalid_template_escape_message_ != MessageTemplate::kNone;
+    return current_.invalid_template_escape_message != MessageTemplate::kNone;
   }
   MessageTemplate::Template invalid_template_escape_message() const {
-    return invalid_template_escape_message_;
+    DCHECK(has_invalid_template_escape());
+    return current_.invalid_template_escape_message;
   }
   Location invalid_template_escape_location() const {
-    return invalid_template_escape_location_;
-  }
-
-  void clear_invalid_template_escape() {
     DCHECK(has_invalid_template_escape());
-    invalid_template_escape_message_ = MessageTemplate::kNone;
-    invalid_template_escape_location_ = Location::invalid();
+    return current_.invalid_template_escape_location;
   }
 
   // Similar functions for the upcoming token.
@@ -345,6 +341,11 @@ class Scanner {
   bool FoundHtmlComment() const { return found_html_comment_; }
 
  private:
+  // Scoped helper for saving & restoring scanner error state.
+  // This is used for tagged template literals, in which normally forbidden
+  // escape sequences are allowed.
+  class ErrorState;
+
   // Scoped helper for literal recording. Automatically drops the literal
   // if aborting the scanning before it's complete.
   class LiteralScope {
@@ -457,6 +458,8 @@ class Scanner {
     LiteralBuffer* raw_literal_chars;
     uint32_t smi_value_;
     Token::Value token;
+    MessageTemplate::Template invalid_template_escape_message;
+    Location invalid_template_escape_location;
   };
 
   static const int kCharacterLookaheadBufferSize = 1;
@@ -475,15 +478,17 @@ class Scanner {
     current_.token = Token::UNINITIALIZED;
     current_.literal_chars = NULL;
     current_.raw_literal_chars = NULL;
+    current_.invalid_template_escape_message = MessageTemplate::kNone;
     next_.token = Token::UNINITIALIZED;
     next_.literal_chars = NULL;
     next_.raw_literal_chars = NULL;
+    next_.invalid_template_escape_message = MessageTemplate::kNone;
     next_next_.token = Token::UNINITIALIZED;
     next_next_.literal_chars = NULL;
     next_next_.raw_literal_chars = NULL;
+    next_next_.invalid_template_escape_message = MessageTemplate::kNone;
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
-    invalid_template_escape_message_ = MessageTemplate::kNone;
   }
 
   void ReportScannerError(const Location& location,
@@ -774,9 +779,6 @@ class Scanner {
 
   MessageTemplate::Template scanner_error_;
   Location scanner_error_location_;
-
-  MessageTemplate::Template invalid_template_escape_message_;
-  Location invalid_template_escape_location_;
 };
 
 }  // namespace internal

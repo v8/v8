@@ -797,10 +797,12 @@ class ParserBase {
   }
 
   // Checks if an octal literal or an invalid hex or unicode escape sequence
-  // appears in a template literal. In the presence of such, either
-  // returns false or reports an error, depending on should_throw. Otherwise
-  // returns true.
+  // appears in the current template literal token. In the presence of such,
+  // either returns false or reports an error, depending on should_throw.
+  // Otherwise returns true.
   inline bool CheckTemplateEscapes(bool should_throw, bool* ok) {
+    DCHECK(scanner()->current_token() == Token::TEMPLATE_SPAN ||
+           scanner()->current_token() == Token::TEMPLATE_TAIL);
     if (!scanner()->has_invalid_template_escape()) {
       return true;
     }
@@ -811,7 +813,6 @@ class ParserBase {
                               scanner()->invalid_template_escape_message());
       *ok = false;
     }
-    scanner()->clear_invalid_template_escape();
     return false;
   }
 

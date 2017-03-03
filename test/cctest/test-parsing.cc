@@ -7161,6 +7161,12 @@ TEST(TemplateEscapesPositiveTests) {
     "tag`\\u{110000}${0}right`",
     "tag`left${0}\\u{110000}`",
     "tag`left${0}\\u{110000}${1}right`",
+    "tag` ${tag`\\u`}`",
+    "tag` ``\\u`",
+    "tag`\\u`` `",
+    "tag`\\u``\\u`",
+    "` ${tag`\\u`}`",
+    "` ``\\u`",
     NULL};
   // clang-format on
 
@@ -7239,6 +7245,8 @@ TEST(TemplateEscapesNegativeTests) {
     "`left${0}\\u{110000}`",
     "`left${0}\\u{110000}${1}right`",
     "`\\1``\\2`",
+    "tag` ${`\\u`}`",
+    "`\\u```",
     NULL};
   // clang-format on
 
