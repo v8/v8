@@ -581,7 +581,11 @@ class MarkCompactCollector {
 
   bool evacuation() const { return evacuation_; }
 
-  MarkingDeque* marking_deque() { return &marking_deque_; }
+  template <MarkingMode mode = MarkingMode::FULL>
+  MarkingDeque* marking_deque() {
+    return mode == MarkingMode::FULL ? &marking_deque_
+                                     : &marking_deque_young_generation_;
+  }
 
   Sweeper& sweeper() { return sweeper_; }
 
@@ -657,15 +661,17 @@ class MarkCompactCollector {
 
   // Pushes a black object onto the marking stack and accounts for live bytes.
   // Note that this assumes live bytes have not yet been counted.
-  INLINE(void PushBlack(HeapObject* obj));
+  template <MarkingMode mode = MarkingMode::FULL>
+  V8_INLINE void PushBlack(HeapObject* obj);
 
   // Unshifts a black object into the marking stack and accounts for live bytes.
   // Note that this assumes lives bytes have already been counted.
-  INLINE(void UnshiftBlack(HeapObject* obj));
+  V8_INLINE void UnshiftBlack(HeapObject* obj);
 
   // Marks the object black and pushes it on the marking stack.
   // This is for non-incremental marking only.
-  INLINE(void MarkObject(HeapObject* obj));
+  template <MarkingMode mode = MarkingMode::FULL>
+  V8_INLINE void MarkObject(HeapObject* obj);
 
   // Mark the heap roots and all objects reachable from them.
   void MarkRoots(RootMarkingVisitor<MarkingMode::FULL>* visitor);
@@ -824,6 +830,7 @@ class MarkCompactCollector {
   bool have_code_to_deoptimize_;
 
   MarkingDeque marking_deque_;
+  MarkingDeque marking_deque_young_generation_;
 
   CodeFlusher* code_flusher_;
 

@@ -60,6 +60,7 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
       black_allocation_(false),
       have_code_to_deoptimize_(false),
       marking_deque_(heap),
+      marking_deque_young_generation_(heap),
       code_flusher_(nullptr),
       sweeper_(heap) {
 }
@@ -238,6 +239,7 @@ void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
   marking_deque()->SetUp();
+  marking_deque<MarkingMode::YOUNG_GENERATION>()->SetUp();
 
   if (FLAG_flush_code) {
     code_flusher_ = new CodeFlusher(isolate());
@@ -250,6 +252,7 @@ void MarkCompactCollector::SetUp() {
 
 void MarkCompactCollector::TearDown() {
   AbortCompaction();
+  marking_deque<MarkingMode::YOUNG_GENERATION>()->TearDown();
   marking_deque()->TearDown();
   delete code_flusher_;
 }
@@ -1074,7 +1077,8 @@ class StaticYoungGenerationMarkingVisitor
     Object* target = *p;
     if (heap->InNewSpace(target)) {
       if (MarkRecursively(heap, HeapObject::cast(target))) return;
-      heap->mark_compact_collector()->MarkObject(HeapObject::cast(target));
+      heap->mark_compact_collector()->MarkObject<MarkingMode::YOUNG_GENERATION>(
+          HeapObject::cast(target));
     }
   }
 
@@ -1083,8 +1087,9 @@ class StaticYoungGenerationMarkingVisitor
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
-    if (ObjectMarking::IsBlackOrGrey(object)) return true;
-    ObjectMarking::WhiteToBlack(object);
+    if (ObjectMarking::IsBlackOrGrey<MarkingMode::YOUNG_GENERATION>(object))
+      return true;
+    ObjectMarking::WhiteToBlack<MarkingMode::YOUNG_GENERATION>(object);
     IterateBody(object->map(), object);
     return true;
   }
@@ -1363,7 +1368,7 @@ class RootMarkingVisitor : public ObjectVisitor {
         !collector_->heap()->InNewSpace(object))
       return;
 
-    if (ObjectMarking::IsBlackOrGrey(object)) return;
+    if (ObjectMarking::IsBlackOrGrey<mode>(object)) return;
 
     Map* map = object->map();
     // Mark the object.
@@ -1964,7 +1969,7 @@ void MarkCompactCollector::MarkRoots(
   MarkStringTable(visitor);
 
   // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_deque()->overflowed()) {
+  while (marking_deque<MarkingMode::FULL>()->overflowed()) {
     RefillMarkingDeque<MarkingMode::FULL>();
     EmptyMarkingDeque<MarkingMode::FULL>();
   }
@@ -1976,13 +1981,13 @@ void MarkCompactCollector::MarkRoots(
 // marking stack have been marked, or are overflowed in the heap.
 template <MarkingMode mode>
 void MarkCompactCollector::EmptyMarkingDeque() {
-  while (!marking_deque()->IsEmpty()) {
-    HeapObject* object = marking_deque()->Pop();
+  while (!marking_deque<mode>()->IsEmpty()) {
+    HeapObject* object = marking_deque<mode>()->Pop();
 
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!ObjectMarking::IsWhite(object));
+    DCHECK(!ObjectMarking::IsWhite<mode>(object));
 
     Map* map = object->map();
     switch (mode) {
@@ -1991,7 +1996,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
         MarkCompactMarkingVisitor::IterateBody(map, object);
       } break;
       case MarkingMode::YOUNG_GENERATION: {
-        DCHECK(ObjectMarking::IsBlack(object));
+        DCHECK(ObjectMarking::IsBlack<mode>(object));
         StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
       } break;
     }
@@ -2006,6 +2011,9 @@ void MarkCompactCollector::EmptyMarkingDeque() {
 // is cleared.
 template <MarkingMode mode>
 void MarkCompactCollector::RefillMarkingDeque() {
+  // Young generation should never overflow.
+  DCHECK(mode != MarkingMode::YOUNG_GENERATION);
+
   isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
   DCHECK(marking_deque()->overflowed());
 
@@ -2035,7 +2043,7 @@ void MarkCompactCollector::RefillMarkingDeque() {
 template <MarkingMode mode>
 void MarkCompactCollector::ProcessMarkingDeque() {
   EmptyMarkingDeque<mode>();
-  while (marking_deque()->overflowed()) {
+  while (marking_deque<mode>()->overflowed()) {
     RefillMarkingDeque<mode>();
     EmptyMarkingDeque<mode>();
   }
@@ -2246,10 +2254,11 @@ SlotCallbackResult MarkCompactCollector::CheckAndMarkObject(
     // has to be in ToSpace.
     DCHECK(heap->InToSpace(object));
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-    if (ObjectMarking::IsBlackOrGrey(heap_object)) {
+    if (ObjectMarking::IsBlackOrGrey<MarkingMode::YOUNG_GENERATION>(
+            heap_object)) {
       return KEEP_SLOT;
     }
-    ObjectMarking::WhiteToBlack(heap_object);
+    ObjectMarking::WhiteToBlack<MarkingMode::YOUNG_GENERATION>(heap_object);
     StaticYoungGenerationMarkingVisitor::IterateBody(heap_object->map(),
                                                      heap_object);
     return KEEP_SLOT;
@@ -2270,7 +2279,10 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
   StaticYoungGenerationMarkingVisitor::Initialize(heap());
   RootMarkingVisitor<MarkingMode::YOUNG_GENERATION> root_visitor(heap());
 
-  marking_deque()->StartUsing();
+  marking_deque<MarkingMode::YOUNG_GENERATION>()->StartUsing();
+  for (Page* p : heap()->new_space()->to_space()) {
+    p->AllocateExternalBitmap();
+  }
 
   isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
       &Heap::IsUnmodifiedHeapObject);
@@ -2322,6 +2334,11 @@ void MarkCompactCollector::MarkLiveObjectsInYoungGeneration() {
     ProcessMarkingDeque<MarkingMode::YOUNG_GENERATION>();
   }
 
+  // TODO(mlippautz): External bitmap should be deallocated after evacuation.
+  for (Page* p : PageRange(heap()->new_space()->FromSpaceStart(),
+                           heap()->new_space()->FromSpaceEnd())) {
+    p->ReleaseExternalBitmap();
+  }
   marking_deque()->StopUsing();
 }
 

@@ -540,6 +540,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->wasted_memory_ = 0;
   chunk->ResetLiveBytes();
   chunk->ClearLiveness();
+  chunk->young_generation_bitmap_ = nullptr;
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
@@ -1119,6 +1120,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   if (typed_old_to_new_slots_.Value() != nullptr) ReleaseTypedOldToNewSlots();
   if (typed_old_to_old_slots_ != nullptr) ReleaseTypedOldToOldSlots();
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
+  if (young_generation_bitmap_ != nullptr) ReleaseExternalBitmap();
 }
 
 static SlotSet* AllocateSlotSet(size_t size, Address page_start) {
@@ -1182,6 +1184,18 @@ void MemoryChunk::ReleaseLocalTracker() {
   DCHECK_NOT_NULL(local_tracker_);
   delete local_tracker_;
   local_tracker_ = nullptr;
+}
+
+void MemoryChunk::AllocateExternalBitmap() {
+  DCHECK_NULL(young_generation_bitmap_);
+  young_generation_bitmap_ = static_cast<Bitmap*>(calloc(1, Bitmap::kSize));
+  young_generation_live_byte_count_ = 0;
+}
+
+void MemoryChunk::ReleaseExternalBitmap() {
+  DCHECK_NOT_NULL(young_generation_bitmap_);
+  free(young_generation_bitmap_);
+  young_generation_bitmap_ = nullptr;
 }
 
 void MemoryChunk::ClearLiveness() {
