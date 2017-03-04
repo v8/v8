@@ -538,9 +538,9 @@ class Isolate;
   /* ES6 section 20.2.2.23 Math.log2 ( x ) */                                  \
   TFJ(MathLog2, 1)                                                             \
   /* ES6 section 20.2.2.24 Math.max ( value1, value2 , ...values ) */          \
-  ASM(MathMax)                                                                 \
+  TFJ(MathMax, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES6 section 20.2.2.25 Math.min ( value1, value2 , ...values ) */          \
-  ASM(MathMin)                                                                 \
+  TFJ(MathMin, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES6 section 20.2.2.26 Math.pow ( x, y ) */                                \
   TFJ(MathPow, 2)                                                              \
   /* ES6 section 20.2.2.27 Math.random */                                      \
@@ -971,9 +971,6 @@ class Builtins {
 
   static void Generate_InterpreterPushArgsAndConstructImpl(
       MacroAssembler* masm, InterpreterPushArgsMode mode);
-
-  enum class MathMaxMinKind { kMax, kMin };
-  static void Generate_MathMaxMin(MacroAssembler* masm, MathMaxMinKind kind);
 
 #define DECLARE_ASM(Name, ...) \
   static void Generate_##Name(MacroAssembler* masm);

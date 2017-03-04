@@ -85,6 +85,8 @@ typedef std::function<void()> CodeAssemblerCallback;
   V(Float64Mod)                            \
   V(Float64Atan2)                          \
   V(Float64Pow)                            \
+  V(Float64Max)                            \
+  V(Float64Min)                            \
   V(Float64InsertLowWord32)                \
   V(Float64InsertHighWord32)               \
   V(IntPtrAddWithOverflow)                 \
