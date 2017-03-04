@@ -131,15 +131,14 @@
   // shell executable
   MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
     this.symbols = [[
-      '         U operator delete[]',
-      '00001000 A __mh_execute_header',
-      '00001b00 T start',
-      '00001b40 t dyld_stub_binding_helper',
-      '0011b710 T v8::internal::RegExpMacroAssembler::CheckPosition',
-      '00134250 t v8::internal::Runtime_StringReplaceRegExpWithString',
-      '00137220 T v8::internal::Runtime::GetElementOrCharAt',
-      '00137400 t v8::internal::Runtime_DebugGetPropertyDetails',
-      '001c1a80 b _private_mem\n'
+      '         operator delete[]',
+      '00001000 __mh_execute_header',
+      '00001b00 start',
+      '00001b40 dyld_stub_binding_helper',
+      '0011b710 v8::internal::RegExpMacroAssembler::CheckPosition',
+      '00134250 v8::internal::Runtime_StringReplaceRegExpWithString',
+      '00137220 v8::internal::Runtime::GetElementOrCharAt',
+      '00137400 v8::internal::Runtime_DebugGetPropertyDetails\n'
     ].join('\n'), ''];
   };
 
@@ -161,10 +160,10 @@
   // stdc++ library
   MacCppEntriesProvider.prototype.loadSymbols = function(libName) {
     this.symbols = [[
-        '0000107a T __gnu_cxx::balloc::__mini_vector<std::pair<__gnu_cxx::bitmap_allocator<char>::_Alloc_block*, __gnu_cxx::bitmap_allocator<char>::_Alloc_block*> >::__mini_vector',
-        '0002c410 T std::basic_streambuf<char, std::char_traits<char> >::pubseekoff',
-        '0002c488 T std::basic_streambuf<char, std::char_traits<char> >::pubseekpos',
-        '000466aa T ___cxa_pure_virtual\n'].join('\n'), ''];
+        '0000107a __gnu_cxx::balloc::__mini_vector<std::pair<__gnu_cxx::bitmap_allocator<char>::_Alloc_block*, __gnu_cxx::bitmap_allocator<char>::_Alloc_block*> >::__mini_vector',
+        '0002c410 std::basic_streambuf<char, std::char_traits<char> >::pubseekoff',
+        '0002c488 std::basic_streambuf<char, std::char_traits<char> >::pubseekpos',
+        '000466aa ___cxa_pure_virtual\n'].join('\n'), ''];
   };
   var stdc_prov = new MacCppEntriesProvider();
   var stdc_syms = [];

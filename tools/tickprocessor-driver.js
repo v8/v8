@@ -73,6 +73,7 @@ var tickProcessor = new TickProcessor(
   params.timedRange,
   params.pairwiseTimedRange,
   params.onlySummary,
-  params.runtimeTimerFilter);
+  params.runtimeTimerFilter,
+  params.preprocessJson);
 tickProcessor.processLogFile(params.logFileName);
 tickProcessor.printStatistics();
