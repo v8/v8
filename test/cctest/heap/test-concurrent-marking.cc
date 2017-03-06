@@ -19,13 +19,9 @@ TEST(ConcurrentMarking) {
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   ConcurrentMarking* concurrent_marking = new ConcurrentMarking(heap);
-  for (int i = 0; i < 10; i++) {
-    concurrent_marking->EnqueueObject(heap->undefined_value());
-  }
-  concurrent_marking->StartMarkingTasks(3);
-  while (!concurrent_marking->IsQueueEmpty()) {
-  }
-  concurrent_marking->WaitForTasksToComplete();
+  concurrent_marking->AddRoot(heap->undefined_value());
+  concurrent_marking->StartMarkingTask();
+  concurrent_marking->WaitForTaskToComplete();
   delete concurrent_marking;
 }
 

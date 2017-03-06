@@ -43,6 +43,7 @@ class MarkBit {
   CellType mask_;
 
   friend class IncrementalMarking;
+  friend class ConcurrentMarkingMarkbits;
   friend class Marking;
 };
 

@@ -5,9 +5,10 @@
 #ifndef V8_HEAP_CONCURRENT_MARKING_
 #define V8_HEAP_CONCURRENT_MARKING_
 
+#include <vector>
+
 #include "src/allocation.h"
 #include "src/cancelable-task.h"
-#include "src/locked-queue.h"
 #include "src/utils.h"
 #include "src/v8.h"
 
@@ -19,27 +20,19 @@ class Isolate;
 
 class ConcurrentMarking {
  public:
-  static const int kMaxNumberOfTasks = 10;
-
   explicit ConcurrentMarking(Heap* heap);
   ~ConcurrentMarking();
 
-  void EnqueueObject(HeapObject* object);
-  bool IsQueueEmpty();
+  void AddRoot(HeapObject* object);
 
-  void StartMarkingTasks(int number_of_tasks);
-  void WaitForTasksToComplete();
+  void StartMarkingTask();
+  void WaitForTaskToComplete();
 
  private:
   class Task;
-  // TODO(ulan): Replace with faster queue.
-  typedef LockedQueue<HeapObject*> Queue;
-
   Heap* heap_;
-  base::Semaphore pending_tasks_;
-  Queue queue_;
-  int number_of_tasks_;
-  uint32_t task_ids_[kMaxNumberOfTasks];
+  base::Semaphore pending_task_;
+  std::vector<HeapObject*> root_set_;
 };
 
 }  // namespace internal
