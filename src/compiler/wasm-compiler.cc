@@ -2740,23 +2740,21 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
   return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
+namespace {
 bool IsJSCompatible(wasm::ValueType type) {
-  return (type != wasm::kWasmI64) && (type != wasm::kWasmS128);
+  return type != wasm::kWasmI64 && type != wasm::kWasmS128;
 }
 
 bool HasJSCompatibleSignature(wasm::FunctionSig* sig) {
   for (size_t i = 0; i < sig->parameter_count(); i++) {
-    if (!IsJSCompatible(sig->GetParam(i))) {
-      return false;
-    }
+    if (!IsJSCompatible(sig->GetParam(i))) return false;
   }
   for (size_t i = 0; i < sig->return_count(); i++) {
-    if (!IsJSCompatible(sig->GetReturn(i))) {
-      return false;
-    }
+    if (!IsJSCompatible(sig->GetReturn(i))) return false;
   }
   return true;
 }
+}  // namespace
 
 void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
                                             wasm::FunctionSig* sig) {

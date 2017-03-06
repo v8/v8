@@ -869,20 +869,17 @@ static Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper) {
   for (RelocIterator it(*export_wrapper_code, mask);; it.next()) {
     DCHECK(!it.done());
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-    if (target->kind() == Code::WASM_INTERPRETER_ENTRY) {
-      // Don't call the interpreter entry directly, otherwise we cannot
-      // disable the breakpoint later by patching the exported code.
-      return Handle<Code>::null();
-    }
     if (target->kind() != Code::WASM_FUNCTION &&
-        target->kind() != Code::WASM_TO_JS_FUNCTION)
+        target->kind() != Code::WASM_TO_JS_FUNCTION &&
+        target->kind() != Code::WASM_INTERPRETER_ENTRY)
       continue;
 // There should only be this one call to wasm code.
 #ifdef DEBUG
     for (it.next(); !it.done(); it.next()) {
       Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
       DCHECK(code->kind() != Code::WASM_FUNCTION &&
-             code->kind() != Code::WASM_TO_JS_FUNCTION);
+             code->kind() != Code::WASM_TO_JS_FUNCTION &&
+             code->kind() != Code::WASM_INTERPRETER_ENTRY);
     }
 #endif
     return handle(target);
@@ -901,10 +898,7 @@ Handle<Code> CompileImportWrapper(Isolate* isolate, int index, FunctionSig* sig,
     if (!sig->Equals(other_func->sig)) return Handle<Code>::null();
     // Signature matched. Unwrap the JS->WASM wrapper and return the raw
     // WASM function code.
-    Handle<Code> code = UnwrapImportWrapper(target);
-    // If we got no code (imported function is being debugged), fall through
-    // to CompileWasmToJSWrapper.
-    if (!code.is_null()) return code;
+    return UnwrapImportWrapper(target);
   }
   // No wasm function or being debugged. Compile a new wrapper for the new
   // signature.
