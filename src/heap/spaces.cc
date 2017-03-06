@@ -3080,7 +3080,7 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
   LargeObjectIterator it(this);
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     if (ObjectMarking::IsBlackOrGrey(obj)) {
-      ObjectMarking::ClearMarkBit(obj);
+      Marking::MarkWhite(ObjectMarking::MarkBitFrom(obj));
       MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
       chunk->ResetProgressBar();
       chunk->ResetLiveBytes();

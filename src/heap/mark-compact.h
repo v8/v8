@@ -73,11 +73,6 @@ class ObjectMarking : public AllStatic {
   }
 
   template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void ClearMarkBit(HeapObject* obj) {
-    Marking::MarkWhite(MarkBitFrom<mode>(obj));
-  }
-
-  template <MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static void BlackToGrey(HeapObject* obj) {
     DCHECK(IsBlack<mode>(obj));
     MarkBit markbit = MarkBitFrom<mode>(obj);
