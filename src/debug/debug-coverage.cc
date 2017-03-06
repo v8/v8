@@ -103,25 +103,14 @@ Coverage* Coverage::Collect(Isolate* isolate, bool reset_count) {
     std::vector<CoverageFunction>* functions = &result->back().functions;
 
     std::vector<SharedFunctionInfo*> sorted;
-    bool has_toplevel = false;
 
     {
       // Sort functions by start position, from outer to inner functions.
       SharedFunctionInfo::ScriptIterator infos(script_handle);
       while (SharedFunctionInfo* info = infos.Next()) {
-        has_toplevel |= info->is_toplevel();
         sorted.push_back(info);
       }
       std::sort(sorted.begin(), sorted.end(), CompareSharedFunctionInfo);
-    }
-
-    functions->reserve(sorted.size() + (has_toplevel ? 0 : 1));
-
-    if (!has_toplevel) {
-      // Add a replacement toplevel function if it does not exist.
-      int source_end = String::cast(script->source())->length();
-      functions->emplace_back(0, source_end, 1u,
-                              isolate->factory()->empty_string());
     }
 
     // Use sorted list to reconstruct function nesting.

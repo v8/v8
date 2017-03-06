@@ -17,8 +17,11 @@ fib(5);
 InspectorTest.log("Test collecting code coverage data with Profiler.collectCoverage.");
 
 function ClearAndGC() {
-  return Protocol.Runtime.evaluate({ expression: "fib = null;" })
-           .then(() => Protocol.HeapProfiler.enable())
+  return Protocol.Runtime.evaluate({ expression: "fib = null;" }).then(GC);
+}
+
+function GC() {
+  return Protocol.HeapProfiler.enable()
            .then(() => Protocol.HeapProfiler.collectGarbage())
            .then(() => Protocol.HeapProfiler.disable());
 }
@@ -29,6 +32,24 @@ function LogSorted(message) {
 }
 
 InspectorTest.runTestSuite([
+  function testPreciseBaseline(next)
+  {
+    Protocol.Runtime.enable()
+      .then(() => Protocol.Runtime.compileScript({ expression: source, sourceURL: "0", persistScript: true }))
+      .then((result) => Protocol.Runtime.runScript({ scriptId: result.result.scriptId }))
+      .then(GC)
+      .then(Protocol.Profiler.enable)
+      .then(Protocol.Profiler.startPreciseCoverage)
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(Protocol.Profiler.takePreciseCoverage)
+      .then(LogSorted)
+      .then(Protocol.Profiler.stopPreciseCoverage)
+      .then(ClearAndGC)
+      .then(Protocol.Profiler.disable)
+      .then(Protocol.Runtime.disable)
+      .then(next);
+  },
   function testPreciseCoverage(next)
   {
     Protocol.Runtime.enable()
