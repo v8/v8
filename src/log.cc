@@ -1413,9 +1413,6 @@ class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
                                      int* count)
       : sfis_(sfis), code_objects_(code_objects), count_(count) {}
 
-  virtual void EnterContext(Context* context) {}
-  virtual void LeaveContext(Context* context) {}
-
   virtual void VisitFunction(JSFunction* function) {
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
     Object* maybe_script = sfi->script();

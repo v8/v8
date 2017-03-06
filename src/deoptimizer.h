@@ -353,16 +353,7 @@ class TranslatedState {
 class OptimizedFunctionVisitor BASE_EMBEDDED {
  public:
   virtual ~OptimizedFunctionVisitor() {}
-
-  // Function which is called before iteration of any optimized functions
-  // from given native context.
-  virtual void EnterContext(Context* context) = 0;
-
   virtual void VisitFunction(JSFunction* function) = 0;
-
-  // Function which is called after iteration of all optimized functions
-  // from given native context.
-  virtual void LeaveContext(Context* context) = 0;
 };
 
 class Deoptimizer : public Malloced {
@@ -475,6 +466,8 @@ class Deoptimizer : public Malloced {
   // Visit all the known optimized functions in a given isolate.
   static void VisitAllOptimizedFunctions(
       Isolate* isolate, OptimizedFunctionVisitor* visitor);
+
+  static void UnlinkOptimizedCode(Code* code, Context* native_context);
 
   // The size in bytes of the code required at a lazy deopt patch site.
   static int patch_size();

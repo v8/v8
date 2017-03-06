@@ -145,8 +145,6 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
 
   CHECK(context->IsNativeContext());
 
-  visitor->EnterContext(context);
-
   // Visit the list of optimized functions, removing elements that
   // no longer refer to optimized code.
   JSFunction* prev = NULL;
@@ -180,8 +178,29 @@ void Deoptimizer::VisitAllOptimizedFunctionsForContext(
     }
     element = next;
   }
+}
 
-  visitor->LeaveContext(context);
+void Deoptimizer::UnlinkOptimizedCode(Code* code, Context* native_context) {
+  class CodeUnlinker : public OptimizedFunctionVisitor {
+   public:
+    explicit CodeUnlinker(Code* code) : code_(code) {}
+
+    virtual void VisitFunction(JSFunction* function) {
+      if (function->code() == code_) {
+        if (FLAG_trace_deopt) {
+          PrintF("[removing optimized code for: ");
+          function->ShortPrint();
+          PrintF("]\n");
+        }
+        function->set_code(function->shared()->code());
+      }
+    }
+
+   private:
+    Code* code_;
+  };
+  CodeUnlinker unlinker(code);
+  VisitAllOptimizedFunctionsForContext(native_context, &unlinker);
 }
 
 
@@ -209,8 +228,6 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   // deoptimized from the functions that refer to it.
   class SelectedCodeUnlinker: public OptimizedFunctionVisitor {
    public:
-    virtual void EnterContext(Context* context) { }  // Don't care.
-    virtual void LeaveContext(Context* context)  { }  // Don't care.
     virtual void VisitFunction(JSFunction* function) {
       Code* code = function->code();
       if (!code->marked_for_deoptimization()) return;
