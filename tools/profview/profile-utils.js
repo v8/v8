@@ -111,6 +111,47 @@ function addFrameToFrameList(paths, pathIndex, depth) {
   }
 }
 
+function findNextFrame(file, stack, stackPos, step, filter) {
+  let codeId = -1;
+  let code = null;
+  while (stackPos >= 0 && stackPos < stack.length) {
+    codeId = stack[stackPos];
+    code = codeId >= 0 ? file.code[codeId] : undefined;
+    if (filter) {
+      let type = code ? code.type : undefined;
+      let kind = code ? code.kind : undefined;
+      if (filter(type, kind)) return stackPos;
+    }
+    stackPos += step;
+  }
+  return -1;
+}
+
+function addOrUpdateChildNode(parent, file, stackIndex, stackPos, ascending) {
+  let stack = file.ticks[stackIndex].s;
+  let codeId = stack[stackPos];
+  let code = codeId >= 0 ? file.code[codeId] : undefined;
+  if (stackPos === -1) {
+    // We reached the end without finding the next step.
+    // If we are doing top-down call tree, update own ticks.
+    if (!ascending) {
+      parent.ownTicks++;
+    }
+  } else {
+    console.assert(stackPos >= 0 && stackPos < stack.length);
+    // We found a child node.
+    let childId = childIdFromCode(codeId, code);
+    let child = parent.children[childId];
+    if (!child) {
+      child = createNodeFromStackEntry(code);
+      child.delayedExpansion = { frameList : [], ascending };
+      parent.children[childId] = child;
+    }
+    child.ticks++;
+    addFrameToFrameList(child.delayedExpansion.frameList, stackIndex, stackPos);
+  }
+}
+
 // This expands a tree node (direct children only).
 function expandTreeNode(file, node, filter) {
   let { frameList, ascending } = node.delayedExpansion;
@@ -118,78 +159,19 @@ function expandTreeNode(file, node, filter) {
   let step = ascending ? 2 : -2;
 
   for (let i = 0; i < frameList.length; i+= 3) {
-    let stackIndex = frameList[i];
+    let firstStackIndex = frameList[i];
     let depth = frameList[i + 1];
     let count = frameList[i + 2];
     for (let j = 0; j < count; j++) {
-      let tick = file.ticks[stackIndex + j];
-      let stack = tick.s;
+      let stackIndex = firstStackIndex + j;
+      let stack = file.ticks[stackIndex].s;
 
       // Get to the next frame that has not been filtered out.
-      let k = depth + step;
-      let codeId = -1;
-      let code = null;
-      while (k >= 0 && k < stack.length) {
-        codeId = stack[k];
-        code = codeId >= 0 ? file.code[codeId] : undefined;
-        if (filter) {
-          let type = code ? code.type : undefined;
-          let kind = code ? code.kind : undefined;
-          if (filter(type, kind)) break;
-        }
-        k += step;
-      }
-      if (k < 0 || k >= stack.length) {
-        // We reached the end without finding the next step.
-        // If we are doing top-down call tree, update own ticks.
-        if (!ascending) {
-          node.ownTicks++;
-        }
-      } else {
-        // We found a child node.
-        let childId = childIdFromCode(codeId, code);
-        let child = node.children[childId];
-        if (!child) {
-          child = createNodeFromStackEntry(code);
-          child.delayedExpansion = { frameList : [], ascending };
-          node.children[childId] = child;
-        }
-        child.ticks++;
-        addFrameToFrameList(child.delayedExpansion.frameList, stackIndex, k);
-      }
+      let stackPos = findNextFrame(file, stack, depth + step, step, filter);
+      addOrUpdateChildNode(node, file, stackIndex, stackPos, ascending);
     }
   }
   node.delayedExpansion = null;
-}
-
-function addStackToTree(file, stack, tree, filter, ascending, start) {
-  if (start === undefined) {
-    start = ascending ? 0 : stack.length - 2;
-  }
-  tree.ticks++;
-  for (let i = start;
-       ascending ? (i < stack.length) : (i >= 0);
-       i += ascending ? 2 : -2) {
-    let codeId = stack[i];
-    let code = codeId >= 0 ? file.code[codeId] : undefined;
-    if (filter) {
-      let type = code ? code.type : undefined;
-      let kind = code ? code.kind : undefined;
-      if (!filter(type, kind)) continue;
-    }
-
-    // For JavaScript function, pretend there is one instance of optimized
-    // function and one instance of unoptimized function per SFI.
-    let childId = childIdFromCode(codeId, code);
-    let child = tree.children[childId];
-    if (!child) {
-      child = createNodeFromStackEntry(code);
-      tree.children[childId] = child;
-    }
-    child.ticks++;
-    tree = child;
-  }
-  tree.ownTicks++;
 }
 
 function createEmptyNode(name) {
@@ -206,12 +188,19 @@ class PlainCallTreeProcessor {
   constructor(filter, isBottomUp) {
     this.filter = filter;
     this.tree = createEmptyNode("root");
+    this.tree.delayedExpansion = { frameList : [], ascending : isBottomUp };
     this.isBottomUp = isBottomUp;
   }
 
   addStack(file, tickIndex) {
     let stack = file.ticks[tickIndex].s;
-    addStackToTree(file, stack, this.tree, this.filter, this.isBottomUp);
+    let step = this.isBottomUp ? 2 : -2;
+    let start = this.isBottomUp ? 0 : stack.length - 2;
+
+    let stackPos = findNextFrame(file, stack, start, step, this.filter);
+    addOrUpdateChildNode(this.tree, file, tickIndex, stackPos, this.isBottomUp);
+
+    this.tree.ticks++;
   }
 }
 
@@ -259,10 +248,13 @@ class CategorizedCallTreeProcessor {
     let node = this.categories[kind];
 
     this.tree.ticks++;
+    node.ticks++;
 
-    console.assert(node);
+    let step = this.isBottomUp ? 2 : -2;
+    let start = this.isBottomUp ? 0 : stack.length - 2;
 
-    addStackToTree(file, stack, node, this.filter, this.isBottomUp);
+    let stackPos = findNextFrame(file, stack, start, step, this.filter);
+    addOrUpdateChildNode(node, file, tickIndex, stackPos, this.isBottomUp);
   }
 }
 
