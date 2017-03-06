@@ -78,20 +78,6 @@ class ObjectMarking : public AllStatic {
   }
 
   template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void BlackToWhite(HeapObject* obj) {
-    DCHECK(IsBlack<mode>(obj));
-    MarkBit markbit = MarkBitFrom<mode>(obj);
-    Marking::BlackToWhite(markbit);
-    MemoryChunk::IncrementLiveBytes<mode>(obj, -obj->Size());
-  }
-
-  template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void GreyToWhite(HeapObject* obj) {
-    DCHECK(IsGrey<mode>(obj));
-    Marking::GreyToWhite(MarkBitFrom<mode>(obj));
-  }
-
-  template <MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static void BlackToGrey(HeapObject* obj) {
     DCHECK(IsBlack<mode>(obj));
     MarkBit markbit = MarkBitFrom<mode>(obj);
