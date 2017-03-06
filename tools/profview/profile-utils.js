@@ -79,6 +79,89 @@ function createNodeFromStackEntry(code) {
            children : [], ownTicks : 0, ticks : 0 };
 }
 
+function childIdFromCode(codeId, code) {
+  // For JavaScript function, pretend there is one instance of optimized
+  // function and one instance of unoptimized function per SFI.
+  // Otherwise, just compute the id from code id.
+  let type = resolveCodeKind(code);
+  if (type === "JSOPT") {
+    return code.func * 4 + 1;
+  } else if (type === "JSUNOPT") {
+    return code.func * 4 + 2;
+  } else {
+    return codeId * 4;
+  }
+}
+
+// We store list of ticks and positions within the ticks stack by
+// storing flattened triplets of { tickIndex, depth, count }.
+// Triplet { 123, 2, 3 } encodes positions in ticks 123, 124, 125,
+// all of them at depth 2. The flattened array is used to encode
+// position within the call-tree.
+
+// The following function helps to encode such triplets.
+function addFrameToFrameList(paths, pathIndex, depth) {
+  // Try to combine with the previous code run.
+  if (paths.length > 0 &&
+      paths[paths.length - 3] + 1 === pathIndex &&
+      paths[paths.length - 2] === depth) {
+    paths[paths.length - 1]++;
+  } else {
+    paths.push(pathIndex, depth, 1);
+  }
+}
+
+// This expands a tree node (direct children only).
+function expandTreeNode(file, node, filter) {
+  let { frameList, ascending } = node.delayedExpansion;
+
+  let step = ascending ? 2 : -2;
+
+  for (let i = 0; i < frameList.length; i+= 3) {
+    let stackIndex = frameList[i];
+    let depth = frameList[i + 1];
+    let count = frameList[i + 2];
+    for (let j = 0; j < count; j++) {
+      let tick = file.ticks[stackIndex + j];
+      let stack = tick.s;
+
+      // Get to the next frame that has not been filtered out.
+      let k = depth + step;
+      let codeId = -1;
+      let code = null;
+      while (k >= 0 && k < stack.length) {
+        codeId = stack[k];
+        code = codeId >= 0 ? file.code[codeId] : undefined;
+        if (filter) {
+          let type = code ? code.type : undefined;
+          let kind = code ? code.kind : undefined;
+          if (filter(type, kind)) break;
+        }
+        k += step;
+      }
+      if (k < 0 || k >= stack.length) {
+        // We reached the end without finding the next step.
+        // If we are doing top-down call tree, update own ticks.
+        if (!ascending) {
+          node.ownTicks++;
+        }
+      } else {
+        // We found a child node.
+        let childId = childIdFromCode(codeId, code);
+        let child = node.children[childId];
+        if (!child) {
+          child = createNodeFromStackEntry(code);
+          child.delayedExpansion = { frameList : [], ascending };
+          node.children[childId] = child;
+        }
+        child.ticks++;
+        addFrameToFrameList(child.delayedExpansion.frameList, stackIndex, k);
+      }
+    }
+  }
+  node.delayedExpansion = null;
+}
+
 function addStackToTree(file, stack, tree, filter, ascending, start) {
   if (start === undefined) {
     start = ascending ? 0 : stack.length - 2;
@@ -97,15 +180,7 @@ function addStackToTree(file, stack, tree, filter, ascending, start) {
 
     // For JavaScript function, pretend there is one instance of optimized
     // function and one instance of unoptimized function per SFI.
-    let type = resolveCodeKind(code);
-    let childId;
-    if (type === "JSOPT") {
-      childId = code.func * 4 + 1;
-    } else if (type === "JSUNOPT") {
-      childId = code.func * 4 + 2;
-    } else {
-      childId = codeId * 4;
-    }
+    let childId = childIdFromCode(codeId, code);
     let child = tree.children[childId];
     if (!child) {
       child = createNodeFromStackEntry(code);
@@ -134,40 +209,49 @@ class PlainCallTreeProcessor {
     this.isBottomUp = isBottomUp;
   }
 
-  addStack(file, timestamp, vmState, stack) {
+  addStack(file, tickIndex) {
+    let stack = file.ticks[tickIndex].s;
     addStackToTree(file, stack, this.tree, this.filter, this.isBottomUp);
   }
+}
+
+function buildCategoryTreeAndLookup() {
+  let root = createEmptyNode("root");
+  let categories = {};
+  function addCategory(name, types) {
+    let n = createEmptyNode(name);
+    for (let i = 0; i < types.length; i++) {
+      categories[types[i]] = n;
+    }
+    root.children.push(n);
+  }
+  addCategory("JS Optimized", [ "JSOPT" ]);
+  addCategory("JS Unoptimized", [ "JSUNOPT", "BC" ]);
+  addCategory("IC", [ "IC" ]);
+  addCategory("RegExp", [ "REGEXP" ]);
+  addCategory("Other generated", [ "STUB", "BUILTIN" ]);
+  addCategory("C++", [ "CPP", "LIB" ]);
+  addCategory("C++/GC", [ "CPPGC" ]);
+  addCategory("C++/Compiler", [ "CPPCOMP" ]);
+  addCategory("C++/External", [ "CPPEXT" ]);
+  addCategory("Unknown", [ "UNKNOWN" ]);
+
+  return { categories, root };
 }
 
 class CategorizedCallTreeProcessor {
   constructor(filter, isBottomUp) {
     this.filter = filter;
-    let root = createEmptyNode("root");
-    let categories = {};
-    function addCategory(name, types) {
-      let n = createEmptyNode(name);
-      for (let i = 0; i < types.length; i++) {
-        categories[types[i]] = n;
-      }
-      root.children.push(n);
-    }
-    addCategory("JS Optimized", [ "JSOPT" ]);
-    addCategory("JS Unoptimized", [ "JSUNOPT", "BC" ]);
-    addCategory("IC", [ "IC" ]);
-    addCategory("RegExp", [ "REGEXP" ]);
-    addCategory("Other generated", [ "STUB", "BUILTIN" ]);
-    addCategory("C++", [ "CPP", "LIB" ]);
-    addCategory("C++/GC", [ "CPPGC" ]);
-    addCategory("C++/Compiler", [ "CPPCOMP" ]);
-    addCategory("C++/External", [ "CPPEXT" ]);
-    addCategory("Unknown", [ "UNKNOWN" ]);
+    let { categories, root } = buildCategoryTreeAndLookup();
 
     this.tree = root;
     this.categories = categories;
     this.isBottomUp = isBottomUp;
   }
 
-  addStack(file, timestamp, vmState, stack) {
+  addStack(file, tickIndex) {
+    let stack = file.ticks[tickIndex].s;
+    let vmState = file.ticks[tickIndex].vm;
     if (stack.length === 0) return;
     let codeId = stack[0];
     let code = codeId >= 0 ? file.code[codeId] : undefined;
@@ -183,15 +267,27 @@ class CategorizedCallTreeProcessor {
 }
 
 class FunctionListTree {
-  constructor(filter) {
-    this.tree = { name : "root", children : [], ownTicks : 0, ticks : 0 };
+  constructor(filter, withCategories) {
+    if (withCategories) {
+      let { categories, root } = buildCategoryTreeAndLookup();
+      this.tree = root;
+      this.categories = categories;
+    } else {
+      this.tree = { name : "root", children : [], ownTicks : 0, ticks : 0 };
+      this.categories = null;
+    }
+
     this.codeVisited = [];
     this.filter = filter;
   }
 
-  addStack(file, timestamp, vmState, stack) {
+  addStack(file, tickIndex) {
+    let stack = file.ticks[tickIndex].s;
+    let vmState = file.ticks[tickIndex].vm;
+
     this.tree.ticks++;
     let child = null;
+    let tree = null;
     for (let i = stack.length - 2; i >= 0; i -= 2) {
       let codeId = stack[i];
       if (codeId < 0 || this.codeVisited[codeId]) continue;
@@ -202,16 +298,38 @@ class FunctionListTree {
         let kind = code ? code.kind : undefined;
         if (!this.filter(type, kind)) continue;
       }
-      child = this.tree.children[codeId];
+      let childId = childIdFromCode(codeId, code);
+      if (this.categories) {
+        let kind = resolveCodeKindAndVmState(code, vmState);
+        tree = this.categories[kind];
+      } else {
+        tree = this.tree;
+      }
+      child = tree.children[childId];
       if (!child) {
         child = createNodeFromStackEntry(code);
-        this.tree.children[codeId] = child;
+        child.children[0] = createEmptyNode("Top-down tree");
+        child.children[0].delayedExpansion =
+          { frameList : [], ascending : false };
+        child.children[1] = createEmptyNode("Bottom-up tree");
+        child.children[1].delayedExpansion =
+          { frameList : [], ascending : true };
+        tree.children[childId] = child;
       }
       child.ticks++;
+      child.children[0].ticks++;
+      addFrameToFrameList(
+          child.children[0].delayedExpansion.frameList, tickIndex, i);
+      child.children[1].ticks++;
+      addFrameToFrameList(
+          child.children[1].delayedExpansion.frameList, tickIndex, i);
       this.codeVisited[codeId] = true;
     }
     if (child) {
       child.ownTicks++;
+      console.assert(tree !== null);
+      tree.ticks++;
+      console.assert(tree.type === "CAT");
     }
 
     for (let i = 0; i < stack.length; i += 2) {
@@ -240,7 +358,9 @@ class CategorySampler {
     }
   }
 
-  addStack(file, timestamp, vmState, stack) {
+  addStack(file, tickIndex) {
+    let { tm : timestamp, vm : vmState, s : stack } = file.ticks[tickIndex];
+
     let i = Math.floor((timestamp - this.firstTime) / this.step);
     if (i == this.buckets.length) i--;
     console.assert(i >= 0 && i < this.buckets.length);
@@ -269,7 +389,7 @@ function generateTree(
 
   let tickCount = 0;
   while (i < ticks.length && ticks[i].tm < endTime) {
-    tree.addStack(file, ticks[i].tm, ticks[i].vm, ticks[i].s);
+    tree.addStack(file, i);
     i++;
     tickCount++;
   }

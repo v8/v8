@@ -83,7 +83,7 @@ let main = {
           break;
         case "function-list":
           callTreeState.attribution = "js-exclude-bc";
-          callTreeState.categories = "none";
+          callTreeState.categories = "code-type";
           callTreeState.sort = "own-time";
           break;
         default:
@@ -279,9 +279,17 @@ class CallTreeView {
   sortFromId(id) {
     switch (id) {
       case "time":
-        return (c1, c2) => c2.ticks - c1.ticks;
+        return (c1, c2) => {
+          if (c1.ticks < c2.ticks) return 1;
+          else if (c1.ticks > c2.ticks) return -1;
+          return c2.ownTicks - c1.ownTicks;
+        }
       case "own-time":
-        return (c1, c2) => c2.ownTicks - c1.ownTicks;
+        return (c1, c2) => {
+          if (c1.ownTicks < c2.ownTicks) return 1;
+          else if (c1.ownTicks > c2.ownTicks) return -1;
+          return c2.ticks - c1.ticks;
+        }
       case "category-time":
         return (c1, c2) => {
           if (c1.type === c2.type) return c2.ticks - c1.ticks;
@@ -383,9 +391,15 @@ class CallTreeView {
 
     // Collect the children, and sort them by ticks.
     let children = [];
-    for (let child in tree.children) {
-      if (tree.children[child].ticks > 0) {
-        children.push(tree.children[child]);
+    let filter =
+        this.filterFromFilterId(this.currentState.callTree.attribution);
+    for (let childId in tree.children) {
+      let child = tree.children[childId];
+      if (child.ticks > 0) {
+        children.push(child);
+        if (child.delayedExpansion) {
+          expandTreeNode(this.currentState.file, child, filter);
+        }
       }
     }
     children.sort(this.sortFromId(this.currentState.callTree.sort));
@@ -506,6 +520,7 @@ class CallTreeView {
       case "function-list":
         addOptions(this.selectAttribution, attributions, calltree.attribution);
         addOptions(this.selectCategories, [
+            { value : "code-type", text : "Code type" },
             { value : "none", text : "None" }
         ], calltree.categories);
         addOptions(this.selectSort, [
@@ -550,11 +565,11 @@ class CallTreeView {
       this.fillSelects(newState.callTree);
     }
 
-    let inclusiveDisplay = (mode === "bottom-up") ? "none" : "inherit";
+    let ownTimeClass = (mode === "bottom-up") ? "numeric-hidden" : "numeric";
     let ownTimeTh = $(this.treeElement.id + "-own-time-header");
-    ownTimeTh.style.display = inclusiveDisplay;
+    ownTimeTh.classList = ownTimeClass;
     let ownTicksTh = $(this.treeElement.id + "-own-ticks-header");
-    ownTicksTh.style.display = inclusiveDisplay;
+    ownTicksTh.classList = ownTimeClass;
 
     // Build the tree.
     let stackProcessor;
@@ -563,8 +578,8 @@ class CallTreeView {
       stackProcessor =
           new PlainCallTreeProcessor(filter, false);
     } else if (mode === "function-list") {
-      stackProcessor =
-          new FunctionListTree(filter);
+      stackProcessor = new FunctionListTree(
+          filter, this.currentState.callTree.categories === "code-type");
 
     } else {
       console.assert(mode === "bottom-up");

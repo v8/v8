@@ -6,6 +6,10 @@ table.calltree {
   width : 12ex;
 }
 
+.numeric-hidden {
+  display : none;
+}
+
 body {
   font-family: 'Roboto', sans-serif;
 }
