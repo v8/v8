@@ -22,6 +22,7 @@
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/code-stats.h"
+#include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
 #include "src/heap/gc-idle-time-handler.h"
 #include "src/heap/gc-tracer.h"
@@ -135,6 +136,7 @@ Heap::Heap()
       memory_allocator_(nullptr),
       store_buffer_(nullptr),
       incremental_marking_(nullptr),
+      concurrent_marking_(nullptr),
       gc_idle_time_handler_(nullptr),
       memory_reducer_(nullptr),
       live_object_stats_(nullptr),
@@ -5500,11 +5502,11 @@ bool Heap::SetUp() {
                                 code_range_size_))
     return false;
 
-  // Initialize store buffer.
   store_buffer_ = new StoreBuffer(this);
 
-  // Initialize incremental marking.
   incremental_marking_ = new IncrementalMarking(this);
+
+  concurrent_marking_ = new ConcurrentMarking(this);
 
   for (int i = 0; i <= LAST_SPACE; i++) {
     space_[i] = nullptr;
@@ -5689,6 +5691,9 @@ void Heap::TearDown() {
 
   delete incremental_marking_;
   incremental_marking_ = nullptr;
+
+  delete concurrent_marking_;
+  concurrent_marking_ = nullptr;
 
   delete gc_idle_time_handler_;
   gc_idle_time_handler_ = nullptr;

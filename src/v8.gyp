@@ -933,6 +933,8 @@
         'heap/array-buffer-tracker.h',
         'heap/code-stats.cc',
         'heap/code-stats.h',
+        'heap/concurrent-marking.cc',
+        'heap/concurrent-marking.h',
         'heap/embedder-tracing.cc',
         'heap/embedder-tracing.h',
         'heap/memory-reducer.cc',

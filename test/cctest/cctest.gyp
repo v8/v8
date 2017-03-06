@@ -104,6 +104,7 @@
       'heap/test-alloc.cc',
       'heap/test-array-buffer-tracker.cc',
       'heap/test-compaction.cc',
+      'heap/test-concurrent-marking.cc',
       'heap/test-heap.cc',
       'heap/test-incremental-marking.cc',
       'heap/test-lab.cc',

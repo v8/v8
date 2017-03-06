@@ -318,6 +318,7 @@ using v8::MemoryPressureLevel;
 // Forward declarations.
 class AllocationObserver;
 class ArrayBufferTracker;
+class ConcurrentMarking;
 class GCIdleTimeAction;
 class GCIdleTimeHandler;
 class GCIdleTimeHeapState;
@@ -2290,6 +2291,7 @@ class Heap {
   StoreBuffer* store_buffer_;
 
   IncrementalMarking* incremental_marking_;
+  ConcurrentMarking* concurrent_marking_;
 
   GCIdleTimeHandler* gc_idle_time_handler_;
 
@@ -2373,6 +2375,7 @@ class Heap {
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;
+  friend class ConcurrentMarking;
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
