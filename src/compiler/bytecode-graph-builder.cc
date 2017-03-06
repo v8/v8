@@ -1771,10 +1771,6 @@ void BytecodeGraphBuilder::VisitTestEqual() {
   BuildCompareOp(javascript()->Equal(GetCompareOperationHint()));
 }
 
-void BytecodeGraphBuilder::VisitTestNotEqual() {
-  BuildCompareOp(javascript()->NotEqual(GetCompareOperationHint()));
-}
-
 void BytecodeGraphBuilder::VisitTestEqualStrict() {
   BuildCompareOp(javascript()->StrictEqual(GetCompareOperationHint()));
 }

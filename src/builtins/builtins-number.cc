@@ -1587,15 +1587,7 @@ TF_BUILTIN(Equal, CodeStubAssembler) {
   Node* rhs = Parameter(1);
   Node* context = Parameter(2);
 
-  Return(Equal(kDontNegateResult, lhs, rhs, context));
-}
-
-TF_BUILTIN(NotEqual, CodeStubAssembler) {
-  Node* lhs = Parameter(0);
-  Node* rhs = Parameter(1);
-  Node* context = Parameter(2);
-
-  Return(Equal(kNegateResult, lhs, rhs, context));
+  Return(Equal(lhs, rhs, context));
 }
 
 TF_BUILTIN(StrictEqual, CodeStubAssembler) {

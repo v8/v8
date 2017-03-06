@@ -237,7 +237,6 @@ TFS_BUILTIN(LessThanOrEqual)
 TFS_BUILTIN(GreaterThan)
 TFS_BUILTIN(GreaterThanOrEqual)
 TFS_BUILTIN(Equal)
-TFS_BUILTIN(NotEqual)
 TFS_BUILTIN(StrictEqual)
 TFS_BUILTIN(CreateIterResultObject)
 TFS_BUILTIN(HasProperty)
@@ -270,7 +269,6 @@ TFS_BUILTIN(RegExpSplit)
 TFS_BUILTIN(StringCharAt)
 TFS_BUILTIN(StringCharCodeAt)
 TFS_BUILTIN(StringEqual)
-TFS_BUILTIN(StringNotEqual)
 TFS_BUILTIN(StringLessThan)
 TFS_BUILTIN(StringLessThanOrEqual)
 TFS_BUILTIN(StringGreaterThan)
@@ -291,9 +289,6 @@ Callable CodeFactory::StringCompare(Isolate* isolate, Token::Value token) {
     case Token::EQ:
     case Token::EQ_STRICT:
       return StringEqual(isolate);
-    case Token::NE:
-    case Token::NE_STRICT:
-      return StringNotEqual(isolate);
     case Token::LT:
       return StringLessThan(isolate);
     case Token::GT:

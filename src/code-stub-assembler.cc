@@ -6871,8 +6871,7 @@ void GenerateEqual_Same(CodeStubAssembler* assembler, Node* value,
 }  // namespace
 
 // ES6 section 7.2.12 Abstract Equality Comparison
-Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
-                               Node* context) {
+Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context) {
   // This is a slightly optimized version of Object::Equals represented as
   // scheduled TurboFan graph utilizing the CodeStubAssembler. Whenever you
   // change something functionality wise in here, remember to update the
@@ -7071,9 +7070,7 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
             {
               // Both {lhs} and {rhs} are of type String, just do the
               // string comparison then.
-              Callable callable = (mode == kDontNegateResult)
-                                      ? CodeFactory::StringEqual(isolate())
-                                      : CodeFactory::StringNotEqual(isolate());
+              Callable callable = CodeFactory::StringEqual(isolate());
               result.Bind(CallStub(callable, context, lhs, rhs));
               Goto(&end);
             }
@@ -7309,13 +7306,13 @@ Node* CodeStubAssembler::Equal(ResultMode mode, Node* lhs, Node* rhs,
 
   Bind(&if_equal);
   {
-    result.Bind(BooleanConstant(mode == kDontNegateResult));
+    result.Bind(TrueConstant());
     Goto(&end);
   }
 
   Bind(&if_notequal);
   {
-    result.Bind(BooleanConstant(mode == kNegateResult));
+    result.Bind(FalseConstant());
     Goto(&end);
   }
 

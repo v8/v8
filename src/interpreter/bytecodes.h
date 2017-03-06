@@ -180,8 +180,6 @@ namespace interpreter {
   /* Test Operators */                                                         \
   V(TestEqual, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
     OperandType::kIdx)                                                         \
-  V(TestNotEqual, AccumulatorUse::kReadWrite, OperandType::kReg,               \
-    OperandType::kIdx)                                                         \
   V(TestEqualStrict, AccumulatorUse::kReadWrite, OperandType::kReg,            \
     OperandType::kIdx)                                                         \
   V(TestLessThan, AccumulatorUse::kReadWrite, OperandType::kReg,               \
@@ -487,7 +485,6 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case Bytecode::kToBooleanLogicalNot:
       case Bytecode::kLogicalNot:
       case Bytecode::kTestEqual:
-      case Bytecode::kTestNotEqual:
       case Bytecode::kTestEqualStrict:
       case Bytecode::kTestLessThan:
       case Bytecode::kTestLessThanOrEqual:

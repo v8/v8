@@ -513,7 +513,6 @@ void Verifier::Visitor::Check(Node* node) {
     // JavaScript operators
     // --------------------
     case IrOpcode::kJSEqual:
-    case IrOpcode::kJSNotEqual:
     case IrOpcode::kJSStrictEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:

@@ -337,9 +337,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::Value::EQ:
       OutputTestEqual(reg, feedback_slot);
       break;
-    case Token::Value::NE:
-      OutputTestNotEqual(reg, feedback_slot);
-      break;
     case Token::Value::EQ_STRICT:
       OutputTestEqualStrict(reg, feedback_slot);
       break;

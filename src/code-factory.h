@@ -117,7 +117,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable GreaterThan(Isolate* isolate);
   static Callable GreaterThanOrEqual(Isolate* isolate);
   static Callable Equal(Isolate* isolate);
-  static Callable NotEqual(Isolate* isolate);
   static Callable StrictEqual(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate, StringAddFlags flags,
@@ -126,7 +125,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringCharCodeAt(Isolate* isolate);
   static Callable StringCompare(Isolate* isolate, Token::Value token);
   static Callable StringEqual(Isolate* isolate);
-  static Callable StringNotEqual(Isolate* isolate);
   static Callable StringLessThan(Isolate* isolate);
   static Callable StringLessThanOrEqual(Isolate* isolate);
   static Callable StringGreaterThan(Isolate* isolate);

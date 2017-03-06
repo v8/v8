@@ -82,7 +82,6 @@
 // Opcodes for JavaScript operators.
 #define JS_COMPARE_BINOP_LIST(V) \
   V(JSEqual)                     \
-  V(JSNotEqual)                  \
   V(JSStrictEqual)               \
   V(JSLessThan)                  \
   V(JSGreaterThan)               \

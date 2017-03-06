@@ -1209,9 +1209,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   void GotoUnlessNumberLessThan(Node* lhs, Node* rhs, Label* if_false);
 
-  enum ResultMode { kDontNegateResult, kNegateResult };
-
-  Node* Equal(ResultMode mode, Node* lhs, Node* rhs, Node* context);
+  Node* Equal(Node* lhs, Node* rhs, Node* context);
 
   Node* StrictEqual(Node* lhs, Node* rhs, Node* context);
 

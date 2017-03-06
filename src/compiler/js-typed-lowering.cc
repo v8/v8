@@ -221,9 +221,8 @@ class JSBinopReduction final {
   }
 
   // Remove all effect and control inputs and outputs to this node and change
-  // to the pure operator {op}, possibly inserting a boolean inversion.
-  Reduction ChangeToPureOperator(const Operator* op, bool invert = false,
-                                 Type* type = Type::Any()) {
+  // to the pure operator {op}.
+  Reduction ChangeToPureOperator(const Operator* op, Type* type = Type::Any()) {
     DCHECK_EQ(0, op->EffectInputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
     DCHECK_EQ(0, op->ControlInputCount());
@@ -243,19 +242,10 @@ class JSBinopReduction final {
     Type* node_type = NodeProperties::GetType(node_);
     NodeProperties::SetType(node_, Type::Intersect(node_type, type, zone()));
 
-    if (invert) {
-      // Insert an boolean not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
-      node_->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node_);
-      return lowering_->Replace(value);
-    }
     return lowering_->Changed(node_);
   }
 
-  Reduction ChangeToSpeculativeOperator(const Operator* op, bool invert,
-                                        Type* upper_bound) {
+  Reduction ChangeToSpeculativeOperator(const Operator* op, Type* upper_bound) {
     DCHECK_EQ(1, op->EffectInputCount());
     DCHECK_EQ(1, op->EffectOutputCount());
     DCHECK_EQ(false, OperatorProperties::HasContextInput(op));
@@ -298,23 +288,7 @@ class JSBinopReduction final {
     NodeProperties::SetType(node_,
                             Type::Intersect(node_type, upper_bound, zone()));
 
-    if (invert) {
-      // Insert an boolean not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node_);
-      node_->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node_);
-      return lowering_->Replace(value);
-    }
     return lowering_->Changed(node_);
-  }
-
-  Reduction ChangeToPureOperator(const Operator* op, Type* type) {
-    return ChangeToPureOperator(op, false, type);
-  }
-
-  Reduction ChangeToSpeculativeOperator(const Operator* op, Type* type) {
-    return ChangeToSpeculativeOperator(op, false, type);
   }
 
   const Operator* NumberOp() {
@@ -878,7 +852,7 @@ Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
+Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node) {
   Node* input;
   Handle<String> type;
   HeapObjectBinopMatcher m(node);
@@ -925,66 +899,55 @@ Reduction JSTypedLowering::ReduceJSEqualTypeOf(Node* node, bool invert) {
   } else {
     return NoChange();
   }
-  if (invert) {
-    value = graph()->NewNode(simplified()->BooleanNot(), value);
-  }
   ReplaceWithValue(node, value);
   return Replace(value);
 }
 
-Reduction JSTypedLowering::ReduceJSEqual(Node* node, bool invert) {
-  Reduction const reduction = ReduceJSEqualTypeOf(node, invert);
+Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
+  Reduction const reduction = ReduceJSEqualTypeOf(node);
   if (reduction.Changed()) return reduction;
 
   JSBinopReduction r(this, node);
 
   if (r.BothInputsAre(Type::UniqueName())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.IsInternalizedStringCompareOperation()) {
     r.CheckInputsToInternalizedString();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.BothInputsAre(Type::String())) {
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
   if (r.BothInputsAre(Type::Boolean())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.BothInputsAre(Type::Receiver())) {
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   }
   if (r.OneInputIs(Type::Undetectable())) {
     RelaxEffectsAndControls(node);
     node->RemoveInput(r.LeftInputIs(Type::Undetectable()) ? 0 : 1);
     node->TrimInputCount(1);
     NodeProperties::ChangeOp(node, simplified()->ObjectIsUndetectable());
-    if (invert) {
-      // Insert an boolean not to invert the value.
-      Node* value = graph()->NewNode(simplified()->BooleanNot(), node);
-      node->ReplaceUses(value);
-      // Note: ReplaceUses() smashes all uses, so smash it back here.
-      value->ReplaceInput(0, node);
-      return Replace(value);
-    }
     return Changed(node);
   }
 
   NumberOperationHint hint;
   if (r.BothInputsAre(Type::Signed32()) ||
       r.BothInputsAre(Type::Unsigned32())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.GetCompareNumberOperationHint(&hint)) {
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), invert, Type::Boolean());
+        simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
-    return r.ChangeToPureOperator(simplified()->NumberEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
     r.CheckInputsToReceiver();
-    return r.ChangeToPureOperator(simplified()->ReferenceEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->ReferenceEqual());
   } else if (r.IsStringCompareOperation()) {
     r.CheckInputsToString();
-    return r.ChangeToPureOperator(simplified()->StringEqual(), invert);
+    return r.ChangeToPureOperator(simplified()->StringEqual());
   }
   return NoChange();
 }
@@ -1010,7 +973,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
     }
   }
 
-  Reduction const reduction = ReduceJSEqualTypeOf(node, false);
+  Reduction const reduction = ReduceJSEqualTypeOf(node);
   if (reduction.Changed()) return reduction;
 
   if (r.BothInputsAre(Type::Unique())) {
@@ -1033,7 +996,7 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.GetCompareNumberOperationHint(&hint)) {
     return r.ChangeToSpeculativeOperator(
-        simplified()->SpeculativeNumberEqual(hint), false, Type::Boolean());
+        simplified()->SpeculativeNumberEqual(hint), Type::Boolean());
   } else if (r.BothInputsAre(Type::Number())) {
     return r.ChangeToPureOperator(simplified()->NumberEqual());
   } else if (r.IsReceiverCompareOperation()) {
@@ -2368,9 +2331,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
 Reduction JSTypedLowering::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
-      return ReduceJSEqual(node, false);
-    case IrOpcode::kJSNotEqual:
-      return ReduceJSEqual(node, true);
+      return ReduceJSEqual(node);
     case IrOpcode::kJSStrictEqual:
       return ReduceJSStrictEqual(node);
     case IrOpcode::kJSLessThan:         // fall through

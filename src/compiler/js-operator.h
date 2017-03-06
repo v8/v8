@@ -563,7 +563,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   explicit JSOperatorBuilder(Zone* zone);
 
   const Operator* Equal(CompareOperationHint hint);
-  const Operator* NotEqual(CompareOperationHint hint);
   const Operator* StrictEqual(CompareOperationHint hint);
   const Operator* LessThan(CompareOperationHint hint);
   const Operator* GreaterThan(CompareOperationHint hint);

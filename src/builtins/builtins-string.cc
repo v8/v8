@@ -18,7 +18,6 @@
 namespace v8 {
 namespace internal {
 
-typedef CodeStubAssembler::ResultMode ResultMode;
 typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 
 class StringBuiltinsAssembler : public CodeStubAssembler {
@@ -105,7 +104,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
            arraysize(values));
   }
 
-  void GenerateStringEqual(ResultMode mode);
+  void GenerateStringEqual();
   void GenerateStringRelationalComparison(RelationalComparisonMode mode);
 
   Node* ToSmiBetweenZeroAnd(Node* context, Node* value, Node* limit);
@@ -144,9 +143,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeFunction1& generic_call);
 };
 
-void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
-  // Here's pseudo-code for the algorithm below in case of kDontNegateResult
-  // mode; for kNegateResult mode we properly negate the result.
+void StringBuiltinsAssembler::GenerateStringEqual() {
+  // Here's pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) return true;
   // if (lhs->length() != rhs->length()) return false;
@@ -262,17 +260,14 @@ void StringBuiltinsAssembler::GenerateStringEqual(ResultMode mode) {
                               rhs_instance_type, &restart);
     // TODO(bmeurer): Add support for two byte string equality checks.
 
-    Runtime::FunctionId function_id = (mode == ResultMode::kDontNegateResult)
-                                          ? Runtime::kStringEqual
-                                          : Runtime::kStringNotEqual;
-    TailCallRuntime(function_id, context, lhs, rhs);
+    TailCallRuntime(Runtime::kStringEqual, context, lhs, rhs);
   }
 
   Bind(&if_equal);
-  Return(BooleanConstant(mode == ResultMode::kDontNegateResult));
+  Return(TrueConstant());
 
   Bind(&if_notequal);
-  Return(BooleanConstant(mode == ResultMode::kNegateResult));
+  Return(FalseConstant());
 }
 
 void StringBuiltinsAssembler::GenerateStringRelationalComparison(
@@ -439,13 +434,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   }
 }
 
-TF_BUILTIN(StringEqual, StringBuiltinsAssembler) {
-  GenerateStringEqual(ResultMode::kDontNegateResult);
-}
-
-TF_BUILTIN(StringNotEqual, StringBuiltinsAssembler) {
-  GenerateStringEqual(ResultMode::kNegateResult);
-}
+TF_BUILTIN(StringEqual, StringBuiltinsAssembler) { GenerateStringEqual(); }
 
 TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
   GenerateStringRelationalComparison(RelationalComparisonMode::kLessThan);

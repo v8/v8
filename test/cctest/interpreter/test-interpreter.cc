@@ -1689,9 +1689,8 @@ TEST(InterpreterJumpWith32BitOperand) {
 }
 
 static const Token::Value kComparisonTypes[] = {
-    Token::Value::EQ, Token::Value::NE,  Token::Value::EQ_STRICT,
-    Token::Value::LT, Token::Value::LTE, Token::Value::GT,
-    Token::Value::GTE};
+    Token::Value::EQ,  Token::Value::EQ_STRICT, Token::Value::LT,
+    Token::Value::LTE, Token::Value::GT,        Token::Value::GTE};
 
 template <typename T>
 bool CompareC(Token::Value op, T lhs, T rhs, bool types_differed = false) {

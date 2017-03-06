@@ -259,7 +259,6 @@ class Typer::Visitor : public Reducer {
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
 
   static ComparisonOutcome Invert(ComparisonOutcome, Typer*);
-  static Type* Invert(Type*, Typer*);
   static Type* FalsifyUndefined(ComparisonOutcome, Typer*);
 
   static Type* ToPrimitive(Type*, Typer*);
@@ -388,15 +387,6 @@ Type* Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
   Type* right = Operand(node, 1);
   return left->IsInhabited() && right->IsInhabited() ? f(left, right, typer_)
                                                      : Type::None();
-}
-
-
-Type* Typer::Visitor::Invert(Type* type, Typer* t) {
-  DCHECK(type->Is(Type::Boolean()));
-  DCHECK(type->IsInhabited());
-  if (type->Is(t->singleton_false_)) return t->singleton_true_;
-  if (type->Is(t->singleton_true_)) return t->singleton_false_;
-  return type;
 }
 
 
@@ -896,11 +886,6 @@ Type* Typer::Visitor::JSEqualTyper(Type* lhs, Type* rhs, Typer* t) {
     return t->singleton_true_;
   }
   return Type::Boolean();
-}
-
-
-Type* Typer::Visitor::JSNotEqualTyper(Type* lhs, Type* rhs, Typer* t) {
-  return Invert(JSEqualTyper(lhs, rhs, t), t);
 }
 
 

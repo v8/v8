@@ -49,7 +49,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadLiteral(Smi::kZero)
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(8))
-      .CompareOperation(Token::Value::NE, reg,
+      .CompareOperation(Token::Value::EQ, reg,
                         1)  // Prevent peephole optimization
                             // LdaSmi, Star -> LdrSmi.
       .StoreAccumulatorInRegister(reg)
@@ -201,14 +201,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
 
   // Emit test operator invocations.
   builder.CompareOperation(Token::Value::EQ, reg, 1)
-      .CompareOperation(Token::Value::NE, reg, 2)
-      .CompareOperation(Token::Value::EQ_STRICT, reg, 3)
-      .CompareOperation(Token::Value::LT, reg, 4)
-      .CompareOperation(Token::Value::GT, reg, 5)
-      .CompareOperation(Token::Value::LTE, reg, 6)
-      .CompareOperation(Token::Value::GTE, reg, 7)
-      .CompareOperation(Token::Value::INSTANCEOF, reg, 8)
-      .CompareOperation(Token::Value::IN, reg, 9);
+      .CompareOperation(Token::Value::EQ_STRICT, reg, 2)
+      .CompareOperation(Token::Value::LT, reg, 3)
+      .CompareOperation(Token::Value::GT, reg, 4)
+      .CompareOperation(Token::Value::LTE, reg, 5)
+      .CompareOperation(Token::Value::GTE, reg, 6)
+      .CompareOperation(Token::Value::INSTANCEOF, reg, 7)
+      .CompareOperation(Token::Value::IN, reg, 8);
 
   // Emit peephole optimizations of equality with Null or Undefined.
   builder.LoadUndefined()

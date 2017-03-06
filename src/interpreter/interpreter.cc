@@ -1297,12 +1297,7 @@ void Interpreter::DoCompareOpWithFeedback(Token::Value compare_op,
   Node* result;
   switch (compare_op) {
     case Token::EQ:
-      result = assembler->Equal(CodeStubAssembler::kDontNegateResult, lhs, rhs,
-                                context);
-      break;
-    case Token::NE:
-      result =
-          assembler->Equal(CodeStubAssembler::kNegateResult, lhs, rhs, context);
+      result = assembler->Equal(lhs, rhs, context);
       break;
     case Token::EQ_STRICT:
       result = assembler->StrictEqual(lhs, rhs, context);
@@ -2345,13 +2340,6 @@ void Interpreter::DoConstruct(InterpreterAssembler* assembler) {
 // Test if the value in the <src> register equals the accumulator.
 void Interpreter::DoTestEqual(InterpreterAssembler* assembler) {
   DoCompareOpWithFeedback(Token::Value::EQ, assembler);
-}
-
-// TestNotEqual <src>
-//
-// Test if the value in the <src> register is not equal to the accumulator.
-void Interpreter::DoTestNotEqual(InterpreterAssembler* assembler) {
-  DoCompareOpWithFeedback(Token::Value::NE, assembler);
 }
 
 // TestEqualStrict <src>

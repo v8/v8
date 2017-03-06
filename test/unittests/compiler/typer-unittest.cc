@@ -343,12 +343,6 @@ TEST_F(TyperTest, TypeJSEqual) {
 }
 
 
-TEST_F(TyperTest, TypeJSNotEqual) {
-  TestBinaryCompareOp(javascript_.NotEqual(CompareOperationHint::kAny),
-                      std::not_equal_to<double>());
-}
-
-
 // For numbers there's no difference between strict and non-strict equality.
 TEST_F(TyperTest, TypeJSStrictEqual) {
   TestBinaryCompareOp(javascript_.StrictEqual(CompareOperationHint::kAny),
@@ -364,7 +358,6 @@ TEST_F(TyperTest, TypeJSStrictEqual) {
     TestBinaryMonotonicity(javascript_.name(CompareOperationHint::kAny)); \
   }
 TEST_BINARY_MONOTONICITY(Equal)
-TEST_BINARY_MONOTONICITY(NotEqual)
 TEST_BINARY_MONOTONICITY(StrictEqual)
 TEST_BINARY_MONOTONICITY(LessThan)
 TEST_BINARY_MONOTONICITY(GreaterThan)
