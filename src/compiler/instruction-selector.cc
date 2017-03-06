@@ -681,12 +681,13 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->output_nodes.push_back(call);
     } else {
       buffer->output_nodes.resize(buffer->descriptor->ReturnCount(), nullptr);
-      for (auto use : call->uses()) {
-        if (use->opcode() != IrOpcode::kProjection) continue;
-        size_t const index = ProjectionIndexOf(use->op());
+      for (Edge const edge : call->use_edges()) {
+        if (!NodeProperties::IsValueEdge(edge)) continue;
+        DCHECK(edge.from()->opcode() == IrOpcode::kProjection);
+        size_t const index = ProjectionIndexOf(edge.from()->op());
         DCHECK_LT(index, buffer->output_nodes.size());
         DCHECK(!buffer->output_nodes[index]);
-        buffer->output_nodes[index] = use;
+        buffer->output_nodes[index] = edge.from();
       }
     }
 
