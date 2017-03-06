@@ -90,9 +90,9 @@ ConstructParameters const& ConstructParametersOf(Operator const*);
 // Defines the arity for JavaScript calls with a spread as the last
 // parameter. This is used as a parameter by JSConstructWithSpread and
 // JSCallWithSpread operators.
-class SpreadWithArityParameters final {
+class SpreadWithArityParameter final {
  public:
-  explicit SpreadWithArityParameters(uint32_t arity) : arity_(arity) {}
+  explicit SpreadWithArityParameter(uint32_t arity) : arity_(arity) {}
 
   uint32_t arity() const { return arity_; }
 
@@ -100,16 +100,16 @@ class SpreadWithArityParameters final {
   uint32_t const arity_;
 };
 
-bool operator==(SpreadWithArityParameters const&,
-                SpreadWithArityParameters const&);
-bool operator!=(SpreadWithArityParameters const&,
-                SpreadWithArityParameters const&);
+bool operator==(SpreadWithArityParameter const&,
+                SpreadWithArityParameter const&);
+bool operator!=(SpreadWithArityParameter const&,
+                SpreadWithArityParameter const&);
 
-size_t hash_value(SpreadWithArityParameters const&);
+size_t hash_value(SpreadWithArityParameter const&);
 
-std::ostream& operator<<(std::ostream&, SpreadWithArityParameters const&);
+std::ostream& operator<<(std::ostream&, SpreadWithArityParameter const&);
 
-SpreadWithArityParameters const& SpreadWithArityParametersOf(Operator const*);
+SpreadWithArityParameter const& SpreadWithArityParameterOf(Operator const*);
 
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSCallForwardVarargs operators.
@@ -332,9 +332,9 @@ const StoreNamedOwnParameters& StoreNamedOwnParametersOf(const Operator* op);
 // Defines the feedback, i.e., vector and index, for storing a data property in
 // an object literal. This is
 // used as a parameter by the JSStoreDataPropertyInLiteral operator.
-class DataPropertyParameters final {
+class FeedbackParameter final {
  public:
-  explicit DataPropertyParameters(VectorSlotPair const& feedback)
+  explicit FeedbackParameter(VectorSlotPair const& feedback)
       : feedback_(feedback) {}
 
   VectorSlotPair const& feedback() const { return feedback_; }
@@ -343,14 +343,14 @@ class DataPropertyParameters final {
   VectorSlotPair const feedback_;
 };
 
-bool operator==(DataPropertyParameters const&, DataPropertyParameters const&);
-bool operator!=(DataPropertyParameters const&, DataPropertyParameters const&);
+bool operator==(FeedbackParameter const&, FeedbackParameter const&);
+bool operator!=(FeedbackParameter const&, FeedbackParameter const&);
 
-size_t hash_value(DataPropertyParameters const&);
+size_t hash_value(FeedbackParameter const&);
 
-std::ostream& operator<<(std::ostream&, DataPropertyParameters const&);
+std::ostream& operator<<(std::ostream&, FeedbackParameter const&);
 
-const DataPropertyParameters& DataPropertyParametersOf(const Operator* op);
+const FeedbackParameter& FeedbackParameterOf(const Operator* op);
 
 // Defines the property of an object for a named access. This is
 // used as a parameter by the JSLoadNamed and JSStoreNamed operators.

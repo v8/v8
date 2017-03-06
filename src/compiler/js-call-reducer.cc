@@ -664,7 +664,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
 Reduction JSCallReducer::ReduceJSCallWithSpread(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCallWithSpread, node->opcode());
-  SpreadWithArityParameters const& p = SpreadWithArityParametersOf(node->op());
+  SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 1);
 
@@ -791,7 +791,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
 Reduction JSCallReducer::ReduceJSConstructWithSpread(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstructWithSpread, node->opcode());
-  SpreadWithArityParameters const& p = SpreadWithArityParametersOf(node->op());
+  SpreadWithArityParameter const& p = SpreadWithArityParameterOf(node->op());
   DCHECK_LE(3u, p.arity());
   int arity = static_cast<int>(p.arity() - 2);
 
