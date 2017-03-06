@@ -1041,9 +1041,9 @@ struct EarlyOptimizationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &simple_reducer);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1141,8 +1141,8 @@ struct LoadEliminationPhase {
     AddReducer(data, &graph_reducer, &dead_code_elimination);
     AddReducer(data, &graph_reducer, &redundancy_elimination);
     AddReducer(data, &graph_reducer, &load_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &common_reducer);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
@@ -1181,11 +1181,11 @@ struct LateOptimizationPhase {
     TailCallOptimization tco(data->common(), data->graph());
     AddReducer(data, &graph_reducer, &branch_condition_elimination);
     AddReducer(data, &graph_reducer, &dead_code_elimination);
-    AddReducer(data, &graph_reducer, &value_numbering);
     AddReducer(data, &graph_reducer, &machine_reducer);
     AddReducer(data, &graph_reducer, &common_reducer);
     AddReducer(data, &graph_reducer, &select_lowering);
     AddReducer(data, &graph_reducer, &tco);
+    AddReducer(data, &graph_reducer, &value_numbering);
     graph_reducer.ReduceGraph();
   }
 };
