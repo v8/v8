@@ -351,7 +351,7 @@ class Debug {
   // Support for LiveEdit
   void ScheduleFrameRestart(StackFrame* frame);
 
-  bool IsFrameBlackboxed(JavaScriptFrame* frame);
+  bool AllFramesOnStackAreBlackboxed();
 
   // Threading support.
   char* ArchiveDebug(char* to);
@@ -487,6 +487,8 @@ class Debug {
   // Clear all one-shot instrumentations, but restore break points.
   void ClearOneShot();
 
+  bool IsFrameBlackboxed(JavaScriptFrame* frame);
+
   void ActivateStepOut(StackFrame* frame);
   void RemoveDebugInfoAndClearFromShared(Handle<DebugInfo> debug_info);
   MaybeHandle<FixedArray> CheckBreakPoints(Handle<DebugInfo> debug_info,
@@ -599,8 +601,9 @@ class Debug {
 class LegacyDebugDelegate : public v8::debug::DebugDelegate {
  public:
   explicit LegacyDebugDelegate(Isolate* isolate) : isolate_(isolate) {}
-  void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parent_id) override;
+  void PromiseEventOccurred(v8::Local<v8::Context> context,
+                            v8::debug::PromiseDebugActionType type, int id,
+                            int parent_id, bool created_by_user) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script,
                       bool has_compile_error) override;
   void BreakProgramRequested(v8::Local<v8::Context> paused_context,

@@ -567,6 +567,11 @@
                 "description": "Stops on the next JavaScript statement."
             },
             {
+                "name": "scheduleStepIntoAsync",
+                "description": "Steps into next scheduled async task if any is scheduled before next pause. Returns success when async task is actually scheduled, returns error if no task were scheduled or another scheduleStepIntoAsync was called.",
+                "experimental": true
+            },
+            {
                 "name": "resume",
                 "description": "Resumes JavaScript execution."
             },

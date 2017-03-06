@@ -736,6 +736,28 @@ Response V8DebuggerAgentImpl::stepOut() {
   return Response::OK();
 }
 
+void V8DebuggerAgentImpl::scheduleStepIntoAsync(
+    std::unique_ptr<ScheduleStepIntoAsyncCallback> callback) {
+  if (!isPaused()) {
+    callback->sendFailure(Response::Error(kDebuggerNotPaused));
+    return;
+  }
+  if (m_stepIntoAsyncCallback) {
+    m_stepIntoAsyncCallback->sendFailure(Response::Error(
+        "Current scheduled step into async was overriden with new one."));
+  }
+  m_stepIntoAsyncCallback = std::move(callback);
+}
+
+bool V8DebuggerAgentImpl::shouldBreakInScheduledAsyncTask() {
+  if (!m_stepIntoAsyncCallback) return false;
+  m_stepIntoAsyncCallback->sendSuccess();
+  m_stepIntoAsyncCallback.reset();
+  m_scheduledDebuggerStep = NoStep;
+  v8::debug::ClearStepping(m_isolate);
+  return true;
+}
+
 Response V8DebuggerAgentImpl::setPauseOnExceptions(
     const String16& stringPauseState) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
@@ -1224,6 +1246,12 @@ void V8DebuggerAgentImpl::didPause(int contextId,
     }
     breakAuxData = protocol::DictionaryValue::create();
     breakAuxData->setArray("reasons", std::move(reasons));
+  }
+
+  if (m_stepIntoAsyncCallback) {
+    m_stepIntoAsyncCallback->sendFailure(
+        Response::Error("No async tasks were scheduled before pause."));
+    m_stepIntoAsyncCallback.reset();
   }
 
   std::unique_ptr<Array<CallFrame>> protocolCallFrames;

@@ -248,6 +248,14 @@ InspectorTest.runTestSuite = function(testSuite)
   nextTest();
 }
 
+InspectorTest.runAsyncTestSuite = async function(testSuite) {
+  for (var test of testSuite) {
+    InspectorTest.log("\nRunning test: " + test.name);
+    await test();
+  }
+  InspectorTest.completeTest();
+}
+
 InspectorTest._sendCommandPromise = function(method, params)
 {
   var requestId = ++InspectorTest._requestId;

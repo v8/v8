@@ -88,6 +88,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response stepOver() override;
   Response stepInto() override;
   Response stepOut() override;
+  void scheduleStepIntoAsync(
+      std::unique_ptr<ScheduleStepIntoAsyncCallback> callback) override;
   Response setPauseOnExceptions(const String16& pauseState) override;
   Response evaluateOnCallFrame(
       const String16& callFrameId, const String16& expression,
@@ -142,6 +144,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   bool skipAllPauses() const { return m_skipAllPauses; }
 
   v8::Isolate* isolate() { return m_isolate; }
+
+  bool shouldBreakInScheduledAsyncTask();
 
  private:
   void enableImpl();
@@ -211,6 +215,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   std::unique_ptr<V8Regex> m_blackboxPattern;
   protocol::HashMap<String16, std::vector<std::pair<int, int>>>
       m_blackboxedPositions;
+
+  std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
 
   DISALLOW_COPY_AND_ASSIGN(V8DebuggerAgentImpl);
 };

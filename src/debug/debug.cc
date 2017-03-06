@@ -1729,12 +1729,7 @@ bool Debug::IsExceptionBlackboxed(bool uncaught) {
   // caught exception if top frame is blackboxed.
   bool is_top_frame_blackboxed = IsFrameBlackboxed(it.frame());
   if (!uncaught || !is_top_frame_blackboxed) return is_top_frame_blackboxed;
-  it.Advance();
-  while (!it.done()) {
-    if (!IsFrameBlackboxed(it.frame())) return false;
-    it.Advance();
-  }
-  return true;
+  return AllFramesOnStackAreBlackboxed();
 }
 
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
@@ -1989,6 +1984,15 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
   return shared->debug_is_blackboxed();
 }
 
+bool Debug::AllFramesOnStackAreBlackboxed() {
+  HandleScope scope(isolate_);
+  for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
+    if (!it.is_javascript()) continue;
+    if (!IsFrameBlackboxed(it.javascript_frame())) return false;
+  }
+  return true;
+}
+
 void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
                              int parent_id) {
   if (in_debug_scope() || ignore_events()) return;
@@ -1999,7 +2003,19 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
   HandleScope scope(isolate_);
   PostponeInterruptsScope no_interrupts(isolate_);
   DisableBreak no_recursive_break(this);
-  debug_delegate_->PromiseEventOccurred(type, id, parent_id);
+  bool created_by_user = false;
+  if (type == debug::kDebugPromiseCreated) {
+    JavaScriptFrameIterator it(isolate_);
+    // We need to skip top frame which contains instrumentation.
+    it.Advance();
+    created_by_user =
+        !it.done() &&
+        it.frame()->function()->shared()->IsSubjectToDebugging() &&
+        !IsFrameBlackboxed(it.frame());
+  }
+  debug_delegate_->PromiseEventOccurred(
+      Utils::ToLocal(debug_scope.GetContext()), type, id, parent_id,
+      created_by_user);
 }
 
 void Debug::ProcessCompileEvent(v8::DebugEvent event, Handle<Script> script) {
@@ -2279,7 +2295,8 @@ bool Debug::PerformSideEffectCheckForCallback(Address function) {
 }
 
 void LegacyDebugDelegate::PromiseEventOccurred(
-    v8::debug::PromiseDebugActionType type, int id, int parent_id) {
+    v8::Local<v8::Context> context, v8::debug::PromiseDebugActionType type,
+    int id, int parent_id, bool created_by_user) {
   Handle<Object> event_data;
   if (isolate_->debug()->MakeAsyncTaskEvent(type, id).ToHandle(&event_data)) {
     ProcessDebugEvent(v8::AsyncTaskEvent, Handle<JSObject>::cast(event_data));

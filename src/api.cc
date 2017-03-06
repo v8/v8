@@ -9099,17 +9099,18 @@ void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {
   isolate->debug()->PrepareStep(static_cast<i::StepAction>(action));
 }
 
-bool debug::HasNonBlackboxedFrameOnStack(Isolate* v8_isolate) {
+void debug::ClearStepping(Isolate* v8_isolate) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8(isolate);
-  i::HandleScope scope(isolate);
-  for (i::StackTraceFrameIterator it(isolate); !it.done(); it.Advance()) {
-    if (!it.is_javascript()) continue;
-    if (!isolate->debug()->IsFrameBlackboxed(it.javascript_frame())) {
-      return true;
-    }
-  }
-  return false;
+  CHECK(isolate->debug()->CheckExecutionState());
+  // Clear all current stepping setup.
+  isolate->debug()->ClearStepping();
+}
+
+bool debug::AllFramesOnStackAreBlackboxed(Isolate* v8_isolate) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  ENTER_V8(isolate);
+  return isolate->debug()->AllFramesOnStackAreBlackboxed();
 }
 
 v8::Isolate* debug::Script::GetIsolate() const {

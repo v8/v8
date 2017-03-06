@@ -102,8 +102,9 @@ enum StepAction {
 };
 
 void PrepareStep(Isolate* isolate, StepAction action);
+void ClearStepping(Isolate* isolate);
 
-bool HasNonBlackboxedFrameOnStack(Isolate* isolate);
+bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
 
 /**
  * Out-of-memory callback function.
@@ -164,8 +165,9 @@ MaybeLocal<UnboundScript> CompileInspectorScript(Isolate* isolate,
 class DebugDelegate {
  public:
   virtual ~DebugDelegate() {}
-  virtual void PromiseEventOccurred(debug::PromiseDebugActionType type, int id,
-                                    int parent_id) {}
+  virtual void PromiseEventOccurred(v8::Local<v8::Context> context,
+                                    debug::PromiseDebugActionType type, int id,
+                                    int parent_id, bool created_by_user) {}
   virtual void ScriptCompiled(v8::Local<Script> script,
                               bool has_compile_error) {}
   virtual void BreakProgramRequested(v8::Local<v8::Context> paused_context,
