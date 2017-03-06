@@ -79,7 +79,7 @@ class V8DebuggerScript {
   virtual bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
       bool ignoreNestedFunctions,
-      std::vector<v8::debug::Location>* locations) = 0;
+      std::vector<v8::debug::BreakLocation>* locations) = 0;
   virtual void resetBlackboxedStateCache() = 0;
 
   static const int kNoOffset = -1;

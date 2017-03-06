@@ -155,11 +155,40 @@ class ActualScript : public V8DebuggerScript {
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
       bool restrictToFunction,
-      std::vector<v8::debug::Location>* locations) override {
+      std::vector<v8::debug::BreakLocation>* locations) override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
-    return script->GetPossibleBreakpoints(start, end, restrictToFunction,
-                                          locations);
+    std::vector<v8::debug::BreakLocation> allLocations;
+    if (!script->GetPossibleBreakpoints(start, end, restrictToFunction,
+                                        &allLocations)) {
+      return false;
+    }
+    if (!allLocations.size()) return true;
+    v8::debug::BreakLocation current = allLocations[0];
+    for (size_t i = 1; i < allLocations.size(); ++i) {
+      if (allLocations[i].GetLineNumber() == current.GetLineNumber() &&
+          allLocations[i].GetColumnNumber() == current.GetColumnNumber()) {
+        if (allLocations[i].type() != v8::debug::kCommonBreakLocation) {
+          DCHECK(allLocations[i].type() == v8::debug::kCallBreakLocation ||
+                 allLocations[i].type() == v8::debug::kReturnBreakLocation);
+          // debugger can returns more then one break location at the same
+          // source location, e.g. foo() - in this case there are two break
+          // locations before foo: for statement and for function call, we can
+          // merge them for inspector and report only one with call type.
+          current = allLocations[i];
+        }
+      } else {
+        // we assume that returned break locations are sorted.
+        DCHECK(
+            allLocations[i].GetLineNumber() > current.GetLineNumber() ||
+            (allLocations[i].GetColumnNumber() >= current.GetColumnNumber() &&
+             allLocations[i].GetLineNumber() == current.GetLineNumber()));
+        locations->push_back(current);
+        current = allLocations[i];
+      }
+    }
+    locations->push_back(current);
+    return true;
   }
 
   void resetBlackboxedStateCache() override {
@@ -223,7 +252,7 @@ class WasmVirtualScript : public V8DebuggerScript {
   bool getPossibleBreakpoints(
       const v8::debug::Location& start, const v8::debug::Location& end,
       bool restrictToFunction,
-      std::vector<v8::debug::Location>* locations) override {
+      std::vector<v8::debug::BreakLocation>* locations) override {
     v8::HandleScope scope(m_isolate);
     v8::Local<v8::debug::Script> script = m_script.Get(m_isolate);
     String16 v8ScriptId = String16::fromInteger(script->Id());
@@ -244,7 +273,7 @@ class WasmVirtualScript : public V8DebuggerScript {
 
     bool success = script->GetPossibleBreakpoints(
         translatedStart, translatedEnd, restrictToFunction, locations);
-    for (v8::debug::Location& loc : *locations) {
+    for (v8::debug::BreakLocation& loc : *locations) {
       TranslateV8LocationToProtocolLocation(m_wasmTranslation, &loc, v8ScriptId,
                                             scriptId());
     }

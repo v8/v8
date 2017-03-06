@@ -9212,11 +9212,17 @@ namespace {
 int GetSmiValue(i::Handle<i::FixedArray> array, int index) {
   return i::Smi::cast(array->get(index))->value();
 }
+
+bool CompareBreakLocation(const i::BreakLocation& loc1,
+                          const i::BreakLocation& loc2) {
+  return loc1.position() < loc2.position();
+}
 }  // namespace
 
 bool debug::Script::GetPossibleBreakpoints(
     const debug::Location& start, const debug::Location& end,
-    bool restrict_to_function, std::vector<debug::Location>* locations) const {
+    bool restrict_to_function,
+    std::vector<debug::BreakLocation>* locations) const {
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
@@ -9238,15 +9244,17 @@ bool debug::Script::GetPossibleBreakpoints(
                        : GetSourceOffset(end);
   if (start_offset >= end_offset) return true;
 
-  std::set<int> offsets;
+  std::vector<i::BreakLocation> v8_locations;
   if (!isolate->debug()->GetPossibleBreakpoints(
-          script, start_offset, end_offset, restrict_to_function, &offsets)) {
+          script, start_offset, end_offset, restrict_to_function,
+          &v8_locations)) {
     return false;
   }
 
+  std::sort(v8_locations.begin(), v8_locations.end(), CompareBreakLocation);
   int current_line_end_index = 0;
-  for (const auto& it : offsets) {
-    int offset = it;
+  for (const auto& v8_location : v8_locations) {
+    int offset = v8_location.position();
     while (offset > GetSmiValue(line_ends, current_line_end_index)) {
       ++current_line_end_index;
       CHECK(current_line_end_index < line_ends->length());
@@ -9256,10 +9264,11 @@ bool debug::Script::GetPossibleBreakpoints(
     if (current_line_end_index > 0) {
       line_offset = GetSmiValue(line_ends, current_line_end_index - 1) + 1;
     }
-    locations->push_back(debug::Location(
+    locations->emplace_back(
         current_line_end_index + script->line_offset(),
         offset - line_offset +
-            (current_line_end_index == 0 ? script->column_offset() : 0)));
+            (current_line_end_index == 0 ? script->column_offset() : 0),
+        v8_location.type());
   }
   return true;
 }

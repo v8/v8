@@ -4,267 +4,267 @@ Checks Debugger.getPossibleBreakpoints
 // found in the LICENSE file.
 
 function testEval() {
-  #eval('// comment only');
-  #eval('// comment only\n');
-#}
+  |C|eval('// comment only');
+  |C|eval('// comment only\n');
+|R|}
 
 // function without return
 function procedure() {
-  var a = #1;
-  var b = #2;
-#}
+  var a = |_|1;
+  var b = |_|2;
+|R|}
 
 function testProcedure() {
-  #procedure();
-#}
+  |C|procedure();
+|R|}
 
 function returnTrue() {
-  #return true;
-#}
+  |_|return true;
+|R|}
 
 function testIf() {
   var a;
-  #if (true) #a = true;
-  #if (!a) {
-    #a = true;
+  |_|if (true) |_|a = true;
+  |_|if (!a) {
+    |_|a = true;
   } else {
-    #a = false;
+    |_|a = false;
   }
-  #if (#returnTrue()) {
-    #a = false;
+  |_|if (|C|returnTrue()) {
+    |_|a = false;
   } else {
-    #a = true;
+    |_|a = true;
   }
-#}
+|R|}
 
-function emptyFunction() {#}
+function emptyFunction() {|R|}
 
 function testEmptyFunction() {
-  #emptyFunction();
-#}
+  |C|emptyFunction();
+|R|}
 
 function twoArguments(a1, a2) {
-#}
+|R|}
 
 function testCallArguments() {
-  #twoArguments(#emptyFunction(), #emptyFunction());
-#}
+  |C|twoArguments(|C|emptyFunction(), |C|emptyFunction());
+|R|}
 
 function testNested() {
   function nested1() {
     function nested2() {
       function nested3() {
-      #}
-      #nested3();
-      #return;
-    #}
-    #return #nested2();
-  #}
-  #nested1();
-#}
+      |R|}
+      |C|nested3();
+      |_|return;
+    |R|}
+    |_|return |C|nested2();
+  |R|}
+  |C|nested1();
+|R|}
 
 function return42() {
-  #return 42;
-#}
+  |_|return 42;
+|R|}
 
 function returnCall() {
-  #return #return42();
-#}
+  |_|return |C|return42();
+|R|}
 
 function testCallAtReturn() {
-  #return #returnCall();
-#}
+  |_|return |C|returnCall();
+|R|}
 
 function returnObject() {
-  #return ({ foo: () => #42# });
-#}
+  |_|return ({ foo: () => |_|42|R| });
+|R|}
 
 function testWith() {
-  #with (#returnObject()) {
-    #foo();
+  |_|with (|C|returnObject()) {
+    |C|foo();
   }
-  #with({}) {
-    #return;
+  |_|with({}) {
+    |_|return;
   }
-#}
+|R|}
 
 function testForLoop() {
-  for (var i = #0; i #< 1; ++#i) {}
-  for (var i = #0; i #< 1; ++#i) #i;
-  for (var i = #0; i #< 0; ++#i) {}
-#}
+  for (var i = |_|0; i |_|< 1; ++|_|i) {}
+  for (var i = |_|0; i |_|< 1; ++|_|i) |_|i;
+  for (var i = |_|0; i |_|< 0; ++|_|i) {}
+|R|}
 
 function testForOfLoop() {
-  for (var k #of []) {}
-  for (var k #of #[1]) #k;
-  var a = #[];
-  for (var k #of #a) {}
-#}
+  for (var k |C|of []) {}
+  for (var k |C|of |_|[1]) |_|k;
+  var a = |_|[];
+  for (var k |C|of |_|a) {}
+|R|}
 
 function testForInLoop() {
-  var o = #{};
-  for (var #k in #o) {}
-  for (var #k in #o) #k;
-  for (var #k in #{ a:1 }) {}
-  for (var #k in #{ a:1 }) #k;
-#}
+  var o = |_|{};
+  for (var |_|k in |_|o) {}
+  for (var |_|k in |_|o) |_|k;
+  for (var |_|k in |_|{ a:1 }) {}
+  for (var |_|k in |_|{ a:1 }) |_|k;
+|R|}
 
 function testSimpleExpressions() {
-  #1 + 2 + 3;
-  var a = #1;
-  #++a;
-  #a--;
-#}
+  |_|1 + 2 + 3;
+  var a = |_|1;
+  |_|++a;
+  |_|a--;
+|R|}
 
 Object.defineProperty(this, 'getterFoo', {
-  get: () => #return42#
+  get: () => |_|return42|R|
 });
 
 function testGetter() {
-  #getterFoo();
-#}
+  |C|getterFoo();
+|R|}
 
 var obj = {
-  foo: () => (#{
-    boo: () => #return42#
-  })#
+  foo: () => (|_|{
+    boo: () => |_|return42|R|
+  })|R|
 };
 
 function testChainedCalls() {
-  #obj.#foo().#boo()#();
-#}
+  |_|obj.|C|foo().|C|boo()|C|();
+|R|}
 
 function testChainedWithNative() {
-  #Array.#from([1]).#concat([2]).#map(v => v #* 2#);
-#}
+  |_|Array.|C|from([1]).|C|concat([2]).|C|map(v => v |_|* 2|R|);
+|R|}
 
 function testPromiseThen() {
-  #return Promise.#resolve().#then(v => v #* 2#).#then(v => v #* 2#);
-#}
+  |_|return Promise.|C|resolve().|C|then(v => v |_|* 2|R|).|C|then(v => v |_|* 2|R|);
+|R|}
 
 function testSwitch() {
-  for (var i = #0; i #< 3; ++#i) {
-    #switch(i) {
-      case 0: #continue;
-      case 1: #return42(); #break;
-      default: #return;
+  for (var i = |_|0; i |_|< 3; ++|_|i) {
+    |_|switch(i) {
+      case 0: |_|continue;
+      case 1: |C|return42(); |_|break;
+      default: |_|return;
     }
   }
-#}
+|R|}
 
 function* idMaker() {
-  #yield 1;
-  #yield 2;
-  #yield 3;
-#}
+  |_|yield 1;
+  |_|yield 2;
+  |_|yield 3;
+|R|}
 
 function testGenerator() {
-  var gen = #idMaker();
-  #return42();
-  #gen.#next().value;
-  #debugger;
-  #gen.#next().value;
-  #return42();
-  #gen.#next().value;
-  #return42();
-  #gen.#next().value;
-#}
+  var gen = |C|idMaker();
+  |C|return42();
+  |_|gen.|C|next().value;
+  |D|debugger;
+  |_|gen.|C|next().value;
+  |C|return42();
+  |_|gen.|C|next().value;
+  |C|return42();
+  |_|gen.|C|next().value;
+|R|}
 
 function throwException() {
-  #throw #new Error();
-#}
+  |_|throw |C|new Error();
+|R|}
 
 function testCaughtException() {
   try {
-    #throwException()
+    |C|throwException()
   } catch (e) {
-    #return;
+    |_|return;
   }
-#}
+|R|}
 
 function testClasses() {
-  #class Cat {
+  |_|class Cat {
     constructor(name) {
-      #this.name = name;
-    #}
+      |_|this.name = name;
+    |R|}
 
     speak() {
-    #}
+    |R|}
   }
-  #class Lion extends Cat {
+  |_|class Lion extends Cat {
     constructor(name) {
-      #super(name);
-    #}
+      |C|super(name);
+    |R|}
 
     speak() {
-      #super.#speak();
-    #}
+      |_|super.|C|speak();
+    |R|}
   }
-  #new Lion().#speak();
-#}
+  |C|new Lion().|C|speak();
+|R|}
 
 async function asyncFoo() {
-  #await Promise.resolve().then(v => v #* 2#);
-  #return42();
-  #await #asyncBoo();
-#}
+  |_|await Promise.resolve().then(v => v |_|* 2|R|);
+  |C|return42();
+  |_|await |C|asyncBoo();
+|R|}
 
 async function asyncBoo() {
-  #await Promise.resolve();
-#}
+  |_|await Promise.resolve();
+|R|}
 
 async function testAsyncAwait() {
-  #await asyncFoo();
-  #await #awaitBoo();
-#}
+  |_|await asyncFoo();
+  |_|await |C|awaitBoo();
+|R|}
 
 // TODO(kozyatinskiy): fix this.
 async function testPromiseAsyncWithCode() {
   var nextTest;
-  var testPromise = #new Promise(resolve => nextTest #= resolve#);
+  var testPromise = |C|new Promise(resolve => nextTest |_|= resolve|R|);
   async function main() {
     async function foo() {
       var resolveNested;
-      var p = #new Promise(resolve => resolveNested #= resolve#);
-      #setTimeout(resolveNested, 0);
-      #await #p;
-    #}
-    #setTimeout(returnCall, 0);
-    #await #foo();
-    #await #foo();
-    #nextTest();
-  #}
-  #main();
-  #return testPromise;
-#}
+      var p = |C|new Promise(resolve => resolveNested |_|= resolve|R|);
+      |C|setTimeout(resolveNested, 0);
+      |_|await |_|p;
+    |R|}
+    |C|setTimeout(returnCall, 0);
+    |_|await |C|foo();
+    |_|await |C|foo();
+    |C|nextTest();
+  |R|}
+  |C|main();
+  |_|return testPromise;
+|R|}
 
 function returnFunction() {
-  #return returnObject;
-#}
+  |_|return returnObject;
+|R|}
 
 async function testPromiseComplex() {
   var nextTest;
-  var testPromise = #new Promise(resolve => nextTest #= resolve#);
+  var testPromise = |C|new Promise(resolve => nextTest |_|= resolve|R|);
   async function main() {
     async function foo() {
-      #await Promise.resolve();
-      #return 42;
-    #}
-    var x = #1;
-    var y = #2;
-    #returnFunction(#emptyFunction(), x++, --y, x => 2 #* x#, #returnCall())#().a = #await #foo((a => 2 #*a#)#(5));
-    #nextTest();
-  #}
-  #main();
-  #return testPromise;
-#}
+      |_|await Promise.resolve();
+      |_|return 42;
+    |R|}
+    var x = |_|1;
+    var y = |_|2;
+    |C|returnFunction(|C|emptyFunction(), x++, --y, x => 2 |_|* x|R|, |C|returnCall())|C|().a = |_|await |C|foo((a => 2 |_|*a|R|)|C|(5));
+    |C|nextTest();
+  |R|}
+  |C|main();
+  |_|return testPromise;
+|R|}
 
 function twiceDefined() {
   return a + b;
 }
 
 function twiceDefined() {
-  #return a + b;
-#}
+  |_|return a + b;
+|R|}
 
 

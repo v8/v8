@@ -25,10 +25,17 @@ function dumpAllLocations(message) {
   });
   for (var location of locations) {
     var line = lines[location.lineNumber];
-    line = line.slice(0, location.columnNumber) + '#' + line.slice(location.columnNumber);
+    line = line.slice(0, location.columnNumber) + locationMark(location.type) + line.slice(location.columnNumber);
     lines[location.lineNumber] = line;
   }
   lines = lines.filter(line => line.indexOf('//# sourceURL=') === -1);
   InspectorTest.log(lines.join('\n'));
   return message;
+}
+
+function locationMark(type) {
+  if (type === 'return') return '|R|';
+  if (type === 'call') return '|C|';
+  if (type === 'debuggerStatement') return '|D|';
+  return '|_|';
 }

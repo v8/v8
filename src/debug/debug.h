@@ -88,6 +88,8 @@ class BreakLocation {
 
   inline int position() const { return position_; }
 
+  debug::BreakLocationType type() const;
+
  private:
   BreakLocation(Handle<AbstractCode> abstract_code, DebugBreakType type,
                 int code_offset, int position)
@@ -313,7 +315,7 @@ class Debug {
   bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
-                              std::set<int>* positions);
+                              std::vector<BreakLocation>* locations);
 
   void RecordGenerator(Handle<JSGeneratorObject> generator_object);
 

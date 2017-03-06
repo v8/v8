@@ -136,10 +136,10 @@ class V8_EXPORT_PRIVATE Script {
   MaybeLocal<String> Source() const;
   bool IsWasm() const;
   bool IsModule() const;
-  bool GetPossibleBreakpoints(const debug::Location& start,
-                              const debug::Location& end,
-                              bool restrict_to_function,
-                              std::vector<debug::Location>* locations) const;
+  bool GetPossibleBreakpoints(
+      const debug::Location& start, const debug::Location& end,
+      bool restrict_to_function,
+      std::vector<debug::BreakLocation>* locations) const;
   int GetSourceOffset(const debug::Location& location) const;
   v8::debug::Location GetSourceLocation(int offset) const;
 };

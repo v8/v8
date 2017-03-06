@@ -1041,7 +1041,7 @@ v8::debug::WasmDisassembly WasmCompiledModule::DisassembleFunction(
 
 bool WasmCompiledModule::GetPossibleBreakpoints(
     const v8::debug::Location& start, const v8::debug::Location& end,
-    std::vector<v8::debug::Location>* locations) {
+    std::vector<v8::debug::BreakLocation>* locations) {
   DisallowHeapAllocation no_gc;
 
   std::vector<WasmFunction>& functions = module()->functions;
@@ -1104,7 +1104,7 @@ bool WasmCompiledModule::GetPossibleBreakpoints(
         break;
       }
       if (total_offset < start_offset) continue;
-      locations->push_back(v8::debug::Location(func_idx, offset));
+      locations->emplace_back(func_idx, offset, debug::kCommonBreakLocation);
     }
   }
   return true;

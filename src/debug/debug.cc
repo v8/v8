@@ -125,6 +125,20 @@ bool BreakLocation::HasBreakPoint(Handle<DebugInfo> debug_info) const {
   }
 }
 
+debug::BreakLocationType BreakLocation::type() const {
+  switch (type_) {
+    case DEBUGGER_STATEMENT:
+      return debug::kDebuggerStatementBreakLocation;
+    case DEBUG_BREAK_SLOT_AT_CALL:
+      return debug::kCallBreakLocation;
+    case DEBUG_BREAK_SLOT_AT_RETURN:
+      return debug::kReturnBreakLocation;
+    default:
+      return debug::kCommonBreakLocation;
+  }
+  return debug::kCommonBreakLocation;
+}
+
 std::unique_ptr<BreakIterator> BreakIterator::GetIterator(
     Handle<DebugInfo> debug_info, Handle<AbstractCode> abstract_code) {
   if (abstract_code->IsBytecodeArray()) {
@@ -1315,36 +1329,32 @@ bool Debug::PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared) {
 namespace {
 template <typename Iterator>
 void GetBreakablePositions(Iterator* it, int start_position, int end_position,
-                           BreakPositionAlignment alignment,
-                           std::set<int>* positions) {
-  it->SkipToPosition(start_position, alignment);
+                           std::vector<BreakLocation>* locations) {
+  it->SkipToPosition(start_position, BREAK_POSITION_ALIGNED);
   while (!it->Done() && it->position() < end_position &&
          it->position() >= start_position) {
-    positions->insert(alignment == STATEMENT_ALIGNED ? it->statement_position()
-                                                     : it->position());
+    locations->push_back(it->GetBreakLocation());
     it->Next();
   }
 }
 
 void FindBreakablePositions(Handle<DebugInfo> debug_info, int start_position,
-                            int end_position, BreakPositionAlignment alignment,
-                            std::set<int>* positions) {
+                            int end_position,
+                            std::vector<BreakLocation>* locations) {
   if (debug_info->HasDebugCode()) {
     CodeBreakIterator it(debug_info);
-    GetBreakablePositions(&it, start_position, end_position, alignment,
-                          positions);
+    GetBreakablePositions(&it, start_position, end_position, locations);
   } else {
     DCHECK(debug_info->HasDebugBytecodeArray());
     BytecodeArrayBreakIterator it(debug_info);
-    GetBreakablePositions(&it, start_position, end_position, alignment,
-                          positions);
+    GetBreakablePositions(&it, start_position, end_position, locations);
   }
 }
 }  // namespace
 
 bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
                                    int end_position, bool restrict_to_function,
-                                   std::set<int>* positions) {
+                                   std::vector<BreakLocation>* locations) {
   if (restrict_to_function) {
     Handle<Object> result =
         FindSharedFunctionInfoInScript(script, start_position);
@@ -1356,8 +1366,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     if (!EnsureDebugInfo(shared)) return false;
 
     Handle<DebugInfo> debug_info(shared->GetDebugInfo());
-    FindBreakablePositions(debug_info, start_position, end_position,
-                           BREAK_POSITION_ALIGNED, positions);
+    FindBreakablePositions(debug_info, start_position, end_position, locations);
     return true;
   }
 
@@ -1395,7 +1404,7 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
       CHECK(candidates[i]->HasDebugInfo());
       Handle<DebugInfo> debug_info(candidates[i]->GetDebugInfo());
       FindBreakablePositions(debug_info, start_position, end_position,
-                             BREAK_POSITION_ALIGNED, positions);
+                             locations);
     }
     return true;
   }

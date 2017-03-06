@@ -171,6 +171,21 @@ void adjustBreakpointLocation(const V8DebuggerScript& script,
   breakpoint->line_number = hintPosition.GetLineNumber();
   breakpoint->column_number = hintPosition.GetColumnNumber();
 }
+
+String16 breakLocationType(v8::debug::BreakLocationType type) {
+  switch (type) {
+    case v8::debug::kCallBreakLocation:
+      return protocol::Debugger::BreakLocation::TypeEnum::Call;
+    case v8::debug::kReturnBreakLocation:
+      return protocol::Debugger::BreakLocation::TypeEnum::Return;
+    case v8::debug::kDebuggerStatementBreakLocation:
+      return protocol::Debugger::BreakLocation::TypeEnum::DebuggerStatement;
+    case v8::debug::kCommonBreakLocation:
+      return String16();
+  }
+  return String16();
+}
+
 }  // namespace
 
 V8DebuggerAgentImpl::V8DebuggerAgentImpl(
@@ -420,7 +435,8 @@ void V8DebuggerAgentImpl::removeBreakpointImpl(const String16& breakpointId) {
 Response V8DebuggerAgentImpl::getPossibleBreakpoints(
     std::unique_ptr<protocol::Debugger::Location> start,
     Maybe<protocol::Debugger::Location> end, Maybe<bool> restrictToFunction,
-    std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
+    std::unique_ptr<protocol::Array<protocol::Debugger::BreakLocation>>*
+        locations) {
   String16 scriptId = start->getScriptId();
 
   if (start->getLineNumber() < 0 || start->getColumnNumber(0) < 0)
@@ -443,19 +459,24 @@ Response V8DebuggerAgentImpl::getPossibleBreakpoints(
   auto it = m_scripts.find(scriptId);
   if (it == m_scripts.end()) return Response::Error("Script not found");
 
-  std::vector<v8::debug::Location> v8Locations;
+  std::vector<v8::debug::BreakLocation> v8Locations;
   if (!it->second->getPossibleBreakpoints(
-          v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations))
+          v8Start, v8End, restrictToFunction.fromMaybe(false), &v8Locations)) {
     return Response::InternalError();
+  }
 
-  *locations = protocol::Array<protocol::Debugger::Location>::create();
+  *locations = protocol::Array<protocol::Debugger::BreakLocation>::create();
   for (size_t i = 0; i < v8Locations.size(); ++i) {
-    (*locations)
-        ->addItem(protocol::Debugger::Location::create()
-                      .setScriptId(scriptId)
-                      .setLineNumber(v8Locations[i].GetLineNumber())
-                      .setColumnNumber(v8Locations[i].GetColumnNumber())
-                      .build());
+    std::unique_ptr<protocol::Debugger::BreakLocation> breakLocation =
+        protocol::Debugger::BreakLocation::create()
+            .setScriptId(scriptId)
+            .setLineNumber(v8Locations[i].GetLineNumber())
+            .setColumnNumber(v8Locations[i].GetColumnNumber())
+            .build();
+    if (v8Locations[i].type() != v8::debug::kCommonBreakLocation) {
+      breakLocation->setType(breakLocationType(v8Locations[i].type()));
+    }
+    (*locations)->addItem(std::move(breakLocation));
   }
   return Response::OK();
 }

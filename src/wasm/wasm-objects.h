@@ -385,7 +385,7 @@ class WasmCompiledModule : public FixedArray {
   // Get a list of all possible breakpoints within a given range of this module.
   bool GetPossibleBreakpoints(const debug::Location& start,
                               const debug::Location& end,
-                              std::vector<debug::Location>* locations);
+                              std::vector<debug::BreakLocation>* locations);
 
   // Set a breakpoint on the given byte position inside the given module.
   // This will affect all live and future instances of the module.

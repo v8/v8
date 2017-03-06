@@ -471,6 +471,17 @@
                     { "name": "lineContent", "type": "string", "description": "Line with match content." }
                 ],
                 "experimental": true
+            },
+            {
+                "id": "BreakLocation",
+                "type": "object",
+                "properties": [
+                    { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "Script identifier as reported in the <code>Debugger.scriptParsed</code>." },
+                    { "name": "lineNumber", "type": "integer", "description": "Line number in the script (0-based)." },
+                    { "name": "columnNumber", "type": "integer", "optional": true, "description": "Column number in the script (0-based)." },
+                    { "name": "type", "type": "string", "enum": [ "debuggerStatement", "call", "return" ], "optional": true }
+                ],
+                "experimental": true
             }
         ],
         "commands": [
@@ -538,7 +549,7 @@
                     { "name": "restrictToFunction", "type": "boolean", "optional": true, "description": "Only consider locations which are in the same (non-nested) function as start." }
                 ],
                 "returns": [
-                    { "name": "locations", "type": "array", "items": { "$ref": "Location" }, "description": "List of the possible breakpoint locations." }
+                    { "name": "locations", "type": "array", "items": { "$ref": "BreakLocation" }, "description": "List of the possible breakpoint locations." }
                 ],
                 "description": "Returns possible locations for breakpoint. scriptId in start and end range locations should be the same.",
                 "experimental": true
