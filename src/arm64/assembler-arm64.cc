@@ -207,6 +207,7 @@ void RelocInfo::unchecked_update_wasm_memory_reference(
 void RelocInfo::unchecked_update_wasm_size(uint32_t size,
                                            ICacheFlushMode flush_mode) {
   Memory::uint32_at(Assembler::target_pointer_address_at(pc_)) = size;
+  // No icache flushing needed, see comment in set_target_address_at.
 }
 
 Register GetAllocatableRegisterThatIsNotOneOf(Register reg1, Register reg2,
