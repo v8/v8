@@ -8,6 +8,7 @@
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/ic/handler-configuration.h"
+#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/objects-inl.h"
 
@@ -57,7 +58,7 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
                                               Node* feedback, Label* if_handler,
                                               Variable* var_handler,
                                               Label* if_miss,
-                                              int unroll_count) {
+                                              int min_feedback_capacity) {
   Comment("HandlePolymorphicCase");
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
@@ -68,14 +69,31 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
   // Iterate {feedback} array.
   const int kEntrySize = 2;
 
-  for (int i = 0; i < unroll_count; i++) {
+  // Loading feedback's length is delayed until we need it when looking past
+  // the first {min_feedback_capacity} (map, handler) pairs.
+  Node* length = nullptr;
+  CSA_ASSERT(this, SmiGreaterThanOrEqual(
+                       LoadFixedArrayBaseLength(feedback),
+                       SmiConstant(min_feedback_capacity * kEntrySize)));
+
+  const int kUnrolledIterations = IC::kMaxPolymorphicMapCount;
+  for (int i = 0; i < kUnrolledIterations; i++) {
+    int map_index = i * kEntrySize;
+    int handler_index = i * kEntrySize + 1;
+
+    if (i >= min_feedback_capacity) {
+      if (length == nullptr) length = LoadFixedArrayBaseLength(feedback);
+      GotoIf(SmiGreaterThanOrEqual(SmiConstant(handler_index), length),
+             if_miss);
+    }
+
     Label next_entry(this);
     Node* cached_map =
-        LoadWeakCellValue(LoadFixedArrayElement(feedback, i * kEntrySize));
+        LoadWeakCellValue(LoadFixedArrayElement(feedback, map_index));
     GotoIf(WordNotEqual(receiver_map, cached_map), &next_entry);
 
     // Found, now call handler.
-    Node* handler = LoadFixedArrayElement(feedback, i * kEntrySize + 1);
+    Node* handler = LoadFixedArrayElement(feedback, handler_index);
     var_handler->Bind(handler);
     Goto(if_handler);
 
@@ -83,12 +101,12 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
   }
   Goto(&loop);
 
-  // Loop from {unroll_count}*kEntrySize to {length}.
+  // Loop from {kUnrolledIterations}*kEntrySize to {length}.
   Bind(&loop);
-  Node* init = IntPtrConstant(unroll_count * kEntrySize);
-  Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
+  Node* start_index = IntPtrConstant(kUnrolledIterations * kEntrySize);
+  Node* end_index = LoadAndUntagFixedArrayBaseLength(feedback);
   BuildFastLoop(
-      init, length,
+      start_index, end_index,
       [this, receiver_map, feedback, if_handler, var_handler](Node* index) {
         Node* cached_map =
             LoadWeakCellValue(LoadFixedArrayElement(feedback, index));

@@ -123,7 +123,7 @@ class AccessorAssembler : public CodeStubAssembler {
                            Label* if_miss);
   void HandlePolymorphicCase(Node* receiver_map, Node* feedback,
                              Label* if_handler, Variable* var_handler,
-                             Label* if_miss, int unroll_count);
+                             Label* if_miss, int min_feedback_capacity);
   void HandleKeyedStorePolymorphicCase(Node* receiver_map, Node* feedback,
                                        Label* if_handler, Variable* var_handler,
                                        Label* if_transition_handler,

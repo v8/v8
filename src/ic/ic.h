@@ -26,6 +26,10 @@ class IC {
   // or with a single extra frame for supporting calls.
   enum FrameDepth { NO_EXTRA_FRAME = 0, EXTRA_CALL_FRAME = 1 };
 
+  // A polymorphic IC can handle at most 4 distinct maps before transitioning
+  // to megamorphic state.
+  static constexpr int kMaxPolymorphicMapCount = 4;
+
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL);
