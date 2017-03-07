@@ -59,7 +59,8 @@ class UtilsExtension : public v8::Extension {
                       "native function setCurrentTimeMSForTest();"
                       "native function schedulePauseOnNextStatement();"
                       "native function cancelPauseOnNextStatement();"
-                      "native function reconnect();") {}
+                      "native function reconnect();"
+                      "native function createContextGroup();") {}
   virtual v8::Local<v8::FunctionTemplate> GetNativeFunctionTemplate(
       v8::Isolate* isolate, v8::Local<v8::String> name) {
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
@@ -127,6 +128,13 @@ class UtilsExtension : public v8::Extension {
                                 .ToLocalChecked())
                    .FromJust()) {
       return v8::FunctionTemplate::New(isolate, UtilsExtension::Reconnect);
+    } else if (name->Equals(context, v8::String::NewFromUtf8(
+                                         isolate, "createContextGroup",
+                                         v8::NewStringType::kNormal)
+                                         .ToLocalChecked())
+                   .FromJust()) {
+      return v8::FunctionTemplate::New(isolate,
+                                       UtilsExtension::CreateContextGroup);
     }
     return v8::Local<v8::FunctionTemplate>();
   }
@@ -280,6 +288,7 @@ class UtilsExtension : public v8::Extension {
       fprintf(stderr, "Internal error: cancelPauseOnNextStatement().");
       Exit();
     }
+    v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
     inspector_client_->session()->cancelPauseOnNextStatement();
   }
 
@@ -291,6 +300,25 @@ class UtilsExtension : public v8::Extension {
     v8::base::Semaphore ready_semaphore(0);
     inspector_client_->scheduleReconnect(&ready_semaphore);
     ready_semaphore.Wait();
+  }
+
+  static void CreateContextGroup(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 0) {
+      fprintf(stderr, "Internal error: createContextGroup().");
+      Exit();
+    }
+    const char* backend_extensions[] = {"v8_inspector/setTimeout",
+                                        "v8_inspector/inspector"};
+    v8::ExtensionConfiguration backend_configuration(
+        arraysize(backend_extensions), backend_extensions);
+    v8::base::Semaphore ready_semaphore(0);
+    int context_group_id = 0;
+    inspector_client_->scheduleCreateContextGroup(
+        &backend_configuration, &ready_semaphore, &context_group_id);
+    ready_semaphore.Wait();
+    args.GetReturnValue().Set(
+        v8::Int32::New(args.GetIsolate(), context_group_id));
   }
 };
 

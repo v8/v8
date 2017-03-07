@@ -15,7 +15,7 @@ Protocol = new Proxy({}, {
         const eventPattern = /^on(ce)?([A-Z][A-Za-z0-9]+)/;
         var match = eventPattern.exec(methodName);
         if (!match) {
-          return (args) => InspectorTest._sendCommandPromise(`${agentName}.${methodName}`, args || {});
+          return (args, contextGroupId) => InspectorTest._sendCommandPromise(`${agentName}.${methodName}`, args || {}, contextGroupId);
         } else {
           var eventName = match[2];
           eventName = eventName.charAt(0).toLowerCase() + eventName.slice(1);
@@ -52,6 +52,8 @@ var utils = {};
   this.cancelPauseOnNextStatement = null;
   utils.reconnect = reconnect;
   this.reconnect = null;
+  utils.createContextGroup = createContextGroup;
+  this.createContextGroup = null;
 })();
 
 InspectorTest.log = utils.print.bind(null);
@@ -205,12 +207,12 @@ InspectorTest.startDumpingProtocolMessages = function()
   InspectorTest._dumpInspectorProtocolMessages = true;
 }
 
-InspectorTest.sendRawCommand = function(requestId, command, handler)
+InspectorTest.sendRawCommand = function(requestId, command, handler, contextGroupId)
 {
   if (InspectorTest._dumpInspectorProtocolMessages)
     utils.print("frontend: " + command);
   InspectorTest._dispatchTable.set(requestId, handler);
-  sendMessageToBackend(command);
+  sendMessageToBackend(command, contextGroupId || 0);
 }
 
 InspectorTest.checkExpectation = function(fail, name, messageObject)
@@ -256,13 +258,13 @@ InspectorTest.runAsyncTestSuite = async function(testSuite) {
   InspectorTest.completeTest();
 }
 
-InspectorTest._sendCommandPromise = function(method, params)
+InspectorTest._sendCommandPromise = function(method, params, contextGroupId)
 {
   var requestId = ++InspectorTest._requestId;
   var messageObject = { "id": requestId, "method": method, "params": params };
   var fulfillCallback;
   var promise = new Promise(fulfill => fulfillCallback = fulfill);
-  InspectorTest.sendRawCommand(requestId, JSON.stringify(messageObject), fulfillCallback);
+  InspectorTest.sendRawCommand(requestId, JSON.stringify(messageObject), fulfillCallback, contextGroupId);
   return promise;
 }
 

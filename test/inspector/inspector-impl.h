@@ -26,15 +26,19 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   virtual ~InspectorClientImpl();
 
   void scheduleReconnect(v8::base::Semaphore* ready_semaphore);
+  void scheduleCreateContextGroup(v8::ExtensionConfiguration* extensions,
+                                  v8::base::Semaphore* ready_semaphore,
+                                  int* context_group_id);
 
   static v8_inspector::V8Inspector* InspectorFromContext(
       v8::Local<v8::Context> context);
   static v8_inspector::V8InspectorSession* SessionFromContext(
       v8::Local<v8::Context> context);
 
-  void setCurrentTimeMSForTest(double time);
+  // context_group_id = 0 means default context group.
+  v8_inspector::V8InspectorSession* session(int context_group_id = 0);
 
-  v8_inspector::V8InspectorSession* session() const { return session_.get(); }
+  void setCurrentTimeMSForTest(double time);
 
  private:
   // V8InspectorClient implementation.
@@ -51,14 +55,16 @@ class InspectorClientImpl : public v8_inspector::V8InspectorClient {
   void connect(v8::Local<v8::Context> context);
   friend class DisconnectTask;
   void disconnect();
+  friend class CreateContextGroupTask;
+  int createContextGroup(v8::ExtensionConfiguration* extensions);
 
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
-  std::unique_ptr<v8_inspector::V8InspectorSession> session_;
   std::unique_ptr<v8_inspector::V8Inspector::Channel> channel_;
-  std::unique_ptr<v8_inspector::StringBuffer> state_;
+
+  std::map<int, std::unique_ptr<v8_inspector::V8InspectorSession>> sessions_;
+  std::map<int, std::unique_ptr<v8_inspector::StringBuffer>> states_;
 
   v8::Isolate* isolate_;
-  v8::Global<v8::Context> context_;
 
   TaskRunner* task_runner_;
   FrontendChannel* frontend_channel_;
