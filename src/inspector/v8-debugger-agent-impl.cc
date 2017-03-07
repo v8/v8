@@ -1141,13 +1141,14 @@ void V8DebuggerAgentImpl::didParseSource(
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
         isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam);
+        isModuleParam, scriptRef->source().length());
   else
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
         scriptRef->endLine(), scriptRef->endColumn(), contextId,
         scriptRef->hash(), std::move(executionContextAuxDataParam),
-        std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam);
+        std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam,
+        scriptRef->source().length());
 
   if (scriptURL.isEmpty() || !success) return;
 
