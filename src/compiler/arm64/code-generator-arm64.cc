@@ -99,6 +99,8 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   Register OutputRegister32() { return ToRegister(instr_->Output()).W(); }
 
+  Register TempRegister32() { return ToRegister(instr_->TempAt(0)).W(); }
+
   Operand InputOperand2_32(size_t index) {
     switch (AddressingModeField::decode(instr_->opcode())) {
       case kMode_None:
@@ -525,6 +527,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ asm_instr(i.InputRegister(2),                                  \
                  MemOperand(i.InputRegister(0), i.InputRegister(1))); \
     __ Dmb(InnerShareable, BarrierAll);                               \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)      \
+  do {                                                                 \
+    Label exchange;                                                    \
+    __ bind(&exchange);                                                \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ load_instr(i.OutputRegister32(), i.TempRegister(0));            \
+    __ store_instr(i.TempRegister32(), i.InputRegister32(2),           \
+                   i.TempRegister(0));                                 \
+    __ cbnz(i.TempRegister32(), &exchange);                            \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                          \
@@ -1630,6 +1643,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Str(i.InputRegister32(2),
              MemOperand(i.InputRegister(0), i.InputRegister(1)));
       __ Dmb(InnerShareable, BarrierAll);
+      break;
+    case kAtomicExchangeInt8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      break;
+    case kAtomicExchangeInt16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      break;
+    case kAtomicExchangeWord32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr);
       break;
   }
   return kSuccess;

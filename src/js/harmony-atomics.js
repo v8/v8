@@ -95,13 +95,6 @@ function AtomicsXorJS(ia, index, value) {
   return %_AtomicsXor(ia, index, value);
 }
 
-function AtomicsExchangeJS(ia, index, value) {
-  CheckSharedIntegerTypedArray(ia);
-  index = ValidateIndex(index, %_TypedArrayGetLength(ia));
-  value = TO_NUMBER(value);
-  return %_AtomicsExchange(ia, index, value);
-}
-
 function AtomicsIsLockFreeJS(size) {
   return %_AtomicsIsLockFree(TO_INTEGER(size));
 }
@@ -151,7 +144,6 @@ utils.InstallFunctions(Atomics, DONT_ENUM, [
   "and", AtomicsAndJS,
   "or", AtomicsOrJS,
   "xor", AtomicsXorJS,
-  "exchange", AtomicsExchangeJS,
   "isLockFree", AtomicsIsLockFreeJS,
   "wait", AtomicsWaitJS,
   "wake", AtomicsWakeJS,

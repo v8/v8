@@ -1397,6 +1397,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckedStore:
     case IrOpcode::kAtomicLoad:
     case IrOpcode::kAtomicStore:
+    case IrOpcode::kAtomicExchange:
 
 #define SIMD_MACHINE_OP_CASE(Name) case IrOpcode::k##Name:
       MACHINE_SIMD_OP_LIST(SIMD_MACHINE_OP_CASE)

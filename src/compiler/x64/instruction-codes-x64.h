@@ -143,9 +143,6 @@ namespace compiler {
   V(X64Push)                       \
   V(X64Poke)                       \
   V(X64StackCheck)                 \
-  V(X64Xchgb)                      \
-  V(X64Xchgw)                      \
-  V(X64Xchgl)                      \
   V(X64Int32x4Splat)               \
   V(X64Int32x4ExtractLane)         \
   V(X64Int32x4ReplaceLane)         \

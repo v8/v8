@@ -49,6 +49,7 @@ class Isolate;
 //      Args: name, code kind, extra IC state
 // DBG: Builtin in platform-dependent assembly, used by the debugger.
 //      Args: name
+
 #define BUILTIN_LIST(CPP, API, TFJ, TFS, ASM, ASH, DBG)                        \
   ASM(Abort)                                                                   \
   /* Code aging */                                                             \
@@ -731,6 +732,7 @@ class Isolate;
   CPP(SharedArrayBufferPrototypeGetByteLength)                                 \
   TFJ(AtomicsLoad, 2)                                                          \
   TFJ(AtomicsStore, 3)                                                         \
+  TFJ(AtomicsExchange, 3)                                                      \
                                                                                \
   /* String */                                                                 \
   ASM(StringConstructor)                                                       \

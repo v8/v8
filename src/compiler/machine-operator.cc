@@ -80,6 +80,11 @@ MachineRepresentation AtomicStoreRepresentationOf(Operator const* op) {
   return OpParameter<MachineRepresentation>(op);
 }
 
+MachineType AtomicExchangeRepresentationOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kAtomicExchange, op->opcode());
+  return OpParameter<MachineType>(op);
+}
+
 #define PURE_BINARY_OP_LIST_32(V)                                           \
   V(Word32And, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)    \
   V(Word32Or, Operator::kAssociative | Operator::kCommutative, 2, 0, 1)     \
@@ -602,6 +607,18 @@ struct MachineOperatorGlobalCache {
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
 #undef STORE
 
+#define ATOMIC_EXCHANGE(Type)                                             \
+  struct AtomicExchange##Type##Operator : public Operator1<MachineType> { \
+    AtomicExchange##Type##Operator()                                      \
+        : Operator1<MachineType>(IrOpcode::kAtomicExchange,               \
+                                 Operator::kNoDeopt | Operator::kNoThrow, \
+                                 "AtomicExchange", 3, 1, 1, 1, 1, 0,      \
+                                 MachineType::Type()) {}                  \
+  };                                                                      \
+  AtomicExchange##Type##Operator kAtomicExchange##Type;
+  ATOMIC_TYPE_LIST(ATOMIC_EXCHANGE)
+#undef ATOMIC_EXCHANGE
+
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
         : Operator(IrOpcode::kDebugBreak, Operator::kNoThrow, "DebugBreak", 0,
@@ -837,6 +854,17 @@ const Operator* MachineOperatorBuilder::AtomicStore(MachineRepresentation rep) {
   }
   ATOMIC_REPRESENTATION_LIST(STORE)
 #undef STORE
+  UNREACHABLE();
+  return nullptr;
+}
+
+const Operator* MachineOperatorBuilder::AtomicExchange(MachineType rep) {
+#define EXCHANGE(kRep)                    \
+  if (rep == MachineType::kRep()) {       \
+    return &cache_.kAtomicExchange##kRep; \
+  }
+  ATOMIC_TYPE_LIST(EXCHANGE)
+#undef EXCHANGE
   UNREACHABLE();
   return nullptr;
 }

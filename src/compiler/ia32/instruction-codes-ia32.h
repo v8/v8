@@ -110,10 +110,7 @@ namespace compiler {
   V(IA32PushFloat32)               \
   V(IA32PushFloat64)               \
   V(IA32Poke)                      \
-  V(IA32StackCheck)                \
-  V(IA32Xchgb)                     \
-  V(IA32Xchgw)                     \
-  V(IA32Xchgl)
+  V(IA32StackCheck)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

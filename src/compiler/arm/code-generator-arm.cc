@@ -422,6 +422,19 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                      \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)             \
+  do {                                                                        \
+    Label exchange;                                                           \
+    __ dmb(ISH);                                                              \
+    __ bind(&exchange);                                                       \
+    __ add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));        \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(0));                    \
+    __ store_instr(i.TempRegister(0), i.InputRegister(2), i.TempRegister(0)); \
+    __ teq(i.TempRegister(0), Operand(0));                                    \
+    __ b(ne, &exchange);                                                      \
+    __ dmb(ISH);                                                              \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
   do {                                                                         \
     /* TODO(bmeurer): We should really get rid of this special instruction, */ \
@@ -2056,6 +2069,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kAtomicStoreWord32:
       ASSEMBLE_ATOMIC_STORE_INTEGER(str);
+      break;
+    case kAtomicExchangeInt8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);
+      __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexb, strexb);
+      break;
+    case kAtomicExchangeInt16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
+      __ sxth(i.OutputRegister(0), i.OutputRegister(0));
+      break;
+    case kAtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrexh, strexh);
+      break;
+    case kAtomicExchangeWord32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
       break;
   }
   return kSuccess;

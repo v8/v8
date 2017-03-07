@@ -3715,6 +3715,9 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
                         Builtins::kAtomicsLoad, 2, true);
   SimpleInstallFunction(atomics_object, factory->InternalizeUtf8String("store"),
                         Builtins::kAtomicsStore, 3, true);
+  SimpleInstallFunction(atomics_object,
+                        factory->InternalizeUtf8String("exchange"),
+                        Builtins::kAtomicsExchange, 3, true);
 }
 
 void Genesis::InitializeGlobal_harmony_array_prototype_values() {

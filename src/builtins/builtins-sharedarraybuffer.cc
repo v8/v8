@@ -93,28 +93,28 @@ void ValidateSharedTypedArray(CodeStubAssembler* a, compiler::Node* tagged,
 }
 
 // https://tc39.github.io/ecmascript_sharedmem/shmem.html#Atomics.ValidateAtomicAccess
-compiler::Node* ConvertTaggedAtomicIndexToWord32(CodeStubAssembler* a,
-                                                 compiler::Node* tagged,
-                                                 compiler::Node* context) {
+compiler::Node* ConvertTaggedAtomicIndexToWord32(
+    CodeStubAssembler* a, compiler::Node* tagged, compiler::Node* context,
+    compiler::Node** number_index) {
   using compiler::Node;
   CodeStubAssembler::Variable var_result(a, MachineRepresentation::kWord32);
 
   Callable to_number = CodeFactory::ToNumber(a->isolate());
-  Node* number_index = a->CallStub(to_number, context, tagged);
+  *number_index = a->CallStub(to_number, context, tagged);
   CodeStubAssembler::Label done(a, &var_result);
 
   CodeStubAssembler::Label if_numberissmi(a), if_numberisnotsmi(a);
-  a->Branch(a->TaggedIsSmi(number_index), &if_numberissmi, &if_numberisnotsmi);
+  a->Branch(a->TaggedIsSmi(*number_index), &if_numberissmi, &if_numberisnotsmi);
 
   a->Bind(&if_numberissmi);
   {
-    var_result.Bind(a->SmiToWord32(number_index));
+    var_result.Bind(a->SmiToWord32(*number_index));
     a->Goto(&done);
   }
 
   a->Bind(&if_numberisnotsmi);
   {
-    Node* number_index_value = a->LoadHeapNumberValue(number_index);
+    Node* number_index_value = a->LoadHeapNumberValue(*number_index);
     Node* access_index = a->TruncateFloat64ToWord32(number_index_value);
     Node* test_index = a->ChangeInt32ToFloat64(access_index);
 
@@ -167,7 +167,9 @@ void Builtins::Generate_AtomicsLoad(compiler::CodeAssemblerState* state) {
   Node* backing_store;
   ValidateSharedTypedArray(&a, array, context, &instance_type, &backing_store);
 
-  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(&a, index, context);
+  Node* index_integer;
+  Node* index_word32 =
+      ConvertTaggedAtomicIndexToWord32(&a, index, context, &index_integer);
   Node* array_length_word32 = a.TruncateTaggedToWord32(
       context, a.LoadObjectField(array, JSTypedArray::kLengthOffset));
   ValidateAtomicIndex(&a, index_word32, array_length_word32, context);
@@ -226,7 +228,9 @@ void Builtins::Generate_AtomicsStore(compiler::CodeAssemblerState* state) {
   Node* backing_store;
   ValidateSharedTypedArray(&a, array, context, &instance_type, &backing_store);
 
-  Node* index_word32 = ConvertTaggedAtomicIndexToWord32(&a, index, context);
+  Node* index_integer;
+  Node* index_word32 =
+      ConvertTaggedAtomicIndexToWord32(&a, index, context, &index_integer);
   Node* array_length_word32 = a.TruncateTaggedToWord32(
       context, a.LoadObjectField(array, JSTypedArray::kLengthOffset));
   ValidateAtomicIndex(&a, index_word32, array_length_word32, context);
@@ -264,6 +268,82 @@ void Builtins::Generate_AtomicsStore(compiler::CodeAssemblerState* state) {
   // This shouldn't happen, we've already validated the type.
   a.Bind(&other);
   a.Return(a.SmiConstant(0));
+}
+
+void Builtins::Generate_AtomicsExchange(compiler::CodeAssemblerState* state) {
+  using compiler::Node;
+  CodeStubAssembler a(state);
+  Node* array = a.Parameter(1);
+  Node* index = a.Parameter(2);
+  Node* value = a.Parameter(3);
+  Node* context = a.Parameter(4 + 2);
+
+  Node* instance_type;
+  Node* backing_store;
+  ValidateSharedTypedArray(&a, array, context, &instance_type, &backing_store);
+
+  Node* index_integer;
+  Node* index_word32 =
+      ConvertTaggedAtomicIndexToWord32(&a, index, context, &index_integer);
+  Node* array_length_word32 = a.TruncateTaggedToWord32(
+      context, a.LoadObjectField(array, JSTypedArray::kLengthOffset));
+  ValidateAtomicIndex(&a, index_word32, array_length_word32, context);
+
+  Node* value_integer = a.ToInteger(context, value);
+
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+  // Node* index_integer = a.ToInteger(context, index);
+  a.Return(a.CallRuntime(Runtime::kAtomicsExchange, context, array,
+                         index_integer, value_integer));
+#else
+  Node* index_word = a.ChangeUint32ToWord(index_word32);
+
+  Node* value_word32 = a.TruncateTaggedToWord32(context, value_integer);
+
+  CodeStubAssembler::Label i8(&a), u8(&a), i16(&a), u16(&a), i32(&a), u32(&a),
+      other(&a);
+  int32_t case_values[] = {
+      FIXED_INT8_ARRAY_TYPE,   FIXED_UINT8_ARRAY_TYPE, FIXED_INT16_ARRAY_TYPE,
+      FIXED_UINT16_ARRAY_TYPE, FIXED_INT32_ARRAY_TYPE, FIXED_UINT32_ARRAY_TYPE,
+  };
+  CodeStubAssembler::Label* case_labels[] = {
+      &i8, &u8, &i16, &u16, &i32, &u32,
+  };
+  a.Switch(instance_type, &other, case_values, case_labels,
+           arraysize(case_labels));
+
+  a.Bind(&i8);
+  a.Return(a.SmiFromWord32(a.AtomicExchange(MachineType::Int8(), backing_store,
+                                            index_word, value_word32)));
+
+  a.Bind(&u8);
+  a.Return(a.SmiFromWord32(a.AtomicExchange(MachineType::Uint8(), backing_store,
+                                            index_word, value_word32)));
+
+  a.Bind(&i16);
+  a.Return(a.SmiFromWord32(a.AtomicExchange(MachineType::Int16(), backing_store,
+                                            a.WordShl(index_word, 1),
+                                            value_word32)));
+
+  a.Bind(&u16);
+  a.Return(a.SmiFromWord32(
+      a.AtomicExchange(MachineType::Uint16(), backing_store,
+                       a.WordShl(index_word, 1), value_word32)));
+
+  a.Bind(&i32);
+  a.Return(a.ChangeInt32ToTagged(
+      a.AtomicExchange(MachineType::Int32(), backing_store,
+                       a.WordShl(index_word, 2), value_word32)));
+
+  a.Bind(&u32);
+  a.Return(a.ChangeUint32ToTagged(
+      a.AtomicExchange(MachineType::Uint32(), backing_store,
+                       a.WordShl(index_word, 2), value_word32)));
+
+  // This shouldn't happen, we've already validated the type.
+  a.Bind(&other);
+  a.Return(a.SmiConstant(0));
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 }
 
 }  // namespace internal

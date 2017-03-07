@@ -462,6 +462,11 @@ Node* CodeAssembler::AtomicStore(MachineRepresentation rep, Node* base,
   return raw_assembler()->AtomicStore(rep, base, offset, value);
 }
 
+Node* CodeAssembler::AtomicExchange(MachineType type, Node* base, Node* offset,
+                                    Node* value) {
+  return raw_assembler()->AtomicExchange(type, base, offset, value);
+}
+
 Node* CodeAssembler::StoreRoot(Heap::RootListIndex root_index, Node* value) {
   DCHECK(Heap::RootCanBeWrittenAfterInitialization(root_index));
   Node* roots_array_start =

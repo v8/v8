@@ -175,6 +175,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->AtomicStore(rep), base, index, value);
   }
 
+  Node* AtomicExchange(MachineType rep, Node* base, Node* index, Node* value) {
+    return AddNode(machine()->AtomicExchange(rep), base, index, value);
+  }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return AddNode(machine()->WordAnd(), a, b);

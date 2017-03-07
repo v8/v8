@@ -274,6 +274,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* offset,
                     Node* value);
 
+  // Exchange value at raw memory location
+  Node* AtomicExchange(MachineType type, Node* base, Node* offset, Node* value);
+
   // Store a value to the root array.
   Node* StoreRoot(Heap::RootListIndex root_index, Node* value);
 
