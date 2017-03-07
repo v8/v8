@@ -165,6 +165,16 @@ class TyperTest : public TypedGraphTest {
         EXPECT_TRUE(result_type->Is(expected_type));
       }
     }
+    // Test extreme cases.
+    double x1 = +1e-308;
+    double x2 = -1e-308;
+    Type* r1 = Type::NewConstant(isolate()->factory()->NewNumber(x1), zone());
+    Type* r2 = Type::NewConstant(isolate()->factory()->NewNumber(x2), zone());
+    Type* expected_type = TypeBinaryOp(op, r1, r2);
+    double result_value = opfun(x1, x2);
+    Type* result_type = Type::NewConstant(
+        isolate()->factory()->NewNumber(result_value), zone());
+    EXPECT_TRUE(result_type->Is(expected_type));
   }
 
   template <class BinaryFunction>

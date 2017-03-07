@@ -195,7 +195,8 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
     return Replace(input);
   }
   if (input_type->Is(Type::PlainNumber()) &&
-      input->opcode() == IrOpcode::kNumberDivide) {
+      (input->opcode() == IrOpcode::kNumberDivide ||
+       input->opcode() == IrOpcode::kSpeculativeNumberDivide)) {
     Node* const lhs = NodeProperties::GetValueInput(input, 0);
     Type* const lhs_type = NodeProperties::GetType(lhs);
     Node* const rhs = NodeProperties::GetValueInput(input, 1);
@@ -215,6 +216,11 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
       // {lhs} since {rhs} cannot be less than 1 (due to the
       // plain-number type constraint on the {node}).
       NodeProperties::ChangeOp(node, simplified()->NumberToUint32());
+      NodeProperties::SetType(node, lhs_type);
+      return Changed(node);
+    }
+    if (lhs_type->Is(Type::Signed32()) && rhs_type->Is(Type::Unsigned32())) {
+      NodeProperties::ChangeOp(node, simplified()->NumberToInt32());
       NodeProperties::SetType(node, lhs_type);
       return Changed(node);
     }
