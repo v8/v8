@@ -308,25 +308,25 @@ const int kCodeWithIdTag = 0;
 const int kDeoptReasonTag = 1;
 
 void RelocInfo::update_wasm_memory_reference(
-    Address old_base, Address new_base, uint32_t old_size, uint32_t new_size,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmMemoryReference(rmode_) || IsWasmMemorySizeReference(rmode_));
-  if (IsWasmMemoryReference(rmode_)) {
-    Address updated_reference;
-    DCHECK_GE(wasm_memory_reference(), old_base);
-    updated_reference = new_base + (wasm_memory_reference() - old_base);
-    // The reference is not checked here but at runtime. Validity of references
-    // may change over time.
-    unchecked_update_wasm_memory_reference(updated_reference,
-                                           icache_flush_mode);
-  } else if (IsWasmMemorySizeReference(rmode_)) {
-    uint32_t current_size_reference = wasm_memory_size_reference();
-    uint32_t updated_size_reference =
-        new_size + (current_size_reference - old_size);
-    unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
-  } else {
-    UNREACHABLE();
+    Address old_base, Address new_base, ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemoryReference(rmode_));
+  DCHECK_GE(wasm_memory_reference(), old_base);
+  Address updated_reference = new_base + (wasm_memory_reference() - old_base);
+  // The reference is not checked here but at runtime. Validity of references
+  // may change over time.
+  unchecked_update_wasm_memory_reference(updated_reference, icache_flush_mode);
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
   }
+}
+
+void RelocInfo::update_wasm_memory_size(uint32_t old_size, uint32_t new_size,
+                                        ICacheFlushMode icache_flush_mode) {
+  DCHECK(IsWasmMemorySizeReference(rmode_));
+  uint32_t current_size_reference = wasm_memory_size_reference();
+  uint32_t updated_size_reference =
+      new_size + (current_size_reference - old_size);
+  unchecked_update_wasm_size(updated_size_reference, icache_flush_mode);
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     Assembler::FlushICache(isolate_, pc_, sizeof(int64_t));
   }

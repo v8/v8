@@ -67,8 +67,9 @@ void CodeSpecialization::RelocateMemoryReferences(Address old_start,
                                                   uint32_t old_size,
                                                   Address new_start,
                                                   uint32_t new_size) {
-  DCHECK(old_mem_start == 0 && new_mem_start == 0);
-  DCHECK(old_start != 0 || new_start != 0);
+  DCHECK(old_mem_start == nullptr && old_mem_size == 0 &&
+         new_mem_start == nullptr && new_mem_size == 0);
+  DCHECK(old_start != new_start || old_size != new_size);
   old_mem_start = old_start;
   old_mem_size = old_size;
   new_mem_start = new_start;
@@ -162,7 +163,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   DisallowHeapAllocation no_gc;
   DCHECK_EQ(Code::WASM_FUNCTION, code->kind());
 
-  bool reloc_mem = old_mem_start || new_mem_start;
+  bool reloc_mem_addr = old_mem_start != new_mem_start;
+  bool reloc_mem_size = old_mem_size != new_mem_size;
   bool reloc_globals = old_globals_start || new_globals_start;
   bool patch_table_size = old_function_table_size || new_function_table_size;
   bool reloc_direct_calls = !relocate_direct_calls_instance.is_null();
@@ -172,8 +174,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
     if (cond) reloc_mode |= RelocInfo::ModeMask(mode);
   };
-  add_mode(reloc_mem, RelocInfo::WASM_MEMORY_REFERENCE);
-  add_mode(reloc_mem, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
+  add_mode(reloc_mem_addr, RelocInfo::WASM_MEMORY_REFERENCE);
+  add_mode(reloc_mem_size, RelocInfo::WASM_MEMORY_SIZE_REFERENCE);
   add_mode(reloc_globals, RelocInfo::WASM_GLOBAL_REFERENCE);
   add_mode(patch_table_size, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
   add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
@@ -186,11 +188,15 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
       case RelocInfo::WASM_MEMORY_REFERENCE:
-      case RelocInfo::WASM_MEMORY_SIZE_REFERENCE:
-        DCHECK(reloc_mem);
+        DCHECK(reloc_mem_addr);
         it.rinfo()->update_wasm_memory_reference(old_mem_start, new_mem_start,
-                                                 old_mem_size, new_mem_size,
                                                  icache_flush_mode);
+        changed = true;
+        break;
+      case RelocInfo::WASM_MEMORY_SIZE_REFERENCE:
+        DCHECK(reloc_mem_size);
+        it.rinfo()->update_wasm_memory_size(old_mem_size, new_mem_size,
+                                            icache_flush_mode);
         changed = true;
         break;
       case RelocInfo::WASM_GLOBAL_REFERENCE:

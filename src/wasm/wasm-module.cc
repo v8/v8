@@ -1171,8 +1171,12 @@ class InstantiationHelper {
               ? static_cast<Address>(
                     compiled_module_->memory()->backing_store())
               : nullptr;
-      code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
-                                                   mem_start, mem_size);
+      // We might get instantiated again with the same memory. No patching
+      // needed in this case.
+      if (old_mem_start != mem_start || old_mem_size != mem_size) {
+        code_specialization.RelocateMemoryReferences(
+            old_mem_start, old_mem_size, mem_start, mem_size);
+      }
       compiled_module_->set_memory(memory_);
     }
 
