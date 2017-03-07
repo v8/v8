@@ -522,7 +522,7 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
     if (SkipFPTestInput(*i)) continue;
     FOR_FLOAT32_INPUTS(j) {
       if (SkipFPTestInput(*j)) continue;
-      int diff = *i - *j;
+      float diff = *i - *j;
       if (SkipFPTestResult(diff)) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
     }
