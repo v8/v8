@@ -176,6 +176,11 @@
 
   # BUG(v8:5807): Flaky data race.
   'wasm/embenchen/fannkuch': [PASS, ['tsan', SKIP]],
+
+  # BUG(v8:5778): These fail with --future, which we are about to turn on.
+  # Investigate.
+  'regress/regress-105': [SKIP],
+
 }],  # ALWAYS
 
 ['novfp3 == True', {

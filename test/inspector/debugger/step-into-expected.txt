@@ -54,11 +54,6 @@ break at:
 Running test: testIf
 break at:
   var a;
-  #if (true) a = true;
-  if (!a) {
-
-break at:
-  var a;
   if (true) #a = true;
   if (!a) {
 
@@ -399,8 +394,18 @@ break at:
   for (var k in o) k;
 
 break at:
+  var o = {};
+  for (var #k in o) {}
+  for (var k in o) k;
+
+break at:
   for (var k in o) {}
   for (var k in #o) k;
+  for (var k in { a:1 }) {}
+
+break at:
+  for (var k in o) {}
+  for (var #k in o) k;
   for (var k in { a:1 }) {}
 
 break at:
@@ -440,11 +445,6 @@ break at:
 
 
 Running test: testSimpleExpressions
-break at:
-function testSimpleExpressions() {
-  #1 + 2 + 3;
-  var a = 1;
-
 break at:
   1 + 2 + 3;
   var a = #1;

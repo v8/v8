@@ -24,7 +24,7 @@ function returnTrue() {
 
 function testIf() {
   var a;
-  |_|if (true) |_|a = true;
+  if (true) |_|a = true;
   |_|if (!a) {
     |_|a = true;
   } else {
@@ -110,7 +110,7 @@ function testForInLoop() {
 |R|}
 
 function testSimpleExpressions() {
-  |_|1 + 2 + 3;
+  1 + 2 + 3;
   var a = |_|1;
   |_|++a;
   |_|a--;
@@ -172,7 +172,7 @@ function testGenerator() {
 
 function throwException() {
   |_|throw |C|new Error();
-|R|}
+}
 
 function testCaughtException() {
   try {
