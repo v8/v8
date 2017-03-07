@@ -23,6 +23,9 @@ declare_args() {
   # Sets -DV8_ENABLE_FUTURE.
   v8_enable_future = false
 
+  # Sets -DV8_DISABLE_TURBO.
+  v8_disable_turbo = false
+
   # Sets -DVERIFY_HEAP.
   v8_enable_verify_heap = ""
 
@@ -202,6 +205,9 @@ config("features") {
   }
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
+  }
+  if (v8_disable_turbo) {
+    defines += [ "V8_DISABLE_TURBO" ]
   }
   if (v8_enable_gdbjit) {
     defines += [ "ENABLE_GDB_JIT_INTERFACE" ]

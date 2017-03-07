@@ -441,7 +441,14 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
             "deoptimize the optimized code if the layout of the maps changes.")
 
 // Flags for TurboFan.
-DEFINE_BOOL(turbo, false, "enable TurboFan compiler")
+#ifdef V8_DISABLE_TURBO
+// Allow to disable turbofan with a build flag after it's turned on by default.
+#define TURBO_BOOL false
+#else
+// TODO(mvstanton): Turn on turbofan here.
+#define TURBO_BOOL false
+#endif
+DEFINE_BOOL(turbo, TURBO_BOOL, "enable TurboFan compiler")
 DEFINE_BOOL(turbo_sp_frame_access, false,
             "use stack pointer-relative access to frame wherever possible")
 DEFINE_BOOL(turbo_preprocess_ranges, true,
