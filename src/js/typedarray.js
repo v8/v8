@@ -717,39 +717,6 @@ function TypedArraySlice(start, end) {
 }
 
 
-// ES2016 draft, section 22.2.3.14
-function TypedArrayIncludes(searchElement, fromIndex) {
-  if (!IS_TYPEDARRAY(this)) throw %make_type_error(kNotTypedArray);
-
-  var length = %_TypedArrayGetLength(this);
-
-  if (length === 0) return false;
-  var n = TO_INTEGER(fromIndex);
-
-  var k;
-  if (n >= 0) {
-    k = n;
-  } else {
-    k = length + n;
-    if (k < 0) {
-      k = 0;
-    }
-  }
-
-  while (k < length) {
-    var elementK = this[k];
-    if (%SameValueZero(searchElement, elementK)) {
-      return true;
-    }
-
-    ++k;
-  }
-
-  return false;
-}
-%FunctionSetLength(TypedArrayIncludes, 1);
-
-
 // ES6 draft 08-24-14, section 22.2.2.2
 function TypedArrayOf() {
   var length = arguments.length;
@@ -830,7 +797,6 @@ utils.InstallFunctions(GlobalTypedArray.prototype, DONT_ENUM, [
   "filter", TypedArrayFilter,
   "find", TypedArrayFind,
   "findIndex", TypedArrayFindIndex,
-  "includes", TypedArrayIncludes,
   "indexOf", TypedArrayIndexOf,
   "join", TypedArrayJoin,
   "lastIndexOf", TypedArrayLastIndexOf,

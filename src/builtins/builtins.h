@@ -823,6 +823,8 @@ class Isolate;
   TFJ(TypedArrayPrototypeValues, 0)                                            \
   /* ES6 #sec-%typedarray%.prototype.copywithin */                             \
   CPP(TypedArrayPrototypeCopyWithin)                                           \
+  /* ES7 #sec-%typedarray%.prototype.includes */                               \
+  CPP(TypedArrayPrototypeIncludes)                                             \
                                                                                \
   /* Wasm */                                                                   \
   TFS(WasmStackGuard, BUILTIN, kNoExtraICState, WasmRuntimeCall, 1)            \

@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
+#include "src/elements.h"
 #include "src/objects-inl.h"
 
 namespace v8 {
@@ -454,6 +455,36 @@ BUILTIN(TypedArrayPrototypeCopyWithin) {
   std::memmove(data + to, data + from, count);
 
   return *array;
+}
+
+BUILTIN(TypedArrayPrototypeIncludes) {
+  HandleScope scope(isolate);
+
+  Handle<JSTypedArray> array;
+  const char* method = "%TypedArray%.prototype.includes";
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
+
+  if (args.length() < 2) return isolate->heap()->false_value();
+
+  int64_t len = array->length_value();
+
+  if (len == 0) return isolate->heap()->false_value();
+
+  int64_t index = 0;
+  if (args.length() > 2) {
+    Handle<Object> num;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, num, Object::ToInteger(isolate, args.at<Object>(2)));
+    index = CapRelativeIndex(num, 0, len);
+  }
+
+  Handle<Object> search_element = args.at<Object>(1);
+  ElementsAccessor* elements = array->GetElementsAccessor();
+  Maybe<bool> result = elements->IncludesValue(isolate, array, search_element,
+                                               static_cast<uint32_t>(index),
+                                               static_cast<uint32_t>(len));
+  return *isolate->factory()->ToBoolean(result.FromJust());
 }
 
 }  // namespace internal
