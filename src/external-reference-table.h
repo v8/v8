@@ -23,6 +23,7 @@ class ExternalReferenceTable {
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
   bool is_api_reference(uint32_t i) { return i >= api_refs_start_; }
+  uint32_t num_api_references() { return size() - api_refs_start_; }
 
 #ifdef DEBUG
   void increment_count(uint32_t i) { refs_[i].count++; }

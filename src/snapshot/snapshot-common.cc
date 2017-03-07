@@ -195,7 +195,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 
   // Set header values.
   SetMagicNumber(serializer->isolate());
-  SetHeaderValue(kCheckSumOffset, Version::Hash());
+  SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kNumReservationsOffset, reservations.length());
   SetHeaderValue(kPayloadLengthOffset, payload->length());
 
@@ -209,7 +209,7 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
 }
 
 bool SnapshotData::IsSane() {
-  return GetHeaderValue(kCheckSumOffset) == Version::Hash();
+  return GetHeaderValue(kVersionHashOffset) == Version::Hash();
 }
 
 Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {

@@ -511,8 +511,11 @@ SnapshotCreator::SnapshotCreator(intptr_t* external_references,
   internal_isolate->set_array_buffer_allocator(&data->allocator_);
   internal_isolate->set_api_external_references(external_references);
   isolate->Enter();
-  if (existing_snapshot) {
-    internal_isolate->set_snapshot_blob(existing_snapshot);
+  const StartupData* blob = existing_snapshot
+                                ? existing_snapshot
+                                : i::Snapshot::DefaultSnapshotBlob();
+  if (blob && blob->raw_size > 0) {
+    internal_isolate->set_snapshot_blob(blob);
     i::Snapshot::Initialize(internal_isolate);
   } else {
     internal_isolate->Init(nullptr);

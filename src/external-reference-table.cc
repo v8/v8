@@ -46,6 +46,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddAccessors(isolate);
   AddStubCache(isolate);
   AddDeoptEntries(isolate);
+  // API references must be added last.
   AddApiReferences(isolate);
 }
 

@@ -76,6 +76,10 @@ void Deserializer::Initialize(Isolate* isolate) {
   external_reference_table_ = ExternalReferenceTable::instance(isolate);
   CHECK_EQ(magic_number_,
            SerializedData::ComputeMagicNumber(external_reference_table_));
+  // The current isolate must have at least as many API-provided external
+  // references as the to-be-deserialized snapshot expects and refers to.
+  CHECK_LE(num_extra_references_,
+           SerializedData::GetExtraReferences(external_reference_table_));
 }
 
 void Deserializer::Deserialize(Isolate* isolate) {

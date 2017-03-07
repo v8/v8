@@ -288,8 +288,9 @@ def Main(argv):
   return_code = 0
   for c in configs:
     return_code += configs[c].Build()
-  for c in configs:
-    return_code += configs[c].RunTests()
+  if return_code == 0:
+    for c in configs:
+      return_code += configs[c].RunTests()
   if return_code == 0:
     _Call("notify-send 'Done!' 'V8 compilation finished successfully.'",
           silent=True)

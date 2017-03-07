@@ -34,6 +34,7 @@ class Deserializer : public SerializerDeserializer {
       : isolate_(NULL),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
+        num_extra_references_(data->GetExtraReferences()),
         next_map_index_(0),
         external_reference_table_(NULL),
         deserialized_large_objects_(0),
@@ -125,6 +126,7 @@ class Deserializer : public SerializerDeserializer {
 
   SnapshotByteSource source_;
   uint32_t magic_number_;
+  uint32_t num_extra_references_;
 
   // The address of the next object that will be allocated in each space.
   // Each space has a number of chunks reserved by the GC, with each chunk

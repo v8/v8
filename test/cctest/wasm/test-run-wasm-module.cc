@@ -237,14 +237,22 @@ class WasmSerializationTest {
   }
 
   void InvalidateVersion() {
-    uint32_t* buffer = reinterpret_cast<uint32_t*>(
-        const_cast<uint8_t*>(serialized_bytes_.first));
-    buffer[SerializedCodeData::kVersionHashOffset] = Version::Hash() + 1;
+    uint32_t* slot = reinterpret_cast<uint32_t*>(
+        const_cast<uint8_t*>(serialized_bytes_.first) +
+        SerializedCodeData::kVersionHashOffset);
+    *slot = Version::Hash() + 1;
   }
 
   void InvalidateWireBytes() {
     memset(const_cast<uint8_t*>(wire_bytes_.first), '\0',
            wire_bytes_.second / 2);
+  }
+
+  void InvalidateLength() {
+    uint32_t* slot = reinterpret_cast<uint32_t*>(
+        const_cast<uint8_t*>(serialized_bytes_.first) +
+        SerializedCodeData::kPayloadLengthOffset);
+    *slot = 0xfefefefeu;
   }
 
   v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
@@ -400,6 +408,17 @@ TEST(DeserializeNoSerializedData) {
   {
     HandleScope scope(test.current_isolate());
     test.ClearSerializedData();
+    test.DeserializeAndRun();
+  }
+  Cleanup(test.current_isolate());
+  Cleanup();
+}
+
+TEST(DeserializeInvalidLength) {
+  WasmSerializationTest test;
+  {
+    HandleScope scope(test.current_isolate());
+    test.InvalidateLength();
     test.DeserializeAndRun();
   }
   Cleanup(test.current_isolate());
