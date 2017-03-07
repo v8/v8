@@ -19,6 +19,10 @@
 #define DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag) \
   DEFINE_NEG_VALUE_IMPLICATION(whenflag, thenflag, false)
 
+#define DEFINE_DUAL_IMPLICATION(whenflag, thenflag) \
+  DEFINE_IMPLICATION(whenflag, thenflag)            \
+  DEFINE_NEG_NEG_IMPLICATION(whenflag, thenflag)
+
 // We want to declare the names of the variables for the header file.  Normally
 // this will just be an extern declaration, but for a readonly flag we let the
 // compiler make better optimizations by giving it the value.
@@ -264,15 +268,15 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 DEFINE_IMPLICATION(future, turbo)
 
-DEFINE_IMPLICATION(turbo, ignition_staging)
-DEFINE_IMPLICATION(turbo, enable_fast_array_builtins)
-DEFINE_IMPLICATION(turbo, thin_strings)
+DEFINE_DUAL_IMPLICATION(turbo, ignition_staging)
+DEFINE_DUAL_IMPLICATION(turbo, enable_fast_array_builtins)
+DEFINE_DUAL_IMPLICATION(turbo, thin_strings)
 
 // TODO(rmcilroy): Remove ignition-staging and set these implications directly
 // with the turbo flag.
 DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
-DEFINE_IMPLICATION(ignition_staging, ignition)
-DEFINE_IMPLICATION(ignition_staging, compiler_dispatcher)
+DEFINE_DUAL_IMPLICATION(ignition_staging, ignition)
+DEFINE_DUAL_IMPLICATION(ignition_staging, compiler_dispatcher)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
