@@ -22,11 +22,7 @@ const char* const Token::string_[NUM_TOKENS] = {
 };
 #undef T
 
-#if !V8_CC_MSVC
-// TODO(vogelheim): Remove #if once MSVC supports constexpr on functions.
-constexpr
-#endif
-uint8_t length(const char* str) {
+constexpr uint8_t length(const char* str) {
   return str ? static_cast<uint8_t>(strlen(str)) : 0;
 }
 #define T(name, string, precedence) length(string),
