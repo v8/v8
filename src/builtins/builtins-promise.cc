@@ -1393,6 +1393,10 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
                        "PromiseResolve");
 
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+
   Label if_valueisnativepromise(this), if_valueisnotnativepromise(this),
       if_valueisnotpromise(this);
 
@@ -1404,9 +1408,6 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
 
   // This adds a fast path as non-subclassed native promises don't have
   // an observable constructor lookup.
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   BranchIfFastPath(native_context, promise_fun, value, &if_valueisnativepromise,
                    &if_valueisnotnativepromise);
 
@@ -1437,15 +1438,13 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   Bind(&if_valueisnotpromise);
   {
     Label if_nativepromise(this), if_notnativepromise(this);
-    BranchIfFastPath(context, receiver, &if_nativepromise,
-                     &if_notnativepromise);
+    Branch(WordEqual(promise_fun, receiver), &if_nativepromise,
+           &if_notnativepromise);
 
     // This adds a fast path for native promises that don't need to
     // create NewPromiseCapability.
     Bind(&if_nativepromise);
     {
-      Label do_resolve(this);
-
       Node* const result = AllocateAndInitJSPromise(context);
       InternalResolvePromise(context, result, value);
       Return(result);
