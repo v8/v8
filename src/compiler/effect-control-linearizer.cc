@@ -639,6 +639,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTruncateTaggedToBit:
       result = LowerTruncateTaggedToBit(node);
       break;
+    case IrOpcode::kTruncateTaggedPointerToBit:
+      result = LowerTruncateTaggedPointerToBit(node);
+      break;
     case IrOpcode::kTruncateTaggedToFloat64:
       result = LowerTruncateTaggedToFloat64(node);
       break;
@@ -977,6 +980,53 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToBit(Node* node) {
     // If {value} is a Smi, then we only need to check that it's not zero.
     __ Goto(&done,
             __ Word32Equal(__ WordEqual(value, __ IntPtrConstant(0)), zero));
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerTruncateTaggedPointerToBit(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_heapnumber = __ MakeDeferredLabel<1>();
+  auto done = __ MakeLabel<5>(MachineRepresentation::kBit);
+
+  Node* zero = __ Int32Constant(0);
+  Node* fzero = __ Float64Constant(0.0);
+
+  // Check if {value} is false.
+  __ GotoIf(__ WordEqual(value, __ FalseConstant()), &done, zero);
+
+  // Check if {value} is the empty string.
+  __ GotoIf(__ WordEqual(value, __ EmptyStringConstant()), &done, zero);
+
+  // Load the map of {value}.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+  // Check if the {value} is undetectable and immediately return false.
+  Node* value_map_bitfield =
+      __ LoadField(AccessBuilder::ForMapBitField(), value_map);
+  __ GotoUnless(
+      __ Word32Equal(__ Word32And(value_map_bitfield,
+                                  __ Int32Constant(1 << Map::kIsUndetectable)),
+                     zero),
+      &done, zero);
+
+  // Check if {value} is a HeapNumber.
+  __ GotoIf(__ WordEqual(value_map, __ HeapNumberMapConstant()),
+            &if_heapnumber);
+
+  // All other values that reach here are true.
+  __ Goto(&done, __ Int32Constant(1));
+
+  __ Bind(&if_heapnumber);
+  {
+    // For HeapNumber {value}, just check that its value is not 0.0, -0.0 or
+    // NaN.
+    Node* value_value =
+        __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+    __ Goto(&done, __ Float64LessThan(fzero, __ Float64Abs(value_value)));
   }
 
   __ Bind(&done);

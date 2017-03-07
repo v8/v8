@@ -201,7 +201,8 @@
   V(ChangeBitToTagged)               \
   V(TruncateTaggedToWord32)          \
   V(TruncateTaggedToFloat64)         \
-  V(TruncateTaggedToBit)
+  V(TruncateTaggedToBit)             \
+  V(TruncateTaggedPointerToBit)
 
 #define SIMPLIFIED_CHECKED_OP_LIST(V) \
   V(CheckedInt32Add)                  \

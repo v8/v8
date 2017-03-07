@@ -1111,6 +1111,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     }
     case IrOpcode::kTruncateTaggedToBit:
+    case IrOpcode::kTruncateTaggedPointerToBit:
       break;
 
     case IrOpcode::kCheckBounds:

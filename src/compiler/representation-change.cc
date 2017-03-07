@@ -725,7 +725,14 @@ Node* RepresentationChanger::GetBitRepresentationFor(
       // true is the only trueish Oddball.
       op = simplified()->ChangeTaggedToBit();
     } else {
-      op = simplified()->TruncateTaggedToBit();
+      if (output_rep == MachineRepresentation::kTagged &&
+          output_type->Maybe(Type::SignedSmall())) {
+        op = simplified()->TruncateTaggedToBit();
+      } else {
+        // The {output_type} either doesn't include the Smi range,
+        // or the {output_rep} is known to be TaggedPointer.
+        op = simplified()->TruncateTaggedPointerToBit();
+      }
     }
   } else if (output_rep == MachineRepresentation::kTaggedSigned) {
     node = jsgraph()->graph()->NewNode(machine()->WordEqual(), node,
