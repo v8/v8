@@ -57,6 +57,12 @@ Callable CodeFactory::LoadICInOptimizedCode(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::LoadICInOptimizedCode_Noninlined(Isolate* isolate) {
+  return Callable(isolate->builtins()->LoadIC_Noninlined(),
+                  LoadWithVectorDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
   return Callable(
       typeof_mode == NOT_INSIDE_TYPEOF

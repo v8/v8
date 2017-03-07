@@ -472,6 +472,7 @@ class Isolate;
                                                                                \
   /* ICs */                                                                    \
   TFS(LoadIC, LOAD_IC, kNoExtraICState, LoadWithVector, 1)                     \
+  TFS(LoadIC_Noninlined, BUILTIN, kNoExtraICState, LoadWithVector, 1)          \
   TFS(LoadICTrampoline, LOAD_IC, kNoExtraICState, Load, 1)                     \
   TFS(KeyedLoadIC, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector, 1)          \
   TFS(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load, 1)          \

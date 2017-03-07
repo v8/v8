@@ -61,6 +61,10 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
   Comment("HandlePolymorphicCase");
   DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
 
+  // Deferred so the unrolled case can omit frame construction in bytecode
+  // handler.
+  Label loop(this, Label::kDeferred);
+
   // Iterate {feedback} array.
   const int kEntrySize = 2;
 
@@ -77,8 +81,10 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
 
     Bind(&next_entry);
   }
+  Goto(&loop);
 
   // Loop from {unroll_count}*kEntrySize to {length}.
+  Bind(&loop);
   Node* init = IntPtrConstant(unroll_count * kEntrySize);
   Node* length = LoadAndUntagFixedArrayBaseLength(feedback);
   BuildFastLoop(
@@ -141,9 +147,8 @@ void AccessorAssembler::HandleKeyedStorePolymorphicCase(
 
 void AccessorAssembler::HandleLoadICHandlerCase(
     const LoadICParameters* p, Node* handler, Label* miss,
-    ElementSupport support_elements) {
+    ExitPoint* exit_point, ElementSupport support_elements) {
   Comment("have_handler");
-  ExitPoint direct_exit(this);
 
   Variable var_holder(this, MachineRepresentation::kTagged, p->receiver);
   Variable var_smi_handler(this, MachineRepresentation::kTagged, handler);
@@ -160,21 +165,21 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   Bind(&if_smi_handler);
   {
     HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
-                               miss, &direct_exit, support_elements);
+                               miss, exit_point, support_elements);
   }
 
   Bind(&try_proto_handler);
   {
     GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
     HandleLoadICProtoHandlerCase(p, handler, &var_holder, &var_smi_handler,
-                                 &if_smi_handler, miss, &direct_exit, false);
+                                 &if_smi_handler, miss, exit_point, false);
   }
 
   Bind(&call_handler);
   {
     typedef LoadWithVectorDescriptor Descriptor;
-    TailCallStub(Descriptor(isolate()), handler, p->context, p->receiver,
-                 p->name, p->slot, p->vector);
+    exit_point->ReturnCallStub(Descriptor(isolate()), handler, p->context,
+                               p->receiver, p->name, p->slot, p->vector);
   }
 }
 
@@ -273,8 +278,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     Comment("property_load");
   }
 
-  Label constant(this, Label::kDeferred), field(this),
-      normal(this, Label::kDeferred);
+  Label constant(this), field(this), normal(this, Label::kDeferred);
   GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kForFields)),
          &field);
 
@@ -675,7 +679,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(const StoreICParameters* p,
     Node* transition = var_transition.value();
     Node* handler_word = SmiUntag(smi_handler);
 
-    GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(transition)), miss);
+    GotoIf(IsDeprecatedMap(transition), miss);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kStoreNormal)),
@@ -1333,6 +1337,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
                                             const LoadICParameters* p,
                                             Label* slow,
                                             UseStubCache use_stub_cache) {
+  ExitPoint direct_exit(this);
+
   Comment("key is unique name");
   Label if_found_on_receiver(this), if_property_dictionary(this),
       lookup_prototype_chain(this);
@@ -1379,7 +1385,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     TryProbeStubCache(isolate()->load_stub_cache(), receiver, key,
                       &found_handler, &var_handler, &stub_cache_miss);
     Bind(&found_handler);
-    { HandleLoadICHandlerCase(p, var_handler.value(), slow); }
+    { HandleLoadICHandlerCase(p, var_handler.value(), slow, &direct_exit); }
 
     Bind(&stub_cache_miss);
     {
@@ -1587,54 +1593,136 @@ void AccessorAssembler::TryProbeStubCache(StubCache* stub_cache, Node* receiver,
 
 //////////////////// Entry points into private implementation (one per stub).
 
+void AccessorAssembler::LoadIC_BytecodeHandler(const LoadICParameters* p,
+                                               ExitPoint* exit_point) {
+  // Must be kept in sync with LoadIC.
+
+  // This function is hand-tuned to omit frame construction for common cases,
+  // e.g.: monomorphic field and constant loads through smi handlers.
+  // Polymorphic ICs with a hit in the first two entries also omit frames.
+  // TODO(jgruber): Frame omission is fragile and can be affected by minor
+  // changes in control flow and logic. We currently have no way of ensuring
+  // that no frame is constructed, so it's easy to break this optimization by
+  // accident.
+  Label stub_call(this, Label::kDeferred), miss(this, Label::kDeferred);
+
+  // Inlined fast path.
+  {
+    Comment("LoadIC_BytecodeHandler_fast");
+
+    Node* recv_map = LoadReceiverMap(p->receiver);
+    GotoIf(IsDeprecatedMap(recv_map), &miss);
+
+    Variable var_handler(this, MachineRepresentation::kTagged);
+    Label try_polymorphic(this), if_handler(this, &var_handler);
+
+    Node* feedback =
+        TryMonomorphicCase(p->slot, p->vector, recv_map, &if_handler,
+                           &var_handler, &try_polymorphic);
+
+    Bind(&if_handler);
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss, exit_point);
+
+    Bind(&try_polymorphic);
+    {
+      GotoIfNot(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
+                &stub_call);
+      HandlePolymorphicCase(recv_map, feedback, &if_handler, &var_handler,
+                            &miss, 2);
+    }
+  }
+
+  Bind(&stub_call);
+  {
+    Comment("LoadIC_BytecodeHandler_noninlined");
+
+    // Call into the stub that implements the non-inlined parts of LoadIC.
+    Callable ic = CodeFactory::LoadICInOptimizedCode_Noninlined(isolate());
+    Node* code_target = HeapConstant(ic.code());
+    exit_point->ReturnCallStub(ic.descriptor(), code_target, p->context,
+                               p->receiver, p->name, p->slot, p->vector);
+  }
+
+  Bind(&miss);
+  {
+    Comment("LoadIC_BytecodeHandler_miss");
+
+    exit_point->ReturnCallRuntime(Runtime::kLoadIC_Miss, p->context,
+                                  p->receiver, p->name, p->slot, p->vector);
+  }
+}
+
 void AccessorAssembler::LoadIC(const LoadICParameters* p) {
+  // Must be kept in sync with LoadIC_BytecodeHandler.
+
+  ExitPoint direct_exit(this);
+
   Variable var_handler(this, MachineRepresentation::kTagged);
-  Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
-      try_megamorphic(this, Label::kDeferred),
-      try_uninitialized(this, Label::kDeferred), miss(this, Label::kDeferred);
+  Label if_handler(this, &var_handler), non_inlined(this, Label::kDeferred),
+      try_polymorphic(this), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
-  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
+  GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
   // Check monomorphic case.
   Node* feedback =
       TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
                          &var_handler, &try_polymorphic);
   Bind(&if_handler);
-  { HandleLoadICHandlerCase(p, var_handler.value(), &miss); }
+  HandleLoadICHandlerCase(p, var_handler.value(), &miss, &direct_exit);
 
   Bind(&try_polymorphic);
   {
     // Check polymorphic case.
     Comment("LoadIC_try_polymorphic");
     GotoIfNot(WordEqual(LoadMap(feedback), FixedArrayMapConstant()),
-              &try_megamorphic);
+              &non_inlined);
     HandlePolymorphicCase(receiver_map, feedback, &if_handler, &var_handler,
                           &miss, 2);
   }
 
-  Bind(&try_megamorphic);
+  Bind(&non_inlined);
+  LoadIC_Noninlined(p, receiver_map, feedback, &var_handler, &if_handler, &miss,
+                    &direct_exit);
+
+  Bind(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver,
+                                p->name, p->slot, p->vector);
+}
+
+void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
+                                          Node* receiver_map, Node* feedback,
+                                          Variable* var_handler,
+                                          Label* if_handler, Label* miss,
+                                          ExitPoint* exit_point) {
+  Label try_uninitialized(this, Label::kDeferred);
+
+  // Neither deprecated map nor monomorphic. These cases are handled in the
+  // bytecode handler.
+  CSA_ASSERT(this, Word32BinaryNot(IsDeprecatedMap(receiver_map)));
+  CSA_ASSERT(this,
+             WordNotEqual(receiver_map, LoadWeakCellValueUnchecked(feedback)));
+  CSA_ASSERT(this, WordNotEqual(LoadMap(feedback), FixedArrayMapConstant()));
+  DCHECK_EQ(MachineRepresentation::kTagged, var_handler->rep());
+
   {
     // Check megamorphic case.
     GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
               &try_uninitialized);
 
     TryProbeStubCache(isolate()->load_stub_cache(), p->receiver, p->name,
-                      &if_handler, &var_handler, &miss);
+                      if_handler, var_handler, miss);
   }
+
   Bind(&try_uninitialized);
   {
     // Check uninitialized case.
     GotoIfNot(
         WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-        &miss);
-    TailCallStub(CodeFactory::LoadIC_Uninitialized(isolate()), p->context,
-                 p->receiver, p->name, p->slot, p->vector);
-  }
-  Bind(&miss);
-  {
-    TailCallRuntime(Runtime::kLoadIC_Miss, p->context, p->receiver, p->name,
-                    p->slot, p->vector);
+        miss);
+    exit_point->ReturnCallStub(CodeFactory::LoadIC_Uninitialized(isolate()),
+                               p->context, p->receiver, p->name, p->slot,
+                               p->vector);
   }
 }
 
@@ -1778,6 +1866,8 @@ void AccessorAssembler::LoadGlobalIC_MissCase(const LoadICParameters* p,
 
 void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
                                      TypeofMode typeof_mode) {
+  // Must be kept in sync with Interpreter::BuildLoadGlobal.
+
   ExitPoint direct_exit(this);
 
   Label try_handler(this), miss(this);
@@ -1792,6 +1882,8 @@ void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
 }
 
 void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
+  ExitPoint direct_exit(this);
+
   Variable var_handler(this, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
@@ -1799,14 +1891,17 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
       miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
-  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
+  GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
   // Check monomorphic case.
   Node* feedback =
       TryMonomorphicCase(p->slot, p->vector, receiver_map, &if_handler,
                          &var_handler, &try_polymorphic);
   Bind(&if_handler);
-  { HandleLoadICHandlerCase(p, var_handler.value(), &miss, kSupportElements); }
+  {
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss, &direct_exit,
+                            kSupportElements);
+  }
 
   Bind(&try_polymorphic);
   {
@@ -1835,10 +1930,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
     GotoIfNot(WordEqual(feedback, p->name), &miss);
     // If the name comparison succeeded, we know we have a fixed array with
     // at least one map/handler pair.
-    Node* offset = ElementOffsetFromIndex(
-        p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
-        FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
-    Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
+    Node* array =
+        LoadFixedArrayElement(p->vector, p->slot, kPointerSize, SMI_PARAMETERS);
     HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
                           1);
   }
@@ -1892,7 +1985,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
       try_megamorphic(this, Label::kDeferred), miss(this, Label::kDeferred);
 
   Node* receiver_map = LoadReceiverMap(p->receiver);
-  GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
+  GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
   // Check monomorphic case.
   Node* feedback =
@@ -1943,7 +2036,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
         try_polymorphic_name(this, Label::kDeferred);
 
     Node* receiver_map = LoadReceiverMap(p->receiver);
-    GotoIf(IsSetWord32<Map::Deprecated>(LoadMapBitField3(receiver_map)), &miss);
+    GotoIf(IsDeprecatedMap(receiver_map), &miss);
 
     // Check monomorphic case.
     Node* feedback =
@@ -2024,10 +2117,8 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
       GotoIfNot(WordEqual(feedback, p->name), &miss);
       // If the name comparison succeeded, we know we have a FixedArray with
       // at least one map/handler pair.
-      Node* offset = ElementOffsetFromIndex(
-          p->slot, FAST_HOLEY_ELEMENTS, SMI_PARAMETERS,
-          FixedArray::kHeaderSize + kPointerSize - kHeapObjectTag);
-      Node* array = Load(MachineType::AnyTagged(), p->vector, offset);
+      Node* array = LoadFixedArrayElement(p->vector, p->slot, kPointerSize,
+                                          SMI_PARAMETERS);
       HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler,
                             &miss, 1);
     }
@@ -2053,6 +2144,34 @@ void AccessorAssembler::GenerateLoadIC() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   LoadIC(&p);
+}
+
+void AccessorAssembler::GenerateLoadIC_Noninlined() {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  ExitPoint direct_exit(this);
+  Variable var_handler(this, MachineRepresentation::kTagged);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
+
+  Node* receiver_map = LoadReceiverMap(receiver);
+  Node* feedback = LoadFixedArrayElement(vector, slot, 0, SMI_PARAMETERS);
+
+  LoadICParameters p(context, receiver, name, slot, vector);
+  LoadIC_Noninlined(&p, receiver_map, feedback, &var_handler, &if_handler,
+                    &miss, &direct_exit);
+
+  Bind(&if_handler);
+  HandleLoadICHandlerCase(&p, var_handler.value(), &miss, &direct_exit);
+
+  Bind(&miss);
+  direct_exit.ReturnCallRuntime(Runtime::kLoadIC_Miss, context, receiver, name,
+                                slot, vector);
 }
 
 void AccessorAssembler::GenerateLoadIC_Uninitialized() {

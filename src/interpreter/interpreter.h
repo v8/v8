@@ -147,9 +147,14 @@ class Interpreter {
   void DoStaLookupSlot(LanguageMode language_mode,
                        InterpreterAssembler* assembler);
 
-  // Generates code to load a global.
-  void BuildLoadGlobal(int slot_operand_index, int name_operand_index,
-                       TypeofMode typeof_mode, InterpreterAssembler* assembler);
+  // Generates code to load a global property.
+  void BuildLoadGlobalIC(int slot_operand_index, int name_operand_index,
+                         TypeofMode typeof_mode,
+                         InterpreterAssembler* assembler);
+
+  // Generates code to load a property.
+  void BuildLoadIC(int recv_operand_index, int slot_operand_index,
+                   int name_operand_index, InterpreterAssembler* assembler);
 
   // Generates code to prepare the result for ForInPrepare. Cache data
   // are placed into the consecutive series of registers starting at

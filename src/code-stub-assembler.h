@@ -697,6 +697,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSReceiverMap(Node* map);
   Node* IsMap(Node* object);
   Node* IsCallableMap(Node* map);
+  Node* IsDeprecatedMap(Node* map);
   Node* IsCallable(Node* object);
   Node* IsBoolean(Node* object);
   Node* IsHeapNumber(Node* object);

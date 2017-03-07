@@ -24,6 +24,7 @@ class AccessorAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
   void GenerateLoadIC();
+  void GenerateLoadIC_Noninlined();
   void GenerateLoadIC_Uninitialized();
   void GenerateLoadField();
   void GenerateLoadICTrampoline();
@@ -76,6 +77,10 @@ class AccessorAssembler : public CodeStubAssembler {
                                    ExitPoint* exit_point, Label* miss);
   void LoadGlobalIC_MissCase(const LoadICParameters* p, ExitPoint* exit_point);
 
+  // Specialized LoadIC for inlined bytecode handler, hand-tuned to omit frame
+  // construction on common paths.
+  void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
+
  protected:
   struct StoreICParameters : public LoadICParameters {
     StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
@@ -94,7 +99,13 @@ class AccessorAssembler : public CodeStubAssembler {
  private:
   // Stub generation entry points.
 
+  // LoadIC contains the full LoadIC logic, while LoadIC_Noninlined contains
+  // logic not inlined into Ignition bytecode handlers.
   void LoadIC(const LoadICParameters* p);
+  void LoadIC_Noninlined(const LoadICParameters* p, Node* receiver_map,
+                         Node* feedback, Variable* var_handler,
+                         Label* if_handler, Label* miss, ExitPoint* exit_point);
+
   void LoadIC_Uninitialized(const LoadICParameters* p);
   void LoadICProtoArray(const LoadICParameters* p, Node* handler,
                         bool throw_reference_error_if_nonexistent);
@@ -123,7 +134,7 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, Node* handler, Label* miss,
-      ElementSupport support_elements = kOnlyProperties);
+      ExitPoint* exit_point, ElementSupport support_elements = kOnlyProperties);
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
                                   Node* smi_handler, Label* miss,

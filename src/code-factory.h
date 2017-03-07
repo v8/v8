@@ -40,6 +40,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable LoadIC(Isolate* isolate);
   static Callable LoadIC_Uninitialized(Isolate* isolate);
   static Callable LoadICInOptimizedCode(Isolate* isolate);
+  static Callable LoadICInOptimizedCode_Noninlined(Isolate* isolate);
   static Callable LoadICProtoArray(Isolate* isolate, bool throw_if_nonexistent);
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,

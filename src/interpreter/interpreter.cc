@@ -485,10 +485,12 @@ void Interpreter::DoMov(InterpreterAssembler* assembler) {
   __ Dispatch();
 }
 
-void Interpreter::BuildLoadGlobal(int slot_operand_index,
-                                  int name_operand_index,
-                                  TypeofMode typeof_mode,
-                                  InterpreterAssembler* assembler) {
+void Interpreter::BuildLoadGlobalIC(int slot_operand_index,
+                                    int name_operand_index,
+                                    TypeofMode typeof_mode,
+                                    InterpreterAssembler* assembler) {
+  // Must be kept in sync with AccessorAssembler::LoadGlobalIC.
+
   // Load the global via the LoadGlobalIC.
   Node* feedback_vector = __ LoadFeedbackVector();
   Node* feedback_slot = __ BytecodeOperandIdx(slot_operand_index);
@@ -560,8 +562,8 @@ void Interpreter::DoLdaGlobal(InterpreterAssembler* assembler) {
   static const int kNameOperandIndex = 0;
   static const int kSlotOperandIndex = 1;
 
-  BuildLoadGlobal(kSlotOperandIndex, kNameOperandIndex, NOT_INSIDE_TYPEOF,
-                  assembler);
+  BuildLoadGlobalIC(kSlotOperandIndex, kNameOperandIndex, NOT_INSIDE_TYPEOF,
+                    assembler);
 }
 
 // LdaGlobalInsideTypeof <name_index> <slot>
@@ -572,8 +574,8 @@ void Interpreter::DoLdaGlobalInsideTypeof(InterpreterAssembler* assembler) {
   static const int kNameOperandIndex = 0;
   static const int kSlotOperandIndex = 1;
 
-  BuildLoadGlobal(kSlotOperandIndex, kNameOperandIndex, INSIDE_TYPEOF,
-                  assembler);
+  BuildLoadGlobalIC(kSlotOperandIndex, kNameOperandIndex, INSIDE_TYPEOF,
+                    assembler);
 }
 
 void Interpreter::DoStaGlobal(Callable ic, InterpreterAssembler* assembler) {
@@ -777,8 +779,8 @@ void Interpreter::DoLdaLookupGlobalSlot(Runtime::FunctionId function_id,
                                  ? INSIDE_TYPEOF
                                  : NOT_INSIDE_TYPEOF;
 
-    BuildLoadGlobal(kSlotOperandIndex, kNameOperandIndex, typeof_mode,
-                    assembler);
+    BuildLoadGlobalIC(kSlotOperandIndex, kNameOperandIndex, typeof_mode,
+                      assembler);
   }
 
   // Slow path when we have to call out to the runtime
@@ -839,25 +841,54 @@ void Interpreter::DoStaLookupSlotStrict(InterpreterAssembler* assembler) {
   DoStaLookupSlot(LanguageMode::STRICT, assembler);
 }
 
+void Interpreter::BuildLoadIC(int recv_operand_index, int slot_operand_index,
+                              int name_operand_index,
+                              InterpreterAssembler* assembler) {
+  __ Comment("BuildLoadIC");
+
+  // Load vector and slot.
+  Node* feedback_vector = __ LoadFeedbackVector();
+  Node* feedback_slot = __ BytecodeOperandIdx(slot_operand_index);
+  Node* smi_slot = __ SmiTag(feedback_slot);
+
+  // Load receiver.
+  Node* register_index = __ BytecodeOperandReg(recv_operand_index);
+  Node* recv = __ LoadRegister(register_index);
+
+  // Load the name.
+  // TODO(jgruber): Not needed for monomorphic smi handler constant/field case.
+  Node* constant_index = __ BytecodeOperandIdx(name_operand_index);
+  Node* name = __ LoadConstantPoolEntry(constant_index);
+
+  Node* context = __ GetContext();
+
+  Label done(assembler);
+  Variable var_result(assembler, MachineRepresentation::kTagged);
+  ExitPoint exit_point(assembler, &done, &var_result);
+
+  AccessorAssembler::LoadICParameters params(context, recv, name, smi_slot,
+                                             feedback_vector);
+  AccessorAssembler accessor_asm(assembler->state());
+  accessor_asm.LoadIC_BytecodeHandler(&params, &exit_point);
+
+  __ Bind(&done);
+  {
+    __ SetAccumulator(var_result.value());
+    __ Dispatch();
+  }
+}
+
 // LdaNamedProperty <object> <name_index> <slot>
 //
 // Calls the LoadIC at FeedBackVector slot <slot> for <object> and the name at
 // constant pool entry <name_index>.
 void Interpreter::DoLdaNamedProperty(InterpreterAssembler* assembler) {
-  Callable ic = CodeFactory::LoadICInOptimizedCode(isolate_);
-  Node* code_target = __ HeapConstant(ic.code());
-  Node* register_index = __ BytecodeOperandReg(0);
-  Node* object = __ LoadRegister(register_index);
-  Node* constant_index = __ BytecodeOperandIdx(1);
-  Node* name = __ LoadConstantPoolEntry(constant_index);
-  Node* raw_slot = __ BytecodeOperandIdx(2);
-  Node* smi_slot = __ SmiTag(raw_slot);
-  Node* feedback_vector = __ LoadFeedbackVector();
-  Node* context = __ GetContext();
-  Node* result = __ CallStub(ic.descriptor(), code_target, context, object,
-                             name, smi_slot, feedback_vector);
-  __ SetAccumulator(result);
-  __ Dispatch();
+  static const int kRecvOperandIndex = 0;
+  static const int kNameOperandIndex = 1;
+  static const int kSlotOperandIndex = 2;
+
+  BuildLoadIC(kRecvOperandIndex, kSlotOperandIndex, kNameOperandIndex,
+              assembler);
 }
 
 // KeyedLoadIC <object> <slot>

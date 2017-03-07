@@ -2871,6 +2871,11 @@ Node* CodeStubAssembler::IsCallableMap(Node* map) {
       Int32Constant(0));
 }
 
+Node* CodeStubAssembler::IsDeprecatedMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return IsSetWord32<Map::Deprecated>(LoadMapBitField3(map));
+}
+
 Node* CodeStubAssembler::IsCallable(Node* object) {
   return IsCallableMap(LoadMap(object));
 }
