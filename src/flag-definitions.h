@@ -276,7 +276,6 @@ DEFINE_DUAL_IMPLICATION(turbo, thin_strings)
 // with the turbo flag.
 DEFINE_BOOL(ignition_staging, false, "use ignition with all staged features")
 DEFINE_DUAL_IMPLICATION(ignition_staging, ignition)
-DEFINE_DUAL_IMPLICATION(ignition_staging, compiler_dispatcher)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
