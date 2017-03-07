@@ -116,7 +116,7 @@ struct Register {
     kCode_no_reg = -1
   };
 
-  static const int kNumRegisters = Code::kAfterLast;
+  static constexpr int kNumRegisters = Code::kAfterLast;
 
   static Register from_code(int code) {
     DCHECK(code >= 0);
@@ -141,14 +141,13 @@ struct Register {
   int reg_code;
 };
 
+#define DEFINE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+GENERAL_REGISTERS(DEFINE_REGISTER)
+#undef DEFINE_REGISTER
+constexpr Register no_reg = {Register::kCode_no_reg};
 
-#define DECLARE_REGISTER(R) const Register R = {Register::kCode_##R};
-GENERAL_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const Register no_reg = {Register::kCode_no_reg};
-
-static const bool kSimpleFPAliasing = true;
-static const bool kSimdMaskRegisters = false;
+constexpr bool kSimpleFPAliasing = true;
+constexpr bool kSimdMaskRegisters = false;
 
 struct XMMRegister {
   enum Code {
@@ -159,7 +158,7 @@ struct XMMRegister {
     kCode_no_reg = -1
   };
 
-  static const int kMaxNumRegisters = Code::kAfterLast;
+  static constexpr int kMaxNumRegisters = Code::kAfterLast;
 
   static XMMRegister from_code(int code) {
     XMMRegister result = {code};
@@ -184,11 +183,11 @@ typedef XMMRegister DoubleRegister;
 
 typedef XMMRegister Simd128Register;
 
-#define DECLARE_REGISTER(R) \
-  const DoubleRegister R = {DoubleRegister::kCode_##R};
-DOUBLE_REGISTERS(DECLARE_REGISTER)
-#undef DECLARE_REGISTER
-const DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
+#define DEFINE_REGISTER(R) \
+  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
+DOUBLE_REGISTERS(DEFINE_REGISTER)
+#undef DEFINE_REGISTER
+constexpr DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -469,7 +468,7 @@ class Assembler : public AssemblerBase {
   // (There is a 15 byte limit on ia32 instruction length that rules out some
   // otherwise valid instructions.)
   // This allows for a single, fast space check per instruction.
-  static const int kGap = 32;
+  static constexpr int kGap = 32;
 
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -521,35 +520,34 @@ class Assembler : public AssemblerBase {
       Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  static const int kSpecialTargetSize = kPointerSize;
+  static constexpr int kSpecialTargetSize = kPointerSize;
 
   // Distance between the address of the code target in the call instruction
   // and the return address
-  static const int kCallTargetAddressOffset = kPointerSize;
+  static constexpr int kCallTargetAddressOffset = kPointerSize;
 
-  static const int kCallInstructionLength = 5;
+  static constexpr int kCallInstructionLength = 5;
 
   // The debug break slot must be able to contain a call instruction.
-  static const int kDebugBreakSlotLength = kCallInstructionLength;
+  static constexpr int kDebugBreakSlotLength = kCallInstructionLength;
 
   // Distance between start of patched debug break slot and the emitted address
   // to jump to.
-  static const int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
+  static constexpr int kPatchDebugBreakSlotAddressOffset = 1;  // JMP imm32.
 
   // One byte opcode for test al, 0xXX.
-  static const byte kTestAlByte = 0xA8;
+  static constexpr byte kTestAlByte = 0xA8;
   // One byte opcode for nop.
-  static const byte kNopByte = 0x90;
+  static constexpr byte kNopByte = 0x90;
 
   // One byte opcode for a short unconditional jump.
-  static const byte kJmpShortOpcode = 0xEB;
+  static constexpr byte kJmpShortOpcode = 0xEB;
   // One byte prefix for a short conditional jump.
-  static const byte kJccShortPrefix = 0x70;
-  static const byte kJncShortOpcode = kJccShortPrefix | not_carry;
-  static const byte kJcShortOpcode = kJccShortPrefix | carry;
-  static const byte kJnzShortOpcode = kJccShortPrefix | not_zero;
-  static const byte kJzShortOpcode = kJccShortPrefix | zero;
-
+  static constexpr byte kJccShortPrefix = 0x70;
+  static constexpr byte kJncShortOpcode = kJccShortPrefix | not_carry;
+  static constexpr byte kJcShortOpcode = kJccShortPrefix | carry;
+  static constexpr byte kJnzShortOpcode = kJccShortPrefix | not_zero;
+  static constexpr byte kJzShortOpcode = kJccShortPrefix | zero;
 
   // ---------------------------------------------------------------------------
   // Code generation
@@ -1466,7 +1464,7 @@ class Assembler : public AssemblerBase {
   }
 
   // Avoid overflows for displacements etc.
-  static const int kMaximalBufferSize = 512*MB;
+  static constexpr int kMaximalBufferSize = 512 * MB;
 
   byte byte_at(int pos) { return buffer_[pos]; }
   void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
