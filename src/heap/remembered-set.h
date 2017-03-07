@@ -266,7 +266,7 @@ class RememberedSet : public AllStatic {
 class UpdateTypedSlotHelper {
  public:
   // Updates a cell slot using an untyped slot callback.
-  // The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+  // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateCell(RelocInfo* rinfo, Callback callback) {
     DCHECK(rinfo->rmode() == RelocInfo::CELL);
@@ -280,7 +280,7 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates a code entry slot using an untyped slot callback.
-  // The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+  // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateCodeEntry(Address entry_address,
                                             Callback callback) {
@@ -295,7 +295,7 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates a code target slot using an untyped slot callback.
-  // The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+  // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateCodeTarget(RelocInfo* rinfo,
                                              Callback callback) {
@@ -310,7 +310,7 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates an embedded pointer slot using an untyped slot callback.
-  // The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+  // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateEmbeddedPointer(RelocInfo* rinfo,
                                                   Callback callback) {
@@ -325,7 +325,7 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates a debug target slot using an untyped slot callback.
-  // The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+  // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateDebugTarget(RelocInfo* rinfo,
                                               Callback callback) {
@@ -339,7 +339,7 @@ class UpdateTypedSlotHelper {
   }
 
   // Updates a typed slot using an untyped slot callback.
-  // The callback accepts (Heap*, Object**) and returns SlotCallbackResult.
+  // The callback accepts Object** and returns SlotCallbackResult.
   template <typename Callback>
   static SlotCallbackResult UpdateTypedSlot(Isolate* isolate,
                                             SlotType slot_type, Address addr,
