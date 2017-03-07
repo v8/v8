@@ -2971,12 +2971,11 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   // Now store all our arguments to the buffer.
   int param_index = 0;
   int offset = 0;
+
   for (int i = 0; i < wasm_count; i++) {
     Node* param = Param(param_index++);
-    bool is_i64_as_two_params =
-        jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kWasmI64;
-
-    if (is_i64_as_two_params) {
+    if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
+                                            sig->GetParam(i))) {
       StoreRepresentation store_rep(wasm::kWasmI32,
                                     WriteBarrierKind::kNoWriteBarrier);
       *effect_ =
@@ -3018,26 +3017,24 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
                      arraysize(parameters), effect_, *control_);
 
   // Read back the return value.
-  if (jsgraph()->machine()->Is32() && sig->return_count() > 0 &&
-      sig->GetReturn() == wasm::kWasmI64) {
+  if (sig->return_count() == 0) {
+    Return(Int32Constant(0));
+  } else if (Int64Lowering::IsI64AsTwoParameters(jsgraph()->machine(),
+                                                 sig->GetReturn())) {
     MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(wasm::kWasmI32);
     Node* lower =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
                          Int32Constant(0), *effect_, *control_);
     Node* upper =
         graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
-                         Int32Constant(sizeof(int32_t)), *effect_, *control_);
-    Return(upper, lower);
+                         Int32Constant(sizeof(int32_t)), lower, *control_);
+    *effect_ = upper;
+    Return(lower, upper);
   } else {
-    Node* val;
-    if (sig->return_count() == 0) {
-      val = Int32Constant(0);
-    } else {
-      MachineType load_rep =
-          wasm::WasmOpcodes::MachineTypeFor(sig->GetReturn());
-      val = graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
-                             Int32Constant(0), *effect_, *control_);
-    }
+    MachineType load_rep = wasm::WasmOpcodes::MachineTypeFor(sig->GetReturn());
+    Node* val =
+        graph()->NewNode(jsgraph()->machine()->Load(load_rep), arg_buffer,
+                         Int32Constant(0), *effect_, *control_);
     Return(val);
   }
 }
