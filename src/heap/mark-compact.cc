@@ -3453,17 +3453,6 @@ bool MarkCompactCollector::WillBeDeoptimized(Code* code) {
   return code->is_optimized_code() && code->marked_for_deoptimization();
 }
 
-
-#ifdef VERIFY_HEAP
-static void VerifyAllBlackObjects(MemoryChunk* page) {
-  LiveObjectIterator<kAllLiveObjects> it(page);
-  HeapObject* object = NULL;
-  while ((object = it.Next()) != NULL) {
-    CHECK(ObjectMarking::IsBlack(object));
-  }
-}
-#endif  // VERIFY_HEAP
-
 void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
   EvacuateRecordOnlyVisitor visitor(heap());
   VisitLiveObjects(page, &visitor, kKeepMarking);
@@ -3472,10 +3461,6 @@ void MarkCompactCollector::RecordLiveSlotsOnPage(Page* page) {
 template <class Visitor>
 bool MarkCompactCollector::VisitLiveObjects(MemoryChunk* page, Visitor* visitor,
                                             IterationMode mode) {
-#ifdef VERIFY_HEAP
-  VerifyAllBlackObjects(page);
-#endif  // VERIFY_HEAP
-
   LiveObjectIterator<kBlackObjects> it(page);
   HeapObject* object = nullptr;
   while ((object = it.Next()) != nullptr) {
