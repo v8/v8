@@ -138,25 +138,13 @@ void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
   MarkBit new_mark_bit = ObjectMarking::MarkBitFrom(to);
   MarkBit old_mark_bit = ObjectMarking::MarkBitFrom(from);
 
-#ifdef DEBUG
-  Marking::ObjectColor old_color = Marking::Color(old_mark_bit);
-#endif
-
   if (Marking::IsBlack(old_mark_bit)) {
-    Marking::MarkWhite(old_mark_bit);
-    Marking::WhiteToBlack(new_mark_bit);
-    return;
+    Marking::MarkBlack(new_mark_bit);
   } else if (Marking::IsGrey(old_mark_bit)) {
-    Marking::MarkWhite(old_mark_bit);
-    Marking::WhiteToGrey(new_mark_bit);
+    Marking::MarkGrey(new_mark_bit);
     heap->mark_compact_collector()->marking_deque()->Push(to);
     heap->incremental_marking()->RestartIfNotMarking();
   }
-
-#ifdef DEBUG
-  Marking::ObjectColor new_color = Marking::Color(new_mark_bit);
-  DCHECK(new_color == old_color);
-#endif
 }
 
 class IncrementalMarkingMarkingVisitor
@@ -835,10 +823,10 @@ intptr_t IncrementalMarking::ProcessMarkingDeque(
                                        completion == FORCE_COMPLETION)) {
     HeapObject* obj = marking_deque->Pop();
 
-    // Left trimming may result in white filler objects on the marking deque.
-    // Ignore these objects.
+    // Left trimming may result in white, grey, or black filler objects on the
+    // marking deque. Ignore these objects.
     if (obj->IsFiller()) {
-      DCHECK(ObjectMarking::IsImpossible(obj) || ObjectMarking::IsWhite(obj));
+      DCHECK(!ObjectMarking::IsImpossible(obj));
       continue;
     }
 

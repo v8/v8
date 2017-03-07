@@ -6372,7 +6372,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
     HeapObject* filler = HeapObject::FromAddress(previous->address());
     CHECK(filler->IsFiller());
     CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(trimmed)));
-    CHECK(Marking::IsImpossible(ObjectMarking::MarkBitFrom(previous)));
+    CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(previous)));
     previous = trimmed;
   }
 
@@ -6383,7 +6383,7 @@ TEST(ContinuousLeftTrimFixedArrayInBlackArea) {
       HeapObject* filler = HeapObject::FromAddress(previous->address());
       CHECK(filler->IsFiller());
       CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(trimmed)));
-      CHECK(Marking::IsWhite(ObjectMarking::MarkBitFrom(previous)));
+      CHECK(Marking::IsBlack(ObjectMarking::MarkBitFrom(previous)));
       previous = trimmed;
     }
   }

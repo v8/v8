@@ -3200,16 +3200,6 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
   // we still do it.
   CreateFillerObjectAt(old_start, bytes_to_trim, ClearRecordedSlots::kYes);
 
-  // Clear the mark bits of the black area that belongs now to the filler.
-  // This is an optimization. The sweeper will release black fillers anyway.
-  if (incremental_marking()->black_allocation() &&
-      Marking::IsBlackOrGrey(ObjectMarking::MarkBitFrom(object))) {
-    Page* page = Page::FromAddress(old_start);
-    page->markbits()->ClearRange(
-        page->AddressToMarkbitIndex(old_start),
-        page->AddressToMarkbitIndex(old_start + bytes_to_trim));
-  }
-
   // Initialize header of the trimmed array. Since left trimming is only
   // performed on pages which are not concurrently swept creating a filler
   // object does not require synchronization.

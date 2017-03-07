@@ -304,6 +304,13 @@ class Marking : public AllStatic {
     markbit.Next().Clear();
   }
 
+  INLINE(static void MarkGrey(MarkBit markbit)) { markbit.Set(); }
+
+  INLINE(static void MarkBlack(MarkBit markbit)) {
+    markbit.Set();
+    markbit.Next().Set();
+  }
+
   INLINE(static void BlackToGrey(MarkBit markbit)) {
     DCHECK(IsBlack(markbit));
     markbit.Next().Clear();

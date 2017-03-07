@@ -179,9 +179,13 @@ HeapObject* LiveObjectIterator<T>::Next() {
 
       // We found a live object.
       if (object != nullptr) {
-        if (map == heap()->one_pointer_filler_map()) {
-          // Black areas together with slack tracking may result in black one
-          // word filler objects. We filter these objects out in the iterator.
+        if (object->IsFiller()) {
+          // There are two reasons why we can get black or grey fillers:
+          // 1) Black areas together with slack tracking may result in black one
+          // word filler objects.
+          // 2) Left trimming may leave black or grey fillers behind because we
+          // do not clear the old location of the object start.
+          // We filter these objects out in the iterator.
           object = nullptr;
         } else {
           break;
