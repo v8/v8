@@ -263,6 +263,8 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   Handle<JSFunction> table_ctor(
       isolate->native_context()->wasm_table_constructor());
   Handle<JSObject> table_obj = isolate->factory()->NewJSObject(table_ctor);
+  table_obj->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   *js_functions = isolate->factory()->NewFixedArray(initial);
   Object* null = isolate->heap()->null_value();
   for (int i = 0; i < static_cast<int>(initial); ++i) {
@@ -340,6 +342,8 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->native_context()->wasm_memory_constructor());
   Handle<JSObject> memory_obj =
       isolate->factory()->NewJSObject(memory_ctor, TENURED);
+  memory_obj->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   memory_obj->SetInternalField(kArrayBuffer, *buffer);
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   memory_obj->SetInternalField(kMaximum, *max);
@@ -447,6 +451,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       isolate->native_context()->wasm_instance_constructor());
   Handle<JSObject> instance_object =
       isolate->factory()->NewJSObject(instance_cons, TENURED);
+  instance_object->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   Handle<Symbol> instance_sym(isolate->native_context()->wasm_instance_sym());
   Object::SetProperty(instance_object, instance_sym, instance_object, STRICT)
       .Check();
@@ -499,6 +505,8 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   shared->set_internal_formal_parameter_count(arity);
   Handle<JSFunction> function = isolate->factory()->NewFunction(
       isolate->wasm_function_map(), name, export_wrapper);
+  function->SetInternalField(kWrapperTracerHeader, Smi::kZero);
+
   function->set_shared(*shared);
 
   function->SetInternalField(kInstance, *instance);
@@ -554,7 +562,7 @@ Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Handle<ByteArray> asm_js_offset_table) {
   Handle<FixedArray> arr =
       isolate->factory()->NewFixedArray(kFieldCount, TENURED);
-
+  arr->set(kWrapperTracerHeader, Smi::kZero);
   arr->set(kModuleWrapper, *module_wrapper);
   if (!module_bytes.is_null()) {
     arr->set(kModuleBytes, *module_bytes);
