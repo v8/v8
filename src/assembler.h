@@ -525,10 +525,10 @@ class RelocInfo {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
   INLINE(Address target_address());
-  INLINE(Object* target_object());
-  INLINE(Handle<Object> target_object_handle(Assembler* origin));
+  INLINE(HeapObject* target_object());
+  INLINE(Handle<HeapObject> target_object_handle(Assembler* origin));
   INLINE(void set_target_object(
-      Object* target,
+      HeapObject* target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
@@ -541,7 +541,7 @@ class RelocInfo {
   INLINE(void set_target_cell(
       Cell* cell, WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Handle<Object> code_age_stub_handle(Assembler* origin));
+  INLINE(Handle<Code> code_age_stub_handle(Assembler* origin));
   INLINE(Code* code_age_stub());
   INLINE(void set_code_age_stub(
       Code* stub, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));

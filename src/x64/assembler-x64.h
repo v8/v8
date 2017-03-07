@@ -535,7 +535,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  inline Handle<Object> code_target_object_handle_at(Address pc);
+  inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
   // Number of bytes taken up by the branch target in the code.
   static const int kSpecialTargetSize = 4;  // Use 32-bit displacement.

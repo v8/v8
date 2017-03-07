@@ -13812,7 +13812,7 @@ void Code::InvalidateRelocation() {
 
 
 void Code::InvalidateEmbeddedObjects() {
-  Object* undefined = GetHeap()->undefined_value();
+  HeapObject* undefined = GetHeap()->undefined_value();
   Cell* undefined_cell = GetHeap()->undefined_cell();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::ModeMask(RelocInfo::CELL);
@@ -13866,7 +13866,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
-      Handle<Object> p = it.rinfo()->target_object_handle(origin);
+      Handle<HeapObject> p = it.rinfo()->target_object_handle(origin);
       it.rinfo()->set_target_object(*p, UPDATE_WRITE_BARRIER,
                                     SKIP_ICACHE_FLUSH);
     } else if (mode == RelocInfo::CELL) {
@@ -13940,16 +13940,14 @@ void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
   int current_pattern = 0;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     RelocInfo* info = it.rinfo();
-    Object* object = info->target_object();
-    if (object->IsHeapObject()) {
-      if (object->IsWeakCell()) {
-        object = HeapObject::cast(WeakCell::cast(object)->value());
-      }
-      Map* map = HeapObject::cast(object)->map();
-      if (map == *pattern.find_[current_pattern]) {
-        info->set_target_object(*pattern.replace_[current_pattern]);
-        if (++current_pattern == pattern.count_) return;
-      }
+    HeapObject* object = info->target_object();
+    if (object->IsWeakCell()) {
+      object = HeapObject::cast(WeakCell::cast(object)->value());
+    }
+    Map* map = object->map();
+    if (map == *pattern.find_[current_pattern]) {
+      info->set_target_object(*pattern.replace_[current_pattern]);
+      if (++current_pattern == pattern.count_) return;
     }
   }
   UNREACHABLE();

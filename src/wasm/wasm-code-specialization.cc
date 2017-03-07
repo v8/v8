@@ -239,7 +239,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
         Object* old = it.rinfo()->target_object();
         Handle<Object>* new_obj = objects_to_relocate.Find(old);
         if (new_obj) {
-          it.rinfo()->set_target_object(**new_obj, UPDATE_WRITE_BARRIER,
+          it.rinfo()->set_target_object(HeapObject::cast(**new_obj),
+                                        UPDATE_WRITE_BARRIER,
                                         icache_flush_mode);
           changed = true;
         }
