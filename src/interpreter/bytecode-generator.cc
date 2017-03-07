@@ -2788,10 +2788,10 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
         builder()
             ->LoadContextSlot(execution_context()->reg(),
                               Context::NATIVE_CONTEXT_INDEX, 0,
-                              BytecodeArrayBuilder::kMutableSlot)
+                              BytecodeArrayBuilder::kImmutableSlot)
             .StoreAccumulatorInRegister(native_context)
             .LoadContextSlot(native_context, Context::EXTENSION_INDEX, 0,
-                             BytecodeArrayBuilder::kMutableSlot)
+                             BytecodeArrayBuilder::kImmutableSlot)
             .StoreAccumulatorInRegister(global_object)
             .LoadLiteral(variable->raw_name())
             .Delete(global_object, language_mode());
@@ -3342,17 +3342,17 @@ void BytecodeGenerator::VisitFunctionClosureForContext() {
     builder()
         ->LoadContextSlot(execution_context()->reg(),
                           Context::NATIVE_CONTEXT_INDEX, 0,
-                          BytecodeArrayBuilder::kMutableSlot)
+                          BytecodeArrayBuilder::kImmutableSlot)
         .StoreAccumulatorInRegister(native_context)
         .LoadContextSlot(native_context, Context::CLOSURE_INDEX, 0,
-                         BytecodeArrayBuilder::kMutableSlot);
+                         BytecodeArrayBuilder::kImmutableSlot);
   } else if (closure_scope()->is_eval_scope()) {
     // Contexts created by a call to eval have the same closure as the
     // context calling eval, not the anonymous closure containing the eval
     // code. Fetch it from the context.
     builder()->LoadContextSlot(execution_context()->reg(),
                                Context::CLOSURE_INDEX, 0,
-                               BytecodeArrayBuilder::kMutableSlot);
+                               BytecodeArrayBuilder::kImmutableSlot);
   } else {
     DCHECK(closure_scope()->is_function_scope() ||
            closure_scope()->is_module_scope());
