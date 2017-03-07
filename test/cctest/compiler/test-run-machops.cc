@@ -6739,6 +6739,20 @@ TEST(Regression5951) {
   CHECK_EQ(input, m.Call(input));
 }
 
+TEST(Regression6046a) {
+  BufferedRawMachineAssemblerTester<int64_t> m;
+  m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(0), m.Int64Constant(0)),
+                       m.Int64Constant(64)));
+  CHECK_EQ(0, m.Call());
+}
+
+TEST(Regression6046b) {
+  BufferedRawMachineAssemblerTester<int32_t> m;
+  m.Return(m.Word32Shr(m.Word32And(m.Int32Constant(0), m.Int32Constant(0)),
+                       m.Int32Constant(32)));
+  CHECK_EQ(0, m.Call());
+}
+
 #endif  // V8_TARGET_ARCH_64_BIT
 
 TEST(Regression6028) {
