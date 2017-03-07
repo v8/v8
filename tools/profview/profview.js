@@ -153,7 +153,7 @@ let main = {
 
   onResize() {
     main.setTimeLineDimensions(
-      window.innerWidth - 20, window.innerHeight / 8);
+      window.innerWidth - 20, window.innerHeight / 5);
   },
 
   onLoad() {
@@ -628,6 +628,9 @@ class TimelineView {
     this.selectionEnd = null;
     this.selecting = false;
 
+    this.fontSize = 12;
+    this.imageOffset = this.fontSize * 1.2;
+
     this.currentState = null;
   }
 
@@ -684,17 +687,68 @@ class TimelineView {
 
   drawSelection() {
     let ctx = this.canvas.getContext("2d");
-    ctx.drawImage(this.buffer, 0, 0);
 
+    // Draw the timeline image.
+    ctx.drawImage(this.buffer, 0, this.imageOffset);
+
+    // Draw the current interval highlight.
+    let left;
+    let right;
     if (this.selectionStart !== null && this.selectionEnd !== null) {
       ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-      let left = Math.min(this.selectionStart, this.selectionEnd);
-      let right = Math.max(this.selectionStart, this.selectionEnd);
-      ctx.fillRect(0, 0, left, this.buffer.height);
-      ctx.fillRect(right, 0, this.buffer.width - right, this.buffer.height);
+      left = Math.min(this.selectionStart, this.selectionEnd);
+      right = Math.max(this.selectionStart, this.selectionEnd);
+      ctx.fillRect(0, this.imageOffset, left, this.buffer.height);
+      ctx.fillRect(right, this.imageOffset, this.buffer.width - right,
+          this.buffer.height);
+    } else {
+      left = 0;
+      right = this.buffer.width;
+    }
+
+    // Draw the scale text.
+    let file = this.currentState.file;
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, this.canvas.width, this.imageOffset);
+    if (file && file.ticks.length > 0) {
+      let firstTime = file.ticks[0].tm;
+      let lastTime = file.ticks[file.ticks.length - 1].tm;
+
+      let leftTime =
+          firstTime + left / this.canvas.width * (lastTime - firstTime);
+      let rightTime =
+          firstTime + right / this.canvas.width * (lastTime - firstTime);
+
+      let leftText = (leftTime / 1000000).toFixed(3) + "s";
+      let rightText = (rightTime / 1000000).toFixed(3) + "s";
+
+      ctx.textBaseline = 'top';
+      ctx.font = this.fontSize + "px Arial";
+      ctx.fillStyle = "black";
+
+      let leftWidth = ctx.measureText(leftText).width;
+      let rightWidth = ctx.measureText(rightText).width;
+
+      let leftStart = left - leftWidth / 2;
+      let rightStart = right - rightWidth / 2;
+
+      if (leftStart < 0) leftStart = 0;
+      if (rightStart + rightWidth > this.canvas.width) {
+        rightStart = this.canvas.width - rightWidth;
+      }
+      if (leftStart + leftWidth > rightStart) {
+        if (leftStart > this.canvas.width - (rightStart - rightWidth)) {
+          rightStart = leftStart + leftWidth;
+
+        } else {
+          leftStart = rightStart - leftWidth;
+        }
+      }
+
+      ctx.fillText(leftText, leftStart, 0);
+      ctx.fillText(rightText, rightStart, 0);
     }
   }
-
 
   render(newState) {
     let oldState = this.currentState;
@@ -720,8 +774,12 @@ class TimelineView {
 
     // Make sure the canvas has the right dimensions.
     let width = this.currentState.timeLine.width;
+    let height = this.currentState.timeLine.height;
     this.canvas.width = width;
-    this.canvas.height  = this.currentState.timeLine.height;
+    this.canvas.height  = height;
+
+    // Make space for the selection text.
+    height -= this.imageOffset;
 
     let file = this.currentState.file;
     if (!file) return;
@@ -746,11 +804,11 @@ class TimelineView {
 
     let buffer = document.createElement("canvas");
 
-    buffer.width = this.canvas.width;
-    buffer.height = this.canvas.height;
+    buffer.width = width;
+    buffer.height = height;
 
     // Calculate the bar heights for each bucket.
-    let graphHeight = buffer.height;
+    let graphHeight = height;
     let buckets = stackProcessor.buckets;
     let bucketsGraph = [];
     for (let i = 0; i < buckets.length; i++) {
