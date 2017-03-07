@@ -1120,14 +1120,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* PageFromAddress(Node* address);
 
-  // Get the enumerable length from |map| and return the result as a Smi.
-  Node* EnumLength(Node* map);
-
-  // Check the cache validity for |receiver|. Branch to |use_cache| if
-  // the cache is valid, otherwise branch to |use_runtime|.
-  void CheckEnumCache(Node* receiver, CodeStubAssembler::Label* use_cache,
-                      CodeStubAssembler::Label* use_runtime);
-
   // Create a new weak cell with a specified value and install it into a
   // feedback vector.
   Node* CreateWeakCellInFeedbackVector(Node* feedback_vector, Node* slot,
@@ -1223,7 +1215,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* HasProperty(
       Node* object, Node* key, Node* context,
       Runtime::FunctionId fallback_runtime_function_id = Runtime::kHasProperty);
-  Node* ForInFilter(Node* key, Node* object, Node* context);
 
   Node* ClassOf(Node* object);
 

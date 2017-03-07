@@ -10,7 +10,7 @@
 #include "src/ast/prettyprinter.h"
 #include "src/builtins/builtins-arguments.h"
 #include "src/builtins/builtins-constructor.h"
-#include "src/builtins/builtins-object.h"
+#include "src/builtins/builtins-forin.h"
 #include "src/code-factory.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
@@ -3167,10 +3167,10 @@ void Interpreter::DoForInPrepare(InterpreterAssembler* assembler) {
   Label call_runtime(assembler, Label::kDeferred),
       nothing_to_iterate(assembler, Label::kDeferred);
 
-  ObjectBuiltinsAssembler object_assembler(assembler->state());
+  ForInBuiltinsAssembler forin_assembler(assembler->state());
   std::tie(cache_type, cache_array, cache_length) =
-      object_assembler.EmitForInPrepare(receiver, context, &call_runtime,
-                                        &nothing_to_iterate);
+      forin_assembler.EmitForInPrepare(receiver, context, &call_runtime,
+                                       &nothing_to_iterate);
 
   BuildForInPrepareResult(output_register, cache_type, cache_array,
                           cache_length, assembler);

@@ -6158,73 +6158,6 @@ Node* CodeStubAssembler::PageFromAddress(Node* address) {
   return WordAnd(address, IntPtrConstant(~Page::kPageAlignmentMask));
 }
 
-Node* CodeStubAssembler::EnumLength(Node* map) {
-  CSA_ASSERT(this, IsMap(map));
-  Node* bitfield_3 = LoadMapBitField3(map);
-  Node* enum_length = DecodeWordFromWord32<Map::EnumLengthBits>(bitfield_3);
-  return SmiTag(enum_length);
-}
-
-void CodeStubAssembler::CheckEnumCache(Node* receiver, Label* use_cache,
-                                       Label* use_runtime) {
-  Variable current_js_object(this, MachineRepresentation::kTagged, receiver);
-
-  Variable current_map(this, MachineRepresentation::kTagged,
-                       LoadMap(current_js_object.value()));
-
-  // These variables are updated in the loop below.
-  Variable* loop_vars[2] = {&current_js_object, &current_map};
-  Label loop(this, 2, loop_vars), next(this);
-
-  // Check if the enum length field is properly initialized, indicating that
-  // there is an enum cache.
-  {
-    Node* invalid_enum_cache_sentinel =
-        SmiConstant(Smi::FromInt(kInvalidEnumCacheSentinel));
-    Node* enum_length = EnumLength(current_map.value());
-    Branch(WordEqual(enum_length, invalid_enum_cache_sentinel), use_runtime,
-           &loop);
-  }
-
-  // Check that there are no elements. |current_js_object| contains
-  // the current JS object we've reached through the prototype chain.
-  Bind(&loop);
-  {
-    Label if_elements(this), if_no_elements(this);
-    Node* elements = LoadElements(current_js_object.value());
-    Node* empty_fixed_array = LoadRoot(Heap::kEmptyFixedArrayRootIndex);
-    // Check that there are no elements.
-    Branch(WordEqual(elements, empty_fixed_array), &if_no_elements,
-           &if_elements);
-    Bind(&if_elements);
-    {
-      // Second chance, the object may be using the empty slow element
-      // dictionary.
-      Node* slow_empty_dictionary =
-          LoadRoot(Heap::kEmptySlowElementDictionaryRootIndex);
-      Branch(WordNotEqual(elements, slow_empty_dictionary), use_runtime,
-             &if_no_elements);
-    }
-
-    Bind(&if_no_elements);
-    {
-      // Update map prototype.
-      current_js_object.Bind(LoadMapPrototype(current_map.value()));
-      Branch(WordEqual(current_js_object.value(), NullConstant()), use_cache,
-             &next);
-    }
-  }
-
-  Bind(&next);
-  {
-    // For all objects but the receiver, check that the cache is empty.
-    current_map.Bind(LoadMap(current_js_object.value()));
-    Node* enum_length = EnumLength(current_map.value());
-    Node* zero_constant = SmiConstant(Smi::kZero);
-    Branch(WordEqual(enum_length, zero_constant), &loop, use_runtime);
-  }
-}
-
 Node* CodeStubAssembler::CreateAllocationSiteInFeedbackVector(
     Node* feedback_vector, Node* slot) {
   Node* size = IntPtrConstant(AllocationSite::kSize);
@@ -7622,34 +7555,6 @@ Node* CodeStubAssembler::SameValue(Node* lhs, Node* rhs, Node* context) {
   }
 
   Bind(&out);
-  return var_result.value();
-}
-
-Node* CodeStubAssembler::ForInFilter(Node* key, Node* object, Node* context) {
-  Label return_undefined(this, Label::kDeferred), return_to_name(this),
-      end(this);
-
-  Variable var_result(this, MachineRepresentation::kTagged);
-
-  Node* has_property =
-      HasProperty(object, key, context, Runtime::kForInHasProperty);
-
-  Branch(WordEqual(has_property, BooleanConstant(true)), &return_to_name,
-         &return_undefined);
-
-  Bind(&return_to_name);
-  {
-    var_result.Bind(ToName(context, key));
-    Goto(&end);
-  }
-
-  Bind(&return_undefined);
-  {
-    var_result.Bind(UndefinedConstant());
-    Goto(&end);
-  }
-
-  Bind(&end);
   return var_result.value();
 }
 
