@@ -291,8 +291,8 @@
           "test_flags": ["constructor"]
         },
         {
-          "name": "Constructor--Future",
-          "flags": ["--future"],
+          "name": "Constructor--noTF",
+          "flags": ["--no-turbo"],
           "results_regexp": "^TypedArrays\\-Constructor\\(Score\\): (.+)$",
           "main": "run.js",
           "test_flags": ["constructor"]
@@ -303,8 +303,8 @@
           "test_flags": ["construct-buffer"]
         },
         {
-          "name": "ConstructWithBuffer--Future",
-          "flags": ["--future"],
+          "name": "ConstructWithBuffer--noTF",
+          "flags": ["--no-turbo"],
           "results_regexp": "^TypedArrays\\-ConstructWithBuffer\\(Score\\): (.+)$",
           "main": "run.js",
           "test_flags": ["construct-buffer"]
@@ -315,8 +315,8 @@
           "test_flags": ["construct-arraylike"]
         },
         {
-          "name": "ConstructArrayLike--Future",
-          "flags": ["--future"],
+          "name": "ConstructArrayLike--noTF",
+          "flags": ["--no-turbo"],
           "results_regexp": "^TypedArrays\\-ConstructArrayLike\\(Score\\): (.+)$",
           "main": "run.js",
           "test_flags": ["construct-arraylike"]
