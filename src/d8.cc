@@ -2892,7 +2892,8 @@ int Shell::Main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
   g_platform = i::FLAG_verify_predictable
                    ? new PredictablePlatform()
-                   : v8::platform::CreateDefaultPlatform();
+                   : v8::platform::CreateDefaultPlatform(
+                         0, v8::platform::IdleTaskSupport::kEnabled);
 
   platform::tracing::TracingController* tracing_controller;
   if (options.trace_enabled) {
