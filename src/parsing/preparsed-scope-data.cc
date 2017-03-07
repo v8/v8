@@ -11,74 +11,107 @@
 namespace v8 {
 namespace internal {
 
-bool PreParsedScopeData::HasVariablesWhichNeedAllocationData(Scope* scope) {
+namespace {
+
+class VariableIsUsedField : public BitField16<bool, 0, 1> {};
+class VariableMaybeAssignedField
+    : public BitField16<bool, VariableIsUsedField::kNext, 1> {};
+class VariableContextAllocatedField
+    : public BitField16<bool, VariableMaybeAssignedField::kNext, 1> {};
+
+}  // namespace
+
+void PreParsedScopeData::SaveData(Scope* scope) {
+  size_t old_size = backing_store_.size();
+
   if (!scope->is_hidden()) {
     for (Variable* var : *scope->locals()) {
       if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {
-        return true;
+        SaveDataForVariable(var);
       }
     }
   }
   for (Scope* inner = scope->inner_scope(); inner != nullptr;
        inner = inner->sibling()) {
-    if (HasVariablesWhichNeedAllocationData(inner)) {
-      return true;
-    }
+    SaveData(inner);
   }
-  return false;
-}
 
-PreParsedScopeData::ScopeScope::ScopeScope(PreParsedScopeData* data,
-                                           ScopeType scope_type,
-                                           int start_position, int end_position)
-    : data_(data), previous_scope_(data->current_scope_) {
-  data->current_scope_ = this;
-  data->backing_store_.push_back(scope_type);
-  data->backing_store_.push_back(start_position);
-  data->backing_store_.push_back(end_position);
-  // Reserve space for variable and inner scope count (we don't know yet how
-  // many will be added).
-  index_in_data_ = data->backing_store_.size();
-  data->backing_store_.push_back(-1);
-  data->backing_store_.push_back(-1);
-}
-
-PreParsedScopeData::ScopeScope::~ScopeScope() {
-  data_->current_scope_ = previous_scope_;
-  if (got_data_) {
-    DCHECK_GT(variable_count_ + inner_scope_count_, 0);
-    if (previous_scope_ != nullptr) {
-      previous_scope_->got_data_ = true;
-      ++previous_scope_->inner_scope_count_;
-    }
-    data_->backing_store_[index_in_data_] = inner_scope_count_;
-    data_->backing_store_[index_in_data_ + 1] = variable_count_;
-  } else {
-    // No interesting data for this scope (or its children); remove from the
-    // data.
-    DCHECK_EQ(data_->backing_store_.size(), index_in_data_ + 2);
-    DCHECK_GE(index_in_data_, 3);
-    DCHECK_EQ(variable_count_, 0);
-    data_->backing_store_.erase(
-        data_->backing_store_.begin() + index_in_data_ - 3,
-        data_->backing_store_.end());
-  }
-}
-
-void PreParsedScopeData::ScopeScope::MaybeAddVariable(Variable* var) {
-  if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {
+  if (old_size != backing_store_.size()) {
 #ifdef DEBUG
-    // For tests (which check that the data is about the same variables).
-    const AstRawString* name = var->raw_name();
-    data_->backing_store_.push_back(name->length());
-    for (int i = 0; i < name->length(); ++i) {
-      data_->backing_store_.push_back(name->raw_data()[i]);
-    }
+    backing_store_.push_back(scope->scope_type());
 #endif
-    data_->backing_store_.push_back(var->location());
-    data_->backing_store_.push_back(var->maybe_assigned());
-    ++variable_count_;
-    got_data_ = true;
+
+    backing_store_.push_back(scope->inner_scope_calls_eval());
+  }
+}
+
+void PreParsedScopeData::RestoreData(Scope* scope, int* index_ptr) const {
+  int& index = *index_ptr;
+  int old_index = index;
+
+  if (!scope->is_hidden()) {
+    for (Variable* var : *scope->locals()) {
+      if (var->mode() == VAR || var->mode() == LET || var->mode() == CONST) {
+        RestoreDataForVariable(var, index_ptr);
+      }
+    }
+  }
+  for (Scope* inner = scope->inner_scope(); inner != nullptr;
+       inner = inner->sibling()) {
+    RestoreData(inner, index_ptr);
+  }
+
+  if (index != old_index) {
+// Some data was read, i.e., there's data for the Scope.
+
+#ifdef DEBUG
+    DCHECK_EQ(backing_store_[index++], scope->scope_type());
+#endif
+
+    if (backing_store_[index++]) {
+      scope->RecordEvalCall();
+    }
+  }
+}
+
+void PreParsedScopeData::SaveDataForVariable(Variable* var) {
+#ifdef DEBUG
+  // Store the variable name in debug mode; this way we can check that we
+  // restore data to the correct variable.
+  const AstRawString* name = var->raw_name();
+  backing_store_.push_back(name->length());
+  for (int i = 0; i < name->length(); ++i) {
+    backing_store_.push_back(name->raw_data()[i]);
+  }
+#endif
+  int variable_data = VariableIsUsedField::encode(var->is_used()) |
+                      VariableMaybeAssignedField::encode(
+                          var->maybe_assigned() == kMaybeAssigned) |
+                      VariableContextAllocatedField::encode(
+                          var->has_forced_context_allocation());
+
+  backing_store_.push_back(variable_data);
+}
+
+void PreParsedScopeData::RestoreDataForVariable(Variable* var,
+                                                int* index_ptr) const {
+  int& index = *index_ptr;
+#ifdef DEBUG
+  const AstRawString* name = var->raw_name();
+  DCHECK_EQ(backing_store_[index++], name->length());
+  for (int i = 0; i < name->length(); ++i) {
+    DCHECK_EQ(backing_store_[index++], name->raw_data()[i]);
+  }
+#endif
+  int variable_data = backing_store_[index++];
+  if (VariableIsUsedField::decode(variable_data)) {
+    var->set_is_used();
+  }
+  if (VariableMaybeAssignedField::decode(variable_data)) {
+    var->set_maybe_assigned();
+  }
+  if (VariableContextAllocatedField::decode(variable_data)) {
+    var->ForceContextAllocation();
   }
 }
 

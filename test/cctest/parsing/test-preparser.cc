@@ -616,21 +616,43 @@ TEST(PreParserScopeAnalysis) {
       printf("\n");
 
       script = factory->NewScript(source);
-      i::ParseInfo eager_info(script);
-      eager_info.set_allow_lazy_parsing(false);
 
-      CHECK(i::parsing::ParseProgram(&eager_info));
-      CHECK(i::Compiler::Analyze(&eager_info));
+      // Compare the allocation of the variables in two cases: 1) normal scope
+      // allocation 2) allocation based on the preparse data.
 
-      i::Scope* scope =
-          eager_info.literal()->scope()->inner_scope()->inner_scope();
-      DCHECK_NOT_NULL(scope);
-      DCHECK_NULL(scope->sibling());
-      DCHECK(scope->is_function_scope());
+      i::ParseInfo eager_normal(script);
+      eager_normal.set_allow_lazy_parsing(false);
 
-      size_t index = 0;
-      i::ScopeTestHelper::CompareScopeToData(
-          scope, lazy_info.preparsed_scope_data(), index,
+      CHECK(i::parsing::ParseProgram(&eager_normal));
+      CHECK(i::Compiler::Analyze(&eager_normal));
+
+      i::Scope* normal_scope =
+          eager_normal.literal()->scope()->inner_scope()->inner_scope();
+      CHECK_NOT_NULL(normal_scope);
+      CHECK_NULL(normal_scope->sibling());
+      CHECK(normal_scope->is_function_scope());
+
+      i::ParseInfo eager_using_scope_data(script);
+      eager_using_scope_data.set_allow_lazy_parsing(false);
+
+      CHECK(i::parsing::ParseProgram(&eager_using_scope_data));
+      // Don't run scope analysis (that would obviously decide the correct
+      // allocation for the variables).
+
+      i::Scope* unallocated_scope = eager_using_scope_data.literal()
+                                        ->scope()
+                                        ->inner_scope()
+                                        ->inner_scope();
+      CHECK_NOT_NULL(unallocated_scope);
+      CHECK_NULL(unallocated_scope->sibling());
+      CHECK(unallocated_scope->is_function_scope());
+
+      int index = 0;
+      lazy_info.preparsed_scope_data()->RestoreData(unallocated_scope, &index);
+      i::ScopeTestHelper::AllocateWithoutVariableResolution(unallocated_scope);
+
+      i::ScopeTestHelper::CompareScopes(
+          normal_scope, unallocated_scope,
           inners[inner_ix].precise_maybe_assigned);
     }
   }

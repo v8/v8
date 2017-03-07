@@ -1523,10 +1523,9 @@ void DeclarationScope::AnalyzePartially(
     }
 
     if (FLAG_preparser_scope_analysis) {
-      // Decide context allocation for the locals and parameters and store the
-      // info away.
-      AllocateVariablesRecursively();
-      CollectVariableData(preparsed_scope_data);
+      // Store the information needed for allocating the locals of this scope
+      // and its inner scopes.
+      preparsed_scope_data->SaveData(this);
     }
   }
 #ifdef DEBUG
@@ -2301,17 +2300,6 @@ void Scope::AllocateDebuggerScopeInfos(Isolate* isolate,
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     if (scope->is_function_scope()) continue;
     scope->AllocateDebuggerScopeInfos(isolate, outer);
-  }
-}
-
-void Scope::CollectVariableData(PreParsedScopeData* data) {
-  PreParsedScopeData::ScopeScope scope_scope(data, scope_type(),
-                                             start_position(), end_position());
-  for (Variable* local : locals_) {
-    scope_scope.MaybeAddVariable(local);
-  }
-  for (Scope* inner = inner_scope_; inner != nullptr; inner = inner->sibling_) {
-    inner->CollectVariableData(data);
   }
 }
 

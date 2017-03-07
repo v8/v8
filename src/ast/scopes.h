@@ -594,8 +594,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   void AllocateDebuggerScopeInfos(Isolate* isolate,
                                   MaybeHandle<ScopeInfo> outer_scope);
 
-  void CollectVariableData(PreParsedScopeData* data);
-
   // Construct a scope based on the scope info.
   Scope(Zone* zone, ScopeType type, Handle<ScopeInfo> scope_info);
 

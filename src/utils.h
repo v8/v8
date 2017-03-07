@@ -1640,6 +1640,7 @@ class ThreadedList final {
     }
     bool operator!=(const Iterator& other) { return entry_ != other.entry_; }
     T* operator*() { return *entry_; }
+    T* operator->() { return *entry_; }
     Iterator& operator=(T* entry) {
       T* next = *(*entry_)->next();
       *entry->next() = next;
