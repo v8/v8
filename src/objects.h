@@ -4048,8 +4048,8 @@ class ObjectHashSet
 //   [3..(3 + NumberOfRemovedHoles() - 1)]: The indexes of the removed holes.
 //   [3 + NumberOfRemovedHoles()..length]: Not used
 //
-template<class Derived, class Iterator, int entrysize>
-class OrderedHashTable: public FixedArray {
+template <class Derived, int entrysize>
+class OrderedHashTable : public FixedArray {
  public:
   // Returns an OrderedHashTable with a capacity of at least |capacity|.
   static Handle<Derived> Allocate(
@@ -4197,12 +4197,7 @@ class OrderedHashTable: public FixedArray {
       / (1 + (kEntrySize * kLoadFactor));
 };
 
-
-class JSSetIterator;
-
-
-class OrderedHashSet: public OrderedHashTable<
-    OrderedHashSet, JSSetIterator, 1> {
+class OrderedHashSet : public OrderedHashTable<OrderedHashSet, 1> {
  public:
   DECLARE_CAST(OrderedHashSet)
 
@@ -4212,12 +4207,7 @@ class OrderedHashSet: public OrderedHashTable<
                                                GetKeysConversion convert);
 };
 
-
-class JSMapIterator;
-
-
-class OrderedHashMap
-    : public OrderedHashTable<OrderedHashMap, JSMapIterator, 2> {
+class OrderedHashMap : public OrderedHashTable<OrderedHashMap, 2> {
  public:
   DECLARE_CAST(OrderedHashMap)
 

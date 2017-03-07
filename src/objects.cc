@@ -18369,9 +18369,8 @@ void WeakHashTable::AddEntry(int entry, Handle<WeakCell> key_cell,
   ElementAdded();
 }
 
-
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Allocate(
+template <class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure) {
   // Capacity must be a power of two, since we depend on being able
   // to divide and multiple by 2 (kLoadFactor) to derive capacity
@@ -18397,9 +18396,8 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Allocate(
   return table;
 }
 
-
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::EnsureGrowable(
+template <class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::EnsureGrowable(
     Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
@@ -18413,9 +18411,8 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::EnsureGrowable(
   return Rehash(table, (nod < (capacity >> 1)) ? capacity << 1 : capacity);
 }
 
-
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Shrink(
+template <class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Shrink(
     Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
@@ -18425,9 +18422,8 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Shrink(
   return Rehash(table, capacity / 2);
 }
 
-
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
+template <class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
     Handle<Derived> table) {
   DCHECK(!table->IsObsolete());
 
@@ -18442,9 +18438,9 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Clear(
   return new_table;
 }
 
-template <class Derived, class Iterator, int entrysize>
-bool OrderedHashTable<Derived, Iterator, entrysize>::HasKey(
-    Handle<Derived> table, Handle<Object> key) {
+template <class Derived, int entrysize>
+bool OrderedHashTable<Derived, entrysize>::HasKey(Handle<Derived> table,
+                                                  Handle<Object> key) {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = table->GetIsolate();
   Object* raw_key = *key;
@@ -18508,8 +18504,8 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   return result;
 }
 
-template<class Derived, class Iterator, int entrysize>
-Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
+template <class Derived, int entrysize>
+Handle<Derived> OrderedHashTable<Derived, entrysize>::Rehash(
     Handle<Derived> table, int new_capacity) {
   Isolate* isolate = table->GetIsolate();
   DCHECK(!table->IsObsolete());
@@ -18553,46 +18549,35 @@ Handle<Derived> OrderedHashTable<Derived, Iterator, entrysize>::Rehash(
   return new_table;
 }
 
-
-template Handle<OrderedHashSet>
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Allocate(
+template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
-template Handle<OrderedHashSet>
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::EnsureGrowable(
+template Handle<OrderedHashSet> OrderedHashTable<
+    OrderedHashSet, 1>::EnsureGrowable(Handle<OrderedHashSet> table);
+
+template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Shrink(
     Handle<OrderedHashSet> table);
 
-template Handle<OrderedHashSet>
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Shrink(
+template Handle<OrderedHashSet> OrderedHashTable<OrderedHashSet, 1>::Clear(
     Handle<OrderedHashSet> table);
 
-template Handle<OrderedHashSet>
-OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::Clear(
-    Handle<OrderedHashSet> table);
-
-template bool OrderedHashTable<OrderedHashSet, JSSetIterator, 1>::HasKey(
+template bool OrderedHashTable<OrderedHashSet, 1>::HasKey(
     Handle<OrderedHashSet> table, Handle<Object> key);
 
-
-template Handle<OrderedHashMap>
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Allocate(
+template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Allocate(
     Isolate* isolate, int capacity, PretenureFlag pretenure);
 
-template Handle<OrderedHashMap>
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::EnsureGrowable(
+template Handle<OrderedHashMap> OrderedHashTable<
+    OrderedHashMap, 2>::EnsureGrowable(Handle<OrderedHashMap> table);
+
+template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Shrink(
     Handle<OrderedHashMap> table);
 
-template Handle<OrderedHashMap>
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Shrink(
+template Handle<OrderedHashMap> OrderedHashTable<OrderedHashMap, 2>::Clear(
     Handle<OrderedHashMap> table);
 
-template Handle<OrderedHashMap>
-OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::Clear(
-    Handle<OrderedHashMap> table);
-
-template bool OrderedHashTable<OrderedHashMap, JSMapIterator, 2>::HasKey(
+template bool OrderedHashTable<OrderedHashMap, 2>::HasKey(
     Handle<OrderedHashMap> table, Handle<Object> key);
-
 
 template<class Derived, class TableType>
 void OrderedHashTableIterator<Derived, TableType>::Transition() {
