@@ -571,6 +571,8 @@
   V(Float32x4Max)                \
   V(Float32x4MinNum)             \
   V(Float32x4MaxNum)             \
+  V(Float32x4RecipRefine)        \
+  V(Float32x4RecipSqrtRefine)    \
   V(Float32x4Equal)              \
   V(Float32x4NotEqual)           \
   V(Float32x4LessThan)           \

@@ -239,12 +239,12 @@ MachineType AtomicExchangeRepresentationOf(Operator const* op) {
   V(Float32x4Max, Operator::kCommutative, 2, 0, 1)                         \
   V(Float32x4MinNum, Operator::kCommutative, 2, 0, 1)                      \
   V(Float32x4MaxNum, Operator::kCommutative, 2, 0, 1)                      \
+  V(Float32x4RecipRefine, Operator::kNoProperties, 2, 0, 1)                \
+  V(Float32x4RecipSqrtRefine, Operator::kNoProperties, 2, 0, 1)            \
   V(Float32x4Equal, Operator::kCommutative, 2, 0, 1)                       \
   V(Float32x4NotEqual, Operator::kCommutative, 2, 0, 1)                    \
   V(Float32x4LessThan, Operator::kNoProperties, 2, 0, 1)                   \
   V(Float32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)            \
-  V(Float32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                \
-  V(Float32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)         \
   V(Float32x4FromInt32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Float32x4FromUint32x4, Operator::kNoProperties, 1, 0, 1)               \
   V(Int32x4Splat, Operator::kNoProperties, 1, 0, 1)                        \
@@ -258,15 +258,11 @@ MachineType AtomicExchangeRepresentationOf(Operator const* op) {
   V(Int32x4NotEqual, Operator::kCommutative, 2, 0, 1)                      \
   V(Int32x4LessThan, Operator::kNoProperties, 2, 0, 1)                     \
   V(Int32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
-  V(Int32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
-  V(Int32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
   V(Int32x4FromFloat32x4, Operator::kNoProperties, 1, 0, 1)                \
   V(Uint32x4Min, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint32x4Max, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint32x4LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint32x4LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)             \
-  V(Uint32x4GreaterThan, Operator::kNoProperties, 2, 0, 1)                 \
-  V(Uint32x4GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)          \
   V(Uint32x4FromFloat32x4, Operator::kNoProperties, 1, 0, 1)               \
   V(Int16x8Splat, Operator::kNoProperties, 1, 0, 1)                        \
   V(Int16x8Neg, Operator::kNoProperties, 1, 0, 1)                          \
@@ -281,16 +277,12 @@ MachineType AtomicExchangeRepresentationOf(Operator const* op) {
   V(Int16x8NotEqual, Operator::kCommutative, 2, 0, 1)                      \
   V(Int16x8LessThan, Operator::kNoProperties, 2, 0, 1)                     \
   V(Int16x8LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
-  V(Int16x8GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
-  V(Int16x8GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
   V(Uint16x8AddSaturate, Operator::kCommutative, 2, 0, 1)                  \
   V(Uint16x8SubSaturate, Operator::kNoProperties, 2, 0, 1)                 \
   V(Uint16x8Min, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint16x8Max, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint16x8LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint16x8LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)             \
-  V(Uint16x8GreaterThan, Operator::kNoProperties, 2, 0, 1)                 \
-  V(Uint16x8GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)          \
   V(Int8x16Splat, Operator::kNoProperties, 1, 0, 1)                        \
   V(Int8x16Neg, Operator::kNoProperties, 1, 0, 1)                          \
   V(Int8x16Add, Operator::kCommutative, 2, 0, 1)                           \
@@ -304,16 +296,12 @@ MachineType AtomicExchangeRepresentationOf(Operator const* op) {
   V(Int8x16NotEqual, Operator::kCommutative, 2, 0, 1)                      \
   V(Int8x16LessThan, Operator::kNoProperties, 2, 0, 1)                     \
   V(Int8x16LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)              \
-  V(Int8x16GreaterThan, Operator::kNoProperties, 2, 0, 1)                  \
-  V(Int8x16GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)           \
   V(Uint8x16AddSaturate, Operator::kCommutative, 2, 0, 1)                  \
   V(Uint8x16SubSaturate, Operator::kNoProperties, 2, 0, 1)                 \
   V(Uint8x16Min, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint8x16Max, Operator::kCommutative, 2, 0, 1)                          \
   V(Uint8x16LessThan, Operator::kNoProperties, 2, 0, 1)                    \
   V(Uint8x16LessThanOrEqual, Operator::kNoProperties, 2, 0, 1)             \
-  V(Uint8x16GreaterThan, Operator::kNoProperties, 2, 0, 1)                 \
-  V(Uint8x16GreaterThanOrEqual, Operator::kNoProperties, 2, 0, 1)          \
   V(Simd128Load, Operator::kNoProperties, 2, 0, 1)                         \
   V(Simd128Load1, Operator::kNoProperties, 2, 0, 1)                        \
   V(Simd128Load2, Operator::kNoProperties, 2, 0, 1)                        \

@@ -1549,6 +1549,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vneg(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
     }
+    case kArmFloat32x4RecipApprox: {
+      __ vrecpe(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4RecipSqrtApprox: {
+      __ vrsqrte(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      break;
+    }
     case kArmFloat32x4Add: {
       __ vadd(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
@@ -1557,6 +1565,31 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmFloat32x4Sub: {
       __ vsub(i.OutputSimd128Register(), i.InputSimd128Register(0),
               i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Mul: {
+      __ vmul(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Min: {
+      __ vmin(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4Max: {
+      __ vmax(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4RecipRefine: {
+      __ vrecps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputSimd128Register(1));
+      break;
+    }
+    case kArmFloat32x4RecipSqrtRefine: {
+      __ vrsqrts(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputSimd128Register(1));
       break;
     }
     case kArmFloat32x4Equal: {
@@ -1568,6 +1601,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register();
       __ vceq(dst, i.InputSimd128Register(0), i.InputSimd128Register(1));
       __ vmvn(dst, dst);
+      break;
+    }
+    case kArmFloat32x4LessThan: {
+      __ vcgt(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
+      break;
+    }
+    case kArmFloat32x4LessThanOrEqual: {
+      __ vcge(i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmInt32x4Splat: {
@@ -1643,14 +1686,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt32x4GreaterThan: {
-      __ vcgt(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt32x4LessThan: {
+      __ vcgt(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmInt32x4GreaterThanOrEqual: {
-      __ vcge(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt32x4LessThanOrEqual: {
+      __ vcge(NeonS32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmUint32x4ShiftRightByScalar: {
@@ -1668,14 +1711,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint32x4GreaterThan: {
-      __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint32x4LessThan: {
+      __ vcgt(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmUint32x4GreaterThanOrEqual: {
-      __ vcge(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint32x4LessThanOrEqual: {
+      __ vcge(NeonU32, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmInt16x8Splat: {
@@ -1753,14 +1796,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt16x8GreaterThan: {
-      __ vcgt(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt16x8LessThan: {
+      __ vcgt(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmInt16x8GreaterThanOrEqual: {
-      __ vcge(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt16x8LessThanOrEqual: {
+      __ vcge(NeonS16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmUint16x8ShiftRightByScalar: {
@@ -1788,14 +1831,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint16x8GreaterThan: {
-      __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint16x8LessThan: {
+      __ vcgt(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmUint16x8GreaterThanOrEqual: {
-      __ vcge(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint16x8LessThanOrEqual: {
+      __ vcge(NeonU16, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmInt8x16Splat: {
@@ -1872,14 +1915,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vmvn(dst, dst);
       break;
     }
-    case kArmInt8x16GreaterThan: {
-      __ vcgt(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt8x16LessThan: {
+      __ vcgt(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmInt8x16GreaterThanOrEqual: {
-      __ vcge(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmInt8x16LessThanOrEqual: {
+      __ vcge(NeonS8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmUint8x16ShiftRightByScalar: {
@@ -1907,14 +1950,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.InputSimd128Register(1));
       break;
     }
-    case kArmUint8x16GreaterThan: {
-      __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint8x16LessThan: {
+      __ vcgt(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
-    case kArmUint8x16GreaterThanOrEqual: {
-      __ vcge(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(0),
-              i.InputSimd128Register(1));
+    case kArmUint8x16LessThanOrEqual: {
+      __ vcge(NeonU8, i.OutputSimd128Register(), i.InputSimd128Register(1),
+              i.InputSimd128Register(0));
       break;
     }
     case kArmSimd128Zero: {
