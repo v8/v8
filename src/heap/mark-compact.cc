@@ -1739,6 +1739,7 @@ class MarkCompactCollector::EvacuateNewSpaceVisitor final
 
   intptr_t promoted_size() { return promoted_size_; }
   intptr_t semispace_copied_size() { return semispace_copied_size_; }
+  AllocationInfo CloseLAB() { return buffer_.Close(); }
 
  private:
   enum NewSpaceAllocationMode {
@@ -3024,6 +3025,7 @@ class MarkCompactCollector::Evacuator : public Malloced {
   inline void Finalize();
 
   CompactionSpaceCollection* compaction_spaces() { return &compaction_spaces_; }
+  AllocationInfo CloseNewSpaceLAB() { return new_space_visitor_.CloseLAB(); }
 
  private:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
@@ -3262,8 +3264,16 @@ void MarkCompactCollector::EvacuatePagesInParallel() {
     evacuators[i] = new Evacuator(this);
   }
   job.Run(wanted_num_tasks, [evacuators](int i) { return evacuators[i]; });
+  const Address top = heap()->new_space()->top();
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
+    // Try to find the last LAB that was used for new space allocation in
+    // evacuation tasks. If it was adjacent to the current top, move top back.
+    const AllocationInfo info = evacuators[i]->CloseNewSpaceLAB();
+    if (info.limit() != nullptr && info.limit() == top) {
+      DCHECK_NOT_NULL(info.top());
+      *heap()->new_space()->allocation_top_address() = info.top();
+    }
     delete evacuators[i];
   }
   delete[] evacuators;

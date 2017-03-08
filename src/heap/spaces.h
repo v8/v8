@@ -1930,10 +1930,11 @@ class LocalAllocationBuffer {
   // Returns true if the merge was successful, false otherwise.
   inline bool TryMerge(LocalAllocationBuffer* other);
 
+  // Close a LAB, effectively invalidating it. Returns the unused area.
+  AllocationInfo Close();
+
  private:
   LocalAllocationBuffer(Heap* heap, AllocationInfo allocation_info);
-
-  void Close();
 
   Heap* heap_;
   AllocationInfo allocation_info_;

@@ -1646,13 +1646,17 @@ bool SemiSpace::EnsureCurrentCapacity() {
   return true;
 }
 
-void LocalAllocationBuffer::Close() {
+AllocationInfo LocalAllocationBuffer::Close() {
   if (IsValid()) {
     heap_->CreateFillerObjectAt(
         allocation_info_.top(),
         static_cast<int>(allocation_info_.limit() - allocation_info_.top()),
         ClearRecordedSlots::kNo);
+    const AllocationInfo old_info = allocation_info_;
+    allocation_info_ = AllocationInfo(nullptr, nullptr);
+    return old_info;
   }
+  return AllocationInfo(nullptr, nullptr);
 }
 
 
