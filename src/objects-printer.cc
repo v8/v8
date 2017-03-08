@@ -789,6 +789,9 @@ void JSMessageObject::JSMessageObjectPrint(std::ostream& os) {  // NOLINT
 
 
 void String::StringPrint(std::ostream& os) {  // NOLINT
+  if (!HasOnlyOneByteChars()) {
+    os << "u";
+  }
   if (StringShape(this).IsInternalized()) {
     os << "#";
   } else if (StringShape(this).IsCons()) {
