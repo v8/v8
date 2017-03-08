@@ -2946,7 +2946,8 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   // Compute size for the argument buffer.
   int args_size_bytes = 0;
   for (int i = 0; i < wasm_count; i++) {
-    args_size_bytes += 1 << ElementSizeLog2Of(sig->GetParam(i));
+    args_size_bytes +=
+        RoundUpToMultipleOfPowOf2(1 << ElementSizeLog2Of(sig->GetParam(i)), 8);
   }
 
   // The return value is also passed via this buffer:
@@ -2969,25 +2970,33 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
     Node* param = Param(param_index++);
     bool is_i64_as_two_params =
         jsgraph()->machine()->Is32() && sig->GetParam(i) == wasm::kWasmI64;
-    MachineRepresentation param_rep =
-        is_i64_as_two_params ? wasm::kWasmI32 : sig->GetParam(i);
-    StoreRepresentation store_rep(param_rep, WriteBarrierKind::kNoWriteBarrier);
-    *effect_ =
-        graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
-                         Int32Constant(offset), param, *effect_, *control_);
-    offset += 1 << ElementSizeLog2Of(param_rep);
-    // TODO(clemensh): Respect endianess here. Might need to swap upper and
-    // lower word.
+
     if (is_i64_as_two_params) {
-      // Also store the upper half.
-      param = Param(param_index++);
       StoreRepresentation store_rep(wasm::kWasmI32,
                                     WriteBarrierKind::kNoWriteBarrier);
       *effect_ =
           graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
+                           Int32Constant(offset + kInt64LowerHalfMemoryOffset),
+                           param, *effect_, *control_);
+
+      param = Param(param_index++);
+      *effect_ =
+          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
+                           Int32Constant(offset + kInt64UpperHalfMemoryOffset),
+                           param, *effect_, *control_);
+      offset += 8;
+
+    } else {
+      MachineRepresentation param_rep = sig->GetParam(i);
+      StoreRepresentation store_rep(param_rep,
+                                    WriteBarrierKind::kNoWriteBarrier);
+      *effect_ =
+          graph()->NewNode(jsgraph()->machine()->Store(store_rep), arg_buffer,
                            Int32Constant(offset), param, *effect_, *control_);
-      offset += 1 << ElementSizeLog2Of(wasm::kWasmI32);
+      offset += RoundUpToMultipleOfPowOf2(1 << ElementSizeLog2Of(param_rep), 8);
     }
+
+    DCHECK(IsAligned(offset, 8));
   }
   DCHECK_EQ(param_count, param_index);
   DCHECK_EQ(args_size_bytes, offset);
@@ -3888,7 +3897,10 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(&zone);
+  MachineOperatorBuilder machine(
+      &zone, MachineType::PointerRepresentation(),
+      InstructionSelector::SupportedMachineOperatorFlags(),
+      InstructionSelector::AlignmentRequirements());
   JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
 
   Node* control = nullptr;
