@@ -307,14 +307,19 @@ Response takeCoverage(
           ranges = protocol::Array<protocol::Profiler::CoverageRange>::create();
       // At this point we only have per-function coverage data, so there is
       // only one range per function.
-      ranges->addItem(
-          protocol::Profiler::CoverageRange::create()
-              .setStartLineNumber(function_data.Start().GetLineNumber())
-              .setStartColumnNumber(function_data.Start().GetColumnNumber())
-              .setEndLineNumber(function_data.End().GetLineNumber())
-              .setEndColumnNumber(function_data.End().GetColumnNumber())
-              .setCount(function_data.Count())
-              .build());
+      v8::debug::Location start =
+          script->GetSourceLocation(function_data.StartOffset());
+      v8::debug::Location end =
+          script->GetSourceLocation(function_data.EndOffset());
+      ranges->addItem(protocol::Profiler::CoverageRange::create()
+                          .setStartLineNumber(start.GetLineNumber())
+                          .setStartColumnNumber(start.GetColumnNumber())
+                          .setEndLineNumber(end.GetLineNumber())
+                          .setEndColumnNumber(end.GetColumnNumber())
+                          .setStartOffset(function_data.StartOffset())
+                          .setEndOffset(function_data.EndOffset())
+                          .setCount(function_data.Count())
+                          .build());
       functions->addItem(
           protocol::Profiler::FunctionCoverage::create()
               .setFunctionName(toProtocolString(

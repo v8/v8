@@ -9549,20 +9549,8 @@ Local<String> CpuProfileNode::GetFunctionName() const {
   }
 }
 
-debug::Coverage::FunctionData::FunctionData(i::CoverageFunction* function,
-                                            Local<debug::Script> script)
-    : function_(function) {
-  i::Handle<i::Script> i_script = v8::Utils::OpenHandle(*script);
-  i::Script::PositionInfo start;
-  i::Script::PositionInfo end;
-  i::Script::GetPositionInfo(i_script, function->start, &start,
-                             i::Script::WITH_OFFSET);
-  i::Script::GetPositionInfo(i_script, function->end, &end,
-                             i::Script::WITH_OFFSET);
-  start_ = Location(start.line, start.column);
-  end_ = Location(end.line, end.column);
-}
-
+int debug::Coverage::FunctionData::StartOffset() { return function_->start; }
+int debug::Coverage::FunctionData::EndOffset() { return function_->end; }
 uint32_t debug::Coverage::FunctionData::Count() { return function_->count; }
 
 MaybeLocal<String> debug::Coverage::FunctionData::Name() {
@@ -9579,7 +9567,7 @@ size_t debug::Coverage::ScriptData::FunctionCount() {
 
 debug::Coverage::FunctionData debug::Coverage::ScriptData::GetFunctionData(
     size_t i) {
-  return FunctionData(&script_->functions.at(i), GetScript());
+  return FunctionData(&script_->functions.at(i));
 }
 
 debug::Coverage::~Coverage() { delete coverage_; }

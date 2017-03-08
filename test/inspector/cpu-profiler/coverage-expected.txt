@@ -14,8 +14,10 @@ Running test: testPreciseBaseline
                                 count : 0
                                 endColumnNumber : 1
                                 endLineNumber : 4
+                                endOffset : 73
                                 startColumnNumber : 0
                                 startLineNumber : 1
+                                startOffset : 1
                             }
                         ]
                     }
@@ -39,8 +41,10 @@ Running test: testPreciseBaseline
                                 count : 0
                                 endColumnNumber : 1
                                 endLineNumber : 4
+                                endOffset : 73
                                 startColumnNumber : 0
                                 startLineNumber : 1
+                                startOffset : 1
                             }
                         ]
                     }
@@ -71,8 +75,10 @@ Running test: testPreciseCoverage
                                 count : 1
                                 endColumnNumber : 0
                                 endLineNumber : 9
+                                endOffset : 119
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -83,8 +89,10 @@ Running test: testPreciseCoverage
                                 count : 15
                                 endColumnNumber : 1
                                 endLineNumber : 4
+                                endOffset : 73
                                 startColumnNumber : 0
                                 startLineNumber : 1
+                                startOffset : 1
                             }
                         ]
                     }
@@ -95,8 +103,10 @@ Running test: testPreciseCoverage
                                 count : 1
                                 endColumnNumber : 1
                                 endLineNumber : 7
+                                endOffset : 106
                                 startColumnNumber : 1
                                 startLineNumber : 5
+                                startOffset : 75
                             }
                         ]
                     }
@@ -113,8 +123,10 @@ Running test: testPreciseCoverage
                                 count : 1
                                 endColumnNumber : 11
                                 endLineNumber : 0
+                                endOffset : 11
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -138,8 +150,10 @@ Running test: testPreciseCoverage
                                 count : 0
                                 endColumnNumber : 0
                                 endLineNumber : 9
+                                endOffset : 119
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -150,8 +164,10 @@ Running test: testPreciseCoverage
                                 count : 0
                                 endColumnNumber : 1
                                 endLineNumber : 4
+                                endOffset : 73
                                 startColumnNumber : 0
                                 startLineNumber : 1
+                                startOffset : 1
                             }
                         ]
                     }
@@ -162,8 +178,10 @@ Running test: testPreciseCoverage
                                 count : 0
                                 endColumnNumber : 1
                                 endLineNumber : 7
+                                endOffset : 106
                                 startColumnNumber : 1
                                 startLineNumber : 5
+                                startOffset : 75
                             }
                         ]
                     }
@@ -180,8 +198,10 @@ Running test: testPreciseCoverage
                                 count : 0
                                 endColumnNumber : 11
                                 endLineNumber : 0
+                                endOffset : 11
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -262,8 +282,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 1
                                 endColumnNumber : 0
                                 endLineNumber : 9
+                                endOffset : 119
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -274,8 +296,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 15
                                 endColumnNumber : 1
                                 endLineNumber : 4
+                                endOffset : 73
                                 startColumnNumber : 0
                                 startLineNumber : 1
+                                startOffset : 1
                             }
                         ]
                     }
@@ -286,8 +310,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 1
                                 endColumnNumber : 1
                                 endLineNumber : 7
+                                endOffset : 106
                                 startColumnNumber : 1
                                 startLineNumber : 5
+                                startOffset : 75
                             }
                         ]
                     }
@@ -304,8 +330,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 1
                                 endColumnNumber : 11
                                 endLineNumber : 0
+                                endOffset : 11
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -329,8 +357,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 1
                                 endColumnNumber : 0
                                 endLineNumber : 9
+                                endOffset : 119
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }
@@ -341,8 +371,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 15
                                 endColumnNumber : 1
                                 endLineNumber : 4
+                                endOffset : 73
                                 startColumnNumber : 0
                                 startLineNumber : 1
+                                startOffset : 1
                             }
                         ]
                     }
@@ -353,8 +385,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 1
                                 endColumnNumber : 1
                                 endLineNumber : 7
+                                endOffset : 106
                                 startColumnNumber : 1
                                 startLineNumber : 5
+                                startOffset : 75
                             }
                         ]
                     }
@@ -371,8 +405,10 @@ Running test: testBestEffortCoveragePrecise
                                 count : 1
                                 endColumnNumber : 11
                                 endLineNumber : 0
+                                endOffset : 11
                                 startColumnNumber : 0
                                 startLineNumber : 0
+                                startOffset : 0
                             }
                         ]
                     }

@@ -6650,16 +6650,22 @@ TEST(DebugCoverage) {
   CHECK_EQ(2u, script_data.FunctionCount());
   v8::debug::Coverage::FunctionData function_data =
       script_data.GetFunctionData(0);
-  CHECK_EQ(0, function_data.Start().GetLineNumber());
-  CHECK_EQ(0, function_data.Start().GetColumnNumber());
-  CHECK_EQ(3, function_data.End().GetLineNumber());
-  CHECK_EQ(4, function_data.End().GetColumnNumber());
+  v8::debug::Location start =
+      script->GetSourceLocation(function_data.StartOffset());
+  v8::debug::Location end =
+      script->GetSourceLocation(function_data.EndOffset());
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(3, end.GetLineNumber());
+  CHECK_EQ(4, end.GetColumnNumber());
   CHECK_EQ(1, function_data.Count());
 
   function_data = script_data.GetFunctionData(1);
-  CHECK_EQ(0, function_data.Start().GetLineNumber());
-  CHECK_EQ(0, function_data.Start().GetColumnNumber());
-  CHECK_EQ(1, function_data.End().GetLineNumber());
-  CHECK_EQ(1, function_data.End().GetColumnNumber());
+  start = script->GetSourceLocation(function_data.StartOffset());
+  end = script->GetSourceLocation(function_data.EndOffset());
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(1, end.GetLineNumber());
+  CHECK_EQ(1, end.GetColumnNumber());
   CHECK_EQ(2, function_data.Count());
 }

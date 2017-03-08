@@ -218,17 +218,15 @@ class V8_EXPORT_PRIVATE Coverage {
 
   class V8_EXPORT_PRIVATE FunctionData {
    public:
-    // 0-based line and colum numbers.
-    Location Start() { return start_; }
-    Location End() { return end_; }
+    int StartOffset();
+    int EndOffset();
     uint32_t Count();
     MaybeLocal<String> Name();
 
    private:
-    FunctionData(i::CoverageFunction* function, Local<debug::Script> script);
+    explicit FunctionData(i::CoverageFunction* function)
+        : function_(function) {}
     i::CoverageFunction* function_;
-    Location start_;
-    Location end_;
 
     friend class v8::debug::Coverage::ScriptData;
   };

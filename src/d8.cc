@@ -1713,8 +1713,12 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
     for (size_t j = 0; j < script_data.FunctionCount(); j++) {
       debug::Coverage::FunctionData function_data =
           script_data.GetFunctionData(j);
-      int start_line = function_data.Start().GetLineNumber();
-      int end_line = function_data.End().GetLineNumber();
+      debug::Location start =
+          script->GetSourceLocation(function_data.StartOffset());
+      debug::Location end =
+          script->GetSourceLocation(function_data.EndOffset());
+      int start_line = start.GetLineNumber();
+      int end_line = end.GetLineNumber();
       uint32_t count = function_data.Count();
       // Ensure space in the array.
       lines.resize(std::max(static_cast<size_t>(end_line + 1), lines.size()),
@@ -1732,7 +1736,7 @@ void Shell::WriteLcovData(v8::Isolate* isolate, const char* file) {
         name_stream << ToSTLString(name);
       } else {
         name_stream << "<" << start_line + 1 << "-";
-        name_stream << function_data.Start().GetColumnNumber() << ">";
+        name_stream << start.GetColumnNumber() << ">";
       }
       sink << "FN:" << start_line + 1 << "," << name_stream.str() << std::endl;
       sink << "FNDA:" << count << "," << name_stream.str() << std::endl;
