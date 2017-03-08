@@ -88,13 +88,13 @@ MachineRepresentation MachineRepresentationFromArrayType(
 }
 
 UseInfo CheckedUseInfoAsWord32FromHint(
-    NumberOperationHint hint, CheckForMinusZeroMode minus_zero_mode =
-                                  CheckForMinusZeroMode::kCheckForMinusZero) {
+    NumberOperationHint hint,
+    IdentifyZeros identify_zeros = kDistinguishZeros) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
-      return UseInfo::CheckedSignedSmallAsWord32(minus_zero_mode);
+      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros);
     case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32(minus_zero_mode);
+      return UseInfo::CheckedSigned32AsWord32(identify_zeros);
     case NumberOperationHint::kNumber:
       return UseInfo::CheckedNumberAsWord32();
     case NumberOperationHint::kNumberOrOddball:
@@ -1167,7 +1167,7 @@ class RepresentationSelector {
     // If one of the inputs is positive and/or truncation is being applied,
     // there is no need to return -0.
     CheckForMinusZeroMode mz_mode =
-        truncation.IsUsedAsWord32() ||
+        truncation.IdentifiesZeroAndMinusZero() ||
                 (input0_type->Is(Type::OrderedNumber()) &&
                  input0_type->Min() > 0) ||
                 (input1_type->Is(Type::OrderedNumber()) &&
@@ -1226,13 +1226,23 @@ class RepresentationSelector {
         VisitBinop(node, UseInfo::TruncatingWord32(),
                    MachineRepresentation::kWord32, Type::Signed32());
       } else {
-        UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint);
+        // If the output's truncation is identify-zeros, we can pass it
+        // along. Moreover, if the operation is addition and we know the
+        // right-hand side is not minus zero, we do not have to distinguish
+        // between 0 and -0.
+        IdentifyZeros left_identify_zeros = truncation.identify_zeros();
+        if (node->opcode() == IrOpcode::kSpeculativeNumberAdd &&
+            !right_feedback_type->Maybe(Type::MinusZero())) {
+          left_identify_zeros = kIdentifyZeros;
+        }
+        UseInfo left_use =
+            CheckedUseInfoAsWord32FromHint(hint, left_identify_zeros);
         // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
         // a minus zero check for the right hand side, since we already
         // know that the left hand side is a proper Signed32 value,
         // potentially guarded by a check.
-        UseInfo right_use = CheckedUseInfoAsWord32FromHint(
-            hint, CheckForMinusZeroMode::kDontCheckForMinusZero);
+        UseInfo right_use =
+            CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
         VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
                    Type::Signed32());
       }
@@ -2294,7 +2304,7 @@ class RepresentationSelector {
             DeferReplacement(node, node->InputAt(0));
           }
         } else {
-          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(),
+          VisitBinop(node, UseInfo::CheckedSigned32AsWord32(kIdentifyZeros),
                      UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
         }
@@ -2360,7 +2370,8 @@ class RepresentationSelector {
       }
       case IrOpcode::kCheckSmi: {
         if (SmiValuesAre32Bits() && truncation.IsUsedAsWord32()) {
-          VisitUnop(node, UseInfo::CheckedSignedSmallAsWord32(),
+          VisitUnop(node,
+                    UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros),
                     MachineRepresentation::kWord32);
         } else {
           VisitUnop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),

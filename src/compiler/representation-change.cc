@@ -27,9 +27,19 @@ const char* Truncation::description() const {
     case TruncationKind::kWord64:
       return "truncate-to-word64";
     case TruncationKind::kFloat64:
-      return "truncate-to-float64";
+      switch (identify_zeros()) {
+        case kIdentifyZeros:
+          return "truncate-to-float64 (identify zeros)";
+        case kDistinguishZeros:
+          return "truncate-to-float64 (distinguish zeros)";
+      }
     case TruncationKind::kAny:
-      return "no-truncation";
+      switch (identify_zeros()) {
+        case kIdentifyZeros:
+          return "no-truncation (but identify zeros)";
+        case kDistinguishZeros:
+          return "no-truncation (but distinguish zeros)";
+      }
   }
   UNREACHABLE();
   return nullptr;
@@ -38,10 +48,10 @@ const char* Truncation::description() const {
 
 // Partial order for truncations:
 //
-//  kWord64       kAny
-//     ^            ^
-//     \            |
-//      \         kFloat64  <--+
+//  kWord64       kAny <-------+
+//     ^            ^          |
+//     \            |          |
+//      \         kFloat64     |
 //       \        ^            |
 //        \       /            |
 //         kWord32           kBool
@@ -52,6 +62,8 @@ const char* Truncation::description() const {
 //                  \      /
 //                   \    /
 //                   kNone
+//
+// TODO(jarin) We might consider making kBool < kFloat64.
 
 // static
 Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
@@ -73,6 +85,15 @@ Truncation::TruncationKind Truncation::Generalize(TruncationKind rep1,
   return TruncationKind::kNone;
 }
 
+// static
+IdentifyZeros Truncation::GeneralizeIdentifyZeros(IdentifyZeros i1,
+                                                  IdentifyZeros i2) {
+  if (i1 == i2) {
+    return i1;
+  } else {
+    return kDistinguishZeros;
+  }
+}
 
 // static
 bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
@@ -96,6 +117,10 @@ bool Truncation::LessGeneral(TruncationKind rep1, TruncationKind rep2) {
   return false;
 }
 
+// static
+bool Truncation::LessGeneralIdentifyZeros(IdentifyZeros i1, IdentifyZeros i2) {
+  return i1 == i2 || i1 == kIdentifyZeros;
+}
 
 namespace {
 
