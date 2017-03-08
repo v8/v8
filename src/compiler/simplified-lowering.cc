@@ -2061,20 +2061,27 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberMax: {
-        // TODO(turbofan): We should consider feedback types here as well.
-        if (BothInputsAreUnsigned32(node)) {
+        // It is safe to use the feedback types for left and right hand side
+        // here, since we can only narrow those types and thus we can only
+        // promise a more specific truncation.
+        Type* const lhs_type = TypeOf(node->InputAt(0));
+        Type* const rhs_type = TypeOf(node->InputAt(1));
+        if (lhs_type->Is(Type::Unsigned32()) &&
+            rhs_type->Is(Type::Unsigned32())) {
           VisitWord32TruncatingBinop(node);
           if (lower()) {
             lowering->DoMax(node, lowering->machine()->Uint32LessThan(),
                             MachineRepresentation::kWord32);
           }
-        } else if (BothInputsAreSigned32(node)) {
+        } else if (lhs_type->Is(Type::Signed32()) &&
+                   rhs_type->Is(Type::Signed32())) {
           VisitWord32TruncatingBinop(node);
           if (lower()) {
             lowering->DoMax(node, lowering->machine()->Int32LessThan(),
                             MachineRepresentation::kWord32);
           }
-        } else if (BothInputsAre(node, Type::PlainNumber())) {
+        } else if (lhs_type->Is(Type::PlainNumber()) &&
+                   rhs_type->Is(Type::PlainNumber())) {
           VisitFloat64Binop(node);
           if (lower()) {
             lowering->DoMax(node, lowering->machine()->Float64LessThan(),
@@ -2087,20 +2094,27 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kNumberMin: {
-        // TODO(turbofan): We should consider feedback types here as well.
-        if (BothInputsAreUnsigned32(node)) {
+        // It is safe to use the feedback types for left and right hand side
+        // here, since we can only narrow those types and thus we can only
+        // promise a more specific truncation.
+        Type* const lhs_type = TypeOf(node->InputAt(0));
+        Type* const rhs_type = TypeOf(node->InputAt(1));
+        if (lhs_type->Is(Type::Unsigned32()) &&
+            rhs_type->Is(Type::Unsigned32())) {
           VisitWord32TruncatingBinop(node);
           if (lower()) {
             lowering->DoMin(node, lowering->machine()->Uint32LessThan(),
                             MachineRepresentation::kWord32);
           }
-        } else if (BothInputsAreSigned32(node)) {
+        } else if (lhs_type->Is(Type::Signed32()) &&
+                   rhs_type->Is(Type::Signed32())) {
           VisitWord32TruncatingBinop(node);
           if (lower()) {
             lowering->DoMin(node, lowering->machine()->Int32LessThan(),
                             MachineRepresentation::kWord32);
           }
-        } else if (BothInputsAre(node, Type::PlainNumber())) {
+        } else if (lhs_type->Is(Type::PlainNumber()) &&
+                   rhs_type->Is(Type::PlainNumber())) {
           VisitFloat64Binop(node);
           if (lower()) {
             lowering->DoMin(node, lowering->machine()->Float64LessThan(),
