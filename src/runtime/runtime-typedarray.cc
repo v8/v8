@@ -375,17 +375,18 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   size_t length = array->length_value();
   if (length <= 1) return *array;
 
+  Handle<FixedTypedArrayBase> elements(
+      FixedTypedArrayBase::cast(array->elements()));
   switch (array->type()) {
-#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)                    \
-  case kExternal##Type##Array: {                                           \
-    ctype* backing_store =                                                 \
-        static_cast<ctype*>(array->GetBuffer()->backing_store());          \
-    if (kExternal##Type##Array == kExternalFloat64Array ||                 \
-        kExternal##Type##Array == kExternalFloat32Array)                   \
-      std::sort(backing_store, backing_store + length, CompareNum<ctype>); \
-    else                                                                   \
-      std::sort(backing_store, backing_store + length);                    \
-    break;                                                                 \
+#define TYPED_ARRAY_SORT(Type, type, TYPE, ctype, size)     \
+  case kExternal##Type##Array: {                            \
+    ctype* data = static_cast<ctype*>(elements->DataPtr()); \
+    if (kExternal##Type##Array == kExternalFloat64Array ||  \
+        kExternal##Type##Array == kExternalFloat32Array)    \
+      std::sort(data, data + length, CompareNum<ctype>);    \
+    else                                                    \
+      std::sort(data, data + length);                       \
+    break;                                                  \
   }
 
     TYPED_ARRAYS(TYPED_ARRAY_SORT)
