@@ -2260,6 +2260,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       __ StoreW(i.InputRegister(0), i.MemoryOperand(NULL, 1));
       break;
+    case kAtomicExchangeInt8:
+    case kAtomicExchangeUint8:
+    case kAtomicExchangeInt16:
+    case kAtomicExchangeUint16:
+    case kAtomicExchangeWord32:
+      UNREACHABLE();
+      break;
     default:
       UNREACHABLE();
       break;

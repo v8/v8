@@ -2517,6 +2517,8 @@ void InstructionSelector::VisitAtomicStore(Node* node) {
        inputs);
 }
 
+void InstructionSelector::VisitAtomicExchange(Node* node) { UNIMPLEMENTED(); }
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {

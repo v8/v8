@@ -291,7 +291,8 @@ void Builtins::Generate_AtomicsExchange(compiler::CodeAssemblerState* state) {
 
   Node* value_integer = a.ToInteger(context, value);
 
-#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
+    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
   // Node* index_integer = a.ToInteger(context, index);
   a.Return(a.CallRuntime(Runtime::kAtomicsExchange, context, array,
                          index_integer, value_integer));
@@ -343,7 +344,8 @@ void Builtins::Generate_AtomicsExchange(compiler::CodeAssemblerState* state) {
   // This shouldn't happen, we've already validated the type.
   a.Bind(&other);
   a.Return(a.SmiConstant(0));
-#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+#endif  // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64
+        // || V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
 }
 
 }  // namespace internal
