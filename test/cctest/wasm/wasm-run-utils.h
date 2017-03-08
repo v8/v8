@@ -110,7 +110,7 @@ class TestingModule : public ModuleEnv {
     CHECK_EQ(0, instance->mem_size);
     module_.has_memory = true;
     instance->mem_start = reinterpret_cast<byte*>(malloc(size));
-    CHECK(instance->mem_start);
+    CHECK(size == 0 || instance->mem_start);
     memset(instance->mem_start, 0, size);
     instance->mem_size = size;
     return raw_mem_start<byte>();

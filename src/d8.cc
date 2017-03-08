@@ -97,7 +97,13 @@ class ShellArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
 #if USE_VM
     if (RoundToPageSize(&length)) return VirtualMemoryAllocate(length);
 #endif
+// Work around for GCC bug on AIX
+// See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    return __linux_malloc(length);
+#else
     return malloc(length);
+#endif
   }
   virtual void Free(void* data, size_t length) {
 #if USE_VM
