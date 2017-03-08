@@ -217,21 +217,37 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
       Reduction const reduction = ReduceJSOrdinaryHasInstance(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
-  } else if (access_info.IsDataConstant()) {
-    DCHECK(access_info.constant()->IsCallable());
-
+  } else if (access_info.IsDataConstant() ||
+             access_info.IsDataConstantField()) {
     // Determine actual holder and perform prototype chain checks.
     Handle<JSObject> holder;
     if (access_info.holder().ToHandle(&holder)) {
       AssumePrototypesStable(access_info.receiver_maps(), holder);
+    } else {
+      holder = receiver;
     }
+
+    Handle<Object> constant;
+    if (access_info.IsDataConstant()) {
+      DCHECK(!FLAG_track_constant_fields);
+      constant = access_info.constant();
+    } else {
+      DCHECK(FLAG_track_constant_fields);
+      DCHECK(access_info.IsDataConstantField());
+      // The value must be callable therefore tagged.
+      DCHECK(CanBeTaggedPointer(access_info.field_representation()));
+      FieldIndex field_index = access_info.field_index();
+      constant = JSObject::FastPropertyAt(holder, Representation::Tagged(),
+                                          field_index);
+    }
+    DCHECK(constant->IsCallable());
 
     // Monomorphic property access.
     effect = BuildCheckMaps(constructor, effect, control,
                             access_info.receiver_maps());
 
     // Call the @@hasInstance handler.
-    Node* target = jsgraph()->Constant(access_info.constant());
+    Node* target = jsgraph()->Constant(constant);
     node->InsertInput(graph()->zone(), 0, target);
     node->ReplaceInput(1, constructor);
     node->ReplaceInput(2, object);
@@ -1333,6 +1349,7 @@ JSNativeContextSpecialization::BuildPropertyAccess(
     DCHECK_EQ(AccessMode::kLoad, access_mode);
     value = jsgraph()->UndefinedConstant();
   } else if (access_info.IsDataConstant()) {
+    DCHECK(!FLAG_track_constant_fields);
     Node* constant_value = jsgraph()->Constant(access_info.constant());
     if (access_mode == AccessMode::kStore) {
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), value,
