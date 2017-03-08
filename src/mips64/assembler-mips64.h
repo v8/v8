@@ -132,7 +132,10 @@ struct Register {
     DCHECK(is_valid());
     return reg_code;
   }
-  constexpr int bit() const { return DCHECK(is_valid()), 1 << reg_code; }
+  int bit() const {
+    DCHECK(is_valid());
+    return 1 << reg_code;
+  }
 
   // Unfortunately we can't make this private in a struct.
   int reg_code;
@@ -196,7 +199,11 @@ struct FPURegister {
     DCHECK(is_valid());
     return reg_code;
   }
-  constexpr int bit() const { return DCHECK(is_valid()), 1 << reg_code; }
+
+  int bit() const {
+    DCHECK(is_valid());
+    return 1 << reg_code;
+  }
 
   static FPURegister from_code(int code) {
     FPURegister r = {code};
@@ -287,7 +294,10 @@ struct FPUControlRegister {
     DCHECK(is_valid());
     return reg_code;
   }
-  constexpr int bit() const { return DCHECK(is_valid()), 1 << reg_code; }
+  int bit() const {
+    DCHECK(is_valid());
+    return 1 << reg_code;
+  }
   void setcode(int f) {
     reg_code = f;
     DCHECK(is_valid());
