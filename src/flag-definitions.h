@@ -449,7 +449,8 @@ DEFINE_BOOL(omit_map_checks_for_leaf_maps, true,
 // Allow to disable turbofan with a build flag after it's turned on by default.
 #define TURBO_BOOL false
 #else
-#define TURBO_BOOL true
+// TODO(mvstanton): Turn on turbofan here.
+#define TURBO_BOOL false
 #endif
 DEFINE_BOOL(turbo, TURBO_BOOL, "enable TurboFan compiler")
 DEFINE_BOOL(turbo_sp_frame_access, false,
