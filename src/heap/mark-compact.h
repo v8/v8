@@ -47,59 +47,69 @@ class ObjectMarking : public AllStatic {
     return Marking::Color(ObjectMarking::MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static bool IsImpossible(HeapObject* obj) {
-    return Marking::IsImpossible(MarkBitFrom<mode>(obj));
+    return Marking::IsImpossible<access_mode>(MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static bool IsBlack(HeapObject* obj) {
-    return Marking::IsBlack(MarkBitFrom<mode>(obj));
+    return Marking::IsBlack<access_mode>(MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static bool IsWhite(HeapObject* obj) {
-    return Marking::IsWhite(MarkBitFrom<mode>(obj));
+    return Marking::IsWhite<access_mode>(MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static bool IsGrey(HeapObject* obj) {
-    return Marking::IsGrey(MarkBitFrom<mode>(obj));
+    return Marking::IsGrey<access_mode>(MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
   V8_INLINE static bool IsBlackOrGrey(HeapObject* obj) {
-    return Marking::IsBlackOrGrey(MarkBitFrom<mode>(obj));
+    return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void BlackToGrey(HeapObject* obj) {
-    DCHECK(IsBlack<mode>(obj));
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
+  V8_INLINE static bool BlackToGrey(HeapObject* obj) {
+    DCHECK((access_mode == MarkBit::ATOMIC || IsBlack<access_mode, mode>(obj)));
     MarkBit markbit = MarkBitFrom<mode>(obj);
-    Marking::BlackToGrey(markbit);
+    if (!Marking::BlackToGrey<access_mode>(markbit)) return false;
     MemoryChunk::IncrementLiveBytes<mode>(obj, -obj->Size());
+    return true;
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void WhiteToGrey(HeapObject* obj) {
-    DCHECK(IsWhite<mode>(obj));
-    Marking::WhiteToGrey(MarkBitFrom<mode>(obj));
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
+  V8_INLINE static bool WhiteToGrey(HeapObject* obj) {
+    DCHECK((access_mode == MarkBit::ATOMIC || IsWhite<access_mode, mode>(obj)));
+    return Marking::WhiteToGrey<access_mode>(MarkBitFrom<mode>(obj));
   }
 
-  template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void WhiteToBlack(HeapObject* obj) {
-    DCHECK(IsWhite<mode>(obj));
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
+  V8_INLINE static bool WhiteToBlack(HeapObject* obj) {
+    DCHECK((access_mode == MarkBit::ATOMIC || IsWhite<access_mode, mode>(obj)));
+    if (!ObjectMarking::WhiteToGrey<access_mode, mode>(obj)) return false;
+    return ObjectMarking::GreyToBlack<access_mode, mode>(obj);
+  }
+
+  template <MarkBit::AccessMode access_mode = MarkBit::NON_ATOMIC,
+            MarkingMode mode = MarkingMode::FULL>
+  V8_INLINE static bool GreyToBlack(HeapObject* obj) {
+    DCHECK((access_mode == MarkBit::ATOMIC || IsGrey<access_mode, mode>(obj)));
     MarkBit markbit = MarkBitFrom<mode>(obj);
-    Marking::WhiteToBlack(markbit);
+    if (!Marking::GreyToBlack<access_mode>(markbit)) return false;
     MemoryChunk::IncrementLiveBytes<mode>(obj, obj->Size());
-  }
-
-  template <MarkingMode mode = MarkingMode::FULL>
-  V8_INLINE static void GreyToBlack(HeapObject* obj) {
-    DCHECK(IsGrey<mode>(obj));
-    MarkBit markbit = MarkBitFrom<mode>(obj);
-    Marking::GreyToBlack(markbit);
-    MemoryChunk::IncrementLiveBytes<mode>(obj, obj->Size());
+    return true;
   }
 
  private:

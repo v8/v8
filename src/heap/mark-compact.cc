@@ -1087,9 +1087,11 @@ class StaticYoungGenerationMarkingVisitor
     StackLimitCheck check(heap->isolate());
     if (check.HasOverflowed()) return false;
 
-    if (ObjectMarking::IsBlackOrGrey<MarkingMode::YOUNG_GENERATION>(object))
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC,
+                                     MarkingMode::YOUNG_GENERATION>(object))
       return true;
-    ObjectMarking::WhiteToBlack<MarkingMode::YOUNG_GENERATION>(object);
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC,
+                                MarkingMode::YOUNG_GENERATION>(object);
     IterateBody(object->map(), object);
     return true;
   }
@@ -1368,11 +1370,11 @@ class RootMarkingVisitor : public ObjectVisitor {
         !collector_->heap()->InNewSpace(object))
       return;
 
-    if (ObjectMarking::IsBlackOrGrey<mode>(object)) return;
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC, mode>(object)) return;
 
     Map* map = object->map();
     // Mark the object.
-    ObjectMarking::WhiteToBlack<mode>(object);
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC, mode>(object);
 
     switch (mode) {
       case MarkingMode::FULL: {
@@ -1988,7 +1990,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!ObjectMarking::IsWhite<mode>(object));
+    DCHECK(!(ObjectMarking::IsWhite<MarkBit::NON_ATOMIC, mode>(object)));
 
     Map* map = object->map();
     switch (mode) {
@@ -1997,7 +1999,7 @@ void MarkCompactCollector::EmptyMarkingDeque() {
         MarkCompactMarkingVisitor::IterateBody(map, object);
       } break;
       case MarkingMode::YOUNG_GENERATION: {
-        DCHECK(ObjectMarking::IsBlack<mode>(object));
+        DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC, mode>(object)));
         StaticYoungGenerationMarkingVisitor::IterateBody(map, object);
       } break;
     }
@@ -2255,11 +2257,13 @@ SlotCallbackResult MarkCompactCollector::CheckAndMarkObject(
     // has to be in ToSpace.
     DCHECK(heap->InToSpace(object));
     HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
-    if (ObjectMarking::IsBlackOrGrey<MarkingMode::YOUNG_GENERATION>(
+    if (ObjectMarking::IsBlackOrGrey<MarkBit::NON_ATOMIC,
+                                     MarkingMode::YOUNG_GENERATION>(
             heap_object)) {
       return KEEP_SLOT;
     }
-    ObjectMarking::WhiteToBlack<MarkingMode::YOUNG_GENERATION>(heap_object);
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC,
+                                MarkingMode::YOUNG_GENERATION>(heap_object);
     StaticYoungGenerationMarkingVisitor::IterateBody(heap_object->map(),
                                                      heap_object);
     return KEEP_SLOT;

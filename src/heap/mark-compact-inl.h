@@ -14,9 +14,9 @@ namespace internal {
 
 template <MarkingMode mode>
 void MarkCompactCollector::PushBlack(HeapObject* obj) {
-  DCHECK(ObjectMarking::IsBlack<mode>(obj));
+  DCHECK((ObjectMarking::IsBlack<MarkBit::NON_ATOMIC, mode>(obj)));
   if (!marking_deque<mode>()->Push(obj)) {
-    ObjectMarking::BlackToGrey<mode>(obj);
+    ObjectMarking::BlackToGrey<MarkBit::NON_ATOMIC, mode>(obj);
   }
 }
 
@@ -30,8 +30,8 @@ void MarkCompactCollector::UnshiftBlack(HeapObject* obj) {
 
 template <MarkingMode mode>
 void MarkCompactCollector::MarkObject(HeapObject* obj) {
-  if (ObjectMarking::IsWhite<mode>(obj)) {
-    ObjectMarking::WhiteToBlack<mode>(obj);
+  if (ObjectMarking::IsWhite<MarkBit::NON_ATOMIC, mode>(obj)) {
+    ObjectMarking::WhiteToBlack<MarkBit::NON_ATOMIC, mode>(obj);
     PushBlack<mode>(obj);
   }
 }

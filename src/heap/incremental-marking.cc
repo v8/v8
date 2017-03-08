@@ -141,7 +141,7 @@ void IncrementalMarking::TransferMark(Heap* heap, HeapObject* from,
   if (Marking::IsBlack(old_mark_bit)) {
     Marking::MarkBlack(new_mark_bit);
   } else if (Marking::IsGrey(old_mark_bit)) {
-    Marking::MarkGrey(new_mark_bit);
+    Marking::WhiteToGrey(new_mark_bit);
     heap->mark_compact_collector()->marking_deque()->Push(to);
     heap->incremental_marking()->RestartIfNotMarking();
   }
