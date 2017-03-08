@@ -151,6 +151,14 @@ let main = {
     }
   },
 
+  setCurrentCode(codeId) {
+    if (codeId != main.currentState.currentCodeId) {
+      main.currentState = Object.assign({}, main.currentState);
+      main.currentState.currentCodeId = codeId;
+      main.delayRender();
+    }
+  },
+
   onResize() {
     main.setTimeLineDimensions(
       window.innerWidth - 20, window.innerHeight / 5);
@@ -241,6 +249,73 @@ function bucketFromKind(kind) {
   return null;
 }
 
+function codeTypeToText(type) {
+  switch (type) {
+    case "UNKNOWN":
+      return "Unknown";
+    case "CPPCOMP":
+      return "C++ (compiler)";
+    case "CPPGC":
+      return "C++";
+    case "CPPEXT":
+      return "C++ External";
+    case "CPP":
+      return "C++";
+    case "LIB":
+      return "Library";
+    case "IC":
+      return "IC";
+    case "BC":
+      return "Bytecode";
+    case "STUB":
+      return "Stub";
+    case "BUILTIN":
+      return "Builtin";
+    case "REGEXP":
+      return "RegExp";
+    case "JSOPT":
+      return "JS opt";
+    case "JSUNOPT":
+      return "JS unopt";
+  }
+  console.error("Unknown type: " + type);
+}
+
+function createTypeDiv(type) {
+  if (type === "CAT") {
+    return document.createTextNode("");
+  }
+  let div = document.createElement("div");
+  div.classList.add("code-type-chip");
+
+  let span = document.createElement("span");
+  span.classList.add("code-type-chip");
+  span.textContent = codeTypeToText(type);
+  div.appendChild(span);
+
+  span = document.createElement("span");
+  span.classList.add("code-type-chip-space");
+  div.appendChild(span);
+
+  return div;
+}
+
+function isBytecodeHandler(kind) {
+  return kind === "BytecodeHandler";
+}
+
+function filterFromFilterId(id) {
+  switch (id) {
+    case "full-tree":
+      return (type, kind) => true;
+    case "js-funs":
+      return (type, kind) => type !== 'CODE';
+    case "js-exclude-bc":
+      return (type, kind) =>
+          type !== 'CODE' || !isBytecodeHandler(kind);
+  }
+}
+
 class CallTreeView {
   constructor() {
     this.element = $("calltree");
@@ -262,18 +337,6 @@ class CallTreeView {
     };
 
     this.currentState = null;
-  }
-
-  filterFromFilterId(id) {
-    switch (id) {
-      case "full-tree":
-        return (type, kind) => true;
-      case "js-funs":
-        return (type, kind) => type !== 'CODE';
-      case "js-exclude-bc":
-        return (type, kind) =>
-            type !== 'CODE' || !CallTreeView.IsBytecodeHandler(kind);
-    }
   }
 
   sortFromId(id) {
@@ -305,10 +368,6 @@ class CallTreeView {
     }
   }
 
-  static IsBytecodeHandler(kind) {
-    return kind === "BytecodeHandler";
-  }
-
   createExpander(indent) {
     let div = document.createElement("div");
     div.style.width = (1 + indent) + "em";
@@ -317,55 +376,17 @@ class CallTreeView {
     return div;
   }
 
-  codeTypeToText(type) {
-    switch (type) {
-      case "UNKNOWN":
-        return "Unknown";
-      case "CPPCOMP":
-        return "C++ (compiler)";
-      case "CPPGC":
-        return "C++";
-      case "CPPEXT":
-        return "C++ External";
-      case "CPP":
-        return "C++";
-      case "LIB":
-        return "Library";
-      case "IC":
-        return "IC";
-      case "BC":
-        return "Bytecode";
-      case "STUB":
-        return "Stub";
-      case "BUILTIN":
-        return "Builtin";
-      case "REGEXP":
-        return "RegExp";
-      case "JSOPT":
-        return "JS opt";
-      case "JSUNOPT":
-        return "JS unopt";
+  createFunctionNode(name, codeId) {
+    if (codeId == -1) {
+      return document.createTextNode(name);
     }
-    console.error("Unknown type: " + type);
-  }
-
-  createTypeDiv(type) {
-    if (type === "CAT") {
-      return document.createTextNode("");
-    }
-    let div = document.createElement("div");
-    div.classList.add("code-type-chip");
-
-    let span = document.createElement("span");
-    span.classList.add("code-type-chip");
-    span.textContent = this.codeTypeToText(type);
-    div.appendChild(span);
-
-    span = document.createElement("span");
-    span.classList.add("code-type-chip-space");
-    div.appendChild(span);
-
-    return div;
+    let nameElement = document.createElement("span");
+    nameElement.classList.add("codeid-link")
+    nameElement.onclick = function() {
+      main.setCurrentCode(codeId);
+    };
+    nameElement.appendChild(document.createTextNode(name));
+    return nameElement;
   }
 
   expandTree(tree, indent) {
@@ -392,7 +413,7 @@ class CallTreeView {
     // Collect the children, and sort them by ticks.
     let children = [];
     let filter =
-        this.filterFromFilterId(this.currentState.callTree.attribution);
+        filterFromFilterId(this.currentState.callTree.attribution);
     for (let childId in tree.children) {
       let child = tree.children[childId];
       if (child.ticks > 0) {
@@ -432,8 +453,8 @@ class CallTreeView {
       let nameCell = row.insertCell();
       let expander = this.createExpander(indent);
       nameCell.appendChild(expander);
-      nameCell.appendChild(this.createTypeDiv(node.type));
-      nameCell.appendChild(document.createTextNode(node.name));
+      nameCell.appendChild(createTypeDiv(node.type));
+      nameCell.appendChild(this.createFunctionNode(node.name, node.codeId));
 
       // Inclusive ticks cell.
       c = row.insertCell();
@@ -573,7 +594,7 @@ class CallTreeView {
 
     // Build the tree.
     let stackProcessor;
-    let filter = this.filterFromFilterId(this.currentState.callTree.attribution);
+    let filter = filterFromFilterId(this.currentState.callTree.attribution);
     if (mode === "top-down") {
       stackProcessor =
           new PlainCallTreeProcessor(filter, false);
@@ -619,6 +640,7 @@ class TimelineView {
     this.element = $("timeline");
     this.canvas = $("timeline-canvas");
     this.legend = $("timeline-legend");
+    this.currentCode = $("timeline-currentCode");
 
     this.canvas.onmousedown = this.onMouseDown.bind(this);
     this.canvas.onmouseup = this.onMouseUp.bind(this);
@@ -630,6 +652,7 @@ class TimelineView {
 
     this.fontSize = 12;
     this.imageOffset = this.fontSize * 1.2;
+    this.functionTimelineHeight = 12;
 
     this.currentState = null;
   }
@@ -698,9 +721,9 @@ class TimelineView {
       ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
       left = Math.min(this.selectionStart, this.selectionEnd);
       right = Math.max(this.selectionStart, this.selectionEnd);
-      ctx.fillRect(0, this.imageOffset, left, this.buffer.height);
-      ctx.fillRect(right, this.imageOffset, this.buffer.width - right,
-          this.buffer.height);
+      let height = this.buffer.height - this.functionTimelineHeight;
+      ctx.fillRect(0, this.imageOffset, left, height);
+      ctx.fillRect(right, this.imageOffset, this.buffer.width - right, height);
     } else {
       left = 0;
       right = this.buffer.width;
@@ -763,6 +786,7 @@ class TimelineView {
       if (newState.timeLine.width === oldState.timeLine.width &&
           newState.timeLine.height === oldState.timeLine.height &&
           newState.file === oldState.file &&
+          newState.currentCodeId === oldState.currentCodeId &&
           newState.start === oldState.start &&
           newState.end === oldState.end) {
         // No change, nothing to do.
@@ -784,6 +808,8 @@ class TimelineView {
     let file = this.currentState.file;
     if (!file) return;
 
+    let currentCodeId = this.currentState.currentCodeId;
+
     let firstTime = file.ticks[0].tm;
     let lastTime = file.ticks[file.ticks.length - 1].tm;
     let start = Math.max(this.currentState.start, firstTime);
@@ -801,6 +827,10 @@ class TimelineView {
 
     let stackProcessor = new CategorySampler(file, bucketCount);
     generateTree(file, 0, Infinity, stackProcessor);
+    let codeIdProcessor = new FunctionTimelineProcessor(
+      currentCodeId,
+      filterFromFilterId(this.currentState.callTree.attribution));
+    generateTree(file, 0, Infinity, codeIdProcessor);
 
     let buffer = document.createElement("canvas");
 
@@ -808,7 +838,7 @@ class TimelineView {
     buffer.height = height;
 
     // Calculate the bar heights for each bucket.
-    let graphHeight = height;
+    let graphHeight = height - this.functionTimelineHeight;
     let buckets = stackProcessor.buckets;
     let bucketsGraph = [];
     for (let i = 0; i < buckets.length; i++) {
@@ -842,6 +872,24 @@ class TimelineView {
         ctx.fill();
       }
     }
+    let functionTimelineYOffset = graphHeight;
+    let functionTimelineHeight = this.functionTimelineHeight;
+    let timestampScaler = width / (lastTime - firstTime);
+    ctx.fillStyle = "white";
+    ctx.fillRect(
+      0,
+      functionTimelineYOffset,
+      buffer.width,
+      functionTimelineHeight);
+    for (let i = 0; i < codeIdProcessor.blocks.length; i++) {
+      let block = codeIdProcessor.blocks[i];
+      ctx.fillStyle = "#000000";
+      ctx.fillRect(
+        Math.round((block.start - firstTime) * timestampScaler),
+        functionTimelineYOffset,
+        Math.max(1, Math.round((block.end - block.start) * timestampScaler)),
+        block.topOfStack ? functionTimelineHeight : functionTimelineHeight / 2);
+    }
 
     // Remember stuff for later.
     this.buffer = buffer;
@@ -870,6 +918,18 @@ class TimelineView {
       div.style.borderColor = "Black";
       cell.appendChild(div);
       cell.appendChild(document.createTextNode(" " + desc.text));
+    }
+
+    while (this.currentCode.firstChild) {
+      this.currentCode.removeChild(this.currentCode.firstChild);
+    }
+    if (currentCodeId) {
+      let currentCode = file.code[currentCodeId];
+      this.currentCode.appendChild(createTypeDiv(resolveCodeKind(currentCode)));
+      this.currentCode.appendChild(document.createTextNode(currentCode.name));
+
+    } else {
+      this.currentCode.appendChild(document.createTextNode("<none>"));
     }
   }
 }

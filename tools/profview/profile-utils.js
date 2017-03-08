@@ -72,10 +72,10 @@ function resolveCodeKindAndVmState(code, vmState) {
   return kind;
 }
 
-function createNodeFromStackEntry(code) {
+function createNodeFromStackEntry(code, codeId) {
   let name = code ? code.name : "UNKNOWN";
 
-  return { name, type : resolveCodeKind(code),
+  return { name, codeId, type : resolveCodeKind(code),
            children : [], ownTicks : 0, ticks : 0 };
 }
 
@@ -143,7 +143,7 @@ function addOrUpdateChildNode(parent, file, stackIndex, stackPos, ascending) {
     let childId = childIdFromCode(codeId, code);
     let child = parent.children[childId];
     if (!child) {
-      child = createNodeFromStackEntry(code);
+      child = createNodeFromStackEntry(code, codeId);
       child.delayedExpansion = { frameList : [], ascending };
       parent.children[childId] = child;
     }
@@ -177,6 +177,7 @@ function expandTreeNode(file, node, filter) {
 function createEmptyNode(name) {
   return {
       name : name,
+      codeId: -1,
       type : "CAT",
       children : [],
       ownTicks : 0,
@@ -265,7 +266,13 @@ class FunctionListTree {
       this.tree = root;
       this.categories = categories;
     } else {
-      this.tree = { name : "root", children : [], ownTicks : 0, ticks : 0 };
+      this.tree = {
+        name : "root",
+        codeId: -1,
+        children : [],
+        ownTicks : 0,
+        ticks : 0
+      };
       this.categories = null;
     }
 
@@ -299,7 +306,7 @@ class FunctionListTree {
       }
       child = tree.children[childId];
       if (!child) {
-        child = createNodeFromStackEntry(code);
+        child = createNodeFromStackEntry(code, codeId);
         child.children[0] = createEmptyNode("Top-down tree");
         child.children[0].delayedExpansion =
           { frameList : [], ascending : false };
@@ -364,6 +371,54 @@ class CategorySampler {
     let code = codeId >= 0 ? file.code[codeId] : undefined;
     let kind = resolveCodeKindAndVmState(code, vmState);
     bucket[kind]++;
+  }
+}
+
+class FunctionTimelineProcessor {
+  constructor(functionCodeId, filter) {
+    this.functionCodeId = functionCodeId;
+    this.filter = filter;
+    this.blocks = [];
+    this.currentBlock = null;
+  }
+
+  addStack(file, tickIndex) {
+    let { tm : timestamp, vm : vmState, s : stack } = file.ticks[tickIndex];
+
+    let codeInStack = stack.includes(this.functionCodeId);
+    if (codeInStack) {
+      let topOfStack = -1;
+      for (let i = 0; i < stack.length - 1; i += 2) {
+        let codeId = stack[i];
+        let code = codeId >= 0 ? file.code[codeId] : undefined;
+        let type = code ? code.type : undefined;
+        let kind = code ? code.kind : undefined;
+        if (!this.filter(type, kind)) continue;
+
+        topOfStack = i;
+        break;
+      }
+
+      let codeIsTopOfStack =
+          (topOfStack !== -1 && stack[topOfStack] === this.functionCodeId);
+
+      if (this.currentBlock !== null) {
+        this.currentBlock.end = timestamp;
+
+        if (codeIsTopOfStack === this.currentBlock.topOfStack) {
+          return;
+        }
+      }
+
+      this.currentBlock = {
+        start: timestamp,
+        end: timestamp,
+        topOfStack: codeIsTopOfStack
+      };
+      this.blocks.push(this.currentBlock);
+    } else {
+      this.currentBlock = null;
+    }
   }
 }
 

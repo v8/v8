@@ -34,6 +34,11 @@ span.code-type-chip-space {
   display : inline-block;
 }
 
+span.codeid-link {
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 div.mode-button {
   padding: 1em 3em;
   display: inline-block;
