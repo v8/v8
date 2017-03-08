@@ -152,22 +152,23 @@ Handle<Object> Assembler::code_target_object_handle_at(Address pc) {
   return code_targets_[index];
 }
 
-Object* RelocInfo::target_object() {
+HeapObject* RelocInfo::target_object() {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
-  return reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_));
+  return HeapObject::cast(
+      reinterpret_cast<Object*>(Assembler::target_address_at(pc_, host_)));
 }
 
-Handle<Object> RelocInfo::target_object_handle(Assembler* origin) {
+Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   if (rmode_ == EMBEDDED_OBJECT) {
-    return Handle<Object>(
-        reinterpret_cast<Object**>(Assembler::target_address_at(pc_, host_)));
+    return Handle<HeapObject>(reinterpret_cast<HeapObject**>(
+        Assembler::target_address_at(pc_, host_)));
   } else {
-    return origin->code_target_object_handle_at(pc_);
+    return Handle<HeapObject>::cast(origin->code_target_object_handle_at(pc_));
   }
 }
 
-void RelocInfo::set_target_object(Object* target,
+void RelocInfo::set_target_object(HeapObject* target,
                                   WriteBarrierMode write_barrier_mode,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
@@ -245,9 +246,9 @@ static const int kNoCodeAgeSequenceLength = 26;
 #endif
 #endif
 
-Handle<Object> RelocInfo::code_age_stub_handle(Assembler* origin) {
+Handle<Code> RelocInfo::code_age_stub_handle(Assembler* origin) {
   UNREACHABLE();  // This should never be reached on S390.
-  return Handle<Object>();
+  return Handle<Code>();
 }
 
 Code* RelocInfo::code_age_stub() {
