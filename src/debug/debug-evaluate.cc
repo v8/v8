@@ -210,7 +210,6 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
 
 
 void DebugEvaluate::ContextBuilder::UpdateValues() {
-  // TODO(yangguo): remove updating values.
   for (int i = 0; i < context_chain_.length(); i++) {
     ContextChainElement element = context_chain_[i];
     if (!element.materialized_object.is_null()) {
