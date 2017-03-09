@@ -202,7 +202,7 @@ TickProcessor.CodeTypes = {
 // codeTypes_ map because there can be zillions of them.
 
 
-TickProcessor.CALL_PROFILE_CUTOFF_PCT = 2.0;
+TickProcessor.CALL_PROFILE_CUTOFF_PCT = 1.0;
 
 TickProcessor.CALL_GRAPH_SIZE = 5;
 
@@ -855,7 +855,7 @@ ArgumentsProcessor.DEFAULTS = {
   stateFilter: null,
   callGraphSize: 5,
   ignoreUnknown: false,
-  separateIc: false,
+  separateIc: true,
   preprocessJson: null,
   targetRootFS: '',
   nm: 'nm',
