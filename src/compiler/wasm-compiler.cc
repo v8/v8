@@ -4099,13 +4099,6 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
       func_index_ < FLAG_trace_wasm_ast_end) {
     PrintRawWasmCode(isolate_->allocator(), func_body_, module_env_->module);
   }
-  // TODO(clemens): Remove the trace_wasm_text_start flag.
-  // if (func_index_ >= FLAG_trace_wasm_text_start && func_index_ <
-  // FLAG_trace_wasm_text_end) {
-  //  OFStream os(stdout);
-  //  PrintWasmText(module_env_.module, module_env_->wire_bytes,
-  //                function_->func_index, os, nullptr);
-  //}
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
   }
