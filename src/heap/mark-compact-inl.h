@@ -136,7 +136,9 @@ HeapObject* LiveObjectIterator<T>::Next() {
                      ->one_pointer_filler_map());
           return nullptr;
         }
-        it_.Advance();
+        bool not_done = it_.Advance();
+        USE(not_done);
+        DCHECK(not_done);
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }
@@ -194,8 +196,7 @@ HeapObject* LiveObjectIterator<T>::Next() {
     }
 
     if (current_cell_ == 0) {
-      if (!it_.Done()) {
-        it_.Advance();
+      if (!it_.Done() && it_.Advance()) {
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
       }

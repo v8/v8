@@ -333,9 +333,9 @@ class MarkBitCellIterator BASE_EMBEDDED {
     return cell_base_;
   }
 
-  inline void Advance() {
-    cell_index_++;
+  MUST_USE_RESULT inline bool Advance() {
     cell_base_ += Bitmap::kBitsPerCell * kPointerSize;
+    return ++cell_index_ != last_cell_index_;
   }
 
   inline bool Advance(unsigned int new_cell_index) {
