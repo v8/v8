@@ -1999,8 +1999,13 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreFieldDH);
         int descriptor = lookup->GetFieldDescriptorIndex();
         FieldIndex index = lookup->GetFieldIndex();
-        return StoreHandler::StoreField(isolate(), descriptor, index,
-                                        lookup->constness(),
+        PropertyConstness constness = lookup->constness();
+        if (constness == kConst && IsStoreOwnICKind(nexus()->kind())) {
+          // StoreOwnICs are used for initializing object literals therefore
+          // we must store the value unconditionally even to kConst fields.
+          constness = kMutable;
+        }
+        return StoreHandler::StoreField(isolate(), descriptor, index, constness,
                                         lookup->representation());
       }
 
