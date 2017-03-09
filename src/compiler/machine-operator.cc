@@ -135,7 +135,6 @@ MachineType AtomicExchangeRepresentationOf(Operator const* op) {
   V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                           \
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                           \
   V(BitcastTaggedToWord, Operator::kNoProperties, 1, 0, 1)                 \
-  V(BitcastWordToTagged, Operator::kNoProperties, 1, 0, 1)                 \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)           \
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)             \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)              \
@@ -607,6 +606,19 @@ struct MachineOperatorGlobalCache {
   ATOMIC_TYPE_LIST(ATOMIC_EXCHANGE)
 #undef ATOMIC_EXCHANGE
 
+  // The {BitcastWordToTagged} operator must not be marked as pure (especially
+  // not idempotent), because otherwise the splitting logic in the Scheduler
+  // might decide to split these operators, thus potentially creating live
+  // ranges of allocation top across calls or other things that might allocate.
+  // See https://bugs.chromium.org/p/v8/issues/detail?id=6059 for more details.
+  struct BitcastWordToTaggedOperator : public Operator {
+    BitcastWordToTaggedOperator()
+        : Operator(IrOpcode::kBitcastWordToTagged,
+                   Operator::kEliminatable | Operator::kNoWrite,
+                   "BitcastWordToTagged", 1, 0, 0, 1, 0, 0) {}
+  };
+  BitcastWordToTaggedOperator kBitcastWordToTagged;
+
   struct DebugBreakOperator : public Operator {
     DebugBreakOperator()
         : Operator(IrOpcode::kDebugBreak, Operator::kNoThrow, "DebugBreak", 0,
@@ -782,6 +794,10 @@ const Operator* MachineOperatorBuilder::ProtectedStore(
 
 const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
   return &cache_.kUnsafePointerAdd;
+}
+
+const Operator* MachineOperatorBuilder::BitcastWordToTagged() {
+  return &cache_.kBitcastWordToTagged;
 }
 
 const Operator* MachineOperatorBuilder::DebugBreak() {
