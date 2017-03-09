@@ -3607,10 +3607,6 @@ class Dictionary: public HashTable<Derived, Shape, Key> {
     return DerivedHashTable::Shrink(dictionary, key);
   }
 
-  // Sorting support
-  // TODO(dcarney): templatize or move to SeededNumberDictionary
-  void CopyValuesTo(FixedArray* elements);
-
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
   int NumberOfElementsFilterAttributes(PropertyFilter filter);
@@ -3876,6 +3872,9 @@ class SeededNumberDictionary
   // Returns true if the dictionary contains any elements that are non-writable,
   // non-configurable, non-enumerable, or have getters/setters.
   bool HasComplexElements();
+
+  // Sorting support
+  void CopyValuesTo(FixedArray* elements);
 
   // If slow elements are required we will never go back to fast-case
   // for the elements kept in this dictionary.  We require slow
