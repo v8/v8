@@ -84,7 +84,6 @@ bool DebugCodegen::DebugBreakSlotIsPatched(Address pc) {
 void DebugCodegen::GenerateDebugBreakStub(MacroAssembler* masm,
                                           DebugBreakCallHelperMode mode) {
   __ RecordComment("Debug break");
-  Register scratch = x10;
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
