@@ -73,6 +73,23 @@ T Maximum(T a, T b) {
   return a >= b ? a : b;
 }
 
+// For float operands, Min and Max must return NaN if either operand is NaN.
+#if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+template <>
+float Minimum(float a, float b) {
+  if (std::isnan(a) || std::isnan(b))
+    return std::numeric_limits<float>::quiet_NaN();
+  return a <= b ? a : b;
+}
+
+template <>
+float Maximum(float a, float b) {
+  if (std::isnan(a) || std::isnan(b))
+    return std::numeric_limits<float>::quiet_NaN();
+  return a >= b ? a : b;
+}
+#endif  // V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
+
 template <typename T>
 T UnsignedMinimum(T a, T b) {
   using UnsignedT = typename std::make_unsigned<T>::type;
@@ -374,20 +391,19 @@ T RecipSqrtRefine(T a, T b) {
 #define WASM_SIMD_I32x4_FROM_F32x4(x) x, WASM_SIMD_OP(kExprI32x4SConvertF32x4)
 #define WASM_SIMD_U32x4_FROM_F32x4(x) x, WASM_SIMD_OP(kExprI32x4UConvertF32x4)
 
-// Skip FP operations on NaNs or whose expected result is a NaN or so small
-// that denormalized numbers may flush to zero and cause exact FP comparisons
-// to fail.
-// TODO(bbudge) Switch FP comparisons in WASM code to WASM code that handles
-// NaNs and results with limited precision.
-bool SkipFPTestInput(float x) { return std::isnan(x); }
-
-bool SkipFPTestResult(float x) {
-  if (std::isnan(x)) return true;
-  // Constant empirically determined so existing tests pass on ARM hardware.
-  const float kSmallFloatThreshold = 1.0e-32f;
+// Skip FP operations on extremely large or extremely small values, which may
+// cause tests to fail due to non-IEEE-754 arithmetic on some platforms.
+bool SkipFPTestInput(float x) {
   float abs_x = std::fabs(x);
-  return abs_x != 0 && abs_x < kSmallFloatThreshold;
+  const float kSmallFloatThreshold = 1.0e-32f;
+  const float kLargeFloatThreshold = 1.0e32f;
+  return abs_x != 0.0f &&  // 0 or -0 are fine.
+         (abs_x < kSmallFloatThreshold || abs_x > kLargeFloatThreshold);
 }
+
+// Skip tests where the expected value is a NaN. Our WASM test code can't
+// deal with NaNs.
+bool SkipFPExpectedValue(float x) { return std::isnan(x); }
 
 #if V8_TARGET_ARCH_ARM || SIMD_LOWERING_TARGET
 WASM_EXEC_COMPILED_TEST(F32x4Splat) {
@@ -401,7 +417,7 @@ WASM_EXEC_COMPILED_TEST(F32x4Splat) {
         WASM_SIMD_CHECK_SPLAT_F32x4(simd, lane_val), WASM_RETURN1(WASM_ONE));
 
   FOR_FLOAT32_INPUTS(i) {
-    if (SkipFPTestInput(*i)) continue;
+    if (SkipFPExpectedValue(*i)) continue;
     CHECK_EQ(1, r.Call(*i));
   }
 }
@@ -473,7 +489,7 @@ void RunF32x4UnOpTest(WasmOpcode simd_op, FloatUnOp expected_op,
   FOR_FLOAT32_INPUTS(i) {
     if (SkipFPTestInput(*i)) continue;
     float expected = expected_op(*i);
-    if (SkipFPTestResult(expected)) continue;
+    if (SkipFPExpectedValue(expected)) continue;
     float abs_error = std::abs(expected) * error;
     CHECK_EQ(1, r.Call(*i, expected - abs_error, expected + abs_error));
   }
@@ -519,7 +535,7 @@ void RunF32x4BinOpTest(WasmOpcode simd_op, FloatBinOp expected_op) {
     FOR_FLOAT32_INPUTS(j) {
       if (SkipFPTestInput(*j)) continue;
       float expected = expected_op(*i, *j);
-      if (SkipFPTestResult(expected)) continue;
+      if (SkipFPExpectedValue(expected)) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected));
     }
   }
@@ -572,7 +588,7 @@ void RunF32x4CompareOpTest(WasmOpcode simd_op, FloatCompareOp expected_op) {
     FOR_FLOAT32_INPUTS(j) {
       if (SkipFPTestInput(*j)) continue;
       float diff = *i - *j;
-      if (SkipFPTestResult(diff)) continue;
+      if (SkipFPExpectedValue(diff)) continue;
       CHECK_EQ(1, r.Call(*i, *j, expected_op(*i, *j)));
     }
   }
