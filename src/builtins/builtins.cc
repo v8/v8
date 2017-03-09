@@ -167,6 +167,12 @@ void Builtins::SetUp(Isolate* isolate, bool create_heap_objects) {
     for (int i = 0; i < builtin_count; i++) {
       Code::cast(builtins_[i])->set_builtin_index(i);
     }
+
+#define EXCEPTION_PREDICTION(Name, type) \
+  Code::cast(builtins_[k##Name])->set_##type(true);
+
+    BUILTIN_EXCEPTION_PREDICTION_LIST(EXCEPTION_PREDICTION)
+#undef EXCEPTION_PREDICTION
   }
 
   // Mark as initialized.

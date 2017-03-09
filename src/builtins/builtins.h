@@ -854,6 +854,11 @@ class Isolate;
   /* proposal-async-iteration/#sec-async-iterator-value-unwrap-functions */    \
   TFJ(AsyncIteratorValueUnwrap, 1)
 
+#define BUILTIN_EXCEPTION_PREDICTION_LIST(V)                    \
+  V(AsyncFromSyncIteratorPrototypeNext, is_promise_rejection)   \
+  V(AsyncFromSyncIteratorPrototypeReturn, is_promise_rejection) \
+  V(AsyncFromSyncIteratorPrototypeThrow, is_promise_rejection)
+
 #define IGNORE_BUILTIN(...)
 
 #define BUILTIN_LIST_ALL(V) BUILTIN_LIST(V, V, V, V, V, V, V)
