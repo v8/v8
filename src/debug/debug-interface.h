@@ -61,7 +61,7 @@ MaybeLocal<Value> Call(Local<Context> context, v8::Local<v8::Function> fun,
  * (default Isolate if not provided). V8 will abort if LiveEdit is
  * unexpectedly used. LiveEdit is enabled by default.
  */
-void SetLiveEditEnabled(Isolate* isolate, bool enable);
+V8_EXPORT_PRIVATE void SetLiveEditEnabled(Isolate* isolate, bool enable);
 
 // Schedule a debugger break to happen when JavaScript code is run
 // in the given isolate.

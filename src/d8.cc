@@ -2030,6 +2030,8 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
             .ToLocalChecked();
     CHECK(context->Global()->Set(context, function_name, function).FromJust());
 
+    v8::debug::SetLiveEditEnabled(isolate_, true);
+
     context_.Reset(isolate_, context);
   }
 
