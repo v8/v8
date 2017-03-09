@@ -1003,9 +1003,26 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::Call(Register callable,
   if (tail_call_mode == TailCallMode::kDisallow) {
     if (call_type == Call::NAMED_PROPERTY_CALL ||
         call_type == Call::KEYED_PROPERTY_CALL) {
-      OutputCallProperty(callable, args, args.register_count(), feedback_slot);
+      if (args.register_count() == 1) {
+        OutputCallProperty0(callable, args[0], feedback_slot);
+      } else if (args.register_count() == 2) {
+        OutputCallProperty1(callable, args[0], args[1], feedback_slot);
+      } else if (args.register_count() == 3) {
+        OutputCallProperty2(callable, args[0], args[1], args[2], feedback_slot);
+      } else {
+        OutputCallProperty(callable, args, args.register_count(),
+                           feedback_slot);
+      }
     } else {
-      OutputCall(callable, args, args.register_count(), feedback_slot);
+      if (args.register_count() == 1) {
+        OutputCall0(callable, args[0], feedback_slot);
+      } else if (args.register_count() == 2) {
+        OutputCall1(callable, args[0], args[1], feedback_slot);
+      } else if (args.register_count() == 3) {
+        OutputCall2(callable, args[0], args[1], args[2], feedback_slot);
+      } else {
+        OutputCall(callable, args, args.register_count(), feedback_slot);
+      }
     }
   } else {
     DCHECK(tail_call_mode == TailCallMode::kAllow);

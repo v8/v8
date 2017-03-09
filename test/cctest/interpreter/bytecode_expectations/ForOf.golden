@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 272
+bytecode array length: 270
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -22,13 +22,13 @@ bytecodes: [
                 B(Star), R(13),
                 B(LdaNamedProperty), R(13), U8(1), U8(3),
                 B(Star), R(14),
-                B(CallProperty), R(14), R(13), U8(1), U8(5),
+                B(CallProperty0), R(14), R(13), U8(5),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(2),
   /*   45 S> */ B(LdaNamedProperty), R(2), U8(2), U8(9),
                 B(Star), R(13),
-  /*   45 E> */ B(CallProperty), R(13), R(2), U8(1), U8(7),
+  /*   45 E> */ B(CallProperty0), R(13), R(2), U8(7),
                 B(Star), R(3),
   /*   45 E> */ B(InvokeIntrinsic), U8(Runtime::k_IsJSReceiver), R(3), U8(1),
                 B(ToBooleanLogicalNot),
@@ -45,7 +45,7 @@ bytecodes: [
                 B(Mov), R(0), R(1),
                 B(LdaZero),
                 B(Star), R(4),
-                B(JumpLoop), U8(51), I8(0),
+                B(JumpLoop), U8(50), I8(0),
                 B(Jump), U8(36),
                 B(Star), R(13),
                 B(Ldar), R(closure),
@@ -142,9 +142,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [7, 126, 132],
-  [10, 90, 92],
-  [199, 209, 211],
+  [7, 124, 130],
+  [10, 88, 90],
+  [197, 207, 209],
 ]
 
 ---
@@ -154,7 +154,7 @@ snippet: "
 "
 frame size: 16
 parameter count: 1
-bytecode array length: 286
+bytecode array length: 284
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -165,14 +165,14 @@ bytecodes: [
                 B(Mov), R(context), R(13),
   /*   68 S> */ B(LdaNamedProperty), R(0), U8(1), U8(2),
                 B(Star), R(15),
-                B(CallProperty), R(15), R(0), U8(1), U8(4),
+                B(CallProperty0), R(15), R(0), U8(4),
                 B(Mov), R(0), R(14),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(3),
   /*   65 S> */ B(LdaNamedProperty), R(3), U8(2), U8(8),
                 B(Star), R(14),
-  /*   65 E> */ B(CallProperty), R(14), R(3), U8(1), U8(6),
+  /*   65 E> */ B(CallProperty0), R(14), R(3), U8(6),
                 B(Star), R(4),
   /*   65 E> */ B(InvokeIntrinsic), U8(Runtime::k_IsJSReceiver), R(4), U8(1),
                 B(ToBooleanLogicalNot),
@@ -292,9 +292,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [11, 129, 135],
-  [14, 93, 95],
-  [203, 213, 215],
+  [11, 127, 133],
+  [14, 91, 93],
+  [201, 211, 213],
 ]
 
 ---
@@ -306,7 +306,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 290
+bytecode array length: 288
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -317,13 +317,13 @@ bytecodes: [
                 B(Star), R(13),
                 B(LdaNamedProperty), R(13), U8(1), U8(3),
                 B(Star), R(14),
-                B(CallProperty), R(14), R(13), U8(1), U8(5),
+                B(CallProperty0), R(14), R(13), U8(5),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(2),
   /*   45 S> */ B(LdaNamedProperty), R(2), U8(2), U8(9),
                 B(Star), R(13),
-  /*   45 E> */ B(CallProperty), R(13), R(2), U8(1), U8(7),
+  /*   45 E> */ B(CallProperty0), R(13), R(2), U8(7),
                 B(Star), R(3),
   /*   45 E> */ B(InvokeIntrinsic), U8(Runtime::k_IsJSReceiver), R(3), U8(1),
                 B(ToBooleanLogicalNot),
@@ -348,7 +348,7 @@ bytecodes: [
   /*  104 S> */ B(Jump), U8(8),
                 B(LdaZero),
                 B(Star), R(4),
-                B(JumpLoop), U8(69), I8(0),
+                B(JumpLoop), U8(68), I8(0),
                 B(Jump), U8(36),
                 B(Star), R(13),
                 B(Ldar), R(closure),
@@ -445,9 +445,9 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [7, 144, 150],
-  [10, 108, 110],
-  [217, 227, 229],
+  [7, 142, 148],
+  [10, 106, 108],
+  [215, 225, 227],
 ]
 
 ---
@@ -457,7 +457,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 297
+bytecode array length: 295
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(2), U8(1), R(8),
@@ -470,13 +470,13 @@ bytecodes: [
                 B(Star), R(12),
                 B(LdaNamedProperty), R(12), U8(2), U8(4),
                 B(Star), R(13),
-                B(CallProperty), R(13), R(12), U8(1), U8(6),
+                B(CallProperty0), R(13), R(12), U8(6),
                 B(JumpIfJSReceiver), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
                 B(Star), R(1),
   /*   74 S> */ B(LdaNamedProperty), R(1), U8(3), U8(10),
                 B(Star), R(12),
-  /*   74 E> */ B(CallProperty), R(12), R(1), U8(1), U8(8),
+  /*   74 E> */ B(CallProperty0), R(12), R(1), U8(8),
                 B(Star), R(2),
   /*   74 E> */ B(InvokeIntrinsic), U8(Runtime::k_IsJSReceiver), R(2), U8(1),
                 B(ToBooleanLogicalNot),
@@ -600,8 +600,8 @@ constant pool: [
   FIXED_ARRAY_TYPE,
 ]
 handlers: [
-  [15, 140, 146],
-  [18, 104, 106],
-  [214, 224, 226],
+  [15, 138, 144],
+  [18, 102, 104],
+  [212, 222, 224],
 ]
 

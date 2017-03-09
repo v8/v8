@@ -77,7 +77,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 22
+bytecode array length: 21
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(0),
@@ -86,7 +86,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(CreateClosure), U8(0), U8(4), U8(2),
                 B(Star), R(1),
-  /*   64 E> */ B(Call), R(1), R(2), U8(1), U8(2),
+  /*   64 E> */ B(Call0), R(1), R(2), U8(2),
   /*   68 S> */ B(LdaCurrentContextSlot), U8(4),
   /*   78 S> */ B(Return),
 ]
@@ -390,7 +390,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 792
+bytecode array length: 791
 bytecodes: [
                 B(CreateFunctionContext), U8(254),
                 B(PushContext), R(0),
@@ -905,7 +905,7 @@ bytecodes: [
                 B(Star), R(2),
                 B(LdaGlobal), U8(0), U8(4),
                 B(Star), R(1),
-  /* 3438 E> */ B(Call), R(1), R(2), U8(1), U8(2),
+  /* 3438 E> */ B(Call0), R(1), R(2), U8(2),
   /* 3454 S> */ B(LdaSmi), I8(100),
   /* 3454 E> */ B(Wide), B(StaCurrentContextSlot), U16(256),
   /* 3459 S> */ B(Wide), B(LdaCurrentContextSlot), U16(256),

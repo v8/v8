@@ -32,6 +32,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* BytecodeOperandFlag(int operand_index);
   // Returns the 32-bit zero-extended index immediate for bytecode operand
   // |operand_index| in the current bytecode.
+  compiler::Node* BytecodeOperandIdxInt32(int operand_index);
+  // Returns the word zero-extended index immediate for bytecode operand
+  // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandIdx(int operand_index);
   // Returns the smi index immediate for bytecode operand |operand_index|
   // in the current bytecode.

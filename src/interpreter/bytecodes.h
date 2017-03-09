@@ -154,8 +154,21 @@ namespace interpreter {
   /* Call operations */                                                        \
   V(Call, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kRegList,    \
     OperandType::kRegCount, OperandType::kIdx)                                 \
+  V(Call0, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kIdx)                                                         \
+  V(Call1, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kReg, OperandType::kIdx)                                      \
+  V(Call2, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,       \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
   V(CallProperty, AccumulatorUse::kWrite, OperandType::kReg,                   \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kIdx)          \
+  V(CallProperty0, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kIdx)                                      \
+  V(CallProperty1, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kReg, OperandType::kIdx)                   \
+  V(CallProperty2, AccumulatorUse::kWrite, OperandType::kReg,                  \
+    OperandType::kReg, OperandType::kReg, OperandType::kReg,                   \
+    OperandType::kIdx)                                                         \
   V(CallWithSpread, AccumulatorUse::kWrite, OperandType::kReg,                 \
     OperandType::kRegList, OperandType::kRegCount)                             \
   V(TailCall, AccumulatorUse::kWrite, OperandType::kReg,                       \
@@ -405,7 +418,7 @@ enum class Bytecode : uint8_t {
 class V8_EXPORT_PRIVATE Bytecodes final {
  public:
   //  The maximum number of operands a bytecode may have.
-  static const int kMaxOperands = 4;
+  static const int kMaxOperands = 5;
 
   // Returns string representation of |bytecode|.
   static const char* ToString(Bytecode bytecode);
@@ -618,6 +631,12 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns true if the bytecode is a call or a constructor call.
   static constexpr bool IsCallOrConstruct(Bytecode bytecode) {
     return bytecode == Bytecode::kCall || bytecode == Bytecode::kCallProperty ||
+           bytecode == Bytecode::kCall0 ||
+           bytecode == Bytecode::kCallProperty0 ||
+           bytecode == Bytecode::kCall1 ||
+           bytecode == Bytecode::kCallProperty1 ||
+           bytecode == Bytecode::kCall2 ||
+           bytecode == Bytecode::kCallProperty2 ||
            bytecode == Bytecode::kTailCall ||
            bytecode == Bytecode::kConstruct ||
            bytecode == Bytecode::kCallWithSpread ||
