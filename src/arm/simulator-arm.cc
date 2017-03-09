@@ -432,15 +432,12 @@ void ArmDebugger::Debug() {
         PrintF("INEXACT flag: %d;\n", sim_->inexact_vfp_flag_);
       } else if (strcmp(cmd, "stop") == 0) {
         int32_t value;
-        intptr_t stop_pc = sim_->get_pc() - 2 * Instruction::kInstrSize;
+        intptr_t stop_pc = sim_->get_pc() - Instruction::kInstrSize;
         Instruction* stop_instr = reinterpret_cast<Instruction*>(stop_pc);
-        Instruction* msg_address =
-          reinterpret_cast<Instruction*>(stop_pc + Instruction::kInstrSize);
         if ((argc == 2) && (strcmp(arg1, "unstop") == 0)) {
           // Remove the current stop.
           if (sim_->isStopInstruction(stop_instr)) {
             stop_instr->SetInstructionBits(kNopInstr);
-            msg_address->SetInstructionBits(kNopInstr);
           } else {
             PrintF("Not at debugger stop.\n");
           }
@@ -5671,10 +5668,6 @@ void Simulator::InstructionDecode(Instruction* instr) {
         break;
       }
     }
-  // If the instruction is a non taken conditional stop, we need to skip the
-  // inlined message address.
-  } else if (instr->IsStop()) {
-    set_pc(get_pc() + 2 * Instruction::kInstrSize);
   }
   if (!pc_modified_) {
     set_register(pc, reinterpret_cast<int32_t>(instr)

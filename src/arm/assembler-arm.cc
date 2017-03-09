@@ -2282,19 +2282,12 @@ void Assembler::stop(const char* msg, Condition cond, int32_t code) {
 #ifndef __arm__
   DCHECK(code >= kDefaultStopCode);
   {
-    // The Simulator will handle the stop instruction and get the message
-    // address. It expects to find the address just after the svc instruction.
     BlockConstPoolScope block_const_pool(this);
     if (code >= 0) {
       svc(kStopCode + code, cond);
     } else {
       svc(kStopCode + kMaxStopCode, cond);
     }
-    // Do not embed the message string address! We used to do this, but that
-    // made snapshots created from position-independent executable builds
-    // non-deterministic.
-    // TODO(yangguo): remove this field entirely.
-    nop();
   }
 #else  // def __arm__
   if (cond != al) {

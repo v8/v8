@@ -2020,14 +2020,7 @@ void Assembler::stop(const char* msg, uint32_t code) {
   break_(0x54321);
 #else  // V8_HOST_ARCH_MIPS
   BlockTrampolinePoolFor(2);
-  // The Simulator will handle the stop instruction and get the message address.
-  // On MIPS stop() is just a special kind of break_().
   break_(code, true);
-  // Do not embed the message string address! We used to do this, but that
-  // made snapshots created from position-independent executable builds
-  // non-deterministic.
-  // TODO(yangguo): remove this field entirely.
-  nop();
 #endif
 }
 
