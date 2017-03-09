@@ -172,9 +172,11 @@ MaybeHandle<HeapObject> Deserializer::DeserializeObject(Isolate* isolate) {
 }
 
 Deserializer::~Deserializer() {
-  // TODO(svenpanne) Re-enable this assertion when v8 initialization is fixed.
-  // DCHECK(source_.AtEOF());
 #ifdef DEBUG
+  // Do not perform checks if we aborted deserialization.
+  if (source_.position() == 0) return;
+  // Check that we only have padding bytes remaining.
+  while (source_.HasMore()) CHECK_EQ(kNop, source_.Get());
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     int chunk_index = current_chunk_[space];
     CHECK_EQ(reservations_[space].length(), chunk_index + 1);
