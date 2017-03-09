@@ -255,7 +255,8 @@ MapUpdater::State MapUpdater::FindRootMap() {
     if (old_details.location() != kField) {
       return CopyGeneralizeAllFields("GenAll_RootModification2");
     }
-    if (new_constness_ != old_details.constness()) {
+    if (new_constness_ != old_details.constness() &&
+        (!FLAG_modify_map_inplace || !old_map_->is_prototype_map())) {
       return CopyGeneralizeAllFields("GenAll_RootModification3");
     }
     if (!new_representation_.fits_into(old_details.representation())) {
@@ -269,6 +270,19 @@ MapUpdater::State MapUpdater::FindRootMap() {
         old_descriptors_->GetFieldType(modified_descriptor_);
     if (!new_field_type_->NowIs(old_field_type)) {
       return CopyGeneralizeAllFields("GenAll_RootModification5");
+    }
+
+    // Modify root map in-place.
+    if (FLAG_modify_map_inplace && new_constness_ != old_details.constness()) {
+      // Only prototype root maps are allowed to be updated in-place.
+      // TODO(ishell): fix all the stubs that use prototype map check to
+      // ensure that the prototype was not modified.
+      DCHECK(old_map_->is_prototype_map());
+      DCHECK(old_map_->is_stable());
+      DCHECK(IsGeneralizableTo(old_details.constness(), new_constness_));
+      GeneralizeField(old_map_, modified_descriptor_, new_constness_,
+                      old_details.representation(),
+                      handle(old_field_type, isolate_));
     }
   }
 
@@ -305,7 +319,8 @@ MapUpdater::State MapUpdater::FindTargetMap() {
       return CopyGeneralizeAllFields("GenAll_Incompatible");
     }
     PropertyConstness tmp_constness = tmp_details.constness();
-    if (!IsGeneralizableTo(old_details.constness(), tmp_constness)) {
+    if (!FLAG_modify_map_inplace &&
+        !IsGeneralizableTo(old_details.constness(), tmp_constness)) {
       break;
     }
     if (!IsGeneralizableTo(old_details.location(), tmp_details.location())) {
@@ -319,7 +334,9 @@ MapUpdater::State MapUpdater::FindTargetMap() {
     if (tmp_details.location() == kField) {
       Handle<FieldType> old_field_type =
           GetOrComputeFieldType(i, old_details.location(), tmp_representation);
-      GeneralizeField(tmp_map, i, tmp_constness, tmp_representation,
+      PropertyConstness constness =
+          FLAG_modify_map_inplace ? old_details.constness() : tmp_constness;
+      GeneralizeField(tmp_map, i, constness, tmp_representation,
                       old_field_type);
     } else {
       // kDescriptor: Check that the value matches.

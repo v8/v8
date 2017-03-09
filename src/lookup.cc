@@ -252,7 +252,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
 
   if (old_map.is_identical_to(new_map)) {
     // Update the property details if the representation was None.
-    if (representation().IsNone()) {
+    if (constness() != new_constness || representation().IsNone()) {
       property_details_ =
           new_map->instance_descriptors()->GetDetails(descriptor_number());
     }

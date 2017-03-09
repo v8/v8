@@ -904,6 +904,7 @@ DEFINE_INT(ic_stats, 0, "inline cache state transitions statistics")
 DEFINE_VALUE_IMPLICATION(trace_ic, ic_stats, 1)
 DEFINE_BOOL_READONLY(track_constant_fields, false,
                      "enable constant field tracking")
+DEFINE_BOOL_READONLY(modify_map_inplace, false, "enable in-place map updates")
 
 // macro-assembler-ia32.cc
 DEFINE_BOOL(native_code_counters, false,
