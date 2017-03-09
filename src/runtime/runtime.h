@@ -549,6 +549,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \
   F(ConstructDouble, 2, 1)                    \
+  F(ConstructConsString, 2, 1)                \
   F(DeoptimizeFunction, 1, 1)                 \
   F(DeoptimizeNow, 0, 1)                      \
   F(RunningInSimulator, 0, 1)                 \

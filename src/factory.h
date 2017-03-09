@@ -252,6 +252,10 @@ class V8_EXPORT_PRIVATE Factory final {
   MUST_USE_RESULT MaybeHandle<String> NewConsString(Handle<String> left,
                                                     Handle<String> right);
 
+  MUST_USE_RESULT Handle<String> NewConsString(Handle<String> left,
+                                               Handle<String> right, int length,
+                                               bool one_byte);
+
   // Create or lookup a single characters tring made up of a utf16 surrogate
   // pair.
   Handle<String> NewSurrogatePairString(uint16_t lead, uint16_t trail);

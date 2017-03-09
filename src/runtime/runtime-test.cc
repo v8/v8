@@ -71,6 +71,20 @@ RUNTIME_FUNCTION(Runtime_ConstructDouble) {
   return *isolate->factory()->NewNumber(uint64_to_double(result));
 }
 
+RUNTIME_FUNCTION(Runtime_ConstructConsString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(String, left, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, right, 1);
+
+  CHECK(left->IsOneByteRepresentation());
+  CHECK(right->IsOneByteRepresentation());
+
+  const bool kIsOneByte = true;
+  const int length = left->length() + right->length();
+  return *isolate->factory()->NewConsString(left, right, length, kIsOneByte);
+}
+
 RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

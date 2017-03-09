@@ -16111,7 +16111,7 @@ inline Handle<StringType> WriteEscapedRegExpSource(Handle<String> source,
 
 MaybeHandle<String> EscapeRegExpSource(Isolate* isolate,
                                        Handle<String> source) {
-  String::Flatten(source);
+  DCHECK(source->IsFlat());
   if (source->length() == 0) return isolate->factory()->query_colon_string();
   bool one_byte = source->IsOneByteRepresentationUnderneath();
   int escapes = one_byte ? CountRequiredEscapes<uint8_t>(source)
@@ -16159,6 +16159,8 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
   // If source is the empty string we set it to "(?:)" instead as
   // suggested by ECMA-262, 5th, section 15.10.4.1.
   if (source->length() == 0) source = factory->query_colon_string();
+
+  source = String::Flatten(source);
 
   Handle<String> escaped_source;
   ASSIGN_RETURN_ON_EXCEPTION(isolate, escaped_source,

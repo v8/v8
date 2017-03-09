@@ -711,10 +711,20 @@ MaybeHandle<String> Factory::NewConsString(Handle<String> left,
             NewRawTwoByteString(length).ToHandleChecked(), left, right);
   }
 
+  bool one_byte = (is_one_byte || is_one_byte_data_in_two_byte_string);
+  return NewConsString(left, right, length, one_byte);
+}
+
+Handle<String> Factory::NewConsString(Handle<String> left, Handle<String> right,
+                                      int length, bool one_byte) {
+  DCHECK(!left->IsThinString());
+  DCHECK(!right->IsThinString());
+  DCHECK_GE(length, ConsString::kMinLength);
+  DCHECK_LE(length, String::kMaxLength);
+
   Handle<ConsString> result =
-      (is_one_byte || is_one_byte_data_in_two_byte_string)
-          ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
-          : New<ConsString>(cons_string_map(), NEW_SPACE);
+      one_byte ? New<ConsString>(cons_one_byte_string_map(), NEW_SPACE)
+               : New<ConsString>(cons_string_map(), NEW_SPACE);
 
   DisallowHeapAllocation no_gc;
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
