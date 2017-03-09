@@ -68,48 +68,34 @@ BUILTIN(SymbolKeyFor) {
 }
 
 // ES6 section 19.4.3.4 Symbol.prototype [ @@toPrimitive ] ( hint )
-void Builtins::Generate_SymbolPrototypeToPrimitive(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(SymbolPrototypeToPrimitive, CodeStubAssembler) {
+  Node* receiver = Parameter(0);
+  Node* context = Parameter(4);
 
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(4);
-
-  Node* result =
-      assembler.ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                            "Symbol.prototype [ @@toPrimitive ]");
-  assembler.Return(result);
+  Node* result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                             "Symbol.prototype [ @@toPrimitive ]");
+  Return(result);
 }
 
 // ES6 section 19.4.3.2 Symbol.prototype.toString ( )
-void Builtins::Generate_SymbolPrototypeToString(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(SymbolPrototypeToString, CodeStubAssembler) {
+  Node* receiver = Parameter(0);
+  Node* context = Parameter(3);
 
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
-
-  Node* value = assembler.ToThisValue(context, receiver, PrimitiveType::kSymbol,
-                                      "Symbol.prototype.toString");
-  Node* result =
-      assembler.CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
-  assembler.Return(result);
+  Node* value = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                            "Symbol.prototype.toString");
+  Node* result = CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
+  Return(result);
 }
 
 // ES6 section 19.4.3.3 Symbol.prototype.valueOf ( )
-void Builtins::Generate_SymbolPrototypeValueOf(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  CodeStubAssembler assembler(state);
+TF_BUILTIN(SymbolPrototypeValueOf, CodeStubAssembler) {
+  Node* receiver = Parameter(0);
+  Node* context = Parameter(3);
 
-  Node* receiver = assembler.Parameter(0);
-  Node* context = assembler.Parameter(3);
-
-  Node* result = assembler.ToThisValue(
-      context, receiver, PrimitiveType::kSymbol, "Symbol.prototype.valueOf");
-  assembler.Return(result);
+  Node* result = ToThisValue(context, receiver, PrimitiveType::kSymbol,
+                             "Symbol.prototype.valueOf");
+  Return(result);
 }
 
 }  // namespace internal

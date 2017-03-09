@@ -56,190 +56,150 @@ void Builtins::Generate_StackCheck(MacroAssembler* masm) {
 // -----------------------------------------------------------------------------
 // TurboFan support builtins.
 
-void Builtins::Generate_CopyFastSmiOrObjectElements(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
   typedef CopyFastSmiOrObjectElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
+  Node* object = Parameter(Descriptor::kObject);
 
   // Load the {object}s elements.
-  Node* source = assembler.LoadObjectField(object, JSObject::kElementsOffset);
+  Node* source = LoadObjectField(object, JSObject::kElementsOffset);
 
-  CodeStubAssembler::ParameterMode mode = assembler.OptimalParameterMode();
-  Node* length = assembler.TaggedToParameter(
-      assembler.LoadFixedArrayBaseLength(source), mode);
+  ParameterMode mode = OptimalParameterMode();
+  Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
 
   // Check if we can allocate in new space.
   ElementsKind kind = FAST_ELEMENTS;
   int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(&assembler), if_oldspace(&assembler);
-  assembler.Branch(
-      assembler.UintPtrOrSmiLessThan(
-          length, assembler.IntPtrOrSmiConstant(max_elements, mode), mode),
-      &if_newspace, &if_oldspace);
+  Label if_newspace(this), if_oldspace(this);
+  Branch(UintPtrOrSmiLessThan(length, IntPtrOrSmiConstant(max_elements, mode),
+                              mode),
+         &if_newspace, &if_oldspace);
 
-  assembler.Bind(&if_newspace);
+  Bind(&if_newspace);
   {
-    Node* target = assembler.AllocateFixedArray(kind, length, mode);
-    assembler.CopyFixedArrayElements(kind, source, target, length,
-                                     SKIP_WRITE_BARRIER, mode);
-    assembler.StoreObjectField(object, JSObject::kElementsOffset, target);
-    assembler.Return(target);
+    Node* target = AllocateFixedArray(kind, length, mode);
+    CopyFixedArrayElements(kind, source, target, length, SKIP_WRITE_BARRIER,
+                           mode);
+    StoreObjectField(object, JSObject::kElementsOffset, target);
+    Return(target);
   }
 
-  assembler.Bind(&if_oldspace);
+  Bind(&if_oldspace);
   {
-    Node* target = assembler.AllocateFixedArray(kind, length, mode,
-                                                CodeStubAssembler::kPretenured);
-    assembler.CopyFixedArrayElements(kind, source, target, length,
-                                     UPDATE_WRITE_BARRIER, mode);
-    assembler.StoreObjectField(object, JSObject::kElementsOffset, target);
-    assembler.Return(target);
+    Node* target = AllocateFixedArray(kind, length, mode, kPretenured);
+    CopyFixedArrayElements(kind, source, target, length, UPDATE_WRITE_BARRIER,
+                           mode);
+    StoreObjectField(object, JSObject::kElementsOffset, target);
+    Return(target);
   }
 }
 
-void Builtins::Generate_GrowFastDoubleElements(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {
   typedef GrowArrayElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* key = assembler.Parameter(Descriptor::kKey);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* context = Parameter(Descriptor::kContext);
 
-  Label runtime(&assembler, CodeStubAssembler::Label::kDeferred);
-  Node* elements = assembler.LoadElements(object);
-  elements = assembler.TryGrowElementsCapacity(
-      object, elements, FAST_DOUBLE_ELEMENTS, key, &runtime);
-  assembler.Return(elements);
+  Label runtime(this, Label::kDeferred);
+  Node* elements = LoadElements(object);
+  elements = TryGrowElementsCapacity(object, elements, FAST_DOUBLE_ELEMENTS,
+                                     key, &runtime);
+  Return(elements);
 
-  assembler.Bind(&runtime);
-  assembler.TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
+  Bind(&runtime);
+  TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
-void Builtins::Generate_GrowFastSmiOrObjectElements(
-    compiler::CodeAssemblerState* state) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   typedef GrowArrayElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
 
-  Node* object = assembler.Parameter(Descriptor::kObject);
-  Node* key = assembler.Parameter(Descriptor::kKey);
-  Node* context = assembler.Parameter(Descriptor::kContext);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* key = Parameter(Descriptor::kKey);
+  Node* context = Parameter(Descriptor::kContext);
 
-  Label runtime(&assembler, CodeStubAssembler::Label::kDeferred);
-  Node* elements = assembler.LoadElements(object);
-  elements = assembler.TryGrowElementsCapacity(object, elements, FAST_ELEMENTS,
-                                               key, &runtime);
-  assembler.Return(elements);
+  Label runtime(this, Label::kDeferred);
+  Node* elements = LoadElements(object);
+  elements =
+      TryGrowElementsCapacity(object, elements, FAST_ELEMENTS, key, &runtime);
+  Return(elements);
 
-  assembler.Bind(&runtime);
-  assembler.TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
+  Bind(&runtime);
+  TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
-namespace {
+TF_BUILTIN(NewUnmappedArgumentsElements, CodeStubAssembler) {
+  typedef NewArgumentsElementsDescriptor Descriptor;
 
-void Generate_NewArgumentsElements(CodeStubAssembler* assembler,
-                                   compiler::Node* frame,
-                                   compiler::Node* length) {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-  typedef compiler::Node Node;
+  Node* frame = Parameter(Descriptor::kFrame);
+  Node* length = SmiToWord(Parameter(Descriptor::kLength));
 
   // Check if we can allocate in new space.
   ElementsKind kind = FAST_ELEMENTS;
   int max_elements = FixedArray::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(assembler), if_oldspace(assembler, Label::kDeferred);
-  assembler->Branch(assembler->IntPtrLessThan(
-                        length, assembler->IntPtrConstant(max_elements)),
-                    &if_newspace, &if_oldspace);
+  Label if_newspace(this), if_oldspace(this, Label::kDeferred);
+  Branch(IntPtrLessThan(length, IntPtrConstant(max_elements)), &if_newspace,
+         &if_oldspace);
 
-  assembler->Bind(&if_newspace);
+  Bind(&if_newspace);
   {
     // Prefer EmptyFixedArray in case of non-positive {length} (the {length}
     // can be negative here for rest parameters).
-    Label if_empty(assembler), if_notempty(assembler);
-    assembler->Branch(
-        assembler->IntPtrLessThanOrEqual(length, assembler->IntPtrConstant(0)),
-        &if_empty, &if_notempty);
+    Label if_empty(this), if_notempty(this);
+    Branch(IntPtrLessThanOrEqual(length, IntPtrConstant(0)), &if_empty,
+           &if_notempty);
 
-    assembler->Bind(&if_empty);
-    assembler->Return(assembler->EmptyFixedArrayConstant());
+    Bind(&if_empty);
+    Return(EmptyFixedArrayConstant());
 
-    assembler->Bind(&if_notempty);
+    Bind(&if_notempty);
     {
       // Allocate a FixedArray in new space.
-      Node* result = assembler->AllocateFixedArray(kind, length);
+      Node* result = AllocateFixedArray(kind, length);
 
       // Compute the effective {offset} into the {frame}.
-      Node* offset = assembler->IntPtrAdd(length, assembler->IntPtrConstant(1));
+      Node* offset = IntPtrAdd(length, IntPtrConstant(1));
 
       // Copy the parameters from {frame} (starting at {offset}) to {result}.
-      Variable var_index(assembler, MachineType::PointerRepresentation());
-      Label loop(assembler, &var_index), done_loop(assembler);
-      var_index.Bind(assembler->IntPtrConstant(0));
-      assembler->Goto(&loop);
-      assembler->Bind(&loop);
+      Variable var_index(this, MachineType::PointerRepresentation());
+      Label loop(this, &var_index), done_loop(this);
+      var_index.Bind(IntPtrConstant(0));
+      Goto(&loop);
+      Bind(&loop);
       {
         // Load the current {index}.
         Node* index = var_index.value();
 
         // Check if we are done.
-        assembler->GotoIf(assembler->WordEqual(index, length), &done_loop);
+        GotoIf(WordEqual(index, length), &done_loop);
 
         // Load the parameter at the given {index}.
-        Node* value = assembler->Load(
-            MachineType::AnyTagged(), frame,
-            assembler->WordShl(assembler->IntPtrSub(offset, index),
-                               assembler->IntPtrConstant(kPointerSizeLog2)));
+        Node* value = Load(MachineType::AnyTagged(), frame,
+                           WordShl(IntPtrSub(offset, index),
+                                   IntPtrConstant(kPointerSizeLog2)));
 
         // Store the {value} into the {result}.
-        assembler->StoreFixedArrayElement(result, index, value,
-                                          SKIP_WRITE_BARRIER);
+        StoreFixedArrayElement(result, index, value, SKIP_WRITE_BARRIER);
 
         // Continue with next {index}.
-        var_index.Bind(
-            assembler->IntPtrAdd(index, assembler->IntPtrConstant(1)));
-        assembler->Goto(&loop);
+        var_index.Bind(IntPtrAdd(index, IntPtrConstant(1)));
+        Goto(&loop);
       }
 
-      assembler->Bind(&done_loop);
-      assembler->Return(result);
+      Bind(&done_loop);
+      Return(result);
     }
   }
 
-  assembler->Bind(&if_oldspace);
+  Bind(&if_oldspace);
   {
     // Allocate in old space (or large object space).
-    assembler->TailCallRuntime(
-        Runtime::kNewArgumentsElements, assembler->NoContextConstant(),
-        assembler->BitcastWordToTagged(frame), assembler->SmiFromWord(length));
+    TailCallRuntime(Runtime::kNewArgumentsElements, NoContextConstant(),
+                    BitcastWordToTagged(frame), SmiFromWord(length));
   }
 }
 
-}  // namespace
-
-void Builtins::Generate_NewUnmappedArgumentsElements(
-    compiler::CodeAssemblerState* state) {
-  typedef compiler::Node Node;
-  typedef NewArgumentsElementsDescriptor Descriptor;
-  CodeStubAssembler assembler(state);
-
-  Node* frame = assembler.Parameter(Descriptor::kFrame);
-  Node* length = assembler.Parameter(Descriptor::kLength);
-  Generate_NewArgumentsElements(&assembler, frame, assembler.SmiToWord(length));
-}
-
-void Builtins::Generate_ReturnReceiver(compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  assembler.Return(assembler.Parameter(0));
-}
+TF_BUILTIN(ReturnReceiver, CodeStubAssembler) { Return(Parameter(0)); }
 
 }  // namespace internal
 }  // namespace v8

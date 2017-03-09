@@ -13,10 +13,6 @@
 namespace v8 {
 namespace internal {
 
-typedef compiler::Node Node;
-typedef CodeStubAssembler::ParameterMode ParameterMode;
-typedef compiler::CodeAssemblerState CodeAssemblerState;
-
 Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =

@@ -17,6 +17,15 @@ namespace internal {
 // -----------------------------------------------------------------------------
 // ES6 section 20.3 Date Objects
 
+class DateBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit DateBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+ protected:
+  void Generate_DatePrototype_GetField(int field_index);
+};
+
 namespace {
 
 // ES6 section 20.3.1.1 Time Values and Time Range
@@ -895,279 +904,198 @@ BUILTIN(DatePrototypeToJson) {
   }
 }
 
-namespace {
+void DateBuiltinsAssembler::Generate_DatePrototype_GetField(int field_index) {
+  Node* receiver = Parameter(0);
+  Node* context = Parameter(3);
 
-void Generate_DatePrototype_GetField(CodeStubAssembler* assembler,
-                                     int field_index) {
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
+  Label receiver_not_date(this, Label::kDeferred);
 
-  Node* receiver = assembler->Parameter(0);
-  Node* context = assembler->Parameter(3);
-
-  Label receiver_not_date(assembler, Label::kDeferred);
-
-  assembler->GotoIf(assembler->TaggedIsSmi(receiver), &receiver_not_date);
-  Node* receiver_instance_type = assembler->LoadInstanceType(receiver);
-  assembler->GotoIf(
-      assembler->Word32NotEqual(receiver_instance_type,
-                                assembler->Int32Constant(JS_DATE_TYPE)),
-      &receiver_not_date);
+  GotoIf(TaggedIsSmi(receiver), &receiver_not_date);
+  Node* receiver_instance_type = LoadInstanceType(receiver);
+  GotoIf(Word32NotEqual(receiver_instance_type, Int32Constant(JS_DATE_TYPE)),
+         &receiver_not_date);
 
   // Load the specified date field, falling back to the runtime as necessary.
   if (field_index == JSDate::kDateValue) {
-    assembler->Return(
-        assembler->LoadObjectField(receiver, JSDate::kValueOffset));
+    Return(LoadObjectField(receiver, JSDate::kValueOffset));
   } else {
     if (field_index < JSDate::kFirstUncachedField) {
-      Label stamp_mismatch(assembler, Label::kDeferred);
-      Node* date_cache_stamp = assembler->Load(
+      Label stamp_mismatch(this, Label::kDeferred);
+      Node* date_cache_stamp = Load(
           MachineType::AnyTagged(),
-          assembler->ExternalConstant(
-              ExternalReference::date_cache_stamp(assembler->isolate())));
+          ExternalConstant(ExternalReference::date_cache_stamp(isolate())));
 
-      Node* cache_stamp =
-          assembler->LoadObjectField(receiver, JSDate::kCacheStampOffset);
-      assembler->GotoIf(assembler->WordNotEqual(date_cache_stamp, cache_stamp),
-                        &stamp_mismatch);
-      assembler->Return(assembler->LoadObjectField(
+      Node* cache_stamp = LoadObjectField(receiver, JSDate::kCacheStampOffset);
+      GotoIf(WordNotEqual(date_cache_stamp, cache_stamp), &stamp_mismatch);
+      Return(LoadObjectField(
           receiver, JSDate::kValueOffset + field_index * kPointerSize));
 
-      assembler->Bind(&stamp_mismatch);
+      Bind(&stamp_mismatch);
     }
 
-    Node* field_index_smi = assembler->SmiConstant(Smi::FromInt(field_index));
-    Node* function = assembler->ExternalConstant(
-        ExternalReference::get_date_field_function(assembler->isolate()));
-    Node* result = assembler->CallCFunction2(
+    Node* field_index_smi = SmiConstant(Smi::FromInt(field_index));
+    Node* function =
+        ExternalConstant(ExternalReference::get_date_field_function(isolate()));
+    Node* result = CallCFunction2(
         MachineType::AnyTagged(), MachineType::AnyTagged(),
         MachineType::AnyTagged(), function, receiver, field_index_smi);
-    assembler->Return(result);
+    Return(result);
   }
 
   // Raise a TypeError if the receiver is not a date.
-  assembler->Bind(&receiver_not_date);
+  Bind(&receiver_not_date);
   {
-    assembler->CallRuntime(Runtime::kThrowNotDateError, context);
-    assembler->Unreachable();
+    CallRuntime(Runtime::kThrowNotDateError, context);
+    Unreachable();
   }
 }
 
-}  // namespace
-
-// static
-void Builtins::Generate_DatePrototypeGetDate(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDay);
+TF_BUILTIN(DatePrototypeGetDate, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kDay);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetDay(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kWeekday);
+TF_BUILTIN(DatePrototypeGetDay, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kWeekday);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetFullYear(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kYear);
+TF_BUILTIN(DatePrototypeGetFullYear, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kYear);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetHours(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kHour);
+TF_BUILTIN(DatePrototypeGetHours, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kHour);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetMilliseconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMillisecond);
+TF_BUILTIN(DatePrototypeGetMilliseconds, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kMillisecond);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetMinutes(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMinute);
+TF_BUILTIN(DatePrototypeGetMinutes, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kMinute);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetMonth(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMonth);
+TF_BUILTIN(DatePrototypeGetMonth, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kMonth);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetSeconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kSecond);
+TF_BUILTIN(DatePrototypeGetSeconds, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kSecond);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetTime(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDateValue);
+TF_BUILTIN(DatePrototypeGetTime, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kDateValue);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetTimezoneOffset(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kTimezoneOffset);
+TF_BUILTIN(DatePrototypeGetTimezoneOffset, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kTimezoneOffset);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCDate(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDayUTC);
+TF_BUILTIN(DatePrototypeGetUTCDate, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kDayUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCDay(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kWeekdayUTC);
+TF_BUILTIN(DatePrototypeGetUTCDay, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kWeekdayUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCFullYear(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kYearUTC);
+TF_BUILTIN(DatePrototypeGetUTCFullYear, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kYearUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCHours(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kHourUTC);
+TF_BUILTIN(DatePrototypeGetUTCHours, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kHourUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCMilliseconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMillisecondUTC);
+TF_BUILTIN(DatePrototypeGetUTCMilliseconds, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kMillisecondUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCMinutes(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMinuteUTC);
+TF_BUILTIN(DatePrototypeGetUTCMinutes, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kMinuteUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCMonth(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kMonthUTC);
+TF_BUILTIN(DatePrototypeGetUTCMonth, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kMonthUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeGetUTCSeconds(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kSecondUTC);
+TF_BUILTIN(DatePrototypeGetUTCSeconds, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kSecondUTC);
 }
 
-// static
-void Builtins::Generate_DatePrototypeValueOf(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  Generate_DatePrototype_GetField(&assembler, JSDate::kDateValue);
+TF_BUILTIN(DatePrototypeValueOf, DateBuiltinsAssembler) {
+  Generate_DatePrototype_GetField(JSDate::kDateValue);
 }
 
-// static
-void Builtins::Generate_DatePrototypeToPrimitive(
-    compiler::CodeAssemblerState* state) {
-  CodeStubAssembler assembler(state);
-  typedef CodeStubAssembler::Label Label;
-  typedef compiler::Node Node;
-
-  Node* receiver = assembler.Parameter(0);
-  Node* hint = assembler.Parameter(1);
-  Node* context = assembler.Parameter(4);
+TF_BUILTIN(DatePrototypeToPrimitive, CodeStubAssembler) {
+  Node* receiver = Parameter(0);
+  Node* hint = Parameter(1);
+  Node* context = Parameter(4);
 
   // Check if the {receiver} is actually a JSReceiver.
-  Label receiver_is_invalid(&assembler, Label::kDeferred);
-  assembler.GotoIf(assembler.TaggedIsSmi(receiver), &receiver_is_invalid);
-  assembler.GotoIfNot(assembler.IsJSReceiver(receiver), &receiver_is_invalid);
+  Label receiver_is_invalid(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(receiver), &receiver_is_invalid);
+  GotoIfNot(IsJSReceiver(receiver), &receiver_is_invalid);
 
   // Dispatch to the appropriate OrdinaryToPrimitive builtin.
-  Label hint_is_number(&assembler), hint_is_string(&assembler),
-      hint_is_invalid(&assembler, Label::kDeferred);
+  Label hint_is_number(this), hint_is_string(this),
+      hint_is_invalid(this, Label::kDeferred);
 
   // Fast cases for internalized strings.
-  Node* number_string = assembler.LoadRoot(Heap::knumber_stringRootIndex);
-  assembler.GotoIf(assembler.WordEqual(hint, number_string), &hint_is_number);
-  Node* default_string = assembler.LoadRoot(Heap::kdefault_stringRootIndex);
-  assembler.GotoIf(assembler.WordEqual(hint, default_string), &hint_is_string);
-  Node* string_string = assembler.LoadRoot(Heap::kstring_stringRootIndex);
-  assembler.GotoIf(assembler.WordEqual(hint, string_string), &hint_is_string);
+  Node* number_string = LoadRoot(Heap::knumber_stringRootIndex);
+  GotoIf(WordEqual(hint, number_string), &hint_is_number);
+  Node* default_string = LoadRoot(Heap::kdefault_stringRootIndex);
+  GotoIf(WordEqual(hint, default_string), &hint_is_string);
+  Node* string_string = LoadRoot(Heap::kstring_stringRootIndex);
+  GotoIf(WordEqual(hint, string_string), &hint_is_string);
 
   // Slow-case with actual string comparisons.
-  Callable string_equal = CodeFactory::StringEqual(assembler.isolate());
-  assembler.GotoIf(assembler.TaggedIsSmi(hint), &hint_is_invalid);
-  assembler.GotoIfNot(assembler.IsString(hint), &hint_is_invalid);
-  assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
-                                                          hint, number_string),
-                                       assembler.TrueConstant()),
-                   &hint_is_number);
-  assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
-                                                          hint, default_string),
-                                       assembler.TrueConstant()),
-                   &hint_is_string);
-  assembler.GotoIf(assembler.WordEqual(assembler.CallStub(string_equal, context,
-                                                          hint, string_string),
-                                       assembler.TrueConstant()),
-                   &hint_is_string);
-  assembler.Goto(&hint_is_invalid);
+  Callable string_equal = CodeFactory::StringEqual(isolate());
+  GotoIf(TaggedIsSmi(hint), &hint_is_invalid);
+  GotoIfNot(IsString(hint), &hint_is_invalid);
+  GotoIf(WordEqual(CallStub(string_equal, context, hint, number_string),
+                   TrueConstant()),
+         &hint_is_number);
+  GotoIf(WordEqual(CallStub(string_equal, context, hint, default_string),
+                   TrueConstant()),
+         &hint_is_string);
+  GotoIf(WordEqual(CallStub(string_equal, context, hint, string_string),
+                   TrueConstant()),
+         &hint_is_string);
+  Goto(&hint_is_invalid);
 
   // Use the OrdinaryToPrimitive builtin to convert to a Number.
-  assembler.Bind(&hint_is_number);
+  Bind(&hint_is_number);
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
-        assembler.isolate(), OrdinaryToPrimitiveHint::kNumber);
-    Node* result = assembler.CallStub(callable, context, receiver);
-    assembler.Return(result);
+        isolate(), OrdinaryToPrimitiveHint::kNumber);
+    Node* result = CallStub(callable, context, receiver);
+    Return(result);
   }
 
   // Use the OrdinaryToPrimitive builtin to convert to a String.
-  assembler.Bind(&hint_is_string);
+  Bind(&hint_is_string);
   {
     Callable callable = CodeFactory::OrdinaryToPrimitive(
-        assembler.isolate(), OrdinaryToPrimitiveHint::kString);
-    Node* result = assembler.CallStub(callable, context, receiver);
-    assembler.Return(result);
+        isolate(), OrdinaryToPrimitiveHint::kString);
+    Node* result = CallStub(callable, context, receiver);
+    Return(result);
   }
 
   // Raise a TypeError if the {hint} is invalid.
-  assembler.Bind(&hint_is_invalid);
+  Bind(&hint_is_invalid);
   {
-    assembler.CallRuntime(Runtime::kThrowInvalidHint, context, hint);
-    assembler.Unreachable();
+    CallRuntime(Runtime::kThrowInvalidHint, context, hint);
+    Unreachable();
   }
 
   // Raise a TypeError if the {receiver} is not a JSReceiver instance.
-  assembler.Bind(&receiver_is_invalid);
+  Bind(&receiver_is_invalid);
   {
-    assembler.CallRuntime(
-        Runtime::kThrowIncompatibleMethodReceiver, context,
-        assembler.HeapConstant(assembler.factory()->NewStringFromAsciiChecked(
-            "Date.prototype [ @@toPrimitive ]", TENURED)),
-        receiver);
-    assembler.Unreachable();
+    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
+                HeapConstant(factory()->NewStringFromAsciiChecked(
+                    "Date.prototype [ @@toPrimitive ]", TENURED)),
+                receiver);
+    Unreachable();
   }
 }
 
