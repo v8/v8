@@ -8201,6 +8201,10 @@ void Isolate::Dispose() {
   isolate->TearDown();
 }
 
+void Isolate::DumpAndResetStats() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->DumpAndResetStats();
+}
 
 void Isolate::DiscardThreadSpecificMetadata() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

@@ -2387,7 +2387,7 @@ void Isolate::Deinit() {
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
 
-  DumpAndResetCompilationStats();
+  DumpAndResetStats();
 
   if (FLAG_print_deopt_stress) {
     PrintF(stdout, "=== Stress deopt counter: %u\n", stress_deopt_count_);
@@ -2884,8 +2884,7 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   }
 }
 
-
-void Isolate::DumpAndResetCompilationStats() {
+void Isolate::DumpAndResetStats() {
   if (turbo_statistics() != nullptr) {
     DCHECK(FLAG_turbo_stats || FLAG_turbo_stats_nvp);
 

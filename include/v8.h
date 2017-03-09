@@ -6639,6 +6639,12 @@ class V8_EXPORT Isolate {
   void Dispose();
 
   /**
+   * Dumps activated low-level V8 internal stats. This can be used instead
+   * of performing a full isolate disposal.
+   */
+  void DumpAndResetStats();
+
+  /**
    * Discards all V8 thread-specific data for the Isolate. Should be used
    * if a thread is terminating and it has used an Isolate that will outlive
    * the thread -- all thread-specific data for an Isolate is discarded when

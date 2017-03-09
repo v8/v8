@@ -1065,7 +1065,7 @@ class Isolate {
   HTracer* GetHTracer();
   CodeTracer* GetCodeTracer();
 
-  void DumpAndResetCompilationStats();
+  void DumpAndResetStats();
 
   FunctionEntryHook function_entry_hook() { return function_entry_hook_; }
   void set_function_entry_hook(FunctionEntryHook function_entry_hook) {
