@@ -185,8 +185,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   static void TransferMark(Heap* heap, HeapObject* from, HeapObject* to);
 
-  INLINE(static void TransferColor(HeapObject* from, HeapObject* to,
-                                   int size)) {
+  V8_INLINE static void TransferColor(HeapObject* from, HeapObject* to) {
     if (ObjectMarking::IsBlack(to)) {
       DCHECK(to->GetHeap()->incremental_marking()->black_allocation());
       return;

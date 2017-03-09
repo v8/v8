@@ -147,7 +147,7 @@ class ScavengingVisitor : public StaticVisitorBase {
     }
 
     if (marks_handling == TRANSFER_MARKS) {
-      IncrementalMarking::TransferColor(source, target, size);
+      IncrementalMarking::TransferColor(source, target);
     }
   }
 
