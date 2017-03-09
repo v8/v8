@@ -686,7 +686,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
   if (m.left().IsWord32And() && m.right().HasValue()) {
     uint32_t lsb = m.right().Value() & 0x1f;
     Int32BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
+    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
       // Select Ext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint32_t mask = (mleft.right().Value() >> lsb) << lsb;
@@ -779,7 +779,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
   if (m.left().IsWord64And() && m.right().HasValue()) {
     uint32_t lsb = m.right().Value() & 0x3f;
     Int64BinopMatcher mleft(m.left().node());
-    if (mleft.right().HasValue()) {
+    if (mleft.right().HasValue() && mleft.right().Value() != 0) {
       // Select Dext for Shr(And(x, mask), imm) where the result of the mask is
       // shifted into the least-significant bits.
       uint64_t mask = (mleft.right().Value() >> lsb) << lsb;
