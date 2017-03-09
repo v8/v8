@@ -219,11 +219,6 @@ Reduction TypedOptimization::ReduceNumberFloor(Node* node) {
       NodeProperties::SetType(node, lhs_type);
       return Changed(node);
     }
-    if (lhs_type->Is(Type::Signed32()) && rhs_type->Is(Type::Unsigned32())) {
-      NodeProperties::ChangeOp(node, simplified()->NumberToInt32());
-      NodeProperties::SetType(node, lhs_type);
-      return Changed(node);
-    }
   }
   return NoChange();
 }
