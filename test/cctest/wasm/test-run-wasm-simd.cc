@@ -31,11 +31,11 @@ typedef int8_t (*Int8BinOp)(int8_t, int8_t);
 typedef int (*Int8CompareOp)(int8_t, int8_t);
 typedef int8_t (*Int8ShiftOp)(int8_t, int);
 
-#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 #define SIMD_LOWERING_TARGET 1
 #else
 #define SIMD_LOWERING_TARGET 0
-#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_X64 && !V8_TARGET_ARCH_IA32
 
 // Generic expected value functions.
 template <typename T>

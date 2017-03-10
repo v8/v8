@@ -873,7 +873,9 @@ void InstructionSelector::VisitWord32Ror(Node* node) {
   V(Float32Mul, kAVXFloat32Mul, kSSEFloat32Mul) \
   V(Float64Mul, kAVXFloat64Mul, kSSEFloat64Mul) \
   V(Float32Div, kAVXFloat32Div, kSSEFloat32Div) \
-  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div)
+  V(Float64Div, kAVXFloat64Div, kSSEFloat64Div) \
+  V(Int32x4Add, kAVXInt32x4Add, kSSEInt32x4Add) \
+  V(Int32x4Sub, kAVXInt32x4Sub, kSSEInt32x4Sub)
 
 #define FLOAT_UNOP_LIST(V)                      \
   V(Float32Abs, kAVXFloat32Abs, kSSEFloat32Abs) \
@@ -1754,6 +1756,25 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   outputs[0] = g.DefineSameAsFirst(node);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   Emit(code, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitInt32x4Splat(Node* node) {
+  VisitRO(this, node, kIA32Int32x4Splat);
+}
+
+void InstructionSelector::VisitInt32x4ExtractLane(Node* node) {
+  IA32OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kIA32Int32x4ExtractLane, g.DefineAsRegister(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));
+}
+
+void InstructionSelector::VisitInt32x4ReplaceLane(Node* node) {
+  IA32OperandGenerator g(this);
+  int32_t lane = OpParameter<int32_t>(node);
+  Emit(kIA32Int32x4ReplaceLane, g.DefineSameAsFirst(node),
+       g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),
+       g.Use(node->InputAt(1)));
 }
 
 // static

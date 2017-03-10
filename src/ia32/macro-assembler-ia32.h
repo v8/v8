@@ -752,10 +752,12 @@ class MacroAssembler: public Assembler {
 
   // Non-SSE2 instructions.
   void Pextrd(Register dst, XMMRegister src, int8_t imm8);
-  void Pinsrd(XMMRegister dst, Register src, int8_t imm8) {
-    Pinsrd(dst, Operand(src), imm8);
+  void Pinsrd(XMMRegister dst, Register src, int8_t imm8,
+              bool is_64_bits = false) {
+    Pinsrd(dst, Operand(src), imm8, is_64_bits);
   }
-  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8);
+  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8,
+              bool is_64_bits = false);
 
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
   void Lzcnt(Register dst, const Operand& src);
