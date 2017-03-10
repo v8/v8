@@ -570,9 +570,11 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (receiver_maps.length() == 1) {
     Handle<Map> receiver_map = receiver_maps.first();
     if (receiver_map->IsJSGlobalProxyMap()) {
-      Context* receiver_context =
-          JSFunction::cast(receiver_map->GetConstructor())->native_context();
-      if (receiver_context == *native_context()) {
+      Object* maybe_constructor = receiver_map->GetConstructor();
+      // Detached global proxies have |null| as their constructor.
+      if (maybe_constructor->IsJSFunction() &&
+          JSFunction::cast(maybe_constructor)->native_context() ==
+              *native_context()) {
         return ReduceGlobalAccess(node, receiver, value, name, access_mode,
                                   index);
       }
