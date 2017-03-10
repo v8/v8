@@ -299,6 +299,26 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return compile_options_ == ScriptCompiler::kProduceParserCache;
   }
 
+  PreParser* reusable_preparser() {
+    if (reusable_preparser_ == NULL) {
+      reusable_preparser_ =
+          new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
+                        &pending_error_handler_, runtime_call_stats_,
+                        parsing_on_main_thread_);
+#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
+      SET_ALLOW(natives);
+      SET_ALLOW(harmony_do_expressions);
+      SET_ALLOW(harmony_function_sent);
+      SET_ALLOW(harmony_trailing_commas);
+      SET_ALLOW(harmony_class_fields);
+      SET_ALLOW(harmony_object_rest_spread);
+      SET_ALLOW(harmony_dynamic_import);
+      SET_ALLOW(harmony_async_iteration);
+#undef SET_ALLOW
+    }
+    return reusable_preparser_;
+  }
+
   void ParseModuleItemList(ZoneList<Statement*>* body, bool* ok);
   Statement* ParseModuleItem(bool* ok);
   const AstRawString* ParseModuleSpecifier(bool* ok);

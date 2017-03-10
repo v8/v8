@@ -2783,26 +2783,11 @@ Parser::LazyParsingResult Parser::SkipFunction(
   // AST. This gathers the data needed to build a lazy function.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.PreParse");
 
-  if (reusable_preparser_ == NULL) {
-    reusable_preparser_ = new PreParser(
-        zone(), &scanner_, stack_limit_, ast_value_factory(),
-        &pending_error_handler_, runtime_call_stats_, parsing_on_main_thread_);
-#define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
-    SET_ALLOW(natives);
-    SET_ALLOW(harmony_do_expressions);
-    SET_ALLOW(harmony_function_sent);
-    SET_ALLOW(harmony_trailing_commas);
-    SET_ALLOW(harmony_class_fields);
-    SET_ALLOW(harmony_object_rest_spread);
-    SET_ALLOW(harmony_dynamic_import);
-    SET_ALLOW(harmony_async_iteration);
-#undef SET_ALLOW
-  }
   // Aborting inner function preparsing would leave scopes in an inconsistent
   // state; we don't parse inner functions in the abortable mode anyway.
   DCHECK(!is_inner_function || !may_abort);
 
-  PreParser::PreParseResult result = reusable_preparser_->PreParseFunction(
+  PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
       kind, function_scope, parsing_module_, is_inner_function, may_abort,
       use_counts_);
 
@@ -2818,7 +2803,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     *ok = false;
     return kLazyParsingComplete;
   }
-  PreParserLogger* logger = reusable_preparser_->logger();
+  PreParserLogger* logger = reusable_preparser()->logger();
   function_scope->set_end_position(logger->end());
   Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
   total_preparse_skipped_ +=
