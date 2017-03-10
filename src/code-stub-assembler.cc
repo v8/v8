@@ -747,33 +747,28 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
                                             Node* top_address,
                                             Node* limit_address) {
   Node* top = Load(MachineType::Pointer(), top_address);
-  Node* limit = Load(MachineType::Pointer(), limit_address);
   Variable adjusted_size(this, MachineType::PointerRepresentation(),
                          size_in_bytes);
   if (flags & kDoubleAlignment) {
-    Label aligned(this), not_aligned(this), merge(this, &adjusted_size);
+    Label not_aligned(this), done_alignment(this, &adjusted_size);
     Branch(WordAnd(top, IntPtrConstant(kDoubleAlignmentMask)), &not_aligned,
-           &aligned);
+           &done_alignment);
 
     Bind(&not_aligned);
     Node* not_aligned_size =
         IntPtrAdd(size_in_bytes, IntPtrConstant(kPointerSize));
     adjusted_size.Bind(not_aligned_size);
-    Goto(&merge);
+    Goto(&done_alignment);
 
-    Bind(&aligned);
-    Goto(&merge);
-
-    Bind(&merge);
+    Bind(&done_alignment);
   }
 
-  Variable address(
-      this, MachineRepresentation::kTagged,
-      AllocateRawUnaligned(adjusted_size.value(), kNone, top, limit));
+  Variable address(this, MachineRepresentation::kTagged,
+                   AllocateRawUnaligned(adjusted_size.value(), kNone,
+                                        top_address, limit_address));
 
-  Label needs_filler(this), doesnt_need_filler(this),
-      merge_address(this, &address);
-  Branch(IntPtrEqual(adjusted_size.value(), size_in_bytes), &doesnt_need_filler,
+  Label needs_filler(this), done_filling(this, &address);
+  Branch(IntPtrEqual(adjusted_size.value(), size_in_bytes), &done_filling,
          &needs_filler);
 
   Bind(&needs_filler);
@@ -782,12 +777,9 @@ Node* CodeStubAssembler::AllocateRawAligned(Node* size_in_bytes,
                       LoadRoot(Heap::kOnePointerFillerMapRootIndex));
   address.Bind(BitcastWordToTagged(
       IntPtrAdd(address.value(), IntPtrConstant(kPointerSize))));
-  Goto(&merge_address);
+  Goto(&done_filling);
 
-  Bind(&doesnt_need_filler);
-  Goto(&merge_address);
-
-  Bind(&merge_address);
+  Bind(&done_filling);
   // Update the top.
   StoreNoWriteBarrier(MachineType::PointerRepresentation(), top_address,
                       IntPtrAdd(top, adjusted_size.value()));
