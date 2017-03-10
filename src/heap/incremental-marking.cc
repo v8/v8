@@ -736,7 +736,8 @@ void IncrementalMarking::FinalizeIncrementally() {
   // 4) Remove weak cell with live values from the list of weak cells, they
   // do not need processing during GC.
   MarkRoots();
-  if (!heap_->local_embedder_heap_tracer()->InUse()) {
+  if (!heap_->local_embedder_heap_tracer()->InUse() &&
+      FLAG_object_grouping_in_incremental_finalization) {
     MarkObjectGroups();
   }
   if (incremental_marking_finalization_rounds_ == 0) {

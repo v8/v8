@@ -778,6 +778,8 @@ DEFINE_BOOL(age_code, true,
 DEFINE_BOOL(incremental_marking, true, "use incremental marking")
 DEFINE_BOOL(incremental_marking_wrappers, true,
             "use incremental marking for marking wrappers")
+DEFINE_BOOL(object_grouping_in_incremental_finalization, true,
+            "enable object grouping in incremental finalization")
 DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
            "keep finalizing incremental marking as long as we discover at "
            "least this many unmarked objects")
