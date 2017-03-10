@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --mark-shared-functions-for-tier-up --allow-natives-syntax
-// Flags: --ignition-staging --turbo --no-always-opt
+// Flags: --ignition-staging --turbo --crankshaft --no-always-opt
 
 // If we are always or never optimizing it is useless.
 assertFalse(isAlwaysOptimize());
