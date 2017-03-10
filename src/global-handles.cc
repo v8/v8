@@ -192,10 +192,6 @@ class GlobalHandles::Node {
     set_independent(true);
   }
 
-  // Callback accessor.
-  // TODO(svenpanne) Re-enable or nuke later.
-  // WeakReferenceCallback callback() { return callback_; }
-
   // Callback parameter accessors.
   void set_parameter(void* parameter) {
     DCHECK(IsInUse());
