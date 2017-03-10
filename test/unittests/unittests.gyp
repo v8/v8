@@ -255,18 +255,6 @@
             '<(icu_gyp_path):icuuc',
           ],
         }],
-        ['os_posix == 1', {
-          # TODO(svenpanne): This is a temporary work-around to fix the warnings
-          # that show up because we use -std=gnu++0x instead of -std=c++11.
-          'cflags!': [
-            '-pedantic',
-          ],
-          'direct_dependent_settings': {
-            'cflags!': [
-              '-pedantic',
-            ],
-          },
-        }],
       ],
     },
   ],
