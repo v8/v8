@@ -284,7 +284,7 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
   Node* value_integer = ToInteger(context, value);
 
 #if V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_S390 || V8_TARGET_ARCH_S390X
+    V8_TARGET_ARCH_PPC
   Return(CallRuntime(Runtime::kAtomicsExchange, context, array, index_integer,
                      value_integer));
 #else

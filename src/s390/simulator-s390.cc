@@ -842,6 +842,7 @@ void Simulator::EvalTableInit() {
   EvalTable[OI] = &Simulator::Evaluate_OI;
   EvalTable[XI] = &Simulator::Evaluate_XI;
   EvalTable[LM] = &Simulator::Evaluate_LM;
+  EvalTable[CS] = &Simulator::Evaluate_CS;
   EvalTable[MVCLE] = &Simulator::Evaluate_MVCLE;
   EvalTable[CLCLE] = &Simulator::Evaluate_CLCLE;
   EvalTable[MC] = &Simulator::Evaluate_MC;
@@ -6446,7 +6447,7 @@ EVALUATE(RISBG) {
 
   if (!zero_remaining) {
     // Merged the unselected bits from the original value
-    selected_val = (src_val & ~selection_mask) | selected_val;
+    selected_val = (get_register(r1) & ~selection_mask) | selected_val;
   }
 
   // Condition code is set by treating result as 64-bit signed int
@@ -7811,10 +7812,10 @@ EVALUATE(TMLL) {
   mask = 0x80000000u >> leadingZeros;
   if (mask & r1_val) {
     // leftmost bit is one
-    condition_reg_ = 0x4;
+    condition_reg_ = 0x2;
   } else {
     // leftmost bit is zero
-    condition_reg_ = 0x2;
+    condition_reg_ = 0x4;
   }
   return length;  // Done!
 #else
@@ -10499,9 +10500,13 @@ EVALUATE(LLCR) {
 }
 
 EVALUATE(LLHR) {
-  UNIMPLEMENTED();
-  USE(instr);
-  return 0;
+  DCHECK_OPCODE(LLHR);
+  DECODE_RRE_INSTRUCTION(r1, r2);
+  uint32_t r2_val = get_low_register<uint32_t>(r2);
+  r2_val <<= 16;
+  r2_val >>= 16;
+  set_low_register(r1, r2_val);
+  return length;
 }
 
 EVALUATE(MLR) {
@@ -11979,7 +11984,53 @@ EVALUATE(SLLG) {
   return length;
 }
 
+EVALUATE(CS) {
+  DCHECK_OPCODE(CS);
+  DECODE_RS_A_INSTRUCTION(r1, r3, rb, d2);
+  int32_t offset = d2;
+  int64_t rb_val = (rb == 0) ? 0 : get_register(rb);
+  intptr_t target_addr = static_cast<intptr_t>(rb_val) + offset;
+
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r3_val = get_low_register<int32_t>(r3);
+
+  DCHECK((target_addr & 0x3) == 0);
+  bool is_success = __atomic_compare_exchange_n(
+      reinterpret_cast<int32_t*>(target_addr), &r1_val, r3_val, true,
+      __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+  if (!is_success) {
+    set_low_register(r1, r1_val);
+    condition_reg_ = 0x4;
+  } else {
+    condition_reg_ = 0x8;
+  }
+  return length;
+}
+
 EVALUATE(CSY) {
+  DCHECK_OPCODE(CSY);
+  DECODE_RSY_A_INSTRUCTION(r1, r3, b2, d2);
+  int32_t offset = d2;
+  int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
+  intptr_t target_addr = static_cast<intptr_t>(b2_val) + offset;
+
+  int32_t r1_val = get_low_register<int32_t>(r1);
+  int32_t r3_val = get_low_register<int32_t>(r3);
+
+  DCHECK((target_addr & 0x3) == 0);
+  bool is_success = __atomic_compare_exchange_n(
+      reinterpret_cast<int32_t*>(target_addr), &r1_val, r3_val, true,
+      __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+  if (!is_success) {
+    set_low_register(r1, r1_val);
+    condition_reg_ = 0x4;
+  } else {
+    condition_reg_ = 0x8;
+  }
+  return length;
+}
+
+EVALUATE(CSG) {
   UNIMPLEMENTED();
   USE(instr);
   return 0;

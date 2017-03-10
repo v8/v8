@@ -1804,6 +1804,21 @@ void Assembler::lmg(Register r1, Register r2, const MemOperand& src) {
   rsy_form(LMG, r1, r2, src.rb(), src.offset());
 }
 
+// 32-bit Compare and Swap
+void Assembler::cs(Register r1, Register r2, const MemOperand& src) {
+  rs_form(CS, r1, r2, src.rb(), src.offset());
+}
+
+// 32-bit Compare and Swap
+void Assembler::csy(Register r1, Register r2, const MemOperand& src) {
+  rsy_form(CSY, r1, r2, src.rb(), src.offset());
+}
+
+// 64-bit Compare and Swap
+void Assembler::csg(Register r1, Register r2, const MemOperand& src) {
+  rsy_form(CSG, r1, r2, src.rb(), src.offset());
+}
+
 // Move integer (32)
 void Assembler::mvhi(const MemOperand& opnd1, const Operand& i2) {
   sil_form(MVHI, opnd1.getBaseRegister(), opnd1.getDisplacement(), i2);

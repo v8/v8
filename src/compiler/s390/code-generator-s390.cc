@@ -2260,13 +2260,138 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kAtomicStoreWord32:
       __ StoreW(i.InputRegister(0), i.MemoryOperand(NULL, 1));
       break;
+//         0x aa bb cc dd
+// index =    3..2..1..0
+#define ATOMIC_EXCHANGE(start, end, shift_amount, offset)                    \
+  {                                                                          \
+    Label do_cs;                                                             \
+    __ LoadlW(output, MemOperand(r1));                                       \
+    __ bind(&do_cs);                                                         \
+    __ llgfr(r0, output);                                                    \
+    __ risbg(r0, value, Operand(start), Operand(end), Operand(shift_amount), \
+             false);                                                         \
+    __ csy(output, r0, MemOperand(r1, offset));                              \
+    __ bne(&do_cs, Label::kNear);                                            \
+    __ srl(output, Operand(shift_amount));                                   \
+  }
+#ifdef V8_TARGET_BIG_ENDIAN
+#define ATOMIC_EXCHANGE_BYTE(i)                                  \
+  {                                                              \
+    constexpr int idx = (i);                                     \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!"); \
+    constexpr int start = 32 + 8 * idx;                          \
+    constexpr int end = start + 7;                               \
+    constexpr int shift_amount = (3 - idx) * 8;                  \
+    ATOMIC_EXCHANGE(start, end, shift_amount, -idx);             \
+  }
+#define ATOMIC_EXCHANGE_HALFWORD(i)                              \
+  {                                                              \
+    constexpr int idx = (i);                                     \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!"); \
+    constexpr int start = 32 + 16 * idx;                         \
+    constexpr int end = start + 15;                              \
+    constexpr int shift_amount = (1 - idx) * 16;                 \
+    ATOMIC_EXCHANGE(start, end, shift_amount, -idx * 2);         \
+  }
+#else
+#define ATOMIC_EXCHANGE_BYTE(i)                                  \
+  {                                                              \
+    constexpr int idx = (i);                                     \
+    static_assert(idx <= 3 && idx >= 0, "idx is out of range!"); \
+    constexpr int start = 32 + 8 * (3 - idx);                    \
+    constexpr int end = start + 7;                               \
+    constexpr int shift_amount = idx * 8;                        \
+    ATOMIC_EXCHANGE(start, end, shift_amount, -idx);             \
+  }
+#define ATOMIC_EXCHANGE_HALFWORD(i)                              \
+  {                                                              \
+    constexpr int idx = (i);                                     \
+    static_assert(idx <= 1 && idx >= 0, "idx is out of range!"); \
+    constexpr int start = 32 + 16 * (1 - idx);                   \
+    constexpr int end = start + 15;                              \
+    constexpr int shift_amount = idx * 16;                       \
+    ATOMIC_EXCHANGE(start, end, shift_amount, -idx * 2);         \
+  }
+#endif
     case kAtomicExchangeInt8:
-    case kAtomicExchangeUint8:
-    case kAtomicExchangeInt16:
-    case kAtomicExchangeUint16:
-    case kAtomicExchangeWord32:
-      UNREACHABLE();
+    case kAtomicExchangeUint8: {
+      Register base = i.InputRegister(0);
+      Register index = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register output = i.OutputRegister();
+      Label three, two, one, done;
+      __ la(r1, MemOperand(base, index));
+      __ tmll(r1, Operand(3));
+      __ b(Condition(1), &three);
+      __ b(Condition(2), &two);
+      __ b(Condition(4), &one);
+
+      // end with 0b00
+      ATOMIC_EXCHANGE_BYTE(0);
+      __ b(&done);
+
+      // ending with 0b01
+      __ bind(&one);
+      ATOMIC_EXCHANGE_BYTE(1);
+      __ b(&done);
+
+      // ending with 0b10
+      __ bind(&two);
+      ATOMIC_EXCHANGE_BYTE(2);
+      __ b(&done);
+
+      // ending with 0b11
+      __ bind(&three);
+      ATOMIC_EXCHANGE_BYTE(3);
+
+      __ bind(&done);
+      if (opcode == kAtomicExchangeInt8) {
+        __ lbr(output, output);
+      } else {
+        __ llcr(output, output);
+      }
       break;
+    }
+    case kAtomicExchangeInt16:
+    case kAtomicExchangeUint16: {
+      Register base = i.InputRegister(0);
+      Register index = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register output = i.OutputRegister();
+      Label two, unaligned, done;
+      __ la(r1, MemOperand(base, index));
+      __ tmll(r1, Operand(3));
+      __ b(Condition(2), &two);
+
+      // end with 0b00
+      ATOMIC_EXCHANGE_HALFWORD(0);
+      __ b(&done);
+
+      // ending with 0b10
+      __ bind(&two);
+      ATOMIC_EXCHANGE_HALFWORD(1);
+
+      __ bind(&done);
+      if (opcode == kAtomicExchangeInt8) {
+        __ lhr(output, output);
+      } else {
+        __ llhr(output, output);
+      }
+      break;
+    }
+    case kAtomicExchangeWord32: {
+      Register base = i.InputRegister(0);
+      Register index = i.InputRegister(1);
+      Register value = i.InputRegister(2);
+      Register output = i.OutputRegister();
+      Label do_cs;
+      __ lay(r1, MemOperand(base, index));
+      __ LoadlW(output, MemOperand(r1));
+      __ bind(&do_cs);
+      __ cs(output, value, MemOperand(r1));
+      __ bne(&do_cs, Label::kNear);
+      break;
+    }
     default:
       UNREACHABLE();
       break;

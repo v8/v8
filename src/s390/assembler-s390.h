@@ -1063,6 +1063,11 @@ class Assembler : public AssemblerBase {
   void cliy(const MemOperand& mem, const Operand& imm);
   void clc(const MemOperand& opnd1, const MemOperand& opnd2, Length length);
 
+  // Compare and Swap Instructions
+  void cs(Register r1, Register r2, const MemOperand& src);
+  void csy(Register r1, Register r2, const MemOperand& src);
+  void csg(Register r1, Register r2, const MemOperand& src);
+
   // Test Under Mask Instructions
   void tm(const MemOperand& mem, const Operand& imm);
   void tmy(const MemOperand& mem, const Operand& imm);
