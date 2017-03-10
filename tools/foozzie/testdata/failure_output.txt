@@ -9,9 +9,9 @@
 # Compared x64,ignition with x64,ignition_staging
 #
 # Flags of x64,ignition:
---abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --ignition --turbo-filter=~ --hydrogen-filter=~ --validate-asm --nocrankshaft
+--abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --ignition --turbo-filter=~ --hydrogen-filter=~ --nocrankshaft
 # Flags of x64,ignition_staging:
---abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --ignition-staging --validate-asm
+--abort_on_stack_overflow --expose-gc --allow-natives-syntax --invoke-weak-callbacks --omit-quit --es-staging --random-seed 12345 --ignition-staging
 #
 # Difference:
 - unknown

@@ -20,20 +20,44 @@ import v8_commands
 import v8_suppressions
 
 CONFIGS = dict(
-  default=['--validate-asm'],
-  fullcode=['--nocrankshaft', '--turbo-filter=~', '--validate-asm'],
-  ignition=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
-            '--validate-asm', '--nocrankshaft'],
-  ignition_eager=['--ignition', '--turbo-filter=~', '--hydrogen-filter=~',
-                  '--validate-asm', '--nocrankshaft', '--no-lazy',
-                  '--no-lazy-inner-functions'],
-  ignition_staging=['--ignition-staging', '--validate-asm'],
-  ignition_turbo=['--ignition-staging', '--turbo', '--validate-asm'],
-  ignition_turbo_opt=['--ignition-staging', '--turbo', '--always-opt',
-                      '--validate-asm'],
+  default=[],
+  fullcode=[
+    '--nocrankshaft',
+    '--turbo-filter=~',
+  ],
+  ignition=[
+    '--ignition',
+    '--turbo-filter=~',
+    '--hydrogen-filter=~',
+    '--nocrankshaft',
+  ],
+  ignition_eager=[
+    '--ignition',
+    '--turbo-filter=~',
+    '--hydrogen-filter=~',
+    '--nocrankshaft',
+    '--no-lazy',
+    '--no-lazy-inner-functions',
+  ],
+  ignition_staging=[
+    '--ignition-staging',
+  ],
+  ignition_turbo=[
+    '--ignition-staging',
+    '--turbo',
+  ],
+  ignition_turbo_opt=[
+    '--ignition-staging',
+    '--turbo',
+    '--always-opt',
+  ],
   ignition_turbo_opt_eager=[
-    '--ignition-staging', '--turbo', '--always-opt', '--validate-asm',
-    '--no-lazy', '--no-lazy-inner-functions'],
+    '--ignition-staging',
+    '--turbo',
+    '--always-opt',
+    '--no-lazy',
+    '--no-lazy-inner-functions',
+  ],
 )
 
 # Timeout in seconds for one d8 run.
