@@ -1138,6 +1138,18 @@ DEFINE_BOOL(log_handles, false, "Log global handle events.")
 DEFINE_BOOL(log_suspect, false, "Log suspect operations.")
 DEFINE_BOOL(prof, false,
             "Log statistical profiling information (implies --log-code).")
+
+#if defined(ANDROID)
+// Phones and tablets have processors that are much slower than desktop
+// and laptop computers for which current heuristics are tuned.
+#define DEFAULT_PROF_SAMPLING_INTERVAL 5000
+#else
+#define DEFAULT_PROF_SAMPLING_INTERVAL 1000
+#endif
+DEFINE_INT(prof_sampling_interval, DEFAULT_PROF_SAMPLING_INTERVAL,
+           "Interval for --prof samples (in microseconds).")
+#undef DEFAULT_PROF_SAMPLING_INTERVAL
+
 DEFINE_BOOL(prof_cpp, false, "Like --prof, but ignore generated code.")
 DEFINE_IMPLICATION(prof, prof_cpp)
 DEFINE_BOOL(prof_browser_mode, true,

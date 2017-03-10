@@ -524,21 +524,22 @@ class SamplingThread : public base::Thread {
  public:
   static const int kSamplingThreadStackSize = 64 * KB;
 
-  SamplingThread(sampler::Sampler* sampler, int interval)
-      : base::Thread(base::Thread::Options("SamplingThread",
-                                           kSamplingThreadStackSize)),
+  SamplingThread(sampler::Sampler* sampler, int interval_microseconds)
+      : base::Thread(
+            base::Thread::Options("SamplingThread", kSamplingThreadStackSize)),
         sampler_(sampler),
-        interval_(interval) {}
+        interval_microseconds_(interval_microseconds) {}
   void Run() override {
     while (sampler_->IsProfiling()) {
       sampler_->DoSample();
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(interval_));
+      base::OS::Sleep(
+          base::TimeDelta::FromMicroseconds(interval_microseconds_));
     }
   }
 
  private:
   sampler::Sampler* sampler_;
-  const int interval_;
+  const int interval_microseconds_;
 };
 
 
@@ -616,10 +617,10 @@ class Profiler: public base::Thread {
 //
 class Ticker: public sampler::Sampler {
  public:
-  Ticker(Isolate* isolate, int interval)
+  Ticker(Isolate* isolate, int interval_microseconds)
       : sampler::Sampler(reinterpret_cast<v8::Isolate*>(isolate)),
         profiler_(nullptr),
-        sampling_thread_(new SamplingThread(this, interval)) {}
+        sampling_thread_(new SamplingThread(this, interval_microseconds)) {}
 
   ~Ticker() {
     if (IsActive()) Stop();
@@ -760,7 +761,7 @@ void Logger::removeCodeEventListener(CodeEventListener* listener) {
 void Logger::ProfilerBeginEvent() {
   if (!log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
-  msg.Append("profiler,\"begin\",%d", kSamplingIntervalMs);
+  msg.Append("profiler,\"begin\",%d", FLAG_prof_sampling_interval);
   msg.WriteToLogFile();
 }
 
@@ -1754,7 +1755,7 @@ bool Logger::SetUp(Isolate* isolate) {
     addCodeEventListener(ll_logger_);
   }
 
-  ticker_ = new Ticker(isolate, kSamplingIntervalMs);
+  ticker_ = new Ticker(isolate, FLAG_prof_sampling_interval);
 
   if (Log::InitLogAtStart()) {
     is_logging_ = true;
