@@ -593,6 +593,7 @@
 ['variant == stress', {
   'es6/array-iterator-turbo': [SKIP],
 
+  'array-natives-elements': [SKIP],
   'ignition/regress-599001-verifyheap': [SKIP],
   'unicode-test': [SKIP],
 }],  # variant == stress
