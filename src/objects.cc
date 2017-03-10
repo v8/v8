@@ -1620,9 +1620,7 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
     Handle<Name> name = it->name();
     DCHECK(!name->IsPrivate());
 
-    if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
-      return isolate->factory()->undefined_value();
-    }
+    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
 
     v8::GenericNamedPropertyGetterCallback getter =
         v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
@@ -1646,10 +1644,8 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   HandleScope scope(isolate);
 
   Handle<JSObject> holder = it->GetHolder<JSObject>();
-  if (!it->IsElement() && it->name()->IsSymbol() &&
-      !interceptor->can_intercept_symbols()) {
-    return Just(ABSENT);
-  }
+  DCHECK_IMPLIES(!it->IsElement() && it->name()->IsSymbol(),
+                 interceptor->can_intercept_symbols());
   Handle<Object> receiver = it->GetReceiver();
   if (!receiver->IsJSReceiver()) {
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, receiver,
@@ -1733,9 +1729,7 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
     Handle<Name> name = it->name();
     DCHECK(!name->IsPrivate());
 
-    if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
-      return Just(false);
-    }
+    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
 
     v8::GenericNamedPropertySetterCallback setter =
         v8::ToCData<v8::GenericNamedPropertySetterCallback>(
@@ -1798,9 +1792,7 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
     Handle<Name> name = it->name();
     DCHECK(!name->IsPrivate());
 
-    if (name->IsSymbol() && !interceptor->can_intercept_symbols()) {
-      return Just(false);
-    }
+    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
 
     v8::GenericNamedPropertyDefinerCallback definer =
         v8::ToCData<v8::GenericNamedPropertyDefinerCallback>(
@@ -5950,9 +5942,9 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
     v8::IndexedPropertyDeleterCallback deleter =
         v8::ToCData<v8::IndexedPropertyDeleterCallback>(interceptor->deleter());
     result = args.Call(deleter, index);
-  } else if (it->name()->IsSymbol() && !interceptor->can_intercept_symbols()) {
-    return Nothing<bool>();
   } else {
+    DCHECK_IMPLIES(it->name()->IsSymbol(),
+                   interceptor->can_intercept_symbols());
     Handle<Name> name = it->name();
     DCHECK(!name->IsPrivate());
     v8::GenericNamedPropertyDeleterCallback deleter =

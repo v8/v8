@@ -764,7 +764,9 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
 template <bool is_element>
 bool LookupIterator::SkipInterceptor(JSObject* holder) {
   auto info = GetInterceptor<is_element>(holder);
-  // TODO(dcarney): check for symbol/can_intercept_symbols here as well.
+  if (!is_element && name_->IsSymbol() && !info->can_intercept_symbols()) {
+    return true;
+  }
   if (info->non_masking()) {
     switch (interceptor_state_) {
       case InterceptorState::kUninitialized:
