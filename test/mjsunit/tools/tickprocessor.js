@@ -322,8 +322,13 @@ CppEntriesProviderMock.prototype.parseVmSymbols = function(
 
 
 function PrintMonitor(outputOrFileName) {
-  var expectedOut = this.expectedOut = typeof outputOrFileName == 'string' ?
-      this.loadExpectedOutput(outputOrFileName) : outputOrFileName;
+  this.expectedOut = outputOrFileName;
+  this.outputFile = undefined;
+  if (typeof outputOrFileName == 'string') {
+    this.expectedOut = this.loadExpectedOutput(outputOrFileName)
+    this.outputFile = outputOrFileName;
+  }
+  var expectedOut = this.expectedOut;
   var outputPos = 0;
   var diffs = this.diffs = [];
   var realOut = this.realOut = [];
@@ -361,6 +366,9 @@ PrintMonitor.prototype.finish = function() {
     print("===== actual output: =====");
     print(this.realOut.join('\n'));
     print("===== expected output: =====");
+    if (this.outputFile) {
+      print("===== File: " + this.outputFile + " =====");
+    }
     print(this.expectedOut.join('\n'));
     assertEquals([], this.diffs);
     assertNull(this.unexpectedOut);
