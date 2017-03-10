@@ -1351,6 +1351,9 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
           if (code->GetCode()->is_exception_caught()) {
             return HandlerTable::CAUGHT;
           }
+
+          // The built-in must be marked with an exception prediction.
+          UNREACHABLE();
         }
 
         if (code->kind() == AbstractCode::OPTIMIZED_FUNCTION) {

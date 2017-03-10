@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdlib.h>
+#include <set>
 
 #include "src/v8.h"
 
@@ -6649,4 +6650,35 @@ TEST(DebugCoverage) {
   CHECK_EQ(1, end.GetLineNumber());
   CHECK_EQ(1, end.GetColumnNumber());
   CHECK_EQ(2, function_data.Count());
+}
+
+TEST(BuiltinsExceptionPrediction) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Context::New(isolate);
+
+  // TODO(gsathya): Fix catch prediction for the following.
+  std::set<int> whitelist({i::Builtins::kPromiseThenFinally,
+                           i::Builtins::kPromiseCatchFinally,
+                           i::Builtins::kAsyncFromSyncIteratorPrototypeNext,
+                           i::Builtins::kAsyncFromSyncIteratorPrototypeThrow,
+                           i::Builtins::kAsyncFromSyncIteratorPrototypeReturn});
+
+  i::Builtins* builtins = CcTest::i_isolate()->builtins();
+  bool fail = false;
+  for (int i = 0; i < i::Builtins::builtin_count; i++) {
+    Code* builtin = builtins->builtin(static_cast<i::Builtins::Name>(i));
+
+    if (i::HandlerTable::cast(builtin->handler_table())->length() == 0)
+      continue;
+
+    if (builtin->is_promise_rejection() || builtin->is_exception_caught())
+      continue;
+
+    if (whitelist.find(i) != whitelist.end()) continue;
+
+    fail = true;
+    i::PrintF("%s is missing exception predictions.\n", builtins->name(i));
+  }
+  CHECK(!fail);
 }

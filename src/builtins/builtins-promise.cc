@@ -742,7 +742,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
         Goto(&reject);
 
         Bind(&reject);
-        // Don't cause a debug event as this case is forwarding a rejection
+        // Don't cause a debug event as this case is forwarding a rejection.
         InternalPromiseReject(context, promise, thenable_value, false);
         PromiseSetHasHandler(result);
         Goto(&out);
@@ -825,7 +825,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   // 9.a Return RejectPromise(promise, then.[[Value]]).
   Bind(&if_rejectpromise);
   {
-    InternalPromiseReject(context, promise, var_reason.value(), true);
+    // Don't cause a debug event as this case is forwarding a rejection.
+    InternalPromiseReject(context, promise, var_reason.value(), false);
     Goto(&out);
   }
 
