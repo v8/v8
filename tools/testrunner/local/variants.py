@@ -12,7 +12,6 @@ ALL_VARIANT_FLAGS = {
   "noturbofan_stress": [["--no-turbo", "--stress-opt", "--always-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition"]],
-  "ignition_staging": [["--ignition-staging"]],
   "ignition_turbofan": [["--ignition-staging", "--turbo"]],
   "asm_wasm": [["--validate-asm"]],
   "wasm_traps": [["--wasm_guard_pages", "--invoke-weak-callbacks"]],
@@ -27,7 +26,6 @@ FAST_VARIANT_FLAGS = {
   "noturbofan_stress": [["--no-turbo", "--stress-opt"]],
   "nocrankshaft": [["--nocrankshaft"]],
   "ignition": [["--ignition"]],
-  "ignition_staging": [["--ignition-staging"]],
   "ignition_turbofan": [["--ignition-staging", "--turbo"]],
   "asm_wasm": [["--validate-asm"]],
   "wasm_traps": [["--wasm_guard_pages", "--invoke-weak-callbacks"]],
@@ -35,5 +33,5 @@ FAST_VARIANT_FLAGS = {
 
 ALL_VARIANTS = set(["default", "stress", "turbofan", "turbofan_opt",
                     "noturbofan", "noturbofan_opt",
-                    "nocrankshaft", "ignition", "ignition_staging",
+                    "nocrankshaft", "ignition",
                     "ignition_turbofan", "asm_wasm", "wasm_traps"])

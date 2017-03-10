@@ -105,7 +105,7 @@ TEST_MAP = {
 TIMEOUT_DEFAULT = 60
 
 # Variants ordered by expected runtime (slowest first).
-VARIANTS = ["ignition_staging", "default", "noturbofan"]
+VARIANTS = ["default", "noturbofan"]
 
 MORE_VARIANTS = [
   "stress",
