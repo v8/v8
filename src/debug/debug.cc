@@ -815,7 +815,7 @@ void Debug::ClearAllBreakPoints() {
 }
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
-  if (!shared->IsSubjectToDebugging() || IsBlackboxed(shared)) return;
+  if (IsBlackboxed(shared)) return;
   // Make sure the function is compiled and has set up the debug info.
   if (!EnsureDebugInfo(shared)) return;
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
@@ -960,7 +960,7 @@ void Debug::PrepareStepOnThrow() {
         }
         Handle<SharedFunctionInfo> info(
             summaries[i].AsJavaScript().function()->shared());
-        if (!info->IsSubjectToDebugging() || IsBlackboxed(info)) continue;
+        if (IsBlackboxed(info)) continue;
         FloodWithOneShot(info);
         return;
       }
@@ -1055,7 +1055,7 @@ void Debug::PrepareStep(StepAction step_action) {
             in_current_frame = false;
             continue;
           }
-          if (!info->IsSubjectToDebugging() || IsBlackboxed(info)) continue;
+          if (IsBlackboxed(info)) continue;
           FloodWithOneShot(info);
           thread_local_.target_frame_count_ = current_frame_count;
           return;
@@ -1732,25 +1732,23 @@ v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
 }  // anonymous namespace
 
 bool Debug::IsExceptionBlackboxed(bool uncaught) {
-  JavaScriptFrameIterator it(isolate_);
-  if (it.done()) return false;
   // Uncaught exception is blackboxed if all current frames are blackboxed,
   // caught exception if top frame is blackboxed.
-  bool is_top_frame_blackboxed = IsFrameBlackboxed(it.frame());
+  StackTraceFrameIterator it(isolate_);
+  while (!it.done() && it.is_wasm()) it.Advance();
+  bool is_top_frame_blackboxed =
+      !it.done() ? IsFrameBlackboxed(it.javascript_frame()) : true;
   if (!uncaught || !is_top_frame_blackboxed) return is_top_frame_blackboxed;
   return AllFramesOnStackAreBlackboxed();
 }
 
 bool Debug::IsFrameBlackboxed(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
-  if (!frame->HasInlinedFrames()) {
-    Handle<SharedFunctionInfo> shared(frame->function()->shared(), isolate_);
-    return IsBlackboxed(shared);
-  }
   List<Handle<SharedFunctionInfo>> infos;
   frame->GetFunctions(&infos);
-  for (const auto& info : infos)
+  for (const auto& info : infos) {
     if (!IsBlackboxed(info)) return false;
+  }
   return true;
 }
 
@@ -1970,22 +1968,23 @@ debug::Location GetDebugLocation(Handle<Script> script, int source_position) {
 }  // namespace
 
 bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
-  if (!debug_delegate_) return false;
+  if (!debug_delegate_) return !shared->IsSubjectToDebugging();
   if (!shared->computed_debug_is_blackboxed()) {
-    bool is_blackboxed = false;
-    if (shared->script()->IsScript()) {
+    bool is_blackboxed =
+        !shared->IsSubjectToDebugging() || !shared->script()->IsScript();
+    if (!is_blackboxed) {
       SuppressDebug while_processing(this);
       HandleScope handle_scope(isolate_);
       PostponeInterruptsScope no_interrupts(isolate_);
       DisableBreak no_recursive_break(this);
+      DCHECK(shared->script()->IsScript());
       Handle<Script> script(Script::cast(shared->script()));
-      if (script->type() == i::Script::TYPE_NORMAL) {
-        debug::Location start =
-            GetDebugLocation(script, shared->start_position());
-        debug::Location end = GetDebugLocation(script, shared->end_position());
-        is_blackboxed = debug_delegate_->IsFunctionBlackboxed(
-            ToApiHandle<debug::Script>(script), start, end);
-      }
+      DCHECK(script->type() == i::Script::TYPE_NORMAL);
+      debug::Location start =
+          GetDebugLocation(script, shared->start_position());
+      debug::Location end = GetDebugLocation(script, shared->end_position());
+      is_blackboxed = debug_delegate_->IsFunctionBlackboxed(
+          ToApiHandle<debug::Script>(script), start, end);
     }
     shared->set_debug_is_blackboxed(is_blackboxed);
     shared->set_computed_debug_is_blackboxed(true);
@@ -1996,7 +1995,6 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
 bool Debug::AllFramesOnStackAreBlackboxed() {
   HandleScope scope(isolate_);
   for (StackTraceFrameIterator it(isolate_); !it.done(); it.Advance()) {
-    if (!it.is_javascript()) continue;
     if (!IsFrameBlackboxed(it.javascript_frame())) return false;
   }
   return true;
@@ -2019,7 +2017,6 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
     it.Advance();
     created_by_user =
         !it.done() &&
-        it.frame()->function()->shared()->IsSubjectToDebugging() &&
         !IsFrameBlackboxed(it.frame());
   }
   debug_delegate_->PromiseEventOccurred(
@@ -2153,7 +2150,7 @@ void Debug::HandleDebugBreak() {
       // Don't stop in builtin and blackboxed functions.
       Handle<SharedFunctionInfo> shared(JSFunction::cast(fun)->shared(),
                                         isolate_);
-      if (!shared->IsSubjectToDebugging() || IsBlackboxed(shared)) {
+      if (IsBlackboxed(shared)) {
         // Inspector uses pause on next statement for asynchronous breakpoints.
         // When breakpoint is fired we try to break on first not blackboxed
         // statement. To achieve this goal we need to deoptimize current
@@ -2161,7 +2158,9 @@ void Debug::HandleDebugBreak() {
         // to be able to break on not blackboxed function call.
         // TODO(yangguo): introduce break_on_function_entry since current
         // implementation is slow.
-        Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+        if (isolate_->stack_guard()->CheckDebugBreak()) {
+          Deoptimizer::DeoptimizeFunction(JSFunction::cast(fun));
+        }
         return;
       }
       JSGlobalObject* global =
